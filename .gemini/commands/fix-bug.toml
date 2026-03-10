@@ -1,0 +1,2 @@
+description = "Report and fix a bug (e.g., /fix-bug login fails with expired token)"
+prompt = "Fix bug: {{args}}. Follow the bug-workflow skill in .gemini/skills/bug-workflow/SKILL.md"

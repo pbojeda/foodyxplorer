@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "SubagentStop": [
+      {
+        "matcher": "backend-developer|frontend-developer",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/quick-scan.sh\"",
+            "timeout": 30,
+            "statusMessage": "Running quick scan..."
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"additionalContext\": \"Context was compacted. BEFORE doing anything else: read the product tracker Active Session section (docs/project_notes/product-tracker.md) for context recovery. Follow the Session Recovery protocol in CLAUDE.md.\"}'",
+            "statusMessage": "Injecting recovery context..."
+          }
+        ]
+      }
+    ]
+  }
+}

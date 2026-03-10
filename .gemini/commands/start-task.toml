@@ -1,0 +1,2 @@
+description = "Start working on a specific feature (e.g., /start-task F001)"
+prompt = "Start task {{args}}. Follow the development-workflow skill in .gemini/skills/development-workflow/SKILL.md"

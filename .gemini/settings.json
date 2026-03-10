@@ -1,0 +1,5 @@
+{
+  "model": "gemini-2.5-pro",
+  "temperature": 0.2,
+  "instructions": "Follow the development standards in ai-specs/specs/base-standards.mdc. Use the agent instructions in .gemini/agents/ for specialized tasks. Use the workflow skills in .gemini/skills/ for task orchestration. Custom commands are available in .gemini/commands/."
+}

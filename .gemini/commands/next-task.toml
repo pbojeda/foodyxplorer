@@ -1,0 +1,2 @@
+description = "Start the next pending feature from the product tracker"
+prompt = "Read the product tracker in docs/project_notes/ and start the next pending feature. Follow the development-workflow skill in .gemini/skills/development-workflow/SKILL.md"

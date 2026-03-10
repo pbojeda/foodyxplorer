@@ -1,0 +1,2 @@
+description = "Add a new feature to the product tracker (e.g., /add-feature User authentication)"
+prompt = "Add feature '{{args}}' to the product tracker. Follow the add-feature template in .gemini/skills/development-workflow/references/add-feature-template.md"

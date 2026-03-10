@@ -1,0 +1,2 @@
+description = "Show current progress and active feature status"
+prompt = "Read the product tracker in docs/project_notes/ and show: current progress (features done vs total), active feature and step, and list of pending features."
