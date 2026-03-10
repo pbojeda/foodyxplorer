@@ -1,0 +1,61 @@
+graph TD
+  subgraph FUENTES["📚 Fuentes de datos"]
+    DS[data_sources]
+  end
+
+  subgraph ALIMENTOS["🥦 Alimentos base"]
+    F[foods]
+    FN[food_nutrients]
+    SP[standard_portions]
+  end
+
+  subgraph COCCION["🍳 Cocción"]
+    CM[cooking_methods]
+    FCF[food_cooking_factors]
+  end
+
+  subgraph TAXONOMIA["🗂️ Taxonomía"]
+    DC[dish_categories]
+  end
+
+  subgraph RESTAURANTES["🍽️ Restaurantes"]
+    RC[restaurant_chains]
+    R[restaurants]
+  end
+
+  subgraph PLATOS["🥗 Platos"]
+    D[dishes]
+    DNu[dish_nutrients]
+    DI[dish_ingredients]
+  end
+
+  subgraph USUARIOS["👤 Usuarios"]
+    U[users]
+    RO[restaurant_owners]
+    NCL[nutrient_change_log]
+  end
+
+  subgraph CACHE["⚡ Caché / Analytics"]
+    QL[query_log]
+  end
+
+  DS --> F
+  DS --> FN
+  DS --> DNu
+  F --> FN
+  F --> SP
+  F --> FCF
+  CM --> FCF
+  CM --> DI
+  DC --> D
+  RC --> R
+  RC --> D
+  R --> D
+  D --> DNu
+  D --> DI
+  DI --> F
+  D --> NCL
+  U --> NCL
+  U --> RO
+  RC --> RO
+  R --> RO

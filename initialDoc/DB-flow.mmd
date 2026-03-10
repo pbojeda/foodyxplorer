@@ -1,0 +1,25 @@
+flowchart TD
+  A([Consulta del usuario]) --> B{¿Plato en BD\ncon datos oficiales?}
+
+  B -->|Sí| C[🟢 NIVEL 1\nDato oficial]
+  C --> C1[confidence: HIGH\nestimation: official]
+
+  B -->|No| D{¿Plato tiene\ningredientes en BD?}
+
+  D -->|Sí| E[🟡 NIVEL 2\nEstimación por ingredientes]
+  E --> E1[Buscar food_id\npor cada ingrediente]
+  E1 --> E2[Obtener gramaje\nstandard_portions o LLM]
+  E2 --> E3[Aplicar cooking_method\ncalorie_factor]
+  E3 --> E4[Sumar nutrientes\npor 100g × gramos]
+  E4 --> E5[confidence: MEDIUM\nestimation: ingredients]
+
+  D -->|No| F[🔴 NIVEL 3\nExtrapolación por similitud]
+  F --> F1[Embedding del nombre\ndel plato]
+  F1 --> F2[Buscar platos similares\nvía pgvector]
+  F2 --> F3[Filtrar por\ndish_categories]
+  F3 --> F4[Validar con\nperfil nutricional]
+  F4 --> F5[Ponderar valores\nde platos similares]
+  F5 --> F6[confidence: LOW\nestimation: extrapolation]
+
+  C1 & E5 & F6 --> G[Formatear respuesta\ncon nivel de confianza]
+  G --> H([Respuesta al usuario])
