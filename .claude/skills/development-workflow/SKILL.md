@@ -68,7 +68,7 @@ Ask user to classify complexity before starting. See `references/complexity-guid
 ## Step 0: Spec (Standard/Complex only)
 
 1. Use Task tool with `spec-creator` agent
-2. Agent updates global spec files (`api-spec.yaml`, `ui-components.md`) and Zod schemas in `shared/src/schemas/` if applicable
+2. Agent updates global spec files (`api-spec.yaml`, `ui-components.md`) and validation schemas if applicable
 3. Agent writes spec summary into the ticket's `## Spec` section
 
 **→ CHECKPOINT: Spec Approval** — Update tracker: step `0/6 (Spec)`
@@ -114,7 +114,7 @@ See `references/branching-strategy.md` for details.
 
 **Update specs IN REAL TIME (do not wait until Finalize):**
 - API endpoints → `docs/specs/api-spec.yaml` (MANDATORY)
-- DB schema → Zod schemas in `shared/src/schemas/` (MANDATORY)
+- DB schema → validation schemas (MANDATORY)
 - UI components → `docs/specs/ui-components.md` (MANDATORY)
 - Env variables → `.env.example` | ADRs → `decisions.md`
 

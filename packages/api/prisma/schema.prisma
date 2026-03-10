@@ -1,0 +1,137 @@
+// This is the Prisma schema for foodXPlorer.
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum DataSourceType {
+  official
+  estimated
+  scraped
+  user
+
+  @@map("data_source_type")
+}
+
+enum ConfidenceLevel {
+  high
+  medium
+  low
+
+  @@map("confidence_level")
+}
+
+enum EstimationMethod {
+  official
+  ingredients
+  extrapolation
+  scraped
+
+  @@map("estimation_method")
+}
+
+enum PortionContext {
+  main_course
+  side_dish
+  dessert
+  starter
+  snack
+
+  @@map("portion_context")
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model DataSource {
+  id          String         @id @default(uuid()) @db.Uuid
+  name        String         @db.VarChar(255)
+  type        DataSourceType
+  url         String?        @db.Text
+  lastUpdated DateTime?      @map("last_updated")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  foods            Food[]
+  foodNutrients    FoodNutrient[]
+  standardPortions StandardPortion[]
+
+  @@map("data_sources")
+}
+
+model Food {
+  id              String          @id @default(uuid()) @db.Uuid
+  name            String          @db.VarChar(255)
+  nameEs          String          @map("name_es") @db.VarChar(255)
+  aliases         String[]
+  foodGroup       String?         @map("food_group") @db.VarChar(100)
+  sourceId        String          @map("source_id") @db.Uuid
+  externalId      String?         @map("external_id") @db.VarChar(100)
+  confidenceLevel ConfidenceLevel @map("confidence_level")
+  /// @db.Unsupported — pgvector column; use prisma.$queryRaw / $executeRaw for reads/writes
+  embedding       Unsupported("vector(1536)")?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  source           DataSource      @relation(fields: [sourceId], references: [id])
+  foodNutrients    FoodNutrient[]
+  standardPortions StandardPortion[]
+
+  @@unique([externalId, sourceId])
+  @@map("foods")
+}
+
+model FoodNutrient {
+  id              String          @id @default(uuid()) @db.Uuid
+  foodId          String          @map("food_id") @db.Uuid
+  calories        Decimal         @db.Decimal(8, 2)
+  proteins        Decimal         @db.Decimal(8, 2)
+  carbohydrates   Decimal         @db.Decimal(8, 2)
+  sugars          Decimal         @db.Decimal(8, 2)
+  fats            Decimal         @db.Decimal(8, 2)
+  saturatedFats   Decimal         @map("saturated_fats") @db.Decimal(8, 2)
+  fiber           Decimal         @db.Decimal(8, 2)
+  salt            Decimal         @db.Decimal(8, 2)
+  sodium          Decimal         @db.Decimal(8, 2)
+  extra           Json?
+  sourceId        String          @map("source_id") @db.Uuid
+  confidenceLevel ConfidenceLevel @map("confidence_level")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  food   Food       @relation(fields: [foodId], references: [id])
+  source DataSource @relation(fields: [sourceId], references: [id])
+
+  @@unique([foodId, sourceId])
+  @@map("food_nutrients")
+}
+
+model StandardPortion {
+  id              String          @id @default(uuid()) @db.Uuid
+  foodId          String?         @map("food_id") @db.Uuid
+  foodGroup       String?         @map("food_group") @db.VarChar(100)
+  context         PortionContext
+  portionGrams    Decimal         @map("portion_grams") @db.Decimal(8, 2)
+  sourceId        String          @map("source_id") @db.Uuid
+  notes           String?         @db.Text
+  confidenceLevel ConfidenceLevel @map("confidence_level")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  food   Food?      @relation(fields: [foodId], references: [id])
+  source DataSource @relation(fields: [sourceId], references: [id])
+
+  // XOR constraint enforced via raw SQL CHECK in migration — not expressible in Prisma
+  @@map("standard_portions")
+}

@@ -1,6 +1,6 @@
 # Backend Planner
 
-**Role**: Backend implementation planner (DDD architecture)
+**Role**: Backend implementation planner (layered architecture)
 **When to Use**: Before implementing backend tasks — create implementation plan
 
 ## Instructions
@@ -15,8 +15,8 @@ Generate a detailed Implementation Plan and write it into the ticket's `## Imple
 2. Read `docs/project_notes/key_facts.md`
 3. Read the ticket file (including `## Spec` section)
 4. Read `docs/specs/api-spec.yaml` for current API endpoints and schemas
-5. Read `shared/src/schemas/` (if exists) for current Zod data schemas
-6. Explore existing domain entities, services, validators, repositories
+5. Read `packages/shared/src/schemas/` for existing Zod validation schemas
+6. Explore the codebase for existing patterns, layer structure, and reusable code
 
 **Reuse over recreate.** Only propose new code when existing doesn't fit.
 
@@ -25,7 +25,7 @@ Generate a detailed Implementation Plan and write it into the ticket's `## Imple
 - Existing Code to Reuse
 - Files to Create
 - Files to Modify
-- Implementation Order (Domain > Application > Infrastructure > Presentation > Tests)
+- Implementation Order (see backend-standards.mdc for layer order)
 - Testing Strategy
 - Key Patterns
 

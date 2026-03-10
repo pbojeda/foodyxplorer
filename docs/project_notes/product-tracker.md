@@ -8,20 +8,22 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** —
+**Last Updated:** 2026-03-10
 
 | Field | Value |
 |-------|-------|
-| **Current Feature** | None |
-| **Step** | — |
-| **Branch** | — |
-| **Complexity** | — |
-| **Ticket** | — |
+| **Current Feature** | F001 — Prisma Schema Migration — Core Tables |
+| **Step** | 5/6 (Review) |
+| **Branch** | feature/F001-prisma-schema-core-tables |
+| **Complexity** | Standard |
+| **Ticket** | docs/tickets/F001-prisma-schema-core-tables.md |
 
-**Context:** _No active work._
+**Context:** Implementation and validation complete. 55 tests passing, 0 validation issues. Ready for code review, QA, and merge approval.
 
 **Next Actions:**
-1. —
+1. Code review + QA (Step 5)
+2. User approves merge
+3. Complete (Step 6): cleanup, update tracker
 
 **Open Questions:** _None._
 
@@ -29,17 +31,63 @@
 
 | Step | Decision | Rationale |
 |------|----------|-----------|
-| — | — | — |
+| Day 0 | Branching: gitflow (main + develop + feature/*) | Repo already has develop branch; aligns with Plan Maestro |
+| Day 0 | Name: foodXPlorer as working name | Matches repo name; definitive name pending, not blocking Phase 1 |
+| Day 0 | Ports: API 3000, PG 5432, Redis 6379 | Per Plan Maestro specifications |
 
 ---
 
-## Features
+## Epics — Phase 1
+
+| Epic | Name | Status | Features | Dependencies |
+|------|------|--------|----------|--------------|
+| E001 | Infrastructure & Schema | in-progress | F001-F006 | Day 0 complete |
+| E002 | Data Ingestion Pipeline | pending | F007-F019 | E001 complete |
+| E003 | Estimation Engine | pending | F020-F024 | E001 complete, E002 partial |
+| E004 | Telegram Bot + Public API | pending | F025-F030 | E002 + E003 complete |
+
+## Features — E001 Infrastructure & Schema
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F001 | [Feature description] | backend | pending | — | |
+| F001 | Prisma Schema Migration — Core tables | backend | done | 6/6 | data_sources, foods, food_nutrients, standard_portions |
+| F002 | Prisma Schema Migration — Dishes & Restaurants | backend | pending | — | cooking_methods, dish_categories, restaurants, dishes, dish_nutrients, dish_ingredients |
+| F003 | pgvector Extension & Indexes | backend | pending | — | IVFFlat on foods.embedding, dishes.embedding |
+| F004 | Fastify API Scaffold | backend | pending | — | /health, OpenAPI, Zod validation |
+| F005 | Redis Connection & Cache Layer | backend | pending | — | Cache helper, rate limiting middleware |
+| F006 | Seed Script — USDA/FEN Base Foods | backend | pending | — | Min 500 base foods with nutrients per 100g |
 
-**Status Legend:** pending | in-progress | done | blocked | cancelled
+## Features — E002 Data Ingestion Pipeline
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F007 | Scraper base: Crawlee + Playwright scaffold | backend | pending | — | |
+| F007b | PDF Ingestion Endpoint (POST /ingest/pdf) | backend | pending | — | Upload PDF, extract nutritional data, normalize to schema. Reuses F007 pipeline. |
+| F007c | URL Ingestion Endpoint (POST /ingest/url) | backend | pending | — | Scrape URL for nutritional data, normalize to schema. Reuses F007 pipeline. |
+| F008-F017 | Scraper per chain (10 features) | backend | pending | — | McDonald's, BK, KFC, Telepizza, Domino's, Subway, Five Guys, VIPS, Pans, 100 Montaditos |
+| F018 | Data Quality Monitor | backend | pending | — | |
+| F019 | Embedding Generation Pipeline | backend | pending | — | |
+
+## Features — E003 Estimation Engine
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F020 | Level 1 — Official Data Lookup | backend | pending | — | |
+| F021 | Level 2 — Ingredient-Based Estimation | backend | pending | — | |
+| F022 | Level 3 — Similarity Extrapolation (pgvector) | backend | pending | — | |
+| F023 | Engine Router & Confidence API | backend | pending | — | |
+| F024 | LLM Integration Layer | backend | pending | — | |
+
+## Features — E004 Telegram Bot + Public API
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F025 | Fastify Routes — Core Endpoints | backend | pending | — | |
+| F026 | API Rate Limiting + Auth (API Key) | backend | pending | — | |
+| F027 | Telegram Bot — Command Handler | backend | pending | — | |
+| F028 | Telegram Bot — Natural Language Handler | backend | pending | — | |
+| F029 | Query Log & Analytics | backend | pending | — | |
+| F030 | Monitoring & Alerting | backend | pending | — | |
 
 ---
 
@@ -53,4 +101,6 @@
 
 ## Notes
 
-- Tracker initialized. Use `add feature "description"` to add features.
+- Day 0 setup executed on 2026-03-10
+- Phase 1 target: 6 weeks, 100 users, 10 chains, <3s response, <0.05€/query
+- FEN PDF source for F006 seed: https://www.fen.org.es/storage/app/media/imgPublicaciones/2018/libro-la-alimentacion-espanola.pdf

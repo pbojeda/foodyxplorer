@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.next/
+out/
+build/
+
+# Environment — NEVER commit
+.env
+.env.local
+.env.*.local
+.env.development
+.env.staging
+.env.production
+.npmrc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+coverage/
+
+# Prisma
+packages/api/generated/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Cache
+.turbo/
+.cache/
+
+# Secrets and keys
+*.pem
+*.key
+
+# Docker volumes (local)
+pgdata/
+redisdata/
+
+# Build artifacts
+*.tsbuildinfo
+
+# Claude Code (local settings and session data are personal)
+.claude/settings.local.json
+.claude/agent-memory/
+.claude/projects/

@@ -10,7 +10,7 @@ Translate requirements into precise, standard-compliant specifications. Update g
 ## Workflow
 
 1. Read the ticket or user request
-2. Read existing specs in `docs/specs/` (api-spec.yaml, ui-components.md) and `shared/src/schemas/` (if exists)
+2. Read existing specs in `docs/specs/` (api-spec.yaml, ui-components.md) 
 3. Read relevant standards in `ai-specs/specs/`
 4. Propose spec changes to global files
 5. Write spec summary into ticket's `## Spec` section (Description, API Changes, Data Model Changes, UI Changes, Edge Cases)

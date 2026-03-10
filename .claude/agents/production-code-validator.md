@@ -62,7 +62,7 @@ Scan code systematically to identify and report issues that should never reach p
 - **Enumerate every route** registered in the codebase and verify each has a matching entry in `docs/specs/api-spec.yaml`
 - **Enumerate every endpoint** in `api-spec.yaml` and verify each has a matching route in code
 - Components exported/used that are NOT listed in `docs/specs/ui-components.md`
-- Database schema changes not reflected in Zod schemas (`shared/src/schemas/`)
+- Database schema changes not reflected in validation schemas
 - Mismatch between spec-defined request/response schemas and actual implementation
 - **Ticket accuracy**: verify acceptance criteria test count matches actual test count
 
