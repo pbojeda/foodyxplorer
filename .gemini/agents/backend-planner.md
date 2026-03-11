@@ -15,8 +15,8 @@ Generate a detailed Implementation Plan and write it into the ticket's `## Imple
 2. Read `docs/project_notes/key_facts.md`
 3. Read the ticket file (including `## Spec` section)
 4. Read `docs/specs/api-spec.yaml` for current API endpoints and schemas
-5. Read `packages/shared/src/schemas/` for existing Zod validation schemas
-6. Explore the codebase for existing patterns, layer structure, and reusable code
+5. Read project validation schemas
+5. Explore the codebase for existing patterns, layer structure, and reusable code
 
 **Reuse over recreate.** Only propose new code when existing doesn't fit.
 

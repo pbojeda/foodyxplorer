@@ -87,7 +87,7 @@ See `references/branching-strategy.md` for details.
 2. Create feature branch: `feature/<feature-id>-<short-description>`
 3. **Std/Cplx:** Generate ticket from `references/ticket-template.md` → fill `## Spec` section
 4. **Complex:** Also review `decisions.md` for related ADRs
-5. Update product tracker → Active Session: feature, step `1/6 (Setup)`, branch, complexity
+5. Update product tracker → Active Session: feature, step `1/6 (Setup)`, branch, complexity. Update Features table: status `in-progress`, step `1/6`
 
 **→ CHECKPOINT: Ticket Approval** (Std/Cplx only — Simple skips to Step 3)
 
@@ -98,7 +98,7 @@ See `references/branching-strategy.md` for details.
 1. Use Task tool with planner agent (`backend-planner` for backend features, `frontend-planner` for frontend features)
 2. **Fullstack features:** Run `backend-planner` first, then `frontend-planner`. Each writes its own section in the Implementation Plan
 3. Agent writes Implementation Plan into ticket's `## Implementation Plan`
-4. Update tracker: step `2/6 (Plan)`
+4. Update tracker: step `2/6 (Plan)` (Active Session + Features table)
 
 **→ CHECKPOINT: Plan Approval**
 
@@ -122,7 +122,7 @@ See `references/branching-strategy.md` for details.
 
 **Commits:** Commit freely during implementation (one per logical unit is fine). Final history cleanup happens via squash merge in Step 5.
 
-Update tracker: step `3/6 (Implement)`, context summary.
+Update tracker: step `3/6 (Implement)`, context summary (Active Session + Features table).
 
 ---
 
@@ -137,7 +137,7 @@ Update tracker: step `3/6 (Implement)`, context summary.
 
 **Commit format:** `<type>(<scope>): <description>` + `Co-Authored-By: Claude <noreply@anthropic.com>`
 
-Update tracker: step `4/6 (Finalize)`
+Update tracker: step `4/6 (Finalize)` (Active Session + Features table)
 
 ---
 
@@ -148,11 +148,12 @@ Update tracker: step `4/6 (Finalize)`
 1. Push branch, create PR (use `references/pr-template.md`)
 2. **Std/Cplx:** Run `code-review-specialist` via Task tool — **do NOT skip**
 3. **Std/Cplx:** Also run `qa-engineer` via Task tool
-4. **Merge strategy:** Features/bugfixes → **squash merge** (clean single commit on target branch); Releases/hotfixes → merge commit
+4. **Fix loop:** If review or QA finds issues → fix them → commit fixes → re-run quality gates (`npm test` / lint / build). Repeat until clean.
+5. **Merge strategy:** Features/bugfixes → **squash merge** (clean single commit on target branch); Releases/hotfixes → merge commit
 
 **→ CHECKPOINT: Merge Approval**
 
-Update tracker: step `5/6 (Review)`
+Update tracker: step `5/6 (Review)`, update Features table status
 
 ---
 
@@ -160,9 +161,8 @@ Update tracker: step `5/6 (Review)`
 
 1. **Update ticket with final state:** correct test count in acceptance criteria, mark all checkboxes, update Completion Log with all commits and key events
 2. Delete feature branch (local + remote)
-3. Update product tracker: feature → done, add to Completion Log, update progress
-4. Record bugs in `bugs.md`, decisions in `decisions.md`
-5. Clear Active Session → "No active work"
+3. Update product tracker: Features table status → `done`, add to Completion Log, clear Active Session → "No active work"
+4. Record any bugs found during the feature in `bugs.md`, decisions in `decisions.md`
 
 ---
 
@@ -195,6 +195,6 @@ Update tracker: step `5/6 (Review)`
 - **Type safety** — fully typed, no `any`
 - **English only** — all technical artifacts
 - **Memory first** — check `project_notes/` before changes
-- **Product tracker** — keep Active Session updated at every step
+- **Product tracker** — keep Active Session AND Features table updated at every step
 - **Correct agents** — Backend → `backend-planner` + `backend-developer`, Frontend → `frontend-planner` + `frontend-developer`
 - **Correct base branch** — check `key_facts.md` before creating branches
