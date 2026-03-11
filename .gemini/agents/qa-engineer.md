@@ -15,7 +15,7 @@ You assume the happy path works (checked by Developer). Hunt for edge cases, sec
 2. Identify missing test cases and spec deviations
 3. Run full test suite for regressions
 4. Create new edge-case tests (e.g., `*.edge-cases.test.ts`)
-5. If bugs are found: record each one in `docs/project_notes/bugs.md` with root cause, solution, and prevention notes
+5. If bugs are found (and ONLY if bugs are found): record each one in `docs/project_notes/bugs.md` with root cause, solution, and prevention notes. Do NOT add an entry if no bugs were found.
 6. Report findings (QA Verified or Issues Found)
 
 ## Rules

@@ -71,7 +71,7 @@ Ask user to classify complexity before starting. See `references/complexity-guid
 2. Agent updates global spec files (`api-spec.yaml`, `ui-components.md`) and validation schemas if applicable
 3. Agent writes spec summary into the ticket's `## Spec` section
 
-**→ CHECKPOINT: Spec Approval** — Update tracker: step `0/6 (Spec)`
+**→ CHECKPOINT: Spec Approval** — Update tracker (Active Session + Features table): step `0/6 (Spec)`
 
 ---
 
@@ -122,7 +122,7 @@ See `references/branching-strategy.md` for details.
 
 **Commits:** Commit freely during implementation (one per logical unit is fine). Final history cleanup happens via squash merge in Step 5.
 
-Update tracker: step `3/6 (Implement)`, context summary (Active Session + Features table).
+Update tracker (Active Session + Features table): step `3/6 (Implement)`, context summary. Mark ticket Workflow Checklist `[x]` for Step 3.
 
 ---
 
@@ -137,7 +137,7 @@ Update tracker: step `3/6 (Implement)`, context summary (Active Session + Featur
 
 **Commit format:** `<type>(<scope>): <description>` + `Co-Authored-By: Claude <noreply@anthropic.com>`
 
-Update tracker: step `4/6 (Finalize)` (Active Session + Features table)
+Update tracker (Active Session + Features table): step `4/6 (Finalize)`. Mark ticket Workflow Checklist `[x]` for Step 4.
 
 ---
 
@@ -153,7 +153,15 @@ Update tracker: step `4/6 (Finalize)` (Active Session + Features table)
 
 **→ CHECKPOINT: Merge Approval**
 
-Update tracker: step `5/6 (Review)`, update Features table status
+Before requesting merge approval, verify and complete this checklist:
+- [ ] Ticket: Workflow Checklist — all completed steps marked `[x]` (through Step 5)
+- [ ] Ticket: Completion Log — entry for each completed step (dates, actions, test counts)
+- [ ] Ticket: Acceptance Criteria — mark `[x]` where met
+- [ ] Tracker: Active Session — reflects step `5/6 (Review)`, current context, next actions
+- [ ] Tracker: Features table — status and step updated to match Active Session
+- [ ] `key_facts.md` — updated if new models, schemas, migrations, or reusable components were added
+- [ ] `decisions.md` — ADR created if Definition of Done requires it
+- [ ] All fixes committed — no unstaged files remaining from review/QA fixes
 
 ---
 

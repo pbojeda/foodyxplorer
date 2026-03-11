@@ -39,9 +39,9 @@ Verify the implementation's robustness and strict adherence to `docs/specs/`.
 - **Backend**: Write tests for error paths, validation boundaries, concurrent access
 - **Frontend**: Write tests for error states, loading interruptions, accessibility
 
-### 5. Bug Documentation
-- If bugs are found: record each one in `docs/project_notes/bugs.md` with root cause, solution, and prevention notes
-- This ensures institutional memory — future sessions can avoid the same issues
+### 5. Bug Documentation (only if bugs were found)
+- Record each bug in `docs/project_notes/bugs.md` with root cause, solution, and prevention notes
+- Do NOT add an entry if no bugs were found — bugs.md is for bugs only, not QA pass reports
 
 ### 6. Report
 - If tests fail (regressions or new bugs): report them clearly with reproduction steps
