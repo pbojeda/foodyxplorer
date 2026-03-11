@@ -10,28 +10,7 @@
 
 **Last Updated:** 2026-03-11
 
-| Field | Value |
-|-------|-------|
-| **Current Feature** | F002 — Prisma Schema Migration — Dishes & Restaurants |
-| **Step** | 5/6 (Review) |
-| **Branch** | feature/F002-dishes-restaurants |
-| **Complexity** | Standard |
-| **Ticket** | docs/tickets/F002-dishes-restaurants.md |
-
-**Context:** Implementation complete. 388 tests passing (121 unit + 267 integration). Lint clean, build succeeds. Code review (0 critical, 2 important fixed) + QA (0 bugs, 86 edge-case tests) done. Production-code-validator: 0 issues.
-
-**Next Actions:**
-1. Squash merge to develop (user approved)
-2. Step 6: delete branch, update tracker, finalize
-
-**Open Questions:** _None._
-
-**Auto-Approved Decisions (this session):**
-
-| Step | Decision | Rationale |
-|------|----------|-----------|
-| 0 | Spec auto-approved | L2 autonomy; database-architect reviewed, follows F001/F001b patterns |
-| 1 | Ticket auto-approved | L2 autonomy; standard complexity |
+No active work.
 
 ---
 
@@ -50,7 +29,7 @@
 |----|---------|------|--------|------|-------|
 | F001 | Prisma Schema Migration — Core tables | backend | done | 6/6 | data_sources, foods, food_nutrients, standard_portions |
 | F001b | Schema Enhancements — Nutrition API Alignment | backend | done | 6/6 | FoodType, brandName, barcode, referenceBasis, portion desc/isDefault, Recipe+RecipeIngredient, 5 nutrient cols |
-| F002 | Prisma Schema Migration — Dishes & Restaurants | backend | in-progress | 5/6 | 1 enum, 8 models: cooking_methods, dish_categories, restaurants, dishes, dish_nutrients, dish_ingredients + 2 junction tables |
+| F002 | Prisma Schema Migration — Dishes & Restaurants | backend | done | 6/6 | 1 enum, 8 models: cooking_methods, dish_categories, restaurants, dishes, dish_nutrients, dish_ingredients + 2 junction tables |
 | F003 | pgvector Extension & Indexes | backend | pending | — | IVFFlat on foods.embedding, dishes.embedding |
 | F004 | Fastify API Scaffold | backend | pending | — | /health, OpenAPI, Zod validation |
 | F005 | Redis Connection & Cache Layer | backend | pending | — | Cache helper, rate limiting middleware |
@@ -96,6 +75,7 @@
 |------|---------|-----------|-------|
 | 2026-03-10 | F001 — Prisma Schema Migration — Core Tables | 426e694 (squash merge to develop) | 4 models, 4 enums, pgvector, CHECK constraints, XOR, FTS indexes, Zod schemas, 83 tests |
 | 2026-03-11 | F001b — Schema Enhancements — Nutrition API Alignment | 9f38639 (squash merge to develop) | 2 new enums, 2 new models, 6 new columns, 5 nutrient cols, 78 new tests (193 total), 1 bug fixed |
+| 2026-03-11 | F002 — Prisma Schema Migration — Dishes & Restaurants | 6359ab2 (squash merge to develop) | 1 enum, 8 models (+ 2 junctions), 6 Zod schemas, 9 CHECK constraints, 19 indexes, 195 new tests (388 total), 0 bugs, ADR-004 |
 
 ---
 
