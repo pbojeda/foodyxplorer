@@ -568,4 +568,21 @@ Create `packages/api/src/infrastructure/prismaClient.ts` only if needed by other
 
 ---
 
+---
+
+## Appendix: Nutrition API Research (2026-03-11)
+
+Comparative analysis of 7 nutrition APIs (USDA FoodData Central, Nutritionix, Edamam, Open Food Facts, Calorie Mama, FatSecret, Spoonacular) identified the following gaps in the F001 schema. These are addressed in F001b.
+
+**Gaps identified (high priority):**
+1. No `foodType` discriminator (branded/generic/composite) — present in ALL APIs
+2. No `brandName` field — present in USDA, Nutritionix, FatSecret, Open Food Facts
+3. No `barcode` (UPC/EAN) field — present in USDA, Nutritionix, Open Food Facts
+4. No `referenceBasis` on nutrients (per 100g vs per serving) — present in ALL APIs
+5. `StandardPortion` missing `description` ("1 cup") and `isDefault` flag — present in ALL APIs
+6. No recipe/ingredient composition model — present in USDA, Spoonacular, Edamam
+7. Missing common typed nutrient columns (transFats, cholesterol, potassium, mono/polyunsaturatedFats) — present in ALL APIs (17-160 nutrients)
+
+**What was validated as correct:** externalId+sourceId pattern, DataSource model, confidenceLevel, pgvector embedding, aliases[], StandardPortion.context enum, extra JSONB.
+
 *Ticket created: 2026-03-10*

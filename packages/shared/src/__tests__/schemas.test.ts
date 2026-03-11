@@ -7,6 +7,8 @@ import {
   ConfidenceLevelSchema,
   EstimationMethodSchema,
   PortionContextSchema,
+  FoodTypeSchema,
+  NutrientReferenceBasisSchema,
 } from '../schemas/enums';
 import {
   DataSourceSchema,
@@ -21,6 +23,11 @@ import {
   StandardPortionSchema,
   CreateStandardPortionSchema,
 } from '../schemas/standardPortion';
+import { RecipeSchema, CreateRecipeSchema } from '../schemas/recipe';
+import {
+  RecipeIngredientSchema,
+  CreateRecipeIngredientSchema,
+} from '../schemas/recipeIngredient';
 
 // ---------------------------------------------------------------------------
 // Enum schemas
@@ -75,6 +82,32 @@ describe('PortionContextSchema', () => {
 
   it('rejects an invalid string', () => {
     expect(() => PortionContextSchema.parse('beverage')).toThrow();
+  });
+});
+
+describe('FoodTypeSchema', () => {
+  it('accepts all valid values', () => {
+    const valid = ['generic', 'branded', 'composite'] as const;
+    for (const v of valid) {
+      expect(FoodTypeSchema.parse(v)).toBe(v);
+    }
+  });
+
+  it('rejects an invalid string', () => {
+    expect(() => FoodTypeSchema.parse('unknown')).toThrow();
+  });
+});
+
+describe('NutrientReferenceBasisSchema', () => {
+  it('accepts all valid values', () => {
+    const valid = ['per_100g', 'per_serving', 'per_package'] as const;
+    for (const v of valid) {
+      expect(NutrientReferenceBasisSchema.parse(v)).toBe(v);
+    }
+  });
+
+  it('rejects an invalid string', () => {
+    expect(() => NutrientReferenceBasisSchema.parse('per_meal')).toThrow();
   });
 });
 
@@ -147,6 +180,7 @@ const validFoodBase = {
   sourceId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   externalId: 'USDA-001',
   confidenceLevel: 'high' as const,
+  foodType: 'generic' as const,
 };
 
 describe('CreateFoodSchema', () => {
@@ -163,7 +197,7 @@ describe('CreateFoodSchema', () => {
   });
 
   it('fails when nameEs is missing', () => {
-    const { nameEs: _, ...withoutNameEs } = validFoodBase;
+    const { nameEs: _nameEs, ...withoutNameEs } = validFoodBase;
     expect(() => CreateFoodSchema.parse(withoutNameEs)).toThrow();
   });
 
@@ -214,6 +248,12 @@ const validNutrients = {
   fiber: 0,
   salt: 0.07,
   sodium: 0.074,
+  referenceBasis: 'per_100g' as const,
+  transFats: 0,
+  cholesterol: 0,
+  potassium: 0,
+  monounsaturatedFats: 0,
+  polyunsaturatedFats: 0,
   sourceId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   confidenceLevel: 'high' as const,
 };
@@ -266,6 +306,60 @@ describe('CreateFoodNutrientSchema', () => {
     const result = CreateFoodNutrientSchema.parse(validNutrients);
     expect(result.extra).toBeUndefined();
   });
+
+  it('fails when transFats is negative', () => {
+    expect(() =>
+      CreateFoodNutrientSchema.parse({ ...validNutrients, transFats: -0.1 }),
+    ).toThrow();
+  });
+
+  it('fails when cholesterol is negative', () => {
+    expect(() =>
+      CreateFoodNutrientSchema.parse({ ...validNutrients, cholesterol: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when potassium is negative', () => {
+    expect(() =>
+      CreateFoodNutrientSchema.parse({ ...validNutrients, potassium: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when monounsaturatedFats is negative', () => {
+    expect(() =>
+      CreateFoodNutrientSchema.parse({ ...validNutrients, monounsaturatedFats: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when polyunsaturatedFats is negative', () => {
+    expect(() =>
+      CreateFoodNutrientSchema.parse({ ...validNutrients, polyunsaturatedFats: -1 }),
+    ).toThrow();
+  });
+
+  it('accepts 0 for all new nutrient fields', () => {
+    const result = CreateFoodNutrientSchema.parse({
+      ...validNutrients,
+      transFats: 0,
+      cholesterol: 0,
+      potassium: 0,
+      monounsaturatedFats: 0,
+      polyunsaturatedFats: 0,
+    });
+    expect(result.transFats).toBe(0);
+    expect(result.cholesterol).toBe(0);
+    expect(result.potassium).toBe(0);
+    expect(result.monounsaturatedFats).toBe(0);
+    expect(result.polyunsaturatedFats).toBe(0);
+  });
+
+  it('applies default 0 when new nutrient fields are omitted', () => {
+    const { transFats: _tf, cholesterol: _ch, potassium: _po, monounsaturatedFats: _mf, polyunsaturatedFats: _pf, referenceBasis: _ref, ...withoutNewFields } = validNutrients;
+    const result = CreateFoodNutrientSchema.parse(withoutNewFields);
+    expect(result.transFats).toBe(0);
+    expect(result.cholesterol).toBe(0);
+    expect(result.referenceBasis).toBe('per_100g');
+  });
 });
 
 describe('FoodNutrientSchema', () => {
@@ -291,6 +385,8 @@ const validPortionWithFood = {
   portionGrams: 150,
   sourceId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   confidenceLevel: 'medium' as const,
+  description: '1 serving',
+  isDefault: false,
 };
 
 describe('CreateStandardPortionSchema — XOR constraint', () => {
@@ -346,6 +442,28 @@ describe('CreateStandardPortionSchema — XOR constraint', () => {
       }),
     ).toThrow();
   });
+
+  it('fails when description is empty string', () => {
+    expect(() =>
+      CreateStandardPortionSchema.parse({
+        ...validPortionWithFood,
+        description: '',
+      }),
+    ).toThrow();
+  });
+
+  it('passes when isDefault is omitted (defaults to false)', () => {
+    const { isDefault: _isDefault, ...withoutIsDefault } = validPortionWithFood;
+    const result = CreateStandardPortionSchema.parse(withoutIsDefault);
+    expect(result.isDefault).toBe(false);
+  });
+
+  it('requires description — fails when omitted', () => {
+    const { description: _desc, ...withoutDescription } = validPortionWithFood;
+    expect(() =>
+      CreateStandardPortionSchema.parse(withoutDescription),
+    ).toThrow();
+  });
 });
 
 describe('StandardPortionSchema', () => {
@@ -357,5 +475,170 @@ describe('StandardPortionSchema', () => {
       updatedAt: new Date(),
     });
     expect(result.id).toBe('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Recipe schemas
+// ---------------------------------------------------------------------------
+
+const validRecipeBase = {
+  foodId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  servings: 2,
+  prepMinutes: 10,
+  cookMinutes: 30,
+  sourceId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+};
+
+describe('CreateRecipeSchema', () => {
+  it('passes with all fields', () => {
+    const result = CreateRecipeSchema.parse(validRecipeBase);
+    expect(result.foodId).toBe('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+    expect(result.servings).toBe(2);
+    expect(result.prepMinutes).toBe(10);
+    expect(result.cookMinutes).toBe(30);
+  });
+
+  it('passes when servings, prepMinutes, cookMinutes are null', () => {
+    const result = CreateRecipeSchema.parse({
+      ...validRecipeBase,
+      servings: null,
+      prepMinutes: null,
+      cookMinutes: null,
+    });
+    expect(result.servings).toBeNull();
+    expect(result.prepMinutes).toBeNull();
+    expect(result.cookMinutes).toBeNull();
+  });
+
+  it('fails when servings is 0 (must be positive)', () => {
+    expect(() =>
+      CreateRecipeSchema.parse({ ...validRecipeBase, servings: 0 }),
+    ).toThrow();
+  });
+
+  it('fails when servings is negative', () => {
+    expect(() =>
+      CreateRecipeSchema.parse({ ...validRecipeBase, servings: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when prepMinutes is negative', () => {
+    expect(() =>
+      CreateRecipeSchema.parse({ ...validRecipeBase, prepMinutes: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when cookMinutes is negative', () => {
+    expect(() =>
+      CreateRecipeSchema.parse({ ...validRecipeBase, cookMinutes: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when foodId is missing', () => {
+    expect(() =>
+      CreateRecipeSchema.parse({ ...validRecipeBase, foodId: undefined }),
+    ).toThrow();
+  });
+
+  it('fails when sourceId is not a valid UUID', () => {
+    expect(() =>
+      CreateRecipeSchema.parse({ ...validRecipeBase, sourceId: 'not-a-uuid' }),
+    ).toThrow();
+  });
+});
+
+describe('RecipeSchema', () => {
+  it('passes with all fields including id and timestamps', () => {
+    const result = RecipeSchema.parse({
+      ...validRecipeBase,
+      id: 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    expect(result.id).toBe('e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RecipeIngredient schemas
+// ---------------------------------------------------------------------------
+
+const validIngredientBase = {
+  recipeId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  ingredientFoodId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  amount: 150,
+  unit: 'g',
+  gramWeight: 150,
+  sortOrder: 0,
+  notes: null,
+};
+
+describe('CreateRecipeIngredientSchema', () => {
+  it('passes with valid input', () => {
+    const result = CreateRecipeIngredientSchema.parse(validIngredientBase);
+    expect(result.recipeId).toBe('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+    expect(result.amount).toBe(150);
+    expect(result.unit).toBe('g');
+    expect(result.sortOrder).toBe(0);
+  });
+
+  it('fails when amount is 0 (must be positive)', () => {
+    expect(() =>
+      CreateRecipeIngredientSchema.parse({ ...validIngredientBase, amount: 0 }),
+    ).toThrow();
+  });
+
+  it('fails when amount is negative', () => {
+    expect(() =>
+      CreateRecipeIngredientSchema.parse({ ...validIngredientBase, amount: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when sortOrder is negative', () => {
+    expect(() =>
+      CreateRecipeIngredientSchema.parse({ ...validIngredientBase, sortOrder: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when unit is empty string', () => {
+    expect(() =>
+      CreateRecipeIngredientSchema.parse({ ...validIngredientBase, unit: '' }),
+    ).toThrow();
+  });
+
+  it('fails when unit exceeds 50 characters', () => {
+    expect(() =>
+      CreateRecipeIngredientSchema.parse({
+        ...validIngredientBase,
+        unit: 'a'.repeat(51),
+      }),
+    ).toThrow();
+  });
+
+  it('allows gramWeight to be null', () => {
+    const result = CreateRecipeIngredientSchema.parse({
+      ...validIngredientBase,
+      gramWeight: null,
+    });
+    expect(result.gramWeight).toBeNull();
+  });
+
+  it('fails when gramWeight is negative', () => {
+    expect(() =>
+      CreateRecipeIngredientSchema.parse({ ...validIngredientBase, gramWeight: -1 }),
+    ).toThrow();
+  });
+});
+
+describe('RecipeIngredientSchema', () => {
+  it('passes with all fields including id and timestamps', () => {
+    const result = RecipeIngredientSchema.parse({
+      ...validIngredientBase,
+      id: 'f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    expect(result.id).toBe('f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
   });
 });

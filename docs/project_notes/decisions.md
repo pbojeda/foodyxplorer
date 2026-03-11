@@ -91,3 +91,29 @@ Track important technical decisions with context, so future sessions understand 
 - (+) Dual FTS supports multilingual search without additional infrastructure
 - (-) Raw SQL in migration files requires manual maintenance if tables are altered
 - (-) `migrate dev` cannot be used during development if the shadow DB lacks pgvector; use `migrate deploy` for applying existing migrations
+
+### ADR-003: Schema Enhancements Based on Nutrition API Research (2026-03-11)
+
+**Context:** Before building F002 (Dishes & Restaurants), a comparative analysis of 7 major nutrition APIs (USDA FoodData Central, Nutritionix, Edamam, Open Food Facts, Calorie Mama, FatSecret, Spoonacular) was conducted to validate our data model and identify gaps.
+
+**Decision:**
+1. **Add `FoodType` enum** (`generic`, `branded`, `composite`) to `Food`. Every API distinguishes branded products from generic foods from composite dishes/recipes. This is the primary discriminator for data import and composition modeling.
+2. **Add `brandName` and `barcode`** to `Food`. Universal identifiers in the nutrition API ecosystem. `barcode` (UPC/EAN/GTIN) is distinct from `externalId` (source-specific ID).
+3. **Add `NutrientReferenceBasis` enum** (`per_100g`, `per_serving`, `per_package`) to `FoodNutrient`. Every API is explicit about reference basis; ours was implicit. Default `per_100g` (industry standard).
+4. **Add `description` and `isDefault`** to `StandardPortion`. Every API provides human-readable portion labels ("1 cup", "1 slice") and marks one as default. Our `notes` field is freeform and insufficient for this.
+5. **Add typed columns for common nutrients** (`transFats`, `cholesterol`, `potassium`, `monounsaturatedFats`, `polyunsaturatedFats`) to `FoodNutrient`. Present in every API (17-160 nutrients). Too common to leave in `extra` JSONB.
+6. **Add `Recipe` and `RecipeIngredient` tables** for composite food modeling. The recipe links to a `Food` where `foodType=composite`, with ingredients referencing other foods with amounts and gram weights.
+
+**Alternatives Considered:**
+- Keep schema as-is, add fields later: Rejected — easier to extend now before F002 builds on top of these tables.
+- Store all nutrients in JSONB: Rejected — loses type safety and query performance for the most common nutrients.
+- Use a generic `FoodAttribute` table: Rejected — EAV pattern is slow and hard to query for the 15 core nutrients every query needs.
+- Multilingual names (FoodTranslation table): Deferred — `name` + `nameEs` is sufficient for Phase 1. Revisit before Phase 2.
+
+**Consequences:**
+- (+) Schema aligns with industry standards — easier data import from any external API
+- (+) `foodType` enables clean polymorphism: generic foods, branded products, and composite dishes in one table
+- (+) Recipe model enables F002's dish modeling with proper ingredient composition
+- (+) Typed nutrient columns improve query performance and type safety for common nutrients
+- (-) Migration adds 2 new tables + 1 new enum + several new columns — requires updating existing tests and seed data
+- (-) `barcode` index adds storage overhead (acceptable for packaged food lookup speed)

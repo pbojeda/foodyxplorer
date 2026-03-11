@@ -10,6 +10,8 @@ export const StandardPortionSchema = z.object({
   sourceId: z.string().uuid(),
   notes: z.string().nullable().optional(),
   confidenceLevel: ConfidenceLevelSchema,
+  description: z.string().min(1).max(255),
+  isDefault: z.boolean(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -19,6 +21,8 @@ export const CreateStandardPortionSchema = StandardPortionSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  isDefault: z.boolean().default(false),
 }).refine(
   (data) =>
     (data.foodId !== null && data.foodGroup === null) ||

@@ -1,5 +1,5 @@
 // Seed script for foodXPlorer dev database
-// Inserts baseline reference data: data sources, foods, food nutrients, standard portions
+// Inserts baseline reference data: data sources, foods, food nutrients, standard portions, recipes
 // Run with: npm run db:seed -w @foodxplorer/api
 
 import { PrismaClient } from '@prisma/client';
@@ -39,7 +39,7 @@ async function main(): Promise<void> {
   // ---------------------------------------------------------------------------
   const foodChicken = await prisma.food.upsert({
     where: { id: '00000000-0000-0000-0001-000000000001' },
-    update: {},
+    update: { foodType: 'generic' },
     create: {
       id: '00000000-0000-0000-0001-000000000001',
       name: 'Chicken breast',
@@ -49,12 +49,13 @@ async function main(): Promise<void> {
       sourceId: dataSource.id,
       externalId: 'USDA-171077',
       confidenceLevel: 'high',
+      foodType: 'generic',
     },
   });
 
   const foodRice = await prisma.food.upsert({
     where: { id: '00000000-0000-0000-0001-000000000002' },
-    update: {},
+    update: { foodType: 'generic' },
     create: {
       id: '00000000-0000-0000-0001-000000000002',
       name: 'White rice, cooked',
@@ -64,12 +65,13 @@ async function main(): Promise<void> {
       sourceId: dataSource.id,
       externalId: 'USDA-168878',
       confidenceLevel: 'high',
+      foodType: 'generic',
     },
   });
 
   const foodOliveOil = await prisma.food.upsert({
     where: { id: '00000000-0000-0000-0001-000000000003' },
-    update: {},
+    update: { foodType: 'generic' },
     create: {
       id: '00000000-0000-0000-0001-000000000003',
       name: 'Olive oil',
@@ -79,6 +81,7 @@ async function main(): Promise<void> {
       sourceId: dataSource.id,
       externalId: 'USDA-171413',
       confidenceLevel: 'high',
+      foodType: 'generic',
     },
   });
 
@@ -103,7 +106,7 @@ async function main(): Promise<void> {
     where: {
       foodId_sourceId: { foodId: foodChicken.id, sourceId: dataSource.id },
     },
-    update: {},
+    update: { cholesterol: 85 },
     create: {
       id: '00000000-0000-0000-0002-000000000001',
       foodId: foodChicken.id,
@@ -116,6 +119,7 @@ async function main(): Promise<void> {
       fiber: 0,
       salt: 0.07,
       sodium: 0.074,
+      cholesterol: 85,
       sourceId: dataSource.id,
       confidenceLevel: 'high',
     },
@@ -147,7 +151,7 @@ async function main(): Promise<void> {
     where: {
       foodId_sourceId: { foodId: foodOliveOil.id, sourceId: dataSource.id },
     },
-    update: {},
+    update: { monounsaturatedFats: 73, polyunsaturatedFats: 10.5 },
     create: {
       id: '00000000-0000-0000-0002-000000000003',
       foodId: foodOliveOil.id,
@@ -172,7 +176,10 @@ async function main(): Promise<void> {
   // ---------------------------------------------------------------------------
   await prisma.standardPortion.upsert({
     where: { id: '00000000-0000-0000-0003-000000000001' },
-    update: {},
+    update: {
+      description: '1 chicken breast (150g)',
+      isDefault: true,
+    },
     create: {
       id: '00000000-0000-0000-0003-000000000001',
       foodId: foodChicken.id,
@@ -182,12 +189,17 @@ async function main(): Promise<void> {
       sourceId: dataSource.id,
       notes: 'Typical main course serving of chicken breast',
       confidenceLevel: 'high',
+      description: '1 chicken breast (150g)',
+      isDefault: true,
     },
   });
 
   await prisma.standardPortion.upsert({
     where: { id: '00000000-0000-0000-0003-000000000002' },
-    update: {},
+    update: {
+      description: '1 side serving of rice (80g)',
+      isDefault: true,
+    },
     create: {
       id: '00000000-0000-0000-0003-000000000002',
       foodId: foodRice.id,
@@ -197,12 +209,17 @@ async function main(): Promise<void> {
       sourceId: dataSource.id,
       notes: 'Standard side dish serving of rice',
       confidenceLevel: 'medium',
+      description: '1 side serving of rice (80g)',
+      isDefault: true,
     },
   });
 
   await prisma.standardPortion.upsert({
     where: { id: '00000000-0000-0000-0003-000000000003' },
-    update: {},
+    update: {
+      description: 'Default side portion for cereals (75g)',
+      isDefault: false,
+    },
     create: {
       id: '00000000-0000-0000-0003-000000000003',
       foodId: null,
@@ -212,10 +229,85 @@ async function main(): Promise<void> {
       sourceId: dataSource.id,
       notes: 'Default side dish portion for cereal food group',
       confidenceLevel: 'low',
+      description: 'Default side portion for cereals (75g)',
+      isDefault: false,
     },
   });
 
   console.log('StandardPortions created');
+
+  // ---------------------------------------------------------------------------
+  // Composite food: Chicken and rice bowl
+  // ---------------------------------------------------------------------------
+  const foodChickenRiceBowl = await prisma.food.upsert({
+    where: { id: '00000000-0000-0000-0001-000000000004' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0001-000000000004',
+      name: 'Chicken and rice bowl',
+      nameEs: 'Bol de pollo con arroz',
+      aliases: ['chicken rice bowl', 'rice bowl'],
+      foodGroup: 'Prepared meals',
+      sourceId: dataSource.id,
+      confidenceLevel: 'high',
+      foodType: 'composite',
+    },
+  });
+
+  const recipe = await prisma.recipe.upsert({
+    where: { id: '00000000-0000-0000-0004-000000000001' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0004-000000000001',
+      foodId: foodChickenRiceBowl.id,
+      servings: 1,
+      prepMinutes: 10,
+      cookMinutes: 20,
+      sourceId: dataSource.id,
+    },
+  });
+
+  await prisma.recipeIngredient.upsert({
+    where: {
+      recipeId_ingredientFoodId_sortOrder: {
+        recipeId: recipe.id,
+        ingredientFoodId: foodChicken.id,
+        sortOrder: 0,
+      },
+    },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0005-000000000001',
+      recipeId: recipe.id,
+      ingredientFoodId: foodChicken.id,
+      amount: 150,
+      unit: 'g',
+      gramWeight: 150,
+      sortOrder: 0,
+    },
+  });
+
+  await prisma.recipeIngredient.upsert({
+    where: {
+      recipeId_ingredientFoodId_sortOrder: {
+        recipeId: recipe.id,
+        ingredientFoodId: foodRice.id,
+        sortOrder: 1,
+      },
+    },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0005-000000000002',
+      recipeId: recipe.id,
+      ingredientFoodId: foodRice.id,
+      amount: 80,
+      unit: 'g',
+      gramWeight: 80,
+      sortOrder: 1,
+    },
+  });
+
+  console.log('Recipe and ingredients created: Chicken and rice bowl');
   console.log('Seeding complete.');
 }
 

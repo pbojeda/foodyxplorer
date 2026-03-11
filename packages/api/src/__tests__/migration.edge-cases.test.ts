@@ -124,24 +124,24 @@ describe('StandardPortion — portionGrams missing DB CHECK (BUG-01)', () => {
   it('DB rejects portionGrams = 0 via CHECK constraint', async () => {
     await expect(prisma.$executeRaw`
       INSERT INTO standard_portions
-        (id, food_id, food_group, context, portion_grams, source_id, confidence_level, created_at, updated_at)
+        (id, food_id, food_group, context, portion_grams, source_id, confidence_level, description, created_at, updated_at)
       VALUES
         (gen_random_uuid(), ${FOOD}::uuid, NULL,
          'snack'::"portion_context", 0.00,
          ${SRC}::uuid, 'low'::"confidence_level",
-         NOW(), NOW())
+         'Test portion', NOW(), NOW())
     `).rejects.toThrow();
   });
 
   it('DB rejects portionGrams = -50 via CHECK constraint', async () => {
     await expect(prisma.$executeRaw`
       INSERT INTO standard_portions
-        (id, food_id, food_group, context, portion_grams, source_id, confidence_level, created_at, updated_at)
+        (id, food_id, food_group, context, portion_grams, source_id, confidence_level, description, created_at, updated_at)
       VALUES
         (gen_random_uuid(), ${FOOD}::uuid, NULL,
          'snack'::"portion_context", -50.00,
          ${SRC}::uuid, 'low'::"confidence_level",
-         NOW(), NOW())
+         'Test portion', NOW(), NOW())
     `).rejects.toThrow();
   });
 });
@@ -284,6 +284,7 @@ describe('Timestamps — updatedAt auto-update on Food, FoodNutrient, StandardPo
       data: {
         foodId: FOOD, foodGroup: null, context: 'snack',
         portionGrams: 30, sourceId: SRC, confidenceLevel: 'low',
+        description: 'Test portion',
       },
     });
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -367,6 +368,7 @@ describe('CreateStandardPortionSchema — XOR refine correctness', () => {
     portionGrams: 30,
     sourceId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     confidenceLevel: 'low' as const,
+    description: 'Test portion',
   };
 
   it('rejects both foodId=null and foodGroup=null (XOR violation)', () => {
@@ -543,6 +545,7 @@ describe('Referential integrity — FK behavior', () => {
         foodId: tempFood.id, foodGroup: null,
         context: 'snack', portionGrams: 10,
         sourceId: SRC, confidenceLevel: 'low',
+        description: 'Test portion',
       },
     });
     expect(sp.foodId).not.toBeNull();

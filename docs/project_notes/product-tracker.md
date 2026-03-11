@@ -8,13 +8,31 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-10
+**Last Updated:** 2026-03-11
 
-No active work.
+| Field | Value |
+|-------|-------|
+| **Current Feature** | F001b — Schema Enhancements — Nutrition API Alignment |
+| **Step** | 5/6 (Review) |
+| **Branch** | feature/F001b-schema-enhancements-api-alignment |
+| **Complexity** | Standard |
+| **Ticket** | docs/tickets/F001b-schema-enhancements-api-alignment.md |
+
+**Context:** Implementation complete. 153 tests passing (69 unit + 84 integration). Lint clean, build succeeds. Code review + QA running.
+
+**Next Actions:**
+1. Review findings from code-review-specialist + qa-engineer
+2. Fix any issues
+3. User approves merge (L2 checkpoint)
+
+**Open Questions:** _None._
 
 **Auto-Approved Decisions (this session):**
 
-_None._
+| Step | Decision | Rationale |
+|------|----------|-----------|
+| 0 | Spec auto-approved | L2 autonomy; research-backed, ADR-003 documented |
+| 1 | Ticket auto-approved | L2 autonomy; standard complexity |
 
 ---
 
@@ -32,6 +50,7 @@ _None._
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F001 | Prisma Schema Migration — Core tables | backend | done | 6/6 | data_sources, foods, food_nutrients, standard_portions |
+| F001b | Schema Enhancements — Nutrition API Alignment | backend | in-progress | 1/6 | FoodType, brandName, barcode, referenceBasis, portion desc/isDefault, Recipe+RecipeIngredient, 5 nutrient cols |
 | F002 | Prisma Schema Migration — Dishes & Restaurants | backend | pending | — | cooking_methods, dish_categories, restaurants, dishes, dish_nutrients, dish_ingredients |
 | F003 | pgvector Extension & Indexes | backend | pending | — | IVFFlat on foods.embedding, dishes.embedding |
 | F004 | Fastify API Scaffold | backend | pending | — | /health, OpenAPI, Zod validation |

@@ -28,7 +28,9 @@ const FOOD_ID_3 = 'bbbbbbbb-0000-0000-0000-000000000003';
 // ---------------------------------------------------------------------------
 
 beforeAll(async () => {
-  // Clean up in reverse dependency order
+  // Clean up in reverse dependency order (including F001b tables)
+  await prisma.recipeIngredient.deleteMany();
+  await prisma.recipe.deleteMany();
   await prisma.standardPortion.deleteMany();
   await prisma.foodNutrient.deleteMany();
   await prisma.food.deleteMany();
@@ -178,6 +180,7 @@ describe('StandardPortion — CRUD', () => {
         portionGrams: 80,
         sourceId: SOURCE_ID,
         confidenceLevel: 'medium',
+        description: 'Test portion',
       },
     });
 
@@ -197,6 +200,7 @@ describe('StandardPortion — CRUD', () => {
         portionGrams: 100,
         sourceId: SOURCE_ID,
         confidenceLevel: 'low',
+        description: 'Test portion',
       },
     });
 
@@ -361,8 +365,8 @@ describe('StandardPortion — XOR CHECK constraint', () => {
   it('fails when both foodId and foodGroup are set', async () => {
     await expect(
       prisma.$executeRaw`
-        INSERT INTO standard_portions (id, food_id, food_group, context, portion_grams, source_id, confidence_level, created_at, updated_at)
-        VALUES (gen_random_uuid(), ${FOOD_ID_1}::uuid, 'Vegetables', 'side_dish'::"portion_context", 100, ${SOURCE_ID}::uuid, 'low'::"confidence_level", NOW(), NOW())
+        INSERT INTO standard_portions (id, food_id, food_group, context, portion_grams, source_id, confidence_level, description, created_at, updated_at)
+        VALUES (gen_random_uuid(), ${FOOD_ID_1}::uuid, 'Vegetables', 'side_dish'::"portion_context", 100, ${SOURCE_ID}::uuid, 'low'::"confidence_level", 'Test portion', NOW(), NOW())
       `,
     ).rejects.toThrow();
   });
@@ -370,8 +374,8 @@ describe('StandardPortion — XOR CHECK constraint', () => {
   it('fails when both foodId and foodGroup are null', async () => {
     await expect(
       prisma.$executeRaw`
-        INSERT INTO standard_portions (id, food_id, food_group, context, portion_grams, source_id, confidence_level, created_at, updated_at)
-        VALUES (gen_random_uuid(), NULL, NULL, 'side_dish'::"portion_context", 100, ${SOURCE_ID}::uuid, 'low'::"confidence_level", NOW(), NOW())
+        INSERT INTO standard_portions (id, food_id, food_group, context, portion_grams, source_id, confidence_level, description, created_at, updated_at)
+        VALUES (gen_random_uuid(), NULL, NULL, 'side_dish'::"portion_context", 100, ${SOURCE_ID}::uuid, 'low'::"confidence_level", 'Test portion', NOW(), NOW())
       `,
     ).rejects.toThrow();
   });

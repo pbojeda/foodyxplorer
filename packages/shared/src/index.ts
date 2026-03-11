@@ -5,3 +5,5 @@ export * from './schemas/dataSource';
 export * from './schemas/food';
 export * from './schemas/foodNutrient';
 export * from './schemas/standardPortion';
+export * from './schemas/recipe';
+export * from './schemas/recipeIngredient';

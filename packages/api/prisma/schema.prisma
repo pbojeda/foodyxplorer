@@ -50,6 +50,22 @@ enum PortionContext {
   @@map("portion_context")
 }
 
+enum FoodType {
+  generic
+  branded
+  composite
+
+  @@map("food_type")
+}
+
+enum NutrientReferenceBasis {
+  per_100g
+  per_serving
+  per_package
+
+  @@map("nutrient_reference_basis")
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -66,6 +82,7 @@ model DataSource {
   foods            Food[]
   foodNutrients    FoodNutrient[]
   standardPortions StandardPortion[]
+  recipes          Recipe[]
 
   @@map("data_sources")
 }
@@ -79,36 +96,51 @@ model Food {
   sourceId        String          @map("source_id") @db.Uuid
   externalId      String?         @map("external_id") @db.VarChar(100)
   confidenceLevel ConfidenceLevel @map("confidence_level")
+  foodType        FoodType        @default(generic) @map("food_type")
+  brandName       String?         @map("brand_name") @db.VarChar(255)
+  barcode         String?         @db.VarChar(50)
   /// @db.Unsupported — pgvector column; use prisma.$queryRaw / $executeRaw for reads/writes
   embedding       Unsupported("vector(1536)")?
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
-  source           DataSource      @relation(fields: [sourceId], references: [id])
-  foodNutrients    FoodNutrient[]
-  standardPortions StandardPortion[]
+  source             DataSource        @relation(fields: [sourceId], references: [id])
+  foodNutrients      FoodNutrient[]
+  standardPortions   StandardPortion[]
+  recipe             Recipe?
+  recipeIngredients  RecipeIngredient[]
 
   @@unique([externalId, sourceId])
+  @@index([foodType])
+  @@index([barcode])
+  // Partial index for brandName WHERE NOT NULL is defined in raw SQL migration only
+  // (Prisma @@index does not support WHERE clauses)
   @@map("foods")
 }
 
 model FoodNutrient {
-  id              String          @id @default(uuid()) @db.Uuid
-  foodId          String          @map("food_id") @db.Uuid
-  calories        Decimal         @db.Decimal(8, 2)
-  proteins        Decimal         @db.Decimal(8, 2)
-  carbohydrates   Decimal         @db.Decimal(8, 2)
-  sugars          Decimal         @db.Decimal(8, 2)
-  fats            Decimal         @db.Decimal(8, 2)
-  saturatedFats   Decimal         @map("saturated_fats") @db.Decimal(8, 2)
-  fiber           Decimal         @db.Decimal(8, 2)
-  salt            Decimal         @db.Decimal(8, 2)
-  sodium          Decimal         @db.Decimal(8, 2)
-  extra           Json?
-  sourceId        String          @map("source_id") @db.Uuid
-  confidenceLevel ConfidenceLevel @map("confidence_level")
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  id                 String                 @id @default(uuid()) @db.Uuid
+  foodId             String                 @map("food_id") @db.Uuid
+  calories           Decimal                @db.Decimal(8, 2)
+  proteins           Decimal                @db.Decimal(8, 2)
+  carbohydrates      Decimal                @db.Decimal(8, 2)
+  sugars             Decimal                @db.Decimal(8, 2)
+  fats               Decimal                @db.Decimal(8, 2)
+  saturatedFats      Decimal                @map("saturated_fats") @db.Decimal(8, 2)
+  fiber              Decimal                @db.Decimal(8, 2)
+  salt               Decimal                @db.Decimal(8, 2)
+  sodium             Decimal                @db.Decimal(8, 2)
+  extra              Json?
+  referenceBasis     NutrientReferenceBasis @default(per_100g) @map("reference_basis")
+  transFats          Decimal                @default(0) @map("trans_fats") @db.Decimal(8, 2)
+  cholesterol        Decimal                @default(0) @db.Decimal(8, 2)
+  potassium          Decimal                @default(0) @db.Decimal(8, 2)
+  monounsaturatedFats Decimal               @default(0) @map("monounsaturated_fats") @db.Decimal(8, 2)
+  polyunsaturatedFats Decimal               @default(0) @map("polyunsaturated_fats") @db.Decimal(8, 2)
+  sourceId           String                 @map("source_id") @db.Uuid
+  confidenceLevel    ConfidenceLevel        @map("confidence_level")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
 
   food   Food       @relation(fields: [foodId], references: [id])
   source DataSource @relation(fields: [sourceId], references: [id])
@@ -126,6 +158,8 @@ model StandardPortion {
   sourceId        String          @map("source_id") @db.Uuid
   notes           String?         @db.Text
   confidenceLevel ConfidenceLevel @map("confidence_level")
+  description     String          @db.VarChar(255)
+  isDefault       Boolean         @default(false) @map("is_default")
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
@@ -134,4 +168,42 @@ model StandardPortion {
 
   // XOR constraint enforced via raw SQL CHECK in migration — not expressible in Prisma
   @@map("standard_portions")
+}
+
+model Recipe {
+  id          String   @id @default(uuid()) @db.Uuid
+  foodId      String   @unique @map("food_id") @db.Uuid
+  servings    Int?
+  prepMinutes Int?     @map("prep_minutes")
+  cookMinutes Int?     @map("cook_minutes")
+  sourceId    String   @map("source_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  food        Food               @relation(fields: [foodId], references: [id])
+  source      DataSource         @relation(fields: [sourceId], references: [id])
+  ingredients RecipeIngredient[]
+
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id               String   @id @default(uuid()) @db.Uuid
+  recipeId         String   @map("recipe_id") @db.Uuid
+  ingredientFoodId String   @map("ingredient_food_id") @db.Uuid
+  amount           Decimal  @db.Decimal(8, 2)
+  unit             String   @db.VarChar(50)
+  gramWeight       Decimal? @map("gram_weight") @db.Decimal(8, 2)
+  sortOrder        Int      @map("sort_order")
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  recipe         Recipe @relation(fields: [recipeId], references: [id], onDelete: Restrict)
+  ingredientFood Food   @relation(fields: [ingredientFoodId], references: [id], onDelete: Restrict)
+
+  @@unique([recipeId, ingredientFoodId, sortOrder])
+  @@index([recipeId])
+  @@index([ingredientFoodId])
+  @@map("recipe_ingredients")
 }

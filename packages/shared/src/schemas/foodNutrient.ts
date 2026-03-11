@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ConfidenceLevelSchema } from './enums';
+import { ConfidenceLevelSchema, NutrientReferenceBasisSchema } from './enums';
 
 export const FoodNutrientSchema = z.object({
   id: z.string().uuid(),
@@ -14,6 +14,12 @@ export const FoodNutrientSchema = z.object({
   salt: z.number().nonnegative(),
   sodium: z.number().nonnegative(),
   extra: z.unknown().nullable().optional(),
+  referenceBasis: NutrientReferenceBasisSchema,
+  transFats: z.number().nonnegative(),
+  cholesterol: z.number().nonnegative(),
+  potassium: z.number().nonnegative(),
+  monounsaturatedFats: z.number().nonnegative(),
+  polyunsaturatedFats: z.number().nonnegative(),
   sourceId: z.string().uuid(),
   confidenceLevel: ConfidenceLevelSchema,
   createdAt: z.date(),
@@ -25,5 +31,12 @@ export const CreateFoodNutrientSchema = FoodNutrientSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  referenceBasis: NutrientReferenceBasisSchema.default('per_100g'),
+  transFats: z.number().nonnegative().default(0),
+  cholesterol: z.number().nonnegative().default(0),
+  potassium: z.number().nonnegative().default(0),
+  monounsaturatedFats: z.number().nonnegative().default(0),
+  polyunsaturatedFats: z.number().nonnegative().default(0),
 });
 export type CreateFoodNutrient = z.infer<typeof CreateFoodNutrientSchema>;

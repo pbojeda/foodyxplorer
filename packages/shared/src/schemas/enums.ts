@@ -22,3 +22,13 @@ export const PortionContextSchema = z.enum([
   'snack',
 ]);
 export type PortionContext = z.infer<typeof PortionContextSchema>;
+
+export const FoodTypeSchema = z.enum(['generic', 'branded', 'composite']);
+export type FoodType = z.infer<typeof FoodTypeSchema>;
+
+export const NutrientReferenceBasisSchema = z.enum([
+  'per_100g',
+  'per_serving',
+  'per_package',
+]);
+export type NutrientReferenceBasis = z.infer<typeof NutrientReferenceBasisSchema>;
