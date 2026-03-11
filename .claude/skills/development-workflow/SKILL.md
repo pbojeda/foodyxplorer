@@ -154,9 +154,9 @@ Update tracker (Active Session + Features table): step `4/6 (Finalize)`. Mark ti
 **→ CHECKPOINT: Merge Approval**
 
 Before requesting merge approval, verify and complete this checklist:
-- [ ] Ticket: Workflow Checklist — all completed steps marked `[x]` (through Step 5)
-- [ ] Ticket: Completion Log — entry for each completed step (dates, actions, test counts)
-- [ ] Ticket: Acceptance Criteria — mark `[x]` where met
+- [ ] **Std/Cplx only:** Ticket: Workflow Checklist — all completed steps marked `[x]` (through Step 5)
+- [ ] **Std/Cplx only:** Ticket: Completion Log — entry for each completed step (dates, actions, test counts)
+- [ ] **Std/Cplx only:** Ticket: Acceptance Criteria — mark `[x]` where met
 - [ ] Tracker: Active Session — reflects step `5/6 (Review)`, current context, next actions
 - [ ] Tracker: Features table — status and step updated to match Active Session
 - [ ] `key_facts.md` — updated if new models, schemas, migrations, or reusable components were added
