@@ -33,6 +33,13 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Prevention**: All PrismaClient instantiations outside the main server should include a fallback URL for development. The server itself should fail fast if DATABASE_URL is missing (no fallback there).
 - **Feature**: F001 | **Found by**: qa-engineer | **Severity**: High
 
+### 2026-03-11 — F002 QA PASS — No bugs found in implementation
+
+- **QA Coverage**: 86 new edge-case tests added in `migration.f002.edge-cases.test.ts`
+- **Areas Verified**: Zod schema boundaries (max lengths, countryCode regex, calories=9000 boundary, portionGrams>0), DB CHECK constraints (all 9 non-negative nutrient constraints, calories 9000/9001, portionGrams 0/0.01, priceEur 0/-0.01, gramWeight 0, sortOrder 0), FK RESTRICT behavior (6 scenarios), junction table composite PK enforcement, partial unique index edge cases (null external_ids, cross-restaurant shared external_ids), DishAvailability enum DB consistency, FTS COALESCE fallback for Spanish index.
+- **No Bugs Found**: Implementation matches spec. The ticket spec prose for `dish_nutrients_nutrients_non_negative_check` contained a misleading tautological clause (`AND extra IS NOT NULL OR extra IS NULL`) but the actual migration SQL was correctly implemented without it.
+- **Feature**: F002 | **Assessed by**: qa-engineer
+
 ### 2026-03-11 — BUG-F001b-01: CreateRecipeSchema nullable fields not optional
 
 - **Issue**: `CreateRecipeSchema` required callers to explicitly pass `null` for `servings`, `prepMinutes`, `cookMinutes` instead of allowing field omission. Zod's `.nullable()` permits `null` but NOT `undefined` (omission).
