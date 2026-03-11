@@ -72,13 +72,13 @@ Quick reference for project configuration, infrastructure details, and important
 
 ### Backend (packages/api)
 - **Prisma client**: auto-generated at `node_modules/@prisma/client` (root node_modules). Instantiate with `new PrismaClient()`. For dev/prod, use `DATABASE_URL`. For tests, override with `datasources: { db: { url: DATABASE_URL_TEST } }`.
-- **Prisma schema**: `packages/api/prisma/schema.prisma` — 6 enums, 6 models (DataSource, Food, FoodNutrient, StandardPortion, Recipe, RecipeIngredient)
-- **Migrations**: `packages/api/prisma/migrations/` — apply with `prisma migrate deploy` (not `migrate dev` due to pgvector shadow DB issue). 2 migrations: init_core_tables + schema_enhancements_f001b
+- **Prisma schema**: `packages/api/prisma/schema.prisma` — 7 enums, 14 models (DataSource, Food, FoodNutrient, StandardPortion, Recipe, RecipeIngredient, CookingMethod, DishCategory, Restaurant, Dish, DishNutrient, DishIngredient, DishCookingMethod, DishDishCategory)
+- **Migrations**: `packages/api/prisma/migrations/` — apply with `prisma migrate deploy` (not `migrate dev` due to pgvector shadow DB issue). 3 migrations: init_core_tables + schema_enhancements_f001b + dishes_restaurants_f002
 - **Seed script**: `packages/api/prisma/seed.ts` — run with `npm run db:seed -w @foodxplorer/api`
 
 ### Shared (packages/shared)
 - _Zod schemas = single source of truth for types_
-- **Enum schemas** (`packages/shared/src/schemas/enums.ts`): `DataSourceTypeSchema`, `ConfidenceLevelSchema`, `EstimationMethodSchema`, `PortionContextSchema`, `FoodTypeSchema`, `NutrientReferenceBasisSchema`
+- **Enum schemas** (`packages/shared/src/schemas/enums.ts`): `DataSourceTypeSchema`, `ConfidenceLevelSchema`, `EstimationMethodSchema`, `PortionContextSchema`, `FoodTypeSchema`, `NutrientReferenceBasisSchema`, `DishAvailabilitySchema`
 - **Entity schemas** (each in its own file under `packages/shared/src/schemas/`):
   - `DataSourceSchema`, `CreateDataSourceSchema` — data_sources table shape
   - `FoodSchema`, `CreateFoodSchema` — foods table shape (includes foodType, brandName, barcode; no embedding field)
@@ -86,6 +86,12 @@ Quick reference for project configuration, infrastructure details, and important
   - `StandardPortionSchema`, `CreateStandardPortionSchema` — standard_portions table shape (XOR `.refine()`, description required, isDefault defaults false)
   - `RecipeSchema`, `CreateRecipeSchema` — recipes table shape (links composite Food to prep metadata)
   - `RecipeIngredientSchema`, `CreateRecipeIngredientSchema` — recipe_ingredients table shape (ingredient composition)
+  - `CookingMethodSchema`, `CreateCookingMethodSchema` — cooking_methods table shape (lookup with name, nameEs, slug)
+  - `DishCategorySchema`, `CreateDishCategorySchema` — dish_categories table shape (lookup with sortOrder)
+  - `RestaurantSchema`, `CreateRestaurantSchema` — restaurants table shape (chainSlug + countryCode unique, defaults ES)
+  - `DishSchema`, `CreateDishSchema` — dishes table shape (nullable foodId, availability enum, embedding excluded; no embedding field)
+  - `DishNutrientSchema`, `CreateDishNutrientSchema` — dish_nutrients table shape (same 14 nutrient columns as FoodNutrient; referenceBasis defaults per_serving, calories max 9000)
+  - `DishIngredientSchema`, `CreateDishIngredientSchema` — dish_ingredients table shape (mirrors RecipeIngredient with dishId)
 - All schemas exported from `packages/shared/src/index.ts`
 
 ### Bot (packages/bot)

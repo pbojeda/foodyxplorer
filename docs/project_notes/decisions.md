@@ -117,3 +117,36 @@ Track important technical decisions with context, so future sessions understand 
 - (+) Typed nutrient columns improve query performance and type safety for common nutrients
 - (-) Migration adds 2 new tables + 1 new enum + several new columns — requires updating existing tests and seed data
 - (-) `barcode` index adds storage overhead (acceptable for packaged food lookup speed)
+
+### ADR-004: Dishes & Restaurants Schema Design (2026-03-11)
+
+**Context:** Designing the restaurant/dish layer (F002) — 8 new tables to model restaurant chains, menu items, dish nutritional data, dish ingredients, cooking methods, and dish categories. Key design questions: tables vs enums for lookup data, FK behavior for decoupled dish/food models, nutrient reference basis for restaurant data, and many-to-many relationship modeling.
+
+**Decision:**
+
+1. **Tables over enums for `cooking_methods` and `dish_categories`.** Both need Spanish labels (`name_es`), flexible ordering (`sort_order` on categories), and extensibility via INSERT (new cooking methods like "air-fried" without schema migration). `DishAvailability` remains an enum — stable state machine with no i18n or ordering needs.
+
+2. **`dish.food_id` nullable FK with `ON DELETE SET NULL`.** A dish can exist before its food composition is known. Restaurant data arrives faster than composition analysis. Deleting a food does not cascade-delete the dish — the dish retains its own `dish_nutrients` and can be re-linked later. This decouples the restaurant data pipeline from the food analysis pipeline.
+
+3. **`dish_nutrients.reference_basis` defaults to `per_serving`** (not `per_100g` like `food_nutrients`). Restaurant nutritional disclosures (official PDFs, Nutritionix restaurant items) are always per-serving. The calories upper bound is 9000 (not 900) to accommodate combo meals and family platters.
+
+4. **`restaurants(chain_slug, country_code)` unique constraint.** McDonald's Spain and McDonald's Portugal are different market entities with different menus and prices. One row per chain per country, no schema changes needed for international expansion. `country_code` validated via `CHECK (~ '^[A-Z]{2}$')`.
+
+5. **`estimation_method` on both `dishes` and `dish_nutrients`.** How the dish was identified (scraped, manual, official PDF) is independent from how the nutrients were derived (official, ingredient-based calculation, extrapolation). Both facts are tracked separately for full auditability per ADR-001.
+
+6. **Many-to-many via junction tables with composite PKs.** `dish_cooking_methods` and `dish_dish_categories` use `@@id([dishId, lookupId])` — no surrogate UUID PK needed. `ON DELETE CASCADE` from dish side (deleting a dish removes junction rows), `ON DELETE RESTRICT` from lookup side (cannot delete a cooking method or category that is still referenced).
+
+**Alternatives Considered:**
+- Enums for cooking_methods/dish_categories: Rejected — no i18n support, requires ALTER TYPE for new values, no sortOrder possible.
+- `dish.food_id` NOT NULL: Rejected — forces creating a Food before adding a menu item, coupling two independent data pipelines.
+- `per_100g` default on dish_nutrients: Rejected — restaurant data universally uses per-serving, would require constant overriding.
+- Single `estimation_method` on dish only: Rejected — dish identification method and nutrient derivation method are independent facts.
+- Junction tables with surrogate UUID PK: Rejected — unnecessary overhead, composite PK is the natural key.
+
+**Consequences:**
+- (+) Schema supports restaurant data import from any source without requiring food composition first
+- (+) Cooking methods and categories are i18n-ready and admin-panel-editable without code changes
+- (+) Full auditability: every dish and every nutrient value is traceable to a source and estimation method
+- (+) International expansion requires only new rows, not schema changes
+- (-) 8 new tables + 2 junction tables add schema complexity
+- (-) Junction table queries require explicit joins (no Prisma implicit M:N since we use explicit models)

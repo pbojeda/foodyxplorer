@@ -254,6 +254,10 @@ async function main(): Promise<void> {
     },
   });
 
+  await prisma.$executeRaw`
+    UPDATE foods SET embedding = ${ZERO_VECTOR}::vector WHERE id = ${foodChickenRiceBowl.id}::uuid
+  `;
+
   const recipe = await prisma.recipe.upsert({
     where: { id: '00000000-0000-0000-0004-000000000001' },
     update: {},
@@ -308,6 +312,239 @@ async function main(): Promise<void> {
   });
 
   console.log('Recipe and ingredients created: Chicken and rice bowl');
+
+  // ---------------------------------------------------------------------------
+  // Big Mac food (for dish link)
+  // ---------------------------------------------------------------------------
+  const foodBigMac = await prisma.food.upsert({
+    where: { id: '00000000-0000-0000-0001-000000000005' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0001-000000000005',
+      name: 'Big Mac',
+      nameEs: 'Big Mac',
+      aliases: ['big mac', 'bigmac'],
+      foodGroup: 'Fast food',
+      sourceId: dataSource.id,
+      confidenceLevel: 'medium',
+      foodType: 'composite',
+    },
+  });
+
+  await prisma.$executeRaw`
+    UPDATE foods SET embedding = ${ZERO_VECTOR}::vector WHERE id = ${foodBigMac.id}::uuid
+  `;
+  console.log('Big Mac food created');
+
+  // ---------------------------------------------------------------------------
+  // Cooking methods (upsert — also inserted in migration for all environments)
+  // ---------------------------------------------------------------------------
+  const cookingMethods = [
+    { id: '00000000-0000-4000-c000-000000000001', name: 'Grilled',  nameEs: 'A la parrilla', slug: 'grilled' },
+    { id: '00000000-0000-4000-c000-000000000002', name: 'Baked',    nameEs: 'Al horno',       slug: 'baked' },
+    { id: '00000000-0000-4000-c000-000000000003', name: 'Fried',    nameEs: 'Frito',          slug: 'fried' },
+    { id: '00000000-0000-4000-c000-000000000004', name: 'Steamed',  nameEs: 'Al vapor',       slug: 'steamed' },
+    { id: '00000000-0000-4000-c000-000000000005', name: 'Raw',      nameEs: 'Crudo',          slug: 'raw' },
+    { id: '00000000-0000-4000-c000-000000000006', name: 'Boiled',   nameEs: 'Hervido',        slug: 'boiled' },
+    { id: '00000000-0000-4000-c000-000000000007', name: 'Roasted',  nameEs: 'Asado',          slug: 'roasted' },
+    { id: '00000000-0000-4000-c000-000000000008', name: 'Stewed',   nameEs: 'Estofado',       slug: 'stewed' },
+  ];
+
+  for (const cm of cookingMethods) {
+    await prisma.cookingMethod.upsert({
+      where: { slug: cm.slug },
+      update: { name: cm.name, nameEs: cm.nameEs },
+      create: { id: cm.id, name: cm.name, nameEs: cm.nameEs, slug: cm.slug },
+    });
+  }
+  console.log('Cooking methods upserted');
+
+  // ---------------------------------------------------------------------------
+  // Dish categories (upsert — also inserted in migration for all environments)
+  // ---------------------------------------------------------------------------
+  const dishCategories = [
+    { id: '00000000-0000-4000-d000-000000000001', name: 'Starters',     nameEs: 'Entrantes',          slug: 'starters',     sortOrder: 0 },
+    { id: '00000000-0000-4000-d000-000000000002', name: 'Main Courses', nameEs: 'Platos principales', slug: 'main-courses', sortOrder: 1 },
+    { id: '00000000-0000-4000-d000-000000000003', name: 'Side Dishes',  nameEs: 'Guarniciones',       slug: 'side-dishes',  sortOrder: 2 },
+    { id: '00000000-0000-4000-d000-000000000004', name: 'Desserts',     nameEs: 'Postres',            slug: 'desserts',     sortOrder: 3 },
+    { id: '00000000-0000-4000-d000-000000000005', name: 'Beverages',    nameEs: 'Bebidas',            slug: 'beverages',    sortOrder: 4 },
+    { id: '00000000-0000-4000-d000-000000000006', name: 'Snacks',       nameEs: 'Tentempiés',         slug: 'snacks',       sortOrder: 5 },
+    { id: '00000000-0000-4000-d000-000000000007', name: 'Salads',       nameEs: 'Ensaladas',          slug: 'salads',       sortOrder: 6 },
+    { id: '00000000-0000-4000-d000-000000000008', name: 'Soups',        nameEs: 'Sopas',              slug: 'soups',        sortOrder: 7 },
+  ];
+
+  for (const dc of dishCategories) {
+    await prisma.dishCategory.upsert({
+      where: { slug: dc.slug },
+      update: { name: dc.name, nameEs: dc.nameEs, sortOrder: dc.sortOrder },
+      create: { id: dc.id, name: dc.name, nameEs: dc.nameEs, slug: dc.slug, sortOrder: dc.sortOrder },
+    });
+  }
+  console.log('Dish categories upserted');
+
+  // ---------------------------------------------------------------------------
+  // Restaurants
+  // ---------------------------------------------------------------------------
+  const restaurantMcDonaldsES = await prisma.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'mcdonalds', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0006-000000000001',
+      name: "McDonald's Spain",
+      nameEs: "McDonald's España",
+      chainSlug: 'mcdonalds',
+      countryCode: 'ES',
+      website: 'https://www.mcdonalds.es',
+      isActive: true,
+    },
+  });
+
+  await prisma.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'mcdonalds', countryCode: 'PT' } },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0006-000000000002',
+      name: "McDonald's Portugal",
+      nameEs: "McDonald's Portugal",
+      chainSlug: 'mcdonalds',
+      countryCode: 'PT',
+      website: 'https://www.mcdonalds.pt',
+      isActive: true,
+    },
+  });
+
+  console.log('Restaurants upserted');
+
+  // ---------------------------------------------------------------------------
+  // Dishes
+  // ---------------------------------------------------------------------------
+  const dishBigMac = await prisma.dish.upsert({
+    where: { id: '00000000-0000-0000-0007-000000000001' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0007-000000000001',
+      restaurantId: restaurantMcDonaldsES.id,
+      foodId: foodBigMac.id,
+      sourceId: dataSource.id,
+      name: 'Big Mac',
+      nameEs: 'Big Mac',
+      availability: 'available',
+      confidenceLevel: 'medium',
+      estimationMethod: 'scraped',
+      aliases: ['big mac', 'bigmac'],
+      externalId: 'MCES-BIGMAC',
+    },
+  });
+
+  await prisma.$executeRaw`
+    UPDATE dishes SET embedding = ${ZERO_VECTOR}::vector WHERE id = ${dishBigMac.id}::uuid
+  `;
+
+  const dishMcChicken = await prisma.dish.upsert({
+    where: { id: '00000000-0000-0000-0007-000000000002' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0007-000000000002',
+      restaurantId: restaurantMcDonaldsES.id,
+      foodId: null,
+      sourceId: dataSource.id,
+      name: 'McChicken',
+      nameEs: 'McPollo',
+      availability: 'available',
+      confidenceLevel: 'low',
+      estimationMethod: 'scraped',
+      aliases: ['mcchicken', 'mc chicken'],
+      externalId: 'MCES-MCCHICKEN',
+    },
+  });
+
+  await prisma.$executeRaw`
+    UPDATE dishes SET embedding = ${ZERO_VECTOR}::vector WHERE id = ${dishMcChicken.id}::uuid
+  `;
+
+  console.log('Dishes upserted: Big Mac, McChicken');
+
+  // ---------------------------------------------------------------------------
+  // DishNutrients
+  // ---------------------------------------------------------------------------
+  await prisma.dishNutrient.upsert({
+    where: { dishId_sourceId: { dishId: dishBigMac.id, sourceId: dataSource.id } },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0008-000000000001',
+      dishId: dishBigMac.id,
+      calories: 563,
+      proteins: 26,
+      carbohydrates: 44,
+      sugars: 9,
+      fats: 30,
+      saturatedFats: 11,
+      fiber: 3,
+      salt: 1.7,
+      sodium: 0.68,
+      referenceBasis: 'per_serving',
+      estimationMethod: 'scraped',
+      sourceId: dataSource.id,
+      confidenceLevel: 'medium',
+    },
+  });
+
+  await prisma.dishNutrient.upsert({
+    where: { dishId_sourceId: { dishId: dishMcChicken.id, sourceId: dataSource.id } },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0008-000000000002',
+      dishId: dishMcChicken.id,
+      calories: 400,
+      proteins: 17,
+      carbohydrates: 41,
+      sugars: 6,
+      fats: 17,
+      saturatedFats: 3,
+      fiber: 2,
+      salt: 1.2,
+      sodium: 0.48,
+      referenceBasis: 'per_serving',
+      estimationMethod: 'scraped',
+      sourceId: dataSource.id,
+      confidenceLevel: 'low',
+    },
+  });
+
+  console.log('DishNutrients upserted');
+
+  // ---------------------------------------------------------------------------
+  // Junction rows: dish ↔ cooking_method, dish ↔ dish_category
+  // ---------------------------------------------------------------------------
+  const cmGrilledId = '00000000-0000-4000-c000-000000000001';
+  const cmFriedId   = '00000000-0000-4000-c000-000000000003';
+  const dcMainId    = '00000000-0000-4000-d000-000000000002';
+
+  await prisma.dishCookingMethod.upsert({
+    where: { dishId_cookingMethodId: { dishId: dishBigMac.id, cookingMethodId: cmGrilledId } },
+    update: {},
+    create: { dishId: dishBigMac.id, cookingMethodId: cmGrilledId },
+  });
+
+  await prisma.dishDishCategory.upsert({
+    where: { dishId_dishCategoryId: { dishId: dishBigMac.id, dishCategoryId: dcMainId } },
+    update: {},
+    create: { dishId: dishBigMac.id, dishCategoryId: dcMainId },
+  });
+
+  await prisma.dishCookingMethod.upsert({
+    where: { dishId_cookingMethodId: { dishId: dishMcChicken.id, cookingMethodId: cmFriedId } },
+    update: {},
+    create: { dishId: dishMcChicken.id, cookingMethodId: cmFriedId },
+  });
+
+  await prisma.dishDishCategory.upsert({
+    where: { dishId_dishCategoryId: { dishId: dishMcChicken.id, dishCategoryId: dcMainId } },
+    update: {},
+    create: { dishId: dishMcChicken.id, dishCategoryId: dcMainId },
+  });
+
+  console.log('Junction rows upserted: cooking methods & categories for dishes');
   console.log('Seeding complete.');
 }
 

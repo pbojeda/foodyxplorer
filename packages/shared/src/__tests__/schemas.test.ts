@@ -9,7 +9,29 @@ import {
   PortionContextSchema,
   FoodTypeSchema,
   NutrientReferenceBasisSchema,
+  DishAvailabilitySchema,
 } from '../schemas/enums';
+import {
+  CookingMethodSchema,
+  CreateCookingMethodSchema,
+} from '../schemas/cookingMethod';
+import {
+  DishCategorySchema,
+  CreateDishCategorySchema,
+} from '../schemas/dishCategory';
+import {
+  RestaurantSchema,
+  CreateRestaurantSchema,
+} from '../schemas/restaurant';
+import { DishSchema, CreateDishSchema } from '../schemas/dish';
+import {
+  DishNutrientSchema,
+  CreateDishNutrientSchema,
+} from '../schemas/dishNutrient';
+import {
+  DishIngredientSchema,
+  CreateDishIngredientSchema,
+} from '../schemas/dishIngredient';
 import {
   DataSourceSchema,
   CreateDataSourceSchema,
@@ -640,5 +662,487 @@ describe('RecipeIngredientSchema', () => {
       updatedAt: new Date(),
     });
     expect(result.id).toBe('f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DishAvailabilitySchema
+// ---------------------------------------------------------------------------
+
+describe('DishAvailabilitySchema', () => {
+  it('accepts all 4 valid values', () => {
+    const valid = ['available', 'seasonal', 'discontinued', 'regional'] as const;
+    for (const v of valid) {
+      expect(DishAvailabilitySchema.parse(v)).toBe(v);
+    }
+  });
+
+  it('rejects an invalid string', () => {
+    expect(() => DishAvailabilitySchema.parse('unavailable')).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CookingMethod schemas
+// ---------------------------------------------------------------------------
+
+const validCookingMethodBase = {
+  name: 'Grilled',
+  nameEs: 'A la parrilla',
+  slug: 'grilled',
+};
+
+describe('CreateCookingMethodSchema', () => {
+  it('passes with valid name/nameEs/slug', () => {
+    const result = CreateCookingMethodSchema.parse(validCookingMethodBase);
+    expect(result.name).toBe('Grilled');
+    expect(result.slug).toBe('grilled');
+  });
+
+  it('fails when slug is empty string', () => {
+    expect(() =>
+      CreateCookingMethodSchema.parse({ ...validCookingMethodBase, slug: '' }),
+    ).toThrow();
+  });
+
+  it('fails when name is missing', () => {
+    const { name: _name, ...withoutName } = validCookingMethodBase;
+    expect(() => CreateCookingMethodSchema.parse(withoutName)).toThrow();
+  });
+
+  it('accepts optional description', () => {
+    const result = CreateCookingMethodSchema.parse({
+      ...validCookingMethodBase,
+      description: 'Cooked on a grill',
+    });
+    expect(result.description).toBe('Cooked on a grill');
+  });
+});
+
+describe('CookingMethodSchema', () => {
+  it('passes with all fields including id and timestamps', () => {
+    const result = CookingMethodSchema.parse({
+      ...validCookingMethodBase,
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    expect(result.id).toBe('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DishCategory schemas
+// ---------------------------------------------------------------------------
+
+const validDishCategoryBase = {
+  name: 'Main Courses',
+  nameEs: 'Platos principales',
+  slug: 'main-courses',
+};
+
+describe('CreateDishCategorySchema', () => {
+  it('passes with valid fields; sortOrder defaults to 0 when omitted', () => {
+    const result = CreateDishCategorySchema.parse(validDishCategoryBase);
+    expect(result.slug).toBe('main-courses');
+    expect(result.sortOrder).toBe(0);
+  });
+
+  it('passes when sortOrder is explicitly set', () => {
+    const result = CreateDishCategorySchema.parse({
+      ...validDishCategoryBase,
+      sortOrder: 5,
+    });
+    expect(result.sortOrder).toBe(5);
+  });
+
+  it('fails when slug is empty', () => {
+    expect(() =>
+      CreateDishCategorySchema.parse({ ...validDishCategoryBase, slug: '' }),
+    ).toThrow();
+  });
+
+  it('fails when name is missing', () => {
+    const { name: _name, ...withoutName } = validDishCategoryBase;
+    expect(() => CreateDishCategorySchema.parse(withoutName)).toThrow();
+  });
+});
+
+describe('DishCategorySchema', () => {
+  it('passes with all fields including id and timestamps', () => {
+    const result = DishCategorySchema.parse({
+      ...validDishCategoryBase,
+      id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      sortOrder: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    expect(result.id).toBe('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Restaurant schemas
+// ---------------------------------------------------------------------------
+
+const validRestaurantBase = {
+  name: "McDonald's Spain",
+  chainSlug: 'mcdonalds',
+  countryCode: 'ES',
+  isActive: true,
+};
+
+describe('CreateRestaurantSchema', () => {
+  it('passes with valid fields; countryCode defaults to ES; isActive defaults to true', () => {
+    const result = CreateRestaurantSchema.parse({
+      name: "McDonald's",
+      chainSlug: 'mcdonalds',
+    });
+    expect(result.countryCode).toBe('ES');
+    expect(result.isActive).toBe(true);
+  });
+
+  it('passes with all fields', () => {
+    const result = CreateRestaurantSchema.parse(validRestaurantBase);
+    expect(result.name).toBe("McDonald's Spain");
+    expect(result.countryCode).toBe('ES');
+  });
+
+  it('fails when countryCode is lowercase (es)', () => {
+    expect(() =>
+      CreateRestaurantSchema.parse({ ...validRestaurantBase, countryCode: 'es' }),
+    ).toThrow();
+  });
+
+  it('fails when countryCode is 3 chars (ESP)', () => {
+    expect(() =>
+      CreateRestaurantSchema.parse({ ...validRestaurantBase, countryCode: 'ESP' }),
+    ).toThrow();
+  });
+
+  it('fails when countryCode is digits (12)', () => {
+    expect(() =>
+      CreateRestaurantSchema.parse({ ...validRestaurantBase, countryCode: '12' }),
+    ).toThrow();
+  });
+
+  it('nameEs is optional/nullable', () => {
+    const result = CreateRestaurantSchema.parse({
+      ...validRestaurantBase,
+      nameEs: null,
+    });
+    expect(result.nameEs).toBeNull();
+
+    const result2 = CreateRestaurantSchema.parse(validRestaurantBase);
+    expect(result2.nameEs).toBeUndefined();
+  });
+});
+
+describe('RestaurantSchema', () => {
+  it('passes with all fields including id and timestamps', () => {
+    const result = RestaurantSchema.parse({
+      ...validRestaurantBase,
+      id: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    expect(result.id).toBe('c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Dish schemas
+// ---------------------------------------------------------------------------
+
+const validDishBase = {
+  restaurantId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  sourceId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  name: 'Big Mac',
+  availability: 'available' as const,
+  confidenceLevel: 'medium' as const,
+  estimationMethod: 'scraped' as const,
+  aliases: [],
+};
+
+describe('CreateDishSchema', () => {
+  it('passes with valid fields including nullable foodId', () => {
+    const result = CreateDishSchema.parse({
+      ...validDishBase,
+      foodId: null,
+    });
+    expect(result.name).toBe('Big Mac');
+    expect(result.foodId).toBeNull();
+  });
+
+  it('availability defaults to available when omitted', () => {
+    const { availability: _av, ...withoutAvailability } = validDishBase;
+    const result = CreateDishSchema.parse(withoutAvailability);
+    expect(result.availability).toBe('available');
+  });
+
+  it('portionGrams fails when 0', () => {
+    expect(() =>
+      CreateDishSchema.parse({ ...validDishBase, portionGrams: 0 }),
+    ).toThrow();
+  });
+
+  it('portionGrams fails when negative', () => {
+    expect(() =>
+      CreateDishSchema.parse({ ...validDishBase, portionGrams: -1 }),
+    ).toThrow();
+  });
+
+  it('portionGrams passes when null', () => {
+    const result = CreateDishSchema.parse({ ...validDishBase, portionGrams: null });
+    expect(result.portionGrams).toBeNull();
+  });
+
+  it('priceEur fails when negative', () => {
+    expect(() =>
+      CreateDishSchema.parse({ ...validDishBase, priceEur: -0.01 }),
+    ).toThrow();
+  });
+
+  it('priceEur passes when 0', () => {
+    const result = CreateDishSchema.parse({ ...validDishBase, priceEur: 0 });
+    expect(result.priceEur).toBe(0);
+  });
+
+  it('priceEur passes when null', () => {
+    const result = CreateDishSchema.parse({ ...validDishBase, priceEur: null });
+    expect(result.priceEur).toBeNull();
+  });
+
+  it('aliases is array of strings', () => {
+    const result = CreateDishSchema.parse({
+      ...validDishBase,
+      aliases: ['big mac', 'bigmac'],
+    });
+    expect(result.aliases).toEqual(['big mac', 'bigmac']);
+  });
+
+  it('aliases defaults to empty array when omitted', () => {
+    const { aliases: _al, ...withoutAliases } = validDishBase;
+    const result = CreateDishSchema.parse(withoutAliases);
+    expect(result.aliases).toEqual([]);
+  });
+
+  it('fails when aliases is not an array', () => {
+    expect(() =>
+      CreateDishSchema.parse({ ...validDishBase, aliases: 'big mac' }),
+    ).toThrow();
+  });
+});
+
+describe('DishSchema', () => {
+  it('passes with all fields including id and timestamps', () => {
+    const result = DishSchema.parse({
+      ...validDishBase,
+      id: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    expect(result.id).toBe('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DishNutrient schemas
+// ---------------------------------------------------------------------------
+
+const validDishNutrientBase = {
+  dishId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  calories: 563,
+  proteins: 26,
+  carbohydrates: 44,
+  sugars: 9,
+  fats: 30,
+  saturatedFats: 11,
+  fiber: 3,
+  salt: 1.7,
+  sodium: 0.68,
+  referenceBasis: 'per_serving' as const,
+  transFats: 0,
+  cholesterol: 0,
+  potassium: 0,
+  monounsaturatedFats: 0,
+  polyunsaturatedFats: 0,
+  estimationMethod: 'scraped' as const,
+  sourceId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  confidenceLevel: 'medium' as const,
+};
+
+describe('CreateDishNutrientSchema', () => {
+  it('passes with valid values; referenceBasis defaults to per_serving', () => {
+    const { referenceBasis: _rb, ...withoutReferenceBasis } = validDishNutrientBase;
+    const result = CreateDishNutrientSchema.parse(withoutReferenceBasis);
+    expect(result.referenceBasis).toBe('per_serving');
+  });
+
+  it('calories fails when > 9000', () => {
+    expect(() =>
+      CreateDishNutrientSchema.parse({ ...validDishNutrientBase, calories: 9001 }),
+    ).toThrow();
+  });
+
+  it('calories passes when exactly 9000', () => {
+    const result = CreateDishNutrientSchema.parse({
+      ...validDishNutrientBase,
+      calories: 9000,
+    });
+    expect(result.calories).toBe(9000);
+  });
+
+  it('calories fails when negative', () => {
+    expect(() =>
+      CreateDishNutrientSchema.parse({ ...validDishNutrientBase, calories: -1 }),
+    ).toThrow();
+  });
+
+  it('extended nutrients default to 0 when omitted', () => {
+    const {
+      transFats: _tf,
+      cholesterol: _ch,
+      potassium: _po,
+      monounsaturatedFats: _mf,
+      polyunsaturatedFats: _pf,
+      referenceBasis: _rb,
+      ...withoutExtended
+    } = validDishNutrientBase;
+    const result = CreateDishNutrientSchema.parse(withoutExtended);
+    expect(result.transFats).toBe(0);
+    expect(result.cholesterol).toBe(0);
+    expect(result.potassium).toBe(0);
+    expect(result.monounsaturatedFats).toBe(0);
+    expect(result.polyunsaturatedFats).toBe(0);
+  });
+
+  it('fails when transFats is negative', () => {
+    expect(() =>
+      CreateDishNutrientSchema.parse({ ...validDishNutrientBase, transFats: -0.1 }),
+    ).toThrow();
+  });
+
+  it('fails when cholesterol is negative', () => {
+    expect(() =>
+      CreateDishNutrientSchema.parse({ ...validDishNutrientBase, cholesterol: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when potassium is negative', () => {
+    expect(() =>
+      CreateDishNutrientSchema.parse({ ...validDishNutrientBase, potassium: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when monounsaturatedFats is negative', () => {
+    expect(() =>
+      CreateDishNutrientSchema.parse({ ...validDishNutrientBase, monounsaturatedFats: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when polyunsaturatedFats is negative', () => {
+    expect(() =>
+      CreateDishNutrientSchema.parse({ ...validDishNutrientBase, polyunsaturatedFats: -1 }),
+    ).toThrow();
+  });
+
+  it('estimationMethod is required (no default)', () => {
+    const { estimationMethod: _em, ...withoutEM } = validDishNutrientBase;
+    expect(() => CreateDishNutrientSchema.parse(withoutEM)).toThrow();
+  });
+});
+
+describe('DishNutrientSchema', () => {
+  it('passes with all fields including id and timestamps', () => {
+    const result = DishNutrientSchema.parse({
+      ...validDishNutrientBase,
+      id: 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    expect(result.id).toBe('e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DishIngredient schemas
+// ---------------------------------------------------------------------------
+
+const validDishIngredientBase = {
+  dishId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  ingredientFoodId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  amount: 150,
+  unit: 'g',
+  gramWeight: 150,
+  sortOrder: 0,
+  notes: null,
+};
+
+describe('CreateDishIngredientSchema', () => {
+  it('passes with valid input using dishId instead of recipeId', () => {
+    const result = CreateDishIngredientSchema.parse(validDishIngredientBase);
+    expect(result.dishId).toBe('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+    expect(result.amount).toBe(150);
+    expect(result.sortOrder).toBe(0);
+  });
+
+  it('fails when amount is 0 (must be positive)', () => {
+    expect(() =>
+      CreateDishIngredientSchema.parse({ ...validDishIngredientBase, amount: 0 }),
+    ).toThrow();
+  });
+
+  it('fails when amount is negative', () => {
+    expect(() =>
+      CreateDishIngredientSchema.parse({ ...validDishIngredientBase, amount: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when sortOrder is negative', () => {
+    expect(() =>
+      CreateDishIngredientSchema.parse({ ...validDishIngredientBase, sortOrder: -1 }),
+    ).toThrow();
+  });
+
+  it('fails when unit is empty string', () => {
+    expect(() =>
+      CreateDishIngredientSchema.parse({ ...validDishIngredientBase, unit: '' }),
+    ).toThrow();
+  });
+
+  it('fails when unit exceeds 50 characters', () => {
+    expect(() =>
+      CreateDishIngredientSchema.parse({
+        ...validDishIngredientBase,
+        unit: 'a'.repeat(51),
+      }),
+    ).toThrow();
+  });
+
+  it('gramWeight nullable; passes when null', () => {
+    const result = CreateDishIngredientSchema.parse({
+      ...validDishIngredientBase,
+      gramWeight: null,
+    });
+    expect(result.gramWeight).toBeNull();
+  });
+
+  it('gramWeight fails when negative', () => {
+    expect(() =>
+      CreateDishIngredientSchema.parse({ ...validDishIngredientBase, gramWeight: -1 }),
+    ).toThrow();
+  });
+});
+
+describe('DishIngredientSchema', () => {
+  it('passes with all fields including id and timestamps', () => {
+    const result = DishIngredientSchema.parse({
+      ...validDishIngredientBase,
+      id: 'f0eebc99-9c0b-4ef8-bb6d-6bb9bd380b22',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    expect(result.id).toBe('f0eebc99-9c0b-4ef8-bb6d-6bb9bd380b22');
   });
 });

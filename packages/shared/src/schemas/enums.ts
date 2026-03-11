@@ -32,3 +32,11 @@ export const NutrientReferenceBasisSchema = z.enum([
   'per_package',
 ]);
 export type NutrientReferenceBasis = z.infer<typeof NutrientReferenceBasisSchema>;
+
+export const DishAvailabilitySchema = z.enum([
+  'available',
+  'seasonal',
+  'discontinued',
+  'regional',
+]);
+export type DishAvailability = z.infer<typeof DishAvailabilitySchema>;
