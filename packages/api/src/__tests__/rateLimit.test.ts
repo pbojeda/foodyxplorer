@@ -87,17 +87,12 @@ describe('registerRateLimit — development env (plugin active)', () => {
     await app.close();
   });
 
-  it('rate-limit headers are present on responses (plugin registered)', async () => {
+  it('/health is exempt from rate limiting — no rate limit headers (allowList)', async () => {
     const response = await app.inject({ method: 'GET', url: '/health' });
 
-    // /health is exempt from rate limiting but the plugin IS registered.
-    // The headers appear on non-exempt routes — use a custom test route check.
-    // Since /health is skipped, we can verify the plugin is registered by
-    // checking that x-ratelimit-limit is absent on /health (skip fn working).
     expect(response.statusCode).toBe(200);
-    // Rate limiting skip applies to /health — headers may be absent here
-    // which is the correct behaviour. We verify the 429 response shape below.
-    expect(response.statusCode).toBe(200);
+    // /health is in the allowList — rate limit headers should NOT appear.
+    expect(response.headers['x-ratelimit-limit']).toBeUndefined();
   });
 
   it('/health is exempt from rate limiting (skip function works)', async () => {

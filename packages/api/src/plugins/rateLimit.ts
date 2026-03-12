@@ -12,8 +12,8 @@
 // maps this to the project error envelope:
 //   { success: false, error: { message, code: "RATE_LIMIT_EXCEEDED" } }
 //
-// /health is exempt via allowList (function-based) so the health check is
-// never counted against rate limit counters.
+// /health is exempt via allowList so the health check is never counted
+// against rate limit counters.
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Config } from '../config.js';

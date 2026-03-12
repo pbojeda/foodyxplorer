@@ -36,10 +36,9 @@ export const redis = new Redis(
  * Returns true on success, false on failure.
  */
 export async function connectRedis(): Promise<boolean> {
-  const url = process.env['REDIS_URL'] ?? 'redis://localhost:6380';
   try {
     await redis.connect();
-    console.log(`[redis] Connected to Redis at ${url}`);
+    console.log('[redis] Connected to Redis');
     return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
