@@ -5,7 +5,7 @@
 //
 // Plugin registration order: swagger → cors → errorHandler → routes
 
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import {
   serializerCompiler,
   validatorCompiler,
@@ -32,39 +32,41 @@ export interface BuildAppOptions {
 // buildApp factory
 // ---------------------------------------------------------------------------
 
-export function buildApp(opts: BuildAppOptions = {}): ReturnType<typeof Fastify> {
+export function buildApp(opts: BuildAppOptions = {}): FastifyInstance {
   const cfg = opts.config ?? defaultConfig;
   const prismaClient = opts.prisma ?? defaultPrisma;
 
-  // Logger configuration varies by environment
-  type LoggerOption = Parameters<typeof Fastify>[0] extends { logger?: infer L } ? L : never;
-  let loggerOption: LoggerOption;
+  // Build the Fastify instance with environment-appropriate logger settings.
+  // logger:false (boolean) fully disables logging in test env — Fastify v5
+  // accepts boolean false to suppress all log output.
+  let app: FastifyInstance;
 
   if (cfg.NODE_ENV === 'test') {
-    loggerOption = false;
+    app = Fastify({ logger: false });
   } else if (cfg.NODE_ENV === 'development') {
-    loggerOption = {
-      level: cfg.LOG_LEVEL,
-      transport: {
-        target: 'pino-pretty',
+    app = Fastify({
+      logger: {
+        level: cfg.LOG_LEVEL,
+        transport: {
+          target: 'pino-pretty',
+        },
       },
-    };
+    });
   } else {
-    loggerOption = {
-      level: cfg.LOG_LEVEL,
-    };
+    app = Fastify({
+      logger: {
+        level: cfg.LOG_LEVEL,
+      },
+    });
   }
-
-  const app = Fastify({ logger: loggerOption });
 
   // Attach Zod type provider so route handler types are inferred from schemas
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  // Register all plugins and routes then return the app.
-  // Note: We use a synchronous factory but register async plugins using
-  // fastify's plugin queue — Fastify handles async initialisation lazily
-  // before the first request or explicit app.ready() call.
+  // Register all plugins and routes.
+  // Fastify queues async plugin registration — it runs before the first
+  // request or explicit app.ready() call.
   void registerSwagger(app, cfg);
   void registerCors(app, cfg);
   registerErrorHandler(app);

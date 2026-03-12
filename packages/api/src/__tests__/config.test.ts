@@ -3,19 +3,28 @@
 // Tests the parseConfig(env) named export without mutating process.env.
 // process.exit is mocked to prevent actual process termination.
 //
-// vitest.config.ts sets DATABASE_URL and NODE_ENV for the test environment,
-// so the module-level singleton (parseConfig(process.env)) succeeds on import.
-// The spy is installed before the dynamic import as a safety net.
+// vitest.config.ts provides DATABASE_URL and NODE_ENV so the module-level
+// singleton (parseConfig(process.env)) does not exit when config.ts is imported.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import type { Config } from '../config.js';
 
-// Install spy before importing config (spy covers module-level singleton call)
-const exitSpy = vi.spyOn(process, 'exit').mockImplementation((_code?: string | number | null | undefined) => {
-  throw new Error('process.exit called');
+// process.exit spy — installed before config is imported so it covers the
+// module-level singleton call in config.ts (line: export const config = parseConfig(process.env))
+const exitSpy = vi.spyOn(process, 'exit').mockImplementation(
+  (_code?: string | number | null | undefined): never => {
+    throw new Error('process.exit called');
+  },
+);
+
+// parseConfig is loaded via beforeAll to give the spy time to set up first.
+// (Cannot use top-level await in CommonJS modules per tsconfig module:Node16)
+let parseConfig: (env: NodeJS.ProcessEnv) => Config;
+
+beforeAll(async () => {
+  const mod = await import('../config.js');
+  parseConfig = mod.parseConfig;
 });
-
-// Dynamic import after spy is set up
-const { parseConfig } = await import('../config.js');
 
 const VALID_ENV = {
   NODE_ENV: 'development',

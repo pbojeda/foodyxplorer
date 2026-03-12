@@ -35,13 +35,13 @@ describe('GET /health', () => {
 
     expect(response.statusCode).toBe(200);
 
-    const body = response.json<{
+    const body = JSON.parse(response.body) as {
       status: string;
       timestamp: string;
       version: string;
       uptime: number;
       db?: string;
-    }>();
+    };
 
     expect(body.status).toBe('ok');
     expect(typeof body.timestamp).toBe('string');
@@ -54,7 +54,7 @@ describe('GET /health', () => {
 
   it('does NOT include db field when ?db param is absent', async () => {
     const response = await app.inject({ method: 'GET', url: '/health' });
-    const body = response.json<Record<string, unknown>>();
+    const body = JSON.parse(response.body) as Record<string, unknown>;
 
     expect(Object.prototype.hasOwnProperty.call(body, 'db')).toBe(false);
   });
@@ -66,7 +66,7 @@ describe('GET /health', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const body = response.json<{ db?: string }>();
+    const body = JSON.parse(response.body) as { db?: string };
     expect(body.db).toBe('connected');
   });
 });
@@ -86,10 +86,10 @@ describe('GET /health?db=true — DB unavailable', () => {
 
     expect(response.statusCode).toBe(500);
 
-    const body = response.json<{
+    const body = JSON.parse(response.body) as {
       success: boolean;
       error: { message: string; code: string };
-    }>();
+    };
 
     expect(body.success).toBe(false);
     expect(body.error.code).toBe('DB_UNAVAILABLE');
@@ -112,10 +112,10 @@ describe('Not found handler', () => {
 
     expect(response.statusCode).toBe(404);
 
-    const body = response.json<{
+    const body = JSON.parse(response.body) as {
       success: boolean;
       error: { message: string; code: string };
-    }>();
+    };
 
     expect(body.success).toBe(false);
     expect(body.error.code).toBe('NOT_FOUND');

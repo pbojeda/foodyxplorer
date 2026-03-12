@@ -70,7 +70,7 @@ export function mapError(error: Error): MappedError {
   }
 
   // Fastify schema validation error
-  const asAny = error as Record<string, unknown>;
+  const asAny = error as unknown as Record<string, unknown>;
   if (asAny['code'] === 'FST_ERR_VALIDATION') {
     return {
       statusCode: 400,
