@@ -3,9 +3,9 @@
 // Tests the parseConfig(env) named export without mutating process.env.
 // process.exit is mocked to prevent actual process termination.
 //
-// NOTE: We set process.env['DATABASE_URL'] before dynamic-importing config.ts
-// so the module-level singleton (parseConfig(process.env)) does not exit.
-// The spy is installed before the import so it covers any exit in the singleton.
+// vitest.config.ts sets DATABASE_URL and NODE_ENV for the test environment,
+// so the module-level singleton (parseConfig(process.env)) succeeds on import.
+// The spy is installed before the dynamic import as a safety net.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -14,11 +14,7 @@ const exitSpy = vi.spyOn(process, 'exit').mockImplementation((_code?: string | n
   throw new Error('process.exit called');
 });
 
-// Ensure DATABASE_URL is present so the module-level singleton does not exit
-process.env['DATABASE_URL'] = 'postgresql://user:pass@localhost:5432/mydb';
-process.env['NODE_ENV'] = 'test';
-
-// Dynamic import after spy and env are set up
+// Dynamic import after spy is set up
 const { parseConfig } = await import('../config.js');
 
 const VALID_ENV = {
