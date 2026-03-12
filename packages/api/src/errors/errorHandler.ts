@@ -98,6 +98,34 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // REDIS_UNAVAILABLE — health route Redis check failure
+  if (asAny['code'] === 'REDIS_UNAVAILABLE') {
+    return {
+      statusCode: 500,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'REDIS_UNAVAILABLE',
+        },
+      },
+    };
+  }
+
+  // RATE_LIMIT_EXCEEDED — @fastify/rate-limit exceeded response
+  if (asAny['code'] === 'RATE_LIMIT_EXCEEDED') {
+    return {
+      statusCode: 429,
+      body: {
+        success: false,
+        error: {
+          message: 'Too many requests, please try again later.',
+          code: 'RATE_LIMIT_EXCEEDED',
+        },
+      },
+    };
+  }
+
   // 404 — typically set by Fastify on unmatched routes or explicitly
   if (typeof asAny['statusCode'] === 'number' && asAny['statusCode'] === 404) {
     return {

@@ -123,4 +123,19 @@ describe('parseConfig', () => {
     const config = parseConfig({ ...VALID_ENV });
     expect(config.DATABASE_URL_TEST).toBeUndefined();
   });
+
+  it('defaults REDIS_URL to "redis://localhost:6380" when absent', () => {
+    const config = parseConfig({ ...VALID_ENV });
+    expect(config.REDIS_URL).toBe('redis://localhost:6380');
+  });
+
+  it('accepts any non-empty string for REDIS_URL', () => {
+    const config = parseConfig({ ...VALID_ENV, REDIS_URL: 'redis://my-redis:6379' });
+    expect(config.REDIS_URL).toBe('redis://my-redis:6379');
+  });
+
+  it('calls process.exit(1) when REDIS_URL is an empty string', () => {
+    expect(() => parseConfig({ ...VALID_ENV, REDIS_URL: '' })).toThrow('process.exit called');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
 });

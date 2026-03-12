@@ -31,9 +31,10 @@ paths:
     get:
       summary: Health check
       description: |
-        Returns server liveness. Performs an optional lightweight DB connectivity
-        check (single `SELECT 1` via Prisma). The `db` field is present only when
-        the check is requested via `?db=true`.
+        Returns server liveness. Optionally checks DB connectivity (`?db=true`)
+        and/or Redis connectivity (`?redis=true`). Both parameters can be combined.
+        The `db` and `redis` fields are present in the response only when the
+        respective check is requested.
       operationId: healthCheck
       tags:
         - System
@@ -41,7 +42,14 @@ paths:
         - name: db
           in: query
           required: false
-          description: Include a database connectivity check when set to "true".
+          description: Include a database connectivity check (SELECT 1 via Prisma) when set to "true".
+          schema:
+            type: string
+            enum: ["true"]
+        - name: redis
+          in: query
+          required: false
+          description: Include a Redis connectivity check (PING) when set to "true".
           schema:
             type: string
             enum: ["true"]
@@ -68,17 +76,44 @@ paths:
                     version: "0.1.0"
                     uptime: 42.3
                     db: connected
+                withRedis:
+                  summary: Health check with Redis connectivity
+                  value:
+                    status: ok
+                    timestamp: "2026-03-11T10:00:00.000Z"
+                    version: "0.1.0"
+                    uptime: 42.3
+                    redis: connected
+                withDbAndRedis:
+                  summary: Health check with both DB and Redis connectivity
+                  value:
+                    status: ok
+                    timestamp: "2026-03-11T10:00:00.000Z"
+                    version: "0.1.0"
+                    uptime: 42.3
+                    db: connected
+                    redis: connected
         '500':
-          description: Service is unhealthy (e.g. DB unreachable when ?db=true)
+          description: Service is unhealthy (e.g. DB or Redis unreachable when respective check is requested)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                error:
-                  message: "Database connectivity check failed"
-                  code: "DB_UNAVAILABLE"
+              examples:
+                dbUnavailable:
+                  summary: Database unreachable
+                  value:
+                    success: false
+                    error:
+                      message: "Database connectivity check failed"
+                      code: "DB_UNAVAILABLE"
+                redisUnavailable:
+                  summary: Redis unreachable
+                  value:
+                    success: false
+                    error:
+                      message: "Redis connectivity check failed"
+                      code: "REDIS_UNAVAILABLE"
 
 components:
   schemas:
@@ -116,6 +151,13 @@ components:
           description: |
             Present only when ?db=true is passed. Reflects whether a lightweight
             SELECT 1 succeeded against the PostgreSQL database.
+          example: connected
+        redis:
+          type: string
+          enum: [connected, unavailable]
+          description: |
+            Present only when ?redis=true is passed. Reflects whether a Redis PING
+            succeeded against the configured Redis instance.
           example: connected
 
     # -------------------------------------------------------------------------
