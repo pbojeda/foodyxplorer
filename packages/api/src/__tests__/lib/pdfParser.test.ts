@@ -47,8 +47,7 @@ describe('extractText', () => {
   });
 
   it('throws UNSUPPORTED_PDF when PDF has no extractable text', async () => {
-    // A PDF with no text content — all pages produce empty text
-    // We use a minimal PDF that pdf-parse can parse but produces empty text
+    // A valid PDF with no text content — page exists but text is empty
     const emptyTextPdf = `%PDF-1.4
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
@@ -65,16 +64,9 @@ startxref
 %%EOF`;
 
     const buffer = Buffer.from(emptyTextPdf);
-    // This should either succeed with empty or throw UNSUPPORTED_PDF
-    // We test that the wrapper handles the empty-text case gracefully
-    try {
-      const result = await extractText(buffer);
-      // If it resolves, the PDF text may be empty — that's acceptable behavior
-      // The route handler checks for empty arrays separately
-      expect(Array.isArray(result)).toBe(true);
-    } catch (err) {
-      // If it throws, it should be UNSUPPORTED_PDF
-      expect((err as NodeJS.ErrnoException & { code?: string })['code']).toBe('UNSUPPORTED_PDF');
-    }
+    await expect(extractText(buffer)).rejects.toMatchObject({
+      code: 'UNSUPPORTED_PDF',
+      statusCode: 422,
+    });
   });
 });

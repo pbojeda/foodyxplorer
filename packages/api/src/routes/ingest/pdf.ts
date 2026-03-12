@@ -110,7 +110,7 @@ const ingestPdfRoutesPlugin: FastifyPluginAsync<IngestPdfPluginOptions> = async 
     // -------------------------------------------------------------------------
     // Step 3: Validate file magic bytes
     // -------------------------------------------------------------------------
-    const magicBytes = fileBuffer.slice(0, 5).toString('ascii');
+    const magicBytes = fileBuffer.subarray(0, 5).toString('ascii');
     if (magicBytes !== '%PDF-') {
       throw Object.assign(
         new Error('File is not a valid PDF'),
@@ -154,8 +154,9 @@ const ingestPdfRoutesPlugin: FastifyPluginAsync<IngestPdfPluginOptions> = async 
     // -------------------------------------------------------------------------
     // Steps 6–9: Processing pipeline wrapped in 30-second timeout
     // -------------------------------------------------------------------------
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         reject(
           Object.assign(new Error('Processing timeout'), {
             statusCode: 408,
@@ -243,101 +244,105 @@ const ingestPdfRoutesPlugin: FastifyPluginAsync<IngestPdfPluginOptions> = async 
 
       if (!dryRun) {
         try {
-          for (const dish of validDishes) {
-            // Use findFirst + create/update since there's no @@unique([restaurantId, name])
-            // in the Prisma schema — the DB has a partial unique index on externalId only.
-            const existing = await prisma.dish.findFirst({
-              where: { restaurantId: dish.restaurantId, name: dish.name },
-              select: { id: true },
-            });
-
-            let dishId: string;
-
-            if (existing === null) {
-              // Create new dish
-              const created = await prisma.dish.create({
-                data: {
-                  restaurantId: dish.restaurantId,
-                  sourceId: dish.sourceId,
-                  name: dish.name,
-                  nameEs: dish.nameEs,
-                  description: dish.description,
-                  externalId: dish.externalId,
-                  availability: dish.availability,
-                  portionGrams: dish.portionGrams,
-                  priceEur: dish.priceEur,
-                  confidenceLevel: dish.confidenceLevel,
-                  estimationMethod: dish.estimationMethod,
-                  aliases: dish.aliases,
-                },
+          await prisma.$transaction(async (tx) => {
+            for (const dish of validDishes) {
+              // Use findFirst + create/update since there's no @@unique([restaurantId, name])
+              // in the Prisma schema — the DB has a partial unique index on externalId only.
+              const existing = await tx.dish.findFirst({
+                where: { restaurantId: dish.restaurantId, name: dish.name },
                 select: { id: true },
               });
-              dishId = created.id;
-            } else {
-              // Update existing dish
-              await prisma.dish.update({
-                where: { id: existing.id },
-                data: {
-                  sourceId: dish.sourceId,
-                  nameEs: dish.nameEs,
-                  description: dish.description,
-                  availability: dish.availability,
-                  portionGrams: dish.portionGrams,
-                  priceEur: dish.priceEur,
-                  confidenceLevel: dish.confidenceLevel,
-                  estimationMethod: dish.estimationMethod,
-                  aliases: dish.aliases,
-                },
+
+              let dishId: string;
+
+              if (existing === null) {
+                const created = await tx.dish.create({
+                  data: {
+                    restaurantId: dish.restaurantId,
+                    sourceId: dish.sourceId,
+                    name: dish.name,
+                    nameEs: dish.nameEs,
+                    description: dish.description,
+                    externalId: dish.externalId,
+                    availability: dish.availability,
+                    portionGrams: dish.portionGrams,
+                    priceEur: dish.priceEur,
+                    confidenceLevel: dish.confidenceLevel,
+                    estimationMethod: dish.estimationMethod,
+                    aliases: dish.aliases,
+                  },
+                  select: { id: true },
+                });
+                dishId = created.id;
+              } else {
+                await tx.dish.update({
+                  where: { id: existing.id },
+                  data: {
+                    sourceId: dish.sourceId,
+                    nameEs: dish.nameEs,
+                    description: dish.description,
+                    availability: dish.availability,
+                    portionGrams: dish.portionGrams,
+                    priceEur: dish.priceEur,
+                    confidenceLevel: dish.confidenceLevel,
+                    estimationMethod: dish.estimationMethod,
+                    aliases: dish.aliases,
+                  },
+                });
+                dishId = existing.id;
+              }
+
+              // Upsert dish nutrients
+              const existingNutrient = await tx.dishNutrient.findFirst({
+                where: { dishId, sourceId: dish.sourceId },
+                select: { id: true },
               });
-              dishId = existing.id;
+
+              const nutrientData = {
+                dishId,
+                sourceId: dish.sourceId,
+                confidenceLevel: dish.confidenceLevel,
+                estimationMethod: dish.estimationMethod,
+                calories: dish.nutrients.calories,
+                proteins: dish.nutrients.proteins,
+                carbohydrates: dish.nutrients.carbohydrates,
+                sugars: dish.nutrients.sugars,
+                fats: dish.nutrients.fats,
+                saturatedFats: dish.nutrients.saturatedFats,
+                fiber: dish.nutrients.fiber,
+                salt: dish.nutrients.salt,
+                sodium: dish.nutrients.sodium,
+                transFats: dish.nutrients.transFats,
+                cholesterol: dish.nutrients.cholesterol,
+                potassium: dish.nutrients.potassium,
+                monounsaturatedFats: dish.nutrients.monounsaturatedFats,
+                polyunsaturatedFats: dish.nutrients.polyunsaturatedFats,
+                referenceBasis: dish.nutrients.referenceBasis,
+                extra: dish.nutrients.extra !== undefined
+                  ? (dish.nutrients.extra as Prisma.InputJsonValue)
+                  : Prisma.JsonNull,
+              };
+
+              if (existingNutrient === null) {
+                await tx.dishNutrient.create({ data: nutrientData });
+              } else {
+                await tx.dishNutrient.update({
+                  where: { id: existingNutrient.id },
+                  data: nutrientData,
+                });
+              }
+
+              dishesUpserted++;
             }
-
-            // Upsert dish nutrients
-            const existingNutrient = await prisma.dishNutrient.findFirst({
-              where: { dishId, sourceId: dish.sourceId },
-              select: { id: true },
-            });
-
-            const nutrientData = {
-              dishId,
-              sourceId: dish.sourceId,
-              confidenceLevel: dish.confidenceLevel,
-              estimationMethod: dish.estimationMethod,
-              calories: dish.nutrients.calories,
-              proteins: dish.nutrients.proteins,
-              carbohydrates: dish.nutrients.carbohydrates,
-              sugars: dish.nutrients.sugars,
-              fats: dish.nutrients.fats,
-              saturatedFats: dish.nutrients.saturatedFats,
-              fiber: dish.nutrients.fiber,
-              salt: dish.nutrients.salt,
-              sodium: dish.nutrients.sodium,
-              transFats: dish.nutrients.transFats,
-              cholesterol: dish.nutrients.cholesterol,
-              potassium: dish.nutrients.potassium,
-              monounsaturatedFats: dish.nutrients.monounsaturatedFats,
-              polyunsaturatedFats: dish.nutrients.polyunsaturatedFats,
-              referenceBasis: dish.nutrients.referenceBasis,
-              extra: dish.nutrients.extra !== undefined
-                ? (dish.nutrients.extra as Prisma.InputJsonValue)
-                : Prisma.JsonNull,
-            };
-
-            if (existingNutrient === null) {
-              await prisma.dishNutrient.create({ data: nutrientData });
-            } else {
-              await prisma.dishNutrient.update({
-                where: { id: existingNutrient.id },
-                data: nutrientData,
-              });
-            }
-
-            dishesUpserted++;
-          }
+          });
         } catch (err) {
-          // Re-throw domain errors (NOT_FOUND, PROCESSING_TIMEOUT, etc.)
+          // Re-throw domain errors — let the global error handler deal with them
+          const DOMAIN_CODES = new Set([
+            'VALIDATION_ERROR', 'NOT_FOUND', 'INVALID_PDF',
+            'UNSUPPORTED_PDF', 'NO_NUTRITIONAL_DATA_FOUND', 'PROCESSING_TIMEOUT',
+          ]);
           const asAny = err as Record<string, unknown>;
-          if (typeof asAny['code'] === 'string' && asAny['code'] !== 'DB_UNAVAILABLE') {
+          if (typeof asAny['code'] === 'string' && DOMAIN_CODES.has(asAny['code'])) {
             throw err;
           }
           throw Object.assign(
@@ -357,12 +362,16 @@ const ingestPdfRoutesPlugin: FastifyPluginAsync<IngestPdfPluginOptions> = async 
       };
     };
 
-    const result = await Promise.race([processingPromise(), timeoutPromise]);
+    try {
+      const result = await Promise.race([processingPromise(), timeoutPromise]);
 
-    return reply.status(200).send({
-      success: true,
-      data: result,
-    });
+      return reply.status(200).send({
+        success: true,
+        data: result,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
   });
 };
 
