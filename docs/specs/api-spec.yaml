@@ -25,6 +25,12 @@ servers:
 tags:
   - name: System
     description: Infrastructure and health endpoints
+  - name: Ingestion
+    description: |
+      Data ingestion endpoints (F007b, F007c). Accept external nutritional data
+      (PDF upload or URL), normalize to the shared dish/nutrient schema, and
+      persist to the database. These endpoints are NOT part of F007 — they are
+      specified and implemented in F007b and F007c respectively.
 
 paths:
   /health:

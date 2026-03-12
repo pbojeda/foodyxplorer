@@ -5,7 +5,8 @@
   "workspaces": [
     "packages/shared",
     "packages/api",
-    "packages/bot"
+    "packages/bot",
+    "packages/scraper"
   ],
   "scripts": {
     "dev:api": "npm run dev -w @foodxplorer/api",
@@ -19,6 +20,7 @@
     "db:push": "npm run db:push -w @foodxplorer/api",
     "db:seed": "npm run db:seed -w @foodxplorer/api",
     "db:studio": "npm run db:studio -w @foodxplorer/api",
+    "scraper:run": "npm run dev -w @foodxplorer/scraper",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:reset": "docker compose down -v && docker compose up -d"

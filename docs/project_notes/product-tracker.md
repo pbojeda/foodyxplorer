@@ -10,7 +10,12 @@
 
 **Last Updated:** 2026-03-12
 
-No active work.
+- **Feature:** F007 — Scraper base: Crawlee + Playwright scaffold
+- **Complexity:** Standard
+- **Step:** 5/6 (Review)
+- **Branch:** feature/F007-scraper-scaffold
+- **Ticket:** docs/tickets/F007-scraper-scaffold.md
+- **Spec:** docs/specs/F007-scraper-scaffold-spec.md
 
 ---
 
@@ -18,8 +23,8 @@ No active work.
 
 | Epic | Name | Status | Features | Dependencies |
 |------|------|--------|----------|--------------|
-| E001 | Infrastructure & Schema | in-progress | F001-F006 | Day 0 complete |
-| E002 | Data Ingestion Pipeline | pending | F007-F019 | E001 complete |
+| E001 | Infrastructure & Schema | done | F001-F006 | Day 0 complete |
+| E002 | Data Ingestion Pipeline | in-progress | F007-F019 | E001 complete |
 | E003 | Estimation Engine | pending | F020-F024 | E001 complete, E002 partial |
 | E004 | Telegram Bot + Public API | pending | F025-F030 | E002 + E003 complete |
 
@@ -39,7 +44,7 @@ No active work.
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F007 | Scraper base: Crawlee + Playwright scaffold | backend | pending | — | |
+| F007 | Scraper base: Crawlee + Playwright scaffold | backend | in-progress | 5/6 | Standard, 141 tests, review+QA fixes applied |
 | F007b | PDF Ingestion Endpoint (POST /ingest/pdf) | backend | pending | — | Upload PDF, extract nutritional data, normalize to schema. Reuses F007 pipeline. |
 | F007c | URL Ingestion Endpoint (POST /ingest/url) | backend | pending | — | Scrape URL for nutritional data, normalize to schema. Reuses F007 pipeline. |
 | F008-F017 | Scraper per chain (10 features) | backend | pending | — | McDonald's, BK, KFC, Telepizza, Domino's, Subway, Five Guys, VIPS, Pans, 100 Montaditos |
