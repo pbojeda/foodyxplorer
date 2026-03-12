@@ -1,7 +1,7 @@
 # F006: Seed Script — USDA/FEN Base Foods
 
 **Feature:** F006 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F006-seed-script-usda-fen-base-foods
+**Status:** Done | **Branch:** (deleted)
 **Created:** 2026-03-12 | **Dependencies:** F001, F001b (schema must exist)
 
 ---
@@ -670,7 +670,7 @@ The migration enforces `calories <= 900`. Foods with `calories > 900` will fail 
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed
 - [x] Step 5: `qa-engineer` executed (Standard)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -684,6 +684,8 @@ The migration enforces `calories <= 900`. Foods with `calories > 900` will fail 
 | 2026-03-12 | Implementation (Step 3) | backend-developer: 503 foods, validation helper, batch processing, 21 tests (12 unit + 9 integration) |
 | 2026-03-12 | Finalize (Step 4) | production-code-validator: READY. 0 critical. Quality gates pass (tests/lint/build) |
 | 2026-03-12 | Review (Step 5) | code-review: 1 critical fix (process.exit → throw). qa-engineer: 2 bugs fixed (negative nutrients, whitespace names), 28 edge-case tests added. PR #5 created |
+| 2026-03-12 | Data replacement | Replaced synthetic data with real USDA SR Legacy extraction (514 foods). Spanish translations by LLM |
+| 2026-03-12 | Complete (Step 6) | Squash merged to develop as c2f48c6. 514 real USDA foods, 49 new tests (553 total), branch deleted |
 
 ---
 

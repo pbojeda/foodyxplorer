@@ -10,12 +10,7 @@
 
 **Last Updated:** 2026-03-12
 
-**Active Feature:** F006 — Seed Script — USDA/FEN Base Foods
-**Complexity:** Standard
-**Branch:** `feature/F006-seed-script-usda-fen-base-foods`
-**Current Step:** 5/6 (Review)
-**Ticket:** `docs/tickets/F006-seed-script-usda-fen-base-foods.md`
-**Context:** Spec auto-approved (L2). Plan approved. Implementation done. 21 new tests (553 total). Production validator passed. Running code-review + QA.
+No active work.
 
 ---
 
@@ -38,7 +33,7 @@
 | F003 | pgvector Extension & Indexes | backend | done | 6/6 | IVFFlat on foods.embedding, dishes.embedding |
 | F004 | Fastify API Scaffold | backend | done | 6/6 | /health, OpenAPI, Zod validation |
 | F005 | Redis Connection & Cache Layer | backend | done | 6/6 | Cache helper, rate limiting middleware |
-| F006 | Seed Script — USDA/FEN Base Foods | backend | in-progress | 5/6 | Min 500 base foods with nutrients per 100g |
+| F006 | Seed Script — USDA/FEN Base Foods | backend | done | 6/6 | 514 real USDA SR Legacy foods, 49 tests |
 
 ## Features — E002 Data Ingestion Pipeline
 
@@ -84,6 +79,7 @@
 | 2026-03-11 | F003 — pgvector Extension & Indexes | 9babeac (squash merge to develop, PR #2) | 2 IVFFlat indexes (cosine, lists=100), 9 new tests (397 total) |
 | 2026-03-12 | F004 — Fastify API Scaffold | 4600c2e (squash merge to develop, PR #3) | Fastify v5 server, GET /health, OpenAPI/Swagger, Zod validation, error handler, CORS, graceful shutdown. 63 new tests (460 total), 1 QA bug fixed |
 | 2026-03-12 | F005 — Redis Connection & Cache Layer | 9a9c080 (squash merge to develop, PR #4) | ioredis singleton (fail-open), cache helper (get/set/del/invalidatePattern), @fastify/rate-limit, GET /health?redis=true. 72 new tests (532 total), 1 review fix |
+| 2026-03-12 | F006 — Seed Script — USDA/FEN Base Foods | c2f48c6 (squash merge to develop, PR #5) | 514 real USDA SR Legacy foods, 14 nutrient cols per 100g, Spanish translations, 14 group-level portions, validation helper, batch processing. 49 new tests (581 total), 2 QA bugs fixed |
 
 ---
 
