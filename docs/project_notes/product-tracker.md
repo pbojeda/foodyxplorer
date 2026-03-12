@@ -10,7 +10,12 @@
 
 **Last Updated:** 2026-03-12
 
-No active work.
+**Active Feature:** F006 — Seed Script — USDA/FEN Base Foods
+**Complexity:** Standard
+**Branch:** `feature/F006-seed-script-usda-fen-base-foods`
+**Current Step:** 5/6 (Review)
+**Ticket:** `docs/tickets/F006-seed-script-usda-fen-base-foods.md`
+**Context:** Spec auto-approved (L2). Plan approved. Implementation done. 21 new tests (553 total). Production validator passed. Running code-review + QA.
 
 ---
 
@@ -33,7 +38,7 @@ No active work.
 | F003 | pgvector Extension & Indexes | backend | done | 6/6 | IVFFlat on foods.embedding, dishes.embedding |
 | F004 | Fastify API Scaffold | backend | done | 6/6 | /health, OpenAPI, Zod validation |
 | F005 | Redis Connection & Cache Layer | backend | done | 6/6 | Cache helper, rate limiting middleware |
-| F006 | Seed Script — USDA/FEN Base Foods | backend | pending | — | Min 500 base foods with nutrients per 100g |
+| F006 | Seed Script — USDA/FEN Base Foods | backend | in-progress | 5/6 | Min 500 base foods with nutrients per 100g |
 
 ## Features — E002 Data Ingestion Pipeline
 
