@@ -55,3 +55,6 @@ redisdata/
 .claude/settings.local.json
 .claude/agent-memory/
 .claude/projects/
+
+# Temporary files
+tmp/
