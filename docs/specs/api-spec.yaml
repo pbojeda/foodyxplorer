@@ -1,42 +1,126 @@
 openapi: 3.0.3
 info:
-  title: foodyXplorer API
+  title: foodXPlorer API
   description: |
-    API specification for the project.
+    API specification for the foodXPlorer nutritional information platform.
     Update this file BEFORE implementing new endpoints.
+
+    **Response envelope:**
+    - All successful responses use `{ success: true, data: <payload> }`.
+    - All error responses use `{ success: false, error: { message, code, details? } }`.
+
+    **Validation:**
+    - Request bodies and query params are validated via `fastify-type-provider-zod`.
+    - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
   version: 0.1.0
+  contact:
+    name: foodXPlorer
+  license:
+    name: TBD
 
 servers:
-  - url: http://localhost:4000/api
+  - url: http://localhost:3001
     description: Local development
 
-# CONFIG: Add your API paths below
+tags:
+  - name: System
+    description: Infrastructure and health endpoints
 
 paths:
   /health:
     get:
       summary: Health check
+      description: |
+        Returns server liveness. Performs an optional lightweight DB connectivity
+        check (single `SELECT 1` via Prisma). The `db` field is present only when
+        the check is requested via `?db=true`.
       operationId: healthCheck
       tags:
         - System
+      parameters:
+        - name: db
+          in: query
+          required: false
+          description: Include a database connectivity check when set to "true".
+          schema:
+            type: string
+            enum: ["true"]
       responses:
         '200':
           description: Service is healthy
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: ok
-                  timestamp:
-                    type: string
-                    format: date-time
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                basic:
+                  summary: Basic health check
+                  value:
+                    status: ok
+                    timestamp: "2026-03-11T10:00:00.000Z"
+                    version: "0.1.0"
+                    uptime: 42.3
+                withDb:
+                  summary: Health check with DB connectivity
+                  value:
+                    status: ok
+                    timestamp: "2026-03-11T10:00:00.000Z"
+                    version: "0.1.0"
+                    uptime: 42.3
+                    db: connected
+        '500':
+          description: Service is unhealthy (e.g. DB unreachable when ?db=true)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database connectivity check failed"
+                  code: "DB_UNAVAILABLE"
 
 components:
   schemas:
-    # CONFIG: Add your schemas below
+    # -------------------------------------------------------------------------
+    # System / Infrastructure
+    # -------------------------------------------------------------------------
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - version
+        - uptime
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-03-11T10:00:00.000Z"
+        version:
+          type: string
+          description: Package version from package.json
+          example: "0.1.0"
+        uptime:
+          type: number
+          description: Process uptime in seconds
+          example: 42.3
+        db:
+          type: string
+          enum: [connected, unavailable]
+          description: |
+            Present only when ?db=true is passed. Reflects whether a lightweight
+            SELECT 1 succeeded against the PostgreSQL database.
+          example: connected
+
+    # -------------------------------------------------------------------------
+    # Shared response envelopes
+    # -------------------------------------------------------------------------
 
     ErrorResponse:
       type: object
@@ -55,12 +139,32 @@ components:
           properties:
             message:
               type: string
+              example: "Validation failed"
             code:
               type: string
+              example: "VALIDATION_ERROR"
             details:
               type: array
+              description: |
+                Present on validation errors (400). Each item identifies the
+                failing field and reason, matching Zod's ZodError.issues shape.
               items:
                 type: object
+                required:
+                  - path
+                  - message
+                properties:
+                  path:
+                    type: array
+                    items:
+                      type: string
+                    example: ["name"]
+                  message:
+                    type: string
+                    example: "Required"
+                  code:
+                    type: string
+                    example: "invalid_type"
 
     SuccessResponse:
       type: object
@@ -100,15 +204,20 @@ components:
           properties:
             page:
               type: integer
+              example: 1
             pageSize:
               type: integer
+              example: 20
             totalItems:
               type: integer
+              example: 150
             totalPages:
               type: integer
+              example: 8
 
   securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key authentication (introduced in F026)
