@@ -16,7 +16,7 @@ Quick reference for project configuration, infrastructure details, and important
 - **Repository**: GitHub (público, licencia pendiente)
 - **Primary Language**: TypeScript (strict mode)
 - **Branching Strategy**: gitflow <!-- main (producción) + develop (integración) + feature/* -->
-- **Monorepo Layout**: npm workspaces — `packages/api`, `packages/bot`, `packages/shared`
+- **Monorepo Layout**: npm workspaces — `packages/api`, `packages/bot`, `packages/shared`, `packages/scraper`
 
 ## Technology Stack
 
@@ -104,6 +104,19 @@ Quick reference for project configuration, infrastructure details, and important
   - `DishNutrientSchema`, `CreateDishNutrientSchema` — dish_nutrients table shape (same 14 nutrient columns as FoodNutrient; referenceBasis defaults per_serving, calories max 9000)
   - `DishIngredientSchema`, `CreateDishIngredientSchema` — dish_ingredients table shape (mirrors RecipeIngredient with dishId)
 - All schemas exported from `packages/shared/src/index.ts`
+
+### Scraper (packages/scraper)
+- **Package name**: `@foodxplorer/scraper`
+- **Entry point**: `src/runner.ts` (CLI via `tsx src/runner.ts`)
+- **Config**: `src/config.ts` — `ScraperEnvSchema` (Zod), `parseConfig(env)`, `config` singleton. Required: `DATABASE_URL`. Env vars: `NODE_ENV`, `DATABASE_URL`, `DATABASE_URL_TEST`, `LOG_LEVEL`, `SCRAPER_HEADLESS` (bool, default true), `SCRAPER_CHAIN` (optional string)
+- **Base class**: `src/base/BaseScraper.ts` — abstract. Chain scrapers implement `extractDishes(page)` and `getMenuUrls(page)`. Public `run()` returns `ScraperResult`. Protected `normalize()` and `persist()` stub. Protected `createCrawler()` factory for testability.
+- **Types**: `src/base/types.ts` — `RawDishDataSchema`, `NormalizedDishDataSchema`, `ScraperConfigSchema`, `ScraperResultSchema` (all with `z.infer` type exports). NOT in packages/shared.
+- **Errors**: `src/base/errors.ts` — `ScraperError` → `ScraperNetworkError`, `ScraperBlockedError`, `ScraperStructureError`, `NormalizationError`, `NotImplementedError`. Each has `readonly code: string` (SCREAMING_SNAKE_CASE).
+- **Utilities**: `src/utils/retry.ts` (`withRetry<T>(fn, policy, context)`), `src/utils/rateLimit.ts` (`RateLimiter` class, token-bucket + 3000-5000ms jitter), `src/utils/normalize.ts` (`normalizeNutrients`, `normalizeDish`)
+- **Registry**: `src/registry.ts` — empty `registry: ScraperRegistry = {}`. F008–F017 add entries.
+- **Zod version note**: Uses `.nonnegative()` not `.nonneg()` — the installed version of zod (^3.24.2) does not have `.nonneg()` shorthand.
+- **persist() is a stub in F007**: calls `persistDish()` which throws `NotImplementedError`. F008 overrides `persistDish()` with real Prisma upsert.
+- **Crawler dependency injection pattern**: `createCrawler(requestHandler, failedRequestHandler)` is protected. Tests override it to return a duck-typed mock (no real Playwright launched).
 
 ### Bot (packages/bot)
 - _To be populated_

@@ -1,0 +1,25 @@
+{
+  "name": "@foodxplorer/scraper",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "tsx src/runner.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@foodxplorer/shared": "*",
+    "@prisma/client": "^6.4.1",
+    "crawlee": "^3.0.0",
+    "playwright": "^1.40.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  }
+}
