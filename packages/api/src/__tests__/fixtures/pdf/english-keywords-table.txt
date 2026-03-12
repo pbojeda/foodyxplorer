@@ -1,0 +1,10 @@
+Nutritional Information per Serving
+Fast Food Chain - Menu 2026
+
+NUTRITIONAL TABLE
+Product                 Calories  Proteins  Carbohydrates  Fat    Salt
+Classic Burger          550       28.0      46.0           28.5   2.2
+Grilled Chicken         285       32.5      0              14.2   1.2
+Caesar Salad            320       12.0      18.5           22.3   1.8
+Veggie Wrap             380       12.5      52.0           12.0   1.5
+Fish Fillet             420       24.0      38.0           18.5   1.9

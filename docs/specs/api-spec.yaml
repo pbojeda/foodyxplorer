@@ -33,6 +33,229 @@ tags:
       specified and implemented in F007b and F007c respectively.
 
 paths:
+  /ingest/pdf:
+    post:
+      summary: Ingest nutritional data from a PDF upload
+      description: |
+        Accepts a PDF file upload containing nutritional data (restaurant menu PDFs,
+        nutrition guide PDFs), extracts text, parses nutritional tables using
+        heuristic/regex detection, normalizes the data through the shared
+        `normalizeNutrients` / `normalizeDish` pipeline (packages/scraper), and
+        persists the resulting dishes to the database.
+
+        - Targets Spanish restaurant chain nutritional PDFs and nutrition guides.
+        - Image-based (scanned) PDFs are not supported — only PDFs with embedded text.
+        - Use `dryRun=true` to inspect parsed dishes without writing to the database.
+        - Partial success (some dishes skipped) returns HTTP 200. Only total failure
+          (zero parseable dishes) returns HTTP 422.
+      operationId: ingestPdf
+      tags:
+        - Ingestion
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - restaurantId
+                - sourceId
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |
+                    PDF file containing nutritional data. Must be a text-based PDF
+                    (not a scanned image). Maximum size: 10 MB.
+                restaurantId:
+                  type: string
+                  format: uuid
+                  description: UUID of the Restaurant row this data belongs to.
+                  example: "00000000-0000-0000-0000-000000000001"
+                sourceId:
+                  type: string
+                  format: uuid
+                  description: UUID of the DataSource row representing this PDF's origin.
+                  example: "00000000-0000-0000-0000-000000000002"
+                dryRun:
+                  type: string
+                  enum: ["true", "false"]
+                  default: "false"
+                  description: |
+                    When "true", runs extraction and normalization but skips all DB writes.
+                    The response still contains the full `dishes` array for inspection.
+      responses:
+        '200':
+          description: |
+            Ingestion successful (or dryRun completed). At least one dish was parsed
+            and upserted (or would be upserted in dryRun mode). Partial success
+            (some dishes skipped) also returns 200 — see `dishesSkipped` and
+            `skippedReasons` for details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestPdfResponse'
+              examples:
+                success:
+                  summary: 45 dishes upserted, 3 skipped
+                  value:
+                    success: true
+                    data:
+                      dishesFound: 48
+                      dishesUpserted: 45
+                      dishesSkipped: 3
+                      dryRun: false
+                      dishes:
+                        - name: "Big Mac"
+                          nameEs: "Big Mac"
+                          nutrients:
+                            calories: 550
+                            proteins: 25
+                            carbohydrates: 46
+                            fats: 28
+                            saturatedFats: 10
+                            sugars: 9
+                            fiber: 3
+                            salt: 2.2
+                            sodium: 880
+                            transFats: 0.5
+                            cholesterol: 80
+                            potassium: 0
+                            monounsaturatedFats: 0
+                            polyunsaturatedFats: 0
+                            referenceBasis: "per_serving"
+                          confidenceLevel: "medium"
+                          estimationMethod: "scraped"
+                          availability: "available"
+                          restaurantId: "00000000-0000-0000-0000-000000000001"
+                          sourceId: "00000000-0000-0000-0000-000000000002"
+                      skippedReasons:
+                        - dishName: "Bebida Grande"
+                          reason: "Missing required field: proteins"
+                dryRun:
+                  summary: dryRun=true — no DB writes
+                  value:
+                    success: true
+                    data:
+                      dishesFound: 10
+                      dishesUpserted: 0
+                      dishesSkipped: 0
+                      dryRun: true
+                      dishes: []
+                      skippedReasons: []
+        '400':
+          description: Validation error (missing fields, invalid UUID format, file missing)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingRestaurantId:
+                  summary: restaurantId missing
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["restaurantId"]
+                          message: "Required"
+                          code: "invalid_type"
+                fileMissing:
+                  summary: No file part in multipart body
+                  value:
+                    success: false
+                    error:
+                      message: "No file uploaded"
+                      code: "VALIDATION_ERROR"
+        '404':
+          description: restaurantId or sourceId not found in the database
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                restaurantNotFound:
+                  summary: Restaurant row does not exist
+                  value:
+                    success: false
+                    error:
+                      message: "Restaurant not found"
+                      code: "NOT_FOUND"
+        '408':
+          description: PDF processing exceeded the 30-second timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                timeout:
+                  value:
+                    success: false
+                    error:
+                      message: "PDF processing timed out"
+                      code: "PROCESSING_TIMEOUT"
+        '413':
+          description: Uploaded file exceeds the 10 MB size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                fileTooLarge:
+                  value:
+                    success: false
+                    error:
+                      message: "File size exceeds the 10 MB limit"
+                      code: "VALIDATION_ERROR"
+        '422':
+          description: |
+            Unprocessable PDF. One of three sub-cases:
+            - `INVALID_PDF`: file is not a valid PDF (bad magic bytes or MIME type).
+            - `UNSUPPORTED_PDF`: PDF is image-based (no extractable text).
+            - `NO_NUTRITIONAL_DATA_FOUND`: PDF contains text but no parseable
+              nutritional table, or all parsed rows failed normalization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidPdf:
+                  summary: Not a PDF
+                  value:
+                    success: false
+                    error:
+                      message: "File is not a valid PDF"
+                      code: "INVALID_PDF"
+                unsupportedPdf:
+                  summary: Image-based PDF (no text)
+                  value:
+                    success: false
+                    error:
+                      message: "PDF contains no extractable text. Scanned PDFs are not supported."
+                      code: "UNSUPPORTED_PDF"
+                noData:
+                  summary: No nutritional data found
+                  value:
+                    success: false
+                    error:
+                      message: "No nutritional data could be parsed from this PDF"
+                      code: "NO_NUTRITIONAL_DATA_FOUND"
+        '500':
+          description: Database error during upsert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                dbError:
+                  value:
+                    success: false
+                    error:
+                      message: "Database write failed"
+                      code: "DB_UNAVAILABLE"
+
   /health:
     get:
       summary: Health check
@@ -123,6 +346,247 @@ paths:
 
 components:
   schemas:
+    # -------------------------------------------------------------------------
+    # Ingestion
+    # -------------------------------------------------------------------------
+
+    IngestPdfSkippedReason:
+      type: object
+      required:
+        - dishName
+        - reason
+      properties:
+        dishName:
+          type: string
+          description: The dish name as extracted from the PDF row.
+          example: "Bebida Grande"
+        reason:
+          type: string
+          description: Human-readable explanation of why this dish was skipped.
+          example: "Missing required field: proteins"
+
+    NormalizedDish:
+      type: object
+      description: |
+        A dish that has been extracted from the PDF, normalized via
+        `normalizeNutrients` / `normalizeDish`, and is ready for (or has been
+        written to) the database. Mirrors `NormalizedDishDataSchema` from
+        `packages/scraper/src/base/types.ts`.
+      required:
+        - name
+        - nutrients
+        - confidenceLevel
+        - estimationMethod
+        - availability
+        - restaurantId
+        - sourceId
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: "Big Mac"
+        nameEs:
+          type: string
+          maxLength: 255
+          nullable: true
+          example: "Big Mac"
+        description:
+          type: string
+          nullable: true
+          example: "Hamburguesa con dos filetes de carne"
+        externalId:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: Chain-specific dish ID. Not present for PDF ingestion (PDFs do not carry machine IDs).
+        availability:
+          type: string
+          enum: [available, unavailable, seasonal, discontinued]
+          default: available
+          example: available
+        portionGrams:
+          type: number
+          nullable: true
+          example: 200
+        priceEur:
+          type: number
+          nullable: true
+          example: 4.99
+        aliases:
+          type: array
+          items:
+            type: string
+          default: []
+        nutrients:
+          type: object
+          required:
+            - calories
+            - proteins
+            - carbohydrates
+            - fats
+            - saturatedFats
+            - sugars
+            - fiber
+            - salt
+            - sodium
+            - transFats
+            - cholesterol
+            - potassium
+            - monounsaturatedFats
+            - polyunsaturatedFats
+            - referenceBasis
+          properties:
+            calories:
+              type: number
+              minimum: 0
+              maximum: 9000
+              example: 550
+            proteins:
+              type: number
+              minimum: 0
+              example: 25
+            carbohydrates:
+              type: number
+              minimum: 0
+              example: 46
+            fats:
+              type: number
+              minimum: 0
+              example: 28
+            saturatedFats:
+              type: number
+              minimum: 0
+              example: 10
+            sugars:
+              type: number
+              minimum: 0
+              example: 9
+            fiber:
+              type: number
+              minimum: 0
+              example: 3
+            salt:
+              type: number
+              minimum: 0
+              description: Grams. Derived from sodium if not directly stated (salt_g = sodium_mg / 1000 * 2.5).
+              example: 2.2
+            sodium:
+              type: number
+              minimum: 0
+              description: Milligrams. Derived from salt if not directly stated.
+              example: 880
+            transFats:
+              type: number
+              minimum: 0
+              default: 0
+              example: 0.5
+            cholesterol:
+              type: number
+              minimum: 0
+              default: 0
+              example: 80
+            potassium:
+              type: number
+              minimum: 0
+              default: 0
+              example: 0
+            monounsaturatedFats:
+              type: number
+              minimum: 0
+              default: 0
+              example: 0
+            polyunsaturatedFats:
+              type: number
+              minimum: 0
+              default: 0
+              example: 0
+            referenceBasis:
+              type: string
+              enum: [per_100g, per_serving, per_package]
+              default: per_serving
+              description: Always "per_serving" for restaurant / PDF-sourced data (ADR-004).
+              example: per_serving
+            extra:
+              type: object
+              additionalProperties:
+                type: number
+              description: Any additional nutrients present in the PDF but not in the standard columns.
+              nullable: true
+        confidenceLevel:
+          type: string
+          enum: [low, medium, high]
+          description: Always "medium" for PDF-ingested data.
+          example: medium
+        estimationMethod:
+          type: string
+          enum: [official, scraped, calculated, extrapolated, manual]
+          description: Always "scraped" for PDF-ingested data.
+          example: scraped
+        restaurantId:
+          type: string
+          format: uuid
+          example: "00000000-0000-0000-0000-000000000001"
+        sourceId:
+          type: string
+          format: uuid
+          example: "00000000-0000-0000-0000-000000000002"
+
+    IngestPdfResult:
+      type: object
+      required:
+        - dishesFound
+        - dishesUpserted
+        - dishesSkipped
+        - dryRun
+        - dishes
+        - skippedReasons
+      properties:
+        dishesFound:
+          type: integer
+          minimum: 0
+          description: Total number of dish rows extracted from the PDF before normalization.
+          example: 48
+        dishesUpserted:
+          type: integer
+          minimum: 0
+          description: |
+            Number of dishes successfully normalized and written to (or that would be
+            written to, in dryRun mode) the database.
+          example: 45
+        dishesSkipped:
+          type: integer
+          minimum: 0
+          description: Number of dishes that failed normalization and were not persisted.
+          example: 3
+        dryRun:
+          type: boolean
+          description: Whether this was a dry run (no DB writes).
+          example: false
+        dishes:
+          type: array
+          description: |
+            All successfully normalized dishes. Present in both live and dryRun responses.
+          items:
+            $ref: '#/components/schemas/NormalizedDish'
+        skippedReasons:
+          type: array
+          description: One entry per skipped dish explaining the normalization failure.
+          items:
+            $ref: '#/components/schemas/IngestPdfSkippedReason'
+
+    IngestPdfResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/IngestPdfResult'
+
     # -------------------------------------------------------------------------
     # System / Infrastructure
     # -------------------------------------------------------------------------

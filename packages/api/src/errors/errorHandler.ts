@@ -112,6 +112,90 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // VALIDATION_ERROR — explicit validation error (e.g. missing file part)
+  if (asAny['code'] === 'VALIDATION_ERROR') {
+    return {
+      statusCode: 400,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'VALIDATION_ERROR',
+        },
+      },
+    };
+  }
+
+  // NOT_FOUND — resource not found (e.g. restaurantId or sourceId not in DB)
+  if (asAny['code'] === 'NOT_FOUND') {
+    return {
+      statusCode: 404,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'NOT_FOUND',
+        },
+      },
+    };
+  }
+
+  // INVALID_PDF — file is not a valid PDF (magic bytes check failed)
+  if (asAny['code'] === 'INVALID_PDF') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'INVALID_PDF',
+        },
+      },
+    };
+  }
+
+  // UNSUPPORTED_PDF — PDF is image-based / no extractable text
+  if (asAny['code'] === 'UNSUPPORTED_PDF') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'UNSUPPORTED_PDF',
+        },
+      },
+    };
+  }
+
+  // NO_NUTRITIONAL_DATA_FOUND — no parseable nutritional table in PDF
+  if (asAny['code'] === 'NO_NUTRITIONAL_DATA_FOUND') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'NO_NUTRITIONAL_DATA_FOUND',
+        },
+      },
+    };
+  }
+
+  // PROCESSING_TIMEOUT — processing exceeded 30 seconds
+  if (asAny['code'] === 'PROCESSING_TIMEOUT') {
+    return {
+      statusCode: 408,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'PROCESSING_TIMEOUT',
+        },
+      },
+    };
+  }
+
   // RATE_LIMIT_EXCEEDED — @fastify/rate-limit exceeded response
   if (asAny['code'] === 'RATE_LIMIT_EXCEEDED') {
     return {

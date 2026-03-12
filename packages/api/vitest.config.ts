@@ -11,8 +11,15 @@
 // Integration tests that need different URLs override them in the test file.
 
 import { defineConfig } from 'vitest/config';
+import { resolve } from 'path';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@foodxplorer/shared': resolve(__dirname, '../shared/src'),
+      '@foodxplorer/scraper': resolve(__dirname, '../scraper/src'),
+    },
+  },
   test: {
     fileParallelism: false,
     env: {

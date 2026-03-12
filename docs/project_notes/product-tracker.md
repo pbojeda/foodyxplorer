@@ -10,7 +10,12 @@
 
 **Last Updated:** 2026-03-12
 
-No active work.
+- **Feature:** F007b — PDF Ingestion Endpoint (POST /ingest/pdf)
+- **Complexity:** Standard
+- **Step:** 5/6 (Review)
+- **Branch:** feature/F007b-pdf-ingestion
+- **Ticket:** docs/tickets/F007b-pdf-ingestion.md
+- **Spec:** docs/specs/F007b-pdf-ingestion-spec.md
 
 ---
 
@@ -40,7 +45,7 @@ No active work.
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F007 | Scraper base: Crawlee + Playwright scaffold | backend | done | 6/6 | New packages/scraper workspace, BaseScraper, normalization pipeline, 141 tests |
-| F007b | PDF Ingestion Endpoint (POST /ingest/pdf) | backend | pending | — | Upload PDF, extract nutritional data, normalize to schema. Reuses F007 pipeline. |
+| F007b | PDF Ingestion Endpoint (POST /ingest/pdf) | backend | in-progress | 5/6 | Standard complexity, POST /ingest/pdf, pdf-parse + heuristic parser |
 | F007c | URL Ingestion Endpoint (POST /ingest/url) | backend | pending | — | Scrape URL for nutritional data, normalize to schema. Reuses F007 pipeline. |
 | F008-F017 | Scraper per chain (10 features) | backend | pending | — | McDonald's, BK, KFC, Telepizza, Domino's, Subway, Five Guys, VIPS, Pans, 100 Montaditos |
 | F018 | Data Quality Monitor | backend | pending | — | |
