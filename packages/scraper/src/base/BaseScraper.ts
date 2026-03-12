@@ -10,6 +10,7 @@
 import { PlaywrightCrawler } from 'crawlee';
 import type { Page } from 'playwright';
 import { normalizeNutrients, normalizeDish } from '../utils/normalize.js';
+import { withRetry } from '../utils/retry.js';
 import {
   NotImplementedError,
   ScraperError,
@@ -128,7 +129,11 @@ export abstract class BaseScraper {
 
       let rawDishes: RawDishData[];
       try {
-        rawDishes = await this.extractDishes(page);
+        rawDishes = await withRetry(
+          () => this.extractDishes(page),
+          this.config.retryPolicy,
+          `${this.config.chainSlug}: ${request.url}`,
+        );
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         errors.push({
@@ -183,7 +188,22 @@ export abstract class BaseScraper {
     };
 
     const crawler = this.createCrawler(requestHandler, failedRequestHandler);
-    await crawler.run();
+
+    // Phase 1: crawl start URLs to discover menu URLs
+    const startRequests = this.config.startUrls.map((url) => ({
+      url,
+      userData: { isStartUrl: true },
+    }));
+    await crawler.run(startRequests);
+
+    // Phase 2: crawl discovered menu URLs to extract dishes
+    if (discoveredMenuUrls.length > 0) {
+      const menuRequests = discoveredMenuUrls.map((url) => ({
+        url,
+        userData: { isMenuUrl: true },
+      }));
+      await crawler.run(menuRequests);
+    }
 
     const finishedAt = new Date().toISOString();
 
@@ -298,11 +318,18 @@ export abstract class BaseScraper {
       error: Error;
     }) => Promise<void>,
   ): PlaywrightCrawler {
+    const locale = this.config.locale;
+    const langBase = locale.split('-')[0] ?? 'es';
+
     return new PlaywrightCrawler({
       launchContext: {
         launchOptions: {
           headless: this.config.headless,
+          args: [`--lang=${locale}`],
         },
+      },
+      browserPoolOptions: {
+        useFingerprints: false,
       },
       maxRequestsPerMinute: this.config.rateLimit.requestsPerMinute,
       maxConcurrency: this.config.rateLimit.concurrency,
@@ -311,6 +338,14 @@ export abstract class BaseScraper {
         minConcurrency: this.config.rateLimit.concurrency,
         maxConcurrency: this.config.rateLimit.concurrency,
       },
+      preNavigationHooks: [
+        async ({ page }) => {
+          await page.setViewportSize({ width: 1280, height: 800 });
+          await page.setExtraHTTPHeaders({
+            'Accept-Language': `${locale},${langBase};q=0.9`,
+          });
+        },
+      ],
       requestHandler: async ({ page, request }) => {
         await requestHandler({
           page,

@@ -31,23 +31,23 @@ export const RawDishDataSchema = z.object({
 
   // Raw nutrient values — all in the unit reported by the chain.
   // All fields are optional; absent means not disclosed by the chain.
-  // Note: nutrient values here may be strings (e.g. "<1", "tr") — coercion
+  // Values may be numbers OR strings (e.g. "<1", "tr") — coercion
   // happens in normalizeNutrients(), not here in the schema.
   nutrients: z.object({
-    calories: z.number().nonnegative().optional(),
-    proteins: z.number().nonnegative().optional(),
-    carbohydrates: z.number().nonnegative().optional(),
-    sugars: z.number().nonnegative().optional(),
-    fats: z.number().nonnegative().optional(),
-    saturatedFats: z.number().nonnegative().optional(),
-    fiber: z.number().nonnegative().optional(),
-    salt: z.number().nonnegative().optional(),
-    sodium: z.number().nonnegative().optional(),
-    transFats: z.number().nonnegative().optional(),
-    cholesterol: z.number().nonnegative().optional(),
-    potassium: z.number().nonnegative().optional(),
-    monounsaturatedFats: z.number().nonnegative().optional(),
-    polyunsaturatedFats: z.number().nonnegative().optional(),
+    calories: z.union([z.number(), z.string()]).optional(),
+    proteins: z.union([z.number(), z.string()]).optional(),
+    carbohydrates: z.union([z.number(), z.string()]).optional(),
+    sugars: z.union([z.number(), z.string()]).optional(),
+    fats: z.union([z.number(), z.string()]).optional(),
+    saturatedFats: z.union([z.number(), z.string()]).optional(),
+    fiber: z.union([z.number(), z.string()]).optional(),
+    salt: z.union([z.number(), z.string()]).optional(),
+    sodium: z.union([z.number(), z.string()]).optional(),
+    transFats: z.union([z.number(), z.string()]).optional(),
+    cholesterol: z.union([z.number(), z.string()]).optional(),
+    potassium: z.union([z.number(), z.string()]).optional(),
+    monounsaturatedFats: z.union([z.number(), z.string()]).optional(),
+    polyunsaturatedFats: z.union([z.number(), z.string()]).optional(),
     extra: z.record(z.string(), z.number()).optional(),
   }),
 

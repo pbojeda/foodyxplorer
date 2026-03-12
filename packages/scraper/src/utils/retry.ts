@@ -4,7 +4,7 @@
 // Non-retryable errors (HTTP 403, HTTP 404, ScraperBlockedError) are re-thrown
 // immediately without consuming retry budget.
 
-import { ScraperBlockedError, ScraperNetworkError } from '../base/errors.js';
+import { ScraperBlockedError, ScraperNetworkError, ScraperStructureError } from '../base/errors.js';
 import type { RetryPolicy } from '../base/types.js';
 
 const MAX_BACKOFF_MS = 30_000;
@@ -26,6 +26,7 @@ function isTransient(error: unknown): boolean {
  */
 function isNonRetryable(error: unknown): boolean {
   if (error instanceof ScraperBlockedError) return true;
+  if (error instanceof ScraperStructureError) return true;
   if (error instanceof Error) {
     const msg = error.message;
     return msg.includes('403') || msg.includes('404');

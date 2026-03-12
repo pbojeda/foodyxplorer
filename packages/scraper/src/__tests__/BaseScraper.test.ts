@@ -97,41 +97,22 @@ class TestScraper extends BaseScraper {
   ): PlaywrightCrawler {
     const self = this;
 
-    // Duck-typed mock — only `run()` is used by BaseScraper
+    // Duck-typed mock — only `run()` is used by BaseScraper.
+    // Accepts a requests array parameter, matching the real Crawlee API.
     const mockCrawler = {
-      async run(): Promise<void> {
-        // Simulate: for each startUrl, call getMenuUrls, then for each menu
-        // URL call extractDishes (matching BaseScraper internal logic)
-        const startUrls = self['config'].startUrls;
-
-        for (const url of startUrls) {
-          // Simulate a start URL request
+      async run(requests?: Array<{ url: string; userData?: Record<string, unknown> }>): Promise<void> {
+        const reqs = requests ?? [];
+        for (const req of reqs) {
           const mockPage = {} as Page;
+          const userData = req.userData ?? {};
           try {
             await requestHandler({
               page: mockPage,
-              request: { url, userData: { isStartUrl: true } },
+              request: { url: req.url, userData },
             });
           } catch (err) {
             await failedRequestHandler({
-              request: { url },
-              error: err instanceof Error ? err : new Error(String(err)),
-            });
-          }
-        }
-
-        // Simulate: for each menu URL, call extractDishes
-        const menuUrls = self.menuUrls;
-        for (const menuUrl of menuUrls) {
-          const mockPage = {} as Page;
-          try {
-            await requestHandler({
-              page: mockPage,
-              request: { url: menuUrl, userData: { isMenuUrl: true } },
-            });
-          } catch (err) {
-            await failedRequestHandler({
-              request: { url: menuUrl },
+              request: { url: req.url },
               error: err instanceof Error ? err : new Error(String(err)),
             });
           }
@@ -219,6 +200,15 @@ describe('BaseScraper', () => {
   });
 
   it('run() records an error in errors[] and continues when extractDishes throws', async () => {
+    // Use a config with maxRetries: 0 to avoid retry delays in this test
+    const noRetryConfig: ScraperConfig = {
+      ...baseConfig,
+      retryPolicy: { maxRetries: 0, backoffMs: 100, backoffMultiplier: 2 },
+    };
+    scraper = new TestScraper(noRetryConfig);
+    persistSpy = vi
+      .spyOn(scraper as unknown as { persistDish: () => Promise<void> }, 'persistDish')
+      .mockResolvedValue(undefined);
     scraper.extractError = new Error('selector not found');
     // Add a second URL so we can verify it continues after the first failure
     scraper.menuUrls = [

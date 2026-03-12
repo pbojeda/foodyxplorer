@@ -26,6 +26,12 @@ function coerceNutrient(
   fieldName: string,
 ): { value: number; wasCoerced: boolean; isInvalid: boolean } {
   if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      console.warn(
+        `[normalizeNutrients] Non-finite value for "${fieldName}" (${value}) — defaulting to 0`,
+      );
+      return { value: 0, wasCoerced: true, isInvalid: true };
+    }
     return { value, wasCoerced: false, isInvalid: false };
   }
 
@@ -188,8 +194,18 @@ export function normalizeNutrients(
   const monounsaturatedFats = clampToZero(monounsaturatedFatsRaw.value, 'monounsaturatedFats');
   const polyunsaturatedFats = clampToZero(polyunsaturatedFatsRaw.value, 'polyunsaturatedFats');
 
-  // Extra passthrough
-  const extra = r['extra'] as Record<string, number> | undefined;
+  // Extra passthrough — filter out non-number and non-finite values
+  const rawExtra = r['extra'];
+  let extra: Record<string, number> | undefined;
+  if (rawExtra !== undefined && typeof rawExtra === 'object' && rawExtra !== null) {
+    const filtered: Record<string, number> = {};
+    for (const [key, val] of Object.entries(rawExtra as Record<string, unknown>)) {
+      if (typeof val === 'number' && Number.isFinite(val)) {
+        filtered[key] = val;
+      }
+    }
+    extra = Object.keys(filtered).length > 0 ? filtered : undefined;
+  }
 
   return {
     calories,
