@@ -15,9 +15,9 @@
 | **Feature** | F004 — Fastify API Scaffold |
 | **Branch** | `feature/F004-fastify-api-scaffold` |
 | **Complexity** | Standard |
-| **Step** | 4/6 (Finalize) |
-| **Context** | Implementation done. 305 tests, lint clean, build clean. Validator passed. |
-| **Next** | Commit approval → Review → Complete |
+| **Step** | 5/6 (Review) |
+| **Context** | All reviews done. 339 API tests, 460 total. Code review + QA fixes applied. |
+| **Next** | Merge approval → Complete |
 
 ---
 
@@ -38,7 +38,7 @@
 | F001b | Schema Enhancements — Nutrition API Alignment | backend | done | 6/6 | FoodType, brandName, barcode, referenceBasis, portion desc/isDefault, Recipe+RecipeIngredient, 5 nutrient cols |
 | F002 | Prisma Schema Migration — Dishes & Restaurants | backend | done | 6/6 | 1 enum, 8 models: cooking_methods, dish_categories, restaurants, dishes, dish_nutrients, dish_ingredients + 2 junction tables |
 | F003 | pgvector Extension & Indexes | backend | done | 6/6 | IVFFlat on foods.embedding, dishes.embedding |
-| F004 | Fastify API Scaffold | backend | in-progress | 4/6 | /health, OpenAPI, Zod validation |
+| F004 | Fastify API Scaffold | backend | in-progress | 5/6 | /health, OpenAPI, Zod validation |
 | F005 | Redis Connection & Cache Layer | backend | pending | — | Cache helper, rate limiting middleware |
 | F006 | Seed Script — USDA/FEN Base Foods | backend | pending | — | Min 500 base foods with nutrients per 100g |
 

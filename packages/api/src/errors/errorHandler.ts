@@ -84,6 +84,20 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // DB_UNAVAILABLE — health route DB check failure
+  if (asAny['code'] === 'DB_UNAVAILABLE') {
+    return {
+      statusCode: 500,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'DB_UNAVAILABLE',
+        },
+      },
+    };
+  }
+
   // 404 — typically set by Fastify on unmatched routes or explicitly
   if (typeof asAny['statusCode'] === 'number' && asAny['statusCode'] === 404) {
     return {
@@ -121,7 +135,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
       request.log.error({ err: error }, error.message);
 
       const { statusCode, body } = mapError(error);
-      void reply.status(statusCode).send(body);
+      return reply.status(statusCode).send(body);
     },
   );
 

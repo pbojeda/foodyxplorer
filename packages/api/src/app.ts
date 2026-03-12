@@ -32,7 +32,7 @@ export interface BuildAppOptions {
 // buildApp factory
 // ---------------------------------------------------------------------------
 
-export function buildApp(opts: BuildAppOptions = {}): FastifyInstance {
+export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInstance> {
   const cfg = opts.config ?? defaultConfig;
   const prismaClient = opts.prisma ?? defaultPrisma;
 
@@ -64,14 +64,13 @@ export function buildApp(opts: BuildAppOptions = {}): FastifyInstance {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  // Register all plugins and routes.
-  // Fastify queues async plugin registration — it runs before the first
-  // request or explicit app.ready() call.
-  void registerSwagger(app, cfg);
-  void registerCors(app, cfg);
+  // Register all plugins and routes — await to ensure dynamic imports
+  // (swagger, cors) complete before app.ready() is called.
+  await registerSwagger(app, cfg);
+  await registerCors(app, cfg);
   registerErrorHandler(app);
 
-  void app.register(healthRoutes, { prisma: prismaClient });
+  await app.register(healthRoutes, { prisma: prismaClient });
 
   return app;
 }

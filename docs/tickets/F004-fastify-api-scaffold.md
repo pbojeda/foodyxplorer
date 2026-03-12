@@ -294,7 +294,7 @@ concerns, not shared domain types.
 - [x] Server binds to `PORT` from env (default 3001)
 - [x] SIGTERM triggers graceful shutdown (fastify.close + prisma.$disconnect)
 - [x] TypeScript strict mode — no `any`, no `ts-ignore`
-- [x] All new code covered by Vitest unit tests (30 tests: 14 config + 9 errorHandler + 7 health)
+- [x] All new code covered by Vitest unit tests (63 tests: 14 config + 10 errorHandler + 7 health + 32 edge-cases)
 - [x] `packages/api` build (`tsc`) passes with no errors
 
 ---
@@ -302,7 +302,7 @@ concerns, not shared domain types.
 ## Definition of Done
 
 - [x] All acceptance criteria met
-- [x] Unit tests written and passing (30 new tests, 305 total in api)
+- [x] Unit tests written and passing (63 new tests, 339 total in api)
 - [x] E2E tests updated (N/A — no E2E framework yet)
 - [x] Code follows project standards (TypeScript strict, no any, bracket notation for process.env)
 - [x] No linting errors
@@ -317,9 +317,9 @@ concerns, not shared domain types.
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: `backend-planner` executed, plan approved
 - [x] Step 3: `backend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard)
+- [x] Step 4: `production-code-validator` executed, quality gates pass
+- [x] Step 5: `code-review-specialist` executed
+- [x] Step 5: `qa-engineer` executed (Standard)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -333,6 +333,8 @@ concerns, not shared domain types.
 | 2026-03-12 | Step 2: Plan approved | backend-planner agent, 9-step implementation plan |
 | 2026-03-12 | Step 3: Implementation complete | backend-developer agent, TDD, 8 production files + 3 test files, 30 new tests |
 | 2026-03-12 | Step 4: Validation | production-code-validator: 0C, 1I (await buildApp→fixed), 1S (spec enum→fixed) |
+| 2026-03-12 | Step 5: Code review | 0C, 4I, 5S. Accepted: I-1 (async buildApp), I-2 (fastify-plugin dep), I-3 (DB error via global handler), I-4 (CORS origin validation), S-3 (return reply). |
+| 2026-03-12 | Step 5: QA | 1 bug (z.coerce.boolean→fixed), 32 new edge-case tests. 339 total API tests, 460 project total |
 
 ---
 

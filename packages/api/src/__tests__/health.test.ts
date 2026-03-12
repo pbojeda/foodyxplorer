@@ -3,7 +3,8 @@
 // No port binding — Fastify's inject() sends requests in-process.
 // The prisma client is passed as an injectable mock via buildApp options.
 
-import { describe, it, expect, afterAll, vi } from 'vitest';
+import { describe, it, expect, afterAll, beforeAll, vi } from 'vitest';
+import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import { buildApp } from '../app.js';
 
@@ -24,7 +25,11 @@ const prismaThatFails = {
 // ---------------------------------------------------------------------------
 
 describe('GET /health', () => {
-  const app = buildApp({ prisma: prismaThatSucceeds });
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    app = await buildApp({ prisma: prismaThatSucceeds });
+  });
 
   afterAll(async () => {
     await app.close();
@@ -72,7 +77,11 @@ describe('GET /health', () => {
 });
 
 describe('GET /health?db=true — DB unavailable', () => {
-  const app = buildApp({ prisma: prismaThatFails });
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    app = await buildApp({ prisma: prismaThatFails });
+  });
 
   afterAll(async () => {
     await app.close();
@@ -98,7 +107,11 @@ describe('GET /health?db=true — DB unavailable', () => {
 });
 
 describe('Not found handler', () => {
-  const app = buildApp({ prisma: prismaThatSucceeds });
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    app = await buildApp({ prisma: prismaThatSucceeds });
+  });
 
   afterAll(async () => {
     await app.close();
@@ -124,7 +137,11 @@ describe('Not found handler', () => {
 });
 
 describe('Swagger not registered in test env', () => {
-  const app = buildApp({ prisma: prismaThatSucceeds });
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    app = await buildApp({ prisma: prismaThatSucceeds });
+  });
 
   afterAll(async () => {
     await app.close();

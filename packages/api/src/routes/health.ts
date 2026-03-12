@@ -8,7 +8,7 @@
 //   HealthResponseSchema — validates the response shape (also used for OpenAPI)
 
 import { z } from 'zod';
-import type { FastifyPluginAsync, FastifyReply } from 'fastify';
+import type { FastifyPluginAsync } from 'fastify';
 import fastifyPlugin from 'fastify-plugin';
 import type { PrismaClient } from '@prisma/client';
 
@@ -17,7 +17,10 @@ import type { PrismaClient } from '@prisma/client';
 // ---------------------------------------------------------------------------
 
 export const HealthQuerySchema = z.object({
-  db: z.coerce.boolean().optional(),
+  db: z
+    .string()
+    .transform((v) => v === 'true' ? true : undefined)
+    .optional(),
 });
 
 export const HealthResponseSchema = z.object({
@@ -74,20 +77,12 @@ const healthRoutesPlugin: FastifyPluginAsync<HealthPluginOptions> = async (
         try {
           await prisma.$queryRaw`SELECT 1`;
           return reply.send({ ...base, db: 'connected' as const });
-        } catch (err) {
-          request.log.error({ err }, 'Database connectivity check failed');
-          // Cast to base FastifyReply to bypass the typed 200-only status
-          // constraint from the response schema. This path intentionally
-          // sends a non-200 error envelope that is not in the Zod schema.
-          const rawReply = reply as FastifyReply;
-          void rawReply.status(500).send({
-            success: false,
-            error: {
-              message: 'Database connectivity check failed',
-              code: 'DB_UNAVAILABLE',
-            },
-          });
-          return;
+        } catch {
+          // Route through global error handler with a typed error
+          throw Object.assign(
+            new Error('Database connectivity check failed'),
+            { statusCode: 500, code: 'DB_UNAVAILABLE' },
+          );
         }
       }
 

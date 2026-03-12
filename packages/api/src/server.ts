@@ -13,8 +13,7 @@ import { prisma } from './lib/prisma.js';
 let shuttingDown = false;
 
 const main = async (): Promise<void> => {
-  const server = buildApp();
-  await server.ready();
+  const server = await buildApp();
 
   // Register graceful shutdown handlers before listen() so signals received
   // during startup are handled correctly.

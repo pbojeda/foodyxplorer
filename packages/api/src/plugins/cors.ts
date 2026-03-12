@@ -39,7 +39,14 @@ export async function registerCors(
   const origins = rawOrigins
     .split(',')
     .map((o) => o.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((o) => {
+      if (!o.startsWith('http://') && !o.startsWith('https://')) {
+        app.log.warn(`[cors] Ignoring invalid CORS origin: ${o}`);
+        return false;
+      }
+      return true;
+    });
 
   await app.register(cors, {
     origin: origins.length > 0 ? origins : false,
