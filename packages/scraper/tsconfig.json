@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "composite": false,
+    "composite": true,
     "paths": {
       "@foodxplorer/shared": ["../shared/src"],
       "@foodxplorer/shared/*": ["../shared/src/*"]

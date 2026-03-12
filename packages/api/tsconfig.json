@@ -5,12 +5,15 @@
     "rootDir": "./src",
     "paths": {
       "@foodxplorer/shared": ["../shared/src"],
-      "@foodxplorer/shared/*": ["../shared/src/*"]
+      "@foodxplorer/shared/*": ["../shared/src/*"],
+      "@foodxplorer/scraper": ["../scraper/src"],
+      "@foodxplorer/scraper/*": ["../scraper/src/*"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["src/**/__tests__/**/*", "src/**/*.test.ts", "src/**/*.spec.ts"],
   "references": [
-    { "path": "../shared" }
+    { "path": "../shared" },
+    { "path": "../scraper" }
   ]
 }

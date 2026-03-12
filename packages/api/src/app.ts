@@ -13,6 +13,8 @@ import {
 import type { PrismaClient } from '@prisma/client';
 import type { Redis } from 'ioredis';
 
+import fastifyMultipart from '@fastify/multipart';
+
 import { config as defaultConfig, type Config } from './config.js';
 import { prisma as defaultPrisma } from './lib/prisma.js';
 import { redis as defaultRedis } from './lib/redis.js';
@@ -21,6 +23,7 @@ import { registerCors } from './plugins/cors.js';
 import { registerRateLimit } from './plugins/rateLimit.js';
 import { registerErrorHandler } from './errors/errorHandler.js';
 import { healthRoutes } from './routes/health.js';
+import { ingestPdfRoutes } from './routes/ingest/pdf.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,9 +77,14 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await registerSwagger(app, cfg);
   await registerCors(app, cfg);
   await registerRateLimit(app, cfg);
+  // Register multipart before route plugins (file upload support)
+  await app.register(fastifyMultipart, {
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  });
   registerErrorHandler(app);
 
   await app.register(healthRoutes, { prisma: prismaClient, redis: redisClient });
+  await app.register(ingestPdfRoutes, { prisma: prismaClient });
 
   return app;
 }

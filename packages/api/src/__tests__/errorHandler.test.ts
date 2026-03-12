@@ -180,4 +180,100 @@ describe('mapError', () => {
       expect(result.body.error.message).toBe('Custom redis error message');
     });
   });
+
+  describe('VALIDATION_ERROR (custom code)', () => {
+    it('maps to 400 with VALIDATION_ERROR code and original message', () => {
+      const err = Object.assign(
+        new Error('Missing file part in multipart request'),
+        { statusCode: 400, code: 'VALIDATION_ERROR' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(400);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('VALIDATION_ERROR');
+      expect(result.body.error.message).toBe('Missing file part in multipart request');
+    });
+  });
+
+  describe('NOT_FOUND (custom code)', () => {
+    it('maps to 404 with NOT_FOUND code and original message', () => {
+      const err = Object.assign(
+        new Error('Restaurant not found'),
+        { statusCode: 404, code: 'NOT_FOUND' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(404);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('NOT_FOUND');
+      expect(result.body.error.message).toBe('Restaurant not found');
+    });
+  });
+
+  describe('INVALID_PDF', () => {
+    it('maps to 422 with INVALID_PDF code and original message', () => {
+      const err = Object.assign(
+        new Error('File is not a valid PDF'),
+        { statusCode: 422, code: 'INVALID_PDF' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(422);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('INVALID_PDF');
+      expect(result.body.error.message).toBe('File is not a valid PDF');
+    });
+  });
+
+  describe('UNSUPPORTED_PDF', () => {
+    it('maps to 422 with UNSUPPORTED_PDF code and original message', () => {
+      const err = Object.assign(
+        new Error('PDF contains no extractable text'),
+        { statusCode: 422, code: 'UNSUPPORTED_PDF' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(422);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('UNSUPPORTED_PDF');
+      expect(result.body.error.message).toBe('PDF contains no extractable text');
+    });
+  });
+
+  describe('NO_NUTRITIONAL_DATA_FOUND', () => {
+    it('maps to 422 with NO_NUTRITIONAL_DATA_FOUND code and original message', () => {
+      const err = Object.assign(
+        new Error('No nutritional data found in PDF'),
+        { statusCode: 422, code: 'NO_NUTRITIONAL_DATA_FOUND' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(422);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('NO_NUTRITIONAL_DATA_FOUND');
+      expect(result.body.error.message).toBe('No nutritional data found in PDF');
+    });
+  });
+
+  describe('PROCESSING_TIMEOUT', () => {
+    it('maps to 408 with PROCESSING_TIMEOUT code and original message', () => {
+      const err = Object.assign(
+        new Error('Processing timeout'),
+        { statusCode: 408, code: 'PROCESSING_TIMEOUT' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(408);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('PROCESSING_TIMEOUT');
+      expect(result.body.error.message).toBe('Processing timeout');
+    });
+  });
 });
