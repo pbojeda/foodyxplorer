@@ -10,12 +10,7 @@
 
 **Last Updated:** 2026-03-12
 
-- **Feature:** F007 — Scraper base: Crawlee + Playwright scaffold
-- **Complexity:** Standard
-- **Step:** 5/6 (Review)
-- **Branch:** feature/F007-scraper-scaffold
-- **Ticket:** docs/tickets/F007-scraper-scaffold.md
-- **Spec:** docs/specs/F007-scraper-scaffold-spec.md
+No active work.
 
 ---
 
@@ -44,7 +39,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F007 | Scraper base: Crawlee + Playwright scaffold | backend | in-progress | 5/6 | Standard, 141 tests, review+QA fixes applied |
+| F007 | Scraper base: Crawlee + Playwright scaffold | backend | done | 6/6 | New packages/scraper workspace, BaseScraper, normalization pipeline, 141 tests |
 | F007b | PDF Ingestion Endpoint (POST /ingest/pdf) | backend | pending | — | Upload PDF, extract nutritional data, normalize to schema. Reuses F007 pipeline. |
 | F007c | URL Ingestion Endpoint (POST /ingest/url) | backend | pending | — | Scrape URL for nutritional data, normalize to schema. Reuses F007 pipeline. |
 | F008-F017 | Scraper per chain (10 features) | backend | pending | — | McDonald's, BK, KFC, Telepizza, Domino's, Subway, Five Guys, VIPS, Pans, 100 Montaditos |
@@ -85,6 +80,7 @@
 | 2026-03-12 | F004 — Fastify API Scaffold | 4600c2e (squash merge to develop, PR #3) | Fastify v5 server, GET /health, OpenAPI/Swagger, Zod validation, error handler, CORS, graceful shutdown. 63 new tests (460 total), 1 QA bug fixed |
 | 2026-03-12 | F005 — Redis Connection & Cache Layer | 9a9c080 (squash merge to develop, PR #4) | ioredis singleton (fail-open), cache helper (get/set/del/invalidatePattern), @fastify/rate-limit, GET /health?redis=true. 72 new tests (532 total), 1 review fix |
 | 2026-03-12 | F006 — Seed Script — USDA/FEN Base Foods | c2f48c6 (squash merge to develop, PR #5) | 514 real USDA SR Legacy foods, 14 nutrient cols per 100g, Spanish translations, 14 group-level portions, validation helper, batch processing. 49 new tests (581 total), 2 QA bugs fixed |
+| 2026-03-12 | F007 — Scraper base: Crawlee + Playwright scaffold | 582cbb1 (squash merge to develop, PR #6) | New packages/scraper workspace, BaseScraper abstract class, normalization pipeline (RawDishData→NormalizedDishData), withRetry, RateLimiter, anti-bot defaults. 141 new tests (722 total), 3 QA bugs fixed, 4 code review fixes |
 
 ---
 

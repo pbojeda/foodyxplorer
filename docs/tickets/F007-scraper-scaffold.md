@@ -1,7 +1,7 @@
 # F007: Scraper Base — Crawlee + Playwright Scaffold
 
 **Feature:** F007 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F007-scraper-scaffold
+**Status:** Done | **Branch:** feature/F007-scraper-scaffold (deleted)
 **Created:** 2026-03-12 | **Dependencies:** E001 complete (F001–F006)
 
 ---
@@ -175,30 +175,30 @@ abstract getMenuUrls(page: Page): Promise<string[]>
 
 ### Acceptance Criteria
 
-- [ ] `packages/scraper` package compiles with `tsc --noEmit` (strict mode, zero errors)
-- [ ] `BaseScraper` abstract class: `run()`, `normalize()`, `persist()` stub all present
-- [ ] `run()` returns valid `ScraperResult` when `extractDishes` returns `[]`
-- [ ] `withRetry` retries on transient errors, does NOT retry on 403/404
-- [ ] `normalizeNutrients` passes all unit tests (salt/sodium derivation, clamping, skipping on missing required fields, calorie ceiling)
-- [ ] `normalizeDish` passes all unit tests (trimming, defaults, field assignments)
-- [ ] `RateLimiter` enforces `requestsPerMinute` ceiling
-- [ ] All Zod schemas validate and reject inputs correctly
-- [ ] `vitest run` — all tests green
-- [ ] `packages/api` and `packages/shared` builds unaffected
-- [ ] No `any` types, no `ts-ignore`
-- [ ] All public and abstract methods have JSDoc comments
+- [x] `packages/scraper` package compiles with `tsc --noEmit` (strict mode, zero errors)
+- [x] `BaseScraper` abstract class: `run()`, `normalize()`, `persist()` stub all present
+- [x] `run()` returns valid `ScraperResult` when `extractDishes` returns `[]`
+- [x] `withRetry` retries on transient errors, does NOT retry on 403/404
+- [x] `normalizeNutrients` passes all unit tests (salt/sodium derivation, clamping, skipping on missing required fields, calorie ceiling)
+- [x] `normalizeDish` passes all unit tests (trimming, defaults, field assignments)
+- [x] `RateLimiter` enforces `requestsPerMinute` ceiling
+- [x] All Zod schemas validate and reject inputs correctly
+- [x] `vitest run` — 141 tests green
+- [x] `packages/api` and `packages/shared` builds unaffected
+- [x] No `any` types, no `ts-ignore`
+- [x] All public and abstract methods have JSDoc comments
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] TypeScript strict mode — no `any`, no `ts-ignore`
-- [ ] No linting errors
-- [ ] Build (`tsc`) succeeds
-- [ ] `docs/specs/F007-scraper-scaffold-spec.md` reflects final implementation
-- [ ] `docs/project_notes/key_facts.md` updated with scraper package facts
+- [x] All acceptance criteria met
+- [x] Unit tests written and passing (141 tests)
+- [x] TypeScript strict mode — no `any`, no `ts-ignore`
+- [x] No linting errors
+- [x] Build (`tsc`) succeeds
+- [x] `docs/specs/F007-scraper-scaffold-spec.md` reflects final implementation
+- [x] `docs/project_notes/key_facts.md` updated with scraper package facts
 
 ---
 
@@ -211,7 +211,7 @@ abstract getMenuUrls(page: Page): Promise<string[]>
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed
 - [x] Step 5: `qa-engineer` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -542,3 +542,4 @@ protected createCrawler(requestHandler, failedRequestHandler): PlaywrightCrawler
 | 2026-03-12 | Step 3: Implement | backend-developer agent, 60 tests, 13 source files, 4 test files |
 | 2026-03-12 | Step 4: Finalize | production-code-validator: PRODUCTION-READY, 0 issues, 60/60 tests, tsc clean |
 | 2026-03-12 | Step 5: Review | code-review: 4H, 4M, 4L findings. QA: 3 bugs (NaN/Infinity), 1 spec gap, 81 edge-case tests. All fixed. Accepted: H1-H4, M3-M4, QA BUG-1/2/3, spec gap. Deferred: M1 (http.ts to F007b), M2 (RateLimiter usage to F008) |
+| 2026-03-12 | Step 6: Complete | Squash merged to develop as 582cbb1 (PR #6). Branch deleted. 141 tests total. |
