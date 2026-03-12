@@ -618,6 +618,6 @@ The mock path in `vi.mock(...)` must match the import path used in the route han
 - [x] Step 2: `backend-planner` executed, plan approved
 - [x] Step 3: `backend-developer` executed with TDD — 45 tests (27 parser + 3 pdfParser + 15 integration)
 - [x] Step 4: `production-code-validator` executed — 0 issues, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed
+- [x] Step 5: `code-review-specialist` executed — C1 timer leak, I1 transaction, I2 error rethrow, I4 test fix, I5 Buffer.subarray
+- [x] Step 5: `qa-engineer` executed — BUG-1 "< N" parsing, BUG-2 migration FK cleanup, 43 edge-case tests added
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
