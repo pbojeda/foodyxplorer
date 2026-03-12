@@ -12,7 +12,7 @@
 
 - **Feature:** F007 — Scraper base: Crawlee + Playwright scaffold
 - **Complexity:** Standard
-- **Step:** 4/6 (Finalize)
+- **Step:** 5/6 (Review)
 - **Branch:** feature/F007-scraper-scaffold
 - **Ticket:** docs/tickets/F007-scraper-scaffold.md
 - **Spec:** docs/specs/F007-scraper-scaffold-spec.md
@@ -44,7 +44,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F007 | Scraper base: Crawlee + Playwright scaffold | backend | in-progress | 4/6 | Standard complexity, 60 tests, validator passed |
+| F007 | Scraper base: Crawlee + Playwright scaffold | backend | in-progress | 5/6 | Standard, 141 tests, review+QA fixes applied |
 | F007b | PDF Ingestion Endpoint (POST /ingest/pdf) | backend | pending | — | Upload PDF, extract nutritional data, normalize to schema. Reuses F007 pipeline. |
 | F007c | URL Ingestion Endpoint (POST /ingest/url) | backend | pending | — | Scrape URL for nutritional data, normalize to schema. Reuses F007 pipeline. |
 | F008-F017 | Scraper per chain (10 features) | backend | pending | — | McDonald's, BK, KFC, Telepizza, Domino's, Subway, Five Guys, VIPS, Pans, 100 Montaditos |
