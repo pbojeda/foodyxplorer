@@ -10,14 +10,7 @@
 
 **Last Updated:** 2026-03-11
 
-| Key | Value |
-|-----|-------|
-| **Feature** | F004 — Fastify API Scaffold |
-| **Branch** | `feature/F004-fastify-api-scaffold` |
-| **Complexity** | Standard |
-| **Step** | 5/6 (Review) |
-| **Context** | All reviews done. 339 API tests, 460 total. Code review + QA fixes applied. |
-| **Next** | Merge approval → Complete |
+No active work.
 
 ---
 
@@ -38,7 +31,7 @@
 | F001b | Schema Enhancements — Nutrition API Alignment | backend | done | 6/6 | FoodType, brandName, barcode, referenceBasis, portion desc/isDefault, Recipe+RecipeIngredient, 5 nutrient cols |
 | F002 | Prisma Schema Migration — Dishes & Restaurants | backend | done | 6/6 | 1 enum, 8 models: cooking_methods, dish_categories, restaurants, dishes, dish_nutrients, dish_ingredients + 2 junction tables |
 | F003 | pgvector Extension & Indexes | backend | done | 6/6 | IVFFlat on foods.embedding, dishes.embedding |
-| F004 | Fastify API Scaffold | backend | in-progress | 5/6 | /health, OpenAPI, Zod validation |
+| F004 | Fastify API Scaffold | backend | done | 6/6 | /health, OpenAPI, Zod validation |
 | F005 | Redis Connection & Cache Layer | backend | pending | — | Cache helper, rate limiting middleware |
 | F006 | Seed Script — USDA/FEN Base Foods | backend | pending | — | Min 500 base foods with nutrients per 100g |
 
@@ -84,6 +77,7 @@
 | 2026-03-11 | F001b — Schema Enhancements — Nutrition API Alignment | 9f38639 (squash merge to develop) | 2 new enums, 2 new models, 6 new columns, 5 nutrient cols, 78 new tests (193 total), 1 bug fixed |
 | 2026-03-11 | F002 — Prisma Schema Migration — Dishes & Restaurants | 6359ab2 (squash merge to develop) | 1 enum, 8 models (+ 2 junctions), 6 Zod schemas, 9 CHECK constraints, 19 indexes, 195 new tests (388 total), 0 bugs, ADR-004 |
 | 2026-03-11 | F003 — pgvector Extension & Indexes | 9babeac (squash merge to develop, PR #2) | 2 IVFFlat indexes (cosine, lists=100), 9 new tests (397 total) |
+| 2026-03-12 | F004 — Fastify API Scaffold | 4600c2e (squash merge to develop, PR #3) | Fastify v5 server, GET /health, OpenAPI/Swagger, Zod validation, error handler, CORS, graceful shutdown. 63 new tests (460 total), 1 QA bug fixed |
 
 ---
 
