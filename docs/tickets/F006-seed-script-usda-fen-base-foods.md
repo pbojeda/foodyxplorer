@@ -637,27 +637,27 @@ The migration enforces `calories <= 900`. Foods with `calories > 900` will fail 
 
 ## Acceptance Criteria
 
-- [ ] `npm run db:seed -w @foodxplorer/api` completes without error on a fresh dev database
-- [ ] After seeding, foods table contains >= 500 rows with `food_type = 'generic'` and `source_id = '00000000-0000-0000-0000-000000000002'`
-- [ ] After seeding, food_nutrients count matches foods count for SR Legacy source
-- [ ] Re-running seed produces no errors and no duplicate rows
-- [ ] Every seeded food has a non-null, non-empty `name_es` value
-- [ ] Every seeded food has `embedding` set to zero vector (not NULL)
-- [ ] Existing seed data (3 foods, 1 recipe, 2 dishes, cooking methods, categories, restaurants) unchanged after re-seeding
-- [ ] Seed completes within 3 minutes on local dev
-- [ ] All tests pass
-- [ ] Build succeeds
-- [ ] Lint passes
+- [x] `npm run db:seed -w @foodxplorer/api` completes without error on a fresh dev database
+- [x] After seeding, foods table contains >= 500 rows with `food_type = 'generic'` and `source_id = '00000000-0000-0000-0000-000000000002'`
+- [x] After seeding, food_nutrients count matches foods count for SR Legacy source
+- [x] Re-running seed produces no errors and no duplicate rows
+- [x] Every seeded food has a non-null, non-empty `name_es` value
+- [x] Every seeded food has `embedding` set to zero vector (not NULL)
+- [x] Existing seed data (3 foods, 1 recipe, 2 dishes, cooking methods, categories, restaurants) unchanged after re-seeding
+- [x] Seed completes within 3 minutes on local dev
+- [x] All tests pass (49 new: 12 unit + 9 integration + 28 edge-case; 553 total)
+- [x] Build succeeds
+- [x] Lint passes
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Tests written and passing
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
+- [x] All acceptance criteria met
+- [x] Tests written and passing
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
 
 ---
 
@@ -665,11 +665,11 @@ The migration enforces `calories <= 900`. Foods with `calories > 900` will fail 
 
 - [x] Step 0: `spec-creator` executed, spec written (Auto-Approved L2)
 - [x] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: `backend-planner` executed, plan approved
-- [ ] Step 3: `backend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard)
+- [x] Step 2: `backend-planner` executed, plan approved
+- [x] Step 3: `backend-developer` executed with TDD
+- [x] Step 4: `production-code-validator` executed, quality gates pass
+- [x] Step 5: `code-review-specialist` executed
+- [x] Step 5: `qa-engineer` executed (Standard)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -680,6 +680,10 @@ The migration enforces `calories <= 900`. Foods with `calories > 900` will fail 
 |------|--------|-------|
 | 2026-03-12 | Spec created (Step 0) | Auto-Approved (L2). USDA SR Legacy as primary source, ~550 foods, bundled JSON + translation map |
 | 2026-03-12 | Setup (Step 1) | Branch `feature/F006-seed-script-usda-fen-base-foods`, ticket created |
+| 2026-03-12 | Plan approved (Step 2) | 6 implementation steps (I-1 to I-6). Plan approved by user |
+| 2026-03-12 | Implementation (Step 3) | backend-developer: 503 foods, validation helper, batch processing, 21 tests (12 unit + 9 integration) |
+| 2026-03-12 | Finalize (Step 4) | production-code-validator: READY. 0 critical. Quality gates pass (tests/lint/build) |
+| 2026-03-12 | Review (Step 5) | code-review: 1 critical fix (process.exit → throw). qa-engineer: 2 bugs fixed (negative nutrients, whitespace names), 28 edge-case tests added. PR #5 created |
 
 ---
 
