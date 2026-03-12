@@ -141,22 +141,37 @@ function parseDataRow(
   line: string,
   columns: NutrientField[],
 ): { name: string; nutrients: RawDishData['nutrients'] } | null {
+  // Spec §17: "< N" (with optional space) → N/2, matching normalizeNutrients coercion.
+  // Replace "< N" patterns with their half-value before extracting numeric tokens.
+  // e.g. "< 1" → "0.5", "< 2,5" → "1.25"
+  const normalizedLine = line.replace(/<\s*(\d+(?:[.,]\d+)?)/g, (_match, num) => {
+    const n = parseFloat(num.replace(',', '.'));
+    return String(n / 2);
+  });
+
   const numericPattern = /\d+(?:[.,]\d+)?/g;
   const tokens: Array<{ value: number; index: number }> = [];
 
   let match: RegExpExecArray | null;
-  while ((match = numericPattern.exec(line)) !== null) {
+  while ((match = numericPattern.exec(normalizedLine)) !== null) {
     const raw = match[0].replace(',', '.');
     tokens.push({ value: parseFloat(raw), index: match.index });
   }
 
   if (tokens.length < 4) return null;
 
-  // Dish name = text before the first numeric token
-  const firstToken = tokens[0];
-  if (firstToken === undefined) return null;
+  // Dish name = text before the first numeric token in the original line.
+  // If there's a "< N" pattern, the name ends at the "<" (not the digit).
+  const ltPatternInOriginal = /<\s*\d+(?:[.,]\d+)?/.exec(line);
+  const firstNumericInOriginal = /\d+(?:[.,]\d+)?/.exec(line);
+  if (firstNumericInOriginal === null) return null;
 
-  const namePart = line.slice(0, firstToken.index).trim().replace(/\s+/g, ' ');
+  const nameEndIdx =
+    ltPatternInOriginal !== null && ltPatternInOriginal.index < firstNumericInOriginal.index
+      ? ltPatternInOriginal.index
+      : firstNumericInOriginal.index;
+
+  const namePart = line.slice(0, nameEndIdx).trim().replace(/\s+/g, ' ');
   if (namePart.length < 2) return null;
 
   // Map token values to nutrient fields by position

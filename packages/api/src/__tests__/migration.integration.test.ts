@@ -28,12 +28,15 @@ const FOOD_ID_3 = 'bbbbbbbb-0000-0000-0000-000000000003';
 // ---------------------------------------------------------------------------
 
 beforeAll(async () => {
-  // Clean up in reverse dependency order (including F001b tables)
+  // Clean up in reverse dependency order (including F001b and F007b tables)
   await prisma.recipeIngredient.deleteMany();
   await prisma.recipe.deleteMany();
   await prisma.standardPortion.deleteMany();
   await prisma.foodNutrient.deleteMany();
   await prisma.food.deleteMany();
+  // F007b: dishes and dishNutrients reference dataSource — must delete first
+  await prisma.dishNutrient.deleteMany();
+  await prisma.dish.deleteMany();
   await prisma.dataSource.deleteMany();
 
   // Insert baseline data source
@@ -84,10 +87,13 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // Clean up in reverse dependency order
+  // Clean up in reverse dependency order (including F007b tables)
   await prisma.standardPortion.deleteMany();
   await prisma.foodNutrient.deleteMany();
   await prisma.food.deleteMany();
+  // F007b: dishes and dishNutrients reference dataSource — must delete first
+  await prisma.dishNutrient.deleteMany();
+  await prisma.dish.deleteMany();
   await prisma.dataSource.deleteMany();
   await prisma.$disconnect();
 });
