@@ -76,10 +76,13 @@ Quick reference for project configuration, infrastructure details, and important
 - **Migrations**: `packages/api/prisma/migrations/` — apply with `prisma migrate deploy` (not `migrate dev` due to pgvector shadow DB issue). 4 migrations: init_core_tables + schema_enhancements_f001b + dishes_restaurants_f002 + pgvector_indexes_f003
 - **Seed script**: `packages/api/prisma/seed.ts` — run with `npm run db:seed -w @foodxplorer/api`
 - **Fastify server**: `packages/api/src/app.ts` — `buildApp(opts?)` factory (async). `server.ts` is the entry point (listen + shutdown). Tests use `buildApp()` + `.inject()` without port binding
-- **Config**: `packages/api/src/config.ts` — `EnvSchema` (Zod), `parseConfig(env)`, `config` singleton. Required: `DATABASE_URL`. Defaults: `PORT=3001`, `NODE_ENV=development`, `LOG_LEVEL=info`
+- **Config**: `packages/api/src/config.ts` — `EnvSchema` (Zod), `parseConfig(env)`, `config` singleton. Required: `DATABASE_URL`. Defaults: `PORT=3001`, `NODE_ENV=development`, `LOG_LEVEL=info`, `REDIS_URL=redis://localhost:6380`
 - **Prisma singleton**: `packages/api/src/lib/prisma.ts` — auto-selects `DATABASE_URL_TEST` in test env. Do NOT import `config.ts` from here (circular dep)
-- **Error handler**: `packages/api/src/errors/errorHandler.ts` — `mapError(error)` pure function + `registerErrorHandler(app)`. Error envelope: `{ success: false, error: { message, code, details? } }`
-- **Health route**: `packages/api/src/routes/health.ts` — `GET /health` with optional `?db=true`. Prisma injectable via plugin options
+- **Redis singleton**: `packages/api/src/lib/redis.ts` — ioredis with `lazyConnect: true`, `maxRetriesPerRequest: 0`. Reads `process.env['REDIS_URL']` directly (no config.ts import). `connectRedis()`/`disconnectRedis()` called from server.ts. Fail-open: app runs without Redis
+- **Cache helper**: `packages/api/src/lib/cache.ts` — `buildKey(entity, id)` → `fxp:<entity>:<id>`, `cacheGet/cacheSet/cacheDel/cacheInvalidatePattern`. All fail-open (catch + warn log). Default TTL: 300s. SCAN-based invalidation
+- **Error handler**: `packages/api/src/errors/errorHandler.ts` — `mapError(error)` pure function + `registerErrorHandler(app)`. Error envelope: `{ success: false, error: { message, code, details? } }`. Codes: `VALIDATION_ERROR`, `NOT_FOUND`, `DB_UNAVAILABLE`, `REDIS_UNAVAILABLE`, `RATE_LIMIT_EXCEEDED`, `INTERNAL_ERROR`
+- **Health route**: `packages/api/src/routes/health.ts` — `GET /health` with optional `?db=true` and `?redis=true`. Prisma + Redis injectable via plugin options
+- **Rate limiting**: `packages/api/src/plugins/rateLimit.ts` — `@fastify/rate-limit` with Redis store, 100 req/15min/IP. `skipOnError: true` (fail-open). `/health` exempt via allowList. Disabled in test env. 429 → `RATE_LIMIT_EXCEEDED` envelope
 - **Swagger**: `packages/api/src/plugins/swagger.ts` — disabled in `NODE_ENV=test`. UI at `/docs`, JSON at `/docs/json`
 - **CORS**: `packages/api/src/plugins/cors.ts` — disabled in test, localhost origins in dev, `CORS_ORIGINS` env var in prod
 

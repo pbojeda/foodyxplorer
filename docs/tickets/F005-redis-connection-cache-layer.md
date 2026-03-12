@@ -1,7 +1,7 @@
 # F005: Redis Connection & Cache Layer
 
 **Feature:** F005 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Review | **Branch:** feature/F005-redis-connection-cache-layer
+**Status:** Done | **Branch:** (merged to develop)
 **Created:** 2026-03-12 | **Dependencies:** F004 complete
 
 ---
@@ -807,9 +807,9 @@ Steps follow the DDD dependency chain: infrastructure singletons first, then hel
 - [x] Step 2: `backend-planner` executed, plan approved
 - [x] Step 3: `backend-developer` executed with TDD
 - [x] Step 4: `production-code-validator` executed, quality gates pass (0 issues)
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 5: `code-review-specialist` executed (0 critical, 2 important fixes applied)
+- [x] Step 5: `qa-engineer` executed (26 new edge-case tests, 0 critical bugs)
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -822,6 +822,8 @@ Steps follow the DDD dependency chain: infrastructure singletons first, then hel
 | 2026-03-12 | Step 2 | Plan approved: 8 steps (I-1 to I-8) |
 | 2026-03-12 | Step 3 | Implementation complete: 3 new files, 5 modified, 46 new tests |
 | 2026-03-12 | Step 4 | Production validator: APPROVED, 0 issues. 506 total tests, lint/build clean |
+| 2026-03-12 | Step 5 | Code review: stop logging REDIS_URL, fix rateLimit test. QA: 26 new edge-case tests. PR #4 |
+| 2026-03-12 | Step 6 | Squash merged to develop (9a9c080). 532 total tests. Branch deleted |
 
 ---
 

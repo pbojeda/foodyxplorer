@@ -10,11 +10,7 @@
 
 **Last Updated:** 2026-03-12
 
-**Active Feature:** F005 — Redis Connection & Cache Layer
-**Complexity:** Standard
-**Branch:** `feature/F005-redis-connection-cache-layer`
-**Step:** 5/6 (Review)
-**Ticket:** `docs/tickets/F005-redis-connection-cache-layer.md`
+No active work.
 
 ---
 
@@ -36,7 +32,7 @@
 | F002 | Prisma Schema Migration — Dishes & Restaurants | backend | done | 6/6 | 1 enum, 8 models: cooking_methods, dish_categories, restaurants, dishes, dish_nutrients, dish_ingredients + 2 junction tables |
 | F003 | pgvector Extension & Indexes | backend | done | 6/6 | IVFFlat on foods.embedding, dishes.embedding |
 | F004 | Fastify API Scaffold | backend | done | 6/6 | /health, OpenAPI, Zod validation |
-| F005 | Redis Connection & Cache Layer | backend | in-progress | 5/6 | Cache helper, rate limiting middleware |
+| F005 | Redis Connection & Cache Layer | backend | done | 6/6 | Cache helper, rate limiting middleware |
 | F006 | Seed Script — USDA/FEN Base Foods | backend | pending | — | Min 500 base foods with nutrients per 100g |
 
 ## Features — E002 Data Ingestion Pipeline
@@ -82,6 +78,7 @@
 | 2026-03-11 | F002 — Prisma Schema Migration — Dishes & Restaurants | 6359ab2 (squash merge to develop) | 1 enum, 8 models (+ 2 junctions), 6 Zod schemas, 9 CHECK constraints, 19 indexes, 195 new tests (388 total), 0 bugs, ADR-004 |
 | 2026-03-11 | F003 — pgvector Extension & Indexes | 9babeac (squash merge to develop, PR #2) | 2 IVFFlat indexes (cosine, lists=100), 9 new tests (397 total) |
 | 2026-03-12 | F004 — Fastify API Scaffold | 4600c2e (squash merge to develop, PR #3) | Fastify v5 server, GET /health, OpenAPI/Swagger, Zod validation, error handler, CORS, graceful shutdown. 63 new tests (460 total), 1 QA bug fixed |
+| 2026-03-12 | F005 — Redis Connection & Cache Layer | 9a9c080 (squash merge to develop, PR #4) | ioredis singleton (fail-open), cache helper (get/set/del/invalidatePattern), @fastify/rate-limit, GET /health?redis=true. 72 new tests (532 total), 1 review fix |
 
 ---
 
