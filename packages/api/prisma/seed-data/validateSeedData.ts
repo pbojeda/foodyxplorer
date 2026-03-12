@@ -54,16 +54,16 @@ export function validateSeedData(
     );
   }
 
-  // 3. Missing Spanish names + required nutrient fields + calorie warnings
+  // 3. Missing/invalid Spanish names + required nutrient fields + calorie warnings + negative nutrients
   const missingNames: number[] = [];
   for (const food of foods) {
-    // Missing Spanish name
+    // Missing or invalid Spanish name (undefined, empty, or whitespace-only)
     const nameEs = nameEsMap[String(food.fdcId)];
-    if (nameEs === undefined || nameEs === '') {
+    if (nameEs === undefined || nameEs.trim() === '') {
       missingNames.push(food.fdcId);
     }
 
-    // Required nutrient fields
+    // Required nutrient fields (present and not undefined)
     for (const field of CORE_NUTRIENT_FIELDS) {
       if (food.nutrients[field] === undefined) {
         errors.push(
@@ -72,7 +72,33 @@ export function validateSeedData(
       }
     }
 
-    // Calorie warning (non-blocking)
+    // Negative nutrient values (violate DB CHECK constraints and Zod nonnegative schema)
+    const allNutrientFields = [
+      'calories',
+      'proteins',
+      'carbohydrates',
+      'sugars',
+      'fats',
+      'saturatedFats',
+      'fiber',
+      'sodium',
+      'salt',
+      'transFats',
+      'cholesterol',
+      'potassium',
+      'monounsaturatedFats',
+      'polyunsaturatedFats',
+    ] as const;
+    for (const field of allNutrientFields) {
+      const value = food.nutrients[field];
+      if (typeof value === 'number' && value < 0) {
+        errors.push(
+          `fdcId ${food.fdcId}: nutrient field "${field}" has negative value ${value} (must be >= 0)`,
+        );
+      }
+    }
+
+    // Calorie warning (non-blocking) — calories > 900 would violate DB CHECK constraint
     if (food.nutrients.calories > 900) {
       errors.push(
         `[WARN] fdcId ${food.fdcId} (${food.description}): calories ${food.nutrients.calories} > 900 (likely data error)`,

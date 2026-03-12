@@ -91,6 +91,9 @@ describe('F006 — Seed Phase 2 integration', () => {
   });
 
   it('every SR Legacy food has a non-null, non-empty nameEs', async () => {
+    // Note: nameEs is non-nullable (String, not String?) in the Prisma schema,
+    // so null cannot be stored and does not need to be tested here.
+    // The check for empty string is sufficient.
     const withMissingNameEs = await prisma.food.count({
       where: {
         sourceId: SR_LEGACY_SOURCE_ID,

@@ -606,7 +606,7 @@ export async function seedPhase2(client: PrismaClient): Promise<void> {
         console.error(err);
       }
     }
-    process.exit(1);
+    throw new Error('Seed data validation failed. See errors above.');
   }
   // Log any warnings even when valid
   for (const err of validation.errors) {
@@ -780,7 +780,7 @@ export async function seedPhase2(client: PrismaClient): Promise<void> {
   console.log('Phase 2 complete.');
 
   if (hasBatchFailure) {
-    process.exit(1);
+    throw new Error('One or more batches failed permanently. See errors above.');
   }
 }
 
