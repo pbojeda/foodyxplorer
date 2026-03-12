@@ -3,7 +3,7 @@
 // All plugins are registered here. server.ts is the only file that calls
 // server.listen(). Tests import buildApp() directly and use .inject().
 //
-// Plugin registration order: swagger → cors → errorHandler → routes
+// Plugin registration order: swagger → cors → rateLimit → errorHandler → routes
 
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
@@ -11,11 +11,14 @@ import {
   validatorCompiler,
 } from 'fastify-type-provider-zod';
 import type { PrismaClient } from '@prisma/client';
+import type { Redis } from 'ioredis';
 
 import { config as defaultConfig, type Config } from './config.js';
 import { prisma as defaultPrisma } from './lib/prisma.js';
+import { redis as defaultRedis } from './lib/redis.js';
 import { registerSwagger } from './plugins/swagger.js';
 import { registerCors } from './plugins/cors.js';
+import { registerRateLimit } from './plugins/rateLimit.js';
 import { registerErrorHandler } from './errors/errorHandler.js';
 import { healthRoutes } from './routes/health.js';
 
@@ -26,6 +29,7 @@ import { healthRoutes } from './routes/health.js';
 export interface BuildAppOptions {
   config?: Config;
   prisma?: PrismaClient;
+  redis?: Redis;
 }
 
 // ---------------------------------------------------------------------------
@@ -35,6 +39,7 @@ export interface BuildAppOptions {
 export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInstance> {
   const cfg = opts.config ?? defaultConfig;
   const prismaClient = opts.prisma ?? defaultPrisma;
+  const redisClient = opts.redis ?? defaultRedis;
 
   // Build the Fastify instance with environment-appropriate logger settings.
   // logger:false (boolean) fully disables logging in test env — Fastify v5
@@ -65,12 +70,13 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   app.setSerializerCompiler(serializerCompiler);
 
   // Register all plugins and routes — await to ensure dynamic imports
-  // (swagger, cors) complete before app.ready() is called.
+  // (swagger, cors, rateLimit) complete before app.ready() is called.
   await registerSwagger(app, cfg);
   await registerCors(app, cfg);
+  await registerRateLimit(app, cfg);
   registerErrorHandler(app);
 
-  await app.register(healthRoutes, { prisma: prismaClient });
+  await app.register(healthRoutes, { prisma: prismaClient, redis: redisClient });
 
   return app;
 }

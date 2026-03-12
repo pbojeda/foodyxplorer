@@ -8,9 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-11
+**Last Updated:** 2026-03-12
 
-No active work.
+**Active Feature:** F005 — Redis Connection & Cache Layer
+**Complexity:** Standard
+**Branch:** `feature/F005-redis-connection-cache-layer`
+**Step:** 3/6 (Implement)
+**Ticket:** `docs/tickets/F005-redis-connection-cache-layer.md`
 
 ---
 
@@ -32,7 +36,7 @@ No active work.
 | F002 | Prisma Schema Migration — Dishes & Restaurants | backend | done | 6/6 | 1 enum, 8 models: cooking_methods, dish_categories, restaurants, dishes, dish_nutrients, dish_ingredients + 2 junction tables |
 | F003 | pgvector Extension & Indexes | backend | done | 6/6 | IVFFlat on foods.embedding, dishes.embedding |
 | F004 | Fastify API Scaffold | backend | done | 6/6 | /health, OpenAPI, Zod validation |
-| F005 | Redis Connection & Cache Layer | backend | pending | — | Cache helper, rate limiting middleware |
+| F005 | Redis Connection & Cache Layer | backend | in-progress | 3/6 | Cache helper, rate limiting middleware |
 | F006 | Seed Script — USDA/FEN Base Foods | backend | pending | — | Min 500 base foods with nutrients per 100g |
 
 ## Features — E002 Data Ingestion Pipeline

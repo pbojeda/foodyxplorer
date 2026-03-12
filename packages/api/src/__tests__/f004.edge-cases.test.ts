@@ -258,13 +258,14 @@ describe('mapError — DB_UNAVAILABLE error', () => {
 
 import { buildApp } from '../app.js';
 
-// Minimal valid test config (NODE_ENV=test disables swagger/cors)
+// Minimal valid test config (NODE_ENV=test disables swagger/cors/rateLimit)
 const testConfig: Config = {
   NODE_ENV: 'test',
   PORT: 3001,
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/test',
   DATABASE_URL_TEST: 'postgresql://user:pass@localhost:5432/test',
   LOG_LEVEL: 'info',
+  REDIS_URL: 'redis://localhost:6380',
 };
 
 const prismaThatSucceeds = {

@@ -23,6 +23,7 @@ export default defineConfig({
         'postgresql://foodxplorer:foodxplorer@localhost:5433/foodxplorer_test',
       PORT: '3001',
       LOG_LEVEL: 'info',
+      REDIS_URL: 'redis://localhost:6380',
     },
   },
 });

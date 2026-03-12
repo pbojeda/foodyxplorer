@@ -1,16 +1,17 @@
-// GET /health — server liveness and optional DB connectivity check.
+// GET /health — server liveness and optional DB / Redis connectivity checks.
 //
-// Accepts an injectable prisma instance via plugin options so tests can
-// substitute a mock without module-level mocking.
+// Accepts injectable prisma and redis instances via plugin options so tests can
+// substitute mocks without module-level mocking.
 //
 // Route schemas:
-//   HealthQuerySchema  — validates the ?db query param
+//   HealthQuerySchema  — validates the ?db and ?redis query params
 //   HealthResponseSchema — validates the response shape (also used for OpenAPI)
 
 import { z } from 'zod';
 import type { FastifyPluginAsync } from 'fastify';
 import fastifyPlugin from 'fastify-plugin';
 import type { PrismaClient } from '@prisma/client';
+import type { Redis } from 'ioredis';
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -18,6 +19,10 @@ import type { PrismaClient } from '@prisma/client';
 
 export const HealthQuerySchema = z.object({
   db: z
+    .string()
+    .transform((v) => v === 'true' ? true : undefined)
+    .optional(),
+  redis: z
     .string()
     .transform((v) => v === 'true' ? true : undefined)
     .optional(),
@@ -29,6 +34,7 @@ export const HealthResponseSchema = z.object({
   version: z.string(),
   uptime: z.number(),
   db: z.enum(['connected', 'unavailable']).optional(),
+  redis: z.enum(['connected', 'unavailable']).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -37,6 +43,7 @@ export const HealthResponseSchema = z.object({
 
 interface HealthPluginOptions {
   prisma: PrismaClient;
+  redis: Redis;
 }
 
 // ---------------------------------------------------------------------------
@@ -47,7 +54,7 @@ const healthRoutesPlugin: FastifyPluginAsync<HealthPluginOptions> = async (
   app,
   opts,
 ) => {
-  const { prisma } = opts;
+  const { prisma, redis } = opts;
 
   app.get(
     '/health',
@@ -60,7 +67,7 @@ const healthRoutesPlugin: FastifyPluginAsync<HealthPluginOptions> = async (
         tags: ['System'],
         summary: 'Server liveness check',
         description:
-          'Returns server status. Pass ?db=true to also check DB connectivity.',
+          'Returns server status. Pass ?db=true to check DB connectivity, ?redis=true to check Redis connectivity.',
       },
     },
     async (request, reply) => {
@@ -73,12 +80,11 @@ const healthRoutesPlugin: FastifyPluginAsync<HealthPluginOptions> = async (
         uptime: process.uptime(),
       };
 
+      // DB check runs first when ?db=true
       if (query.db === true) {
         try {
           await prisma.$queryRaw`SELECT 1`;
-          return reply.send({ ...base, db: 'connected' as const });
         } catch {
-          // Route through global error handler with a typed error
           throw Object.assign(
             new Error('Database connectivity check failed'),
             { statusCode: 500, code: 'DB_UNAVAILABLE' },
@@ -86,7 +92,30 @@ const healthRoutesPlugin: FastifyPluginAsync<HealthPluginOptions> = async (
         }
       }
 
-      return reply.send(base);
+      // Redis check runs after DB check when ?redis=true
+      if (query.redis === true) {
+        try {
+          await redis.ping();
+        } catch {
+          throw Object.assign(
+            new Error('Redis connectivity check failed'),
+            { statusCode: 500, code: 'REDIS_UNAVAILABLE' },
+          );
+        }
+      }
+
+      // Build response — include fields only when checks were requested
+      const responseBody: z.infer<typeof HealthResponseSchema> = { ...base };
+
+      if (query.db === true) {
+        responseBody.db = 'connected';
+      }
+
+      if (query.redis === true) {
+        responseBody.redis = 'connected';
+      }
+
+      return reply.send(responseBody);
     },
   );
 };

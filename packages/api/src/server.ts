@@ -9,6 +9,7 @@
 import { buildApp } from './app.js';
 import { config } from './config.js';
 import { prisma } from './lib/prisma.js';
+import { connectRedis, disconnectRedis } from './lib/redis.js';
 
 let shuttingDown = false;
 
@@ -26,6 +27,7 @@ const main = async (): Promise<void> => {
     try {
       await server.close();
       await prisma.$disconnect();
+      await disconnectRedis();
       console.log('[server] Graceful shutdown complete');
       process.exit(0);
     } catch (err) {
@@ -36,6 +38,9 @@ const main = async (): Promise<void> => {
 
   process.on('SIGTERM', () => { void shutdown('SIGTERM'); });
   process.on('SIGINT', () => { void shutdown('SIGINT'); });
+
+  // Connect to Redis after app is built (fail-open: warn and continue if unavailable)
+  await connectRedis();
 
   await server.listen({ port: config.PORT, host: '0.0.0.0' });
 

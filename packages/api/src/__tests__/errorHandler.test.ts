@@ -153,4 +153,31 @@ describe('mapError', () => {
       expect(result.body.error.code).toBe('NOT_FOUND');
     });
   });
+
+  describe('REDIS_UNAVAILABLE', () => {
+    it('maps to 500 with REDIS_UNAVAILABLE code and original message', () => {
+      const err = Object.assign(
+        new Error('Redis connectivity check failed'),
+        { statusCode: 500, code: 'REDIS_UNAVAILABLE' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(500);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('REDIS_UNAVAILABLE');
+      expect(result.body.error.message).toBe('Redis connectivity check failed');
+    });
+
+    it('passes through custom message from the error', () => {
+      const err = Object.assign(
+        new Error('Custom redis error message'),
+        { statusCode: 500, code: 'REDIS_UNAVAILABLE' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.body.error.message).toBe('Custom redis error message');
+    });
+  });
 });
