@@ -3,6 +3,14 @@
 // Run with: npm run db:seed -w @foodxplorer/api
 
 import { PrismaClient } from '@prisma/client';
+import { readFileSync } from 'fs';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+import {
+  validateSeedData,
+  buildExternalId,
+} from './seed-data/validateSeedData.js';
+import type { UsdaSrLegacyFoodEntry, NameEsMap } from './seed-data/types.js';
 
 const prisma = new PrismaClient({
   datasources: {
@@ -545,7 +553,235 @@ async function main(): Promise<void> {
   });
 
   console.log('Junction rows upserted: cooking methods & categories for dishes');
+  console.log('Phase 1 seeding complete.');
+
+  // ---------------------------------------------------------------------------
+  // Phase 2 — USDA SR Legacy Base Foods
+  // ---------------------------------------------------------------------------
+  await seedPhase2(prisma);
+
   console.log('Seeding complete.');
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: USDA SR Legacy foods — exported for integration testing
+// ---------------------------------------------------------------------------
+
+/** Chunk array into sub-arrays of at most `size` elements. */
+function chunk<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
+/** Retry helper: calls fn once; on failure warns and retries. Throws on second failure. */
+async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    console.warn(`${label} failed (attempt 1):`, err, 'Retrying...');
+    return fn();
+  }
+}
+
+export async function seedPhase2(client: PrismaClient): Promise<void> {
+  // Step A — Load data files
+  const seedDataDir = dirname(fileURLToPath(import.meta.url)) + '/seed-data';
+  const foods = JSON.parse(
+    readFileSync(`${seedDataDir}/usda-sr-legacy-foods.json`, 'utf8'),
+  ) as UsdaSrLegacyFoodEntry[];
+  const nameEsMap = JSON.parse(
+    readFileSync(`${seedDataDir}/name-es-map.json`, 'utf8'),
+  ) as NameEsMap;
+
+  // Step B — Pre-write validation
+  const validation = validateSeedData(foods, nameEsMap);
+  if (!validation.valid) {
+    for (const err of validation.errors) {
+      if (err.startsWith('[WARN]')) {
+        console.warn(err);
+      } else {
+        console.error(err);
+      }
+    }
+    process.exit(1);
+  }
+  // Log any warnings even when valid
+  for (const err of validation.errors) {
+    if (err.startsWith('[WARN]')) console.warn(err);
+  }
+
+  // Step C — Upsert SR Legacy DataSource
+  const srLegacySourceId = '00000000-0000-0000-0000-000000000002';
+  await client.dataSource.upsert({
+    where: { id: srLegacySourceId },
+    update: {},
+    create: {
+      id: srLegacySourceId,
+      name: 'USDA SR Legacy',
+      type: 'official',
+      url: 'https://fdc.nal.usda.gov/download-foods.html',
+      lastUpdated: new Date('2021-10-28'),
+    },
+  });
+  console.log('SR Legacy DataSource upserted.');
+
+  // Step D — Upsert group-level StandardPortions (14 rows)
+  const standardPortions = [
+    { id: '00000000-0000-0000-0009-000000000001', foodGroup: 'Vegetables',    context: 'side_dish',   portionGrams: 80,  description: 'Standard vegetable side portion (80g)' },
+    { id: '00000000-0000-0000-0009-000000000002', foodGroup: 'Fruits',        context: 'snack',       portionGrams: 120, description: 'Standard fruit portion (120g)' },
+    { id: '00000000-0000-0000-0009-000000000003', foodGroup: 'Meat',          context: 'main_course', portionGrams: 150, description: 'Standard meat main course portion (150g)' },
+    { id: '00000000-0000-0000-0009-000000000004', foodGroup: 'Poultry',       context: 'main_course', portionGrams: 150, description: 'Standard poultry main course portion (150g)' },
+    { id: '00000000-0000-0000-0009-000000000005', foodGroup: 'Fish',          context: 'main_course', portionGrams: 150, description: 'Standard fish main course portion (150g)' },
+    { id: '00000000-0000-0000-0009-000000000006', foodGroup: 'Dairy',         context: 'snack',       portionGrams: 125, description: 'Standard dairy portion (125g)' },
+    { id: '00000000-0000-0000-0009-000000000007', foodGroup: 'Eggs',          context: 'main_course', portionGrams: 55,  description: 'Standard egg portion (55g, ~1 large egg)' },
+    { id: '00000000-0000-0000-0009-000000000008', foodGroup: 'Legumes',       context: 'side_dish',   portionGrams: 80,  description: 'Standard legume side portion (80g)' },
+    { id: '00000000-0000-0000-0009-000000000009', foodGroup: 'Cereals',       context: 'side_dish',   portionGrams: 75,  description: 'Standard cereal side portion (75g, dry)' },
+    { id: '00000000-0000-0000-0009-000000000010', foodGroup: 'Nuts',          context: 'snack',       portionGrams: 30,  description: 'Standard nut snack portion (30g)' },
+    { id: '00000000-0000-0000-0009-000000000011', foodGroup: 'Fats and oils', context: 'snack',       portionGrams: 10,  description: 'Standard fat/oil portion (10g)' },
+    { id: '00000000-0000-0000-0009-000000000012', foodGroup: 'Sweets',        context: 'dessert',     portionGrams: 50,  description: 'Standard sweet dessert portion (50g)' },
+    { id: '00000000-0000-0000-0009-000000000013', foodGroup: 'Snacks',        context: 'snack',       portionGrams: 30,  description: 'Standard snack portion (30g)' },
+    { id: '00000000-0000-0000-0009-000000000014', foodGroup: 'Beverages',     context: 'snack',       portionGrams: 200, description: 'Standard beverage portion (200ml)' },
+  ] as const;
+
+  for (const sp of standardPortions) {
+    await client.standardPortion.upsert({
+      where: { id: sp.id },
+      update: { description: sp.description },
+      create: {
+        id: sp.id,
+        foodId: null,
+        foodGroup: sp.foodGroup,
+        context: sp.context,
+        portionGrams: sp.portionGrams,
+        sourceId: srLegacySourceId,
+        confidenceLevel: 'high',
+        description: sp.description,
+        isDefault: false,
+      },
+    });
+  }
+  console.log('Phase 2: 14 group-level StandardPortions upserted.');
+
+  // Step E — Batch processing loop (50 foods per batch)
+  const batches = chunk(foods, 50);
+  console.log(
+    `Phase 2: Processing ${foods.length} SR Legacy foods in ${batches.length} batches...`,
+  );
+
+  let hasBatchFailure = false;
+
+  for (let i = 0; i < batches.length; i++) {
+    const batchFoods = batches[i] ?? [];
+    const label = `Batch ${i + 1}/${batches.length}`;
+
+    try {
+      await withRetry(async () => {
+        // Transaction 1 — Upsert Foods
+        const upsertedFoods = await client.$transaction(
+          batchFoods.map((food) =>
+            client.food.upsert({
+              where: {
+                externalId_sourceId: {
+                  externalId: buildExternalId(food.fdcId),
+                  sourceId: srLegacySourceId,
+                },
+              },
+              update: {
+                name: food.description,
+                // validated above — all fdcIds have Spanish names
+                nameEs: nameEsMap[String(food.fdcId)]!,
+                foodGroup: food.foodGroup,
+                aliases: [],
+              },
+              create: {
+                name: food.description,
+                // validated above — all fdcIds have Spanish names
+                nameEs: nameEsMap[String(food.fdcId)]!,
+                aliases: [],
+                foodGroup: food.foodGroup,
+                sourceId: srLegacySourceId,
+                externalId: buildExternalId(food.fdcId),
+                confidenceLevel: 'high',
+                foodType: 'generic',
+              },
+            }),
+          ),
+        );
+
+        // Set zero-vector embeddings (cannot be included in $transaction)
+        for (const food of upsertedFoods) {
+          await client.$executeRaw`
+            UPDATE foods SET embedding = ${ZERO_VECTOR}::vector WHERE id = ${food.id}::uuid
+          `;
+        }
+
+        // Transaction 2 — Upsert FoodNutrients
+        await client.$transaction(
+          upsertedFoods.map((food, idx) => {
+            const srcFood = batchFoods[idx]!;
+            const n = srcFood.nutrients;
+            return client.foodNutrient.upsert({
+              where: {
+                foodId_sourceId: {
+                  foodId: food.id,
+                  sourceId: srLegacySourceId,
+                },
+              },
+              update: {
+                calories: n.calories,
+                proteins: n.proteins,
+                carbohydrates: n.carbohydrates,
+                sugars: n.sugars,
+                fats: n.fats,
+                saturatedFats: n.saturatedFats,
+                fiber: n.fiber,
+                sodium: n.sodium,
+                salt: n.salt,
+                transFats: n.transFats,
+                cholesterol: n.cholesterol,
+                potassium: n.potassium,
+                monounsaturatedFats: n.monounsaturatedFats,
+                polyunsaturatedFats: n.polyunsaturatedFats,
+              },
+              create: {
+                foodId: food.id,
+                calories: n.calories,
+                proteins: n.proteins,
+                carbohydrates: n.carbohydrates,
+                sugars: n.sugars,
+                fats: n.fats,
+                saturatedFats: n.saturatedFats,
+                fiber: n.fiber,
+                sodium: n.sodium,
+                salt: n.salt,
+                transFats: n.transFats,
+                cholesterol: n.cholesterol,
+                potassium: n.potassium,
+                monounsaturatedFats: n.monounsaturatedFats,
+                polyunsaturatedFats: n.polyunsaturatedFats,
+                sourceId: srLegacySourceId,
+                confidenceLevel: 'high',
+              },
+            });
+          }),
+        );
+      }, label);
+
+      console.log(`${label} complete`);
+    } catch (err) {
+      console.error(`${label} failed permanently:`, err, '. Skipping.');
+      hasBatchFailure = true;
+    }
+  }
+
+  console.log('Phase 2 complete.');
+
+  if (hasBatchFailure) {
+    process.exit(1);
+  }
 }
 
 main()
