@@ -1,7 +1,7 @@
 # F007c: URL Ingestion Endpoint (POST /ingest/url)
 
 **Feature:** F007c | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Review | **Branch:** feature/F007c-url-ingestion
+**Status:** Done | **Branch:** feature/F007c-url-ingestion (deleted)
 **Created:** 2026-03-12 | **Dependencies:** F007 complete (scraper scaffold, normalizeNutrients + normalizeDish), F007b complete (nutritionTableParser reuse)
 
 ---
@@ -250,9 +250,9 @@ IngestUrlResultSchema = z.object({
 
 - [x] All acceptance criteria above are met
 - [x] No regressions in existing tests (`POST /ingest/pdf`, `GET /health`)
-- [ ] Feature branch merged to `develop` via squash PR
-- [ ] `docs/project_notes/product-tracker.md` updated: F007c status → `done`, step → `6/6`
-- [ ] Completion log entry added with commit hash and test count delta
+- [x] Feature branch merged to `develop` via squash PR (595a546)
+- [x] `docs/project_notes/product-tracker.md` updated: F007c status → `done`, step → `6/6`
+- [x] Completion log entry added with commit hash and test count delta
 
 ---
 
@@ -722,7 +722,7 @@ In `pdf.ts`, `sourceUrl` is a synthetic `pdf://filename` URI (no real HTTP URL e
 - [x] Step 4: `production-code-validator` executed — 0 issues, quality gates pass
 - [x] Step 5: `code-review-specialist` executed — C1/C2 SSRF 172.16+IPv6+numeric, I3 regex, I4 timeout test. All fixed.
 - [x] Step 5: `qa-engineer` executed — B1 IPv4-mapped IPv6 SSRF bypass fixed, 42 edge-case tests added. 88 total F007c tests.
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted. Squash merge 595a546 to develop.
 
 ---
 

@@ -10,12 +10,7 @@
 
 **Last Updated:** 2026-03-12
 
-- **Feature:** F007c — URL Ingestion Endpoint (POST /ingest/url)
-- **Complexity:** Standard
-- **Step:** 5/6 (Review)
-- **Branch:** feature/F007c-url-ingestion
-- **Ticket:** docs/tickets/F007c-url-ingestion.md
-- **Spec:** docs/specs/F007c-url-ingestion-spec.md
+No active work.
 
 ---
 
@@ -46,7 +41,7 @@
 |----|---------|------|--------|------|-------|
 | F007 | Scraper base: Crawlee + Playwright scaffold | backend | done | 6/6 | New packages/scraper workspace, BaseScraper, normalization pipeline, 141 tests |
 | F007b | PDF Ingestion Endpoint (POST /ingest/pdf) | backend | done | 6/6 | Standard complexity, POST /ingest/pdf, pdf-parse + heuristic parser |
-| F007c | URL Ingestion Endpoint (POST /ingest/url) | backend | in-progress | 5/6 | Scrape URL for nutritional data, normalize to schema. Reuses F007 pipeline. |
+| F007c | URL Ingestion Endpoint (POST /ingest/url) | backend | done | 6/6 | Scrape URL for nutritional data, normalize to schema. Reuses F007 pipeline. |
 | F008-F017 | Scraper per chain (10 features) | backend | pending | — | McDonald's, BK, KFC, Telepizza, Domino's, Subway, Five Guys, VIPS, Pans, 100 Montaditos |
 | F018 | Data Quality Monitor | backend | pending | — | |
 | F019 | Embedding Generation Pipeline | backend | pending | — | |
@@ -87,6 +82,7 @@
 | 2026-03-12 | F006 — Seed Script — USDA/FEN Base Foods | c2f48c6 (squash merge to develop, PR #5) | 514 real USDA SR Legacy foods, 14 nutrient cols per 100g, Spanish translations, 14 group-level portions, validation helper, batch processing. 49 new tests (581 total), 2 QA bugs fixed |
 | 2026-03-12 | F007 — Scraper base: Crawlee + Playwright scaffold | 582cbb1 (squash merge to develop, PR #6) | New packages/scraper workspace, BaseScraper abstract class, normalization pipeline (RawDishData→NormalizedDishData), withRetry, RateLimiter, anti-bot defaults. 141 new tests (722 total), 3 QA bugs fixed, 4 code review fixes |
 | 2026-03-12 | F007b — PDF Ingestion Endpoint (POST /ingest/pdf) | 5cb6384 (squash merge to develop, PR #7) | POST /ingest/pdf, pdf-parse + heuristic parser (ES/EN), @fastify/multipart, $transaction upsert, 30s timeout, partial success. 105 new tests (827 total), 2 QA bugs fixed, 5 code review fixes |
+| 2026-03-13 | F007c — URL Ingestion Endpoint (POST /ingest/url) | 595a546 (squash merge to develop, PR #8) | POST /ingest/url, PlaywrightCrawler + node-html-parser, SSRF guard (IPv4/IPv6/numeric/::ffff:), reuses parseNutritionTable. 88 new tests (915 total), 1 QA bug fixed, 4 code review fixes |
 
 ---
 
