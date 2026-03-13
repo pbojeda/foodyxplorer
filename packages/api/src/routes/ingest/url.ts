@@ -48,7 +48,14 @@ interface IngestUrlSkippedReason {
 // ---------------------------------------------------------------------------
 
 const SSRF_BLOCKED =
-  /^(localhost|0\.0\.0\.0|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+|\[?::1\]?|\[?::ffff:127\.\d+\.\d+\.\d+\]?|\[?fe80:.*)$/i;
+  /^(localhost|0\.0\.0\.0|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+|\[?::1\]?|\[?fe80:.*)$/i;
+
+// Node.js WHATWG URL normalizes IPv4-mapped IPv6 to hex notation (e.g.
+// [::ffff:127.0.0.1] → "[::ffff:7f00:1]"), making it impossible to check
+// against IPv4 ranges after normalization. Block all ::ffff: addresses
+// outright: there is no valid use case for submitting an IPv4-mapped IPv6
+// URL to this API endpoint.
+const SSRF_BLOCKED_IPV4_MAPPED = /^\[?::ffff:/i;
 
 // ---------------------------------------------------------------------------
 // Domain error codes — used in the Prisma catch block to re-throw
@@ -113,7 +120,7 @@ const ingestUrlRoutesPlugin: FastifyPluginAsync<IngestUrlPluginOptions> = async 
       );
     }
 
-    if (SSRF_BLOCKED.test(parsedUrl.hostname)) {
+    if (SSRF_BLOCKED.test(parsedUrl.hostname) || SSRF_BLOCKED_IPV4_MAPPED.test(parsedUrl.hostname)) {
       throw Object.assign(
         new Error('URL targets a private or loopback address'),
         { statusCode: 422, code: 'INVALID_URL' },
