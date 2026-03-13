@@ -9,7 +9,7 @@
 
 import type { Page } from 'playwright';
 import { BaseScraper } from '../../base/BaseScraper.js';
-import { ScraperStructureError } from '../../base/errors.js';
+import { ScraperBlockedError, ScraperStructureError } from '../../base/errors.js';
 import type { RawDishData, NormalizedDishData, ScraperConfig } from '../../base/types.js';
 import { getPrismaClient } from '../../lib/prisma.js';
 import { persistDishUtil } from '../../utils/persist.js';
@@ -68,11 +68,14 @@ export class McDonaldsEsScraper extends BaseScraper {
     const urls: string[] = [];
 
     for (const href of hrefs) {
-      if (!PRODUCT_URL_PATTERN.test(href) && !PRODUCT_URL_PATTERN.test(href.replace(this.config.baseUrl, ''))) {
+      // Strip query strings and fragments before pattern matching
+      const cleanHref = href.split('?')[0]?.split('#')[0] ?? href;
+
+      if (!PRODUCT_URL_PATTERN.test(cleanHref) && !PRODUCT_URL_PATTERN.test(cleanHref.replace(this.config.baseUrl, ''))) {
         continue;
       }
 
-      const absolute = href.startsWith('http') ? href : `${this.config.baseUrl}${href}`;
+      const absolute = cleanHref.startsWith('http') ? cleanHref : `${this.config.baseUrl}${cleanHref}`;
 
       if (!seen.has(absolute)) {
         seen.add(absolute);
@@ -106,6 +109,17 @@ export class McDonaldsEsScraper extends BaseScraper {
       await page.locator('[data-testid="cookie-consent-accept"]').click({ timeout: 3_000 });
     } catch {
       // Banner not present or click failed — continue
+    }
+
+    // Step 1b: Detect CAPTCHA / bot-detection pages
+    try {
+      const bodyText = await page.textContent('body');
+      if (bodyText && /captcha|robot/i.test(bodyText)) {
+        throw new ScraperBlockedError('Blocked: CAPTCHA or bot detection page served');
+      }
+    } catch (err) {
+      if (err instanceof ScraperBlockedError) throw err;
+      // textContent failed — continue with normal extraction
     }
 
     // Step 2: Product name (required)
@@ -191,8 +205,15 @@ export class McDonaldsEsScraper extends BaseScraper {
         (el) => el.textContent?.trim() ?? '',
       );
       if (priceRaw) {
-        // Comma-decimal: "5,49 €" → 5.49. Do NOT use coerceNutrient (strips comma incorrectly).
-        const parsed = parseFloat(priceRaw.replace(',', '.').replace(/[^0-9.]/g, ''));
+        // Spanish price format: "5,49 €" or "1.299,00 €" (thousand-separator + comma-decimal).
+        // If comma is present → Spanish format: dots are thousand separators, comma is decimal.
+        // If no comma → dots are decimals (e.g., "5.49").
+        const stripped = priceRaw.replace(/[^0-9.,]/g, '');
+        const hasComma = stripped.includes(',');
+        const cleaned = hasComma
+          ? stripped.replace(/\./g, '').replace(',', '.')  // "1.299,00" → "1299.00"
+          : stripped;                                       // "5.49" → "5.49"
+        const parsed = parseFloat(cleaned);
         if (!isNaN(parsed)) {
           priceEur = parsed;
         }

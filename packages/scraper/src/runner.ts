@@ -9,6 +9,7 @@
 // When the scraper run finishes, exits 0 on success/partial, 1 on failed.
 
 import { config } from './config.js';
+import { disconnectPrisma } from './lib/prisma.js';
 import { registry } from './registry.js';
 
 async function main(): Promise<void> {
@@ -42,11 +43,13 @@ async function main(): Promise<void> {
   const result = await scraper.run();
 
   console.log(JSON.stringify(result, null, 2));
+  await disconnectPrisma();
   process.exit(result.status === 'failed' ? 1 : 0);
 }
 
-main().catch((err: unknown) => {
+main().catch(async (err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
   console.error(`[scraper:runner] Unhandled error: ${message}`);
+  await disconnectPrisma();
   process.exit(1);
 });

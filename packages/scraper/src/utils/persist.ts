@@ -40,7 +40,7 @@ function nutrientFields(dish: NormalizedDishData): {
   referenceBasis: NormalizedDishData['nutrients']['referenceBasis'];
   estimationMethod: NormalizedDishData['estimationMethod'];
   confidenceLevel: NormalizedDishData['confidenceLevel'];
-  extra: NormalizedDishData['nutrients']['extra'] | typeof Prisma.JsonNull;
+  extra?: NormalizedDishData['nutrients']['extra'];
 } {
   const n = dish.nutrients;
   return {
@@ -61,8 +61,9 @@ function nutrientFields(dish: NormalizedDishData): {
     referenceBasis:      n.referenceBasis,
     estimationMethod:    dish.estimationMethod,
     confidenceLevel:     dish.confidenceLevel,
-    // Prisma nullable JSON fields require Prisma.JsonNull (not JS null) for explicit null
-    extra:               n.extra !== undefined ? n.extra : Prisma.JsonNull,
+    // When extra is defined, include it. When undefined, omit to preserve existing data on updates.
+    // Prisma nullable JSON fields require Prisma.JsonNull (not JS null) for explicit null.
+    ...(n.extra !== undefined ? { extra: n.extra } : {}),
   };
 }
 
@@ -115,6 +116,7 @@ export async function persistDishUtil(
           nameEs:           dish.nameEs ?? null,
           description:      dish.description ?? null,
           externalId:       dish.externalId ?? null,
+          sourceId:         dish.sourceId,
           availability:     dish.availability,
           portionGrams:     dish.portionGrams !== undefined ? new Prisma.Decimal(dish.portionGrams) : null,
           priceEur:         dish.priceEur !== undefined ? new Prisma.Decimal(dish.priceEur) : null,

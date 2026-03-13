@@ -132,10 +132,15 @@ export function parseJsonLd(raw: string): NutrientPartial | null {
  */
 export function isComplete(nutrition: NutrientPartial | null): boolean {
   if (nutrition === null) return false;
+
+  // A field is "present" only if it is a non-empty, non-null value.
+  // null or '' would pass coerceNutrient as 0 or NaN — trigger table fallback instead.
+  const hasValue = (v: unknown): boolean => v !== undefined && v !== null && v !== '';
+
   return (
-    nutrition.calories !== undefined &&
-    nutrition.proteins !== undefined &&
-    nutrition.carbohydrates !== undefined &&
-    nutrition.fats !== undefined
+    hasValue(nutrition.calories) &&
+    hasValue(nutrition.proteins) &&
+    hasValue(nutrition.carbohydrates) &&
+    hasValue(nutrition.fats)
   );
 }

@@ -27,3 +27,14 @@ export function getPrismaClient(): PrismaClient {
   }
   return prismaInstance;
 }
+
+/**
+ * Disconnects the singleton PrismaClient, draining the connection pool.
+ * Call before process.exit() to ensure clean shutdown.
+ */
+export async function disconnectPrisma(): Promise<void> {
+  if (prismaInstance !== undefined) {
+    await prismaInstance.$disconnect();
+    prismaInstance = undefined;
+  }
+}
