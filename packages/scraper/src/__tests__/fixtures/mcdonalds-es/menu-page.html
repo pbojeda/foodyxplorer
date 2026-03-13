@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Menú | McDonald's España</title>
+</head>
+<body>
+  <main>
+    <h1>Nuestro Menú</h1>
+
+    <!-- Hamburguesas category tab -->
+    <section class="cmp-product-list" data-category="hamburguesas">
+      <h2>Hamburguesas</h2>
+      <ul>
+        <li class="cmp-product-list__item">
+          <a href="/es/es-es/product/mcroyal-deluxe.html">McRoyal Deluxe</a>
+        </li>
+        <li class="cmp-product-list__item">
+          <a href="/es/es-es/product/big-mac.html">Big Mac</a>
+        </li>
+        <li class="cmp-product-list__item">
+          <a href="/es/es-es/product/quarterpounder-queso.html">Quarter Pounder con Queso</a>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Pollo category tab -->
+    <section class="cmp-product-list" data-category="pollo">
+      <h2>Pollo</h2>
+      <ul>
+        <li class="cmp-product-list__item">
+          <a href="/es/es-es/product/mcpollo.html">McPollo</a>
+        </li>
+        <li class="cmp-product-list__item">
+          <a href="/es/es-es/product/mcnuggets-6.html">McNuggets 6 piezas</a>
+        </li>
+      </ul>
+    </section>
+
+    <!-- McMenú combos tab — repeats some products from other categories -->
+    <section class="cmp-product-list" data-category="mcmenu">
+      <h2>McMenú</h2>
+      <ul>
+        <li class="cmp-product-list__item">
+          <!-- Duplicated from hamburguesas — deduplication test -->
+          <a href="/es/es-es/product/big-mac.html">Big Mac McMenú</a>
+        </li>
+        <li class="cmp-product-list__item">
+          <a href="/es/es-es/product/mcroyal-deluxe.html">McRoyal Deluxe McMenú</a>
+        </li>
+        <li class="cmp-product-list__item">
+          <a href="/es/es-es/product/ensalada-caesar.html">Ensalada Caesar</a>
+        </li>
+      </ul>
+    </section>
+
+    <!-- External link — should NOT be included in product URLs -->
+    <a href="https://www.mcdonalds.com/es/es-es/ofertas.html">Ver ofertas</a>
+  </main>
+</body>
+</html>

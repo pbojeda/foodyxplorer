@@ -17,6 +17,10 @@ export default defineConfig({
         'postgresql://foodxplorer:foodxplorer@localhost:5433/foodxplorer_test',
       LOG_LEVEL: 'info',
       SCRAPER_HEADLESS: 'true',
+      // Stub UUIDs for chain config modules that evaluate ScraperConfigSchema.parse()
+      // at import time. Must be valid UUID format.
+      MCDONALDS_ES_RESTAURANT_ID: '00000000-0000-4000-a000-000000000099',
+      MCDONALDS_ES_SOURCE_ID: '00000000-0000-4000-a000-000000000098',
     },
   },
 });

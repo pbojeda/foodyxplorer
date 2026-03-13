@@ -23,6 +23,10 @@ export const ScraperEnvSchema = z.object({
     .default('info'),
   SCRAPER_HEADLESS: z.coerce.boolean().default(true),
   SCRAPER_CHAIN: z.string().optional(),
+  // Chain-specific env vars — optional at env-schema level; required at runtime
+  // when the scraper actually runs (enforced in chain config via non-null assertion).
+  MCDONALDS_ES_RESTAURANT_ID: z.string().uuid().optional(),
+  MCDONALDS_ES_SOURCE_ID: z.string().uuid().optional(),
 });
 
 export type Config = z.infer<typeof ScraperEnvSchema>;

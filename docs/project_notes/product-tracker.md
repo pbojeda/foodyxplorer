@@ -8,9 +8,15 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-12
+**Last Updated:** 2026-03-13
 
-No active work.
+**Active Feature:** F008 — McDonald's Spain Scraper
+**Branch:** `feature/F008-mcdonalds-scraper`
+**Complexity:** Standard
+**Current Step:** 5/6 (Review)
+**Ticket:** `docs/tickets/F008-mcdonalds-scraper.md`
+**Spec:** `docs/specs/F008-mcdonalds-scraper-spec.md`
+**Context:** First chain scraper. Extends BaseScraper with dual extraction (JSON-LD + HTML table fallback). Creates shared persistDishUtil and PrismaClient singleton for scraper package. Updates registry type to `{ config, ScraperClass }`.
 
 ---
 
@@ -42,7 +48,8 @@ No active work.
 | F007 | Scraper base: Crawlee + Playwright scaffold | backend | done | 6/6 | New packages/scraper workspace, BaseScraper, normalization pipeline, 141 tests |
 | F007b | PDF Ingestion Endpoint (POST /ingest/pdf) | backend | done | 6/6 | Standard complexity, POST /ingest/pdf, pdf-parse + heuristic parser |
 | F007c | URL Ingestion Endpoint (POST /ingest/url) | backend | done | 6/6 | Scrape URL for nutritional data, normalize to schema. Reuses F007 pipeline. |
-| F008-F017 | Scraper per chain (10 features) | backend | pending | — | McDonald's, BK, KFC, Telepizza, Domino's, Subway, Five Guys, VIPS, Pans, 100 Montaditos |
+| F008 | McDonald's Spain Scraper | backend | in-progress | 5/6 | First chain scraper, establishes pattern for F009-F017 |
+| F009-F017 | Scraper per chain (9 features) | backend | pending | — | BK, KFC, Telepizza, Domino's, Subway, Five Guys, VIPS, Pans, 100 Montaditos |
 | F018 | Data Quality Monitor | backend | pending | — | |
 | F019 | Embedding Generation Pipeline | backend | pending | — | |
 

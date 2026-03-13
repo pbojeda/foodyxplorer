@@ -9,6 +9,7 @@
 // When the scraper run finishes, exits 0 on success/partial, 1 on failed.
 
 import { config } from './config.js';
+import { disconnectPrisma } from './lib/prisma.js';
 import { registry } from './registry.js';
 
 async function main(): Promise<void> {
@@ -29,8 +30,8 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  const chainConfig = registry[chainSlug];
-  if (chainConfig === undefined) {
+  const entry = registry[chainSlug];
+  if (entry === undefined) {
     console.error(
       `[scraper:runner] Unknown chain: "${chainSlug}". ` +
         `Available: ${Object.keys(registry).join(', ') || '(none registered)'}`,
@@ -38,17 +39,17 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // F008+ will store the scraper constructor in the registry.
-  // For now, the registry only holds config — this structure anticipates F008.
-  console.error(
-    `[scraper:runner] Chain "${chainSlug}" found in registry but no scraper class is wired yet. ` +
-      'This will be resolved in F008.',
-  );
-  process.exit(1);
+  const scraper = new entry.ScraperClass(entry.config);
+  const result = await scraper.run();
+
+  console.log(JSON.stringify(result, null, 2));
+  await disconnectPrisma();
+  process.exit(result.status === 'failed' ? 1 : 0);
 }
 
-main().catch((err: unknown) => {
+main().catch(async (err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
   console.error(`[scraper:runner] Unhandled error: ${message}`);
+  await disconnectPrisma();
   process.exit(1);
 });
