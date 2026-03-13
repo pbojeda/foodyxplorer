@@ -43,7 +43,8 @@ No active work.
 | F007b | PDF Ingestion Endpoint (POST /ingest/pdf) | backend | done | 6/6 | Standard complexity, POST /ingest/pdf, pdf-parse + heuristic parser |
 | F007c | URL Ingestion Endpoint (POST /ingest/url) | backend | done | 6/6 | Scrape URL for nutritional data, normalize to schema. Reuses F007 pipeline. |
 | F008 | McDonald's Spain Scraper | backend | done | 6/6 | First chain scraper, establishes pattern for F009-F017. Dual extraction, shared persist, registry upgrade | First chain scraper, establishes pattern for F009-F017 |
-| F009-F017 | Scraper per chain (9 features) | backend | pending | — | BK, KFC, Telepizza, Domino's, Subway, Five Guys, VIPS, Pans, 100 Montaditos |
+| F009 | Burger King Spain Scraper | backend | blocked | — | No per-product nutrition on website. Data only in centralized PDF on S3. See ticket + ADR-005 |
+| F010-F017 | Scraper per chain (8 features) | backend | pending | — | KFC, Telepizza, Domino's, Subway, Five Guys, VIPS, Pans, 100 Montaditos |
 | F018 | Data Quality Monitor | backend | pending | — | |
 | F019 | Embedding Generation Pipeline | backend | pending | — | |
 

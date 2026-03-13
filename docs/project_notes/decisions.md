@@ -150,3 +150,28 @@ Track important technical decisions with context, so future sessions understand 
 - (+) International expansion requires only new rows, not schema changes
 - (-) 8 new tables + 2 junction tables add schema complexity
 - (-) Junction table queries require explicit joins (no Prisma implicit M:N since we use explicit models)
+
+### ADR-005: Chain Scrapers Require Per-Product Nutrition on Website (2026-03-13)
+
+**Context:** F009 (Burger King Spain Scraper) was spec'd and planned following the F008 (McDonald's) pattern — `BaseScraper` subclass that extracts nutritional data from individual product pages via HTML/JSON-LD. During implementation Step 3 (site inspection), we discovered that BK Spain does **not** publish per-product nutritional data on its website. Instead, all nutrition data is in a single centralized PDF on AWS S3, updated monthly.
+
+**Investigation details:**
+- BK Spain's product pages (e.g., `/es/menu/item-item_11116`) show product name and description but **no nutrition section** — only links to PDF downloads.
+- The Sanity CMS GraphQL API (`czqk28jt.apicdn.sanity.io`) returns product metadata but `allFeatureNutrition: []` (empty).
+- The menu page only links to category sections (`/es/menu/section-UUID`), not individual products.
+- Nutrition PDF URL pattern: `https://eu-west-3-146514239214-prod-bk-fz.s3.eu-west-3.amazonaws.com/en-ES/[YEAR]/Nutritional+Information/MANTEL+NUTRICIONAL+ESP+ING+[MONTH][YEAR].pdf`
+
+**Decision:** F009 is blocked. The `BaseScraper` pattern (per-product-page extraction) only applies to chains that publish nutritional data inline on their website. Before starting any chain scraper, a **site inspection step** must verify that per-product nutrition data is available on the website. Chains that only publish nutrition via PDFs require a different approach (PDF ingestion pipeline, not web scraper).
+
+**Alternatives Considered:**
+- Force-fit the scraper to download and parse the PDF: Rejected — fundamentally different pattern, breaks BaseScraper's per-page model, PDF parsing is a separate concern better handled by F007b or a dedicated PDF pipeline feature.
+- Hybrid API + PDF: Deferred — viable but adds complexity; consider when more chains are found to be PDF-only.
+- Scrape the Sanity API directly: Rejected — API has no nutrition data.
+
+**Consequences:**
+- (+) Clear architectural boundary: `BaseScraper` = per-product-page scraping only
+- (+) Prevents wasted effort on chains with incompatible architectures
+- (+) F007b (PDF ingestion) already handles the PDF use case — BK's PDF can be uploaded manually
+- (-) BK Spain (2nd largest fast-food chain) cannot be automated with the current scraper pattern
+- (-) Future PDF-pipeline feature needed to automate PDF-only chains
+- **Action:** All future chain scrapers (F010-F017) must include site inspection as Step 1 in their implementation plan before writing any code
