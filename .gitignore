@@ -58,3 +58,6 @@ redisdata/
 
 # Temporary files
 tmp/
+
+# Crawlee storage (written by htmlFetcher — redirected to os.tmpdir() at runtime but guard here too)
+storage/

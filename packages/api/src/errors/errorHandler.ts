@@ -182,6 +182,48 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // INVALID_URL — URL scheme is not http/https or address is private/loopback (SSRF guard)
+  if (asAny['code'] === 'INVALID_URL') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'INVALID_URL',
+        },
+      },
+    };
+  }
+
+  // FETCH_FAILED — network error, DNS failure, or non-2xx HTTP response
+  if (asAny['code'] === 'FETCH_FAILED') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'FETCH_FAILED',
+        },
+      },
+    };
+  }
+
+  // SCRAPER_BLOCKED — target server returned HTTP 403 or 429 (anti-bot)
+  if (asAny['code'] === 'SCRAPER_BLOCKED') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'SCRAPER_BLOCKED',
+        },
+      },
+    };
+  }
+
   // PROCESSING_TIMEOUT — processing exceeded 30 seconds
   if (asAny['code'] === 'PROCESSING_TIMEOUT') {
     return {
