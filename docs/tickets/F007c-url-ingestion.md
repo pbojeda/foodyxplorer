@@ -1,7 +1,7 @@
 # F007c: URL Ingestion Endpoint (POST /ingest/url)
 
 **Feature:** F007c | **Type:** Backend-Feature | **Priority:** High
-**Status:** Pending | **Branch:** feature/F007c-url-ingestion (to be created)
+**Status:** In Review | **Branch:** feature/F007c-url-ingestion
 **Created:** 2026-03-12 | **Dependencies:** F007 complete (scraper scaffold, normalizeNutrients + normalizeDish), F007b complete (nutritionTableParser reuse)
 
 ---
