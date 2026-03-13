@@ -115,10 +115,14 @@ Quick reference for project configuration, infrastructure details, and important
 - **Types**: `src/base/types.ts` — `RawDishDataSchema`, `NormalizedDishDataSchema`, `ScraperConfigSchema`, `ScraperResultSchema` (all with `z.infer` type exports). NOT in packages/shared.
 - **Errors**: `src/base/errors.ts` — `ScraperError` → `ScraperNetworkError`, `ScraperBlockedError`, `ScraperStructureError`, `NormalizationError`, `NotImplementedError`. Each has `readonly code: string` (SCREAMING_SNAKE_CASE).
 - **Utilities**: `src/utils/retry.ts` (`withRetry<T>(fn, policy, context)`), `src/utils/rateLimit.ts` (`RateLimiter` class, token-bucket + 3000-5000ms jitter), `src/utils/normalize.ts` (`normalizeNutrients`, `normalizeDish`)
-- **Registry**: `src/registry.ts` — empty `registry: ScraperRegistry = {}`. F008–F017 add entries.
+- **Registry**: `src/registry.ts` — `ScraperRegistry = Record<string, { config: ScraperConfig; ScraperClass: ConcreteScraperConstructor }>`. Currently: `mcdonalds-es`. F009–F017 add entries.
 - **Zod version note**: Uses `.nonnegative()` not `.nonneg()` — the installed version of zod (^3.24.2) does not have `.nonneg()` shorthand.
-- **persist() is a stub in F007**: calls `persistDish()` which throws `NotImplementedError`. F008 overrides `persistDish()` with real Prisma upsert.
+- **Persistence**: `src/utils/persist.ts` — `persistDishUtil(prisma, dish)` shared upsert utility. Uses `findFirst` + create/update (Dish lacks `@@unique([restaurantId, name])`) + `dishNutrient.upsert` on `dishId_sourceId`. All in `$transaction`. Reused by all chain scrapers.
+- **PrismaClient singleton**: `src/lib/prisma.ts` — `getPrismaClient()` lazy init, `disconnectPrisma()` for clean shutdown. Selects `DATABASE_URL_TEST` in test env.
 - **Crawler dependency injection pattern**: `createCrawler(requestHandler, failedRequestHandler)` is protected. Tests override it to return a duck-typed mock (no real Playwright launched).
+- **McDonald's scraper**: `src/chains/mcdonalds-es/McDonaldsEsScraper.ts` — dual extraction (JSON-LD `NutritionInformation` primary, HTML table fallback). CAPTCHA/robot detection throws `ScraperBlockedError`. Price parser handles Spanish format (thousand-separator dot, comma decimal). Env vars: `MCDONALDS_ES_RESTAURANT_ID`, `MCDONALDS_ES_SOURCE_ID` (UUIDs, must exist in DB).
+- **Chain scraper pattern (F008+)**: Each chain gets `src/chains/<chain-slug>/` with: `config.ts` (static `ScraperConfig`), main scraper class (extends `BaseScraper`), extraction helpers. Tests use HTML fixtures in `src/__tests__/fixtures/<chain-slug>/`. `persistDish()` override delegates to `persistDishUtil`.
+- **Runner**: `src/runner.ts` — `SCRAPER_CHAIN=<slug>` to run a chain. Instantiates from registry. Calls `disconnectPrisma()` before exit.
 
 ### Bot (packages/bot)
 - _To be populated_

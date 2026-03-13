@@ -185,21 +185,21 @@ All three operations run in a single transaction. Last-write-wins for concurrent
 
 ### Acceptance Criteria
 
-- [ ] `McDonaldsEsScraper` extends `BaseScraper`; TypeScript strict mode, no `any`
-- [ ] `getMenuUrls` extracts and deduplicates absolute product URLs from fixture `menu-page.html`
-- [ ] `extractDishes` extracts correct nutrients from fixture `product-page.html` (JSON-LD path)
-- [ ] `extractDishes` falls back to table for fixture `product-page-no-jsonld.html`
-- [ ] Extracted nutrients pass through `normalizeNutrients` without returning `null`
-- [ ] `persistDishUtil` creates Dish + DishNutrient in single `$transaction` for new dish
-- [ ] `persistDishUtil` updates Dish + upserts DishNutrient for existing dish (same `externalId`)
-- [ ] `persistDishUtil` uses name-based match when `externalId` is absent
-- [ ] Registry updated to `{ config, ScraperClass }` shape; `runner.ts` instantiates and runs
-- [ ] `ScraperEnvSchema` updated with `MCDONALDS_ES_RESTAURANT_ID` and `MCDONALDS_ES_SOURCE_ID`
-- [ ] `packages/scraper/src/lib/prisma.ts` created (singleton)
-- [ ] `packages/scraper/src/utils/persist.ts` created and exported from `src/index.ts`
-- [ ] All 4 fixture HTML files committed under `src/__tests__/fixtures/mcdonalds-es/`
-- [ ] `vitest run` passes — zero real network calls in tests
-- [ ] `tsc --noEmit` passes in `packages/scraper`
+- [x] `McDonaldsEsScraper` extends `BaseScraper`; TypeScript strict mode, no `any` — verified by `tsc --noEmit`
+- [x] `getMenuUrls` extracts and deduplicates absolute product URLs from fixture `menu-page.html` — mcdonalds-es.test.ts
+- [x] `extractDishes` extracts correct nutrients from fixture `product-page.html` (JSON-LD path) — mcdonalds-es.test.ts
+- [x] `extractDishes` falls back to table for fixture `product-page-no-jsonld.html` — mcdonalds-es.test.ts
+- [x] Extracted nutrients pass through `normalizeNutrients` without returning `null` — mcdonalds-es.test.ts
+- [x] `persistDishUtil` creates Dish + DishNutrient in single `$transaction` for new dish — persist.test.ts
+- [x] `persistDishUtil` updates Dish + upserts DishNutrient for existing dish (same `externalId`) — persist.test.ts
+- [x] `persistDishUtil` uses name-based match when `externalId` is absent — persist.test.ts
+- [x] Registry updated to `{ config, ScraperClass }` shape; `runner.ts` instantiates and runs — registry.ts, runner.ts
+- [x] `ScraperEnvSchema` updated with `MCDONALDS_ES_RESTAURANT_ID` and `MCDONALDS_ES_SOURCE_ID` — config.ts
+- [x] `packages/scraper/src/lib/prisma.ts` created (singleton with `disconnectPrisma()`)
+- [x] `packages/scraper/src/utils/persist.ts` created and exported from `src/index.ts`
+- [x] All 4 fixture HTML files committed under `src/__tests__/fixtures/mcdonalds-es/`
+- [x] `vitest run` passes — 232 tests, zero real network calls
+- [x] `tsc --noEmit` passes in `packages/scraper`
 
 ---
 
@@ -470,12 +470,12 @@ JSON-LD values like `"870 mg"` and `"19 g"` are passed as the `sodium` and `fats
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation
+- [x] All acceptance criteria met (15/15)
+- [x] Unit tests written and passing (232 total in scraper package)
+- [x] Code follows project standards
+- [x] No linting errors (no lint script in scraper — tsc strict passes)
+- [x] Build succeeds
+- [x] Specs reflect final implementation
 
 ---
 
@@ -483,11 +483,11 @@ JSON-LD values like `"870 mg"` and `"19 g"` are passed as the `sodium` and `fats
 
 - [x] Step 0: `spec-creator` executed, specs updated
 - [x] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: `backend-planner` executed, plan approved
-- [ ] Step 3: `backend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard)
+- [x] Step 2: `backend-planner` executed, plan approved
+- [x] Step 3: `backend-developer` executed with TDD
+- [x] Step 4: `production-code-validator` executed, quality gates pass
+- [x] Step 5: `code-review-specialist` executed
+- [x] Step 5: `qa-engineer` executed (Standard)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -498,6 +498,11 @@ JSON-LD values like `"870 mg"` and `"19 g"` are passed as the `sodium` and `fats
 |------|--------|-------|
 | 2026-03-13 | Step 0: Spec created | F008-mcdonalds-scraper-spec.md — dual extraction (JSON-LD + table), persist utility, registry pattern |
 | 2026-03-13 | Step 1: Setup | Branch feature/F008-mcdonalds-scraper, ticket created, tracker updated |
+| 2026-03-13 | Step 2: Plan approved | 15-step implementation plan across 3 phases |
+| 2026-03-13 | Step 3: Implementation | 180 tests (39 F008 + 141 base/utils), TDD, commit f01a456 |
+| 2026-03-13 | Step 4: Finalize | production-code-validator: READY, 0 issues |
+| 2026-03-13 | Step 5: Review | code-review: 0C, 3H, 5M. QA: 5 bugs, 52 edge-case tests. All fixed in c95e0e2 |
+| 2026-03-13 | Review findings | Accepted: H2 (sourceId update), H3 (extra conditional), M1 (URL strip), M3 (disconnectPrisma), M5 (CAPTCHA), B2/B3 (isComplete null/empty), B4 (price thousand-sep). Deferred: H1 (race condition, single-process today) |
 
 ---
 
