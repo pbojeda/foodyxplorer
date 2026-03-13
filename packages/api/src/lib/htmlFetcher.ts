@@ -75,7 +75,7 @@ export async function fetchHtml(
   // -------------------------------------------------------------------------
   const failedRequestHandler: FailedHandlerFn = async ({ error }) => {
     const message = error.message;
-    if (message.includes('403') || message.includes('429')) {
+    if (/\b(403|429)\b/.test(message)) {
       crawlerError = Object.assign(
         new Error('Access blocked by target server'),
         { code: 'SCRAPER_BLOCKED', statusCode: 422 },

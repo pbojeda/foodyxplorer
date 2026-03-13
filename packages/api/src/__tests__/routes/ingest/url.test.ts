@@ -260,6 +260,55 @@ describe('POST /ingest/url', () => {
     expect(body.error.code).toBe('INVALID_URL');
   });
 
+  it('8b. url resolving to 172.16.x.x → 422 INVALID_URL', async () => {
+    const response = await app.inject(makeRequest({
+      url: 'http://172.16.0.1/menu',
+      restaurantId: TEST_RESTAURANT_ID,
+      sourceId: TEST_SOURCE_ID,
+    }));
+
+    expect(response.statusCode).toBe(422);
+    const body = JSON.parse(response.body) as { error: { code: string } };
+    expect(body.error.code).toBe('INVALID_URL');
+  });
+
+  it('8c. url with 0.0.0.0 → 422 INVALID_URL', async () => {
+    const response = await app.inject(makeRequest({
+      url: 'http://0.0.0.0/menu',
+      restaurantId: TEST_RESTAURANT_ID,
+      sourceId: TEST_SOURCE_ID,
+    }));
+
+    expect(response.statusCode).toBe(422);
+    const body = JSON.parse(response.body) as { error: { code: string } };
+    expect(body.error.code).toBe('INVALID_URL');
+  });
+
+  it('8d. numeric IP (decimal bypass) → 422 INVALID_URL', async () => {
+    // 2130706433 = 127.0.0.1 in decimal
+    const response = await app.inject(makeRequest({
+      url: 'http://2130706433/menu',
+      restaurantId: TEST_RESTAURANT_ID,
+      sourceId: TEST_SOURCE_ID,
+    }));
+
+    expect(response.statusCode).toBe(422);
+    const body = JSON.parse(response.body) as { error: { code: string } };
+    expect(body.error.code).toBe('INVALID_URL');
+  });
+
+  it('8e. IPv6 loopback [::1] → 422 INVALID_URL', async () => {
+    const response = await app.inject(makeRequest({
+      url: 'http://[::1]/menu',
+      restaurantId: TEST_RESTAURANT_ID,
+      sourceId: TEST_SOURCE_ID,
+    }));
+
+    expect(response.statusCode).toBe(422);
+    const body = JSON.parse(response.body) as { error: { code: string } };
+    expect(body.error.code).toBe('INVALID_URL');
+  });
+
   it('9. Non-existent restaurantId → 404 NOT_FOUND', async () => {
     // fetchHtml should NOT be called (DB check runs first)
     const response = await app.inject(makeRequest({
@@ -441,5 +490,29 @@ describe('POST /ingest/url', () => {
     expect(dish?.nutrients.sodium).toBeGreaterThan(0);
     // salt = 2, sodium = (2 / 2.5) * 1000 = 800
     expect(dish?.nutrients.sodium).toBeCloseTo(800, 0);
+  });
+
+  // -------------------------------------------------------------------------
+  // 18. Processing timeout → 408 PROCESSING_TIMEOUT
+  // -------------------------------------------------------------------------
+  it('18. PROCESSING_TIMEOUT error → 408 response', async () => {
+    // Simulate timeout by throwing PROCESSING_TIMEOUT from fetchHtml
+    // (real timeout is via Promise.race + 30s setTimeout — validated by production-code-validator)
+    mockFetchHtml.mockRejectedValue(
+      Object.assign(new Error('Processing timeout'), {
+        statusCode: 408,
+        code: 'PROCESSING_TIMEOUT',
+      }),
+    );
+
+    const response = await app.inject(makeRequest({
+      url: 'https://example.com/slow-page',
+      restaurantId: TEST_RESTAURANT_ID,
+      sourceId: TEST_SOURCE_ID,
+    }));
+
+    expect(response.statusCode).toBe(408);
+    const body = JSON.parse(response.body) as { error: { code: string } };
+    expect(body.error.code).toBe('PROCESSING_TIMEOUT');
   });
 });

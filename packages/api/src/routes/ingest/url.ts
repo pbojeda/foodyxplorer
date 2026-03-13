@@ -48,7 +48,7 @@ interface IngestUrlSkippedReason {
 // ---------------------------------------------------------------------------
 
 const SSRF_BLOCKED =
-  /^(localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+)$/i;
+  /^(localhost|0\.0\.0\.0|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+|\[?::1\]?|\[?::ffff:127\.\d+\.\d+\.\d+\]?|\[?fe80:.*)$/i;
 
 // ---------------------------------------------------------------------------
 // Domain error codes — used in the Prisma catch block to re-throw
@@ -101,6 +101,14 @@ const ingestUrlRoutesPlugin: FastifyPluginAsync<IngestUrlPluginOptions> = async 
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
       throw Object.assign(
         new Error('URL must use http or https scheme'),
+        { statusCode: 422, code: 'INVALID_URL' },
+      );
+    }
+
+    // Block numeric IP representations (decimal/hex bypass: 2130706433 = 127.0.0.1)
+    if (/^\d+$/.test(parsedUrl.hostname) || /^0x/i.test(parsedUrl.hostname)) {
+      throw Object.assign(
+        new Error('Numeric IP addresses are not allowed'),
         { statusCode: 422, code: 'INVALID_URL' },
       );
     }
