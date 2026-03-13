@@ -222,34 +222,34 @@ IngestUrlResultSchema = z.object({
 
 ### Acceptance Criteria
 
-- [ ] `POST /ingest/url` with a valid URL pointing to an HTML page with a Spanish nutritional table returns `200` with at least 1 dish upserted
-- [ ] `dryRun: true` returns `200` with `dishesUpserted: 0` and no DB writes
-- [ ] Missing `url` field returns `400 VALIDATION_ERROR`
-- [ ] `url` is not a valid URL string → `400 VALIDATION_ERROR`
-- [ ] `url` with `file://` scheme → `422 INVALID_URL`
-- [ ] `url` resolving to `localhost` / private IP → `422 INVALID_URL`
-- [ ] Non-existent `restaurantId` → `404 NOT_FOUND`
-- [ ] Non-existent `sourceId` → `404 NOT_FOUND`
-- [ ] `fetchHtml` failure (mocked) → `422 FETCH_FAILED`
-- [ ] `fetchHtml` HTTP 403 (mocked) → `422 SCRAPER_BLOCKED`
-- [ ] Page with no extractable text → `422 NO_NUTRITIONAL_DATA_FOUND`
-- [ ] Page with text but no nutritional table → `422 NO_NUTRITIONAL_DATA_FOUND`
-- [ ] Partial success: `200`, `dishesSkipped > 0`, non-empty `skippedReasons`
-- [ ] Response `data.sourceUrl` matches the submitted URL
-- [ ] `tsc --noEmit` passes across all packages
-- [ ] `vitest run` passes — all tests green
-- [ ] Endpoint documented in `docs/specs/api-spec.yaml` under `Ingestion` tag
-- [ ] TypeScript strict mode — no `any`, no `ts-ignore`
-- [ ] `htmlTextExtractor` correctly extracts tab-separated table rows (unit tests)
-- [ ] `INVALID_URL`, `FETCH_FAILED`, `SCRAPER_BLOCKED` registered in `errorHandler.ts`
-- [ ] Salt/sodium derivation exercised in URL pipeline integration test
+- [x] `POST /ingest/url` with a valid URL pointing to an HTML page with a Spanish nutritional table returns `200` with at least 1 dish upserted (test 1)
+- [x] `dryRun: true` returns `200` with `dishesUpserted: 0` and no DB writes (test 2)
+- [x] Missing `url` field returns `400 VALIDATION_ERROR` (test 3)
+- [x] `url` is not a valid URL string → `400 VALIDATION_ERROR` (test 4)
+- [x] `url` with `file://` scheme → `422 INVALID_URL` (test 5)
+- [x] `url` resolving to `localhost` / private IP → `422 INVALID_URL` (tests 6-8e: localhost, 127.x, 169.254, 172.16, 0.0.0.0, decimal IP, IPv6 ::1)
+- [x] Non-existent `restaurantId` → `404 NOT_FOUND` (test 9)
+- [x] Non-existent `sourceId` → `404 NOT_FOUND` (test 10)
+- [x] `fetchHtml` failure (mocked) → `422 FETCH_FAILED` (test 11)
+- [x] `fetchHtml` HTTP 403 (mocked) → `422 SCRAPER_BLOCKED` (test 12)
+- [x] Page with no extractable text → `422 NO_NUTRITIONAL_DATA_FOUND` (test 13)
+- [x] Page with text but no nutritional table → `422 NO_NUTRITIONAL_DATA_FOUND` (test 14)
+- [x] Partial success: `200`, `dishesSkipped > 0`, non-empty `skippedReasons` (test 15)
+- [x] Response `data.sourceUrl` matches the submitted URL (verified in edge-case tests)
+- [x] `tsc --noEmit` passes across all packages
+- [x] `vitest run` passes — 88 F007c tests green
+- [x] Endpoint documented in `docs/specs/api-spec.yaml` under `Ingestion` tag
+- [x] TypeScript strict mode — no `any`, no `ts-ignore`
+- [x] `htmlTextExtractor` correctly extracts tab-separated table rows (18 unit tests)
+- [x] `INVALID_URL`, `FETCH_FAILED`, `SCRAPER_BLOCKED` registered in `errorHandler.ts`
+- [x] Salt/sodium derivation exercised in URL pipeline integration test (test 17)
 
 ---
 
 ### Definition of Done
 
-- [ ] All acceptance criteria above are met
-- [ ] No regressions in existing tests (`POST /ingest/pdf`, `GET /health`)
+- [x] All acceptance criteria above are met
+- [x] No regressions in existing tests (`POST /ingest/pdf`, `GET /health`)
 - [ ] Feature branch merged to `develop` via squash PR
 - [ ] `docs/project_notes/product-tracker.md` updated: F007c status → `done`, step → `6/6`
 - [ ] Completion log entry added with commit hash and test count delta
@@ -710,3 +710,34 @@ In `pdf.ts`, `sourceUrl` is a synthetic `pdf://filename` URI (no real HTTP URL e
 #### Fixture HTML must produce parseable lines after extraction
 
 `sample-nutrition-table.html` must contain a `<table>` with Spanish keyword headers that `parseNutritionTable` can detect (3+ keywords on one `<tr>` line, joined by tabs). After `extractTextFromHtml` runs, the header `<tr>` must produce a tab-separated line like `"Calorías\tProteínas\tHidratos\tGrasas\tSal"`. Verify this during fixture creation by mentally tracing the extraction rules.
+
+---
+
+## Workflow Checklist
+
+- [x] Step 0: `spec-creator` executed, specs written (F007c-url-ingestion-spec.md, api-spec.yaml updated, ticket created)
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 2: `backend-planner` executed, plan approved
+- [x] Step 3: `backend-developer` executed with TDD — 41 tests (18 htmlTextExtractor + 6 htmlFetcher + 17 integration)
+- [x] Step 4: `production-code-validator` executed — 0 issues, quality gates pass
+- [x] Step 5: `code-review-specialist` executed — C1/C2 SSRF 172.16+IPv6+numeric, I3 regex, I4 timeout test. All fixed.
+- [x] Step 5: `qa-engineer` executed — B1 IPv4-mapped IPv6 SSRF bypass fixed, 42 edge-case tests added. 88 total F007c tests.
+- [ ] Step 6: Ticket updated with final metrics, branch deleted
+
+---
+
+## Completion Log
+
+| Date | Action | Notes |
+|------|--------|-------|
+| 2026-03-13 | Step 0: Spec created | spec-creator generated F007c-url-ingestion-spec.md, api-spec.yaml updated, ticket created |
+| 2026-03-13 | Step 1: Setup | Branch `feature/F007c-url-ingestion` created from develop, tracker updated |
+| 2026-03-13 | Step 2: Plan approved | backend-planner generated 11-step plan (I-1 through I-11), user approved |
+| 2026-03-13 | Step 3: Implementation | backend-developer TDD: 3 production files, 4 fixtures, 3 test files, 41 tests |
+| 2026-03-13 | Step 4: Finalize | production-code-validator: 0 issues. tsc + lint clean. |
+| 2026-03-13 | Step 5: Code review | Accepted: C1/C2 (SSRF 172.16/0.0.0.0/IPv6/numeric IP), I3 (403/429 word-boundary regex), I4 (timeout test). 5 new SSRF tests + 1 timeout test added. |
+| 2026-03-13 | Step 5: QA | B1 HIGH: IPv4-mapped IPv6 bypass (`::ffff:127.0.0.1` → hex notation). Fixed with `SSRF_BLOCKED_IPV4_MAPPED` regex. 42 edge-case tests added (24 route + 18 SSRF hostname). |
+
+---
+
+*Ticket created: 2026-03-13*
