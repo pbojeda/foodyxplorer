@@ -30,7 +30,10 @@
     "fastify-type-provider-zod": "^4.0.2",
     "ioredis": "^5.4.2",
     "kysely": "^0.27.5",
+    "crawlee": "^3.0.0",
+    "node-html-parser": "^6.0.0",
     "pdf-parse": "^2.4.5",
+    "playwright": "^1.40.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

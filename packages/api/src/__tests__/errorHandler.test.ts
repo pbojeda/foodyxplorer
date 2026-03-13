@@ -276,4 +276,52 @@ describe('mapError', () => {
       expect(result.body.error.message).toBe('Processing timeout');
     });
   });
+
+  describe('INVALID_URL', () => {
+    it('maps to 422 with INVALID_URL code and original message', () => {
+      const err = Object.assign(
+        new Error('URL must use http or https scheme'),
+        { statusCode: 422, code: 'INVALID_URL' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(422);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('INVALID_URL');
+      expect(result.body.error.message).toBe('URL must use http or https scheme');
+    });
+  });
+
+  describe('FETCH_FAILED', () => {
+    it('maps to 422 with FETCH_FAILED code and original message', () => {
+      const err = Object.assign(
+        new Error('Failed to fetch URL'),
+        { statusCode: 422, code: 'FETCH_FAILED' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(422);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('FETCH_FAILED');
+      expect(result.body.error.message).toBe('Failed to fetch URL');
+    });
+  });
+
+  describe('SCRAPER_BLOCKED', () => {
+    it('maps to 422 with SCRAPER_BLOCKED code and original message', () => {
+      const err = Object.assign(
+        new Error('Access blocked by target server'),
+        { statusCode: 422, code: 'SCRAPER_BLOCKED' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(422);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('SCRAPER_BLOCKED');
+      expect(result.body.error.message).toBe('Access blocked by target server');
+    });
+  });
 });
