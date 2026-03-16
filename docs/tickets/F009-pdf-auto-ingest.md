@@ -335,38 +335,39 @@ The timeout promise is created with `setTimeout` outside the processing promise,
 
 ## Acceptance Criteria
 
-- [ ] `POST /ingest/pdf-url` with a valid PDF URL returns `200` with at least 1 dish upserted
-- [ ] `dryRun: true` returns `200` with parsed dishes and `dishesUpserted: 0`
-- [ ] `sourceUrl` in response matches the submitted URL
-- [ ] Non-http/https scheme returns `422 INVALID_URL`
-- [ ] Private/loopback URL returns `422 INVALID_URL`
-- [ ] Network failure returns `422 FETCH_FAILED`
-- [ ] Non-2xx HTTP response returns `422 FETCH_FAILED`
-- [ ] Non-PDF Content-Type returns `422 INVALID_PDF`
-- [ ] Buffer not starting with `%PDF-` returns `422 INVALID_PDF`
-- [ ] Image-based PDF returns `422 UNSUPPORTED_PDF`
-- [ ] PDF with no nutritional table returns `422 NO_NUTRITIONAL_DATA_FOUND`
-- [ ] Missing `url` returns `400 VALIDATION_ERROR`
-- [ ] Non-existent `restaurantId` returns `404 NOT_FOUND`
-- [ ] Response > 20 MB returns `413 PAYLOAD_TOO_LARGE`
-- [ ] `ssrfGuard.ts` shared by both `url.ts` (refactored) and `pdf-url.ts` (new)
-- [ ] `PAYLOAD_TOO_LARGE` added to `errorHandler.ts`
-- [ ] `tsc --noEmit` passes with zero errors
-- [ ] `vitest run` passes — all tests green
-- [ ] Endpoint documented in `docs/specs/api-spec.yaml`
-- [ ] TypeScript strict mode — no `any`, no `ts-ignore`
+- [x] `POST /ingest/pdf-url` with a valid PDF URL returns `200` with at least 1 dish upserted
+- [x] `dryRun: true` returns `200` with parsed dishes and `dishesUpserted: 0`
+- [x] `sourceUrl` in response matches the submitted URL
+- [x] Non-http/https scheme returns `422 INVALID_URL`
+- [x] Private/loopback URL returns `422 INVALID_URL`
+- [x] Network failure returns `422 FETCH_FAILED`
+- [x] Non-2xx HTTP response returns `422 FETCH_FAILED`
+- [x] Non-PDF Content-Type returns `422 INVALID_PDF`
+- [x] Buffer not starting with `%PDF-` returns `422 INVALID_PDF`
+- [x] Image-based PDF returns `422 UNSUPPORTED_PDF`
+- [x] PDF with no nutritional table returns `422 NO_NUTRITIONAL_DATA_FOUND`
+- [x] Missing `url` returns `400 VALIDATION_ERROR`
+- [x] Non-existent `restaurantId` returns `404 NOT_FOUND`
+- [x] Response > 20 MB returns `413 PAYLOAD_TOO_LARGE`
+- [x] `ssrfGuard.ts` shared by both `url.ts` (refactored) and `pdf-url.ts` (new)
+- [x] `PAYLOAD_TOO_LARGE` added to `errorHandler.ts`
+- [x] `tsc --noEmit` passes with zero errors
+- [x] `vitest run` passes — 730 tests green (34 files)
+- [x] Endpoint documented in `docs/specs/api-spec.yaml`
+- [x] TypeScript strict mode — no `any`, no `ts-ignore`
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Integration tests written and passing
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation
+- [x] All acceptance criteria met (20/20)
+- [x] Unit tests written and passing (13 ssrfGuard + 6 pdfDownloader = 19 unit)
+- [x] Integration tests written and passing (16 pdf-url integration)
+- [x] Edge case tests written and passing (14 + 13 + 23 = 50 QA edge cases)
+- [x] Code follows project standards (Fastify plugin, error envelope, DI pattern)
+- [x] No linting errors (0 errors on F009 files; 5 pre-existing in other files)
+- [x] Build succeeds (`tsc` clean)
+- [x] Specs reflect final implementation (api-spec.yaml + F009 spec)
 
 ---
 
@@ -374,11 +375,11 @@ The timeout promise is created with `setTimeout` outside the processing promise,
 
 - [x] Step 0: `spec-creator` executed, specs updated
 - [x] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: `backend-planner` executed, plan approved
-- [ ] Step 3: `backend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed
+- [x] Step 2: `backend-planner` executed, plan approved
+- [x] Step 3: `backend-developer` executed with TDD
+- [x] Step 4: `production-code-validator` executed, quality gates pass
+- [x] Step 5: `code-review-specialist` executed — 0 Critical, 3 fixes applied (H1, H2, M4)
+- [x] Step 5: `qa-engineer` executed — 50 edge case tests added, all pass
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -389,6 +390,16 @@ The timeout promise is created with `setTimeout` outside the processing promise,
 |------|--------|-------|
 | 2026-03-13 | Step 0: Spec created | F009-pdf-auto-ingest-spec.md, api-spec.yaml updated |
 | 2026-03-13 | Step 1: Setup | Branch feature/F009-pdf-auto-ingest, ticket created |
+| 2026-03-16 | Step 2: Plan approved | Implementation plan written by backend-planner |
+| 2026-03-16 | Step 3: Implementation | TDD: ssrfGuard → url.ts refactor → errorHandler → pdfDownloader → pdf-url.ts. 678 tests passing |
+| 2026-03-16 | Bug fix (pre-existing) | McDonald's config lazy loading — fixes transitive import crash in API tests |
+| 2026-03-16 | Step 4: Finalize | production-code-validator: PASS. 730 API + 232 scraper tests. tsc clean |
+| 2026-03-16 | Commit: 9aae3ac | feat(api): add PDF auto-ingest endpoint POST /ingest/pdf-url (F009) |
+| 2026-03-16 | Step 5: Code review | 0 Critical, 0 High unresolved. Fixes: H1 DNS rebinding note, H2 timeout comment, M4 numeric IP tests |
+| 2026-03-16 | Commit: ebcabff | fix(api): address code review findings for F009 |
+| 2026-03-16 | Step 5: QA | 50 edge case tests added (14 ssrfGuard + 13 pdfDownloader + 23 pdf-url). All pass |
+| 2026-03-16 | Commit: 5c7a27e | test(api): add QA edge case tests for F009 |
+| 2026-03-16 | Review findings | Accepted: H1 (comment), H2 (comment), M4 (test). Noted: H3 (inherited pattern), M5 (deferred), M6 (deferred) |
 
 ---
 

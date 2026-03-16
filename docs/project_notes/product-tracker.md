@@ -13,8 +13,8 @@
 **Active Feature:** F009 — PDF Auto-Ingest Pipeline (POST /ingest/pdf-url)
 **Branch:** feature/F009-pdf-auto-ingest
 **Complexity:** Standard
-**Current Step:** 4/6 (Finalize) — Implementation done, validator passed, awaiting commit
-**Context:** New endpoint that downloads PDF from URL and pipes through existing F007b pipeline. Reuses extractText, parseNutritionTable, normalize, persist. 3 new files: pdf-url.ts, pdfDownloader.ts, ssrfGuard.ts (refactor from url.ts).
+**Current Step:** 5/6 (Review) — Code review + QA done. PR #10 awaiting merge approval.
+**Context:** POST /ingest/pdf-url implemented with TDD. 730 API tests (34 files), 232 scraper tests. 3 commits on branch. Code review: 0 Critical, 3 fixes applied. QA: 50 edge case tests added.
 
 ---
 
@@ -47,7 +47,7 @@
 | F007b | PDF Ingestion Endpoint (POST /ingest/pdf) | backend | done | 6/6 | Standard complexity, POST /ingest/pdf, pdf-parse + heuristic parser |
 | F007c | URL Ingestion Endpoint (POST /ingest/url) | backend | done | 6/6 | Scrape URL for nutritional data, normalize to schema. Reuses F007 pipeline. |
 | F008 | McDonald's Spain Scraper | backend | done | 6/6 | First chain scraper, establishes pattern for F009-F017. Dual extraction, shared persist, registry upgrade | First chain scraper, establishes pattern for F009-F017 |
-| F009 | PDF Auto-Ingest Pipeline (POST /ingest/pdf-url) | backend | in-progress | 1/6 | Download PDF from URL → reuse F007b pipeline. See ADR-006. Branch: feature/F009-pdf-auto-ingest |
+| F009 | PDF Auto-Ingest Pipeline (POST /ingest/pdf-url) | backend | in-progress | 5/6 | Download PDF from URL → reuse F007b pipeline. See ADR-006. PR #10 |
 | F010 | Chain PDF Registry + Batch Runner | backend | pending | — | Config registry mapping chains to PDF URLs + CLI batch runner. Seed data for BK, KFC, Telepizza, Five Guys. See ADR-006 |
 | F011 | Chain Onboarding — PDF Chains | backend | pending | — | Verify parser with real PDFs (BK, KFC, Telepizza, Five Guys). Test fixtures per chain. Parser tuning if needed |
 | F012 | Image/OCR Ingestion Pipeline | backend | pending | — | For Domino's (JPEG images, NOT PDF). Tesseract.js → text → parseNutritionTable. Separate from PDF pipeline |
