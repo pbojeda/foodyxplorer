@@ -1,7 +1,7 @@
 # F012: Image/OCR Ingestion Pipeline
 
 **Feature:** F012 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F012-image-ocr-ingestion
+**Status:** Done | **Branch:** (merged, deleted)
 **Created:** 2026-03-16 | **Dependencies:** F011 complete (chainTextPreprocessor, chainSlug on pdf-url)
 
 ---
@@ -794,7 +794,7 @@ Do not implement `preprocessDominosEs` speculatively. First run OCR on the real 
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed
 - [x] Step 5: `qa-engineer` executed (Standard)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -808,6 +808,7 @@ Do not implement `preprocessDominosEs` speculatively. First run OCR on the real 
 | 2026-03-16 | Step 3: Implementation | 67 tests, 5 new source files, 6 modified. backend-developer agent |
 | 2026-03-16 | Step 4: Finalize | production-code-validator: READY, 0 issues. Commit 6b4dbad |
 | 2026-03-16 | Step 5: Review | Code review: H2 (webp removed), M1-M4 fixed. QA: BUG-2 (terminate swallow) fixed, 61 edge-case tests added. Total 105 F012 tests |
+| 2026-03-16 | Step 6: Complete | Squash merged to develop (fc4e9bc), PR #13. Branch deleted |
 
 ---
 

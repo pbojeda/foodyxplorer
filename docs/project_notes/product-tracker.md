@@ -10,11 +10,8 @@
 
 **Last Updated:** 2026-03-16
 
-**Active Feature:** F012 — Image/OCR Ingestion Pipeline
-**Step:** 5/6 (Review)
-**Branch:** feature/F012-image-ocr-ingestion
-**Complexity:** Standard
-**Context:** New endpoint POST /ingest/image-url. OCR via Tesseract.js for Domino's Spain (JPEG images). Separate imageDownloader + imageOcrExtractor + chain-image-registry. Ticket: docs/tickets/F012-image-ocr-ingestion.md
+**Active Feature:** No active work
+**Context:** F012 completed 2026-03-16. Next pending: F013 (Subway Spain research) or F014-F017 (additional chains).
 
 ---
 
@@ -50,7 +47,7 @@
 | F009 | PDF Auto-Ingest Pipeline (POST /ingest/pdf-url) | backend | done | 6/6 | Download PDF from URL → reuse F007b pipeline. See ADR-006. 85 new tests |
 | F010 | Chain PDF Registry + Batch Runner | backend | done | 6/6 | Config registry mapping chains to PDF URLs + CLI batch runner. Seed data for BK, KFC, Telepizza, Five Guys. See ADR-006 |
 | F011 | Chain Onboarding — PDF Chains | backend | done | 6/6 | Chain text preprocessor (ADR-007). BK 166, KFC 169, Telepizza 64 dishes. Five Guys allergen-only (disabled). chainSlug added to API. 897 tests. PR #12 |
-| F012 | Image/OCR Ingestion Pipeline | backend | in-progress | 5/6 | For Domino's (JPEG images, NOT PDF). Tesseract.js → text → parseNutritionTable. Separate from PDF pipeline |
+| F012 | Image/OCR Ingestion Pipeline | backend | done | 6/6 | Tesseract.js v5 OCR. POST /ingest/image-url, imageDownloader, imageOcrExtractor. Domino's Spain (JPEG). 105 tests. PR #13 |
 | F013 | Subway Spain Data Research | backend | pending | — | Investigation: find viable data source for Subway ES (no .es website, no Spain PDF). May use US data |
 | F014-F017 | Chain Onboarding — Additional Chains | backend | pending | — | VIPS, Pans & Company, 100 Montaditos, others. Config + verification per chain |
 | F018 | Data Quality Monitor | backend | pending | — | |
@@ -97,6 +94,7 @@
 | 2026-03-16 | F009 — PDF Auto-Ingest Pipeline | ee99310 (squash merge to develop, PR #10) | POST /ingest/pdf-url, ssrfGuard shared module, pdfDownloader (streaming 20MB cap), PAYLOAD_TOO_LARGE error. Lazy McDonald's config fix. ADR-006 (PDF-first pivot). 85 new tests (730 API, 962 total), 3 review fixes |
 | 2026-03-16 | F010 — Chain PDF Registry + Batch Runner | babad7d (squash merge to develop, PR #11) | ChainPdfConfig Zod schema, CHAIN_PDF_REGISTRY (4 chains: BK, KFC, Telepizza, Five Guys), batch-ingest CLI (runBatch + HTTP), seedPhase3 (8 upserts). 80 new tests (819 API, 1051 total), 7 QA bugs fixed |
 | 2026-03-16 | F011 — Chain Onboarding — PDF Chains | 38177d1 (squash merge to develop, PR #12) | chainTextPreprocessor (ADR-007): per-chain PDF normalization before generic parser. BK 166 dishes, KFC 169, Telepizza 64. Five Guys disabled (allergen-only). chainSlug optional param on POST /ingest/pdf-url. 78 new tests (897 API), 1 code review fix, 34 QA edge-case tests |
+| 2026-03-16 | F012 — Image/OCR Ingestion Pipeline | fc4e9bc (squash merge to develop, PR #13) | POST /ingest/image-url, Tesseract.js v5 (spa+eng), imageDownloader (10MB cap), imageOcrExtractor (worker per-request). chain-image-registry (Domino's), batch-ingest-images CLI, seedPhase4. 105 new tests (44 unit + 61 QA edge-case), 4 code review fixes, 2 QA bugs fixed |
 
 ---
 
