@@ -40,6 +40,13 @@ export function preprocessChainText(chainSlug: string, lines: string[]): string[
       // here following the existing preprocessor pattern.
       // See F012 Phase 7 (Step 18) for the manual dry-run inspection workflow.
       return lines;
+    case 'subway-es':
+      // Passthrough — the Subway Spain PDF uses English with a standard EU table
+      // format (kcal, fat, saturates, carbs, sugars, fibre, protein, salt per
+      // serving and per 100g). The generic parseNutritionTable handles this
+      // format without preprocessing. If a dry-run reveals layout issues,
+      // implement preprocessSubwayEs following the existing preprocessor pattern.
+      return lines;
     default:
       return lines;
   }
