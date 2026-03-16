@@ -161,7 +161,7 @@ export async function downloadImage(
 - Network/DNS/AbortError → throws `{ code: 'FETCH_FAILED', statusCode: 422 }`
 - `response.body === null` → throws `{ code: 'FETCH_FAILED', statusCode: 422 }`
 - Content-Type validation (checked after fetch, before streaming body):
-  - Allowed: `image/jpeg`, `image/png`, `image/webp`
+  - Allowed: `image/jpeg`, `image/png`
   - All others → throw `{ code: 'INVALID_IMAGE', statusCode: 422 }`
   - Note: Content-Type check is a first-pass guard only; magic bytes are the authoritative check (in the route, not in this library — Content-Type on Domino's server may be `application/octet-stream`)
 - Streaming accumulation with 10 MB cap (same pattern as `pdfDownloader.ts`):
@@ -175,11 +175,12 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 **Note on Content-Type leniency:** If Domino's server sends `application/octet-stream` (as some CDNs do), the caller (route) must apply magic bytes validation regardless of Content-Type. The `imageDownloader` therefore accepts `application/octet-stream` in addition to `image/*` to avoid INVALID_IMAGE at the download stage when the response is genuinely an image. The route applies the magic bytes validation as the authoritative check. If Content-Type is neither `image/*` nor `application/octet-stream`, the download throws `INVALID_IMAGE`.
 
-Updated Content-Type allow-list for `imageDownloader`:
+Updated Content-Type allow-list for `imageDownloader` (Phase 1):
 - `image/jpeg`
 - `image/png`
-- `image/webp`
 - `application/octet-stream` (CDN fallback — magic bytes checked by route)
+
+Note: `image/webp` excluded in Phase 1 — route magic bytes only validate JPEG/PNG.
 
 ---
 

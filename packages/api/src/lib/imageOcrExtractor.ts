@@ -33,7 +33,12 @@ export async function extractTextFromImage(buffer: Buffer): Promise<string[]> {
     );
   } finally {
     if (worker !== undefined) {
-      await worker.terminate();
+      try {
+        await worker.terminate();
+      } catch {
+        // Swallow terminate errors — the meaningful error (if any) was
+        // already caught and re-thrown as OCR_FAILED in the catch block.
+      }
     }
   }
 }
