@@ -28,7 +28,7 @@ export interface RunBatchOptions {
   concurrency: number;
 }
 
-type ChainIngestResultSuccess = {
+export type ChainIngestResultSuccess = {
   chain:          ChainPdfConfig;
   status:         'success';
   dishesFound:    number;
@@ -37,14 +37,14 @@ type ChainIngestResultSuccess = {
   dryRun:         boolean;
 };
 
-type ChainIngestResultError = {
+export type ChainIngestResultError = {
   chain:        ChainPdfConfig;
   status:       'error';
   errorCode:    string;
   errorMessage: string;
 };
 
-type ChainIngestResult = ChainIngestResultSuccess | ChainIngestResultError;
+export type ChainIngestResult = ChainIngestResultSuccess | ChainIngestResultError;
 
 // ---------------------------------------------------------------------------
 // Core: runBatch
@@ -134,7 +134,8 @@ async function ingestChain(
   opts: { apiBaseUrl: string; dryRun: boolean },
   fetchImpl: typeof fetch,
 ): Promise<ChainIngestResult> {
-  const url = `${opts.apiBaseUrl}/ingest/pdf-url`;
+  const base = opts.apiBaseUrl.replace(/\/+$/, '');
+  const url = `${base}/ingest/pdf-url`;
 
   try {
     const response = await fetchImpl(url, {
@@ -160,23 +161,33 @@ async function ingestChain(
       };
     }
 
+    const parsed = body as Record<string, unknown> | null;
+
     if (response.ok) {
-      const data = (body as { success: true; data: { dishesFound: number; dishesUpserted: number; dishesSkipped: number; dryRun: boolean } }).data;
+      const data = (parsed?.['data'] ?? null) as Record<string, unknown> | null;
+      if (data === null || typeof data !== 'object') {
+        return {
+          chain,
+          status:       'error',
+          errorCode:    'UNEXPECTED_RESPONSE',
+          errorMessage: 'API response missing data field',
+        };
+      }
       return {
         chain,
         status:         'success',
-        dishesFound:    data.dishesFound,
-        dishesUpserted: data.dishesUpserted,
-        dishesSkipped:  data.dishesSkipped,
-        dryRun:         data.dryRun ?? opts.dryRun,
+        dishesFound:    typeof data['dishesFound'] === 'number' ? data['dishesFound'] : 0,
+        dishesUpserted: typeof data['dishesUpserted'] === 'number' ? data['dishesUpserted'] : 0,
+        dishesSkipped:  typeof data['dishesSkipped'] === 'number' ? data['dishesSkipped'] : 0,
+        dryRun:         typeof data['dryRun'] === 'boolean' ? data['dryRun'] : opts.dryRun,
       };
     } else {
-      const error = (body as { success: false; error: { code: string; message: string } }).error;
+      const error = (parsed?.['error'] ?? null) as Record<string, unknown> | null;
       return {
         chain,
         status:       'error',
-        errorCode:    error.code,
-        errorMessage: error.message,
+        errorCode:    typeof error?.['code'] === 'string' ? error['code'] : `HTTP_${response.status}`,
+        errorMessage: typeof error?.['message'] === 'string' ? error['message'] : 'Unknown API error',
       };
     }
   } catch (err) {
@@ -184,7 +195,7 @@ async function ingestChain(
       chain,
       status:       'error',
       errorCode:    'NETWORK_ERROR',
-      errorMessage: (err as Error).message,
+      errorMessage: err instanceof Error ? err.message : String(err),
     };
   }
 }
@@ -216,14 +227,18 @@ function parseCliArgs(argv: string[]): ParsedCliArgs {
     } else if (arg === '--dry-run') {
       dryRun = true;
     } else if (arg === '--api-url' && args[i + 1] !== undefined) {
-      apiBaseUrl = args[i + 1] as string;
+      apiBaseUrl = args[i + 1]!;
       i++;
     } else if (arg === '--concurrency' && args[i + 1] !== undefined) {
-      const parsed = parseInt(args[i + 1] as string, 10);
+      const parsed = parseInt(args[i + 1]!, 10);
       if (!isNaN(parsed) && parsed > 0) {
         concurrency = parsed;
+      } else {
+        console.warn(`[warn] Invalid concurrency value '${args[i + 1]}' — using default (1)`);
       }
       i++;
+    } else if (arg !== undefined && arg.startsWith('--')) {
+      console.warn(`[warn] Unknown flag ignored: ${arg}`);
     }
   }
 
@@ -271,7 +286,7 @@ async function main(): Promise<void> {
   try {
     results = await runBatch(CHAIN_PDF_REGISTRY, opts);
   } catch (err) {
-    console.error(`Error: ${(err as Error).message}`);
+    console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   }
 

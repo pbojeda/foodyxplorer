@@ -18,7 +18,7 @@ export const ChainPdfConfigSchema = z.object({
   chainSlug:       z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
   name:            z.string().min(1).max(255),
   countryCode:     z.string().length(2).regex(/^[A-Z]{2}$/),
-  pdfUrl:          z.string().url().max(2048),
+  pdfUrl:          z.string().max(2048).url().startsWith('https://'),
   restaurantId:    z.string().uuid(),
   sourceId:        z.string().uuid(),
   updateFrequency: z.enum(['static', 'monthly', 'quarterly', 'yearly', 'unknown']),
