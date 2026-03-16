@@ -309,6 +309,38 @@ describe('mapError', () => {
     });
   });
 
+  describe('INVALID_IMAGE', () => {
+    it('maps to 422 with INVALID_IMAGE code and original message', () => {
+      const err = Object.assign(
+        new Error('Downloaded file is not a valid image (magic bytes mismatch)'),
+        { statusCode: 422, code: 'INVALID_IMAGE' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(422);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('INVALID_IMAGE');
+      expect(result.body.error.message).toBe('Downloaded file is not a valid image (magic bytes mismatch)');
+    });
+  });
+
+  describe('OCR_FAILED', () => {
+    it('maps to 422 with OCR_FAILED code and original message', () => {
+      const err = Object.assign(
+        new Error('OCR extraction failed: WASM error'),
+        { statusCode: 422, code: 'OCR_FAILED' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(422);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('OCR_FAILED');
+      expect(result.body.error.message).toBe('OCR extraction failed: WASM error');
+    });
+  });
+
   describe('SCRAPER_BLOCKED', () => {
     it('maps to 422 with SCRAPER_BLOCKED code and original message', () => {
       const err = Object.assign(

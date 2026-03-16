@@ -568,6 +568,13 @@ async function main(): Promise<void> {
   await seedPhase3(prisma);
   console.log('Phase 3 seeding complete.');
 
+  // ---------------------------------------------------------------------------
+  // Phase 4 — Image Chain Restaurant + DataSource rows (Domino's Spain)
+  // ---------------------------------------------------------------------------
+  console.log('Starting Phase 4 seed: image chain restaurants + data sources...');
+  await seedPhase4(prisma);
+  console.log('Phase 4 seeding complete.');
+
   console.log('Seeding complete.');
 }
 
@@ -901,6 +908,39 @@ export async function seedPhase3(client: PrismaClient): Promise<void> {
       chainSlug:   'five-guys-es',
       countryCode: 'ES',
       website:     'https://www.fiveguys.es',
+      isActive:    true,
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4: Image chain restaurants + dataSource rows — exported for integration testing
+// ---------------------------------------------------------------------------
+
+export async function seedPhase4(client: PrismaClient): Promise<void> {
+  // Domino's Spain
+  await client.dataSource.upsert({
+    where: { id: CHAIN_SEED_IDS.DOMINOS_ES.SOURCE_ID },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.DOMINOS_ES.SOURCE_ID,
+      name:        "Domino's Spain — Official Nutritional Images",
+      type:        'scraped',
+      url:         'https://alergenos.dominospizza.es/img/',
+      lastUpdated: new Date('2026-03-16'),
+    },
+  });
+
+  await client.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'dominos-es', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.DOMINOS_ES.RESTAURANT_ID,
+      name:        "Domino's Spain",
+      nameEs:      "Domino's España",
+      chainSlug:   'dominos-es',
+      countryCode: 'ES',
+      website:     'https://www.dominospizza.es',
       isActive:    true,
     },
   });

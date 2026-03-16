@@ -30,6 +30,16 @@ export function preprocessChainText(chainSlug: string, lines: string[]): string[
       return preprocessKfcEs(lines);
     case 'telepizza-es':
       return preprocessTelepizzaEs(lines);
+    case 'dominos-es':
+      // Passthrough initially — return lines unchanged.
+      // The OCR output from Domino's Spain images needs to be inspected
+      // via a dryRun: true call before adding specific preprocessing.
+      // If OCR produces parseable output (correct table headers + numeric rows),
+      // no preprocessing is needed. If the output requires normalization
+      // (e.g., OCR artifacts, multi-column layout), implement preprocessDominosEs
+      // here following the existing preprocessor pattern.
+      // See F012 Phase 7 (Step 18) for the manual dry-run inspection workflow.
+      return lines;
     default:
       return lines;
   }

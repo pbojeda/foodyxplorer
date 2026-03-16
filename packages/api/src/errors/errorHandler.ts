@@ -140,6 +140,34 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // INVALID_IMAGE — downloaded file is not a valid image (magic bytes not JPEG/PNG)
+  if (asAny['code'] === 'INVALID_IMAGE') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'INVALID_IMAGE',
+        },
+      },
+    };
+  }
+
+  // OCR_FAILED — Tesseract.js threw an unrecoverable error during OCR
+  if (asAny['code'] === 'OCR_FAILED') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'OCR_FAILED',
+        },
+      },
+    };
+  }
+
   // INVALID_PDF — file is not a valid PDF (magic bytes check failed)
   if (asAny['code'] === 'INVALID_PDF') {
     return {
