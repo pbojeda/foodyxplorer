@@ -25,6 +25,7 @@ import { registerErrorHandler } from './errors/errorHandler.js';
 import { healthRoutes } from './routes/health.js';
 import { ingestPdfRoutes } from './routes/ingest/pdf.js';
 import { ingestUrlRoutes } from './routes/ingest/url.js';
+import { ingestPdfUrlRoutes } from './routes/ingest/pdf-url.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -87,6 +88,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(healthRoutes, { prisma: prismaClient, redis: redisClient });
   await app.register(ingestPdfRoutes, { prisma: prismaClient });
   await app.register(ingestUrlRoutes, { prisma: prismaClient });
+  await app.register(ingestPdfUrlRoutes, { prisma: prismaClient });
 
   return app;
 }

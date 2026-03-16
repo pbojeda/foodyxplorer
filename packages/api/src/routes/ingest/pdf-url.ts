@@ -1,17 +1,16 @@
-// POST /ingest/url — URL nutritional data ingestion route.
+// POST /ingest/pdf-url — PDF URL nutritional data ingestion route.
 //
-// Accepts a JSON body with a URL, restaurantId, sourceId, and optional dryRun flag.
-// Fetches the page HTML via htmlFetcher (Crawlee/Playwright), extracts text via
-// htmlTextExtractor (node-html-parser), parses nutritional tables through
-// parseNutritionTable, normalizes via normalizeNutrients/normalizeDish, and
-// persists via Prisma upsert.
+// Accepts a JSON body with a URL pointing to a PDF file, downloads it using
+// pdfDownloader (Node.js built-in fetch, 30-second timeout, 20 MB size cap),
+// validates the PDF bytes, extracts text, parses nutritional tables, normalizes
+// and persists via Prisma upsert.
 //
 // Plugin options: { prisma: PrismaClient }
 //
-// Error codes: VALIDATION_ERROR (400), NOT_FOUND (404), INVALID_URL (422),
-//              FETCH_FAILED (422), SCRAPER_BLOCKED (422),
-//              NO_NUTRITIONAL_DATA_FOUND (422), PROCESSING_TIMEOUT (408),
-//              DB_UNAVAILABLE (500)
+// Error codes: VALIDATION_ERROR (400), NOT_FOUND (404), PROCESSING_TIMEOUT (408),
+//              PAYLOAD_TOO_LARGE (413), INVALID_URL (422), FETCH_FAILED (422),
+//              INVALID_PDF (422), UNSUPPORTED_PDF (422),
+//              NO_NUTRITIONAL_DATA_FOUND (422), DB_UNAVAILABLE (500)
 
 import { z } from 'zod';
 import type { FastifyPluginAsync } from 'fastify';
@@ -23,23 +22,23 @@ import {
   NormalizedDishDataSchema,
 } from '@foodxplorer/scraper';
 
-import { fetchHtml } from '../../lib/htmlFetcher.js';
-import { extractTextFromHtml } from '../../lib/htmlTextExtractor.js';
-import { parseNutritionTable } from '../../ingest/nutritionTableParser.js';
 import { assertNotSsrf } from '../../lib/ssrfGuard.js';
+import { downloadPdf } from '../../lib/pdfDownloader.js';
+import { extractText } from '../../lib/pdfParser.js';
+import { parseNutritionTable } from '../../ingest/nutritionTableParser.js';
 
 // ---------------------------------------------------------------------------
 // Zod schemas (API-internal)
 // ---------------------------------------------------------------------------
 
-const IngestUrlBodySchema = z.object({
+const IngestPdfUrlBodySchema = z.object({
   url: z.string().url().max(2048),
   restaurantId: z.string().uuid(),
   sourceId: z.string().uuid(),
   dryRun: z.boolean().default(false),
 });
 
-interface IngestUrlSkippedReason {
+interface IngestPdfUrlSkippedReason {
   dishName: string;
   reason: string;
 }
@@ -53,16 +52,18 @@ const DOMAIN_CODES = new Set([
   'NOT_FOUND',
   'INVALID_URL',
   'FETCH_FAILED',
-  'SCRAPER_BLOCKED',
+  'INVALID_PDF',
+  'UNSUPPORTED_PDF',
   'NO_NUTRITIONAL_DATA_FOUND',
   'PROCESSING_TIMEOUT',
+  'PAYLOAD_TOO_LARGE',
 ]);
 
 // ---------------------------------------------------------------------------
 // Plugin options
 // ---------------------------------------------------------------------------
 
-interface IngestUrlPluginOptions {
+interface IngestPdfUrlPluginOptions {
   prisma: PrismaClient;
 }
 
@@ -70,17 +71,17 @@ interface IngestUrlPluginOptions {
 // Route plugin
 // ---------------------------------------------------------------------------
 
-const ingestUrlRoutesPlugin: FastifyPluginAsync<IngestUrlPluginOptions> = async (
+const ingestPdfUrlRoutesPlugin: FastifyPluginAsync<IngestPdfUrlPluginOptions> = async (
   app,
   opts,
 ) => {
   const { prisma } = opts;
 
-  app.post('/ingest/url', async (request, reply) => {
+  app.post('/ingest/pdf-url', async (request, reply) => {
     // -------------------------------------------------------------------------
     // Step 1: Parse JSON body
     // -------------------------------------------------------------------------
-    const parseResult = IngestUrlBodySchema.safeParse(request.body);
+    const parseResult = IngestPdfUrlBodySchema.safeParse(request.body);
     if (!parseResult.success) {
       throw parseResult.error; // ZodError — error handler maps to 400 VALIDATION_ERROR
     }
@@ -119,6 +120,12 @@ const ingestUrlRoutesPlugin: FastifyPluginAsync<IngestUrlPluginOptions> = async 
 
     // -------------------------------------------------------------------------
     // Steps 4–8: Processing pipeline wrapped in 30-second timeout
+    //
+    // NOTE: downloadPdf() has its own 30s AbortSignal.timeout for hung
+    // connections. This route-level timeout covers the full pipeline
+    // (download + extract + parse + normalize + persist). The two timeouts
+    // overlap intentionally: the download timeout is a safety net for stuck
+    // HTTP connections, while the route timeout bounds total processing time.
     // -------------------------------------------------------------------------
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -139,44 +146,50 @@ const ingestUrlRoutesPlugin: FastifyPluginAsync<IngestUrlPluginOptions> = async 
       dryRun: boolean;
       sourceUrl: string;
       dishes: z.infer<typeof NormalizedDishDataSchema>[];
-      skippedReasons: IngestUrlSkippedReason[];
+      skippedReasons: IngestPdfUrlSkippedReason[];
     }> => {
       const scrapedAt = new Date().toISOString();
 
       // -----------------------------------------------------------------------
-      // Step 4: Fetch HTML via Crawlee/Playwright
+      // Step 4: Download PDF via HTTP/HTTPS
       // -----------------------------------------------------------------------
-      const html = await fetchHtml(url); // throws FETCH_FAILED or SCRAPER_BLOCKED
+      const fileBuffer = await downloadPdf(url); // throws FETCH_FAILED, INVALID_PDF, PAYLOAD_TOO_LARGE
 
       // -----------------------------------------------------------------------
-      // Step 5: Extract text lines from HTML
+      // Step 5: Validate PDF magic bytes
       // -----------------------------------------------------------------------
-      const lines = extractTextFromHtml(html);
-
-      if (lines.length === 0) {
+      const magicBytes = fileBuffer.subarray(0, 5).toString('ascii');
+      if (magicBytes !== '%PDF-') {
         throw Object.assign(
-          new Error('No extractable text found in fetched HTML'),
-          { statusCode: 422, code: 'NO_NUTRITIONAL_DATA_FOUND' },
+          new Error('Downloaded file is not a valid PDF'),
+          { statusCode: 422, code: 'INVALID_PDF' },
         );
       }
 
       // -----------------------------------------------------------------------
-      // Step 6: Parse nutrition table
+      // Step 6: Extract text from PDF
       // -----------------------------------------------------------------------
+      const pages = await extractText(fileBuffer); // may throw UNSUPPORTED_PDF
+
+      // -----------------------------------------------------------------------
+      // Step 7: Parse nutrition table
+      // -----------------------------------------------------------------------
+      const allText = pages.join('\n');
+      const lines = allText.split('\n');
       const rawDishes = parseNutritionTable(lines, url, scrapedAt);
 
       if (rawDishes.length === 0) {
         throw Object.assign(
-          new Error('No nutritional data found in fetched HTML'),
+          new Error('No nutritional data found in PDF'),
           { statusCode: 422, code: 'NO_NUTRITIONAL_DATA_FOUND' },
         );
       }
 
       // -----------------------------------------------------------------------
-      // Step 7: Normalize dishes
+      // Step 8: Normalize dishes
       // -----------------------------------------------------------------------
       const validDishes: z.infer<typeof NormalizedDishDataSchema>[] = [];
-      const skippedReasons: IngestUrlSkippedReason[] = [];
+      const skippedReasons: IngestPdfUrlSkippedReason[] = [];
 
       for (const raw of rawDishes) {
         // Normalize nutrients — returns null if required fields missing or calorie > 9000
@@ -209,13 +222,13 @@ const ingestUrlRoutesPlugin: FastifyPluginAsync<IngestUrlPluginOptions> = async 
 
       if (validDishes.length === 0) {
         throw Object.assign(
-          new Error('No nutritional data found in fetched HTML'),
+          new Error('No nutritional data found in PDF'),
           { statusCode: 422, code: 'NO_NUTRITIONAL_DATA_FOUND' },
         );
       }
 
       // -----------------------------------------------------------------------
-      // Step 8: Persist (only if dryRun === false)
+      // Step 9: Persist (only if dryRun === false)
       // -----------------------------------------------------------------------
       let dishesUpserted = 0;
 
@@ -348,4 +361,4 @@ const ingestUrlRoutesPlugin: FastifyPluginAsync<IngestUrlPluginOptions> = async 
   });
 };
 
-export const ingestUrlRoutes = fastifyPlugin(ingestUrlRoutesPlugin);
+export const ingestPdfUrlRoutes = fastifyPlugin(ingestPdfUrlRoutesPlugin);

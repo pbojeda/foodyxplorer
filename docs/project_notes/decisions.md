@@ -175,3 +175,53 @@ Track important technical decisions with context, so future sessions understand 
 - (-) BK Spain (2nd largest fast-food chain) cannot be automated with the current scraper pattern
 - (-) Future PDF-pipeline feature needed to automate PDF-only chains
 - **Action:** All future chain scrapers (F010-F017) must include site inspection as Step 1 in their implementation plan before writing any code
+
+### ADR-006: E002 Pivot — PDF-First Ingestion Strategy (2026-03-13)
+
+**Context:** After completing F008 (McDonald's scraper), we investigated 6 of the 9 remaining chains (BK, KFC, Telepizza, Domino's, Subway, Five Guys) using Playwright on their live websites. Finding: ~85% of Spanish fast-food chains publish nutritional data exclusively in PDFs (regulatory compliance documents), not as structured data on product pages. McDonald's is the exception, not the rule. The original E002 strategy assumed one web scraper per chain (F009-F017), which is fundamentally misaligned with market reality.
+
+Meanwhile, F007b (POST /ingest/pdf) already provides a complete PDF ingestion pipeline: `extractText` (pdf-parse) → `parseNutritionTable` (heuristic regex parser, ES/EN) → `normalizeNutrients` + `normalizeDish` → Prisma `$transaction` upsert. The only missing piece is automated PDF download from known URLs.
+
+**Investigation results:**
+
+| Chain | Web nutrition data | Actual data source |
+|-------|-------------------|--------------------|
+| McDonald's (F008) | YES — JSON-LD + HTML | Web per-product (done) |
+| Burger King | No | PDF on S3 AWS (monthly) |
+| KFC | No | Static PDF: static.kfc.es/pdf/contenido-nutricional.pdf |
+| Telepizza | No | PDF on Salesforce CDN |
+| Five Guys | No | PDF on fiveguys.es/app/uploads/ |
+| Domino's | No | JPEG images (not PDF): alergenos.dominospizza.es/img/ |
+| Subway | No | No Spain-specific source; US PDFs only |
+
+**Decision:** Restructure E002 features F009-F017 from "one web scraper per chain" to a PDF-first pipeline strategy:
+
+1. **F009 → PDF Auto-Ingest Pipeline.** New endpoint `POST /ingest/pdf-url` that downloads a PDF from a URL and pipes it through the existing F007b pipeline (`extractText` → `parseNutritionTable` → normalize → persist). Reuses ~90% of existing code.
+
+2. **F010 → Chain PDF Registry + Batch Runner.** Config-driven registry mapping each chain to its PDF URL, restaurantId, sourceId, and update frequency. CLI command to run all or individual chains. Includes seed data for creating restaurant + dataSource rows for BK, KFC, Telepizza, Five Guys.
+
+3. **F011 → Chain Onboarding (PDF chains).** Verify `parseNutritionTable` works with each real PDF. Create test fixtures per chain. Adjust parser if any PDF has unexpected format. Covers: BK, KFC, Telepizza, Five Guys.
+
+4. **F012 → Image/OCR Ingestion Pipeline.** Separate pipeline for Domino's (JPEG images, not PDF). Uses OCR (Tesseract.js or similar) to extract text from images, then feeds into `parseNutritionTable`. Domino's is explicitly excluded from the PDF pipeline.
+
+5. **F013 → Subway Spain Data Research.** Investigation-only: find viable data source for Subway Spain (no .es website, no Spain-specific PDF). May use US data with manual mapping.
+
+6. **F014-F017 → Reserved for additional chains** (VIPS, Pans & Company, 100 Montaditos, others). Each is config + verification, not new code.
+
+7. **BaseScraper (F007/F008) is preserved** for chains that do publish structured web data. McDonald's remains on the web scraper pattern.
+
+**Alternatives Considered:**
+- Keep per-chain scraper strategy, adapt each to download PDF: Rejected — unnecessary code duplication; the pipeline is identical for all PDF chains, only the URL differs.
+- Extend F007b to accept URL parameter: Rejected — mixing upload and download in one endpoint violates single responsibility; better as a separate route that internally calls the same pipeline.
+- Skip Domino's entirely: Deferred — OCR pipeline has value beyond Domino's (scanned menus, photos of nutritional labels).
+- Use LLM for PDF parsing instead of heuristic regex: Rejected — parseNutritionTable already works, is deterministic, free, and fast. LLM adds cost and non-determinism per ADR-001.
+
+**Consequences:**
+- (+) Dramatically reduces implementation effort: ~100 LOC for F009 vs ~500+ LOC per chain scraper
+- (+) Each new chain is a config entry, not a feature — scales to 50+ chains with no new code
+- (+) Reuses proven F007b infrastructure (parseNutritionTable, extractText, normalize, persist)
+- (+) Domino's (JPEG) is explicitly separated, preventing a PDF pipeline from silently failing on images
+- (+) BaseScraper pattern preserved for future chains with structured web data
+- (-) Heuristic parser may need tuning per chain's PDF format (handled in F011)
+- (-) OCR pipeline (F012) adds a new dependency (Tesseract.js) and is less reliable than text-based parsing
+- (-) Subway Spain may have no viable automated data source
