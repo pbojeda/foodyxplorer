@@ -1,7 +1,7 @@
 # F011: Chain Onboarding — PDF Chains
 
 **Feature:** F011 | **Type:** Backend-Verification | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F011-chain-onboarding-pdf
+**Status:** Done | **Branch:** feature/F011-chain-onboarding-pdf (merged, deleted)
 **Created:** 2026-03-16 | **Dependencies:** F010 complete (CHAIN_PDF_REGISTRY, batch runner, seed data)
 
 ---
@@ -302,7 +302,7 @@ const lines = fixture.split('\n');
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed — 1 fix applied (operator precedence)
 - [x] Step 5: `qa-engineer` executed — 34 edge-case tests added, spec-vs-impl gaps documented
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -316,6 +316,7 @@ const lines = fixture.split('\n');
 | 2026-03-16 | Step 3: Implementation | `chainTextPreprocessor.ts` created (ADR-007), 4 fixtures, 5 test files. `chainSlug` added to API (user-approved). BK 166, KFC 169, Telepizza 64 dishes. Five Guys disabled |
 | 2026-03-16 | Step 4: Finalize | `production-code-validator` executed. 897 tests pass, tsc clean, lint clean (F011 files) |
 | 2026-03-16 | Step 5: Review | `code-review-specialist`: 1 fix (operator precedence in isTelepizzaMetaLine). `qa-engineer`: 34 edge-case tests added (preprocessor + chainSlug validation). PR #12 created |
+| 2026-03-16 | Step 6: Complete | PR #12 squash merged to develop (`38177d1`). Branch deleted. 897 tests, 23 files changed, +2579/-14 lines |
 
 ---
 

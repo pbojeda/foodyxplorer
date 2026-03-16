@@ -10,13 +10,8 @@
 
 **Last Updated:** 2026-03-16
 
-**Active Feature:** F011 — Chain Onboarding — PDF Chains
-**Step:** 5/6 (Review)
-**Branch:** `feature/F011-chain-onboarding-pdf`
-**Complexity:** Standard
-**Ticket:** `docs/tickets/F011-chain-onboarding-pdf.md`
-**Spec:** `docs/specs/F011-chain-onboarding-spec.md`
-**Context:** Chain text preprocessor (ADR-007) normalizes chain-specific PDF layouts before generic parser. BK 166, KFC 169, Telepizza 64 dishes. Five Guys allergen-only (disabled). chainSlug optional param added to POST /ingest/pdf-url. 897 tests pass. PR #12 open, review + QA complete.
+**Active Feature:** No active work
+**Context:** F011 completed 2026-03-16. Next pending: F012 (Image/OCR for Domino's) or F013 (Subway research).
 
 ---
 
@@ -51,7 +46,7 @@
 | F008 | McDonald's Spain Scraper | backend | done | 6/6 | First chain scraper, establishes pattern for F009-F017. Dual extraction, shared persist, registry upgrade | First chain scraper, establishes pattern for F009-F017 |
 | F009 | PDF Auto-Ingest Pipeline (POST /ingest/pdf-url) | backend | done | 6/6 | Download PDF from URL → reuse F007b pipeline. See ADR-006. 85 new tests |
 | F010 | Chain PDF Registry + Batch Runner | backend | done | 6/6 | Config registry mapping chains to PDF URLs + CLI batch runner. Seed data for BK, KFC, Telepizza, Five Guys. See ADR-006 |
-| F011 | Chain Onboarding — PDF Chains | backend | in-progress | 5/6 | Chain text preprocessor (ADR-007). BK 166, KFC 169, Telepizza 64 dishes. Five Guys allergen-only (disabled). chainSlug added to API. 897 tests pass. PR #12 |
+| F011 | Chain Onboarding — PDF Chains | backend | done | 6/6 | Chain text preprocessor (ADR-007). BK 166, KFC 169, Telepizza 64 dishes. Five Guys allergen-only (disabled). chainSlug added to API. 897 tests. PR #12 |
 | F012 | Image/OCR Ingestion Pipeline | backend | pending | — | For Domino's (JPEG images, NOT PDF). Tesseract.js → text → parseNutritionTable. Separate from PDF pipeline |
 | F013 | Subway Spain Data Research | backend | pending | — | Investigation: find viable data source for Subway ES (no .es website, no Spain PDF). May use US data |
 | F014-F017 | Chain Onboarding — Additional Chains | backend | pending | — | VIPS, Pans & Company, 100 Montaditos, others. Config + verification per chain |
@@ -98,6 +93,7 @@
 | 2026-03-13 | F008 — McDonald's Spain Scraper | c75e599 (squash merge to develop, PR #9) | First chain scraper. Dual extraction (JSON-LD + HTML table), shared persistDishUtil, PrismaClient singleton, registry upgrade, CAPTCHA detection. 91 new tests (232 scraper, ~1006 total), 5 QA bugs fixed, 7 review fixes |
 | 2026-03-16 | F009 — PDF Auto-Ingest Pipeline | ee99310 (squash merge to develop, PR #10) | POST /ingest/pdf-url, ssrfGuard shared module, pdfDownloader (streaming 20MB cap), PAYLOAD_TOO_LARGE error. Lazy McDonald's config fix. ADR-006 (PDF-first pivot). 85 new tests (730 API, 962 total), 3 review fixes |
 | 2026-03-16 | F010 — Chain PDF Registry + Batch Runner | babad7d (squash merge to develop, PR #11) | ChainPdfConfig Zod schema, CHAIN_PDF_REGISTRY (4 chains: BK, KFC, Telepizza, Five Guys), batch-ingest CLI (runBatch + HTTP), seedPhase3 (8 upserts). 80 new tests (819 API, 1051 total), 7 QA bugs fixed |
+| 2026-03-16 | F011 — Chain Onboarding — PDF Chains | 38177d1 (squash merge to develop, PR #12) | chainTextPreprocessor (ADR-007): per-chain PDF normalization before generic parser. BK 166 dishes, KFC 169, Telepizza 64. Five Guys disabled (allergen-only). chainSlug optional param on POST /ingest/pdf-url. 78 new tests (897 API), 1 code review fix, 34 QA edge-case tests |
 
 ---
 
