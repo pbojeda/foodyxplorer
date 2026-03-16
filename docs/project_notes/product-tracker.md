@@ -8,9 +8,14 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-13
+**Last Updated:** 2026-03-16
 
-No active work.
+- **Feature:** F010 — Chain PDF Registry + Batch Runner
+- **Step:** 5/6 (Review)
+- **Branch:** `feature/F010-chain-pdf-registry`
+- **Complexity:** Standard
+- **Ticket:** `docs/tickets/F010-chain-pdf-registry.md`
+- **Spec:** `docs/specs/F010-chain-pdf-registry-spec.md`
 
 ---
 
@@ -44,7 +49,7 @@ No active work.
 | F007c | URL Ingestion Endpoint (POST /ingest/url) | backend | done | 6/6 | Scrape URL for nutritional data, normalize to schema. Reuses F007 pipeline. |
 | F008 | McDonald's Spain Scraper | backend | done | 6/6 | First chain scraper, establishes pattern for F009-F017. Dual extraction, shared persist, registry upgrade | First chain scraper, establishes pattern for F009-F017 |
 | F009 | PDF Auto-Ingest Pipeline (POST /ingest/pdf-url) | backend | done | 6/6 | Download PDF from URL → reuse F007b pipeline. See ADR-006. 85 new tests |
-| F010 | Chain PDF Registry + Batch Runner | backend | pending | — | Config registry mapping chains to PDF URLs + CLI batch runner. Seed data for BK, KFC, Telepizza, Five Guys. See ADR-006 |
+| F010 | Chain PDF Registry + Batch Runner | backend | in-progress | 5/6 | Config registry mapping chains to PDF URLs + CLI batch runner. Seed data for BK, KFC, Telepizza, Five Guys. See ADR-006 |
 | F011 | Chain Onboarding — PDF Chains | backend | pending | — | Verify parser with real PDFs (BK, KFC, Telepizza, Five Guys). Test fixtures per chain. Parser tuning if needed |
 | F012 | Image/OCR Ingestion Pipeline | backend | pending | — | For Domino's (JPEG images, NOT PDF). Tesseract.js → text → parseNutritionTable. Separate from PDF pipeline |
 | F013 | Subway Spain Data Research | backend | pending | — | Investigation: find viable data source for Subway ES (no .es website, no Spain PDF). May use US data |
