@@ -87,4 +87,20 @@ This creates a feedback loop for improving future reviews. -->
 
 ---
 
+## Merge Checklist Evidence
+
+> **MANDATORY before requesting merge approval.** Read `references/merge-checklist.md` and execute ALL actions. Record evidence below.
+
+| Action | Done | Evidence |
+|--------|:----:|----------|
+| 0. Validate ticket structure | [ ] | Sections verified: (list) |
+| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
+| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
+| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
+| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
+| 5. Commit documentation | [ ] | Commit: (hash) |
+| 6. Verify clean working tree | [ ] | `git status`: clean |
+
+---
+
 *Ticket created: [YYYY-MM-DD]*
