@@ -11,6 +11,7 @@ import {
   buildExternalId,
 } from './seed-data/validateSeedData.js';
 import type { UsdaSrLegacyFoodEntry, NameEsMap } from './seed-data/types.js';
+import { CHAIN_SEED_IDS } from '../src/config/chains/chain-seed-ids.js';
 
 const prisma = new PrismaClient({
   datasources: {
@@ -560,6 +561,13 @@ async function main(): Promise<void> {
   // ---------------------------------------------------------------------------
   await seedPhase2(prisma);
 
+  // ---------------------------------------------------------------------------
+  // Phase 3 — PDF Chain Restaurant + DataSource rows
+  // ---------------------------------------------------------------------------
+  console.log('Starting Phase 3 seed: PDF chain restaurants + data sources...');
+  await seedPhase3(prisma);
+  console.log('Phase 3 seeding complete.');
+
   console.log('Seeding complete.');
 }
 
@@ -782,6 +790,120 @@ export async function seedPhase2(client: PrismaClient): Promise<void> {
   if (hasBatchFailure) {
     throw new Error('One or more batches failed permanently. See errors above.');
   }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: PDF chain restaurants + dataSource rows — exported for integration testing
+// ---------------------------------------------------------------------------
+
+export async function seedPhase3(client: PrismaClient): Promise<void> {
+  // Burger King Spain
+  await client.dataSource.upsert({
+    where: { id: CHAIN_SEED_IDS.BURGER_KING_ES.SOURCE_ID },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.BURGER_KING_ES.SOURCE_ID,
+      name:        'Burger King Spain — Nutritional PDF',
+      type:        'scraped',
+      url:         'https://eu-west-3-146514239214-prod-bk-fz.s3.eu-west-3.amazonaws.com/en-ES/2026/Nutritional+Information/MANTEL+NUTRICIONAL+ESP+ING+FEB2026.pdf',
+      lastUpdated: new Date('2026-03-13'),
+    },
+  });
+
+  await client.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'burger-king-es', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.BURGER_KING_ES.RESTAURANT_ID,
+      name:        'Burger King Spain',
+      nameEs:      'Burger King España',
+      chainSlug:   'burger-king-es',
+      countryCode: 'ES',
+      website:     'https://www.burgerking.es',
+      isActive:    true,
+    },
+  });
+
+  // KFC Spain
+  await client.dataSource.upsert({
+    where: { id: CHAIN_SEED_IDS.KFC_ES.SOURCE_ID },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.KFC_ES.SOURCE_ID,
+      name:        'KFC Spain — Nutritional PDF',
+      type:        'scraped',
+      url:         'https://static.kfc.es/pdf/contenido-nutricional.pdf',
+      lastUpdated: new Date('2026-03-13'),
+    },
+  });
+
+  await client.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'kfc-es', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.KFC_ES.RESTAURANT_ID,
+      name:        'KFC Spain',
+      nameEs:      'KFC España',
+      chainSlug:   'kfc-es',
+      countryCode: 'ES',
+      website:     'https://www.kfc.es',
+      isActive:    true,
+    },
+  });
+
+  // Telepizza Spain
+  await client.dataSource.upsert({
+    where: { id: CHAIN_SEED_IDS.TELEPIZZA_ES.SOURCE_ID },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.TELEPIZZA_ES.SOURCE_ID,
+      name:        'Telepizza Spain — Nutritional PDF',
+      type:        'scraped',
+      url:         'https://statices.telepizza.com/static/on/demandware.static/-/Sites-TelepizzaES-Library/default/dw21878fcd/documents/nutricion.pdf',
+      lastUpdated: new Date('2026-03-13'),
+    },
+  });
+
+  await client.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'telepizza-es', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.TELEPIZZA_ES.RESTAURANT_ID,
+      name:        'Telepizza Spain',
+      nameEs:      'Telepizza España',
+      chainSlug:   'telepizza-es',
+      countryCode: 'ES',
+      website:     'https://www.telepizza.es',
+      isActive:    true,
+    },
+  });
+
+  // Five Guys Spain
+  await client.dataSource.upsert({
+    where: { id: CHAIN_SEED_IDS.FIVE_GUYS_ES.SOURCE_ID },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.FIVE_GUYS_ES.SOURCE_ID,
+      name:        'Five Guys Spain — Nutritional PDF',
+      type:        'scraped',
+      url:         'https://fiveguys.es/app/uploads/sites/6/2026/02/FGES_ES_allergen-ingredients_print-SP_A4_20260303.pdf',
+      lastUpdated: new Date('2026-03-13'),
+    },
+  });
+
+  await client.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'five-guys-es', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.FIVE_GUYS_ES.RESTAURANT_ID,
+      name:        'Five Guys Spain',
+      nameEs:      'Five Guys España',
+      chainSlug:   'five-guys-es',
+      countryCode: 'ES',
+      website:     'https://www.fiveguys.es',
+      isActive:    true,
+    },
+  });
 }
 
 main()
