@@ -1,0 +1,24 @@
+Calorías	Grasas	Saturadas	Hidratos	Azúcares	Fibra	Proteínas	Sal	Sodio
+Whopper® 	643 	36,0 	10,2 	48,9 	14,6 	5,2 	30,4 	2,6 	1066,6
+Doble Whopper® 	893 	54,7 	18,8 	49,3 	15,1 	5,2 	51,7 	2,8 	1145,6
+Triple Whopper® 	1143 	73,3 	27,4 	49,8 	15,5 	5,2 	73,0 	3,0 	1224,7
+Doble Cheese Bacon XXL 	968 	56,9 	26,8 	49,5 	15,3 	5,1 	64,6 	5,6 	2222,1
+Steakhouse 	707 	38,4 	14,2 	54,2 	13,5 	5,6 	36,2 	3,3 	1339,8
+Big King® 	525 	27,3 	9,0 	42,9 	7,5 	1,8 	25,7 	2,3 	943
+Big King® Chicken 	640 	36 	10 	57 	10 	5,1 	20 	4 	1620
+Big King® Bacon Chicken 	670 	38 	11 	57 	11 	5,1 	22 	4,4 	1779
+Big King®XXL 	980 	60,2 	25,6 	50,7 	14,9 	5,2 	59,4 	4,8 	1919,6
+Hamburger 	231 	9,6 	3,3 	23,2 	7,0 	1,9 	11,9 	1,0 	413,1
+Cheeseburger 	267 	12,4 	5,1 	24,0 	7,5 	2,1 	13,9 	1,5 	612,2
+Chicken Burger 	443 	28,7 	5,0 	34,3 	5,8 	2,7 	10,8 	1,9 	759,9
+Crispy Chicken® 	506 	32,3 	5,9 	36,1 	6,5 	3,3 	16,0 	1,7 	696,7
+Long Chicken® 	585 	35 	4,2 	46 	7,1 	4,2 	22 	3.1 	1200
+Big Fish™ 	425,1 	20,5 	1,5 	42,5 	6,3 	4 	15,7 	2,2 	898
+Doble Cheeseburger 	387 	21,3 	9,7 	24,8 	8,0 	2,2 	23,2 	2,0 	834,1
+Doble Cheeseburger BBQ 	390 	21,2 	9,6 	26,1 	8,8 	2,1 	23,0 	2,0 	836,7
+CBK (1 Filete) / (
+1 Patty) 	787 	45,2 	14,5 	62,7 	12,7 	5,1 	29,6 	3,9 	1577,4
+CBK (2 Filetes) / (
+Hamburguesas Sin Gluten / Burger Gluten Free
+Whopper® Sin Gluten
+Burger Sin Gluten /

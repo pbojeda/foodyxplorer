@@ -78,7 +78,7 @@ export const CHAIN_PDF_REGISTRY: ChainPdfConfig[] = [
     restaurantId:    CHAIN_SEED_IDS.FIVE_GUYS_ES.RESTAURANT_ID,
     sourceId:        CHAIN_SEED_IDS.FIVE_GUYS_ES.SOURCE_ID,
     updateFrequency: 'unknown',
-    enabled:         true,
-    notes:           'URL includes upload date. May change when PDF is updated. Pattern: fiveguys.es/app/uploads/sites/6/YYYY/MM/...',
+    enabled:         false,
+    notes:           'PDF contains allergen/ingredient list only — no calorie or macro data. Re-enable when a nutritional PDF is found. URL pattern: fiveguys.es/app/uploads/sites/6/YYYY/MM/...',
   },
 ];
