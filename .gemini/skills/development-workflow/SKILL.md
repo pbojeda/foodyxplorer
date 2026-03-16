@@ -85,7 +85,7 @@ See `references/branching-strategy.md` for details.
 
 1. Verify product tracker exists, no active feature, dependencies met
 2. Create feature branch: `feature/<feature-id>-<short-description>`
-3. **Std/Cplx:** Copy ALL sections from `references/ticket-template.md` (Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log) → fill `## Spec` section. Do NOT omit empty sections — they are filled in later steps
+3. **Std/Cplx:** Copy ALL sections from `references/ticket-template.md` (Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log) → fill `## Spec` section. Do NOT omit empty sections — they are filled in later steps. **After generating the ticket, verify it contains ALL 6 sections in this exact order: Spec → Implementation Plan → Acceptance Criteria → Definition of Done → Workflow Checklist → Completion Log. If any section is missing, add it now.**
 4. **Complex:** Also review `decisions.md` for related ADRs
 5. Update product tracker → Active Session: feature, step `1/6 (Setup)`, branch, complexity. Update Features table: status `in-progress`, step `1/6`
 
@@ -153,15 +153,7 @@ Update tracker (Active Session + Features table): step `4/6 (Finalize)`. Mark ti
 
 **→ CHECKPOINT: Merge Approval**
 
-**STOP.** Before requesting merge approval, complete these actions IN ORDER:
-
-1. **Std/Cplx:** Re-read the ticket file (`docs/tickets/<feature-id>.md`) — mark ALL items `[x]` in: Workflow Checklist (Steps 0–5), Acceptance Criteria, Definition of Done. Add missing Completion Log entries (date, action, notes for each step).
-2. Re-read `docs/project_notes/product-tracker.md` — verify Active Session shows step `5/6 (Review)` and Features table is updated. Fix if stale.
-3. Update `key_facts.md` if new models, schemas, migrations, or reusable components were added.
-4. Update `decisions.md` with ADR if Definition of Done requires it.
-5. Commit ALL documentation updates.
-6. Run `git status` — verify clean working tree. No unstaged files allowed.
-7. THEN request merge approval from the user.
+**STOP.** Read `references/merge-checklist.md` and execute ALL actions in order. Do NOT request merge approval until every action is done.
 
 ---
 
@@ -196,6 +188,7 @@ Agent instructions are in `.gemini/agents/`. Read the relevant agent file when e
 - `references/add-feature-template.md` — Add feature to tracker
 - `references/complexity-guide.md` — Complexity classification
 - `references/workflow-example.md` — Full worked example
+- `references/merge-checklist.md` — Pre-merge approval actions (MANDATORY)
 - `references/failure-handling.md` — Recovery & rollbacks
 
 ## Constraints
