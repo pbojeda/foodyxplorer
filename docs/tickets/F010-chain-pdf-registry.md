@@ -1,7 +1,7 @@
 # F010 — Chain PDF Registry + Batch Runner
 
 **Feature:** F010 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Step:** 5/6 (Review)
+**Status:** Done | **Step:** 6/6 (Complete)
 **Branch:** feature/F010-chain-pdf-registry
 **Created:** 2026-03-16
 **Dependencies:** F009 complete (POST /ingest/pdf-url, pdfDownloader, ssrfGuard)
@@ -328,7 +328,7 @@ Follow TDD: write the failing test first, then implement.
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed
 - [x] Step 5: `qa-engineer` executed (Standard)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
