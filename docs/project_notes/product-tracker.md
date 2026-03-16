@@ -10,11 +10,8 @@
 
 **Last Updated:** 2026-03-16
 
-**Active Feature:** F014 — Chain Onboarding — Subway Spain
-**Complexity:** Simple
-**Branch:** feature/F014-subway-spain-onboarding
-**Step:** 5/6 (Review)
-**Context:** Implementation complete. Production-code-validator approved. PR #14 created. 47 new tests, 1008 total. Awaiting merge approval.
+**Active Feature:** No active work
+**Context:** F014 completed 2026-03-16. Subway Spain onboarded (PR #14). Next: F015 (Pans & Company) or F018/F019.
 
 ---
 
@@ -52,7 +49,7 @@
 | F011 | Chain Onboarding — PDF Chains | backend | done | 6/6 | Chain text preprocessor (ADR-007). BK 166, KFC 169, Telepizza 64 dishes. Five Guys allergen-only (disabled). chainSlug added to API. 897 tests. PR #12 |
 | F012 | Image/OCR Ingestion Pipeline | backend | done | 6/6 | Tesseract.js v5 OCR. POST /ingest/image-url, imageDownloader, imageOcrExtractor. Domino's Spain (JPEG). 105 tests. PR #13 |
 | F013 | Subway Spain Data Research | research | done | — | subwayspain.com has PDF: MED_Nutritional_Information_C4_2025 (kcal, macros, per 100g). Quarterly updates. Compatible with PDF pipeline. Subway onboarding moves to F014 |
-| F014 | Chain Onboarding — Subway Spain | backend | in-progress | 5/6 | Simple. PDF pipeline. Source: subwayspain.com official PDF. PR #14 |
+| F014 | Chain Onboarding — Subway Spain | backend | done | 6/6 | Simple. PDF pipeline. Source: subwayspain.com official PDF. PR #14. 47 new tests |
 | F015 | Chain Onboarding — Pans & Company | backend | pending | — | Simple. PDF pipeline. Source: vivabem.pt (Ibersol parent company, official) |
 | F016-F017 | Chain Onboarding — VIPS, 100 Montaditos | backend | postponed | — | Allergen-only data (no calories/macros). Candidates for E003 estimation engine |
 | F018 | Data Quality Monitor | backend | pending | — | |
@@ -101,6 +98,7 @@
 | 2026-03-16 | F011 — Chain Onboarding — PDF Chains | 38177d1 (squash merge to develop, PR #12) | chainTextPreprocessor (ADR-007): per-chain PDF normalization before generic parser. BK 166 dishes, KFC 169, Telepizza 64. Five Guys disabled (allergen-only). chainSlug optional param on POST /ingest/pdf-url. 78 new tests (897 API), 1 code review fix, 34 QA edge-case tests |
 | 2026-03-16 | F012 — Image/OCR Ingestion Pipeline | fc4e9bc (squash merge to develop, PR #13) | POST /ingest/image-url, Tesseract.js v5 (spa+eng), imageDownloader (10MB cap), imageOcrExtractor (worker per-request). chain-image-registry (Domino's), batch-ingest-images CLI, seedPhase4. 105 new tests (44 unit + 61 QA edge-case), 4 code review fixes, 2 QA bugs fixed |
 | 2026-03-16 | F013 — Subway Spain Data Research | — (research only) | subwayspain.com confirmed. PDF: MED_Nutritional_Information_C4_2025 (English/Spanish/Catalan). EU nutrients (kcal, fat, saturates, carbs, sugars, fiber, protein, salt) per serving + per 100g. Quarterly cycle. Compatible with existing PDF pipeline |
+| 2026-03-16 | F014 — Chain Onboarding — Subway Spain | 67b1404 (squash merge to develop, PR #14) | SUBWAY_ES seed IDs, chain-pdf-registry (5 entries), seedPhase5, chainTextPreprocessor passthrough. 47 new tests (1008 total) |
 
 ---
 
