@@ -11,12 +11,12 @@
 **Last Updated:** 2026-03-16
 
 **Active Feature:** F011 — Chain Onboarding — PDF Chains
-**Step:** 4/6 (Finalize)
+**Step:** 5/6 (Review)
 **Branch:** `feature/F011-chain-onboarding-pdf`
 **Complexity:** Standard
 **Ticket:** `docs/tickets/F011-chain-onboarding-pdf.md`
 **Spec:** `docs/specs/F011-chain-onboarding-spec.md`
-**Context:** Verify parseNutritionTable with real PDFs from 4 chains (BK, KFC, Telepizza, Five Guys). Create text fixtures, tune parser if needed. No new endpoints.
+**Context:** Chain text preprocessor (ADR-007) normalizes chain-specific PDF layouts before generic parser. BK 166, KFC 169, Telepizza 64 dishes. Five Guys allergen-only (disabled). chainSlug optional param added to POST /ingest/pdf-url. 897 tests pass. PR #12 open, review + QA complete.
 
 ---
 
@@ -51,7 +51,7 @@
 | F008 | McDonald's Spain Scraper | backend | done | 6/6 | First chain scraper, establishes pattern for F009-F017. Dual extraction, shared persist, registry upgrade | First chain scraper, establishes pattern for F009-F017 |
 | F009 | PDF Auto-Ingest Pipeline (POST /ingest/pdf-url) | backend | done | 6/6 | Download PDF from URL → reuse F007b pipeline. See ADR-006. 85 new tests |
 | F010 | Chain PDF Registry + Batch Runner | backend | done | 6/6 | Config registry mapping chains to PDF URLs + CLI batch runner. Seed data for BK, KFC, Telepizza, Five Guys. See ADR-006 |
-| F011 | Chain Onboarding — PDF Chains | backend | in-progress | 4/6 | Chain text preprocessor (ADR-007). BK 166, KFC 169, Telepizza 64 dishes. Five Guys allergen-only (disabled). chainSlug added to API. 862 tests pass |
+| F011 | Chain Onboarding — PDF Chains | backend | in-progress | 5/6 | Chain text preprocessor (ADR-007). BK 166, KFC 169, Telepizza 64 dishes. Five Guys allergen-only (disabled). chainSlug added to API. 897 tests pass. PR #12 |
 | F012 | Image/OCR Ingestion Pipeline | backend | pending | — | For Domino's (JPEG images, NOT PDF). Tesseract.js → text → parseNutritionTable. Separate from PDF pipeline |
 | F013 | Subway Spain Data Research | backend | pending | — | Investigation: find viable data source for Subway ES (no .es website, no Spain PDF). May use US data |
 | F014-F017 | Chain Onboarding — Additional Chains | backend | pending | — | VIPS, Pans & Company, 100 Montaditos, others. Config + verification per chain |

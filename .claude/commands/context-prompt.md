@@ -21,3 +21,15 @@ Para generar esto:
 - Revisa el ultimo ticket completado en `docs/tickets/` para referencia de patron
 
 Formato: markdown estructurado con tablas, listo para pegar directamente como primer mensaje de una nueva sesion.
+
+## Contexto del usuario                             
+                                                      
+  - Trabaja remotamente con sesiones largas —         
+interrupciones por permisos son costosas              
+  - Prefiere prompts detallados de continuación       
+  - Principio guía: "Lo importante es hacerlo bien,   
+que ya llevamos mucho trabajo hecho y no hay que      
+estropear nada de lo anterior, solo                   
+  mejorarlo"                                          
+  - Idioma: español para comunicación, inglés para    
+artefactos técnicos
