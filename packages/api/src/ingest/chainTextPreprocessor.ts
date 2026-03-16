@@ -309,7 +309,7 @@ function isTelepizzaMetaLine(line: string): boolean {
     lower.startsWith('valores nutricionales') ||
     lower.startsWith('información') ||
     lower.startsWith('nutricional') ||
-    lower.includes('proteínas (g)') && lower.includes('sal (g)') ||
+    (lower.includes('proteínas (g)') && lower.includes('sal (g)')) ||
     lower.startsWith('energía') ||
     lower.startsWith('(kj') ||
     lower.startsWith('grasas (g) -') ||
@@ -319,7 +319,7 @@ function isTelepizzaMetaLine(line: string): boolean {
     lower.startsWith('- de los cuales') ||
     lower.startsWith('- de las cuales') ||
     lower.startsWith('azúcares') ||
-    lower.includes('kj/kcal') && lower.includes('grasa') ||
+    (lower.includes('kj/kcal') && lower.includes('grasa')) ||
     lower.includes('---page break---') ||
     /^\d+$/.test(line.trim()) // page numbers
   );
