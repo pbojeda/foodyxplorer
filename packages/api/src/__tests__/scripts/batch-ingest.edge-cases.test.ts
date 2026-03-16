@@ -845,20 +845,21 @@ describe('runBatch() — request body structure for real registry', () => {
     mockFetch = vi.fn();
   });
 
-  it('each request body contains exactly the 4 required fields: url, restaurantId, sourceId, dryRun', async () => {
-    // Ensure no extra fields are leaked into the request body
+  it('each request body contains the required fields: url, restaurantId, sourceId, dryRun, chainSlug', async () => {
+    // Ensure all expected fields are present in the request body
     const { CHAIN_PDF_REGISTRY } = await import('../../config/chains/chain-pdf-registry.js');
 
     mockFetch.mockResolvedValue(makeOkResponse({ dishesFound: 5, dishesUpserted: 5, dishesSkipped: 0 }));
 
     await runBatch(CHAIN_PDF_REGISTRY, BASE_OPTS, mockFetch);
 
-    expect(mockFetch).toHaveBeenCalledTimes(4);
+    const enabledChains = CHAIN_PDF_REGISTRY.filter((c) => c.enabled);
+    expect(mockFetch).toHaveBeenCalledTimes(enabledChains.length);
 
     for (const [, init] of mockFetch.mock.calls as [string, RequestInit][]) {
       const body = JSON.parse(init.body as string) as Record<string, unknown>;
       const keys = Object.keys(body).sort();
-      expect(keys).toEqual(['dryRun', 'restaurantId', 'sourceId', 'url']);
+      expect(keys).toEqual(['chainSlug', 'dryRun', 'restaurantId', 'sourceId', 'url']);
     }
   });
 

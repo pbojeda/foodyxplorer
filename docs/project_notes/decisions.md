@@ -225,3 +225,37 @@ Meanwhile, F007b (POST /ingest/pdf) already provides a complete PDF ingestion pi
 - (-) Heuristic parser may need tuning per chain's PDF format (handled in F011)
 - (-) OCR pipeline (F012) adds a new dependency (Tesseract.js) and is less reliable than text-based parsing
 - (-) Subway Spain may have no viable automated data source
+
+### ADR-007: Chain Text Preprocessor for Real-World PDF Layouts (2026-03-16)
+
+**Context:** F011 (Chain Onboarding) investigation revealed that real-world PDF nutrition tables from BK, KFC, and Telepizza have layouts that the generic `parseNutritionTable` parser cannot handle directly:
+
+1. **Multi-line headers (all 3 chains):** pdf-parse extracts each column header on a separate line. No single line has 3+ nutrient keywords → header detection fails → 0 dishes parsed.
+2. **Paired 100g/portion columns (KFC):** Each data row has 14 values (7 nutrients × per-100g + per-portion interleaved). The parser maps all 14 to 7 columns → wrong values.
+3. **Dual kJ/kcal energy columns (BK, Telepizza):** Extra numeric column (kJ) before kcal → column offset error.
+4. **Non-nutrient columns (BK):** Weight (g) column has no keyword match → first data token misaligned.
+
+These are inherent characteristics of EU-compliant nutrition PDFs, not parser bugs. The generic parser was designed for synthetic fixtures with single-line headers — a valid assumption that did not hold for production data.
+
+**Decision:** Introduce a **chain-specific text preprocessor** (`packages/api/src/ingest/chainTextPreprocessor.ts`) that normalizes extracted text BEFORE passing it to `parseNutritionTable`:
+
+- `preprocessChainText(chainSlug, lines): string[]` — dispatches to per-chain logic
+- BK: strips weight + kJ columns, injects synthetic single-line header
+- KFC: keeps only per-100g values (removes per-portion), cleans digits from names, injects header
+- Telepizza: removes kJ value from kJ/kcal pairs, injects header
+- Unknown chains: returns lines unchanged (no-op)
+
+The preprocessor is invoked from `POST /ingest/pdf-url` when an optional `chainSlug` body parameter is provided. The batch runner (`batch-ingest.ts`) passes the chain slug from the registry.
+
+**Alternatives Considered:**
+- Modify `parseNutritionTable` to support multi-line headers: Rejected — structural change with high regression risk to the 819 existing tests. The multi-line header problem is chain-specific (each chain's PDF has a unique layout), not a generic parser gap.
+- Hardcoded column mapping per chain inside the parser: Rejected — couples the generic parser to specific chains, violates single responsibility.
+- Pre-process text outside the pipeline (manual fixtures only, no runtime preprocessing): Rejected — the batch runner needs to work with real PDFs at runtime, not just test fixtures.
+
+**Consequences:**
+- (+) Generic parser (`parseNutritionTable`) remains completely unchanged — zero risk of breaking existing tests
+- (+) Each chain's preprocessing is isolated, testable, and easy to extend for new chains
+- (+) The `POST /ingest/pdf-url` API gains an optional `chainSlug` parameter (backward-compatible, existing callers unaffected)
+- (+) Batch runner automatically benefits — it already knows each chain's slug
+- (-) Adding a new chain may require writing a new preprocessor function (if the PDF layout is unusual)
+- (-) `chainSlug` must be known at call time — generic PDF uploads without a chain slug skip preprocessing

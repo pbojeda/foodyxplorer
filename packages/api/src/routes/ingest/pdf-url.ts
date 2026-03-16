@@ -26,6 +26,7 @@ import { assertNotSsrf } from '../../lib/ssrfGuard.js';
 import { downloadPdf } from '../../lib/pdfDownloader.js';
 import { extractText } from '../../lib/pdfParser.js';
 import { parseNutritionTable } from '../../ingest/nutritionTableParser.js';
+import { preprocessChainText } from '../../ingest/chainTextPreprocessor.js';
 
 // ---------------------------------------------------------------------------
 // Zod schemas (API-internal)
@@ -36,6 +37,7 @@ const IngestPdfUrlBodySchema = z.object({
   restaurantId: z.string().uuid(),
   sourceId: z.string().uuid(),
   dryRun: z.boolean().default(false),
+  chainSlug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/).optional(),
 });
 
 interface IngestPdfUrlSkippedReason {
@@ -86,7 +88,7 @@ const ingestPdfUrlRoutesPlugin: FastifyPluginAsync<IngestPdfUrlPluginOptions> = 
       throw parseResult.error; // ZodError — error handler maps to 400 VALIDATION_ERROR
     }
 
-    const { url, restaurantId, sourceId, dryRun } = parseResult.data;
+    const { url, restaurantId, sourceId, dryRun, chainSlug } = parseResult.data;
 
     // -------------------------------------------------------------------------
     // Step 2: URL sanity check — scheme + SSRF guard
@@ -175,7 +177,16 @@ const ingestPdfUrlRoutesPlugin: FastifyPluginAsync<IngestPdfUrlPluginOptions> = 
       // Step 7: Parse nutrition table
       // -----------------------------------------------------------------------
       const allText = pages.join('\n');
-      const lines = allText.split('\n');
+      let lines = allText.split('\n');
+
+      // Apply chain-specific text preprocessing if chainSlug is provided.
+      // This normalizes multi-line headers, paired columns, and kJ/kcal
+      // dual energy columns that the generic parser cannot handle.
+      // See ADR-007 for rationale.
+      if (chainSlug !== undefined) {
+        lines = preprocessChainText(chainSlug, lines);
+      }
+
       const rawDishes = parseNutritionTable(lines, url, scrapedAt);
 
       if (rawDishes.length === 0) {

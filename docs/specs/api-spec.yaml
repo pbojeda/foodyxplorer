@@ -27,7 +27,7 @@ tags:
     description: Infrastructure and health endpoints
   - name: Ingestion
     description: |
-      Data ingestion endpoints (F007b, F007c, F009). Accept external nutritional data
+      Data ingestion endpoints (F007b, F007c, F009, F011). Accept external nutritional data
       (PDF upload, URL scrape, or PDF download from URL), normalize to the shared
       dish/nutrient schema, and persist to the database. These endpoints are NOT
       part of F007 — they are specified and implemented in F007b, F007c, and F009
@@ -296,6 +296,7 @@ paths:
                   restaurantId: "00000000-0000-0000-0000-000000000001"
                   sourceId: "00000000-0000-0000-0000-000000000002"
                   dryRun: false
+                  chainSlug: "kfc-es"
               dryRun:
                 summary: Dry run — download and parse without DB writes
                 value:
@@ -303,6 +304,7 @@ paths:
                   restaurantId: "00000000-0000-0000-0000-000000000001"
                   sourceId: "00000000-0000-0000-0000-000000000002"
                   dryRun: true
+                  chainSlug: "kfc-es"
       responses:
         '200':
           description: |
@@ -1085,6 +1087,19 @@ components:
           description: |
             When true, downloads, extracts, and normalizes but skips all DB writes.
             The response still contains the full `dishes` array for inspection.
+        chainSlug:
+          type: string
+          pattern: "^[a-z0-9-]+$"
+          minLength: 1
+          maxLength: 100
+          description: |
+            Optional chain identifier from CHAIN_PDF_REGISTRY (e.g. "burger-king-es",
+            "kfc-es", "telepizza-es"). When provided, applies chain-specific text
+            preprocessing to the extracted PDF text before parsing. This handles
+            multi-line headers, paired 100g/portion columns, and kJ/kcal dual energy
+            columns that the generic parser cannot handle. See ADR-007.
+            When omitted, no preprocessing is applied (backward-compatible).
+          example: "kfc-es"
 
     IngestPdfUrlSkippedReason:
       type: object

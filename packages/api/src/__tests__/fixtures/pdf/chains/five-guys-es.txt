@@ -1,0 +1,30 @@
+FGJV© | FGES_20260303
+Frutos de cáscara
+y derivados
+	Cacahuetes
+	y derivados
+Semillas de sésamo
+y derivados
+Leche y derivados
+Huevos y derivados
+Altramuces
+	y derivados
+Soja y derivados
+Cereales con gluten
+o sus derivados
+Pescado y derivados
+Crustáceos
+	y derivados
+Apio y derivados
+Moluscos y derivados
+Dióxido de azufre
+(sulfitos)
+Mostaza y derivados
+CARNE
+Beicon
+Hamburguesa de vacuno 	1 	1
+Perrito de vacuno 	1 	••
+PANES
+Pan de hamburguesa 	1 	•• 	•• 	•• 	•• 	•• 	1 	1
+Pan de perrito 	1 	1 	•• 	•• 	•• 	•• 	1 	1
+PATATAS FRITAS COCINADAS EN ACEITE DE CACAHUETE
