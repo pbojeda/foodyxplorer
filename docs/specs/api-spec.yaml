@@ -27,11 +27,11 @@ tags:
     description: Infrastructure and health endpoints
   - name: Ingestion
     description: |
-      Data ingestion endpoints (F007b, F007c, F009, F011). Accept external nutritional data
-      (PDF upload, URL scrape, or PDF download from URL), normalize to the shared
-      dish/nutrient schema, and persist to the database. These endpoints are NOT
-      part of F007 — they are specified and implemented in F007b, F007c, and F009
-      respectively.
+      Data ingestion endpoints (F007b, F007c, F009, F011, F012). Accept external nutritional
+      data (PDF upload, PDF-URL download, URL scrape, or image-URL OCR), normalize to the
+      shared dish/nutrient schema, and persist to the database. These endpoints are NOT
+      part of F007 — they are specified and implemented in F007b, F007c, F009, F011, and
+      F012 respectively.
 
 paths:
   /ingest/pdf:
@@ -719,6 +719,272 @@ paths:
                       message: "Database write failed"
                       code: "DB_UNAVAILABLE"
 
+  /ingest/image-url:
+    post:
+      summary: Ingest nutritional data from an image at a given URL (OCR)
+      description: |
+        Accepts a JSON body with a URL pointing to a JPEG or PNG image containing
+        a nutritional table, downloads the image, runs OCR via Tesseract.js
+        (languages: spa+eng), and pipes the extracted text lines through the
+        existing pipeline: optional `chainTextPreprocessor` → `parseNutritionTable`
+        → `normalizeNutrients` / `normalizeDish` → Prisma `$transaction` upsert.
+
+        Primary use case: Domino's Spain publishes nutritional data as JPEG images
+        at `alergenos.dominospizza.es/img/` (not as PDFs). This endpoint is the
+        OCR-based counterpart to `POST /ingest/pdf-url`.
+
+        - Input is a JSON body (not multipart — there is no file to upload).
+        - Supported image formats: JPEG (magic bytes FFD8FF), PNG (magic bytes 89504E47).
+        - Content-Type `application/octet-stream` is accepted as a CDN passthrough;
+          magic bytes are the authoritative format check.
+        - `sourceUrl` in the response echoes back the submitted URL for traceability
+          (consistent with POST /ingest/pdf-url and POST /ingest/url).
+        - Partial success (some dishes skipped) returns HTTP 200. Only total failure
+          (zero parseable dishes after OCR) returns HTTP 422.
+        - SSRF guard: private/loopback URLs (localhost, 127.x, 10.x, 172.16–31.x,
+          192.168.x, 169.254.x, ::1, ::ffff:*) are rejected with 422 INVALID_URL.
+        - Size limit: 10 MB. Images larger than this are rejected with 413.
+        - Total pipeline timeout: 60 seconds (OCR initialization + recognition adds
+          latency compared to PDF text extraction; 30s would be insufficient).
+        - OCR accuracy: Tesseract.js performs best on high-contrast printed text.
+          Low-resolution or stylized images may produce degraded output.
+          Use `dryRun: true` to inspect raw OCR output before a live ingest.
+      operationId: ingestImageUrl
+      tags:
+        - Ingestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestImageUrlBody'
+            examples:
+              live:
+                summary: Live run — download, OCR, and persist (Domino's Spain)
+                value:
+                  url: "https://alergenos.dominospizza.es/img/tabla_nutricional.jpg"
+                  restaurantId: "00000000-0000-0000-0006-000000000014"
+                  sourceId: "00000000-0000-0000-0000-000000000014"
+                  dryRun: false
+                  chainSlug: "dominos-es"
+              dryRun:
+                summary: Dry run — download, OCR, and parse without DB writes
+                value:
+                  url: "https://alergenos.dominospizza.es/img/tabla_nutricional.jpg"
+                  restaurantId: "00000000-0000-0000-0006-000000000014"
+                  sourceId: "00000000-0000-0000-0000-000000000014"
+                  dryRun: true
+                  chainSlug: "dominos-es"
+              noChainSlug:
+                summary: Generic image ingestion without chain-specific preprocessing
+                value:
+                  url: "https://example.com/nutrition-label.jpg"
+                  restaurantId: "00000000-0000-0000-0006-000000000001"
+                  sourceId: "00000000-0000-0000-0000-000000000001"
+                  dryRun: false
+      responses:
+        '200':
+          description: |
+            Ingestion successful (or dryRun completed). At least one dish was parsed
+            and upserted (or would be upserted in dryRun mode). Partial success
+            (some dishes skipped) also returns 200 — see `dishesSkipped` and
+            `skippedReasons` for details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestImageUrlResponse'
+              examples:
+                success:
+                  summary: 40 dishes upserted, 2 skipped
+                  value:
+                    success: true
+                    data:
+                      dishesFound: 42
+                      dishesUpserted: 40
+                      dishesSkipped: 2
+                      dryRun: false
+                      sourceUrl: "https://alergenos.dominospizza.es/img/tabla_nutricional.jpg"
+                      dishes:
+                        - name: "Pizza Pepperoni"
+                          nameEs: "Pizza Pepperoni"
+                          nutrients:
+                            calories: 265
+                            proteins: 12
+                            carbohydrates: 29
+                            fats: 11
+                            saturatedFats: 5
+                            sugars: 3
+                            fiber: 1.5
+                            salt: 1.2
+                            sodium: 480
+                            transFats: 0
+                            cholesterol: 30
+                            potassium: 0
+                            monounsaturatedFats: 0
+                            polyunsaturatedFats: 0
+                            referenceBasis: "per_serving"
+                          confidenceLevel: "medium"
+                          estimationMethod: "scraped"
+                          availability: "available"
+                          restaurantId: "00000000-0000-0000-0006-000000000014"
+                          sourceId: "00000000-0000-0000-0000-000000000014"
+                      skippedReasons:
+                        - dishName: "Bebida"
+                          reason: "Missing required field: proteins"
+                dryRun:
+                  summary: dryRun=true — no DB writes
+                  value:
+                    success: true
+                    data:
+                      dishesFound: 10
+                      dishesUpserted: 0
+                      dishesSkipped: 0
+                      dryRun: true
+                      sourceUrl: "https://alergenos.dominospizza.es/img/tabla_nutricional.jpg"
+                      dishes: []
+                      skippedReasons: []
+        '400':
+          description: Validation error (missing fields, invalid UUID format, invalid URL string)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingUrl:
+                  summary: url field missing
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["url"]
+                          message: "Required"
+                          code: "invalid_type"
+                invalidUuid:
+                  summary: restaurantId is not a valid UUID
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["restaurantId"]
+                          message: "Invalid uuid"
+                          code: "invalid_string"
+        '404':
+          description: restaurantId or sourceId not found in the database
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                restaurantNotFound:
+                  summary: Restaurant row does not exist
+                  value:
+                    success: false
+                    error:
+                      message: "Restaurant not found"
+                      code: "NOT_FOUND"
+                sourceNotFound:
+                  summary: DataSource row does not exist
+                  value:
+                    success: false
+                    error:
+                      message: "Data source not found"
+                      code: "NOT_FOUND"
+        '408':
+          description: Image download + OCR + processing exceeded the 60-second timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                timeout:
+                  value:
+                    success: false
+                    error:
+                      message: "Processing timeout"
+                      code: "PROCESSING_TIMEOUT"
+        '413':
+          description: Downloaded image exceeds the 10 MB size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                tooLarge:
+                  value:
+                    success: false
+                    error:
+                      message: "Image exceeds the 10 MB size limit"
+                      code: "PAYLOAD_TOO_LARGE"
+        '422':
+          description: |
+            Unprocessable request. Sub-cases:
+            - `INVALID_URL`: URL scheme is not http/https, or the URL resolves to a
+              private/loopback address (SSRF guard).
+            - `FETCH_FAILED`: network error, DNS failure, or non-2xx HTTP response when
+              downloading the image.
+            - `INVALID_IMAGE`: response Content-Type is not image/* or application/octet-stream,
+              OR the buffer's magic bytes are neither JPEG (FFD8FF) nor PNG (89504E47).
+            - `OCR_FAILED`: Tesseract.js threw an unrecoverable error during OCR processing.
+            - `NO_NUTRITIONAL_DATA_FOUND`: OCR returned text but `parseNutritionTable` found
+              zero parseable dishes, or all parsed rows failed normalization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidUrl:
+                  summary: Non-http/https scheme or private IP
+                  value:
+                    success: false
+                    error:
+                      message: "URL must use http or https scheme and must not target a private address"
+                      code: "INVALID_URL"
+                fetchFailed:
+                  summary: Network or HTTP error during image download
+                  value:
+                    success: false
+                    error:
+                      message: "Failed to download image: HTTP 404"
+                      code: "FETCH_FAILED"
+                invalidImage:
+                  summary: URL did not return a supported image format
+                  value:
+                    success: false
+                    error:
+                      message: "Downloaded file is not a valid image (expected JPEG or PNG)"
+                      code: "INVALID_IMAGE"
+                ocrFailed:
+                  summary: Tesseract.js threw an unrecoverable error
+                  value:
+                    success: false
+                    error:
+                      message: "OCR extraction failed: Worker terminated unexpectedly"
+                      code: "OCR_FAILED"
+                noData:
+                  summary: No nutritional data found after OCR
+                  value:
+                    success: false
+                    error:
+                      message: "No nutritional data could be parsed from this image"
+                      code: "NO_NUTRITIONAL_DATA_FOUND"
+        '500':
+          description: Database error during upsert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                dbError:
+                  value:
+                    success: false
+                    error:
+                      message: "Database write failed"
+                      code: "DB_UNAVAILABLE"
+
   /health:
     get:
       summary: Health check
@@ -1179,6 +1445,139 @@ components:
           example: true
         data:
           $ref: '#/components/schemas/IngestPdfUrlResult'
+
+    # -------------------------------------------------------------------------
+    # Ingestion — Image URL (F012)
+    # -------------------------------------------------------------------------
+
+    IngestImageUrlBody:
+      type: object
+      required:
+        - url
+        - restaurantId
+        - sourceId
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: |
+            A direct URL to a JPEG or PNG image file. Must use http or https scheme.
+            Private/loopback addresses (localhost, 127.x.x.x, 10.x.x.x,
+            192.168.x.x, 169.254.x.x, ::1, ::ffff:*) are rejected with
+            422 INVALID_URL.
+            Content-Type `application/octet-stream` is accepted as a CDN passthrough;
+            magic bytes (FFD8FF for JPEG, 89504E47 for PNG) are the authoritative
+            format check applied after download.
+          example: "https://alergenos.dominospizza.es/img/tabla_nutricional.jpg"
+        restaurantId:
+          type: string
+          format: uuid
+          description: UUID of the Restaurant row this data belongs to.
+          example: "00000000-0000-0000-0006-000000000014"
+        sourceId:
+          type: string
+          format: uuid
+          description: UUID of the DataSource row representing this image's origin.
+          example: "00000000-0000-0000-0000-000000000014"
+        dryRun:
+          type: boolean
+          default: false
+          description: |
+            When true, downloads, OCRs, extracts, and normalizes but skips all DB
+            writes. The response still contains the full `dishes` array for inspection.
+            Use dryRun=true to verify OCR output quality before a live ingest.
+        chainSlug:
+          type: string
+          pattern: "^[a-z0-9-]+$"
+          minLength: 1
+          maxLength: 100
+          description: |
+            Optional chain identifier (e.g. "dominos-es"). When provided, applies
+            chain-specific text preprocessing to the OCR-extracted lines before
+            parsing. This handles OCR artifacts and layout-specific formatting
+            (e.g. whitespace normalization, numeric token cleanup). See ADR-007.
+            When omitted, no preprocessing is applied (backward-compatible).
+          example: "dominos-es"
+
+    IngestImageUrlSkippedReason:
+      type: object
+      required:
+        - dishName
+        - reason
+      properties:
+        dishName:
+          type: string
+          description: The dish name as extracted from the OCR-parsed row.
+          example: "Pizza Pepperoni"
+        reason:
+          type: string
+          description: Human-readable explanation of why this dish was skipped.
+          example: "Missing required field: proteins"
+
+    IngestImageUrlResult:
+      type: object
+      required:
+        - dishesFound
+        - dishesUpserted
+        - dishesSkipped
+        - dryRun
+        - sourceUrl
+        - dishes
+        - skippedReasons
+      properties:
+        dishesFound:
+          type: integer
+          minimum: 0
+          description: Total number of dish rows extracted from the image (after OCR) before normalization.
+          example: 42
+        dishesUpserted:
+          type: integer
+          minimum: 0
+          description: |
+            Number of dishes successfully normalized and written to (or that would be
+            written to, in dryRun mode) the database.
+          example: 40
+        dishesSkipped:
+          type: integer
+          minimum: 0
+          description: Number of dishes that failed normalization and were not persisted.
+          example: 2
+        dryRun:
+          type: boolean
+          description: Whether this was a dry run (no DB writes).
+          example: false
+        sourceUrl:
+          type: string
+          format: uri
+          description: |
+            The image URL that was downloaded. Echoed back from the request for
+            traceability when callers ingest multiple image URLs in sequence
+            (e.g. F012 batch runner iterating imageUrls for a chain).
+          example: "https://alergenos.dominospizza.es/img/tabla_nutricional.jpg"
+        dishes:
+          type: array
+          description: |
+            All successfully normalized dishes. Present in both live and dryRun responses.
+          items:
+            $ref: '#/components/schemas/NormalizedDish'
+        skippedReasons:
+          type: array
+          description: One entry per skipped dish explaining the normalization failure.
+          items:
+            $ref: '#/components/schemas/IngestImageUrlSkippedReason'
+
+    IngestImageUrlResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/IngestImageUrlResult'
 
     # -------------------------------------------------------------------------
     # Ingestion — URL (F007c)

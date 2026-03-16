@@ -7,7 +7,7 @@
 
 Re-read the ticket file (`docs/tickets/<feature-id>.md`).
 
-Verify it contains ALL required sections: **Acceptance Criteria**, **Definition of Done**, **Workflow Checklist**, **Completion Log**.
+Verify it contains ALL required sections: **Acceptance Criteria**, **Definition of Done**, **Workflow Checklist**, **Completion Log**, **Merge Checklist Evidence**.
 
 **If ANY section is missing**, add it from `references/ticket-template.md` before continuing.
 
@@ -46,6 +46,17 @@ Commit ALL documentation updates from actions 0–4. Use commit message: `docs: 
 
 Run `git status`. **No unstaged or untracked files allowed.** If any remain, stage and commit them.
 
-## Action 7: Request merge approval
+## Action 7: Fill Merge Checklist Evidence
+
+In the ticket, fill the `## Merge Checklist Evidence` table. For each action (0–6), mark `[x]` and write the actual evidence (not placeholders). Example:
+
+| Action | Done | Evidence |
+|--------|:----:|----------|
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Plan, AC, DoD, Workflow, Log, Evidence |
+| 1. Mark all items | [x] | AC: 12/12, DoD: 7/7, Workflow: 0-5/6 |
+
+## Action 8: Request merge approval
+
+Verify the Merge Checklist Evidence table is fully filled (all rows `[x]` with real evidence).
 
 THEN — and only then — request merge approval from the user.

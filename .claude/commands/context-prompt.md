@@ -1,4 +1,4 @@
-Genera un prompt de recuperacion de contexto completo y detallado para pegar despues de hacer /compact.
+Genera un prompt de recuperacion de contexto completo y detallado para pegar despues de hacer /compact o de un /clear.
 
 El prompt debe incluir TODO lo necesario para que una nueva sesion (o post-compact) pueda continuar el trabajo sin perdida de informacion:
 
@@ -24,12 +24,8 @@ Formato: markdown estructurado con tablas, listo para pegar directamente como pr
 
 ## Contexto del usuario                             
                                                       
-  - Trabaja remotamente con sesiones largas —         
-interrupciones por permisos son costosas              
+  - Trabaja remotamente con sesiones largas 
+  — interrupciones por permisos son costosas              
   - Prefiere prompts detallados de continuación       
-  - Principio guía: "Lo importante es hacerlo bien,   
-que ya llevamos mucho trabajo hecho y no hay que      
-estropear nada de lo anterior, solo                   
-  mejorarlo"                                          
-  - Idioma: español para comunicación, inglés para    
-artefactos técnicos
+  - Principio guía: "Lo importante es hacerlo bien, que ya llevamos mucho trabajo hecho y no hay que estropear nada de lo anterior, solo mejorarlo"                                          
+  - Idioma: español para comunicación, inglés para artefactos técnicos

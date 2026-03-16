@@ -10,8 +10,11 @@
 
 **Last Updated:** 2026-03-16
 
-**Active Feature:** No active work
-**Context:** F011 completed 2026-03-16. Next pending: F012 (Image/OCR for Domino's) or F013 (Subway research).
+**Active Feature:** F012 — Image/OCR Ingestion Pipeline
+**Step:** 5/6 (Review)
+**Branch:** feature/F012-image-ocr-ingestion
+**Complexity:** Standard
+**Context:** New endpoint POST /ingest/image-url. OCR via Tesseract.js for Domino's Spain (JPEG images). Separate imageDownloader + imageOcrExtractor + chain-image-registry. Ticket: docs/tickets/F012-image-ocr-ingestion.md
 
 ---
 
@@ -47,7 +50,7 @@
 | F009 | PDF Auto-Ingest Pipeline (POST /ingest/pdf-url) | backend | done | 6/6 | Download PDF from URL → reuse F007b pipeline. See ADR-006. 85 new tests |
 | F010 | Chain PDF Registry + Batch Runner | backend | done | 6/6 | Config registry mapping chains to PDF URLs + CLI batch runner. Seed data for BK, KFC, Telepizza, Five Guys. See ADR-006 |
 | F011 | Chain Onboarding — PDF Chains | backend | done | 6/6 | Chain text preprocessor (ADR-007). BK 166, KFC 169, Telepizza 64 dishes. Five Guys allergen-only (disabled). chainSlug added to API. 897 tests. PR #12 |
-| F012 | Image/OCR Ingestion Pipeline | backend | pending | — | For Domino's (JPEG images, NOT PDF). Tesseract.js → text → parseNutritionTable. Separate from PDF pipeline |
+| F012 | Image/OCR Ingestion Pipeline | backend | in-progress | 5/6 | For Domino's (JPEG images, NOT PDF). Tesseract.js → text → parseNutritionTable. Separate from PDF pipeline |
 | F013 | Subway Spain Data Research | backend | pending | — | Investigation: find viable data source for Subway ES (no .es website, no Spain PDF). May use US data |
 | F014-F017 | Chain Onboarding — Additional Chains | backend | pending | — | VIPS, Pans & Company, 100 Montaditos, others. Config + verification per chain |
 | F018 | Data Quality Monitor | backend | pending | — | |

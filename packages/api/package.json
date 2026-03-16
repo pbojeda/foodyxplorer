@@ -15,7 +15,8 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "ingest:batch": "tsx src/scripts/batch-ingest.ts"
+    "ingest:batch": "tsx src/scripts/batch-ingest.ts",
+    "ingest:batch-images": "tsx src/scripts/batch-ingest-images.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",
@@ -26,15 +27,16 @@
     "@foodxplorer/scraper": "^0.0.1",
     "@foodxplorer/shared": "*",
     "@prisma/client": "^6.4.1",
+    "crawlee": "^3.0.0",
     "fastify": "^5.2.1",
     "fastify-plugin": "^5.1.0",
     "fastify-type-provider-zod": "^4.0.2",
     "ioredis": "^5.4.2",
     "kysely": "^0.27.5",
-    "crawlee": "^3.0.0",
     "node-html-parser": "^6.0.0",
     "pdf-parse": "^2.4.5",
     "playwright": "^1.40.0",
+    "tesseract.js": "^5.1.1",
     "zod": "^3.24.2"
   },
   "devDependencies": {
