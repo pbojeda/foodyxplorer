@@ -127,13 +127,15 @@ describe('downloadImage — INVALID_IMAGE', () => {
     expect(result.contentType).toBe('image/png');
   });
 
-  it('does NOT throw INVALID_IMAGE when Content-Type is image/webp', async () => {
+  it('throws INVALID_IMAGE when Content-Type is image/webp (not supported in Phase 1)', async () => {
     const mockFetch = vi.fn().mockResolvedValue(
       makeMockResponse({ ok: true, contentType: 'image/webp' }),
     );
 
-    const result = await downloadImage('https://example.com/img.webp', mockFetch);
-    expect(result.contentType).toBe('image/webp');
+    await expect(downloadImage('https://example.com/img.webp', mockFetch)).rejects.toMatchObject({
+      code: 'INVALID_IMAGE',
+      statusCode: 422,
+    });
   });
 
   it('does NOT throw INVALID_IMAGE when Content-Type is application/octet-stream (CDN fallback)', async () => {

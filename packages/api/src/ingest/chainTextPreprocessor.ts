@@ -1,4 +1,4 @@
-// Chain-specific text preprocessor for PDF-extracted text.
+// Chain-specific text preprocessor for PDF- and OCR-extracted text.
 //
 // Real-world PDF nutrition tables have layouts that the generic
 // parseNutritionTable parser cannot handle directly:

@@ -252,7 +252,7 @@ export function mapError(error: Error): MappedError {
     };
   }
 
-  // PROCESSING_TIMEOUT — processing exceeded 30 seconds
+  // PROCESSING_TIMEOUT — processing exceeded time limit
   if (asAny['code'] === 'PROCESSING_TIMEOUT') {
     return {
       statusCode: 408,

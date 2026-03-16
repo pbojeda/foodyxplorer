@@ -246,10 +246,10 @@ function parseCliArgs(argv: string[]): ParsedCliArgs {
     } else if (arg === '--dry-run') {
       dryRun = true;
     } else if (arg === '--api-url' && args[i + 1] !== undefined) {
-      apiBaseUrl = args[i + 1] as string;
+      apiBaseUrl = args[i + 1];
       i++;
     } else if (arg === '--concurrency' && args[i + 1] !== undefined) {
-      const parsed = parseInt(args[i + 1] as string, 10);
+      const parsed = parseInt(args[i + 1], 10);
       if (!isNaN(parsed) && parsed > 0) {
         concurrency = parsed;
       } else {

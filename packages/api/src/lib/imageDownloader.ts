@@ -18,7 +18,6 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_CONTENT_TYPES = new Set([
   'image/jpeg',
   'image/png',
-  'image/webp',
   'application/octet-stream',
 ]);
 
@@ -57,11 +56,12 @@ export async function downloadImage(
     );
   }
 
-  // Content-Type validation
+  // Content-Type validation — only JPEG and PNG are supported in Phase 1.
+  // application/octet-stream is accepted as CDN fallback; magic bytes in the
+  // route are the authoritative format check.
   const contentType = response.headers.get('content-type') ?? '';
   const ctBase = contentType.toLowerCase().split(';')[0]?.trim() ?? '';
-  const isImageType = ctBase.startsWith('image/');
-  const isAllowed = isImageType || ALLOWED_CONTENT_TYPES.has(ctBase);
+  const isAllowed = ALLOWED_CONTENT_TYPES.has(ctBase);
 
   if (!isAllowed) {
     throw Object.assign(
