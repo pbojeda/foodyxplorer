@@ -259,3 +259,31 @@ The preprocessor is invoked from `POST /ingest/pdf-url` when an optional `chainS
 - (+) Batch runner automatically benefits — it already knows each chain's slug
 - (-) Adding a new chain may require writing a new preprocessor function (if the PDF layout is unusual)
 - (-) `chainSlug` must be known at call time — generic PDF uploads without a chain slug skip preprocessing
+
+### ADR-008: Chain Data Availability — Onboard Only Official Nutritional Sources (2026-03-16)
+
+**Context:** Before implementing F014-F017 (additional chain onboarding), a systematic investigation of 4 candidate chains was conducted to determine data source viability:
+
+| Chain | Official nutritional data | Source type | Viable for PDF pipeline |
+|-------|--------------------------|-------------|------------------------|
+| Subway Spain | YES — full EU nutrients (kcal, fat, saturates, carbs, sugars, fiber, protein, salt) per serving + per 100g | PDF at subwayspain.com, quarterly cycle (MED_Nutritional_Information_CX_YYYY) | YES |
+| Pans & Company | YES — full EU nutrients per 100g + per serving | PDF at vivabem.pt (Ibersol parent company nutritional transparency portal) | YES |
+| VIPS | NO — allergen matrix only (14 EU allergens) | PDF/SPA at alergenos.grupovips.com | NO |
+| 100 Montaditos | NO — allergen chart only; crowdsourced calories on Nutritionix/FatSecret (unverified, possibly US data) | Official: spain.100montaditos.com allergen PDF; Third-party: Nutritionix portal | NO |
+
+**Decision:** Only onboard chains with official, complete nutritional data from the chain itself or its parent company:
+1. **F014 — Subway Spain** (subwayspain.com PDF, official)
+2. **F015 — Pans & Company** (vivabem.pt PDF, Ibersol parent company, official)
+3. **F016-F017 — VIPS and 100 Montaditos postponed** — allergen-only data. These become natural candidates for E003 (Estimation Engine), which can estimate nutritional values from ingredient lists and similar dishes via pgvector.
+
+**Alternatives Considered:**
+- Use Nutritionix/FatSecret crowdsourced data for 100 Montaditos: Rejected — unverified, possibly US-specific menu, contradicts ADR-001 (auditable sources only)
+- Use VIPS allergen data to estimate nutrients: Deferred to E003 — allergen charts don't contain enough information for nutrient estimation without the estimation engine
+- Contact VIPS/100 Montaditos directly to request data: Deferred — manual outreach is out of scope for Phase 1 automation
+
+**Consequences:**
+- (+) All onboarded chains have verifiable, official nutritional data — maintains data quality and auditability
+- (+) E002 scope is reduced (2 new chains instead of 4), allowing faster progression to F018/F019
+- (+) VIPS and 100 Montaditos become compelling test cases for E003 (estimation from allergens + ingredients + similarity)
+- (-) Phase 1 chain coverage is 7 chains (McDonald's, BK, KFC, Telepizza, Domino's, Subway, Pans) instead of 9
+- (-) Pans & Company source is Portuguese (vivabem.pt) — product names may need minor adaptation for Spain market
