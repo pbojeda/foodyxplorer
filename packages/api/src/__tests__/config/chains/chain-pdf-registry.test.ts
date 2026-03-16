@@ -1,7 +1,7 @@
 // Unit tests for chain-pdf-registry.ts
 //
 // Pure in-memory validation — no DB, no network.
-// Validates all 4 registry entries through ChainPdfConfigSchema,
+// Validates all 5 registry entries through ChainPdfConfigSchema,
 // asserts no duplicate slugs/IDs, and cross-references CHAIN_SEED_IDS.
 
 import { describe, it, expect } from 'vitest';
@@ -9,8 +9,8 @@ import { ChainPdfConfigSchema, CHAIN_PDF_REGISTRY } from '../../../config/chains
 import { CHAIN_SEED_IDS } from '../../../config/chains/chain-seed-ids.js';
 
 describe('CHAIN_PDF_REGISTRY', () => {
-  it('has exactly 4 entries', () => {
-    expect(CHAIN_PDF_REGISTRY).toHaveLength(4);
+  it('has exactly 5 entries', () => {
+    expect(CHAIN_PDF_REGISTRY).toHaveLength(5);
   });
 
   it('each entry parses through ChainPdfConfigSchema without errors', () => {
@@ -50,7 +50,7 @@ describe('CHAIN_PDF_REGISTRY', () => {
     }
   });
 
-  it('countryCode is ES for all 4 initial entries', () => {
+  it('countryCode is ES for all 5 initial entries', () => {
     for (const entry of CHAIN_PDF_REGISTRY) {
       expect(entry.countryCode).toBe('ES');
     }
@@ -106,5 +106,40 @@ describe('CHAIN_PDF_REGISTRY', () => {
   it('five-guys-es sourceId matches CHAIN_SEED_IDS.FIVE_GUYS_ES.SOURCE_ID', () => {
     const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'five-guys-es');
     expect(entry?.sourceId).toBe(CHAIN_SEED_IDS.FIVE_GUYS_ES.SOURCE_ID);
+  });
+
+  it('subway-es entry exists in registry', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'subway-es');
+    expect(entry).toBeDefined();
+  });
+
+  it('subway-es restaurantId matches CHAIN_SEED_IDS.SUBWAY_ES.RESTAURANT_ID', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'subway-es');
+    expect(entry?.restaurantId).toBe(CHAIN_SEED_IDS.SUBWAY_ES.RESTAURANT_ID);
+  });
+
+  it('subway-es sourceId matches CHAIN_SEED_IDS.SUBWAY_ES.SOURCE_ID', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'subway-es');
+    expect(entry?.sourceId).toBe(CHAIN_SEED_IDS.SUBWAY_ES.SOURCE_ID);
+  });
+
+  it('subway-es has enabled: true', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'subway-es');
+    expect(entry?.enabled).toBe(true);
+  });
+
+  it('subway-es has updateFrequency: quarterly', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'subway-es');
+    expect(entry?.updateFrequency).toBe('quarterly');
+  });
+
+  it('subway-es pdfUrl points to subwayspain.com', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'subway-es');
+    expect(entry?.pdfUrl).toContain('subwayspain.com');
+  });
+
+  it('subway-es countryCode is ES', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'subway-es');
+    expect(entry?.countryCode).toBe('ES');
   });
 });

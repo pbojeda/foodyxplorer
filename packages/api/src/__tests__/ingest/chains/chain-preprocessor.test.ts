@@ -13,6 +13,30 @@ describe('preprocessChainText', () => {
     });
   });
 
+  describe('subway-es — passthrough', () => {
+    it('returns lines unchanged (standard EU table format, no preprocessing needed)', () => {
+      const lines = [
+        'Product',
+        'Energy (kcal)',
+        'Fat (g)',
+        'Saturates (g)',
+        'Carbohydrate (g)',
+        'Sugars (g)',
+        'Fibre (g)',
+        'Protein (g)',
+        'Salt (g)',
+        'Italian B.M.T. 6" \t 302 \t 7.0 \t 2.5 \t 43.0 \t 6.0 \t 2.5 \t 18.0 \t 1.3',
+      ];
+      const result = preprocessChainText('subway-es', lines);
+      expect(result).toEqual(lines);
+    });
+
+    it('returns empty array unchanged for empty input', () => {
+      const result = preprocessChainText('subway-es', []);
+      expect(result).toEqual([]);
+    });
+  });
+
   describe('burger-king-es', () => {
     const BK_LINES = [
       'Peso (g)',

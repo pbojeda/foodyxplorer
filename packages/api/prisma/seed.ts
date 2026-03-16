@@ -575,6 +575,13 @@ async function main(): Promise<void> {
   await seedPhase4(prisma);
   console.log('Phase 4 seeding complete.');
 
+  // ---------------------------------------------------------------------------
+  // Phase 5 — PDF Chain Restaurant + DataSource rows (Subway Spain)
+  // ---------------------------------------------------------------------------
+  console.log('Starting Phase 5 seed: Subway Spain restaurant + data source...');
+  await seedPhase5(prisma);
+  console.log('Phase 5 seeding complete.');
+
   console.log('Seeding complete.');
 }
 
@@ -941,6 +948,39 @@ export async function seedPhase4(client: PrismaClient): Promise<void> {
       chainSlug:   'dominos-es',
       countryCode: 'ES',
       website:     'https://www.dominospizza.es',
+      isActive:    true,
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: Subway Spain PDF chain — exported for integration testing
+// ---------------------------------------------------------------------------
+
+export async function seedPhase5(client: PrismaClient): Promise<void> {
+  // Subway Spain
+  await client.dataSource.upsert({
+    where: { id: CHAIN_SEED_IDS.SUBWAY_ES.SOURCE_ID },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.SUBWAY_ES.SOURCE_ID,
+      name:        'Subway Spain — Nutritional PDF',
+      type:        'scraped',
+      url:         'https://subwayspain.com/images/pdfs/nutricional/MED_Nutritional_Information_C4_2025_FINAL_English.pdf',
+      lastUpdated: new Date('2026-03-16'),
+    },
+  });
+
+  await client.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'subway-es', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.SUBWAY_ES.RESTAURANT_ID,
+      name:        'Subway Spain',
+      nameEs:      'Subway España',
+      chainSlug:   'subway-es',
+      countryCode: 'ES',
+      website:     'https://subwayspain.com',
       isActive:    true,
     },
   });

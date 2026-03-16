@@ -33,7 +33,7 @@ export const ChainPdfConfigSchema = z.object({
 export type ChainPdfConfig = z.infer<typeof ChainPdfConfigSchema>;
 
 // ---------------------------------------------------------------------------
-// Registry — 4 initial entries: BK, KFC, Telepizza, Five Guys (Spain)
+// Registry — 5 entries: BK, KFC, Telepizza, Five Guys, Subway (Spain)
 // ---------------------------------------------------------------------------
 
 export const CHAIN_PDF_REGISTRY: ChainPdfConfig[] = [
@@ -80,5 +80,16 @@ export const CHAIN_PDF_REGISTRY: ChainPdfConfig[] = [
     updateFrequency: 'unknown',
     enabled:         false,
     notes:           'PDF contains allergen/ingredient list only — no calorie or macro data. Re-enable when a nutritional PDF is found. URL pattern: fiveguys.es/app/uploads/sites/6/YYYY/MM/...',
+  },
+  {
+    chainSlug:       'subway-es',
+    name:            'Subway Spain',
+    countryCode:     'ES',
+    pdfUrl:          'https://subwayspain.com/images/pdfs/nutricional/MED_Nutritional_Information_C4_2025_FINAL_English.pdf',
+    restaurantId:    CHAIN_SEED_IDS.SUBWAY_ES.RESTAURANT_ID,
+    sourceId:        CHAIN_SEED_IDS.SUBWAY_ES.SOURCE_ID,
+    updateFrequency: 'quarterly',
+    enabled:         true,
+    notes:           'URL pattern: MED_Nutritional_Information_CX_YYYY_FINAL_English.pdf. Quarterly cycle (C1-C4). Also available in Spanish and Catalan.',
   },
 ];

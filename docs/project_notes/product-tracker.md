@@ -10,8 +10,11 @@
 
 **Last Updated:** 2026-03-16
 
-**Active Feature:** No active work
-**Context:** F013 research completed 2026-03-16: Subway Spain viable (official PDF). F014-F017 restructured: F014 (Subway), F015 (Pans & Company), F016-F017 postponed (VIPS/100 Montaditos allergen-only → E003 candidates). Next: start F014.
+**Active Feature:** F014 — Chain Onboarding — Subway Spain
+**Complexity:** Simple
+**Branch:** feature/F014-subway-spain-onboarding
+**Step:** 4/6 (QA / Review)
+**Context:** Implementation complete. SUBWAY_ES added to chain-seed-ids, chain-pdf-registry (5 entries), seedPhase5, chainTextPreprocessor passthrough. 1008 tests pass (52 files). Pre-existing crash in batch-ingest-images.test.ts (F012 issue, not related). Awaiting QA checkpoint.
 
 ---
 
@@ -49,7 +52,7 @@
 | F011 | Chain Onboarding — PDF Chains | backend | done | 6/6 | Chain text preprocessor (ADR-007). BK 166, KFC 169, Telepizza 64 dishes. Five Guys allergen-only (disabled). chainSlug added to API. 897 tests. PR #12 |
 | F012 | Image/OCR Ingestion Pipeline | backend | done | 6/6 | Tesseract.js v5 OCR. POST /ingest/image-url, imageDownloader, imageOcrExtractor. Domino's Spain (JPEG). 105 tests. PR #13 |
 | F013 | Subway Spain Data Research | research | done | — | subwayspain.com has PDF: MED_Nutritional_Information_C4_2025 (kcal, macros, per 100g). Quarterly updates. Compatible with PDF pipeline. Subway onboarding moves to F014 |
-| F014 | Chain Onboarding — Subway Spain | backend | pending | — | Simple. PDF pipeline. Source: subwayspain.com official PDF |
+| F014 | Chain Onboarding — Subway Spain | backend | in-progress | 3/6 | Simple. PDF pipeline. Source: subwayspain.com official PDF |
 | F015 | Chain Onboarding — Pans & Company | backend | pending | — | Simple. PDF pipeline. Source: vivabem.pt (Ibersol parent company, official) |
 | F016-F017 | Chain Onboarding — VIPS, 100 Montaditos | backend | postponed | — | Allergen-only data (no calories/macros). Candidates for E003 estimation engine |
 | F018 | Data Quality Monitor | backend | pending | — | |
