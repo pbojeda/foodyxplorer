@@ -120,6 +120,12 @@ const ingestPdfUrlRoutesPlugin: FastifyPluginAsync<IngestPdfUrlPluginOptions> = 
 
     // -------------------------------------------------------------------------
     // Steps 4–8: Processing pipeline wrapped in 30-second timeout
+    //
+    // NOTE: downloadPdf() has its own 30s AbortSignal.timeout for hung
+    // connections. This route-level timeout covers the full pipeline
+    // (download + extract + parse + normalize + persist). The two timeouts
+    // overlap intentionally: the download timeout is a safety net for stuck
+    // HTTP connections, while the route timeout bounds total processing time.
     // -------------------------------------------------------------------------
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {

@@ -35,6 +35,12 @@ const SSRF_BLOCKED_IPV4_MAPPED = /^\[?::ffff:/i;
  *
  * Callers must have already validated that the string is a valid URL
  * (e.g., via Zod z.string().url()) before calling this function.
+ *
+ * NOTE: This guard validates hostnames at the string level only. It does NOT
+ * prevent DNS rebinding attacks where a public hostname resolves to a private
+ * IP at fetch time. Mitigating DNS rebinding requires socket-level control
+ * (e.g., undici's `connect` callback). Acceptable risk for Phase 1 since
+ * this endpoint is internal, not public-facing.
  */
 export function assertNotSsrf(url: string): void {
   const parsedUrl = new URL(url); // Safe: caller ensures url is valid

@@ -115,4 +115,28 @@ describe('assertNotSsrf', () => {
       expect(e['code']).toBe('INVALID_URL');
     }
   });
+
+  // ---------------------------------------------------------------------------
+  // Should throw INVALID_URL — numeric IP bypass
+  // ---------------------------------------------------------------------------
+
+  it('12. http://2130706433/ — throws INVALID_URL (decimal IP bypass for 127.0.0.1)', () => {
+    try {
+      assertNotSsrf('http://2130706433/');
+      throw new Error('Expected to throw');
+    } catch (err) {
+      const e = err as Record<string, unknown>;
+      expect(e['code']).toBe('INVALID_URL');
+    }
+  });
+
+  it('13. http://0x7f000001/ — throws INVALID_URL (hex IP bypass for 127.0.0.1)', () => {
+    try {
+      assertNotSsrf('http://0x7f000001/');
+      throw new Error('Expected to throw');
+    } catch (err) {
+      const e = err as Record<string, unknown>;
+      expect(e['code']).toBe('INVALID_URL');
+    }
+  });
 });
