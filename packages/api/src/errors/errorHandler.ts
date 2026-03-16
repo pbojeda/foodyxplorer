@@ -238,6 +238,20 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // PAYLOAD_TOO_LARGE — response body exceeds size limit (e.g. PDF > 20 MB)
+  if (asAny['code'] === 'PAYLOAD_TOO_LARGE') {
+    return {
+      statusCode: 413,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'PAYLOAD_TOO_LARGE',
+        },
+      },
+    };
+  }
+
   // RATE_LIMIT_EXCEEDED — @fastify/rate-limit exceeded response
   if (asAny['code'] === 'RATE_LIMIT_EXCEEDED') {
     return {

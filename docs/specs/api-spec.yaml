@@ -27,10 +27,11 @@ tags:
     description: Infrastructure and health endpoints
   - name: Ingestion
     description: |
-      Data ingestion endpoints (F007b, F007c). Accept external nutritional data
-      (PDF upload or URL), normalize to the shared dish/nutrient schema, and
-      persist to the database. These endpoints are NOT part of F007 — they are
-      specified and implemented in F007b and F007c respectively.
+      Data ingestion endpoints (F007b, F007c, F009). Accept external nutritional data
+      (PDF upload, URL scrape, or PDF download from URL), normalize to the shared
+      dish/nutrient schema, and persist to the database. These endpoints are NOT
+      part of F007 — they are specified and implemented in F007b, F007c, and F009
+      respectively.
 
 paths:
   /ingest/pdf:
@@ -227,6 +228,248 @@ paths:
                     success: false
                     error:
                       message: "File is not a valid PDF"
+                      code: "INVALID_PDF"
+                unsupportedPdf:
+                  summary: Image-based PDF (no text)
+                  value:
+                    success: false
+                    error:
+                      message: "PDF contains no extractable text. Scanned PDFs are not supported."
+                      code: "UNSUPPORTED_PDF"
+                noData:
+                  summary: No nutritional data found
+                  value:
+                    success: false
+                    error:
+                      message: "No nutritional data could be parsed from this PDF"
+                      code: "NO_NUTRITIONAL_DATA_FOUND"
+        '500':
+          description: Database error during upsert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                dbError:
+                  value:
+                    success: false
+                    error:
+                      message: "Database write failed"
+                      code: "DB_UNAVAILABLE"
+
+  /ingest/pdf-url:
+    post:
+      summary: Ingest nutritional data from a PDF at a given URL
+      description: |
+        Accepts a JSON body with a URL pointing directly to a PDF file, downloads
+        it (plain `fetch`, no browser), and pipes the buffer through the existing
+        F007b pipeline: magic-bytes check → `extractText` → `parseNutritionTable`
+        → `normalizeNutrients` / `normalizeDish` → Prisma `$transaction` upsert.
+
+        - Input is a JSON body (not multipart — there is no file to upload).
+        - Targets direct PDF download URLs (S3, CDN, static server). No JavaScript
+          rendering is required; if a URL redirects to a login page the
+          Content-Type check catches it.
+        - Image-based (scanned) PDFs are not supported — returns `UNSUPPORTED_PDF`.
+        - `sourceUrl` in the response echoes back the submitted URL for traceability
+          (useful for F010 batch runner).
+        - Partial success (some dishes skipped) returns HTTP 200. Only total failure
+          returns HTTP 422.
+        - SSRF guard: private/loopback URLs (localhost, 127.x, 10.x, 172.16–31.x,
+          192.168.x, 169.254.x, ::1, ::ffff:*) are rejected with 422 INVALID_URL.
+        - Size limit: 20 MB. Responses larger than this are rejected with 413.
+        - Download + pipeline timeout: 30 seconds.
+      operationId: ingestPdfUrl
+      tags:
+        - Ingestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestPdfUrlBody'
+            examples:
+              live:
+                summary: Live run — download and persist (KFC Spain)
+                value:
+                  url: "https://static.kfc.es/pdf/contenido-nutricional.pdf"
+                  restaurantId: "00000000-0000-0000-0000-000000000001"
+                  sourceId: "00000000-0000-0000-0000-000000000002"
+                  dryRun: false
+              dryRun:
+                summary: Dry run — download and parse without DB writes
+                value:
+                  url: "https://static.kfc.es/pdf/contenido-nutricional.pdf"
+                  restaurantId: "00000000-0000-0000-0000-000000000001"
+                  sourceId: "00000000-0000-0000-0000-000000000002"
+                  dryRun: true
+      responses:
+        '200':
+          description: |
+            Ingestion successful (or dryRun completed). At least one dish was parsed
+            and upserted (or would be upserted in dryRun mode). Partial success
+            (some dishes skipped) also returns 200 — see `dishesSkipped` and
+            `skippedReasons` for details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestPdfUrlResponse'
+              examples:
+                success:
+                  summary: 50 dishes upserted, 2 skipped
+                  value:
+                    success: true
+                    data:
+                      dishesFound: 52
+                      dishesUpserted: 50
+                      dishesSkipped: 2
+                      dryRun: false
+                      sourceUrl: "https://static.kfc.es/pdf/contenido-nutricional.pdf"
+                      dishes:
+                        - name: "Zinger Burger"
+                          nameEs: "Zinger Burger"
+                          nutrients:
+                            calories: 490
+                            proteins: 29
+                            carbohydrates: 44
+                            fats: 21
+                            saturatedFats: 4
+                            sugars: 5
+                            fiber: 2
+                            salt: 1.8
+                            sodium: 720
+                            transFats: 0
+                            cholesterol: 65
+                            potassium: 0
+                            monounsaturatedFats: 0
+                            polyunsaturatedFats: 0
+                            referenceBasis: "per_serving"
+                          confidenceLevel: "medium"
+                          estimationMethod: "scraped"
+                          availability: "available"
+                          restaurantId: "00000000-0000-0000-0000-000000000001"
+                          sourceId: "00000000-0000-0000-0000-000000000002"
+                      skippedReasons:
+                        - dishName: "Bebida Grande"
+                          reason: "Missing required field: proteins"
+                dryRun:
+                  summary: dryRun=true — no DB writes
+                  value:
+                    success: true
+                    data:
+                      dishesFound: 10
+                      dishesUpserted: 0
+                      dishesSkipped: 0
+                      dryRun: true
+                      sourceUrl: "https://static.kfc.es/pdf/contenido-nutricional.pdf"
+                      dishes: []
+                      skippedReasons: []
+        '400':
+          description: Validation error (missing fields, invalid UUID format, invalid URL format)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingUrl:
+                  summary: url field missing
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["url"]
+                          message: "Required"
+                          code: "invalid_type"
+                invalidUrl:
+                  summary: url is not a valid URL string
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["url"]
+                          message: "Invalid url"
+                          code: "invalid_string"
+        '404':
+          description: restaurantId or sourceId not found in the database
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                restaurantNotFound:
+                  summary: Restaurant row does not exist
+                  value:
+                    success: false
+                    error:
+                      message: "Restaurant not found"
+                      code: "NOT_FOUND"
+        '408':
+          description: Download + processing exceeded the 30-second timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                timeout:
+                  value:
+                    success: false
+                    error:
+                      message: "PDF processing timed out"
+                      code: "PROCESSING_TIMEOUT"
+        '413':
+          description: Downloaded PDF exceeds the 20 MB size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                tooLarge:
+                  value:
+                    success: false
+                    error:
+                      message: "PDF exceeds the 20 MB size limit"
+                      code: "PAYLOAD_TOO_LARGE"
+        '422':
+          description: |
+            Unprocessable request. Sub-cases:
+            - `INVALID_URL`: URL scheme is not http/https, or the URL resolves to a
+              private/loopback address (SSRF guard).
+            - `FETCH_FAILED`: network error, DNS failure, non-2xx HTTP response when
+              downloading the PDF.
+            - `INVALID_PDF`: response Content-Type is not application/pdf or
+              application/octet-stream, OR buffer does not start with `%PDF-`.
+            - `UNSUPPORTED_PDF`: PDF contains no extractable text (image-based/scanned).
+            - `NO_NUTRITIONAL_DATA_FOUND`: PDF text contains no parseable nutritional
+              table, or all parsed rows failed normalization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidUrl:
+                  summary: Non-http/https scheme or private IP
+                  value:
+                    success: false
+                    error:
+                      message: "URL must use http or https scheme and must not target a private address"
+                      code: "INVALID_URL"
+                fetchFailed:
+                  summary: Network or HTTP error during PDF download
+                  value:
+                    success: false
+                    error:
+                      message: "Failed to download PDF"
+                      code: "FETCH_FAILED"
+                invalidPdf:
+                  summary: URL did not return a PDF
+                  value:
+                    success: false
+                    error:
+                      message: "URL did not return a PDF (Content-Type: text/html)"
                       code: "INVALID_PDF"
                 unsupportedPdf:
                   summary: Image-based PDF (no text)
@@ -804,6 +1047,123 @@ components:
           example: true
         data:
           $ref: '#/components/schemas/IngestPdfResult'
+
+    # -------------------------------------------------------------------------
+    # Ingestion — PDF-URL (F009)
+    # -------------------------------------------------------------------------
+
+    IngestPdfUrlBody:
+      type: object
+      required:
+        - url
+        - restaurantId
+        - sourceId
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: |
+            A direct URL to a PDF file. Must use http or https scheme.
+            Private/loopback addresses (localhost, 127.x.x.x, 10.x.x.x,
+            192.168.x.x, 169.254.x.x, ::1, ::ffff:*) are rejected with
+            422 INVALID_URL.
+          example: "https://static.kfc.es/pdf/contenido-nutricional.pdf"
+        restaurantId:
+          type: string
+          format: uuid
+          description: UUID of the Restaurant row this data belongs to.
+          example: "00000000-0000-0000-0000-000000000001"
+        sourceId:
+          type: string
+          format: uuid
+          description: UUID of the DataSource row representing this PDF's origin.
+          example: "00000000-0000-0000-0000-000000000002"
+        dryRun:
+          type: boolean
+          default: false
+          description: |
+            When true, downloads, extracts, and normalizes but skips all DB writes.
+            The response still contains the full `dishes` array for inspection.
+
+    IngestPdfUrlSkippedReason:
+      type: object
+      required:
+        - dishName
+        - reason
+      properties:
+        dishName:
+          type: string
+          description: The dish name as extracted from the PDF row.
+          example: "Bebida Grande"
+        reason:
+          type: string
+          description: Human-readable explanation of why this dish was skipped.
+          example: "Missing required field: proteins"
+
+    IngestPdfUrlResult:
+      type: object
+      required:
+        - dishesFound
+        - dishesUpserted
+        - dishesSkipped
+        - dryRun
+        - sourceUrl
+        - dishes
+        - skippedReasons
+      properties:
+        dishesFound:
+          type: integer
+          minimum: 0
+          description: Total number of dish rows extracted from the PDF before normalization.
+          example: 52
+        dishesUpserted:
+          type: integer
+          minimum: 0
+          description: |
+            Number of dishes successfully normalized and written to (or that would be
+            written to, in dryRun mode) the database.
+          example: 50
+        dishesSkipped:
+          type: integer
+          minimum: 0
+          description: Number of dishes that failed normalization and were not persisted.
+          example: 2
+        dryRun:
+          type: boolean
+          description: Whether this was a dry run (no DB writes).
+          example: false
+        sourceUrl:
+          type: string
+          format: uri
+          description: |
+            The PDF URL that was downloaded. Echoed back from the request for
+            traceability when callers ingest multiple PDF URLs in sequence
+            (e.g. F010 batch runner).
+          example: "https://static.kfc.es/pdf/contenido-nutricional.pdf"
+        dishes:
+          type: array
+          description: |
+            All successfully normalized dishes. Present in both live and dryRun responses.
+          items:
+            $ref: '#/components/schemas/NormalizedDish'
+        skippedReasons:
+          type: array
+          description: One entry per skipped dish explaining the normalization failure.
+          items:
+            $ref: '#/components/schemas/IngestPdfUrlSkippedReason'
+
+    IngestPdfUrlResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/IngestPdfUrlResult'
 
     # -------------------------------------------------------------------------
     # Ingestion — URL (F007c)
