@@ -1,7 +1,7 @@
 # F009: PDF Auto-Ingest Pipeline (POST /ingest/pdf-url)
 
 **Feature:** F009 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F009-pdf-auto-ingest
+**Status:** Done | **Branch:** _(deleted)_
 **Created:** 2026-03-13 | **Dependencies:** F007b complete (pdfParser, nutritionTableParser), F007c complete (SSRF guard in url.ts)
 
 ---
@@ -380,7 +380,7 @@ The timeout promise is created with `setTimeout` outside the processing promise,
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed — 0 Critical, 3 fixes applied (H1, H2, M4)
 - [x] Step 5: `qa-engineer` executed — 50 edge case tests added, all pass
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -400,6 +400,7 @@ The timeout promise is created with `setTimeout` outside the processing promise,
 | 2026-03-16 | Step 5: QA | 50 edge case tests added (14 ssrfGuard + 13 pdfDownloader + 23 pdf-url). All pass |
 | 2026-03-16 | Commit: 5c7a27e | test(api): add QA edge case tests for F009 |
 | 2026-03-16 | Review findings | Accepted: H1 (comment), H2 (comment), M4 (test). Noted: H3 (inherited pattern), M5 (deferred), M6 (deferred) |
+| 2026-03-16 | Step 6: Complete | Squash merge ee99310 to develop. Branch deleted. Tracker + key_facts updated |
 
 ---
 

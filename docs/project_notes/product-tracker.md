@@ -10,11 +10,7 @@
 
 **Last Updated:** 2026-03-13
 
-**Active Feature:** F009 — PDF Auto-Ingest Pipeline (POST /ingest/pdf-url)
-**Branch:** feature/F009-pdf-auto-ingest
-**Complexity:** Standard
-**Current Step:** 5/6 (Review) — Code review + QA done. PR #10 awaiting merge approval.
-**Context:** POST /ingest/pdf-url implemented with TDD. 730 API tests (34 files), 232 scraper tests. 3 commits on branch. Code review: 0 Critical, 3 fixes applied. QA: 50 edge case tests added.
+No active work.
 
 ---
 
@@ -47,7 +43,7 @@
 | F007b | PDF Ingestion Endpoint (POST /ingest/pdf) | backend | done | 6/6 | Standard complexity, POST /ingest/pdf, pdf-parse + heuristic parser |
 | F007c | URL Ingestion Endpoint (POST /ingest/url) | backend | done | 6/6 | Scrape URL for nutritional data, normalize to schema. Reuses F007 pipeline. |
 | F008 | McDonald's Spain Scraper | backend | done | 6/6 | First chain scraper, establishes pattern for F009-F017. Dual extraction, shared persist, registry upgrade | First chain scraper, establishes pattern for F009-F017 |
-| F009 | PDF Auto-Ingest Pipeline (POST /ingest/pdf-url) | backend | in-progress | 5/6 | Download PDF from URL → reuse F007b pipeline. See ADR-006. PR #10 |
+| F009 | PDF Auto-Ingest Pipeline (POST /ingest/pdf-url) | backend | done | 6/6 | Download PDF from URL → reuse F007b pipeline. See ADR-006. 85 new tests |
 | F010 | Chain PDF Registry + Batch Runner | backend | pending | — | Config registry mapping chains to PDF URLs + CLI batch runner. Seed data for BK, KFC, Telepizza, Five Guys. See ADR-006 |
 | F011 | Chain Onboarding — PDF Chains | backend | pending | — | Verify parser with real PDFs (BK, KFC, Telepizza, Five Guys). Test fixtures per chain. Parser tuning if needed |
 | F012 | Image/OCR Ingestion Pipeline | backend | pending | — | For Domino's (JPEG images, NOT PDF). Tesseract.js → text → parseNutritionTable. Separate from PDF pipeline |
@@ -94,6 +90,7 @@
 | 2026-03-12 | F007b — PDF Ingestion Endpoint (POST /ingest/pdf) | 5cb6384 (squash merge to develop, PR #7) | POST /ingest/pdf, pdf-parse + heuristic parser (ES/EN), @fastify/multipart, $transaction upsert, 30s timeout, partial success. 105 new tests (827 total), 2 QA bugs fixed, 5 code review fixes |
 | 2026-03-13 | F007c — URL Ingestion Endpoint (POST /ingest/url) | 595a546 (squash merge to develop, PR #8) | POST /ingest/url, PlaywrightCrawler + node-html-parser, SSRF guard (IPv4/IPv6/numeric/::ffff:), reuses parseNutritionTable. 88 new tests (915 total), 1 QA bug fixed, 4 code review fixes |
 | 2026-03-13 | F008 — McDonald's Spain Scraper | c75e599 (squash merge to develop, PR #9) | First chain scraper. Dual extraction (JSON-LD + HTML table), shared persistDishUtil, PrismaClient singleton, registry upgrade, CAPTCHA detection. 91 new tests (232 scraper, ~1006 total), 5 QA bugs fixed, 7 review fixes |
+| 2026-03-16 | F009 — PDF Auto-Ingest Pipeline | ee99310 (squash merge to develop, PR #10) | POST /ingest/pdf-url, ssrfGuard shared module, pdfDownloader (streaming 20MB cap), PAYLOAD_TOO_LARGE error. Lazy McDonald's config fix. ADR-006 (PDF-first pivot). 85 new tests (730 API, 962 total), 3 review fixes |
 
 ---
 
