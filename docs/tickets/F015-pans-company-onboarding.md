@@ -1,7 +1,7 @@
 # F015: Chain Onboarding — Pans & Company
 
 **Feature:** F015 | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/F015-pans-company-onboarding
+**Status:** Done | **Branch:** feature/F015-pans-company-onboarding (deleted)
 **Created:** 2026-03-17 | **Dependencies:** F010 (registry), F011 (preprocessor pattern)
 
 ---
@@ -50,7 +50,7 @@ N/A — Simple task
 - [x] Step 3: Implementation with TDD
 - [x] Step 4: Quality gates pass, production-code-validator run
 - [x] Step 5: PR #15 created, code-review-specialist run, 2 findings addressed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -63,6 +63,7 @@ N/A — Simple task
 | 2026-03-17 | Bug fix | Fixed isPansMetaLine (real PDF has 'Energia (Kj)' not 'Energia'), Per-100g space-before-tab, N Unidades numeric portion rows |
 | 2026-03-17 | Finalize | Quality gates: 39 test files pass, 0 new lint errors, 0 new build errors |
 | 2026-03-17 | Review | PR #15, code-review-specialist: 0 Critical, 2 Important (mismatch warning + tests). Both addressed in b89ab5f |
+| 2026-03-17 | Complete | Squash merged PR #15 → develop (8f8d60f). Branch deleted. Tracker updated |
 
 ---
 
