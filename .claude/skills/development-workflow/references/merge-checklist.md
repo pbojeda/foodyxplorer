@@ -3,7 +3,7 @@
 > Execute ALL actions below IN ORDER before requesting merge approval from the user.
 > Do NOT skip any action. Do NOT request merge approval until every action is complete.
 
-## Action 0: Validate ticket structure (Std/Cplx)
+## Action 0: Validate ticket structure
 
 Re-read the ticket file (`docs/tickets/<feature-id>.md`).
 
@@ -11,11 +11,13 @@ Verify it contains ALL required sections: **Acceptance Criteria**, **Definition 
 
 **If ANY section is missing**, add it from `references/ticket-template.md` before continuing.
 
-## Action 1: Mark all items (Std/Cplx)
+**Simple (lite ticket):** Verify same sections exist. Spec and Implementation Plan may be minimal (one-liner / N/A).
+
+## Action 1: Mark all items
 
 In the ticket file, mark ALL items `[x]` in:
 
-- **Workflow Checklist** — Steps 0 through 5 (all that apply to this complexity tier)
+- **Workflow Checklist** — all steps that apply to this complexity tier (Simple: 1, 3, 4, 5. Standard: 0–5. Complex: 0–5)
 - **Acceptance Criteria** — every item
 - **Definition of Done** — every item
 

@@ -59,9 +59,9 @@ Ask user to classify complexity before starting. See `references/complexity-guid
 
 | Tier | Spec | Ticket | Plan | QA |
 |------|:----:|:------:|:----:|:--:|
-| Simple | Skip | Skip | Skip | Skip |
-| Standard | Yes | Yes | Yes | Yes |
-| Complex | Yes | Yes + ADR | Yes | Yes |
+| Simple | Skip | Lite | Skip | Skip |
+| Standard | Yes | Full | Yes | Yes |
+| Complex | Yes | Full + ADR | Yes | Yes |
 
 ---
 
@@ -85,9 +85,10 @@ See `references/branching-strategy.md` for details.
 
 1. Verify product tracker exists, no active feature, dependencies met
 2. Create feature branch: `feature/<feature-id>-<short-description>`
-3. **Std/Cplx:** Copy ALL sections from `references/ticket-template.md` (Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log) → fill `## Spec` section. Do NOT omit empty sections — they are filled in later steps. **After generating the ticket, verify it contains ALL 7 sections in this exact order: Spec → Implementation Plan → Acceptance Criteria → Definition of Done → Workflow Checklist → Completion Log → Merge Checklist Evidence. If any section is missing, add it now.**
-4. **Complex:** Also review `decisions.md` for related ADRs
-5. Update product tracker → Active Session: feature, step `1/6 (Setup)`, branch, complexity. Update Features table: status `in-progress`, step `1/6`
+3. **Simple:** Generate a **lite ticket** at `docs/tickets/<feature-id>-<short-desc>.md` using `references/ticket-template.md`. Fill the header and a one-line `## Spec > Description`. Set `## Implementation Plan` to `N/A — Simple task`. Fill lightweight Acceptance Criteria and Definition of Done. Set Workflow Checklist to Steps 1, 3, 4, 5 only. Leave Completion Log and Merge Checklist Evidence empty (filled in later steps). **Verify the ticket contains ALL 7 sections.**
+4. **Std/Cplx:** Copy ALL sections from `references/ticket-template.md` (Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log) → fill `## Spec` section. Do NOT omit empty sections — they are filled in later steps. **After generating the ticket, verify it contains ALL 7 sections in this exact order: Spec → Implementation Plan → Acceptance Criteria → Definition of Done → Workflow Checklist → Completion Log → Merge Checklist Evidence. If any section is missing, add it now.**
+5. **Complex:** Also review `decisions.md` for related ADRs
+6. Update product tracker → Active Session: feature, step `1/6 (Setup)`, branch, complexity. Update Features table: status `in-progress`, step `1/6`
 
 **→ CHECKPOINT: Ticket Approval** (Std/Cplx only — Simple skips to Step 3)
 

@@ -71,7 +71,7 @@ Complexity and Autonomy Level combine to determine the effective workflow overhe
 
 | Combination | Effect |
 |-------------|--------|
-| Simple + Any Level | Minimal overhead (branch → TDD → commit → PR) |
+| Simple + Any Level | Lite ticket, no spec/plan/QA (branch → lite ticket → TDD → commit → PR + merge checklist) |
 | Standard + L1 | Maximum oversight (5 checkpoints) |
 | Standard + L2 | Balanced (Plan + Merge checkpoints only) |
 | Standard + L3-4 | Fast execution, quality gates + QA still enforced |
