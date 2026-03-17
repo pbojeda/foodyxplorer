@@ -580,32 +580,32 @@ All quality checks use aggregation counts, `groupBy`, and simple filters — the
 
 ## Acceptance Criteria
 
-- [ ] `packages/shared/src/schemas/qualityReport.ts` exists with all 15 schemas
-- [ ] `packages/api/src/quality/` contains 6 check files + `assembleReport.ts` + `index.ts`
-- [ ] `GET /quality/report` registered as Fastify plugin in `packages/api/src/routes/quality.ts`
-- [ ] `GET /quality/report` returns valid `QualityReportResponse` against real DB
-- [ ] `?chainSlug=mcdonalds-es` scopes all six dimensions to McDonald's data only
-- [ ] `?stalenessThresholdDays=30` changes the freshness check threshold
-- [ ] `GET /quality/report` with unknown chainSlug returns HTTP 200 with all-zero counts
-- [ ] `GET /quality/report` with `stalenessThresholdDays=0` returns HTTP 400 VALIDATION_ERROR
-- [ ] CLI script `quality-monitor.ts` outputs valid JSON when `--format json`
-- [ ] CLI script outputs readable Markdown when `--format markdown`
-- [ ] Unit tests for all 6 check functions (TDD — tests written first)
-- [ ] Integration test: `GET /quality/report` against seeded test DB
-- [ ] No `any` types anywhere in the quality module
-- [ ] All existing tests continue to pass
+- [x] `packages/shared/src/schemas/qualityReport.ts` exists with all 15 schemas
+- [x] `packages/api/src/quality/` contains 6 check files + `assembleReport.ts` + `index.ts`
+- [x] `GET /quality/report` registered as Fastify plugin in `packages/api/src/routes/quality.ts`
+- [x] `GET /quality/report` returns valid `QualityReportResponse` against real DB
+- [x] `?chainSlug=mcdonalds-es` scopes all six dimensions to McDonald's data only
+- [x] `?stalenessThresholdDays=30` changes the freshness check threshold
+- [x] `GET /quality/report` with unknown chainSlug returns HTTP 200 with all-zero counts
+- [x] `GET /quality/report` with `stalenessThresholdDays=0` returns HTTP 400 VALIDATION_ERROR
+- [x] CLI script `quality-monitor.ts` outputs valid JSON when `--format json`
+- [x] CLI script outputs readable Markdown when `--format markdown`
+- [x] Unit tests for all 6 check functions (TDD — tests written first)
+- [x] Integration test: `GET /quality/report` against seeded test DB
+- [x] No `any` types anywhere in the quality module
+- [x] All existing tests continue to pass
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] TDD: unit tests written before implementation for all check functions
-- [ ] TypeScript strict mode — no `any`, no unhandled `Decimal` conversions
-- [ ] Zod schemas in `packages/shared/src/schemas/qualityReport.ts` are single source of truth
-- [ ] API spec updated (done — see `docs/specs/api-spec.yaml`)
-- [ ] No new linting errors
-- [ ] Build succeeds
+- [x] All acceptance criteria met
+- [x] TDD: unit tests written before implementation for all check functions
+- [x] TypeScript strict mode — no `any`, no unhandled `Decimal` conversions
+- [x] Zod schemas in `packages/shared/src/schemas/qualityReport.ts` are single source of truth
+- [x] API spec updated (done — see `docs/specs/api-spec.yaml`)
+- [x] No new linting errors
+- [x] Build succeeds
 
 ---
 
@@ -614,9 +614,9 @@ All quality checks use aggregation counts, `groupBy`, and simple filters — the
 - [x] Step 0: Spec created, api-spec.yaml updated
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: Implementation plan written
-- [ ] Step 3: Implementation with TDD
-- [ ] Step 4: Quality gates pass, production-code-validator run
-- [ ] Step 5: PR created, code-review-specialist + qa-engineer run
+- [x] Step 3: Implementation with TDD
+- [x] Step 4: Quality gates pass, production-code-validator run
+- [x] Step 5: PR created, code-review-specialist + qa-engineer run
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -627,6 +627,10 @@ All quality checks use aggregation counts, `groupBy`, and simple filters — the
 |------|--------|-------|
 | 2026-03-17 | Spec | api-spec.yaml updated with GET /quality/report, 14 component schemas |
 | 2026-03-17 | Setup | Branch + ticket created |
+| 2026-03-17 | Plan | 21-step TDD implementation plan written by backend-planner |
+| 2026-03-17 | Implement (Step 3) | 21 files created, 3 modified. 69 unit tests (TDD). 15 Zod schemas, 6 check functions, assembleReport, route, CLI. Commit `ea041ad` |
+| 2026-03-17 | Finalize (Step 4) | 105 tests pass (10 files), 0 new lint errors, build succeeds. production-code-validator APPROVED |
+| 2026-03-17 | Review (Step 5) | PR #16. code-review-specialist: 1 Critical (checkImplausibleValues memory) + 4 Important (N+1 queries, type assertion, CLI flag) + 4 Suggestions. qa-engineer: 1 bug (chainSlug .max(100)) + 37 edge-case tests. All findings fixed in commit `d44bc19`. Final: 105 quality tests pass |
 
 ---
 
@@ -636,10 +640,10 @@ All quality checks use aggregation counts, `groupBy`, and simple filters — the
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence (7/7) |
+| 1. Mark all items | [x] | AC: 14/14, DoD: 7/7, Workflow: 0-5/6 (Step 6 pending) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6 (Review), Features table: 5/6 |
+| 3. Update key_facts.md | [x] | Updated: quality route, quality check module, quality CLI script, quality report schemas |
+| 4. Update decisions.md | [x] | N/A — no new ADRs needed for F018 |
+| 5. Commit documentation | [x] | Commit: `da470ec` |
+| 6. Verify clean working tree | [x] | `git status`: clean |

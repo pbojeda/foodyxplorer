@@ -11,9 +11,9 @@
 **Last Updated:** 2026-03-17
 
 **Active Feature:** F018 — Data Quality Monitor
-**Complexity:** Standard | **Step:** 2/6 (Plan)
+**Complexity:** Standard | **Step:** 5/6 (Review)
 **Branch:** feature/F018-data-quality-monitor
-**Context:** Spec + plan done. 21 files to create, 2 to modify. 8-step TDD order: shared schemas → 6 check functions (test-first) → assembleReport → route → CLI.
+**Context:** Implementation complete. 21 files created, 3 modified. 105 quality tests (10 files). PR #16 open targeting develop. Code review + QA findings addressed (commit d44bc19). Pending merge approval.
 
 ---
 
@@ -54,7 +54,7 @@
 | F014 | Chain Onboarding — Subway Spain | backend | done | 6/6 | Simple. PDF pipeline. Source: subwayspain.com official PDF. PR #14. 47 new tests |
 | F015 | Chain Onboarding — Pans & Company | backend | done | 6/6 | Simple. PDF pipeline. Source: vivabem.pt (Ibersol). 182 dishes, custom preprocessor. PR #15 |
 | F016-F017 | Chain Onboarding — VIPS, 100 Montaditos | backend | postponed | — | Allergen-only data (no calories/macros). Candidates for E003 estimation engine |
-| F018 | Data Quality Monitor | backend | in-progress | 2/6 | Standard. GET /quality/report, 6 check dimensions, CLI script. Plan done |
+| F018 | Data Quality Monitor | backend | in-progress | 5/6 | Standard. GET /quality/report, 6 check dimensions, CLI script. PR #16, 105 tests. Pending merge |
 | F019 | Embedding Generation Pipeline | backend | pending | — | |
 
 ## Features — E003 Estimation Engine
