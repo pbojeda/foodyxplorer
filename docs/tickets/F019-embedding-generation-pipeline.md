@@ -1,7 +1,7 @@
 # F019: Embedding Generation Pipeline
 
 **Feature:** F019 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F019-embedding-generation-pipeline
+**Status:** Done | **Branch:** merged → develop (squash, PR #17)
 **Created:** 2026-03-17 | **Dependencies:** F003 (pgvector indexes), F006+ (foods/dishes data)
 
 ---
@@ -791,7 +791,7 @@ Add to `package.json` scripts: `"embeddings:generate": "tsx src/scripts/embeddin
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed — 1 Critical + 4 Important fixed
 - [x] Step 5: `qa-engineer` executed — 37 edge-case tests, QA VERIFIED
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -805,6 +805,7 @@ Add to `package.json` scripts: `"embeddings:generate": "tsx src/scripts/embeddin
 | 2026-03-17 | Implement (Step 3) | backend-developer: TDD 10 steps. 71 new tests (5 files). openai SDK integrated |
 | 2026-03-17 | Finalize (Step 4) | production-code-validator: 1 HIGH fix (skipped count). Quality gates pass |
 | 2026-03-17 | Review (Step 5) | code-review: 1C+4I fixed (UUID validation, client cache, dedup text build, route timeout, RateLimiter doc). QA: 37 edge-case tests, VERIFIED. PR #17 |
+| 2026-03-17 | Complete (Step 6) | Squash merge to develop (ed61a56). Branch deleted. 108 tests (1319 total). Tracker + key_facts updated |
 
 ---
 

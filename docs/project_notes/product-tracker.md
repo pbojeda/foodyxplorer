@@ -10,10 +10,8 @@
 
 **Last Updated:** 2026-03-17
 
-**Active Feature:** F019 — Embedding Generation Pipeline
-**Complexity:** Standard | **Step:** 5/6 (Review)
-**Branch:** feature/F019-embedding-generation-pipeline
-**Context:** Plan approved (10-step TDD). Spec complete (api-spec.yaml + 6 Zod schemas). Pipeline: OpenAI text-embedding-3-small → $executeRaw → pgvector. CLI + POST /embeddings/generate. Implementation in progress.
+**Active Feature:** None — No active work
+**Context:** F019 completed. E002 (Data Ingestion Pipeline) fully done. Next: E003 (Estimation Engine) or E004 (Telegram Bot).
 
 ---
 
@@ -22,7 +20,7 @@
 | Epic | Name | Status | Features | Dependencies |
 |------|------|--------|----------|--------------|
 | E001 | Infrastructure & Schema | done | F001-F006 | Day 0 complete |
-| E002 | Data Ingestion Pipeline | in-progress | F007-F019 | E001 complete |
+| E002 | Data Ingestion Pipeline | done | F007-F019 | E001 complete |
 | E003 | Estimation Engine | pending | F020-F024 | E001 complete, E002 partial |
 | E004 | Telegram Bot + Public API | pending | F025-F030 | E002 + E003 complete |
 
@@ -55,7 +53,7 @@
 | F015 | Chain Onboarding — Pans & Company | backend | done | 6/6 | Simple. PDF pipeline. Source: vivabem.pt (Ibersol). 182 dishes, custom preprocessor. PR #15 |
 | F016-F017 | Chain Onboarding — VIPS, 100 Montaditos | backend | postponed | — | Allergen-only data (no calories/macros). Candidates for E003 estimation engine |
 | F018 | Data Quality Monitor | backend | done | 6/6 | Standard. GET /quality/report, 6 check dimensions, CLI script. 105 tests. PR #16 |
-| F019 | Embedding Generation Pipeline | backend | in-progress | 5/6 | Standard. OpenAI text-embedding-3-small, CLI + POST /embeddings/generate, embeddingUpdatedAt migration |
+| F019 | Embedding Generation Pipeline | backend | done | 6/6 | Standard. OpenAI text-embedding-3-small, CLI + POST /embeddings/generate, embeddingUpdatedAt migration. 108 tests. PR #17 |
 
 ## Features — E003 Estimation Engine
 
@@ -103,6 +101,7 @@
 | 2026-03-16 | F014 — Chain Onboarding — Subway Spain | 67b1404 (squash merge to develop, PR #14) | SUBWAY_ES seed IDs, chain-pdf-registry (5 entries), seedPhase5, chainTextPreprocessor passthrough. 47 new tests (1008 total) |
 | 2026-03-17 | F015 — Chain Onboarding — Pans & Company | 8f8d60f (squash merge to develop, PR #15) | PANS_AND_COMPANY_ES seed IDs, chain-pdf-registry (6 entries), custom preprocessor (column-separated PDF layout), seedPhase6. 72 new tests (1080 total) |
 | 2026-03-17 | F018 — Data Quality Monitor | 6b1f79e (squash merge to develop, PR #16) | GET /quality/report (6 dimensions), 15 Zod schemas, CLI script, assembleReport orchestrator. 105 new tests (10 files). Refactored: count()+$queryRaw (no memory issues). Code review: 1 Critical + 4 Important fixed. QA: 37 edge-case tests |
+| 2026-03-17 | F019 — Embedding Generation Pipeline | ed61a56 (squash merge to develop, PR #17) | POST /embeddings/generate, CLI script, OpenAI text-embedding-3-small (1536 dims), embeddingUpdatedAt migration. 6 modules (types, textBuilder, embeddingClient, embeddingWriter, pipeline, barrel). 108 new tests (6 files). Code review: 1C+4I fixed. QA: 37 edge-case tests. E002 complete |
 
 ---
 
