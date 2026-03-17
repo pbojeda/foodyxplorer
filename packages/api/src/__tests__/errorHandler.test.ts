@@ -356,4 +356,20 @@ describe('mapError', () => {
       expect(result.body.error.message).toBe('Access blocked by target server');
     });
   });
+
+  describe('EMBEDDING_PROVIDER_UNAVAILABLE', () => {
+    it('maps to 422 with EMBEDDING_PROVIDER_UNAVAILABLE code and original message', () => {
+      const err = Object.assign(
+        new Error('OPENAI_API_KEY is not configured'),
+        { code: 'EMBEDDING_PROVIDER_UNAVAILABLE' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(422);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('EMBEDDING_PROVIDER_UNAVAILABLE');
+      expect(result.body.error.message).toBe('OPENAI_API_KEY is not configured');
+    });
+  });
 });

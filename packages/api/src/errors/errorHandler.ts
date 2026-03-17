@@ -238,6 +238,20 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // EMBEDDING_PROVIDER_UNAVAILABLE — OPENAI_API_KEY is not configured
+  if (asAny['code'] === 'EMBEDDING_PROVIDER_UNAVAILABLE') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'EMBEDDING_PROVIDER_UNAVAILABLE',
+        },
+      },
+    };
+  }
+
   // SCRAPER_BLOCKED — target server returned HTTP 403 or 429 (anti-bot)
   if (asAny['code'] === 'SCRAPER_BLOCKED') {
     return {

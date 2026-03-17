@@ -22,6 +22,11 @@ export const EnvSchema = z.object({
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
     .default('info'),
   REDIS_URL: z.string().min(1).default('redis://localhost:6380'),
+  // OpenAI — optional at startup; validated at invocation time in the pipeline
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_EMBEDDING_MODEL: z.string().min(1).default('text-embedding-3-small'),
+  OPENAI_EMBEDDING_BATCH_SIZE: z.coerce.number().int().min(1).max(2048).default(100),
+  OPENAI_EMBEDDING_RPM: z.coerce.number().int().min(1).default(3000),
 });
 
 export type Config = z.infer<typeof EnvSchema>;
