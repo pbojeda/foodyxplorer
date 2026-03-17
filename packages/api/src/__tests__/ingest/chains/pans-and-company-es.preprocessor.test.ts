@@ -345,6 +345,36 @@ describe('preprocessChainText — pans-and-company-es', () => {
     });
   });
 
+  describe('pairing mismatch handling', () => {
+    it('drops extra data rows when more data than names', () => {
+      const lines = [
+        'Por 100 gramas\t800\t191\t6,8\t2,1\t23,5\t4,1\t10,4\t1,3',
+        'Por 100 gramas\t900\t215\t7,2\t2,5\t25,0\t4,5\t11,0\t1,5',
+        'Por 100 gramas\t700\t167\t5,0\t1,5\t20,0\t3,0\t9,0\t1,0',
+        'Sande Atum',
+        'Sande Frango',
+        // Only 2 names but 3 data rows — third data row should be dropped
+      ];
+      const result = preprocessChainText('pans-and-company-es', lines);
+      const dishLines = result.slice(1);
+      expect(dishLines.length).toBe(2);
+    });
+
+    it('drops extra names when more names than data', () => {
+      const lines = [
+        'Por 100 gramas\t800\t191\t6,8\t2,1\t23,5\t4,1\t10,4\t1,3',
+        'Sande Atum',
+        'Sande Frango',
+        'Sande Presunto',
+        // Only 1 data row but 3 names — extra names should be dropped
+      ];
+      const result = preprocessChainText('pans-and-company-es', lines);
+      const dishLines = result.slice(1);
+      expect(dishLines.length).toBe(1);
+      expect(dishLines[0]).toMatch(/^Sande Atum/);
+    });
+  });
+
   describe('isAllCaps helper — accent-aware', () => {
     it('treats accented uppercase lines as ALL-CAPS (filtered)', () => {
       const lines = [

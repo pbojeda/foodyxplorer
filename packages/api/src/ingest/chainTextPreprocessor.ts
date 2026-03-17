@@ -332,6 +332,12 @@ function preprocessPansAndCompanyEs(lines: string[]): string[] {
   // Pair product names with per-100g rows (1:1 in order)
   const pairedLines: string[] = [];
   const pairCount = Math.min(per100gRows.length, productNames.length);
+  if (per100gRows.length !== productNames.length) {
+    console.warn(
+      `[pans-and-company-es] Pairing mismatch: ${per100gRows.length} data rows vs ${productNames.length} names. ` +
+      `Using ${pairCount}. Check PDF layout for changes.`,
+    );
+  }
   for (let i = 0; i < pairCount; i++) {
     const name = productNames[i] ?? '';
     const dataPart = per100gRows[i] ?? '';
@@ -396,7 +402,7 @@ function isPansMetaLine(line: string): boolean {
     line === 'TABELA NUTRICIONAL' ||
     line === 'SANDES QUENTES' ||
     line === 'PÃO PROVENÇAL' ||
-    line === 'Francesa' ||
+    line === 'Francesa' ||  // Bread type label repeated on every page in the PDF header area
     // Disclaimer lines
     lower.startsWith('notas:') ||
     lower.startsWith('esta informação') ||
