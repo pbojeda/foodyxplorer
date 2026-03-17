@@ -159,10 +159,18 @@ export async function runEmbeddingPipeline(
 
     const foods = foodRows.map(mapFoodRow);
 
-    // Count skipped: if force=false, DB returned only un-embedded; skipped = total - fetched
-    // For now, skippedFoods = 0 when force=true (all fetched), we skip the COUNT query for simplicity
-    // (The spec says "query a separate COUNT(*) first" — but test only checks processedFoods/Dishes)
-    skippedFoods = 0; // Would require a separate count query; simplified here
+    // Count skipped items (already embedded) when force=false
+    if (!force) {
+      try {
+        const countResult = await prisma.$queryRaw<[{ count: bigint }]>(
+          Prisma.sql`SELECT COUNT(*) AS count FROM foods WHERE embedding_updated_at IS NOT NULL`,
+        );
+        skippedFoods = Number(countResult[0]?.count ?? 0);
+      } catch {
+        // Non-fatal: skipped count is informational only
+        skippedFoods = 0;
+      }
+    }
 
     if (!dryRun && foods.length > 0) {
       const texts = foods.map(buildFoodText);
@@ -239,7 +247,21 @@ export async function runEmbeddingPipeline(
 
     const dishes = dishRows.map(mapDishRow);
 
-    skippedDishes = 0;
+    // Count skipped dishes (already embedded) when force=false
+    if (!force) {
+      try {
+        const chainFilter = chainSlug !== undefined
+          ? Prisma.sql`AND r.chain_slug = ${chainSlug}`
+          : Prisma.empty;
+        const countResult = await prisma.$queryRaw<[{ count: bigint }]>(
+          Prisma.sql`SELECT COUNT(*) AS count FROM dishes d JOIN restaurants r ON r.id = d.restaurant_id WHERE d.embedding_updated_at IS NOT NULL ${chainFilter}`,
+        );
+        skippedDishes = Number(countResult[0]?.count ?? 0);
+      } catch {
+        // Non-fatal: skipped count is informational only
+        skippedDishes = 0;
+      }
+    }
 
     if (!dryRun && dishes.length > 0) {
       const texts = dishes.map(buildDishText);

@@ -77,7 +77,12 @@ const MOCK_VECTOR = Array(1536).fill(0.1);
 
 // Build a mock PrismaClient with controllable $queryRaw
 // Prisma.Sql objects have a .sql property containing the raw SQL string.
-function buildMockPrisma(foodRows = [MOCK_FOOD_ROW], dishRows = [MOCK_DISH_ROW]) {
+function buildMockPrisma(
+  foodRows = [MOCK_FOOD_ROW],
+  dishRows = [MOCK_DISH_ROW],
+  skippedFoodCount = 0,
+  skippedDishCount = 0,
+) {
   return {
     $queryRaw: vi.fn().mockImplementation((query: unknown) => {
       // Prisma.Sql has a .sql property; check it for 'foods' to differentiate queries
@@ -85,6 +90,14 @@ function buildMockPrisma(foodRows = [MOCK_FOOD_ROW], dishRows = [MOCK_DISH_ROW])
         query !== null && typeof query === 'object' && 'sql' in query
           ? String((query as Record<string, unknown>)['sql'])
           : String(query);
+
+      // COUNT queries for skipped items
+      if (sqlString.includes('COUNT(*)') && sqlString.includes('foods')) {
+        return Promise.resolve([{ count: BigInt(skippedFoodCount) }]);
+      }
+      if (sqlString.includes('COUNT(*)') && sqlString.includes('dishes')) {
+        return Promise.resolve([{ count: BigInt(skippedDishCount) }]);
+      }
 
       if (sqlString.includes('foods')) {
         return Promise.resolve(foodRows);
@@ -224,6 +237,45 @@ describe('runEmbeddingPipeline — empty scope', () => {
     expect(result.errorCount).toBe(0);
     expect(result.errors).toHaveLength(0);
     expect(mockCallOpenAI).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Skipped count tests
+// ---------------------------------------------------------------------------
+
+describe('runEmbeddingPipeline — skipped count', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCallOpenAI.mockResolvedValue([MOCK_VECTOR]);
+    mockWriteFood.mockResolvedValue(undefined);
+    mockWriteDish.mockResolvedValue(undefined);
+  });
+
+  it('reports skipped foods/dishes when force=false and some are already embedded', async () => {
+    const mockPrisma = buildMockPrisma([MOCK_FOOD_ROW], [MOCK_DISH_ROW], 5, 10);
+    const result = await runEmbeddingPipeline({
+      ...BASE_OPTIONS,
+      target: 'all',
+      force: false,
+      prisma: mockPrisma,
+    });
+
+    expect(result.skippedFoods).toBe(5);
+    expect(result.skippedDishes).toBe(10);
+  });
+
+  it('reports skippedFoods=0 and skippedDishes=0 when force=true', async () => {
+    const mockPrisma = buildMockPrisma([MOCK_FOOD_ROW], [MOCK_DISH_ROW], 5, 10);
+    const result = await runEmbeddingPipeline({
+      ...BASE_OPTIONS,
+      target: 'all',
+      force: true,
+      prisma: mockPrisma,
+    });
+
+    expect(result.skippedFoods).toBe(0);
+    expect(result.skippedDishes).toBe(0);
   });
 });
 
