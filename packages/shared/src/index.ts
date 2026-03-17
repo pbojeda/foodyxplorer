@@ -13,3 +13,4 @@ export * from './schemas/restaurant';
 export * from './schemas/dish';
 export * from './schemas/dishNutrient';
 export * from './schemas/dishIngredient';
+export * from './schemas/qualityReport';
