@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"additionalContext\": \"Context was compacted. BEFORE doing anything else: read the product tracker Active Session section (docs/project_notes/product-tracker.md) for context recovery. Follow the Session Recovery protocol in CLAUDE.md.\"}'",
+            "command": "echo '{\"additionalContext\": \"Context was compacted. BEFORE doing anything else: (1) Read the product tracker Active Session (docs/project_notes/product-tracker.md) for context recovery. (2) Re-read the SKILL.md for your current workflow (.claude/skills/development-workflow/SKILL.md) to know what actions are required at your current step. (3) If at Step 5 or later, you MUST read references/merge-checklist.md and fill the Merge Checklist Evidence table in the ticket before requesting merge approval.\"}'",
             "statusMessage": "Injecting recovery context..."
           }
         ]
