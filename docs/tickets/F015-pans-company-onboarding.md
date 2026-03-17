@@ -30,17 +30,17 @@ N/A — Simple task
 - [x] E2E verified: 182 dishes parsed from real PDF (spot check: Ketchup 90 kcal, 1.4g protein)
 - [x] Unit tests: 34 preprocessor + 6 seed + 30 registry = 70 new tests
 - [x] All tests pass (39 test files)
-- [ ] Build succeeds (pre-existing TS errors in batch-ingest scripts only)
+- [x] Build succeeds (pre-existing TS errors in batch-ingest scripts only)
 
 ---
 
 ## Definition of Done
 
 - [x] All acceptance criteria met
-- [x] Unit tests written and passing
+- [x] Unit tests written and passing (36 preprocessor + 6 seed + 30 registry = 72 tests)
 - [x] Code follows project standards
-- [ ] No new linting errors
-- [ ] Build succeeds (pre-existing only)
+- [x] No new linting errors (0 new, 7 pre-existing)
+- [x] Build succeeds (0 new errors, 4 pre-existing in batch-ingest)
 
 ---
 
@@ -48,8 +48,8 @@ N/A — Simple task
 
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 3: Implementation with TDD
-- [ ] Step 4: Quality gates pass
-- [ ] Step 5: PR created, code review
+- [x] Step 4: Quality gates pass, production-code-validator run
+- [x] Step 5: PR #15 created, code-review-specialist run, 2 findings addressed
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -61,6 +61,8 @@ N/A — Simple task
 | 2026-03-17 | Setup | Branch + ticket created |
 | 2026-03-17 | Implement | Seed IDs, registry, preprocessor (custom — names separated from data), seedPhase6, 70 tests. E2E: 182 dishes from real PDF |
 | 2026-03-17 | Bug fix | Fixed isPansMetaLine (real PDF has 'Energia (Kj)' not 'Energia'), Per-100g space-before-tab, N Unidades numeric portion rows |
+| 2026-03-17 | Finalize | Quality gates: 39 test files pass, 0 new lint errors, 0 new build errors |
+| 2026-03-17 | Review | PR #15, code-review-specialist: 0 Critical, 2 Important (mismatch warning + tests). Both addressed in b89ab5f |
 
 ---
 
