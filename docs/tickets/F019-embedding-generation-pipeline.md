@@ -785,10 +785,10 @@ Add to `package.json` scripts: `"embeddings:generate": "tsx src/scripts/embeddin
 ## Workflow Checklist
 
 - [x] Step 0: `spec-creator` executed, specs updated
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: `backend-planner` executed, plan approved
-- [ ] Step 3: `backend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 2: `backend-planner` executed, plan approved
+- [x] Step 3: `backend-developer` executed with TDD
+- [x] Step 4: `production-code-validator` executed, quality gates pass
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed (Standard)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
@@ -800,6 +800,10 @@ Add to `package.json` scripts: `"embeddings:generate": "tsx src/scripts/embeddin
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-03-17 | Spec (Step 0) | spec-creator: api-spec.yaml updated, 6 Zod schemas in packages/shared, ticket created |
+| 2026-03-17 | Setup (Step 1) | Branch + ticket + tracker. Auto-approved (L2) |
+| 2026-03-17 | Plan (Step 2) | backend-planner: 10-step plan. 2 review rounds (9 corrections). User-approved |
+| 2026-03-17 | Implement (Step 3) | backend-developer: TDD 10 steps. 71 new tests (5 files). openai SDK integrated |
+| 2026-03-17 | Finalize (Step 4) | production-code-validator: 1 HIGH fix (skipped count). Quality gates pass |
 
 ---
 
