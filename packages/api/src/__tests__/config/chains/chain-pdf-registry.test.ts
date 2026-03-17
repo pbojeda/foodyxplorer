@@ -1,7 +1,7 @@
 // Unit tests for chain-pdf-registry.ts
 //
 // Pure in-memory validation — no DB, no network.
-// Validates all 5 registry entries through ChainPdfConfigSchema,
+// Validates all 6 registry entries through ChainPdfConfigSchema,
 // asserts no duplicate slugs/IDs, and cross-references CHAIN_SEED_IDS.
 
 import { describe, it, expect } from 'vitest';
@@ -9,8 +9,8 @@ import { ChainPdfConfigSchema, CHAIN_PDF_REGISTRY } from '../../../config/chains
 import { CHAIN_SEED_IDS } from '../../../config/chains/chain-seed-ids.js';
 
 describe('CHAIN_PDF_REGISTRY', () => {
-  it('has exactly 5 entries', () => {
-    expect(CHAIN_PDF_REGISTRY).toHaveLength(5);
+  it('has exactly 6 entries', () => {
+    expect(CHAIN_PDF_REGISTRY).toHaveLength(6);
   });
 
   it('each entry parses through ChainPdfConfigSchema without errors', () => {
@@ -50,7 +50,7 @@ describe('CHAIN_PDF_REGISTRY', () => {
     }
   });
 
-  it('countryCode is ES for all 5 initial entries', () => {
+  it('countryCode is ES for all 6 current entries', () => {
     for (const entry of CHAIN_PDF_REGISTRY) {
       expect(entry.countryCode).toBe('ES');
     }
@@ -140,6 +140,36 @@ describe('CHAIN_PDF_REGISTRY', () => {
 
   it('subway-es countryCode is ES', () => {
     const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'subway-es');
+    expect(entry?.countryCode).toBe('ES');
+  });
+
+  it('pans-and-company-es entry exists in registry', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'pans-and-company-es');
+    expect(entry).toBeDefined();
+  });
+
+  it('pans-and-company-es restaurantId matches CHAIN_SEED_IDS.PANS_AND_COMPANY_ES.RESTAURANT_ID', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'pans-and-company-es');
+    expect(entry?.restaurantId).toBe(CHAIN_SEED_IDS.PANS_AND_COMPANY_ES.RESTAURANT_ID);
+  });
+
+  it('pans-and-company-es sourceId matches CHAIN_SEED_IDS.PANS_AND_COMPANY_ES.SOURCE_ID', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'pans-and-company-es');
+    expect(entry?.sourceId).toBe(CHAIN_SEED_IDS.PANS_AND_COMPANY_ES.SOURCE_ID);
+  });
+
+  it('pans-and-company-es has enabled: true', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'pans-and-company-es');
+    expect(entry?.enabled).toBe(true);
+  });
+
+  it('pans-and-company-es pdfUrl points to vivabem.pt', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'pans-and-company-es');
+    expect(entry?.pdfUrl).toContain('vivabem.pt');
+  });
+
+  it('pans-and-company-es countryCode is ES', () => {
+    const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'pans-and-company-es');
     expect(entry?.countryCode).toBe('ES');
   });
 });
