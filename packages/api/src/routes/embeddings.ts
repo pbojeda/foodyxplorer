@@ -36,6 +36,7 @@ const embeddingRoutesPlugin: FastifyPluginAsync<EmbeddingPluginOptions> = async 
   app.post(
     '/embeddings/generate',
     {
+      config: { timeout: 300_000 }, // 5 min for worst-case pipeline
       schema: {
         body: EmbeddingGenerateRequestSchema,
         tags: ['Embeddings'],

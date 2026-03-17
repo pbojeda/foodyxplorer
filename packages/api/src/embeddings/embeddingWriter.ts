@@ -10,6 +10,8 @@ import type { PrismaClient } from '@prisma/client';
 // Helpers
 // ---------------------------------------------------------------------------
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Build the PostgreSQL vector literal string: [0.01,0.02,...,0.99]
  */
@@ -33,6 +35,9 @@ export async function writeFoodEmbedding(
   id: string,
   vector: number[],
 ): Promise<void> {
+  if (!UUID_REGEX.test(id)) {
+    throw new Error(`writeFoodEmbedding: invalid UUID "${id}"`);
+  }
   const vectorLiteral = toVectorLiteral(vector);
   await prisma.$executeRawUnsafe(
     `UPDATE foods
@@ -58,6 +63,9 @@ export async function writeDishEmbedding(
   id: string,
   vector: number[],
 ): Promise<void> {
+  if (!UUID_REGEX.test(id)) {
+    throw new Error(`writeDishEmbedding: invalid UUID "${id}"`);
+  }
   const vectorLiteral = toVectorLiteral(vector);
   await prisma.$executeRawUnsafe(
     `UPDATE dishes

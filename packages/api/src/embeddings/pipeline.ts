@@ -172,58 +172,61 @@ export async function runEmbeddingPipeline(
       }
     }
 
-    if (!dryRun && foods.length > 0) {
-      const texts = foods.map(buildFoodText);
-      estimatedTokensTotal += estimateTokens(texts);
+    if (foods.length > 0) {
+      // Build texts once for both token estimation and API calls
+      const allTexts = foods.map(buildFoodText);
+      estimatedTokensTotal += estimateTokens(allTexts);
 
-      const batches = chunkArray(foods, batchSize);
+      if (!dryRun) {
+        const indexedBatches = chunkArray(
+          foods.map((f, i) => ({ item: f, text: allTexts[i]! })),
+          batchSize,
+        );
 
-      for (const batch of batches) {
-        const batchTexts = batch.map(buildFoodText);
+        for (const batch of indexedBatches) {
+          const batchTexts = batch.map((b) => b.text);
 
-        let vectors: number[][];
-        try {
-          await rateLimiter.acquire();
-          vectors = await callOpenAIEmbeddings(batchTexts, {
-            apiKey: openaiApiKey,
-            model: embeddingModel,
-            rpm: embeddingRpm,
-          });
-        } catch (err) {
-          // Batch-level failure — record each item in this batch as an error
-          for (const food of batch) {
-            errors.push({
-              itemType: 'food',
-              itemId: food.id,
-              itemName: food.name,
-              reason: err instanceof Error ? err.message : String(err),
-            });
-          }
-          continue;
-        }
-
-        // Write each item
-        for (let i = 0; i < batch.length; i++) {
-          const food = batch[i];
-          const vector = vectors[i];
-          if (food === undefined || vector === undefined) continue;
-
+          let vectors: number[][];
           try {
-            await writeFoodEmbedding(prisma, food.id, vector);
-            processedFoods++;
-          } catch (err) {
-            errors.push({
-              itemType: 'food',
-              itemId: food.id,
-              itemName: food.name,
-              reason: err instanceof Error ? err.message : String(err),
+            await rateLimiter.acquire();
+            vectors = await callOpenAIEmbeddings(batchTexts, {
+              apiKey: openaiApiKey,
+              model: embeddingModel,
+              rpm: embeddingRpm,
             });
+          } catch (err) {
+            // Batch-level failure — record each item in this batch as an error
+            for (const entry of batch) {
+              errors.push({
+                itemType: 'food',
+                itemId: entry.item.id,
+                itemName: entry.item.name,
+                reason: err instanceof Error ? err.message : String(err),
+              });
+            }
+            continue;
+          }
+
+          // Write each item
+          for (let i = 0; i < batch.length; i++) {
+            const entry = batch[i];
+            const vector = vectors[i];
+            if (entry === undefined || vector === undefined) continue;
+
+            try {
+              await writeFoodEmbedding(prisma, entry.item.id, vector);
+              processedFoods++;
+            } catch (err) {
+              errors.push({
+                itemType: 'food',
+                itemId: entry.item.id,
+                itemName: entry.item.name,
+                reason: err instanceof Error ? err.message : String(err),
+              });
+            }
           }
         }
       }
-    } else if (dryRun && foods.length > 0) {
-      const texts = foods.map(buildFoodText);
-      estimatedTokensTotal += estimateTokens(texts);
     }
   }
 
@@ -263,56 +266,59 @@ export async function runEmbeddingPipeline(
       }
     }
 
-    if (!dryRun && dishes.length > 0) {
-      const texts = dishes.map(buildDishText);
-      estimatedTokensTotal += estimateTokens(texts);
+    if (dishes.length > 0) {
+      // Build texts once for both token estimation and API calls
+      const allTexts = dishes.map(buildDishText);
+      estimatedTokensTotal += estimateTokens(allTexts);
 
-      const batches = chunkArray(dishes, batchSize);
+      if (!dryRun) {
+        const indexedBatches = chunkArray(
+          dishes.map((d, i) => ({ item: d, text: allTexts[i]! })),
+          batchSize,
+        );
 
-      for (const batch of batches) {
-        const batchTexts = batch.map(buildDishText);
+        for (const batch of indexedBatches) {
+          const batchTexts = batch.map((b) => b.text);
 
-        let vectors: number[][];
-        try {
-          await rateLimiter.acquire();
-          vectors = await callOpenAIEmbeddings(batchTexts, {
-            apiKey: openaiApiKey,
-            model: embeddingModel,
-            rpm: embeddingRpm,
-          });
-        } catch (err) {
-          for (const dish of batch) {
-            errors.push({
-              itemType: 'dish',
-              itemId: dish.id,
-              itemName: dish.name,
-              reason: err instanceof Error ? err.message : String(err),
-            });
-          }
-          continue;
-        }
-
-        for (let i = 0; i < batch.length; i++) {
-          const dish = batch[i];
-          const vector = vectors[i];
-          if (dish === undefined || vector === undefined) continue;
-
+          let vectors: number[][];
           try {
-            await writeDishEmbedding(prisma, dish.id, vector);
-            processedDishes++;
-          } catch (err) {
-            errors.push({
-              itemType: 'dish',
-              itemId: dish.id,
-              itemName: dish.name,
-              reason: err instanceof Error ? err.message : String(err),
+            await rateLimiter.acquire();
+            vectors = await callOpenAIEmbeddings(batchTexts, {
+              apiKey: openaiApiKey,
+              model: embeddingModel,
+              rpm: embeddingRpm,
             });
+          } catch (err) {
+            for (const entry of batch) {
+              errors.push({
+                itemType: 'dish',
+                itemId: entry.item.id,
+                itemName: entry.item.name,
+                reason: err instanceof Error ? err.message : String(err),
+              });
+            }
+            continue;
+          }
+
+          for (let i = 0; i < batch.length; i++) {
+            const entry = batch[i];
+            const vector = vectors[i];
+            if (entry === undefined || vector === undefined) continue;
+
+            try {
+              await writeDishEmbedding(prisma, entry.item.id, vector);
+              processedDishes++;
+            } catch (err) {
+              errors.push({
+                itemType: 'dish',
+                itemId: entry.item.id,
+                itemName: entry.item.name,
+                reason: err instanceof Error ? err.message : String(err),
+              });
+            }
           }
         }
       }
-    } else if (dryRun && dishes.length > 0) {
-      const texts = dishes.map(buildDishText);
-      estimatedTokensTotal += estimateTokens(texts);
     }
   }
 

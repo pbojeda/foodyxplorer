@@ -43,6 +43,9 @@ export function estimateTokens(texts: string[]): number {
  * Simple in-memory token bucket rate limiter.
  * Initialized with rpm (requests per minute).
  * acquire() returns a promise that resolves when a request slot is available.
+ *
+ * NOTE: Designed for single-caller sequential use (one pipeline at a time).
+ * Not safe for concurrent callers — no mutex on token reads/writes.
  */
 export class RateLimiter {
   private readonly rpm: number;
@@ -92,6 +95,17 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Cache OpenAI client to avoid creating a new instance per batch call.
+let cachedClient: OpenAI | undefined;
+let cachedApiKey: string | undefined;
+
+function getClient(apiKey: string): OpenAI {
+  if (cachedClient && cachedApiKey === apiKey) return cachedClient;
+  cachedClient = new OpenAI({ apiKey });
+  cachedApiKey = apiKey;
+  return cachedClient;
+}
+
 function isRetryableError(error: unknown): boolean {
   if (error !== null && typeof error === 'object') {
     const status = (error as Record<string, unknown>)['status'];
@@ -122,7 +136,7 @@ export async function callOpenAIEmbeddings(
   texts: string[],
   config: EmbeddingClientConfig,
 ): Promise<number[][]> {
-  const client = new OpenAI({ apiKey: config.apiKey });
+  const client = getClient(config.apiKey);
 
   let lastError: unknown;
 
