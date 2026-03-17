@@ -1,7 +1,7 @@
 # F018: Data Quality Monitor
 
 **Feature:** F018 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F018-data-quality-monitor
+**Status:** Done | **Branch:** (merged + deleted)
 **Created:** 2026-03-17 | **Dependencies:** F002 (schema), F007b/F009/F011/F012/F014/F015 (ingestion pipeline)
 
 ---
@@ -617,7 +617,7 @@ All quality checks use aggregation counts, `groupBy`, and simple filters — the
 - [x] Step 3: Implementation with TDD
 - [x] Step 4: Quality gates pass, production-code-validator run
 - [x] Step 5: PR created, code-review-specialist + qa-engineer run
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 

@@ -10,10 +10,10 @@
 
 **Last Updated:** 2026-03-17
 
-**Active Feature:** F018 — Data Quality Monitor
-**Complexity:** Standard | **Step:** 5/6 (Review)
-**Branch:** feature/F018-data-quality-monitor
-**Context:** Implementation complete. 21 files created, 3 modified. 105 quality tests (10 files). PR #16 open targeting develop. Code review + QA findings addressed (commit d44bc19). Pending merge approval.
+**Active Feature:** No active work
+**Complexity:** — | **Step:** —
+**Branch:** —
+**Context:** F018 completed and merged. Next: F019 (Embedding Generation Pipeline)
 
 ---
 
@@ -54,7 +54,7 @@
 | F014 | Chain Onboarding — Subway Spain | backend | done | 6/6 | Simple. PDF pipeline. Source: subwayspain.com official PDF. PR #14. 47 new tests |
 | F015 | Chain Onboarding — Pans & Company | backend | done | 6/6 | Simple. PDF pipeline. Source: vivabem.pt (Ibersol). 182 dishes, custom preprocessor. PR #15 |
 | F016-F017 | Chain Onboarding — VIPS, 100 Montaditos | backend | postponed | — | Allergen-only data (no calories/macros). Candidates for E003 estimation engine |
-| F018 | Data Quality Monitor | backend | in-progress | 5/6 | Standard. GET /quality/report, 6 check dimensions, CLI script. PR #16, 105 tests. Pending merge |
+| F018 | Data Quality Monitor | backend | done | 6/6 | Standard. GET /quality/report, 6 check dimensions, CLI script. 105 tests. PR #16 |
 | F019 | Embedding Generation Pipeline | backend | pending | — | |
 
 ## Features — E003 Estimation Engine
@@ -102,6 +102,7 @@
 | 2026-03-16 | F013 — Subway Spain Data Research | — (research only) | subwayspain.com confirmed. PDF: MED_Nutritional_Information_C4_2025 (English/Spanish/Catalan). EU nutrients (kcal, fat, saturates, carbs, sugars, fiber, protein, salt) per serving + per 100g. Quarterly cycle. Compatible with existing PDF pipeline |
 | 2026-03-16 | F014 — Chain Onboarding — Subway Spain | 67b1404 (squash merge to develop, PR #14) | SUBWAY_ES seed IDs, chain-pdf-registry (5 entries), seedPhase5, chainTextPreprocessor passthrough. 47 new tests (1008 total) |
 | 2026-03-17 | F015 — Chain Onboarding — Pans & Company | 8f8d60f (squash merge to develop, PR #15) | PANS_AND_COMPANY_ES seed IDs, chain-pdf-registry (6 entries), custom preprocessor (column-separated PDF layout), seedPhase6. 72 new tests (1080 total) |
+| 2026-03-17 | F018 — Data Quality Monitor | 6b1f79e (squash merge to develop, PR #16) | GET /quality/report (6 dimensions), 15 Zod schemas, CLI script, assembleReport orchestrator. 105 new tests (10 files). Refactored: count()+$queryRaw (no memory issues). Code review: 1 Critical + 4 Important fixed. QA: 37 edge-case tests |
 
 ---
 
