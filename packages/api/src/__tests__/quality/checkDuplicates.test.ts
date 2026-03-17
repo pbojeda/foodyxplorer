@@ -1,7 +1,8 @@
 // Unit tests for checkDuplicates — mocked PrismaClient.
 //
 // Tests cover: empty DB (no duplicates), duplicate group detection,
-// dishIds population, sorting (count DESC then name ASC), chainSlug scope.
+// dishIds population via batch query, sorting (count DESC then name ASC),
+// chainSlug scope.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
@@ -21,9 +22,9 @@ function makeGroupByRow(name: string, restaurantId: string, sourceId: string, co
   };
 }
 
-/** Build a dish.findMany result row (for dishIds) */
-function makeDishRow(id: string) {
-  return { id };
+/** Build a dish row for the batch findMany result (includes composite key fields) */
+function makeDishRow(id: string, name: string, restaurantId: string, sourceId: string) {
+  return { id, name, restaurantId, sourceId };
 }
 
 // ---------------------------------------------------------------------------
@@ -60,9 +61,9 @@ describe('checkDuplicates()', () => {
       dish: {
         groupBy: vi.fn().mockResolvedValue([groupRow]),
         findMany: vi.fn().mockResolvedValue([
-          makeDishRow('dish-001'),
-          makeDishRow('dish-002'),
-          makeDishRow('dish-003'),
+          makeDishRow('dish-001', 'Big Mac', 'rest-001', 'src-001'),
+          makeDishRow('dish-002', 'Big Mac', 'rest-001', 'src-001'),
+          makeDishRow('dish-003', 'Big Mac', 'rest-001', 'src-001'),
         ]),
       },
       restaurant: {
@@ -88,13 +89,20 @@ describe('checkDuplicates()', () => {
       makeGroupByRow('Beta Dish', 'rest-001', 'src-001', 2),
     ];
 
+    // Batch findMany returns all dishes at once
     const prisma = {
       dish: {
         groupBy: vi.fn().mockResolvedValue(groupRows),
-        findMany: vi.fn()
-          .mockResolvedValueOnce([makeDishRow('d1'), makeDishRow('d2')])        // Alpha Dish dishIds
-          .mockResolvedValueOnce([makeDishRow('d3'), makeDishRow('d4'), makeDishRow('d5'), makeDishRow('d6')]) // Zeta Dish dishIds
-          .mockResolvedValueOnce([makeDishRow('d7'), makeDishRow('d8')]),       // Beta Dish dishIds
+        findMany: vi.fn().mockResolvedValue([
+          makeDishRow('d1', 'Alpha Dish', 'rest-001', 'src-001'),
+          makeDishRow('d2', 'Alpha Dish', 'rest-001', 'src-001'),
+          makeDishRow('d3', 'Zeta Dish', 'rest-001', 'src-001'),
+          makeDishRow('d4', 'Zeta Dish', 'rest-001', 'src-001'),
+          makeDishRow('d5', 'Zeta Dish', 'rest-001', 'src-001'),
+          makeDishRow('d6', 'Zeta Dish', 'rest-001', 'src-001'),
+          makeDishRow('d7', 'Beta Dish', 'rest-001', 'src-001'),
+          makeDishRow('d8', 'Beta Dish', 'rest-001', 'src-001'),
+        ]),
       },
       restaurant: {
         findMany: vi.fn().mockResolvedValue([
@@ -110,15 +118,15 @@ describe('checkDuplicates()', () => {
     expect(result.groups[2]?.name).toBe('Beta Dish');  // count: 2, B → third
   });
 
-  it('dishIds array populated from second query', async () => {
+  it('dishIds correctly indexed from batch query by composite key', async () => {
     const groupRow = makeGroupByRow('Whopper', 'rest-002', 'src-002', 2);
 
     const prisma = {
       dish: {
         groupBy: vi.fn().mockResolvedValue([groupRow]),
         findMany: vi.fn().mockResolvedValue([
-          makeDishRow('dish-aaa'),
-          makeDishRow('dish-bbb'),
+          makeDishRow('dish-aaa', 'Whopper', 'rest-002', 'src-002'),
+          makeDishRow('dish-bbb', 'Whopper', 'rest-002', 'src-002'),
         ]),
       },
       restaurant: {
@@ -162,10 +170,16 @@ describe('checkDuplicates()', () => {
       makeGroupByRow(`Dish ${String(i).padStart(3, '0')}`, 'rest-001', 'src-001', 2),
     );
 
+    // Batch findMany returns 110 dishes (55 groups x 2 each)
+    const allDishes = groupRows.flatMap((row) => [
+      makeDishRow(`d${row.name}-1`, row.name, 'rest-001', 'src-001'),
+      makeDishRow(`d${row.name}-2`, row.name, 'rest-001', 'src-001'),
+    ]);
+
     const prisma = {
       dish: {
         groupBy: vi.fn().mockResolvedValue(groupRows),
-        findMany: vi.fn().mockResolvedValue([makeDishRow('d1'), makeDishRow('d2')]),
+        findMany: vi.fn().mockResolvedValue(allDishes),
       },
       restaurant: {
         findMany: vi.fn().mockResolvedValue([

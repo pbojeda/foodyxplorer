@@ -15,7 +15,7 @@ import { ConfidenceLevelSchema, EstimationMethodSchema } from './enums';
 
 export const QualityReportQuerySchema = z.object({
   stalenessThresholdDays: z.coerce.number().int().min(1).default(90),
-  chainSlug: z.string().regex(/^[a-z0-9-]+$/).optional(),
+  chainSlug: z.string().regex(/^[a-z0-9-]+$/).max(100).optional(),
 });
 
 export type QualityReportQuery = z.infer<typeof QualityReportQuerySchema>;

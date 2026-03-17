@@ -3,7 +3,7 @@
 // Calls assembleReport and outputs either JSON or Markdown.
 //
 // Usage:
-//   npm run quality:report -w @foodxplorer/api [-- --chainSlug mcdonalds-es]
+//   npm run quality:report -w @foodxplorer/api [-- --chain-slug mcdonalds-es]
 //   npm run quality:report -w @foodxplorer/api [-- --staleness-days 30 --format json]
 //   npm run quality:report -w @foodxplorer/api [-- --format markdown --output report.md]
 //
@@ -207,7 +207,7 @@ async function main(): Promise<void> {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--chainSlug' && args[i + 1] !== undefined) {
+    if ((arg === '--chain-slug' || arg === '--chainSlug') && args[i + 1] !== undefined) {
       chainSlug = args[i + 1];
       i++;
     } else if (arg === '--staleness-days' && args[i + 1] !== undefined) {

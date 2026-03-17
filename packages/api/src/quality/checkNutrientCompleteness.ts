@@ -4,6 +4,7 @@
 // and zero-calorie nutrient rows. Groups results by chain.
 
 import type { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type { QualityNutrientCompletenessResult } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -60,72 +61,42 @@ export async function checkNutrientCompleteness(
       ? parseFloat(((dishesWithoutNutrients / totalDishes) * 100).toFixed(2))
       : 0;
 
-  // byChain: fetch restaurants with dish counts
-  const restaurants = await prisma.restaurant.findMany({
-    where: scope.chainSlug !== undefined ? { chainSlug: scope.chainSlug } : {},
-    select: {
-      chainSlug: true,
-      _count: { select: { dishes: true } },
-      dishes: {
-        select: {
-          id: true,
-          nutrients: { select: { id: true } },
-        },
-      },
-    },
-  });
+  // byChain: single raw SQL query for all per-chain metrics (no N+1)
+  const chainFilter =
+    scope.chainSlug !== undefined
+      ? Prisma.sql`WHERE r.chain_slug = ${scope.chainSlug}`
+      : Prisma.empty;
 
-  // Aggregate by chainSlug (multiple restaurants can share the same chainSlug)
-  const chainMap = new Map<
-    string,
-    { dishesWithoutNutrients: number; totalDishes: number }
-  >();
-
-  for (const restaurant of restaurants) {
-    const existing = chainMap.get(restaurant.chainSlug) ?? {
-      dishesWithoutNutrients: 0,
-      totalDishes: 0,
-    };
-
-    const withoutNutrients = restaurant.dishes.filter(
-      (d) => d.nutrients.length === 0,
-    ).length;
-
-    chainMap.set(restaurant.chainSlug, {
-      dishesWithoutNutrients: existing.dishesWithoutNutrients + withoutNutrients,
-      totalDishes: existing.totalDishes + restaurant.dishes.length,
-    });
-  }
-
-  // Ghost rows and zero calories per chain need separate queries
-  const byChainEntries = await Promise.all(
-    Array.from(chainMap.entries()).map(async ([chainSlug, counts]) => {
-      const [chainGhostCount, chainZeroCalories] = await Promise.all([
-        prisma.dishNutrient.count({
-          where: {
-            dish: { restaurant: { chainSlug } },
-            calories: { equals: 0 },
-            proteins: { equals: 0 },
-            carbohydrates: { equals: 0 },
-            fats: { equals: 0 },
-          },
-        }),
-        prisma.dishNutrient.count({
-          where: {
-            dish: { restaurant: { chainSlug } },
-            calories: { equals: 0 },
-          },
-        }),
-      ]);
-
-      return {
-        chainSlug,
-        dishesWithoutNutrients: counts.dishesWithoutNutrients,
-        ghostRowCount: chainGhostCount,
-        zeroCaloriesCount: chainZeroCalories,
-      };
-    }),
+  const byChainRows = await prisma.$queryRaw<
+    Array<{
+      chain_slug: string;
+      total_dishes: bigint;
+      without_nutrients: bigint;
+      ghost_count: bigint;
+      zero_calories: bigint;
+    }>
+  >(
+    Prisma.sql`
+      SELECT
+        r.chain_slug,
+        COUNT(DISTINCT d.id)::bigint AS total_dishes,
+        COUNT(DISTINCT d.id) FILTER (WHERE dn.id IS NULL)::bigint AS without_nutrients,
+        COUNT(DISTINCT dn.id) FILTER (WHERE dn.calories = 0 AND dn.proteins = 0 AND dn.carbohydrates = 0 AND dn.fats = 0)::bigint AS ghost_count,
+        COUNT(DISTINCT dn.id) FILTER (WHERE dn.calories = 0)::bigint AS zero_calories
+      FROM restaurants r
+      JOIN dishes d ON d.restaurant_id = r.id
+      LEFT JOIN dish_nutrients dn ON dn.dish_id = d.id
+      ${chainFilter}
+      GROUP BY r.chain_slug
+    `,
   );
+
+  const byChain = byChainRows.map((row) => ({
+    chainSlug: row.chain_slug,
+    dishesWithoutNutrients: Number(row.without_nutrients),
+    ghostRowCount: Number(row.ghost_count),
+    zeroCaloriesCount: Number(row.zero_calories),
+  }));
 
   return {
     dishesWithNutrients: totalDishes - dishesWithoutNutrients,
@@ -133,6 +104,6 @@ export async function checkNutrientCompleteness(
     dishesWithoutNutrientsPercent,
     ghostRowCount,
     zeroCaloriesCount,
-    byChain: byChainEntries,
+    byChain,
   };
 }

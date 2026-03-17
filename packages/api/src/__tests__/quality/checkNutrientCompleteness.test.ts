@@ -1,7 +1,7 @@
 // Unit tests for checkNutrientCompleteness — mocked PrismaClient.
 //
 // Tests cover: empty DB (all zeroes + division-by-zero guard), normal counts,
-// byChain grouping, ghost row detection, zeroCalories count, chainSlug scope.
+// byChain grouping via raw SQL, ghost row detection, zeroCalories count, chainSlug scope.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
@@ -16,14 +16,20 @@ function makePrisma(overrides: {
   dishWithoutNutrientsCount?: number;
   ghostRowCount?: number;
   zeroCaloriesCount?: number;
-  restaurantFindMany?: unknown[];
+  byChainRows?: Array<{
+    chain_slug: string;
+    total_dishes: bigint;
+    without_nutrients: bigint;
+    ghost_count: bigint;
+    zero_calories: bigint;
+  }>;
 }): PrismaClient {
   const {
     dishCount = 0,
     dishWithoutNutrientsCount = 0,
     ghostRowCount = 0,
     zeroCaloriesCount = 0,
-    restaurantFindMany = [],
+    byChainRows = [],
   } = overrides;
 
   return {
@@ -37,9 +43,7 @@ function makePrisma(overrides: {
         .mockResolvedValueOnce(ghostRowCount)      // ghost rows
         .mockResolvedValueOnce(zeroCaloriesCount), // zero calories
     },
-    restaurant: {
-      findMany: vi.fn().mockResolvedValue(restaurantFindMany),
-    },
+    $queryRaw: vi.fn().mockResolvedValue(byChainRows),
   } as unknown as PrismaClient;
 }
 
@@ -53,13 +57,7 @@ describe('checkNutrientCompleteness()', () => {
   });
 
   it('empty DB: returns all zeroes and dishesWithoutNutrientsPercent: 0 (division-by-zero guard)', async () => {
-    const prisma = makePrisma({
-      dishCount: 0,
-      dishWithoutNutrientsCount: 0,
-      ghostRowCount: 0,
-      zeroCaloriesCount: 0,
-      restaurantFindMany: [],
-    });
+    const prisma = makePrisma({});
 
     const result = await checkNutrientCompleteness(prisma, {});
 
@@ -75,9 +73,6 @@ describe('checkNutrientCompleteness()', () => {
     const prisma = makePrisma({
       dishCount: 3,
       dishWithoutNutrientsCount: 2,
-      ghostRowCount: 0,
-      zeroCaloriesCount: 0,
-      restaurantFindMany: [],
     });
 
     const result = await checkNutrientCompleteness(prisma, {});
@@ -90,9 +85,6 @@ describe('checkNutrientCompleteness()', () => {
     const prisma = makePrisma({
       dishCount: 3,
       dishWithoutNutrientsCount: 1,
-      ghostRowCount: 0,
-      zeroCaloriesCount: 0,
-      restaurantFindMany: [],
     });
 
     const result = await checkNutrientCompleteness(prisma, {});
@@ -107,7 +99,6 @@ describe('checkNutrientCompleteness()', () => {
       dishWithoutNutrientsCount: 1,
       ghostRowCount: 3,
       zeroCaloriesCount: 4,
-      restaurantFindMany: [],
     });
 
     const result = await checkNutrientCompleteness(prisma, {});
@@ -116,43 +107,30 @@ describe('checkNutrientCompleteness()', () => {
     expect(result.zeroCaloriesCount).toBe(4);
   });
 
-  it('byChain: aggregates dishesWithoutNutrients per chain', async () => {
-    // Simulate restaurant.findMany returning restaurants with dish counts
-    const restaurantFindMany = [
-      {
-        chainSlug: 'chain-a',
-        _count: {
-          dishes: 10,
-        },
-        dishes: [
-          // Dishes without nutrients (none relation empty)
-        ],
-      },
-    ];
-
-    const prisma = {
-      dish: {
-        count: vi.fn()
-          .mockResolvedValueOnce(10)  // total
-          .mockResolvedValueOnce(2),  // without nutrients
-      },
-      dishNutrient: {
-        count: vi.fn()
-          .mockResolvedValueOnce(1)   // ghost
-          .mockResolvedValueOnce(3),  // zero calories
-      },
-      restaurant: {
-        findMany: vi.fn().mockResolvedValue(restaurantFindMany),
-      },
-    } as unknown as PrismaClient;
+  it('byChain: aggregates per chain from raw SQL', async () => {
+    const prisma = makePrisma({
+      dishCount: 10,
+      dishWithoutNutrientsCount: 2,
+      byChainRows: [
+        { chain_slug: 'chain-a', total_dishes: 7n, without_nutrients: 1n, ghost_count: 2n, zero_calories: 3n },
+        { chain_slug: 'chain-b', total_dishes: 3n, without_nutrients: 1n, ghost_count: 0n, zero_calories: 0n },
+      ],
+    });
 
     const result = await checkNutrientCompleteness(prisma, {});
 
-    expect(result.byChain).toHaveLength(1);
-    expect(result.byChain[0]).toBeDefined();
-    if (result.byChain[0]) {
-      expect(result.byChain[0].chainSlug).toBe('chain-a');
-    }
+    expect(result.byChain).toHaveLength(2);
+
+    const chainA = result.byChain.find((c) => c.chainSlug === 'chain-a');
+    expect(chainA).toBeDefined();
+    expect(chainA?.dishesWithoutNutrients).toBe(1);
+    expect(chainA?.ghostRowCount).toBe(2);
+    expect(chainA?.zeroCaloriesCount).toBe(3);
+
+    const chainB = result.byChain.find((c) => c.chainSlug === 'chain-b');
+    expect(chainB).toBeDefined();
+    expect(chainB?.dishesWithoutNutrients).toBe(1);
+    expect(chainB?.ghostRowCount).toBe(0);
   });
 
   it('chainSlug scope: dish.count called with where clause including restaurant filter', async () => {
@@ -167,7 +145,7 @@ describe('checkNutrientCompleteness()', () => {
           .mockResolvedValueOnce(0)
           .mockResolvedValueOnce(0),
       },
-      restaurant: { findMany: vi.fn().mockResolvedValue([]) },
+      $queryRaw: vi.fn().mockResolvedValue([]),
     } as unknown as PrismaClient;
 
     await checkNutrientCompleteness(prisma, { chainSlug: 'burger-king-es' });

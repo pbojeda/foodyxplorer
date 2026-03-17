@@ -61,22 +61,36 @@ export async function checkDuplicates(
     return a.name.localeCompare(b.name);
   });
 
-  // Step 3: Fetch dishIds for each group
-  const groups: QualityDuplicateGroup[] = await Promise.all(
-    sortedGroups.map(async (row) => {
-      const dishes = await prisma.dish.findMany({
-        where: { name: row.name, restaurantId: row.restaurantId, sourceId: row.sourceId },
-        select: { id: true },
-      });
+  // Step 3: Batch fetch dishIds for ALL groups in a single query using OR
+  const orConditions = sortedGroups.map((row) => ({
+    name: row.name,
+    restaurantId: row.restaurantId,
+    sourceId: row.sourceId,
+  }));
 
-      return {
-        name: row.name,
-        chainSlug: restaurantChainMap.get(row.restaurantId) ?? row.restaurantId,
-        count: row._count._all,
-        dishIds: dishes.map((d) => d.id),
-      };
-    }),
-  );
+  const allDishes = await prisma.dish.findMany({
+    where: { OR: orConditions },
+    select: { id: true, name: true, restaurantId: true, sourceId: true },
+  });
+
+  // Index dishes by composite key for O(1) lookup
+  const dishIndex = new Map<string, string[]>();
+  for (const dish of allDishes) {
+    const key = `${dish.name}\0${dish.restaurantId}\0${dish.sourceId}`;
+    const existing = dishIndex.get(key) ?? [];
+    existing.push(dish.id);
+    dishIndex.set(key, existing);
+  }
+
+  const groups: QualityDuplicateGroup[] = sortedGroups.map((row) => {
+    const key = `${row.name}\0${row.restaurantId}\0${row.sourceId}`;
+    return {
+      name: row.name,
+      chainSlug: restaurantChainMap.get(row.restaurantId) ?? row.restaurantId,
+      count: row._count._all,
+      dishIds: dishIndex.get(key) ?? [],
+    };
+  });
 
   const totalDuplicateDishes = groups.reduce((sum, g) => sum + g.count, 0);
 

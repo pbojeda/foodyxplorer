@@ -7,7 +7,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import fastifyPlugin from 'fastify-plugin';
 import type { PrismaClient } from '@prisma/client';
-import { QualityReportQuerySchema } from '@foodxplorer/shared';
+import { QualityReportQuerySchema, type QualityReportQuery } from '@foodxplorer/shared';
 import { assembleReport } from '../quality/assembleReport.js';
 
 // ---------------------------------------------------------------------------
@@ -41,10 +41,8 @@ const qualityRoutesPlugin: FastifyPluginAsync<QualityPluginOptions> = async (
       },
     },
     async (request, reply) => {
-      const { stalenessThresholdDays, chainSlug } = request.query as {
-        stalenessThresholdDays: number;
-        chainSlug?: string;
-      };
+      const { stalenessThresholdDays, chainSlug } =
+        request.query as QualityReportQuery;
 
       let data;
       try {

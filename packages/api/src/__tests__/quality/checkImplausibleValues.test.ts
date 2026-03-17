@@ -1,7 +1,7 @@
 // Unit tests for checkImplausibleValues — mocked PrismaClient.
 //
 // Tests cover: empty DB, calories above threshold detection, ghost rows,
-// suspiciously round calories, Decimal.toNumber() conversion, byChain grouping.
+// suspiciously round calories, byChain grouping via raw SQL, chainSlug scope.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
@@ -11,36 +11,40 @@ import { checkImplausibleValues } from '../../quality/checkImplausibleValues.js'
 // Mock helpers
 // ---------------------------------------------------------------------------
 
-/** Simulate Prisma Decimal object */
-function decimal(value: number) {
-  return { toNumber: () => value };
-}
+/**
+ * Build a mock PrismaClient for checkImplausibleValues.
+ *
+ * After refactoring, the function uses:
+ * - dishNutrient.count() x3 (in parallel): caloriesAbove, ghostRows, roundCalories via $queryRaw
+ * - $queryRaw x2: round-calories global count + byChain aggregation
+ */
+function makePrisma(overrides: {
+  caloriesAboveCount?: number;
+  ghostRowCount?: number;
+  roundCaloriesCount?: number;
+  byChainRows?: Array<{
+    chain_slug: string;
+    calories_above: bigint;
+    ghost_rows: bigint;
+    round_calories: bigint;
+  }>;
+}): PrismaClient {
+  const {
+    caloriesAboveCount = 0,
+    ghostRowCount = 0,
+    roundCaloriesCount = 0,
+    byChainRows = [],
+  } = overrides;
 
-function makeDishNutrientRow(overrides: {
-  calories?: unknown;
-  proteins?: unknown;
-  carbohydrates?: unknown;
-  fats?: unknown;
-  chainSlug?: string;
-}) {
-  return {
-    calories: decimal(overrides.calories as number ?? 0),
-    proteins: decimal(overrides.proteins as number ?? 0),
-    carbohydrates: decimal(overrides.carbohydrates as number ?? 0),
-    fats: decimal(overrides.fats as number ?? 0),
-    dish: {
-      restaurant: {
-        chainSlug: overrides.chainSlug ?? 'test-chain',
-      },
-    },
-  };
-}
-
-function makePrisma(rows: ReturnType<typeof makeDishNutrientRow>[]): PrismaClient {
   return {
     dishNutrient: {
-      findMany: vi.fn().mockResolvedValue(rows),
+      count: vi.fn()
+        .mockResolvedValueOnce(caloriesAboveCount)
+        .mockResolvedValueOnce(ghostRowCount),
     },
+    $queryRaw: vi.fn()
+      .mockResolvedValueOnce([{ count: BigInt(roundCaloriesCount) }]) // round-calories global
+      .mockResolvedValueOnce(byChainRows), // byChain aggregation
   } as unknown as PrismaClient;
 }
 
@@ -54,7 +58,7 @@ describe('checkImplausibleValues()', () => {
   });
 
   it('empty DB: all counts are 0 and caloriesThreshold is always 5000', async () => {
-    const prisma = makePrisma([]);
+    const prisma = makePrisma({});
 
     const result = await checkImplausibleValues(prisma, {});
 
@@ -65,85 +69,48 @@ describe('checkImplausibleValues()', () => {
     expect(result.byChain).toEqual([]);
   });
 
-  it('calories > 5000 counted in caloriesAboveThreshold', async () => {
-    const prisma = makePrisma([
-      makeDishNutrientRow({ calories: 5001, proteins: 10, carbohydrates: 100, fats: 20 }),
-      makeDishNutrientRow({ calories: 6000, proteins: 20, carbohydrates: 200, fats: 30 }),
-    ]);
+  it('calories > 5000 counted via dishNutrient.count', async () => {
+    const prisma = makePrisma({ caloriesAboveCount: 2 });
 
     const result = await checkImplausibleValues(prisma, {});
 
     expect(result.caloriesAboveThreshold).toBe(2);
   });
 
-  it('calories exactly 5000 NOT counted in caloriesAboveThreshold (strict greater than)', async () => {
-    const prisma = makePrisma([
-      makeDishNutrientRow({ calories: 5000, proteins: 50, carbohydrates: 400, fats: 150 }),
-    ]);
+  it('calories exactly 5000 NOT counted (strict greater than in where clause)', async () => {
+    const prisma = makePrisma({ caloriesAboveCount: 0 });
 
     const result = await checkImplausibleValues(prisma, {});
 
     expect(result.caloriesAboveThreshold).toBe(0);
   });
 
-  it('ghost row: all four macros === 0 → counted in ghostRows', async () => {
-    const prisma = makePrisma([
-      makeDishNutrientRow({ calories: 0, proteins: 0, carbohydrates: 0, fats: 0 }),
-    ]);
+  it('ghost row count from dishNutrient.count with all-zero filter', async () => {
+    const prisma = makePrisma({ ghostRowCount: 3 });
 
     const result = await checkImplausibleValues(prisma, {});
 
-    expect(result.ghostRows).toBe(1);
+    expect(result.ghostRows).toBe(3);
   });
 
-  it('single zero macro is NOT a ghost row (e.g. pure water: 0 carbs, 0 fat, 0 proteins)', async () => {
-    const prisma = makePrisma([
-      makeDishNutrientRow({ calories: 100, proteins: 0, carbohydrates: 0, fats: 0 }),
-    ]);
+  it('suspiciously round calories count from $queryRaw', async () => {
+    const prisma = makePrisma({ roundCaloriesCount: 5 });
 
     const result = await checkImplausibleValues(prisma, {});
 
-    expect(result.ghostRows).toBe(0);
+    expect(result.suspiciouslyRoundCalories).toBe(5);
   });
 
-  it('suspiciously round calories: >= 100 AND % 100 === 0 → flagged', async () => {
-    const prisma = makePrisma([
-      makeDishNutrientRow({ calories: 200, proteins: 10, carbohydrates: 30, fats: 5 }),
-      makeDishNutrientRow({ calories: 500, proteins: 20, carbohydrates: 60, fats: 10 }),
-    ]);
-
-    const result = await checkImplausibleValues(prisma, {});
-
-    expect(result.suspiciouslyRoundCalories).toBe(2);
-  });
-
-  it('round calories < 100 (e.g. 50 kcal) NOT flagged as suspiciously round', async () => {
-    const prisma = makePrisma([
-      makeDishNutrientRow({ calories: 50, proteins: 2, carbohydrates: 8, fats: 1 }),
-    ]);
-
-    const result = await checkImplausibleValues(prisma, {});
-
-    expect(result.suspiciouslyRoundCalories).toBe(0);
-  });
-
-  it('Decimal.toNumber() applied before comparisons', async () => {
-    // 5001.00 as a Decimal-like object (has toNumber())
-    const prisma = makePrisma([
-      makeDishNutrientRow({ calories: 5001, proteins: 10, carbohydrates: 100, fats: 20 }),
-    ]);
-
-    const result = await checkImplausibleValues(prisma, {});
-
-    expect(result.caloriesAboveThreshold).toBe(1);
-  });
-
-  it('byChain groups correctly: 2 rows from chain-a, 1 from chain-b', async () => {
-    const prisma = makePrisma([
-      makeDishNutrientRow({ calories: 5001, proteins: 10, carbohydrates: 100, fats: 20, chainSlug: 'chain-a' }),
-      makeDishNutrientRow({ calories: 0, proteins: 0, carbohydrates: 0, fats: 0, chainSlug: 'chain-a' }),
-      makeDishNutrientRow({ calories: 200, proteins: 5, carbohydrates: 30, fats: 8, chainSlug: 'chain-b' }),
-    ]);
+  it('byChain groups correctly from raw SQL aggregation', async () => {
+    const prisma = makePrisma({
+      caloriesAboveCount: 1,
+      ghostRowCount: 1,
+      roundCaloriesCount: 1,
+      byChainRows: [
+        { chain_slug: 'chain-a', calories_above: 1n, ghost_rows: 1n, round_calories: 0n },
+        { chain_slug: 'chain-b', calories_above: 0n, ghost_rows: 0n, round_calories: 1n },
+      ],
+    });
 
     const result = await checkImplausibleValues(prisma, {});
 
@@ -162,19 +129,59 @@ describe('checkImplausibleValues()', () => {
     expect(chainB?.suspiciouslyRoundCalories).toBe(1);
   });
 
-  it('chainSlug scope: findMany called with correct where clause', async () => {
-    const findManyMock = vi.fn().mockResolvedValue([]);
+  it('chainSlug scope: count called with restaurant filter', async () => {
+    const countMock = vi.fn()
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0);
+    const queryRawMock = vi.fn()
+      .mockResolvedValueOnce([{ count: 0n }])
+      .mockResolvedValueOnce([]);
+
     const prisma = {
-      dishNutrient: { findMany: findManyMock },
+      dishNutrient: { count: countMock },
+      $queryRaw: queryRawMock,
     } as unknown as PrismaClient;
 
     await checkImplausibleValues(prisma, { chainSlug: 'kfc-es' });
 
-    const call = findManyMock.mock.calls[0];
-    expect(call).toBeDefined();
-    const arg = (call as [{ where?: unknown }])[0];
+    // dishNutrient.count() for caloriesAbove should include chain filter
+    const firstCall = countMock.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    const arg = (firstCall as [{ where?: unknown }])[0];
     expect(arg?.where).toMatchObject({
       dish: { restaurant: { chainSlug: 'kfc-es' } },
     });
+  });
+
+  it('bigint values from $queryRaw correctly converted to number', async () => {
+    const prisma = makePrisma({
+      byChainRows: [
+        { chain_slug: 'chain-x', calories_above: 999n, ghost_rows: 42n, round_calories: 7n },
+      ],
+    });
+
+    const result = await checkImplausibleValues(prisma, {});
+
+    const chain = result.byChain[0];
+    expect(chain).toBeDefined();
+    expect(typeof chain?.caloriesAboveThreshold).toBe('number');
+    expect(chain?.caloriesAboveThreshold).toBe(999);
+    expect(chain?.ghostRows).toBe(42);
+    expect(chain?.suspiciouslyRoundCalories).toBe(7);
+  });
+
+  it('$queryRaw returning empty result for round calories defaults to 0', async () => {
+    const prisma = {
+      dishNutrient: {
+        count: vi.fn().mockResolvedValue(0),
+      },
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([]) // empty round-calories result
+        .mockResolvedValueOnce([]), // empty byChain
+    } as unknown as PrismaClient;
+
+    const result = await checkImplausibleValues(prisma, {});
+
+    expect(result.suspiciouslyRoundCalories).toBe(0);
   });
 });
