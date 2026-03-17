@@ -32,6 +32,11 @@ tags:
       shared dish/nutrient schema, and persist to the database. These endpoints are NOT
       part of F007 — they are specified and implemented in F007b, F007c, F009, F011, and
       F012 respectively.
+  - name: Quality
+    description: |
+      Data quality monitoring endpoints (F018). Audit ingested dish and nutrient data
+      across all chains and return structured metrics on completeness, plausibility,
+      coverage, duplicates, confidence distribution, and data freshness.
 
 paths:
   /ingest/pdf:
@@ -985,6 +990,279 @@ paths:
                       message: "Database write failed"
                       code: "DB_UNAVAILABLE"
 
+  /quality/report:
+    get:
+      summary: Data quality report
+      description: |
+        Runs all data quality checks against the current database state and returns
+        a structured report. Checks are grouped into six dimensions:
+
+        1. **Nutrient completeness** — dishes missing core macros (calories, proteins,
+           carbohydrates, fats) in their DishNutrient row. Reported globally and per chain.
+        2. **Implausible values** — DishNutrient rows where calories > 5000 kcal (soft
+           threshold for a single dish, above the DB CHECK constraint of 9000), any
+           nutrient column (proteins, carbs, fats, saturatedFats, fiber, salt, sodium)
+           has a value of exactly 0 across ALL macros simultaneously (ghost rows), or
+           where the caloric value is a suspiciously round number (divisible by 100,
+           ≥ 100 kcal) — reported as a warning, not an error.
+        3. **Data gaps** — dishes with no DishNutrient row at all, restaurants with zero
+           dishes, and dishes where portionGrams IS NULL or priceEur IS NULL (reported
+           as coverage metrics, not errors).
+        4. **Duplicates** — dishes sharing identical (name, restaurantId, sourceId)
+           triples. Reports duplicate group count and total duplicate dish count.
+        5. **Confidence distribution** — breakdown of dish count by confidence level
+           (high / medium / low) and estimation method (official / ingredients /
+           extrapolation / scraped), both globally and per chain.
+        6. **Data freshness** — DataSource rows where lastUpdated IS NULL or is older
+           than the staleness threshold (default 90 days). The threshold is configurable
+           via the optional `stalenessThresholdDays` query parameter.
+
+        All checks run against live DB state via Prisma. No writes are performed.
+        The report always returns HTTP 200 — a 500 is only returned for DB failure.
+
+        This endpoint is intended to be called by the CLI script
+        `packages/api/src/scripts/quality-monitor.ts`, which also produces a Markdown
+        report. Both CLI and API share the same check functions from
+        `packages/api/src/quality/`.
+      operationId: getQualityReport
+      tags:
+        - Quality
+      parameters:
+        - name: stalenessThresholdDays
+          in: query
+          required: false
+          description: |
+            Number of days after which a DataSource.lastUpdated is considered stale.
+            Must be a positive integer. Defaults to 90 if omitted.
+          schema:
+            type: integer
+            minimum: 1
+            default: 90
+            example: 90
+        - name: chainSlug
+          in: query
+          required: false
+          description: |
+            When provided, scopes the report to a single chain (matched against
+            Restaurant.chainSlug). When omitted, the report covers all chains.
+          schema:
+            type: string
+            pattern: "^[a-z0-9-]+$"
+            minLength: 1
+            maxLength: 100
+            example: "mcdonalds-es"
+      responses:
+        '200':
+          description: |
+            Quality report generated successfully. Always returns HTTP 200 if the DB
+            is reachable, even when quality issues are found — issues are surfaced in
+            the report body, not as HTTP error codes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QualityReportResponse'
+              examples:
+                full:
+                  summary: Global report across all 7 chains
+                  value:
+                    success: true
+                    data:
+                      generatedAt: "2026-03-17T10:00:00.000Z"
+                      totalDishes: 900
+                      totalRestaurants: 7
+                      stalenessThresholdDays: 90
+                      scopedToChain: null
+                      chainSummary:
+                        - chainSlug: "pans-and-company-es"
+                          totalDishes: 182
+                          nutrientCoveragePercent: 98.9
+                          issueCount: 3
+                        - chainSlug: "mcdonalds-es"
+                          totalDishes: 178
+                          nutrientCoveragePercent: 100.0
+                          issueCount: 0
+                      nutrientCompleteness:
+                        dishesWithNutrients: 897
+                        dishesWithoutNutrients: 3
+                        dishesWithoutNutrientsPercent: 0.33
+                        ghostRowCount: 2
+                        zeroCaloriesCount: 3
+                        byChain:
+                          - chainSlug: "mcdonalds-es"
+                            totalDishes: 178
+                            dishesWithoutNutrients: 0
+                            ghostRowCount: 0
+                            zeroCaloriesCount: 0
+                      implausibleValues:
+                        caloriesAboveThreshold: 0
+                        caloriesThreshold: 5000
+                        ghostRows: 0
+                        suspiciouslyRoundCalories: 12
+                        byChain:
+                          - chainSlug: "mcdonalds-es"
+                            caloriesAboveThreshold: 0
+                            ghostRows: 0
+                            suspiciouslyRoundCalories: 3
+                      dataGaps:
+                        dishesWithoutPortionGrams: 45
+                        dishesWithoutPriceEur: 632
+                        restaurantsWithoutDishes: 0
+                      duplicates:
+                        duplicateGroupCount: 2
+                        totalDuplicateDishes: 5
+                        groups:
+                          - name: "Coca-Cola Zero"
+                            chainSlug: "mcdonalds-es"
+                            count: 2
+                            dishIds:
+                              - "uuid-a"
+                              - "uuid-b"
+                      confidenceDistribution:
+                        global:
+                          high: 514
+                          medium: 386
+                          low: 0
+                        byEstimationMethod:
+                          official: 514
+                          scraped: 386
+                          ingredients: 0
+                          extrapolation: 0
+                        byChain:
+                          - chainSlug: "mcdonalds-es"
+                            high: 0
+                            medium: 178
+                            low: 0
+                            byEstimationMethod:
+                              official: 0
+                              scraped: 178
+                              ingredients: 0
+                              extrapolation: 0
+                      dataFreshness:
+                        totalSources: 8
+                        staleSources: 1
+                        staleSourcesDetail:
+                          - sourceId: "uuid-source"
+                            name: "McDonald's Spain Official PDF"
+                            lastUpdated: "2025-11-01T00:00:00.000Z"
+                            daysSinceUpdate: 136
+                chainScoped:
+                  summary: Report scoped to mcdonalds-es
+                  value:
+                    success: true
+                    data:
+                      generatedAt: "2026-03-17T10:00:00.000Z"
+                      totalDishes: 178
+                      totalRestaurants: 1
+                      stalenessThresholdDays: 90
+                      scopedToChain: "mcdonalds-es"
+                      chainSummary:
+                        - chainSlug: "mcdonalds-es"
+                          totalDishes: 178
+                          nutrientCoveragePercent: 100.0
+                          issueCount: 0
+                      nutrientCompleteness:
+                        dishesWithNutrients: 178
+                        dishesWithoutNutrients: 0
+                        dishesWithoutNutrientsPercent: 0
+                        ghostRowCount: 0
+                        zeroCaloriesCount: 0
+                        byChain:
+                          - chainSlug: "mcdonalds-es"
+                            totalDishes: 178
+                            dishesWithoutNutrients: 0
+                            ghostRowCount: 0
+                            zeroCaloriesCount: 0
+                      implausibleValues:
+                        caloriesAboveThreshold: 0
+                        caloriesThreshold: 5000
+                        ghostRows: 0
+                        suspiciouslyRoundCalories: 3
+                        byChain:
+                          - chainSlug: "mcdonalds-es"
+                            caloriesAboveThreshold: 0
+                            ghostRows: 0
+                            suspiciouslyRoundCalories: 3
+                      dataGaps:
+                        dishesWithoutPortionGrams: 5
+                        dishesWithoutPriceEur: 80
+                        restaurantsWithoutDishes: 0
+                      duplicates:
+                        duplicateGroupCount: 1
+                        totalDuplicateDishes: 2
+                        groups:
+                          - name: "Coca-Cola Zero"
+                            chainSlug: "mcdonalds-es"
+                            count: 2
+                            dishIds:
+                              - "uuid-a"
+                              - "uuid-b"
+                      confidenceDistribution:
+                        global:
+                          high: 0
+                          medium: 178
+                          low: 0
+                        byEstimationMethod:
+                          official: 0
+                          scraped: 178
+                          ingredients: 0
+                          extrapolation: 0
+                        byChain:
+                          - chainSlug: "mcdonalds-es"
+                            high: 0
+                            medium: 178
+                            low: 0
+                            byEstimationMethod:
+                              official: 0
+                              scraped: 178
+                              ingredients: 0
+                              extrapolation: 0
+                      dataFreshness:
+                        totalSources: 1
+                        staleSources: 0
+                        staleSourcesDetail: []
+        '400':
+          description: Invalid query parameter value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidThreshold:
+                  summary: stalenessThresholdDays is not a positive integer
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["stalenessThresholdDays"]
+                          message: "Number must be greater than or equal to 1"
+                          code: "too_small"
+                invalidChainSlug:
+                  summary: chainSlug contains invalid characters
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["chainSlug"]
+                          message: "Invalid"
+                          code: "invalid_string"
+        '500':
+          description: Database error during quality check queries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                dbError:
+                  value:
+                    success: false
+                    error:
+                      message: "Database query failed during quality report generation"
+                      code: "DB_UNAVAILABLE"
+
   /health:
     get:
       summary: Health check
@@ -1693,6 +1971,482 @@ components:
           example: true
         data:
           $ref: '#/components/schemas/IngestUrlResult'
+
+    # -------------------------------------------------------------------------
+    # Quality Monitor (F018)
+    # -------------------------------------------------------------------------
+
+    QualityChainSummary:
+      type: object
+      description: Per-chain overview computed from check results. Sorted by issueCount DESC.
+      required:
+        - chainSlug
+        - totalDishes
+        - nutrientCoveragePercent
+        - issueCount
+      properties:
+        chainSlug:
+          type: string
+          example: "mcdonalds-es"
+        totalDishes:
+          type: integer
+          minimum: 0
+          example: 178
+        nutrientCoveragePercent:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: "(totalDishes - dishesWithoutNutrients) / totalDishes * 100. Returns 0 when no dishes."
+          example: 100.0
+        issueCount:
+          type: integer
+          minimum: 0
+          description: "Sum of: dishesWithoutNutrients + ghostRowCount + caloriesAboveThreshold + totalDuplicateDishes for this chain."
+          example: 0
+
+    QualityNutrientCompletenessChain:
+      type: object
+      description: Per-chain nutrient completeness breakdown.
+      required:
+        - chainSlug
+        - totalDishes
+        - dishesWithoutNutrients
+        - ghostRowCount
+        - zeroCaloriesCount
+      properties:
+        chainSlug:
+          type: string
+          example: "mcdonalds-es"
+        totalDishes:
+          type: integer
+          minimum: 0
+          example: 178
+        dishesWithoutNutrients:
+          type: integer
+          minimum: 0
+          description: Dishes with no DishNutrient row at all.
+          example: 0
+        ghostRowCount:
+          type: integer
+          minimum: 0
+          description: |
+            DishNutrient rows where ALL FOUR core macros (calories, proteins,
+            carbohydrates, fats) are exactly 0 simultaneously. Reliable indicator
+            of a failed or placeholder ingestion.
+          example: 0
+        zeroCaloriesCount:
+          type: integer
+          minimum: 0
+          description: DishNutrient rows where calories = 0 (individually). More granular than ghostRowCount.
+          example: 0
+
+    QualityNutrientCompleteness:
+      type: object
+      required:
+        - dishesWithNutrients
+        - dishesWithoutNutrients
+        - dishesWithoutNutrientsPercent
+        - ghostRowCount
+        - zeroCaloriesCount
+        - byChain
+      properties:
+        dishesWithNutrients:
+          type: integer
+          minimum: 0
+          description: Total dishes that have at least one DishNutrient row (totalDishes - dishesWithoutNutrients).
+          example: 897
+        dishesWithoutNutrients:
+          type: integer
+          minimum: 0
+          description: Total dishes with no DishNutrient row.
+          example: 3
+        dishesWithoutNutrientsPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: dishesWithoutNutrients / totalDishes * 100, rounded to 2 decimal places. Returns 0 when totalDishes is 0.
+          example: 0.33
+        ghostRowCount:
+          type: integer
+          minimum: 0
+          description: |
+            DishNutrient rows where ALL FOUR core macros (calories, proteins,
+            carbohydrates, fats) are exactly 0 simultaneously. Reliable indicator
+            of a failed or placeholder ingestion.
+          example: 2
+        zeroCaloriesCount:
+          type: integer
+          minimum: 0
+          description: DishNutrient rows where calories = 0 (individually). More granular — catches partial data.
+          example: 3
+        byChain:
+          type: array
+          items:
+            $ref: '#/components/schemas/QualityNutrientCompletenessChain'
+
+    QualityImplausibleValuesChain:
+      type: object
+      description: Per-chain implausible values breakdown.
+      required:
+        - chainSlug
+        - caloriesAboveThreshold
+        - ghostRows
+        - suspiciouslyRoundCalories
+      properties:
+        chainSlug:
+          type: string
+          example: "mcdonalds-es"
+        caloriesAboveThreshold:
+          type: integer
+          minimum: 0
+          description: Dishes whose DishNutrient.calories > caloriesThreshold.
+          example: 0
+        ghostRows:
+          type: integer
+          minimum: 0
+          description: |
+            DishNutrient rows where ALL of calories, proteins, carbohydrates,
+            and fats are simultaneously 0. These likely represent failed ingestion.
+          example: 0
+        suspiciouslyRoundCalories:
+          type: integer
+          minimum: 0
+          description: |
+            Dishes where calories >= 100 and calories % 100 == 0.
+            Reported as informational — not necessarily an error.
+          example: 3
+
+    QualityImplausibleValues:
+      type: object
+      required:
+        - caloriesAboveThreshold
+        - caloriesThreshold
+        - ghostRows
+        - suspiciouslyRoundCalories
+        - byChain
+      properties:
+        caloriesAboveThreshold:
+          type: integer
+          minimum: 0
+          description: Global count of dishes with calories > caloriesThreshold.
+          example: 0
+        caloriesThreshold:
+          type: integer
+          description: The calories upper soft-limit used for this check (fixed at 5000).
+          example: 5000
+        ghostRows:
+          type: integer
+          minimum: 0
+          description: Global count of DishNutrient ghost rows (all four core macros are 0).
+          example: 0
+        suspiciouslyRoundCalories:
+          type: integer
+          minimum: 0
+          description: Global count of dishes with suspiciously round calorie values.
+          example: 12
+        byChain:
+          type: array
+          items:
+            $ref: '#/components/schemas/QualityImplausibleValuesChain'
+
+    QualityDataGaps:
+      type: object
+      description: |
+        Counts of dishes with NULL optional fields and restaurants with no dishes.
+        These are coverage metrics, not errors — NULL portionGrams and priceEur are
+        valid states (data not available from the source).
+      required:
+        - dishesWithoutPortionGrams
+        - dishesWithoutPriceEur
+        - restaurantsWithoutDishes
+      properties:
+        dishesWithoutPortionGrams:
+          type: integer
+          minimum: 0
+          description: Dishes where Dish.portionGrams IS NULL.
+          example: 45
+        dishesWithoutPriceEur:
+          type: integer
+          minimum: 0
+          description: Dishes where Dish.priceEur IS NULL.
+          example: 632
+        restaurantsWithoutDishes:
+          type: integer
+          minimum: 0
+          description: Restaurant rows with zero associated Dish rows.
+          example: 0
+
+    QualityDuplicateGroup:
+      type: object
+      description: A group of dishes sharing the same (name, restaurantId, sourceId).
+      required:
+        - name
+        - chainSlug
+        - count
+        - dishIds
+      properties:
+        name:
+          type: string
+          description: The shared dish name.
+          example: "Coca-Cola Zero"
+        chainSlug:
+          type: string
+          example: "mcdonalds-es"
+        count:
+          type: integer
+          minimum: 2
+          description: Number of duplicate dishes in this group.
+          example: 2
+        dishIds:
+          type: array
+          description: UUIDs of all dishes in the duplicate group.
+          items:
+            type: string
+            format: uuid
+          example: ["uuid-a", "uuid-b"]
+
+    QualityDuplicates:
+      type: object
+      required:
+        - duplicateGroupCount
+        - totalDuplicateDishes
+        - groups
+      properties:
+        duplicateGroupCount:
+          type: integer
+          minimum: 0
+          description: Number of distinct duplicate groups found.
+          example: 2
+        totalDuplicateDishes:
+          type: integer
+          minimum: 0
+          description: |
+            Total number of duplicate dish rows (sum of `count` across all groups).
+            The "extra" duplicates would be totalDuplicateDishes - duplicateGroupCount.
+          example: 5
+        groups:
+          type: array
+          description: Detail of each duplicate group. Empty array when no duplicates exist.
+          items:
+            $ref: '#/components/schemas/QualityDuplicateGroup'
+
+    QualityConfidenceByEstimationMethod:
+      type: object
+      description: Dish counts by estimation method.
+      required:
+        - official
+        - scraped
+        - ingredients
+        - extrapolation
+      properties:
+        official:
+          type: integer
+          minimum: 0
+          example: 514
+        scraped:
+          type: integer
+          minimum: 0
+          example: 386
+        ingredients:
+          type: integer
+          minimum: 0
+          example: 0
+        extrapolation:
+          type: integer
+          minimum: 0
+          example: 0
+
+    QualityConfidenceChain:
+      type: object
+      description: Per-chain confidence level and estimation method breakdown.
+      required:
+        - chainSlug
+        - high
+        - medium
+        - low
+        - byEstimationMethod
+      properties:
+        chainSlug:
+          type: string
+          example: "mcdonalds-es"
+        high:
+          type: integer
+          minimum: 0
+          example: 0
+        medium:
+          type: integer
+          minimum: 0
+          example: 178
+        low:
+          type: integer
+          minimum: 0
+          example: 0
+        byEstimationMethod:
+          $ref: '#/components/schemas/QualityConfidenceByEstimationMethod'
+
+    QualityConfidenceDistribution:
+      type: object
+      required:
+        - global
+        - byEstimationMethod
+        - byChain
+      properties:
+        global:
+          type: object
+          description: Global dish counts by confidence level.
+          required:
+            - high
+            - medium
+            - low
+          properties:
+            high:
+              type: integer
+              minimum: 0
+              example: 514
+            medium:
+              type: integer
+              minimum: 0
+              example: 386
+            low:
+              type: integer
+              minimum: 0
+              example: 0
+        byEstimationMethod:
+          $ref: '#/components/schemas/QualityConfidenceByEstimationMethod'
+        byChain:
+          type: array
+          items:
+            $ref: '#/components/schemas/QualityConfidenceChain'
+
+    QualityStaleSource:
+      type: object
+      description: A DataSource row that is considered stale.
+      required:
+        - sourceId
+        - name
+        - lastUpdated
+        - daysSinceUpdate
+      properties:
+        sourceId:
+          type: string
+          format: uuid
+          example: "uuid-source"
+        name:
+          type: string
+          description: DataSource.name
+          example: "McDonald's Spain Official PDF"
+        lastUpdated:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            DataSource.lastUpdated as ISO-8601 string. null when the field has never
+            been set (treated as stale — daysSinceUpdate will be null in this case).
+          example: "2025-11-01T00:00:00.000Z"
+        daysSinceUpdate:
+          type: integer
+          nullable: true
+          minimum: 0
+          description: |
+            Number of full days elapsed since lastUpdated. null when lastUpdated IS NULL.
+          example: 136
+
+    QualityDataFreshness:
+      type: object
+      required:
+        - totalSources
+        - staleSources
+        - staleSourcesDetail
+      properties:
+        totalSources:
+          type: integer
+          minimum: 0
+          description: Total DataSource rows in scope (all or filtered by chainSlug).
+          example: 8
+        staleSources:
+          type: integer
+          minimum: 0
+          description: |
+            DataSource rows where lastUpdated IS NULL or lastUpdated is older than
+            stalenessThresholdDays days ago.
+          example: 1
+        staleSourcesDetail:
+          type: array
+          description: One entry per stale DataSource. Empty array when none are stale.
+          items:
+            $ref: '#/components/schemas/QualityStaleSource'
+
+    QualityReportData:
+      type: object
+      description: The quality report payload returned in the `data` envelope.
+      required:
+        - generatedAt
+        - totalDishes
+        - totalRestaurants
+        - stalenessThresholdDays
+        - scopedToChain
+        - chainSummary
+        - nutrientCompleteness
+        - implausibleValues
+        - dataGaps
+        - duplicates
+        - confidenceDistribution
+        - dataFreshness
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp when the report was generated (server time).
+          example: "2026-03-17T10:00:00.000Z"
+        totalDishes:
+          type: integer
+          minimum: 0
+          description: Total Dish rows in scope at report time.
+          example: 900
+        totalRestaurants:
+          type: integer
+          minimum: 0
+          description: Total Restaurant rows in scope at report time.
+          example: 7
+        stalenessThresholdDays:
+          type: integer
+          minimum: 1
+          description: The staleness threshold used for the dataFreshness check.
+          example: 90
+        scopedToChain:
+          type: string
+          nullable: true
+          description: The chainSlug filter applied, or null for a global report.
+          example: null
+        chainSummary:
+          type: array
+          description: Per-chain overview sorted by issueCount DESC. Computed from check results, no extra DB queries.
+          items:
+            $ref: '#/components/schemas/QualityChainSummary'
+        nutrientCompleteness:
+          $ref: '#/components/schemas/QualityNutrientCompleteness'
+        implausibleValues:
+          $ref: '#/components/schemas/QualityImplausibleValues'
+        dataGaps:
+          $ref: '#/components/schemas/QualityDataGaps'
+        duplicates:
+          $ref: '#/components/schemas/QualityDuplicates'
+        confidenceDistribution:
+          $ref: '#/components/schemas/QualityConfidenceDistribution'
+        dataFreshness:
+          $ref: '#/components/schemas/QualityDataFreshness'
+
+    QualityReportResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/QualityReportData'
 
     # -------------------------------------------------------------------------
     # System / Infrastructure
