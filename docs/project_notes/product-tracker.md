@@ -8,10 +8,12 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-16
+**Last Updated:** 2026-03-17
 
-**Active Feature:** No active work
-**Context:** F014 completed 2026-03-16. Subway Spain onboarded (PR #14). Next: F015 (Pans & Company) or F018/F019.
+**Active Feature:** F015 — Chain Onboarding — Pans & Company
+**Complexity:** Simple | **Step:** 5/6 (Review)
+**Branch:** feature/F015-pans-company-onboarding
+**Context:** PR #15 created, code review done (0 Critical, 2 Important — both addressed). 182 dishes, 72 new tests. Awaiting merge approval.
 
 ---
 
@@ -50,7 +52,7 @@
 | F012 | Image/OCR Ingestion Pipeline | backend | done | 6/6 | Tesseract.js v5 OCR. POST /ingest/image-url, imageDownloader, imageOcrExtractor. Domino's Spain (JPEG). 105 tests. PR #13 |
 | F013 | Subway Spain Data Research | research | done | — | subwayspain.com has PDF: MED_Nutritional_Information_C4_2025 (kcal, macros, per 100g). Quarterly updates. Compatible with PDF pipeline. Subway onboarding moves to F014 |
 | F014 | Chain Onboarding — Subway Spain | backend | done | 6/6 | Simple. PDF pipeline. Source: subwayspain.com official PDF. PR #14. 47 new tests |
-| F015 | Chain Onboarding — Pans & Company | backend | pending | — | Simple. PDF pipeline. Source: vivabem.pt (Ibersol parent company, official) |
+| F015 | Chain Onboarding — Pans & Company | backend | in-progress | 5/6 | Simple. PDF pipeline. Source: vivabem.pt (Ibersol). 182 dishes, custom preprocessor. PR #15 |
 | F016-F017 | Chain Onboarding — VIPS, 100 Montaditos | backend | postponed | — | Allergen-only data (no calories/macros). Candidates for E003 estimation engine |
 | F018 | Data Quality Monitor | backend | pending | — | |
 | F019 | Embedding Generation Pipeline | backend | pending | — | |

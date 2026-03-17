@@ -33,7 +33,7 @@ export const ChainPdfConfigSchema = z.object({
 export type ChainPdfConfig = z.infer<typeof ChainPdfConfigSchema>;
 
 // ---------------------------------------------------------------------------
-// Registry — 5 entries: BK, KFC, Telepizza, Five Guys, Subway (Spain)
+// Registry — 6 entries: BK, KFC, Telepizza, Five Guys, Subway, Pans & Company (Spain)
 // ---------------------------------------------------------------------------
 
 export const CHAIN_PDF_REGISTRY: ChainPdfConfig[] = [
@@ -91,5 +91,16 @@ export const CHAIN_PDF_REGISTRY: ChainPdfConfig[] = [
     updateFrequency: 'quarterly',
     enabled:         true,
     notes:           'URL pattern: MED_Nutritional_Information_CX_YYYY_FINAL_English.pdf. Quarterly cycle (C1-C4). Also available in Spanish and Catalan.',
+  },
+  {
+    chainSlug:       'pans-and-company-es',
+    name:            'Pans & Company Spain',
+    countryCode:     'ES',
+    pdfUrl:          'https://www.vivabem.pt/tabelas/tabela_pans_company.pdf',
+    restaurantId:    CHAIN_SEED_IDS.PANS_AND_COMPANY_ES.RESTAURANT_ID,
+    sourceId:        CHAIN_SEED_IDS.PANS_AND_COMPANY_ES.SOURCE_ID,
+    updateFrequency: 'unknown',
+    enabled:         true,
+    notes:           'Served from Ibersol parent company portal (vivabem.pt). PDF is in Portuguese — product names are in Portuguese. Custom preprocessor (preprocessPansAndCompanyEs) required: pdf-parse separates product names from nutritional data due to the multi-column layout.',
   },
 ];

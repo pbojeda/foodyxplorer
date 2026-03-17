@@ -582,6 +582,13 @@ async function main(): Promise<void> {
   await seedPhase5(prisma);
   console.log('Phase 5 seeding complete.');
 
+  // ---------------------------------------------------------------------------
+  // Phase 6 — PDF Chain Restaurant + DataSource rows (Pans & Company Spain)
+  // ---------------------------------------------------------------------------
+  console.log('Starting Phase 6 seed: Pans & Company Spain restaurant + data source...');
+  await seedPhase6(prisma);
+  console.log('Phase 6 seeding complete.');
+
   console.log('Seeding complete.');
 }
 
@@ -981,6 +988,39 @@ export async function seedPhase5(client: PrismaClient): Promise<void> {
       chainSlug:   'subway-es',
       countryCode: 'ES',
       website:     'https://subwayspain.com',
+      isActive:    true,
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6: Pans & Company Spain — exported for integration testing
+// ---------------------------------------------------------------------------
+
+export async function seedPhase6(client: PrismaClient): Promise<void> {
+  // Pans & Company Spain
+  await client.dataSource.upsert({
+    where: { id: CHAIN_SEED_IDS.PANS_AND_COMPANY_ES.SOURCE_ID },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.PANS_AND_COMPANY_ES.SOURCE_ID,
+      name:        'Pans & Company Spain — Nutritional PDF',
+      type:        'scraped',
+      url:         'https://www.vivabem.pt/tabelas/tabela_pans_company.pdf',
+      lastUpdated: new Date('2026-03-17'),
+    },
+  });
+
+  await client.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'pans-and-company-es', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.PANS_AND_COMPANY_ES.RESTAURANT_ID,
+      name:        'Pans & Company Spain',
+      nameEs:      'Pans & Company España',
+      chainSlug:   'pans-and-company-es',
+      countryCode: 'ES',
+      website:     'https://www.pansandcompany.com',
       isActive:    true,
     },
   });

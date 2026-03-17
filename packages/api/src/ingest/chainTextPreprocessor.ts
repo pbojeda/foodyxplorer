@@ -47,6 +47,8 @@ export function preprocessChainText(chainSlug: string, lines: string[]): string[
       // format without preprocessing. If a dry-run reveals layout issues,
       // implement preprocessSubwayEs following the existing preprocessor pattern.
       return lines;
+    case 'pans-and-company-es':
+      return preprocessPansAndCompanyEs(lines);
     default:
       return lines;
   }
@@ -250,6 +252,181 @@ function preprocessTelepizzaEs(lines: string[]): string[] {
   }
 
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Pans & Company Spain
+// ---------------------------------------------------------------------------
+//
+// PDF layout (Ibersol/Vivabem nutritional PDF, Portuguese text):
+//   Pages 1,2,4,5: Column-based layout. pdf-parse extracts:
+//     - Meta/header lines (date, page number, nutrient column labels)
+//     - Alternating "Por Unidade Consumo \t values" (skip) and
+//       "Por 100 gramas \t values" (collect) rows
+//     - Product names (and ALL-CAPS category headers to skip) at end
+//   Page 3: Mixed layout with inline items:
+//     "ProductName \t Por 100 gramas \t kJ \t kcal \t ..." (single row)
+//     Plus some separated name/data pairs (salads, soups)
+//
+// Data format for "Por 100 gramas" rows (tab-separated, 8 columns after label):
+//   kJ \t kcal \t fat \t satfat \t carbs \t sugars \t protein \t salt
+// After removing kJ → 7 values: kcal, fat, satfat, carbs, sugars, protein, salt
+//
+// Preprocessing:
+//   1. Classify each line: inline item, per-100g data row, product name, or skip
+//   2. Collect per-100g rows and product names, pair them 1:1
+//   3. For inline items, extract name + data directly
+//   4. Inject synthetic header; emit merged lines
+
+function preprocessPansAndCompanyEs(lines: string[]): string[] {
+  const syntheticHeader = 'Calorías\tGrasas\tSaturadas\tHidratos\tAzúcares\tProteínas\tSal';
+
+  const per100gRows: string[] = [];   // raw data portions (after "Por 100 gramas\t")
+  const productNames: string[] = [];  // product names in order
+  const inlineItems: string[] = [];   // already-merged "Name\tkcal\t..." lines
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Skip meta and header lines
+    if (isPansMetaLine(trimmed)) continue;
+
+    // Skip ALL-CAPS category headers
+    if (isAllCaps(trimmed)) continue;
+
+    // Inline item: "ProductName \t Por 100 gramas \t kJ \t kcal \t ..."
+    // NOTE: PDF extraction may insert spaces around tabs.
+    const inlineMatch = trimmed.match(/^(.+?)\s*\tPor 100 gramas\s*\t(.+)$/);
+    if (inlineMatch !== null) {
+      const name = (inlineMatch[1] ?? '').trim();
+      const dataPart = (inlineMatch[2] ?? '').trim();
+      const merged = mergePansData(name, dataPart);
+      if (merged !== null) {
+        inlineItems.push(merged);
+      }
+      continue;
+    }
+
+    // Per-100g data row: "Por 100 gramas \t values"
+    // Allow optional spaces around the tab separator.
+    const per100gMatch = trimmed.match(/^Por 100 gramas\s*\t(.+)$/);
+    if (per100gMatch !== null) {
+      const dataPart = (per100gMatch[1] ?? '').trim();
+      if (dataPart.length > 0) {
+        per100gRows.push(dataPart);
+      }
+      continue;
+    }
+    if (trimmed === 'Por 100 gramas') continue;
+
+    // Per-unit or serving label rows (skip — no data needed)
+    if (isPansDataSkipLine(trimmed)) continue;
+
+    // Remaining non-empty lines are product names (length >= 2)
+    if (trimmed.length >= 2) {
+      productNames.push(trimmed);
+    }
+  }
+
+  // Pair product names with per-100g rows (1:1 in order)
+  const pairedLines: string[] = [];
+  const pairCount = Math.min(per100gRows.length, productNames.length);
+  if (per100gRows.length !== productNames.length) {
+    console.warn(
+      `[pans-and-company-es] Pairing mismatch: ${per100gRows.length} data rows vs ${productNames.length} names. ` +
+      `Using ${pairCount}. Check PDF layout for changes.`,
+    );
+  }
+  for (let i = 0; i < pairCount; i++) {
+    const name = productNames[i] ?? '';
+    const dataPart = per100gRows[i] ?? '';
+    const merged = mergePansData(name, dataPart);
+    if (merged !== null) {
+      pairedLines.push(merged);
+    }
+  }
+
+  const allDishLines = [...inlineItems, ...pairedLines];
+  if (allDishLines.length === 0) return [];
+
+  return [syntheticHeader, ...allDishLines];
+}
+
+/**
+ * Merges a Pans & Company product name with its per-100g data portion.
+ * Data portion format: "kJ \t kcal \t fat \t satfat \t carbs \t sugars \t protein \t salt"
+ * Strips kJ (first column) and returns: "Name \t kcal \t fat \t satfat \t carbs \t sugars \t protein \t salt"
+ * Returns null if data has fewer than 7 values (insufficient to map).
+ */
+function mergePansData(name: string, dataPart: string): string | null {
+  const values = dataPart.split('\t').map((v) => v.trim()).filter((v) => v.length > 0);
+  // Need kJ + 7 nutrient values = 8 total
+  if (values.length < 8) return null;
+  // Strip kJ (index 0), keep kcal..salt (indices 1-7)
+  const nutrientValues = values.slice(1, 8);
+  return `${name}\t${nutrientValues.join('\t')}`;
+}
+
+/**
+ * Returns true if ALL alphabetic characters in the string are uppercase.
+ * Handles accented Portuguese/Spanish characters: Ã Â Á À É Ê Í Ó Ô Õ Ú Ü Ç Ñ.
+ * A line with no alphabetic characters (e.g. a page number) returns false.
+ */
+function isAllCaps(line: string): boolean {
+  // Extract all alphabetic characters (ASCII + accented Latin)
+  const letters = line.match(/[a-zA-ZÀ-ÿ]/g);
+  if (letters === null || letters.length === 0) return false;
+  // Every letter must be uppercase
+  return letters.every((ch) => ch === ch.toUpperCase());
+}
+
+/** Returns true if this line is a Pans & Company meta/header line to skip. */
+function isPansMetaLine(line: string): boolean {
+  const lower = line.toLowerCase();
+  return (
+    lower.startsWith('data de impressão') ||
+    lower.startsWith('página') ||            // "Página 1 de 5 \t PSA IC 001pac.49"
+    lower.startsWith('psa ') ||              // standalone PSA reference lines
+    // Nutrient column labels (with or without unit suffixes)
+    lower.startsWith('energia') ||           // "Energia (Kj)", "Energia (kcal)"
+    lower.startsWith('lípidos') ||           // "Lípidos (g)"
+    lower.startsWith('…dos quais') ||        // sub-label for saturates/sugars
+    lower.startsWith('saturados') ||         // "saturados (g)"
+    lower.startsWith('hidratos de') ||       // "Hidratos de"
+    lower.startsWith('carbono') ||           // "Carbono (g)"
+    lower.startsWith('açucares') ||          // "açucares (g)"
+    lower.startsWith('proteínas (g)') ||     // "Proteínas (g)" — exact to avoid food names
+    lower === 'sal (g)' ||                   // "Sal (g)" — exact to avoid food names
+    // Repeating page headers
+    line === 'TABELA NUTRICIONAL' ||
+    line === 'SANDES QUENTES' ||
+    line === 'PÃO PROVENÇAL' ||
+    line === 'Francesa' ||  // Bread type label repeated on every page in the PDF header area
+    // Disclaimer lines
+    lower.startsWith('notas:') ||
+    lower.startsWith('esta informação') ||
+    lower.startsWith('alguns restaurantes') ||
+    lower.startsWith('locais de fornecimento') ||
+    // Page break markers
+    lower.includes('---page break---')
+  );
+}
+
+/** Returns true for data rows that should be skipped (not product names, not per-100g). */
+function isPansDataSkipLine(line: string): boolean {
+  const lower = line.toLowerCase();
+  return (
+    lower.startsWith('por unidade consumo') ||
+    lower.startsWith('por unidade') ||
+    lower.startsWith('por unid') ||       // abbreviated variant
+    lower.startsWith('dose pequena') ||
+    lower.startsWith('dose média') ||
+    lower.startsWith('dose grande') ||
+    lower.startsWith('dose ') ||          // any other dose variant
+    // Numeric portion rows: "4 Unidades\t...", "12 unidades\t...", "9 unidades\t..."
+    /^\d+\s+unidades?\b/i.test(line)
+  );
 }
 
 // ---------------------------------------------------------------------------
