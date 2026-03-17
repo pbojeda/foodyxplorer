@@ -10,10 +10,10 @@
 
 **Last Updated:** 2026-03-17
 
-**Active Feature:** No active work
-**Complexity:** — | **Step:** —
-**Branch:** —
-**Context:** F018 completed and merged. Next: F019 (Embedding Generation Pipeline)
+**Active Feature:** F019 — Embedding Generation Pipeline
+**Complexity:** Standard | **Step:** 5/6 (Review)
+**Branch:** feature/F019-embedding-generation-pipeline
+**Context:** Plan approved (10-step TDD). Spec complete (api-spec.yaml + 6 Zod schemas). Pipeline: OpenAI text-embedding-3-small → $executeRaw → pgvector. CLI + POST /embeddings/generate. Implementation in progress.
 
 ---
 
@@ -55,7 +55,7 @@
 | F015 | Chain Onboarding — Pans & Company | backend | done | 6/6 | Simple. PDF pipeline. Source: vivabem.pt (Ibersol). 182 dishes, custom preprocessor. PR #15 |
 | F016-F017 | Chain Onboarding — VIPS, 100 Montaditos | backend | postponed | — | Allergen-only data (no calories/macros). Candidates for E003 estimation engine |
 | F018 | Data Quality Monitor | backend | done | 6/6 | Standard. GET /quality/report, 6 check dimensions, CLI script. 105 tests. PR #16 |
-| F019 | Embedding Generation Pipeline | backend | pending | — | |
+| F019 | Embedding Generation Pipeline | backend | in-progress | 5/6 | Standard. OpenAI text-embedding-3-small, CLI + POST /embeddings/generate, embeddingUpdatedAt migration |
 
 ## Features — E003 Estimation Engine
 

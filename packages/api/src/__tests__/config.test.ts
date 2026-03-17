@@ -139,3 +139,60 @@ describe('parseConfig', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });
+
+describe('OpenAI config vars', () => {
+  beforeEach(() => {
+    exitSpy.mockClear();
+  });
+
+  it('parses successfully when OPENAI_API_KEY is absent (must not fail startup)', () => {
+    const config = parseConfig({ ...VALID_ENV });
+    expect(config.OPENAI_API_KEY).toBeUndefined();
+  });
+
+  it('accepts OPENAI_API_KEY when provided', () => {
+    const config = parseConfig({ ...VALID_ENV, OPENAI_API_KEY: 'sk-test-key' });
+    expect(config.OPENAI_API_KEY).toBe('sk-test-key');
+  });
+
+  it('defaults OPENAI_EMBEDDING_MODEL to "text-embedding-3-small"', () => {
+    const config = parseConfig({ ...VALID_ENV });
+    expect(config.OPENAI_EMBEDDING_MODEL).toBe('text-embedding-3-small');
+  });
+
+  it('accepts a custom OPENAI_EMBEDDING_MODEL', () => {
+    const config = parseConfig({ ...VALID_ENV, OPENAI_EMBEDDING_MODEL: 'text-embedding-3-large' });
+    expect(config.OPENAI_EMBEDDING_MODEL).toBe('text-embedding-3-large');
+  });
+
+  it('coerces OPENAI_EMBEDDING_BATCH_SIZE from string "50" to number 50', () => {
+    const config = parseConfig({ ...VALID_ENV, OPENAI_EMBEDDING_BATCH_SIZE: '50' });
+    expect(config.OPENAI_EMBEDDING_BATCH_SIZE).toBe(50);
+    expect(typeof config.OPENAI_EMBEDDING_BATCH_SIZE).toBe('number');
+  });
+
+  it('defaults OPENAI_EMBEDDING_BATCH_SIZE to 100 when absent', () => {
+    const config = parseConfig({ ...VALID_ENV });
+    expect(config.OPENAI_EMBEDDING_BATCH_SIZE).toBe(100);
+  });
+
+  it('defaults OPENAI_EMBEDDING_RPM to 3000 when absent', () => {
+    const config = parseConfig({ ...VALID_ENV });
+    expect(config.OPENAI_EMBEDDING_RPM).toBe(3000);
+  });
+
+  it('coerces OPENAI_EMBEDDING_RPM from string "1500" to number 1500', () => {
+    const config = parseConfig({ ...VALID_ENV, OPENAI_EMBEDDING_RPM: '1500' });
+    expect(config.OPENAI_EMBEDDING_RPM).toBe(1500);
+  });
+
+  it('calls process.exit(1) when OPENAI_EMBEDDING_BATCH_SIZE is out of range (0)', () => {
+    expect(() => parseConfig({ ...VALID_ENV, OPENAI_EMBEDDING_BATCH_SIZE: '0' })).toThrow('process.exit called');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('calls process.exit(1) when OPENAI_EMBEDDING_BATCH_SIZE exceeds max (2049)', () => {
+    expect(() => parseConfig({ ...VALID_ENV, OPENAI_EMBEDDING_BATCH_SIZE: '2049' })).toThrow('process.exit called');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+});
