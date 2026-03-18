@@ -1,7 +1,7 @@
 # F021: Level 2 — Ingredient-Based Estimation
 
 **Feature:** F021 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F021-level2-ingredient-estimation
+**Status:** Done | **Branch:** feature/F021-level2-ingredient-estimation
 **Created:** 2026-03-18 | **Dependencies:** F020 (Level 1), F001b (DishIngredient model), F002 (dishes/foods schema), F005 (Redis)
 
 ---
@@ -496,7 +496,7 @@ Issues found during second review — Round 2 (2 IMPORTANT + 3 SUGGESTIONS):
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed
 - [x] Step 5: `qa-engineer` executed (Standard)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -513,6 +513,7 @@ Issues found during second review — Round 2 (2 IMPORTANT + 3 SUGGESTIONS):
 | 2026-03-18 | Step 4: Finalize complete | production-code-validator: READY FOR PRODUCTION, 0 issues. Tests: all passing. Lint: 0 new errors. Build: OK (4 pre-existing TS errors) |
 | 2026-03-18 | Step 5: Code review | APPROVED. 0 critical/important issues. 1 suggestion (LOWER redundancy — kept for L1 consistency) |
 | 2026-03-18 | Step 5: QA engineering | QA VERIFIED. 52 new edge-case tests. 8 findings (0 bugs, all guarded). FINDING-F021-01: defensive guard for 0/0 resolved_count is load-bearing |
+| 2026-03-18 | Step 6: Complete | Squash merged to develop (52f7212). PR #19. Branch deleted. 80 F021 tests, 1904 total |
 
 ---
 

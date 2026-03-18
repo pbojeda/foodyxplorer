@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-18
 
-**Active Feature:** F021 — Level 2: Ingredient-Based Estimation
-**Step:** 5/6 (Review)
-**Branch:** feature/F021-level2-ingredient-estimation
-**Complexity:** Standard
-**Context:** Code review APPROVED (0 issues). QA VERIFIED (52 edge-case tests, 8 findings, 0 bugs). PR #19. 80 new F021 tests total. Pending: Merge Approval → Step 6 (Complete).
+**Active Feature:** None — no active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F021 completed and merged (PR #19). E003 epic in progress — F022 (Level 3 pgvector) next.
 
 ---
 
@@ -63,7 +63,7 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F020 | Level 1 — Official Data Lookup | backend | done | 6/6 | GET /estimate, 4-strategy cascade, Kysely bootstrap, CTE de-dup, Redis cache. 108 tests. PR #18 |
-| F021 | Level 2 — Ingredient-Based Estimation | backend | in-progress | 5/6 | Standard. level2Lookup, nutrient aggregation from dish_ingredients, 2 strategies, confidence scoring. 80 new tests. PR #19 |
+| F021 | Level 2 — Ingredient-Based Estimation | backend | done | 6/6 | Standard. level2Lookup, nutrient aggregation from dish_ingredients, 2 strategies, confidence scoring. 80 new tests. PR #19 |
 | F022 | Level 3 — Similarity Extrapolation (pgvector) | backend | pending | — | |
 | F023 | Engine Router & Confidence API | backend | pending | — | |
 | F024 | LLM Integration Layer | backend | pending | — | |
@@ -106,6 +106,7 @@
 | 2026-03-17 | F018 — Data Quality Monitor | 6b1f79e (squash merge to develop, PR #16) | GET /quality/report (6 dimensions), 15 Zod schemas, CLI script, assembleReport orchestrator. 105 new tests (10 files). Refactored: count()+$queryRaw (no memory issues). Code review: 1 Critical + 4 Important fixed. QA: 37 edge-case tests |
 | 2026-03-17 | F019 — Embedding Generation Pipeline | ed61a56 (squash merge to develop, PR #17) | POST /embeddings/generate, CLI script, OpenAI text-embedding-3-small (1536 dims), embeddingUpdatedAt migration. 6 modules (types, textBuilder, embeddingClient, embeddingWriter, pipeline, barrel). 108 new tests (6 files). Code review: 1C+4I fixed. QA: 37 edge-case tests. E002 complete |
 | 2026-03-18 | F020 — Level 1 Official Data Lookup | f9af429 (squash merge to develop, PR #18) | GET /estimate, 4-strategy cascade (exact dish → FTS dish → exact food → FTS food), Kysely bootstrap (prisma-kysely + pg + singleton), CTE de-dup (ROW_NUMBER), 15 nutrients, Redis cache (fail-open, 300s). 7 Zod schemas. Code review: 1 Important fixed (cache key lowercase). QA: 2 bugs fixed (BUG-F020-01 trim order, BUG-F020-02 echo casing), 80 edge-case tests. 108 F020 tests (4 files). First E003 feature |
+| 2026-03-18 | F021 — Level 2 Ingredient-Based Estimation | 52f7212 (squash merge to develop, PR #19) | level2Lookup: 2-strategy cascade (exact dish → FTS dish), CTE aggregation SQL (4 tables), per_100g filter, confidence scoring (medium/low). Unified cache key (replaces estimate:l1). Route L2 fallback, level2Hit field, 2 new match types. Plan reviewed 2 rounds (9 fixes: 2C+4I+3S). Code review: APPROVED (0 issues). QA: 52 edge-case tests, 8 findings (0 bugs). 80 F021 tests (4 files, 1904 total) |
 
 ---
 
