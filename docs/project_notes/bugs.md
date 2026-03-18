@@ -55,3 +55,19 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Solution**: Not yet fixed. Workaround: individual test files pass cleanly; only the full suite triggers the race.
 - **Prevention**: Likely fix: update vitest/tinypool to latest version, or add `pool: 'forks'` in vitest config. Address before enabling CI strict mode (exit code enforcement).
 - **Feature**: Infrastructure | **Found by**: user observation | **Severity**: Low | **Priority**: Low
+
+### 2026-03-18 — BUG-F020-01: Query trim applied after min(1) validation
+
+- **Issue**: `EstimateQuerySchema` defined `query: z.string().min(1).max(255).trim()`. A whitespace-only query like `"   "` passed `min(1)` (raw length 3), then Zod trimmed it to `""`. The empty string reached `level1Lookup` and returned a miss instead of a 400 validation error.
+- **Root Cause**: Zod evaluates transforms in declaration order. `.min(1)` checked the raw (untrimmed) string, so whitespace-only inputs with length ≥ 1 bypassed the minimum length check.
+- **Solution**: Reordered to `.trim().min(1).max(255)` so trim runs first, then `min(1)` rejects the empty result. Fixed in ce69f10.
+- **Prevention**: For any Zod string schema with `.trim()`, always place `.trim()` BEFORE length validators (`.min()`, `.max()`). Zod processes transforms left-to-right.
+- **Feature**: F020 | **Found by**: qa-engineer | **Severity**: Medium
+
+### 2026-03-18 — BUG-F020-02: Echo returned lowercase query instead of original casing
+
+- **Issue**: `GET /estimate?query=Big+Mac` returned `"query": "big mac"` in the response body. The spec sample shows `"query": "Big Mac"` — original casing should be preserved in the echo.
+- **Root Cause**: The route applied `.toLowerCase()` for cache key normalization and reused the same lowercased variable for the response `data.query` field.
+- **Solution**: Store original query (post-Zod-trim) for response echo. Use lowercased version only for cache key construction and DB lookup. Fixed in ce69f10.
+- **Prevention**: When normalizing user input for internal use (cache keys, DB queries), keep the original value separate for echo/display purposes.
+- **Feature**: F020 | **Found by**: qa-engineer | **Severity**: Low
