@@ -8,10 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-17
+**Last Updated:** 2026-03-18
 
-**Active Feature:** None — No active work
-**Context:** F019 completed. E002 (Data Ingestion Pipeline) fully done. Next: E003 (Estimation Engine) or E004 (Telegram Bot).
+**Active Feature:** F020 — Level 1 Official Data Lookup
+**Step:** 5/6 (Review — PR #18, awaiting merge approval)
+**Branch:** feature/F020-level1-official-data-lookup
+**Complexity:** Standard
+**Context:** First feature of E003 (Estimation Engine). GET /estimate endpoint with 4-strategy cascade, Kysely bootstrap, CTE de-dup, 15 nutrients, Redis cache. PR #18. Code review: 1 Important fixed. QA: 2 bugs fixed, 80 edge-case tests. Total: 108 F020 + 161 shared tests.
 
 ---
 
@@ -59,7 +62,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F020 | Level 1 — Official Data Lookup | backend | pending | — | |
+| F020 | Level 1 — Official Data Lookup | backend | in-progress | 5/6 | GET /estimate, 4-strategy cascade, Kysely bootstrap, CTE de-dup, Redis cache. PR #18. 108 tests |
 | F021 | Level 2 — Ingredient-Based Estimation | backend | pending | — | |
 | F022 | Level 3 — Similarity Extrapolation (pgvector) | backend | pending | — | |
 | F023 | Engine Router & Confidence API | backend | pending | — | |
