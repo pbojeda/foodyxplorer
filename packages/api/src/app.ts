@@ -29,6 +29,8 @@ import { ingestPdfUrlRoutes } from './routes/ingest/pdf-url.js';
 import { ingestImageUrlRoutes } from './routes/ingest/image-url.js';
 import { qualityRoutes } from './routes/quality.js';
 import { embeddingRoutes } from './routes/embeddings.js';
+import { estimateRoutes } from './routes/estimate.js';
+import { getKysely } from './lib/kysely.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -95,6 +97,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(ingestImageUrlRoutes, { prisma: prismaClient });
   await app.register(qualityRoutes, { prisma: prismaClient });
   await app.register(embeddingRoutes, { prisma: prismaClient });
+  await app.register(estimateRoutes, { db: getKysely() });
 
   return app;
 }
