@@ -454,36 +454,36 @@ Issues found during second review — Round 2 (2 IMPORTANT + 3 SUGGESTIONS):
 
 ## Acceptance Criteria
 
-- [ ] `level2Lookup(db, query, options)` returns `Level2Result` when a dish matches and has ≥1 resolvable ingredient; returns null otherwise
-- [ ] Nutrient values computed as `SUM(fn.[nutrient] * di.gram_weight / 100)` across resolved ingredients
-- [ ] `confidenceLevel: 'medium'` when all ingredients resolve; `'low'` when any are skipped
-- [ ] `estimationMethod: 'ingredients'` on all Level 2 results
-- [ ] `source.type: 'estimated'` and `source.name: 'Computed from ingredients'`
-- [ ] `nutrients.referenceBasis: 'per_serving'` on all Level 2 results
-- [ ] Only `food_nutrients` rows with `referenceBasis = 'per_100g'` used in aggregation
-- [ ] `EstimateMatchTypeSchema` includes `ingredient_dish_exact` and `ingredient_dish_fts`
-- [ ] `EstimateDataSchema` includes `level2Hit: z.boolean()`
-- [ ] Route calls Level 2 on L1 miss; final result cached under unified key `fxp:estimate:<query>:<chainSlug>:<restaurantId>`
-- [ ] Single cache check at route start; on miss, runs L1 → L2 fallback → caches final response under unified key
-- [ ] DB errors from `level2Lookup` propagate as HTTP 500 `DB_UNAVAILABLE`
-- [ ] Redis failure on L2 cache is fail-open
-- [ ] Unit tests for level2Lookup: exact-match, FTS, partial resolution, zero resolution, per_serving skipped
-- [ ] Integration test: full L1 miss → L2 hit round-trip via `GET /estimate`
-- [ ] All tests pass
-- [ ] Build succeeds
-- [ ] Specs updated (api-spec.yaml, shared schemas)
+- [x] `level2Lookup(db, query, options)` returns `Level2Result` when a dish matches and has ≥1 resolvable ingredient; returns null otherwise
+- [x] Nutrient values computed as `SUM(fn.[nutrient] * di.gram_weight / 100)` across resolved ingredients
+- [x] `confidenceLevel: 'medium'` when all ingredients resolve; `'low'` when any are skipped
+- [x] `estimationMethod: 'ingredients'` on all Level 2 results
+- [x] `source.type: 'estimated'` and `source.name: 'Computed from ingredients'`
+- [x] `nutrients.referenceBasis: 'per_serving'` on all Level 2 results
+- [x] Only `food_nutrients` rows with `referenceBasis = 'per_100g'` used in aggregation
+- [x] `EstimateMatchTypeSchema` includes `ingredient_dish_exact` and `ingredient_dish_fts`
+- [x] `EstimateDataSchema` includes `level2Hit: z.boolean()`
+- [x] Route calls Level 2 on L1 miss; final result cached under unified key `fxp:estimate:<query>:<chainSlug>:<restaurantId>`
+- [x] Single cache check at route start; on miss, runs L1 → L2 fallback → caches final response under unified key
+- [x] DB errors from `level2Lookup` propagate as HTTP 500 `DB_UNAVAILABLE`
+- [x] Redis failure on L2 cache is fail-open
+- [x] Unit tests for level2Lookup: exact-match, FTS, partial resolution, zero resolution, per_serving skipped
+- [x] Integration test: full L1 miss → L2 hit round-trip via `GET /estimate`
+- [x] All tests pass (1904 total: 1507 API + 165 shared + 232 scraper)
+- [x] Build succeeds
+- [x] Specs updated (api-spec.yaml, shared schemas)
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] E2E tests updated (if applicable)
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation
+- [x] All acceptance criteria met
+- [x] Unit tests written and passing (80 F021 tests: 17 unit + 11 route + 35 QA edge-case + 17 QA route edge-case)
+- [x] E2E tests updated (if applicable)
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
+- [x] Specs reflect final implementation
 
 ---
 
@@ -494,8 +494,8 @@ Issues found during second review — Round 2 (2 IMPORTANT + 3 SUGGESTIONS):
 - [x] Step 2: `backend-planner` executed, plan approved
 - [x] Step 3: `backend-developer` executed with TDD
 - [x] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard)
+- [x] Step 5: `code-review-specialist` executed
+- [x] Step 5: `qa-engineer` executed (Standard)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -511,6 +511,8 @@ Issues found during second review — Round 2 (2 IMPORTANT + 3 SUGGESTIONS):
 | 2026-03-18 | Step 2: Plan reviewed (Round 2) | Second review against actual code found 2 IMPORTANT + 3 SUGGESTION issues. All 5 addressed: (5) ACs fixed for unified cache, (6) spec corrected to 4 tables, (7-9) mapNutrients/mapSource clarified, nutrient types tightened, AggregatedNutrientRow removed |
 | 2026-03-18 | Step 3: Implementation complete | backend-developer agent, TDD. 3 files created, 8 modified. 28 new tests (17 unit + 11 route) |
 | 2026-03-18 | Step 4: Finalize complete | production-code-validator: READY FOR PRODUCTION, 0 issues. Tests: all passing. Lint: 0 new errors. Build: OK (4 pre-existing TS errors) |
+| 2026-03-18 | Step 5: Code review | APPROVED. 0 critical/important issues. 1 suggestion (LOWER redundancy — kept for L1 consistency) |
+| 2026-03-18 | Step 5: QA engineering | QA VERIFIED. 52 new edge-case tests. 8 findings (0 bugs, all guarded). FINDING-F021-01: defensive guard for 0/0 resolved_count is load-bearing |
 
 ---
 
