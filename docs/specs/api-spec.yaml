@@ -1450,43 +1450,62 @@ paths:
 
   /estimate:
     get:
-      summary: Level 1 — Official Data Lookup
+      summary: Estimation Engine — Level 1 (official data) + Level 2 (ingredient-based)
       description: |
-        Queries the database for official nutritional data matching the given dish or
-        food name. This is Level 1 of the Estimation Engine (E003, F020), the
-        highest-confidence tier of the three-level cascade defined in ADR-001.
+        Queries the database for nutritional data matching the given dish or food name.
+        Implements a two-level cascade (F020 + F021) from the three-level cascade defined
+        in ADR-001. Level 3 (pgvector similarity) is added in F022.
 
-        **Matching strategy (priority order):**
+        **Level 1 — Official Data Lookup (F020)**
+        Highest-confidence tier. Tries four strategies in priority order against the
+        official nutritional database:
         1. Exact name match on `dishes.name` (case-insensitive), scoped to chain/restaurant
         2. FTS match on `dishes.name_es` (Spanish, primary) / `dishes.name` (English, fallback)
         3. Exact name match on `foods.name_es` or `foods.name` (chain-agnostic USDA foods)
         4. FTS match on `foods.name_es` / `foods.name`
 
-        The first strategy that returns a result wins. No ranking within a strategy — LIMIT 1
-        is applied and the first DB row is returned.
+        Level 1 result: `level1Hit: true`, `confidenceLevel: "high"`,
+        `estimationMethod: "official"`. Level 2 is not attempted.
 
-        **Scope:** When `chainSlug` or `restaurantId` is provided, dish strategies (1 and 2)
-        are scoped to that chain/restaurant. Food strategies (3 and 4) are always global.
-        If `restaurantId` is provided together with `chainSlug`, `restaurantId` takes
-        precedence for dish scoping.
+        **Level 2 — Ingredient-Based Estimation (F021)**
+        Attempted only when Level 1 returns no match. Decomposes the queried dish into its
+        `dish_ingredients`, looks up each linked food's nutritional data from `food_nutrients`
+        (only rows with `referenceBasis = "per_100g"`), and aggregates:
 
-        **Cache:** Responses are cached in Redis for 300 seconds. The `cachedAt` field in
-        the response is non-null when the data came from cache. Cache is bypassed (fail-open)
-        if Redis is unavailable.
+        ```
+        nutrient_total = SUM( food_nutrient_per_100g[i] * gramWeight[i] / 100 )
+        ```
 
-        **Miss semantics:** A miss (no match found) returns HTTP 200 with `level1Hit: false`
-        and `result: null`. This is NOT a 404 — it is a valid response that allows F023
-        (Engine Router) to cascade to Level 2.
+        Two strategies in priority order:
+        1. `ingredient_dish_exact` — case-insensitive exact match on `dishes.name`, dish must
+           have ≥1 resolvable ingredient
+        2. `ingredient_dish_fts` — FTS match on `dishes.name_es` (Spanish) / `dishes.name`
+           (English), dish must have ≥1 resolvable ingredient
 
-        **Integration note:** F023 will call the `level1Lookup()` function exported from
-        `packages/api/src/estimation/level1Lookup.ts` directly (not via HTTP). This endpoint
-        is the Level-1-only stub; it will be superseded by F023's full orchestration route.
-        The response schema is forward-compatible with the full Engine Router response.
+        Level 2 result: `level2Hit: true`, `confidenceLevel: "medium"` (all ingredients
+        resolved) or `"low"` (some unresolved), `estimationMethod: "ingredients"`,
+        `source.type: "estimated"`, `source.name: "Computed from ingredients"`,
+        `nutrients.referenceBasis: "per_serving"`.
+
+        **Scope:** `chainSlug` / `restaurantId` scoping applies to dish strategies at both
+        levels. Food strategies (Level 1 strategies 3–4) are always global.
+        If `restaurantId` is provided with `chainSlug`, `restaurantId` takes precedence.
+
+        **Cache:** Unified cache key `fxp:estimate:<query>:<chainSlug>:<restaurantId>`. Stores
+        the final response regardless of which level produced it (L1 hit, L2 hit, or total miss).
+        TTL = 300 seconds, fail-open. The `cachedAt` field is non-null when data came from cache.
+
+        **Miss semantics:** A complete miss (no match at either level) returns HTTP 200 with
+        `level1Hit: false`, `level2Hit: false`, and `result: null`. This is NOT a 404.
+
+        **Integration note:** F023 (Engine Router) will call `level1Lookup()` and
+        `level2Lookup()` directly (not via HTTP) and will add `level3Hit`. This endpoint is
+        a two-level stub; it will be superseded by F023 without breaking changes.
 
         **Auth:** No auth required (Phase 1 — internal use). API key auth added in F026.
 
         **Rate limiting:** Subject to the global 100 req/15min/IP limit from F005.
-      operationId: estimateLevel1
+      operationId: estimateLevel1And2
       tags:
         - Estimation
       parameters:
@@ -1531,20 +1550,24 @@ paths:
           description: |
             Query completed successfully. Always HTTP 200 whether or not a match was found.
             - `level1Hit: true`  — official data found; `result` contains nutrients + source.
-            - `level1Hit: false` — no match at any Level 1 strategy; `result` is null.
+              `level2Hit` is false (Level 2 not attempted).
+            - `level2Hit: true`  — Level 1 missed; Level 2 found ingredients to aggregate.
+              `result` contains computed nutrients. `level1Hit` is false.
+            - Both false        — no match at either level; `result` is null.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/EstimateResponse'
               examples:
                 exactDishHit:
-                  summary: Exact dish match — McDonald's Big Mac
+                  summary: Exact dish match — McDonald's Big Mac (Level 1 hit)
                   value:
                     success: true
                     data:
                       query: "Big Mac"
                       chainSlug: "mcdonalds-es"
                       level1Hit: true
+                      level2Hit: false
                       matchType: "exact_dish"
                       result:
                         entityType: "dish"
@@ -1579,13 +1602,14 @@ paths:
                           url: "https://www.mcdonalds.es/.../nutritional.pdf"
                       cachedAt: null
                 ftsFoodHit:
-                  summary: FTS food match — USDA generic food fallback
+                  summary: FTS food match — USDA generic food fallback (Level 1 hit)
                   value:
                     success: true
                     data:
                       query: "pollo"
                       chainSlug: null
                       level1Hit: true
+                      level2Hit: false
                       matchType: "fts_food"
                       result:
                         entityType: "food"
@@ -1620,13 +1644,14 @@ paths:
                           url: null
                       cachedAt: null
                 cacheHit:
-                  summary: Response served from Redis cache
+                  summary: Response served from Redis cache (Level 1 hit, cached)
                   value:
                     success: true
                     data:
                       query: "Big Mac"
                       chainSlug: "mcdonalds-es"
                       level1Hit: true
+                      level2Hit: false
                       matchType: "exact_dish"
                       result:
                         entityType: "dish"
@@ -1660,14 +1685,99 @@ paths:
                           type: "official"
                           url: null
                       cachedAt: "2026-03-17T10:04:55.000Z"
+                level2Hit:
+                  summary: Level 2 hit — ingredient-based estimation (Level 1 missed)
+                  value:
+                    success: true
+                    data:
+                      query: "ensalada cesar casera"
+                      chainSlug: null
+                      level1Hit: false
+                      level2Hit: true
+                      matchType: "ingredient_dish_fts"
+                      result:
+                        entityType: "dish"
+                        entityId: "uuid-of-dish"
+                        name: "Ensalada César Casera"
+                        nameEs: "Ensalada César Casera"
+                        restaurantId: "uuid-of-restaurant"
+                        chainSlug: "some-chain"
+                        portionGrams: 350
+                        nutrients:
+                          calories: 312
+                          proteins: 18
+                          carbohydrates: 14
+                          sugars: 3
+                          fats: 21
+                          saturatedFats: 5
+                          fiber: 2
+                          salt: 1.1
+                          sodium: 440
+                          transFats: 0
+                          cholesterol: 42
+                          potassium: 310
+                          monounsaturatedFats: 8
+                          polyunsaturatedFats: 3
+                          referenceBasis: "per_serving"
+                        confidenceLevel: "medium"
+                        estimationMethod: "ingredients"
+                        source:
+                          id: "uuid-of-dish-source"
+                          name: "Computed from ingredients"
+                          type: "estimated"
+                          url: null
+                      cachedAt: null
+                level2PartialHit:
+                  summary: Level 2 partial hit — some ingredients unresolved (low confidence)
+                  value:
+                    success: true
+                    data:
+                      query: "wrap de pollo especial"
+                      chainSlug: "some-chain"
+                      level1Hit: false
+                      level2Hit: true
+                      matchType: "ingredient_dish_exact"
+                      result:
+                        entityType: "dish"
+                        entityId: "uuid-of-dish"
+                        name: "Wrap de Pollo Especial"
+                        nameEs: "Wrap de Pollo Especial"
+                        restaurantId: "uuid-of-restaurant"
+                        chainSlug: "some-chain"
+                        portionGrams: null
+                        nutrients:
+                          calories: 210
+                          proteins: 22
+                          carbohydrates: 18
+                          sugars: 2
+                          fats: 6
+                          saturatedFats: 1.5
+                          fiber: 1
+                          salt: 0.8
+                          sodium: 320
+                          transFats: 0
+                          cholesterol: 55
+                          potassium: 280
+                          monounsaturatedFats: 2
+                          polyunsaturatedFats: 1
+                          referenceBasis: "per_serving"
+                        confidenceLevel: "low"
+                        estimationMethod: "ingredients"
+                        source:
+                          id: "uuid-of-dish-source"
+                          name: "Computed from ingredients"
+                          type: "estimated"
+                          url: null
+                      cachedAt: null
                 miss:
-                  summary: No match found at any Level 1 strategy
+                  summary: No match found at Level 1 or Level 2
                   value:
                     success: true
                     data:
                       query: "pizza de atún con borde relleno"
                       chainSlug: null
                       level1Hit: false
+                      level2Hit: false
                       matchType: null
                       result: null
                       cachedAt: null
@@ -3420,30 +3530,41 @@ components:
           type: string
           enum: [high, medium, low]
           description: |
-            Always "high" for Level 1 results. Level 1 is the official data tier —
-            regardless of the dish row's stored confidence_level, the engine assigns
-            "high" when the source is official. F021–F023 will populate other values.
+            Reflects the estimation method used:
+            - "high"   — Level 1 official data (always high for L1 results).
+            - "medium" — Level 2 ingredient-based, all ingredients resolved.
+            - "low"    — Level 2 ingredient-based, some ingredients unresolvable (partial sum).
+            F022/F023 will add further values for pgvector similarity results.
           example: high
         estimationMethod:
           type: string
           enum: [official, ingredients, extrapolation, scraped]
           description: |
-            Always "official" for Level 1 results. F021–F023 will populate "ingredients"
-            and "extrapolation" respectively.
+            How the nutritional values were produced:
+            - "official"     — Level 1: read directly from dish_nutrients or food_nutrients.
+            - "ingredients"  — Level 2: aggregated from dish_ingredients via food_nutrients.
+            - "extrapolation"— Level 3 (F022): pgvector similarity match.
+            - "scraped"      — data sourced by the scraper pipeline (not produced by the engine).
           example: official
         source:
           $ref: '#/components/schemas/EstimateSource'
+          description: |
+            Traceability block. For Level 1 results, points to the data_sources row of the
+            matched dish_nutrients or food_nutrients record. For Level 2 results, this is a
+            synthetic computed provenance marker: source.id is the dish's data_sources UUID,
+            source.name is "Computed from ingredients", source.type is "estimated".
 
     EstimateData:
       type: object
       description: |
-        The full payload for a GET /estimate response. Designed to be forward-compatible
-        with the F023 Engine Router response — F023 will ADD fields (level2Hit, level3Hit,
-        etc.) without removing any fields defined here.
+        The full payload for a GET /estimate response. Forward-compatible with the F023
+        Engine Router response — F023 will ADD fields (level3Hit) without removing any
+        fields defined here.
       required:
         - query
         - chainSlug
         - level1Hit
+        - level2Hit
         - matchType
         - result
         - cachedAt
@@ -3459,25 +3580,48 @@ components:
           example: "mcdonalds-es"
         level1Hit:
           type: boolean
-          description: True if a Level 1 match was found; false otherwise.
+          description: |
+            True if Level 1 (official data lookup) produced a match. When true, level2Hit
+            is always false (Level 2 is not attempted after a Level 1 hit).
           example: true
+        level2Hit:
+          type: boolean
+          description: |
+            True if Level 2 (ingredient-based estimation) produced a match. Only possible
+            when level1Hit is false. False when Level 1 hit, or when neither level produced
+            a result.
+          example: false
         matchType:
           type: string
           nullable: true
-          enum: [exact_dish, fts_dish, exact_food, fts_food]
+          enum:
+            - exact_dish
+            - fts_dish
+            - exact_food
+            - fts_food
+            - ingredient_dish_exact
+            - ingredient_dish_fts
           description: |
-            Which Level 1 strategy produced the match.
-            - exact_dish  — case-insensitive exact match on dishes.name
-            - fts_dish    — full-text search match on dishes (Spanish or English FTS)
-            - exact_food  — case-insensitive exact match on foods.name_es or foods.name
-            - fts_food    — full-text search match on foods (Spanish or English FTS)
-            Null when level1Hit is false.
+            Which strategy produced the match.
+            Level 1 strategies:
+            - exact_dish           — case-insensitive exact match on dishes.name
+            - fts_dish             — FTS match on dishes (Spanish or English)
+            - exact_food           — case-insensitive exact match on foods.name_es or foods.name
+            - fts_food             — FTS match on foods (Spanish or English)
+            Level 2 strategies:
+            - ingredient_dish_exact — case-insensitive exact match on dishes.name, aggregated
+                                      from dish_ingredients
+            - ingredient_dish_fts   — FTS match on dishes.name/name_es, aggregated from
+                                      dish_ingredients
+            Null when both level1Hit and level2Hit are false.
           example: exact_dish
         result:
           nullable: true
           allOf:
             - $ref: '#/components/schemas/EstimateResult'
-          description: The matched entity with nutrients and source. Null when level1Hit is false.
+          description: |
+            The matched entity with nutrients and source. Null when both level1Hit and
+            level2Hit are false. Non-null when either level produces a result.
         cachedAt:
           type: string
           nullable: true

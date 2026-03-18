@@ -37,6 +37,8 @@ export const EstimateMatchTypeSchema = z.enum([
   'fts_dish',
   'exact_food',
   'fts_food',
+  'ingredient_dish_exact',  // Level 2 — exact dish match via ingredient aggregation
+  'ingredient_dish_fts',    // Level 2 — FTS dish match via ingredient aggregation
 ]);
 
 export type EstimateMatchType = z.infer<typeof EstimateMatchTypeSchema>;
@@ -106,6 +108,7 @@ export const EstimateDataSchema = z.object({
   query: z.string(),
   chainSlug: z.string().nullable(),
   level1Hit: z.boolean(),
+  level2Hit: z.boolean(),
   matchType: EstimateMatchTypeSchema.nullable(),
   result: EstimateResultSchema.nullable(),
   cachedAt: z.string().nullable(),

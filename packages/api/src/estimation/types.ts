@@ -1,10 +1,13 @@
 // Internal TypeScript types for the Estimation Engine (E003).
 //
-// Level1LookupOptions — input to level1Lookup()
-// Level1Result        — output of level1Lookup(), includes matchType + EstimateResult
-// DishQueryRow        — shape of a Kysely dish-strategy result row (before mapping)
-// FoodQueryRow        — shape of a Kysely food-strategy result row (before mapping)
-// Mapping functions   — mapDishRowToResult, mapFoodRowToResult (Decimal strings → numbers)
+// Level1LookupOptions   — input to level1Lookup()
+// Level1Result          — output of level1Lookup(), includes matchType + EstimateResult
+// Level2LookupOptions   — input to level2Lookup()
+// Level2Result          — output of level2Lookup(), includes matchType + EstimateResult + resolution counts
+// DishQueryRow          — shape of a Kysely dish-strategy result row (before mapping)
+// FoodQueryRow          — shape of a Kysely food-strategy result row (before mapping)
+// IngredientNutrientRow — shape of a Kysely aggregating query row (Level 2)
+// Mapping functions     — mapDishRowToResult, mapFoodRowToResult, mapLevel2RowToResult
 
 import type {
   EstimateMatchType,
@@ -22,6 +25,15 @@ export interface Level1LookupOptions {
   restaurantId?: string;
 }
 
+/**
+ * Decoupled from Level1LookupOptions so F023 can evolve them independently.
+ * Structurally identical for now.
+ */
+export interface Level2LookupOptions {
+  chainSlug?: string;
+  restaurantId?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Level 1 result
 // ---------------------------------------------------------------------------
@@ -29,6 +41,19 @@ export interface Level1LookupOptions {
 export interface Level1Result {
   matchType: EstimateMatchType;
   result: EstimateResult;
+}
+
+// ---------------------------------------------------------------------------
+// Level 2 result
+// ---------------------------------------------------------------------------
+
+export interface Level2Result {
+  matchType: EstimateMatchType;
+  result: EstimateResult;
+  resolvedCount: number;
+  totalCount: number;
+  /** Food UUIDs that contributed to the aggregation. Empty in F021; F023 will populate. */
+  ingredientSources: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -99,6 +124,43 @@ export interface FoodQueryRow {
   source_name: string;
   source_type: string;
   source_url: string | null;
+}
+
+/**
+ * Columns returned by the Level 2 aggregating query.
+ * Dish identity + aggregated nutrient sums + resolution counts.
+ *
+ * Nutrient columns come back as string because:
+ * - SUM(CASE ... ELSE 0 END) guarantees non-NULL results
+ * - HAVING clause ensures ≥1 resolved ingredient (i.e., rows always have data)
+ */
+export interface IngredientNutrientRow {
+  // dish columns
+  dish_id: string;
+  dish_name: string;
+  dish_name_es: string | null;
+  restaurant_id: string;
+  chain_slug: string;
+  portion_grams: string | null;
+  dish_source_id: string;
+  // resolution counts (cast to text in SQL)
+  resolved_count: string;
+  total_count: string;
+  // aggregated nutrient totals (SUM * gram_weight / 100), cast to text
+  calories: string;
+  proteins: string;
+  carbohydrates: string;
+  sugars: string;
+  fats: string;
+  saturated_fats: string;
+  fiber: string;
+  salt: string;
+  sodium: string;
+  trans_fats: string;
+  cholesterol: string;
+  potassium: string;
+  monounsaturated_fats: string;
+  polyunsaturated_fats: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,4 +266,62 @@ export function mapFoodRowToResult(row: FoodQueryRow): EstimateResult {
     estimationMethod: 'official',
     source: mapSource(row),
   };
+}
+
+/**
+ * Map a Level 2 aggregating query row to a structured result object.
+ *
+ * Does NOT use mapNutrients (row lacks reference_basis column — L2 hardcodes per_serving).
+ * Does NOT use mapSource (source is synthetic — hardcoded name/type, url is null).
+ * Uses parseDecimal directly for each nutrient field.
+ *
+ * confidence: resolved/total = 1.0 → 'medium', partial → 'low'
+ */
+export function mapLevel2RowToResult(row: IngredientNutrientRow): {
+  result: EstimateResult;
+  resolvedCount: number;
+  totalCount: number;
+} {
+  const resolvedCount = parseInt(row.resolved_count, 10);
+  const totalCount = parseInt(row.total_count, 10);
+  const grams = parseDecimal(row.portion_grams);
+
+  const confidenceLevel = resolvedCount === totalCount ? 'medium' as const : 'low' as const;
+
+  const result: EstimateResult = {
+    entityType: 'dish',
+    entityId: row.dish_id,
+    name: row.dish_name,
+    nameEs: row.dish_name_es,
+    restaurantId: row.restaurant_id,
+    chainSlug: row.chain_slug,
+    portionGrams: grams > 0 ? grams : null,
+    nutrients: {
+      calories: parseDecimal(row.calories),
+      proteins: parseDecimal(row.proteins),
+      carbohydrates: parseDecimal(row.carbohydrates),
+      sugars: parseDecimal(row.sugars),
+      fats: parseDecimal(row.fats),
+      saturatedFats: parseDecimal(row.saturated_fats),
+      fiber: parseDecimal(row.fiber),
+      salt: parseDecimal(row.salt),
+      sodium: parseDecimal(row.sodium),
+      transFats: parseDecimal(row.trans_fats),
+      cholesterol: parseDecimal(row.cholesterol),
+      potassium: parseDecimal(row.potassium),
+      monounsaturatedFats: parseDecimal(row.monounsaturated_fats),
+      polyunsaturatedFats: parseDecimal(row.polyunsaturated_fats),
+      referenceBasis: 'per_serving',
+    },
+    confidenceLevel,
+    estimationMethod: 'ingredients',
+    source: {
+      id: row.dish_source_id,
+      name: 'Computed from ingredients',
+      type: 'estimated',
+      url: null,
+    },
+  };
+
+  return { result, resolvedCount, totalCount };
 }

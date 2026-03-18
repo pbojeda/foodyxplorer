@@ -1,8 +1,9 @@
-// GET /estimate — Level 1 official data lookup (Estimation Engine E003).
+// GET /estimate — Level 1 + Level 2 lookup (Estimation Engine E003).
 //
 // Validates query params with EstimateQuerySchema.
-// Checks Redis cache before executing the Level 1 lookup cascade.
-// Returns EstimateData with level1Hit:true on match, false on miss.
+// Checks Redis cache (unified key) before executing lookup cascade.
+// L1 miss triggers Level 2 ingredient-based estimation.
+// Returns EstimateData with level1Hit/level2Hit flags.
 // Cache TTL: 300 seconds. Cache is fail-open (bypass on Redis errors).
 
 import type { FastifyPluginAsync } from 'fastify';
@@ -15,6 +16,7 @@ import {
 } from '@foodxplorer/shared';
 import type { DB } from '../generated/kysely-types.js';
 import { level1Lookup } from '../estimation/level1Lookup.js';
+import { level2Lookup } from '../estimation/level2Lookup.js';
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 
 // ---------------------------------------------------------------------------
@@ -41,12 +43,13 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       schema: {
         querystring: EstimateQuerySchema,
         tags: ['Estimation'],
-        summary: 'Level 1 — official data lookup',
+        summary: 'Level 1 + Level 2 — official data and ingredient estimation',
         description:
           'Searches dishes and foods for an exact or FTS match against the official ' +
-          'nutritional database. Returns confidenceLevel=high when found (Level 1 hit). ' +
-          'Returns level1Hit:false when no match is found (not a 404). ' +
-          'Responses are cached in Redis for 300 seconds.',
+          'nutritional database (Level 1). On Level 1 miss, falls back to Level 2 ' +
+          'ingredient-based estimation. Returns level1Hit and level2Hit flags. ' +
+          'Returns level1Hit:false, level2Hit:false when no match is found (not a 404). ' +
+          'Responses are cached in Redis for 300 seconds under a unified cache key.',
       },
     },
     async (request, reply) => {
@@ -57,9 +60,10 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       // Normalize for cache key + DB lookup: collapse whitespace + lowercase.
       const normalizedQuery = query.replace(/\s+/g, ' ').toLowerCase();
 
-      // Cache key: fxp:estimate:l1:<query>:<chainSlug>:<restaurantId>
+      // Unified cache key: fxp:estimate:<query>:<chainSlug>:<restaurantId>
+      // Single key stores final response regardless of which level produced it.
       const cacheKey = buildKey(
-        'estimate:l1',
+        'estimate',
         `${normalizedQuery}:${chainSlug ?? ''}:${restaurantId ?? ''}`,
       );
 
@@ -70,9 +74,9 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       }
 
       // --- Level 1 lookup ---
-      let lookupResult;
+      let lookupResult1;
       try {
-        lookupResult = await level1Lookup(db, normalizedQuery, { chainSlug, restaurantId });
+        lookupResult1 = await level1Lookup(db, normalizedQuery, { chainSlug, restaurantId });
       } catch (err) {
         throw Object.assign(
           new Error('Database query failed'),
@@ -80,20 +84,49 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         );
       }
 
-      // --- Build response data ---
-      const data: EstimateData = lookupResult !== null
+      // --- Level 1 hit: build response and cache ---
+      if (lookupResult1 !== null) {
+        const data: EstimateData = {
+          query,
+          chainSlug: chainSlug ?? null,
+          level1Hit: true,
+          level2Hit: false,
+          matchType: lookupResult1.matchType,
+          result: lookupResult1.result,
+          cachedAt: null,
+        };
+        const dataToCache: EstimateData = { ...data, cachedAt: new Date().toISOString() };
+        await cacheSet(cacheKey, dataToCache, request.log);
+        return reply.send({ success: true, data });
+      }
+
+      // --- Level 2 fallback (L1 miss) ---
+      let lookupResult2;
+      try {
+        lookupResult2 = await level2Lookup(db, normalizedQuery, { chainSlug, restaurantId });
+      } catch (err) {
+        throw Object.assign(
+          new Error('Database query failed'),
+          { statusCode: 500, code: 'DB_UNAVAILABLE', cause: err },
+        );
+      }
+
+      // --- Build response data (L2 hit or total miss) ---
+      const data: EstimateData = lookupResult2 !== null
         ? {
             query,
             chainSlug: chainSlug ?? null,
-            level1Hit: true,
-            matchType: lookupResult.matchType,
-            result: lookupResult.result,
+            level1Hit: false,
+            level2Hit: true,
+            matchType: lookupResult2.matchType,
+            result: lookupResult2.result,
             cachedAt: null,
           }
         : {
             query,
             chainSlug: chainSlug ?? null,
             level1Hit: false,
+            level2Hit: false,
             matchType: null,
             result: null,
             cachedAt: null,

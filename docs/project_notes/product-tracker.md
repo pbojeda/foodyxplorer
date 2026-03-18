@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-18
 
-**Active Feature:** None — no active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F020 completed and merged (PR #18). E003 epic in progress — next feature TBD.
+**Active Feature:** F021 — Level 2: Ingredient-Based Estimation
+**Step:** 5/6 (Review)
+**Branch:** feature/F021-level2-ingredient-estimation
+**Complexity:** Standard
+**Context:** Code review APPROVED (0 issues). QA VERIFIED (52 edge-case tests, 8 findings, 0 bugs). PR #19. 80 new F021 tests total. Pending: Merge Approval → Step 6 (Complete).
 
 ---
 
@@ -63,7 +63,7 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F020 | Level 1 — Official Data Lookup | backend | done | 6/6 | GET /estimate, 4-strategy cascade, Kysely bootstrap, CTE de-dup, Redis cache. 108 tests. PR #18 |
-| F021 | Level 2 — Ingredient-Based Estimation | backend | pending | — | |
+| F021 | Level 2 — Ingredient-Based Estimation | backend | in-progress | 5/6 | Standard. level2Lookup, nutrient aggregation from dish_ingredients, 2 strategies, confidence scoring. 80 new tests. PR #19 |
 | F022 | Level 3 — Similarity Extrapolation (pgvector) | backend | pending | — | |
 | F023 | Engine Router & Confidence API | backend | pending | — | |
 | F024 | LLM Integration Layer | backend | pending | — | |

@@ -246,6 +246,15 @@ vi.mock('../estimation/level1Lookup.js', () => ({
   level1Lookup: mockLevel1Lookup,
 }));
 
+// Stub for level2Lookup — route imports it; full tests in f021.estimate.route.test.ts
+const { mockLevel2LookupEdge } = vi.hoisted(() => ({
+  mockLevel2LookupEdge: vi.fn(),
+}));
+
+vi.mock('../estimation/level2Lookup.js', () => ({
+  level2Lookup: mockLevel2LookupEdge,
+}));
+
 const { mockRedisGet, mockRedisSet } = vi.hoisted(() => ({
   mockRedisGet: vi.fn(),
   mockRedisSet: vi.fn(),
@@ -311,6 +320,8 @@ describe('Section C — Route edge cases', () => {
     vi.resetAllMocks();
     mockRedisGet.mockResolvedValue(null);
     mockRedisSet.mockResolvedValue('OK');
+    // Default: level2Lookup returns null (L1 edge-case tests don't exercise L2)
+    mockLevel2LookupEdge.mockResolvedValue(null);
   });
 
   // ─── Query length boundaries at route level ───────────────────────────────
@@ -589,7 +600,7 @@ describe('Section C — Route edge cases', () => {
 
   describe('cache key construction with colon in query', () => {
     it('query with colon character generates distinct key from same string split across params', async () => {
-      // Cache key = fxp:estimate:l1:{query}:{chainSlug}:{restaurantId}
+      // Unified cache key = fxp:estimate:{query}:{chainSlug}:{restaurantId}
       // If query="a:b", no chainSlug, no restaurantId → key ends in "a:b::"
       // If query="a", chainSlug="b", no restaurantId → key ends in "a:b:"
       // These are DIFFERENT (different trailing colons) — no collision in this case.
