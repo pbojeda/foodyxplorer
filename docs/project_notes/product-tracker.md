@@ -11,10 +11,10 @@
 **Last Updated:** 2026-03-18
 
 **Active Feature:** F020 — Level 1 Official Data Lookup
-**Step:** 3/6 (Implement — DONE, awaiting Step 4 validation)
+**Step:** 5/6 (Review — PR #18, awaiting merge approval)
 **Branch:** feature/F020-level1-official-data-lookup
 **Complexity:** Standard
-**Context:** First feature of E003 (Estimation Engine). GET /estimate endpoint implemented with 4-strategy cascade lookup (exact dish → FTS dish → exact food → FTS food). Kysely bootstrap done, CTE de-dup, all 15 nutrients, Redis cache, forward-compatible for F021-F023. 68 tests passing (40 shared + 14 unit + 14 route). Ready for Step 4 (production-code-validator).
+**Context:** First feature of E003 (Estimation Engine). GET /estimate endpoint with 4-strategy cascade, Kysely bootstrap, CTE de-dup, 15 nutrients, Redis cache. PR #18. Code review: 1 Important fixed. QA: 2 bugs fixed, 80 edge-case tests. Total: 108 F020 + 161 shared tests.
 
 ---
 
@@ -62,7 +62,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F020 | Level 1 — Official Data Lookup | backend | in-progress | 3/6 | GET /estimate, 4-strategy cascade, Kysely bootstrap, CTE de-dup, Redis cache, 68 tests |
+| F020 | Level 1 — Official Data Lookup | backend | in-progress | 5/6 | GET /estimate, 4-strategy cascade, Kysely bootstrap, CTE de-dup, Redis cache. PR #18. 108 tests |
 | F021 | Level 2 — Ingredient-Based Estimation | backend | pending | — | |
 | F022 | Level 3 — Similarity Extrapolation (pgvector) | backend | pending | — | |
 | F023 | Engine Router & Confidence API | backend | pending | — | |
