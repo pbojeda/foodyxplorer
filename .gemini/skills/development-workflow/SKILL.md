@@ -99,7 +99,14 @@ See `references/branching-strategy.md` for details.
 1. Follow the planner agent instructions (`backend-planner` for backend features, `frontend-planner` for frontend features) in `.gemini/agents/`
 2. **Fullstack features:** Run `backend-planner` first, then `frontend-planner`. Each writes its own section in the Implementation Plan
 3. Write Implementation Plan into ticket's `## Implementation Plan`
-4. Update tracker: step `2/6 (Plan)` (Active Session + Features table)
+4. **Plan Self-Review:** Re-read the complete Implementation Plan you just wrote. Critically evaluate:
+   - Missing error handling or edge cases?
+   - Steps that are too vague to implement with TDD?
+   - Wrong assumptions about existing code or schemas?
+   - Dependencies between steps that force a different order?
+   - Over-engineering or unnecessary abstractions?
+   Update the plan with any fixes found before proceeding.
+5. Update tracker: step `2/6 (Plan)` (Active Session + Features table)
 
 **→ CHECKPOINT: Plan Approval**
 

@@ -1,0 +1,2 @@
+description = "Review the current Implementation Plan using an external AI model for independent critique (optional, for Standard/Complex features)"
+prompt = "Read the file .gemini/commands/review-plan-instructions.md and follow the instructions to review the current Implementation Plan with an external model."
