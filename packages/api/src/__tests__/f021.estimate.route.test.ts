@@ -1,6 +1,9 @@
-// Route tests for GET /estimate
+// Route tests for GET /estimate — Level 2 integration (F021)
 //
-// Uses buildApp().inject(). Mocks level1Lookup and Redis at module level.
+// Tests: L1 miss + L2 hit, L1 hit (L2 not called), total miss,
+//        cache hit, Redis fail-open, L2 DB error → 500, schema validation.
+//
+// Uses buildApp().inject(). Mocks level1Lookup, level2Lookup, and Redis.
 // No real DB calls.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -21,7 +24,7 @@ vi.mock('../estimation/level1Lookup.js', () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Mock level2Lookup — stub only, full tests in f021.estimate.route.test.ts
+// Mock level2Lookup
 // ---------------------------------------------------------------------------
 
 const { mockLevel2Lookup } = vi.hoisted(() => ({
@@ -84,10 +87,10 @@ const MOCK_LEVEL1_RESULT = {
   matchType: 'exact_dish' as const,
   result: {
     entityType: 'dish' as const,
-    entityId: 'fd000000-0001-4000-a000-000000000001',
+    entityId: 'fd000000-0021-4000-a000-000000000001',
     name: 'Big Mac',
     nameEs: 'Big Mac',
-    restaurantId: 'fd000000-0001-4000-a000-000000000002',
+    restaurantId: 'fd000000-0021-4000-a000-000000000002',
     chainSlug: 'mcdonalds-es',
     portionGrams: 215,
     nutrients: {
@@ -110,10 +113,51 @@ const MOCK_LEVEL1_RESULT = {
     confidenceLevel: 'high' as const,
     estimationMethod: 'official' as const,
     source: {
-      id: 'fd000000-0001-4000-a000-000000000003',
+      id: 'fd000000-0021-4000-a000-000000000003',
       name: "McDonald's Spain Official PDF",
       type: 'official' as const,
       url: 'https://www.mcdonalds.es/nutritional.pdf',
+    },
+  },
+};
+
+const MOCK_LEVEL2_RESULT = {
+  matchType: 'ingredient_dish_exact' as const,
+  resolvedCount: 2,
+  totalCount: 2,
+  ingredientSources: [],
+  result: {
+    entityType: 'dish' as const,
+    entityId: 'fd000000-0021-4000-a000-000000000010',
+    name: 'Pollo con Verduras',
+    nameEs: 'Pollo con Verduras',
+    restaurantId: 'fd000000-0021-4000-a000-000000000011',
+    chainSlug: 'mcdonalds-es',
+    portionGrams: 300,
+    nutrients: {
+      calories: 320,
+      proteins: 28,
+      carbohydrates: 30,
+      sugars: 5,
+      fats: 8,
+      saturatedFats: 2,
+      fiber: 4,
+      salt: 1.2,
+      sodium: 480,
+      transFats: 0,
+      cholesterol: 60,
+      potassium: 400,
+      monounsaturatedFats: 3,
+      polyunsaturatedFats: 1.5,
+      referenceBasis: 'per_serving' as const,
+    },
+    confidenceLevel: 'medium' as const,
+    estimationMethod: 'ingredients' as const,
+    source: {
+      id: 'fd000000-0021-4000-a000-000000000012',
+      name: 'Computed from ingredients',
+      type: 'estimated' as const,
+      url: null,
     },
   },
 };
@@ -122,127 +166,63 @@ const MOCK_LEVEL1_RESULT = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('GET /estimate', () => {
+describe('GET /estimate — Level 2 integration', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     // Default: Redis returns null (cache miss)
     mockRedisGet.mockResolvedValue(null);
     mockRedisSet.mockResolvedValue('OK');
-    // Default: level2Lookup returns null (L1 tests don't exercise L2)
+    // Default: L1 misses
+    mockLevel1Lookup.mockResolvedValue(null);
+    // Default: L2 misses
     mockLevel2Lookup.mockResolvedValue(null);
   });
 
   // -------------------------------------------------------------------------
-  // Validation
+  // L1 miss + L2 hit
   // -------------------------------------------------------------------------
 
-  it('returns 400 VALIDATION_ERROR when query param is missing', async () => {
-    const app = await buildApp();
-    const response = await app.inject({ method: 'GET', url: '/estimate' });
-
-    expect(response.statusCode).toBe(400);
-    const body = response.json<{ success: false; error: { code: string } }>();
-    expect(body.success).toBe(false);
-    expect(body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('returns 400 VALIDATION_ERROR when query is empty string', async () => {
-    const app = await buildApp();
-    const response = await app.inject({ method: 'GET', url: '/estimate?query=' });
-
-    expect(response.statusCode).toBe(400);
-    const body = response.json<{ success: false; error: { code: string } }>();
-    expect(body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('returns 400 VALIDATION_ERROR when query exceeds 255 chars', async () => {
-    const app = await buildApp();
-    const longQuery = 'a'.repeat(256);
-    const response = await app.inject({ method: 'GET', url: `/estimate?query=${longQuery}` });
-
-    expect(response.statusCode).toBe(400);
-    const body = response.json<{ success: false; error: { code: string } }>();
-    expect(body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('returns 400 VALIDATION_ERROR when restaurantId is not a valid UUID', async () => {
-    const app = await buildApp();
-    const response = await app.inject({
-      method: 'GET',
-      url: '/estimate?query=burger&restaurantId=not-a-uuid',
-    });
-
-    expect(response.statusCode).toBe(400);
-    const body = response.json<{ success: false; error: { code: string } }>();
-    expect(body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('returns 400 VALIDATION_ERROR when chainSlug has invalid characters', async () => {
-    const app = await buildApp();
-    const response = await app.inject({
-      method: 'GET',
-      url: '/estimate?query=burger&chainSlug=McDonalds_ES',
-    });
-
-    expect(response.statusCode).toBe(400);
-    const body = response.json<{ success: false; error: { code: string } }>();
-    expect(body.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  // -------------------------------------------------------------------------
-  // Cache miss — live result
-  // -------------------------------------------------------------------------
-
-  it('cache miss → calls level1Lookup, returns 200 with level1Hit:true', async () => {
-    mockLevel1Lookup.mockResolvedValueOnce(MOCK_LEVEL1_RESULT);
-
-    const app = await buildApp();
-    const response = await app.inject({
-      method: 'GET',
-      url: '/estimate?query=Big+Mac&chainSlug=mcdonalds-es',
-    });
-
-    expect(response.statusCode).toBe(200);
-    const body = response.json<{ success: boolean; data: Record<string, unknown> }>();
-    expect(body.success).toBe(true);
-    expect(body.data['level1Hit']).toBe(true);
-    expect(body.data['matchType']).toBe('exact_dish');
-    expect(body.data['cachedAt']).toBeNull();
-    expect(mockLevel1Lookup).toHaveBeenCalledTimes(1);
-  });
-
-  it('cache miss → level1Lookup returns null → 200 with level1Hit:false', async () => {
+  it('L1 miss + L2 hit → calls level2Lookup, returns level2Hit:true with 200', async () => {
     mockLevel1Lookup.mockResolvedValueOnce(null);
+    mockLevel2Lookup.mockResolvedValueOnce(MOCK_LEVEL2_RESULT);
 
     const app = await buildApp();
     const response = await app.inject({
       method: 'GET',
-      url: '/estimate?query=something+completely+unknown',
+      url: '/estimate?query=Pollo+con+Verduras&chainSlug=mcdonalds-es',
     });
 
     expect(response.statusCode).toBe(200);
     const body = response.json<{ success: boolean; data: Record<string, unknown> }>();
     expect(body.success).toBe(true);
     expect(body.data['level1Hit']).toBe(false);
-    expect(body.data['matchType']).toBeNull();
-    expect(body.data['result']).toBeNull();
+    expect(body.data['level2Hit']).toBe(true);
+    expect(body.data['matchType']).toBe('ingredient_dish_exact');
+    expect(body.data['cachedAt']).toBeNull();
+    expect(mockLevel2Lookup).toHaveBeenCalledTimes(1);
+  });
+
+  it('L1 miss + L2 hit → result has confidenceLevel=medium and estimationMethod=ingredients', async () => {
+    mockLevel1Lookup.mockResolvedValueOnce(null);
+    mockLevel2Lookup.mockResolvedValueOnce(MOCK_LEVEL2_RESULT);
+
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'GET',
+      url: '/estimate?query=Pollo+con+Verduras',
+    });
+
+    const body = response.json<{ data: { result: { confidenceLevel: string; estimationMethod: string } } }>();
+    expect(body.data.result.confidenceLevel).toBe('medium');
+    expect(body.data.result.estimationMethod).toBe('ingredients');
   });
 
   // -------------------------------------------------------------------------
-  // Cache hit
+  // L1 hit — L2 not called
   // -------------------------------------------------------------------------
 
-  it('cache hit → returns cached data with non-null cachedAt, level1Lookup not called', async () => {
-    const cachedData = {
-      query: 'Big Mac',
-      chainSlug: 'mcdonalds-es',
-      level1Hit: true,
-      level2Hit: false,
-      matchType: 'exact_dish',
-      result: MOCK_LEVEL1_RESULT.result,
-      cachedAt: '2026-03-17T14:00:00.000Z',
-    };
-    mockRedisGet.mockResolvedValueOnce(JSON.stringify(cachedData));
+  it('L1 hit → level2Lookup not called, level2Hit:false', async () => {
+    mockLevel1Lookup.mockResolvedValueOnce(MOCK_LEVEL1_RESULT);
 
     const app = await buildApp();
     const response = await app.inject({
@@ -251,66 +231,116 @@ describe('GET /estimate', () => {
     });
 
     expect(response.statusCode).toBe(200);
+    const body = response.json<{ data: Record<string, unknown> }>();
+    expect(body.data['level1Hit']).toBe(true);
+    expect(body.data['level2Hit']).toBe(false);
+    expect(mockLevel2Lookup).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
+  // L1 miss + L2 miss — total miss
+  // -------------------------------------------------------------------------
+
+  it('L1 miss + L2 miss → both hits false, result:null, 200', async () => {
+    mockLevel1Lookup.mockResolvedValueOnce(null);
+    mockLevel2Lookup.mockResolvedValueOnce(null);
+
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'GET',
+      url: '/estimate?query=completely+unknown+dish',
+    });
+
+    expect(response.statusCode).toBe(200);
     const body = response.json<{ success: boolean; data: Record<string, unknown> }>();
     expect(body.success).toBe(true);
-    expect(body.data['cachedAt']).toBe('2026-03-17T14:00:00.000Z');
-    expect(body.data['level1Hit']).toBe(true);
-    // level1Lookup should NOT be called on cache hit
+    expect(body.data['level1Hit']).toBe(false);
+    expect(body.data['level2Hit']).toBe(false);
+    expect(body.data['result']).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // Cache hit — neither lookup called
+  // -------------------------------------------------------------------------
+
+  it('cache hit → neither level1Lookup nor level2Lookup called, cachedAt non-null', async () => {
+    const cachedData = {
+      query: 'Pollo con Verduras',
+      chainSlug: 'mcdonalds-es',
+      level1Hit: false,
+      level2Hit: true,
+      matchType: 'ingredient_dish_exact',
+      result: MOCK_LEVEL2_RESULT.result,
+      cachedAt: '2026-03-18T10:00:00.000Z',
+    };
+    mockRedisGet.mockResolvedValueOnce(JSON.stringify(cachedData));
+
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'GET',
+      url: '/estimate?query=Pollo+con+Verduras&chainSlug=mcdonalds-es',
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{ data: Record<string, unknown> }>();
+    expect(body.data['cachedAt']).toBe('2026-03-18T10:00:00.000Z');
+    expect(body.data['level2Hit']).toBe(true);
     expect(mockLevel1Lookup).not.toHaveBeenCalled();
+    expect(mockLevel2Lookup).not.toHaveBeenCalled();
   });
 
   // -------------------------------------------------------------------------
   // Redis unavailable — fail-open
   // -------------------------------------------------------------------------
 
-  it('Redis unavailable → fail-open, returns live result without error', async () => {
+  it('Redis get unavailable → fail-open, lookups are called', async () => {
     mockRedisGet.mockRejectedValueOnce(new Error('ECONNREFUSED'));
-    mockLevel1Lookup.mockResolvedValueOnce(MOCK_LEVEL1_RESULT);
+    mockLevel2Lookup.mockResolvedValueOnce(MOCK_LEVEL2_RESULT);
 
     const app = await buildApp();
     const response = await app.inject({
       method: 'GET',
-      url: '/estimate?query=Big+Mac',
+      url: '/estimate?query=Pollo+con+Verduras',
     });
 
     expect(response.statusCode).toBe(200);
-    const body = response.json<{ success: boolean; data: Record<string, unknown> }>();
-    expect(body.success).toBe(true);
-    expect(body.data['level1Hit']).toBe(true);
-    // level1Lookup was called despite Redis being down
+    const body = response.json<{ data: Record<string, unknown> }>();
+    expect(body.data['level2Hit']).toBe(true);
+    // Both lookups were called despite Redis being down
     expect(mockLevel1Lookup).toHaveBeenCalledTimes(1);
+    expect(mockLevel2Lookup).toHaveBeenCalledTimes(1);
   });
 
-  it('Redis set failure does not cause error — fail-open on write', async () => {
+  it('Redis set unavailable → fail-open, result is returned normally', async () => {
     mockRedisGet.mockResolvedValueOnce(null);
     mockRedisSet.mockRejectedValueOnce(new Error('ECONNREFUSED'));
-    mockLevel1Lookup.mockResolvedValueOnce(MOCK_LEVEL1_RESULT);
+    mockLevel2Lookup.mockResolvedValueOnce(MOCK_LEVEL2_RESULT);
 
     const app = await buildApp();
     const response = await app.inject({
       method: 'GET',
-      url: '/estimate?query=Big+Mac',
+      url: '/estimate?query=Pollo+con+Verduras',
     });
 
-    // Should still return 200 even if cache write fails
     expect(response.statusCode).toBe(200);
-    const body = response.json<{ success: boolean; data: Record<string, unknown> }>();
-    expect(body.success).toBe(true);
+    const body = response.json<{ data: Record<string, unknown> }>();
+    expect(body.data['level2Hit']).toBe(true);
   });
 
   // -------------------------------------------------------------------------
-  // DB error → 500
+  // Level 2 DB error → 500
   // -------------------------------------------------------------------------
 
-  it('level1Lookup throws DB_UNAVAILABLE → 500', async () => {
-    mockLevel1Lookup.mockRejectedValueOnce(
+  it('level2Lookup throws DB_UNAVAILABLE → 500 response', async () => {
+    mockLevel1Lookup.mockResolvedValueOnce(null);
+    mockLevel2Lookup.mockRejectedValueOnce(
       Object.assign(new Error('Database query failed'), { code: 'DB_UNAVAILABLE' }),
     );
 
     const app = await buildApp();
     const response = await app.inject({
       method: 'GET',
-      url: '/estimate?query=Big+Mac',
+      url: '/estimate?query=test+dish',
     });
 
     expect(response.statusCode).toBe(500);
@@ -323,13 +353,14 @@ describe('GET /estimate', () => {
   // Response schema validation
   // -------------------------------------------------------------------------
 
-  it('response validates against EstimateResponseSchema (hit case)', async () => {
-    mockLevel1Lookup.mockResolvedValueOnce(MOCK_LEVEL1_RESULT);
+  it('L2 hit response validates against EstimateResponseSchema', async () => {
+    mockLevel1Lookup.mockResolvedValueOnce(null);
+    mockLevel2Lookup.mockResolvedValueOnce(MOCK_LEVEL2_RESULT);
 
     const app = await buildApp();
     const response = await app.inject({
       method: 'GET',
-      url: '/estimate?query=Big+Mac&chainSlug=mcdonalds-es',
+      url: '/estimate?query=Pollo+con+Verduras&chainSlug=mcdonalds-es',
     });
 
     expect(response.statusCode).toBe(200);
@@ -338,13 +369,14 @@ describe('GET /estimate', () => {
     expect(parsed.success).toBe(true);
   });
 
-  it('response validates against EstimateResponseSchema (miss case)', async () => {
+  it('total miss response validates against EstimateResponseSchema', async () => {
     mockLevel1Lookup.mockResolvedValueOnce(null);
+    mockLevel2Lookup.mockResolvedValueOnce(null);
 
     const app = await buildApp();
     const response = await app.inject({
       method: 'GET',
-      url: '/estimate?query=unknown',
+      url: '/estimate?query=completely+unknown',
     });
 
     expect(response.statusCode).toBe(200);
@@ -354,21 +386,22 @@ describe('GET /estimate', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Query normalization — whitespace collapsed + lowercased in cache key
+  // Unified cache key — level2Lookup receives normalized query
   // -------------------------------------------------------------------------
 
-  it('passes normalized query to level1Lookup', async () => {
+  it('level2Lookup receives normalized query (lowercased, collapsed whitespace)', async () => {
     mockLevel1Lookup.mockResolvedValueOnce(null);
+    mockLevel2Lookup.mockResolvedValueOnce(null);
 
     const app = await buildApp();
     await app.inject({
       method: 'GET',
-      url: '/estimate?query=Big%20%20Mac',
+      url: '/estimate?query=Pollo%20%20con%20Verduras',
     });
 
-    expect(mockLevel1Lookup).toHaveBeenCalledWith(
-      mockKyselyDb,      // db instance passed from app.ts via getKysely()
-      'big mac',         // Zod trims; normalization collapses spaces + lowercases
+    expect(mockLevel2Lookup).toHaveBeenCalledWith(
+      mockKyselyDb,
+      'pollo con verduras', // normalized
       expect.any(Object),
     );
   });

@@ -166,6 +166,14 @@ describe('EstimateMatchTypeSchema', () => {
     }
   });
 
+  it('accepts ingredient_dish_exact (Level 2)', () => {
+    expect(EstimateMatchTypeSchema.safeParse('ingredient_dish_exact').success).toBe(true);
+  });
+
+  it('accepts ingredient_dish_fts (Level 2)', () => {
+    expect(EstimateMatchTypeSchema.safeParse('ingredient_dish_fts').success).toBe(true);
+  });
+
   it('rejects invalid match type', () => {
     expect(EstimateMatchTypeSchema.safeParse('exact_recipe').success).toBe(false);
   });
@@ -308,6 +316,7 @@ describe('EstimateDataSchema', () => {
       query: 'Big Mac',
       chainSlug: 'mcdonalds-es',
       level1Hit: true,
+      level2Hit: false,
       matchType: 'exact_dish',
       result: VALID_RESULT,
       cachedAt: null,
@@ -320,6 +329,7 @@ describe('EstimateDataSchema', () => {
       query: 'pizza de atún con borde relleno',
       chainSlug: null,
       level1Hit: false,
+      level2Hit: false,
       matchType: null,
       result: null,
       cachedAt: null,
@@ -332,11 +342,52 @@ describe('EstimateDataSchema', () => {
       query: 'Big Mac',
       chainSlug: 'mcdonalds-es',
       level1Hit: true,
+      level2Hit: false,
       matchType: 'exact_dish',
       result: VALID_RESULT,
       cachedAt: '2026-03-17T14:00:00.000Z',
     };
     expect(EstimateDataSchema.safeParse(data).success).toBe(true);
+  });
+
+  it('parses a Level 2 hit with level2Hit:true', () => {
+    const data = {
+      query: 'Big Mac',
+      chainSlug: 'mcdonalds-es',
+      level1Hit: false,
+      level2Hit: true,
+      matchType: 'ingredient_dish_exact',
+      result: {
+        ...VALID_RESULT,
+        confidenceLevel: 'medium' as const,
+        estimationMethod: 'ingredients' as const,
+        source: {
+          id: 'fd000000-0001-4000-a000-000000000001',
+          name: 'Computed from ingredients',
+          type: 'estimated' as const,
+          url: null,
+        },
+        nutrients: {
+          ...VALID_NUTRIENTS,
+          referenceBasis: 'per_serving' as const,
+        },
+      },
+      cachedAt: null,
+    };
+    expect(EstimateDataSchema.safeParse(data).success).toBe(true);
+  });
+
+  it('rejects missing level2Hit', () => {
+    const data = {
+      query: 'Big Mac',
+      chainSlug: null,
+      level1Hit: false,
+      // level2Hit intentionally omitted
+      matchType: null,
+      result: null,
+      cachedAt: null,
+    };
+    expect(EstimateDataSchema.safeParse(data).success).toBe(false);
   });
 });
 
@@ -352,6 +403,7 @@ describe('EstimateResponseSchema', () => {
         query: 'Big Mac',
         chainSlug: 'mcdonalds-es',
         level1Hit: true,
+        level2Hit: false,
         matchType: 'exact_dish',
         result: {
           entityType: 'dish',
@@ -401,6 +453,7 @@ describe('EstimateResponseSchema', () => {
         query: 'pizza de atún con borde relleno',
         chainSlug: null,
         level1Hit: false,
+        level2Hit: false,
         matchType: null,
         result: null,
         cachedAt: null,
