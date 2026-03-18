@@ -177,7 +177,7 @@ export function mapDishRowToResult(row: DishQueryRow): EstimateResult {
     nameEs: row.dish_name_es,
     restaurantId: row.restaurant_id,
     chainSlug: row.chain_slug,
-    portionGrams: grams !== null && grams > 0 ? grams : null,
+    portionGrams: grams > 0 ? grams : null,
     nutrients: mapNutrients(row),
     confidenceLevel: 'high',
     estimationMethod: 'official',

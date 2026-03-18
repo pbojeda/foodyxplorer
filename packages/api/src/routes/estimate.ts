@@ -55,7 +55,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
 
       // Normalize query: Zod .trim() handles leading/trailing whitespace.
       // Collapse internal whitespace for consistent cache keys.
-      const normalizedQuery = query.replace(/\s+/g, ' ');
+      const normalizedQuery = query.replace(/\s+/g, ' ').toLowerCase();
 
       // Cache key: fxp:estimate:l1:<query>:<chainSlug>:<restaurantId>
       const cacheKey = buildKey(

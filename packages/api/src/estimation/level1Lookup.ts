@@ -22,7 +22,7 @@ import { mapDishRowToResult, mapFoodRowToResult } from './types.js';
 // ---------------------------------------------------------------------------
 
 function normalizeQuery(query: string): string {
-  return query.trim().replace(/\s+/g, ' ');
+  return query.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 // ---------------------------------------------------------------------------

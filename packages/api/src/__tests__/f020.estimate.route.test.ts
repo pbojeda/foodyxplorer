@@ -339,7 +339,7 @@ describe('GET /estimate', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Query normalization — whitespace collapsed in cache key
+  // Query normalization — whitespace collapsed + lowercased in cache key
   // -------------------------------------------------------------------------
 
   it('passes normalized query to level1Lookup', async () => {
@@ -353,7 +353,7 @@ describe('GET /estimate', () => {
 
     expect(mockLevel1Lookup).toHaveBeenCalledWith(
       mockKyselyDb,      // db instance passed from app.ts via getKysely()
-      'Big Mac',         // Zod trims; internal normalization collapses spaces
+      'big mac',         // Zod trims; normalization collapses spaces + lowercases
       expect.any(Object),
     );
   });
