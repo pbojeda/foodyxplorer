@@ -43,6 +43,14 @@ tags:
       vector generation for foods and/or dishes. Writes 1536-dimension embeddings
       via raw SQL ($executeRaw) into the pgvector columns. These embeddings power
       E003 Level 3 similarity extrapolation.
+  - name: Estimation
+    description: |
+      Estimation Engine endpoints (E003, F020–F024). The engine is deterministic and
+      auditable per ADR-001: it NEVER uses an LLM to calculate nutritional values.
+      Three levels cascade: Level 1 (official data lookup, F020) → Level 2
+      (ingredient-based calculation, F021) → Level 3 (pgvector similarity, F022).
+      F023 (Engine Router) orchestrates all levels. Every response includes source
+      traceability and a deterministic confidence level.
 
 paths:
   /ingest/pdf:
@@ -1438,6 +1446,287 @@ paths:
                     success: false
                     error:
                       message: "Database error during embedding write"
+                      code: "DB_UNAVAILABLE"
+
+  /estimate:
+    get:
+      summary: Level 1 — Official Data Lookup
+      description: |
+        Queries the database for official nutritional data matching the given dish or
+        food name. This is Level 1 of the Estimation Engine (E003, F020), the
+        highest-confidence tier of the three-level cascade defined in ADR-001.
+
+        **Matching strategy (priority order):**
+        1. Exact name match on `dishes.name` (case-insensitive), scoped to chain/restaurant
+        2. FTS match on `dishes.name_es` (Spanish, primary) / `dishes.name` (English, fallback)
+        3. Exact name match on `foods.name_es` or `foods.name` (chain-agnostic USDA foods)
+        4. FTS match on `foods.name_es` / `foods.name`
+
+        The first strategy that returns a result wins. No ranking within a strategy — LIMIT 1
+        is applied and the first DB row is returned.
+
+        **Scope:** When `chainSlug` or `restaurantId` is provided, dish strategies (1 and 2)
+        are scoped to that chain/restaurant. Food strategies (3 and 4) are always global.
+        If `restaurantId` is provided together with `chainSlug`, `restaurantId` takes
+        precedence for dish scoping.
+
+        **Cache:** Responses are cached in Redis for 300 seconds. The `cachedAt` field in
+        the response is non-null when the data came from cache. Cache is bypassed (fail-open)
+        if Redis is unavailable.
+
+        **Miss semantics:** A miss (no match found) returns HTTP 200 with `level1Hit: false`
+        and `result: null`. This is NOT a 404 — it is a valid response that allows F023
+        (Engine Router) to cascade to Level 2.
+
+        **Integration note:** F023 will call the `level1Lookup()` function exported from
+        `packages/api/src/estimation/level1Lookup.ts` directly (not via HTTP). This endpoint
+        is the Level-1-only stub; it will be superseded by F023's full orchestration route.
+        The response schema is forward-compatible with the full Engine Router response.
+
+        **Auth:** No auth required (Phase 1 — internal use). API key auth added in F026.
+
+        **Rate limiting:** Subject to the global 100 req/15min/IP limit from F005.
+      operationId: estimateLevel1
+      tags:
+        - Estimation
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: |
+            The dish or food name to look up. Trimmed, whitespace-collapsed, and
+            lowercased before matching. Passed to `plainto_tsquery` for FTS strategies
+            (prevents injection of FTS operators).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+            example: "Big Mac"
+        - name: chainSlug
+          in: query
+          required: false
+          description: |
+            Scope dish search to a single restaurant chain. Must match a value in the
+            `restaurants.chain_slug` column (e.g. "mcdonalds-es", "burger-king-es").
+            If `restaurantId` is also provided, this parameter is ignored for scoping
+            (but is echoed back in the response).
+          schema:
+            type: string
+            pattern: "^[a-z0-9-]+$"
+            minLength: 1
+            maxLength: 100
+            example: "mcdonalds-es"
+        - name: restaurantId
+          in: query
+          required: false
+          description: |
+            Scope dish search to a specific restaurant row (UUID). Takes precedence over
+            `chainSlug` when both are provided.
+          schema:
+            type: string
+            format: uuid
+            example: "00000000-0000-0000-0001-000000000001"
+      responses:
+        '200':
+          description: |
+            Query completed successfully. Always HTTP 200 whether or not a match was found.
+            - `level1Hit: true`  — official data found; `result` contains nutrients + source.
+            - `level1Hit: false` — no match at any Level 1 strategy; `result` is null.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstimateResponse'
+              examples:
+                exactDishHit:
+                  summary: Exact dish match — McDonald's Big Mac
+                  value:
+                    success: true
+                    data:
+                      query: "Big Mac"
+                      chainSlug: "mcdonalds-es"
+                      level1Hit: true
+                      matchType: "exact_dish"
+                      result:
+                        entityType: "dish"
+                        entityId: "uuid-of-dish"
+                        name: "Big Mac"
+                        nameEs: "Big Mac"
+                        restaurantId: "uuid-of-restaurant"
+                        chainSlug: "mcdonalds-es"
+                        portionGrams: 200
+                        nutrients:
+                          calories: 550
+                          proteins: 25
+                          carbohydrates: 46
+                          sugars: 9
+                          fats: 28
+                          saturatedFats: 10
+                          fiber: 3
+                          salt: 2.2
+                          sodium: 880
+                          transFats: 0.5
+                          cholesterol: 80
+                          potassium: 0
+                          monounsaturatedFats: 0
+                          polyunsaturatedFats: 0
+                          referenceBasis: "per_serving"
+                        confidenceLevel: "high"
+                        estimationMethod: "official"
+                        source:
+                          id: "uuid-of-source"
+                          name: "McDonald's Spain Official PDF"
+                          type: "official"
+                          url: "https://www.mcdonalds.es/.../nutritional.pdf"
+                      cachedAt: null
+                ftsFoodHit:
+                  summary: FTS food match — USDA generic food fallback
+                  value:
+                    success: true
+                    data:
+                      query: "pollo"
+                      chainSlug: null
+                      level1Hit: true
+                      matchType: "fts_food"
+                      result:
+                        entityType: "food"
+                        entityId: "uuid-of-food"
+                        name: "Chicken, broilers or fryers, breast, meat only, cooked, roasted"
+                        nameEs: "Pollo a la plancha"
+                        restaurantId: null
+                        chainSlug: null
+                        portionGrams: null
+                        nutrients:
+                          calories: 165
+                          proteins: 31
+                          carbohydrates: 0
+                          sugars: 0
+                          fats: 3.6
+                          saturatedFats: 1
+                          fiber: 0
+                          salt: 0.19
+                          sodium: 74
+                          transFats: 0
+                          cholesterol: 85
+                          potassium: 256
+                          monounsaturatedFats: 1.2
+                          polyunsaturatedFats: 0.7
+                          referenceBasis: "per_100g"
+                        confidenceLevel: "high"
+                        estimationMethod: "official"
+                        source:
+                          id: "uuid-of-usda-source"
+                          name: "USDA SR Legacy"
+                          type: "official"
+                          url: null
+                      cachedAt: null
+                cacheHit:
+                  summary: Response served from Redis cache
+                  value:
+                    success: true
+                    data:
+                      query: "Big Mac"
+                      chainSlug: "mcdonalds-es"
+                      level1Hit: true
+                      matchType: "exact_dish"
+                      result:
+                        entityType: "dish"
+                        entityId: "uuid-of-dish"
+                        name: "Big Mac"
+                        nameEs: "Big Mac"
+                        restaurantId: "uuid-of-restaurant"
+                        chainSlug: "mcdonalds-es"
+                        portionGrams: 200
+                        nutrients:
+                          calories: 550
+                          proteins: 25
+                          carbohydrates: 46
+                          sugars: 9
+                          fats: 28
+                          saturatedFats: 10
+                          fiber: 3
+                          salt: 2.2
+                          sodium: 880
+                          transFats: 0.5
+                          cholesterol: 80
+                          potassium: 0
+                          monounsaturatedFats: 0
+                          polyunsaturatedFats: 0
+                          referenceBasis: "per_serving"
+                        confidenceLevel: "high"
+                        estimationMethod: "official"
+                        source:
+                          id: "uuid-of-source"
+                          name: "McDonald's Spain Official PDF"
+                          type: "official"
+                          url: null
+                      cachedAt: "2026-03-17T10:04:55.000Z"
+                miss:
+                  summary: No match found at any Level 1 strategy
+                  value:
+                    success: true
+                    data:
+                      query: "pizza de atún con borde relleno"
+                      chainSlug: null
+                      level1Hit: false
+                      matchType: null
+                      result: null
+                      cachedAt: null
+        '400':
+          description: |
+            Validation error. Sub-cases:
+            - `query` is missing, empty, or exceeds 255 characters.
+            - `restaurantId` is not a valid UUID format.
+            - `chainSlug` contains characters outside `^[a-z0-9-]+$`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingQuery:
+                  summary: query parameter missing
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["query"]
+                          message: "Required"
+                          code: "invalid_type"
+                queryTooLong:
+                  summary: query exceeds 255 characters
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["query"]
+                          message: "String must contain at most 255 character(s)"
+                          code: "too_big"
+                invalidRestaurantId:
+                  summary: restaurantId is not a valid UUID
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["restaurantId"]
+                          message: "Invalid uuid"
+                          code: "invalid_string"
+        '500':
+          description: Database query failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                dbError:
+                  value:
+                    success: false
+                    error:
+                      message: "Database query failed during estimation lookup"
                       code: "DB_UNAVAILABLE"
 
   /health:
@@ -2938,6 +3227,277 @@ components:
             totalPages:
               type: integer
               example: 8
+
+    # -------------------------------------------------------------------------
+    # Estimation Engine (E003 / F020)
+    # -------------------------------------------------------------------------
+
+    EstimateNutrients:
+      type: object
+      description: |
+        Full nutrient profile for a matched dish or food. All values are plain numbers
+        (not Prisma Decimal). Prisma Decimal values are converted via .toNumber() before
+        populating this schema (same pattern as QualityReport checks).
+      required:
+        - calories
+        - proteins
+        - carbohydrates
+        - sugars
+        - fats
+        - saturatedFats
+        - fiber
+        - salt
+        - sodium
+        - transFats
+        - cholesterol
+        - potassium
+        - monounsaturatedFats
+        - polyunsaturatedFats
+        - referenceBasis
+      properties:
+        calories:
+          type: number
+          minimum: 0
+          example: 550
+        proteins:
+          type: number
+          minimum: 0
+          example: 25
+        carbohydrates:
+          type: number
+          minimum: 0
+          example: 46
+        sugars:
+          type: number
+          minimum: 0
+          example: 9
+        fats:
+          type: number
+          minimum: 0
+          example: 28
+        saturatedFats:
+          type: number
+          minimum: 0
+          example: 10
+        fiber:
+          type: number
+          minimum: 0
+          example: 3
+        salt:
+          type: number
+          minimum: 0
+          description: Grams. Derived from sodium if not directly stated (salt_g = sodium_mg / 1000 * 2.5).
+          example: 2.2
+        sodium:
+          type: number
+          minimum: 0
+          description: Milligrams. Derived from salt if not directly stated.
+          example: 880
+        transFats:
+          type: number
+          minimum: 0
+          default: 0
+          example: 0.5
+        cholesterol:
+          type: number
+          minimum: 0
+          default: 0
+          example: 80
+        potassium:
+          type: number
+          minimum: 0
+          default: 0
+          example: 0
+        monounsaturatedFats:
+          type: number
+          minimum: 0
+          default: 0
+          example: 0
+        polyunsaturatedFats:
+          type: number
+          minimum: 0
+          default: 0
+          example: 0
+        referenceBasis:
+          type: string
+          enum: [per_100g, per_serving, per_package]
+          description: |
+            Passed through from the database row. Typically "per_serving" for chain dishes
+            (ADR-004), "per_100g" for USDA base foods.
+          example: per_serving
+
+    EstimateSource:
+      type: object
+      description: |
+        Traceability block identifying the DataSource row from which the nutritional
+        data was read. Satisfies the ADR-001 auditability requirement.
+      required:
+        - id
+        - name
+        - type
+        - url
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID of the data_sources row.
+          example: "00000000-0000-0000-0000-000000000001"
+        name:
+          type: string
+          description: Human-readable source name (e.g. "McDonald's Spain Official PDF").
+          example: "McDonald's Spain Official PDF"
+        type:
+          type: string
+          enum: [official, estimated, scraped, user]
+          description: DataSource.type enum value.
+          example: official
+        url:
+          type: string
+          nullable: true
+          description: Source URL if available; null for USDA seed data.
+          example: "https://www.mcdonalds.es/.../nutritional.pdf"
+
+    EstimateResult:
+      type: object
+      description: |
+        The matched entity (dish or food) with its full nutrient profile. Present when
+        `level1Hit` is true; null when no match was found.
+      required:
+        - entityType
+        - entityId
+        - name
+        - nameEs
+        - restaurantId
+        - chainSlug
+        - portionGrams
+        - nutrients
+        - confidenceLevel
+        - estimationMethod
+        - source
+      properties:
+        entityType:
+          type: string
+          enum: [dish, food]
+          description: |
+            "dish" — matched a restaurants.dishes row (chain-specific).
+            "food" — matched a foods row (USDA generic, chain-agnostic).
+          example: dish
+        entityId:
+          type: string
+          format: uuid
+          description: UUID of the matched dishes or foods row.
+          example: "uuid-of-dish"
+        name:
+          type: string
+          description: Canonical name of the matched entity (English or chain original).
+          example: "Big Mac"
+        nameEs:
+          type: string
+          nullable: true
+          description: Spanish name if available; null for many USDA foods.
+          example: "Big Mac"
+        restaurantId:
+          type: string
+          format: uuid
+          nullable: true
+          description: UUID of the restaurant owning this dish. Null when entityType is "food".
+          example: "uuid-of-restaurant"
+        chainSlug:
+          type: string
+          nullable: true
+          description: Chain slug of the owning restaurant. Null when entityType is "food".
+          example: "mcdonalds-es"
+        portionGrams:
+          type: number
+          nullable: true
+          description: |
+            Dish portion weight in grams if available. Null for most chain dishes
+            (portion is implicit in the per_serving nutrients) and for generic foods.
+          example: 200
+        nutrients:
+          $ref: '#/components/schemas/EstimateNutrients'
+        confidenceLevel:
+          type: string
+          enum: [high, medium, low]
+          description: |
+            Always "high" for Level 1 results. Level 1 is the official data tier —
+            regardless of the dish row's stored confidence_level, the engine assigns
+            "high" when the source is official. F021–F023 will populate other values.
+          example: high
+        estimationMethod:
+          type: string
+          enum: [official, ingredients, extrapolation, scraped]
+          description: |
+            Always "official" for Level 1 results. F021–F023 will populate "ingredients"
+            and "extrapolation" respectively.
+          example: official
+        source:
+          $ref: '#/components/schemas/EstimateSource'
+
+    EstimateData:
+      type: object
+      description: |
+        The full payload for a GET /estimate response. Designed to be forward-compatible
+        with the F023 Engine Router response — F023 will ADD fields (level2Hit, level3Hit,
+        etc.) without removing any fields defined here.
+      required:
+        - query
+        - chainSlug
+        - level1Hit
+        - matchType
+        - result
+        - cachedAt
+      properties:
+        query:
+          type: string
+          description: The query string as received (trimmed).
+          example: "Big Mac"
+        chainSlug:
+          type: string
+          nullable: true
+          description: The chainSlug parameter as provided, or null if omitted.
+          example: "mcdonalds-es"
+        level1Hit:
+          type: boolean
+          description: True if a Level 1 match was found; false otherwise.
+          example: true
+        matchType:
+          type: string
+          nullable: true
+          enum: [exact_dish, fts_dish, exact_food, fts_food]
+          description: |
+            Which Level 1 strategy produced the match.
+            - exact_dish  — case-insensitive exact match on dishes.name
+            - fts_dish    — full-text search match on dishes (Spanish or English FTS)
+            - exact_food  — case-insensitive exact match on foods.name_es or foods.name
+            - fts_food    — full-text search match on foods (Spanish or English FTS)
+            Null when level1Hit is false.
+          example: exact_dish
+        result:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/EstimateResult'
+          description: The matched entity with nutrients and source. Null when level1Hit is false.
+        cachedAt:
+          type: string
+          nullable: true
+          description: |
+            ISO-8601 timestamp when this result was written to Redis cache. Non-null means
+            the data was served from cache and may be up to 300 seconds old. Null means
+            the data was retrieved live from the DB during this request.
+          example: "2026-03-17T10:04:55.000Z"
+
+    EstimateResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/EstimateData'
 
   securitySchemes:
     ApiKeyAuth:
