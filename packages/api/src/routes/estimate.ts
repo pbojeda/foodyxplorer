@@ -53,8 +53,8 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       const { query, chainSlug, restaurantId } =
         request.query as EstimateQuery;
 
-      // Normalize query: Zod .trim() handles leading/trailing whitespace.
-      // Collapse internal whitespace for consistent cache keys.
+      // Preserve original query for response echo (after Zod trim).
+      // Normalize for cache key + DB lookup: collapse whitespace + lowercase.
       const normalizedQuery = query.replace(/\s+/g, ' ').toLowerCase();
 
       // Cache key: fxp:estimate:l1:<query>:<chainSlug>:<restaurantId>
@@ -83,7 +83,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       // --- Build response data ---
       const data: EstimateData = lookupResult !== null
         ? {
-            query: normalizedQuery,
+            query,
             chainSlug: chainSlug ?? null,
             level1Hit: true,
             matchType: lookupResult.matchType,
@@ -91,7 +91,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
             cachedAt: null,
           }
         : {
-            query: normalizedQuery,
+            query,
             chainSlug: chainSlug ?? null,
             level1Hit: false,
             matchType: null,

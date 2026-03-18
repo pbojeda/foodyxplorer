@@ -21,7 +21,7 @@ import {
 // ---------------------------------------------------------------------------
 
 export const EstimateQuerySchema = z.object({
-  query: z.string().min(1).max(255).trim(),
+  query: z.string().trim().min(1).max(255),
   chainSlug: z.string().regex(/^[a-z0-9-]+$/).max(100).optional(),
   restaurantId: z.string().uuid().optional(),
 });
