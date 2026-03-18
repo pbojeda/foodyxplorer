@@ -1,7 +1,7 @@
 # F020: Level 1 — Official Data Lookup
 
 **Feature:** F020 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F020-level1-official-data-lookup
+**Status:** Done | **Branch:** (deleted) | **PR:** #18
 **Created:** 2026-03-17 | **Dependencies:** F001, F002, F005 (Redis), F006 (USDA seed), F008-F015 (chain data), F019 (embeddings)
 
 ---
@@ -779,7 +779,7 @@ Strategies 3 and 4 NEVER filter by chain/restaurant. Foods are chain-agnostic US
 - [x] Step 4: `production-code-validator` executed (APPROVED — 0 critical, 0 high), quality gates pass
 - [x] Step 5: `code-review-specialist` executed (1 Important fixed: cache key lowercase)
 - [x] Step 5: `qa-engineer` executed (2 bugs fixed: BUG-F020-01, BUG-F020-02; 80 edge-case tests)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted, tracker updated
 
 ---
 
@@ -793,6 +793,7 @@ Strategies 3 and 4 NEVER filter by chain/restaurant. Foods are chain-agnostic US
 | 2026-03-18 | Step 3: Implement | backend-developer TDD. 68 tests (40 shared + 14 unit + 14 route). Build clean (pre-existing batch-ingest errors excluded). |
 | 2026-03-18 | Step 4: Finalize | production-code-validator APPROVED (0C/0H/1M). Fixed: double parseDecimal. |
 | 2026-03-18 | Step 5: Review | PR #18. code-review-specialist: 1 Important (cache key lowercase) fixed. qa-engineer: BUG-F020-01 (trim order) + BUG-F020-02 (echo casing) fixed. 80 edge-case tests added. Total: 108 F020 tests + 161 shared. |
+| 2026-03-18 | Step 6: Complete | Squash merged to develop (f9af429). Branch deleted. Tracker updated. Bugs logged. |
 
 ---
 

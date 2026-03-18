@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-18
 
-**Active Feature:** F020 — Level 1 Official Data Lookup
-**Step:** 5/6 (Review — PR #18, awaiting merge approval)
-**Branch:** feature/F020-level1-official-data-lookup
-**Complexity:** Standard
-**Context:** First feature of E003 (Estimation Engine). GET /estimate endpoint with 4-strategy cascade, Kysely bootstrap, CTE de-dup, 15 nutrients, Redis cache. PR #18. Code review: 1 Important fixed. QA: 2 bugs fixed, 80 edge-case tests. Total: 108 F020 + 161 shared tests.
+**Active Feature:** None — no active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F020 completed and merged (PR #18). E003 epic in progress — next feature TBD.
 
 ---
 
@@ -62,7 +62,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F020 | Level 1 — Official Data Lookup | backend | in-progress | 5/6 | GET /estimate, 4-strategy cascade, Kysely bootstrap, CTE de-dup, Redis cache. PR #18. 108 tests |
+| F020 | Level 1 — Official Data Lookup | backend | done | 6/6 | GET /estimate, 4-strategy cascade, Kysely bootstrap, CTE de-dup, Redis cache. 108 tests. PR #18 |
 | F021 | Level 2 — Ingredient-Based Estimation | backend | pending | — | |
 | F022 | Level 3 — Similarity Extrapolation (pgvector) | backend | pending | — | |
 | F023 | Engine Router & Confidence API | backend | pending | — | |
@@ -105,6 +105,7 @@
 | 2026-03-17 | F015 — Chain Onboarding — Pans & Company | 8f8d60f (squash merge to develop, PR #15) | PANS_AND_COMPANY_ES seed IDs, chain-pdf-registry (6 entries), custom preprocessor (column-separated PDF layout), seedPhase6. 72 new tests (1080 total) |
 | 2026-03-17 | F018 — Data Quality Monitor | 6b1f79e (squash merge to develop, PR #16) | GET /quality/report (6 dimensions), 15 Zod schemas, CLI script, assembleReport orchestrator. 105 new tests (10 files). Refactored: count()+$queryRaw (no memory issues). Code review: 1 Critical + 4 Important fixed. QA: 37 edge-case tests |
 | 2026-03-17 | F019 — Embedding Generation Pipeline | ed61a56 (squash merge to develop, PR #17) | POST /embeddings/generate, CLI script, OpenAI text-embedding-3-small (1536 dims), embeddingUpdatedAt migration. 6 modules (types, textBuilder, embeddingClient, embeddingWriter, pipeline, barrel). 108 new tests (6 files). Code review: 1C+4I fixed. QA: 37 edge-case tests. E002 complete |
+| 2026-03-18 | F020 — Level 1 Official Data Lookup | f9af429 (squash merge to develop, PR #18) | GET /estimate, 4-strategy cascade (exact dish → FTS dish → exact food → FTS food), Kysely bootstrap (prisma-kysely + pg + singleton), CTE de-dup (ROW_NUMBER), 15 nutrients, Redis cache (fail-open, 300s). 7 Zod schemas. Code review: 1 Important fixed (cache key lowercase). QA: 2 bugs fixed (BUG-F020-01 trim order, BUG-F020-02 echo casing), 80 edge-case tests. 108 F020 tests (4 files). First E003 feature |
 
 ---
 
