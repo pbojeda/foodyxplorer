@@ -169,6 +169,7 @@ function mapNutrients(row: {
  * Sets confidenceLevel='high', estimationMethod='official' (ADR-001).
  */
 export function mapDishRowToResult(row: DishQueryRow): EstimateResult {
+  const grams = parseDecimal(row.portion_grams);
   return {
     entityType: 'dish',
     entityId: row.dish_id,
@@ -176,7 +177,7 @@ export function mapDishRowToResult(row: DishQueryRow): EstimateResult {
     nameEs: row.dish_name_es,
     restaurantId: row.restaurant_id,
     chainSlug: row.chain_slug,
-    portionGrams: parseDecimal(row.portion_grams) > 0 ? parseDecimal(row.portion_grams) : null,
+    portionGrams: grams !== null && grams > 0 ? grams : null,
     nutrients: mapNutrients(row),
     confidenceLevel: 'high',
     estimationMethod: 'official',
