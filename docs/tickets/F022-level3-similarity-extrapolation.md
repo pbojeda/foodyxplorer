@@ -876,7 +876,7 @@ pgvector returns the `<->` expression result as a Postgres `float8`, which the p
 - [x] Step 4: `production-code-validator` executed — APPROVED (1 suggestion)
 - [x] Step 5: `code-review-specialist` executed — 1 CRITICAL bug found and fixed (similarityDistance propagation)
 - [x] Step 5: `qa-engineer` executed — 1 SPEC_MISMATCH (threshold env var, by-design), 2 low edge cases (1 fixed: NaN/Infinity guard), 37 new edge-case tests
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -896,6 +896,7 @@ pgvector returns the `<->` expression result as a Postgres `float8`, which the p
 | 2026-03-19 | PR created | PR #20 → develop |
 | 2026-03-19 | Code review (Step 5) | code-review-specialist: 1 CRITICAL — `result.similarityDistance` not propagated to EstimateResult. Fixed in commit 24fd062. Also fixed barrel export missing L3 |
 | 2026-03-19 | QA (Step 5) | qa-engineer: 1 SPEC_MISMATCH (threshold env var — by-design, hardcoded Phase 1), 2 low edge cases (NaN/Infinity guard added). 37 new edge-case tests (18 API + 19 shared). Fixed in commit a69647e |
+| 2026-03-19 | Merge (Step 6) | Squash merge PR #20 → develop (commit 18a20f8). Branch deleted. 76 new tests, 19 files changed, +3442 lines |
 
 ---
 
