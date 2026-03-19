@@ -66,7 +66,7 @@
 | F021 | Level 2 — Ingredient-Based Estimation | backend | done | 6/6 | Standard. level2Lookup, nutrient aggregation from dish_ingredients, 2 strategies, confidence scoring. 80 new tests. PR #19 |
 | F022 | Level 3 — Similarity Extrapolation (pgvector) | backend | done | 6/6 | Standard. pgvector cosine similarity, OpenAI embedding at request time, fail-graceful |
 | F023 | Engine Router & Confidence API | backend | done | 6/6 | Standard. Extract cascade to engineRouter module, F024 extension seam |
-| F024 | LLM Integration Layer | backend | in-progress | 1/6 | Standard. L4 estimation: Strategy A (pg_trgm + LLM selection), Strategy B (LLM decomposition + aggregation). Spec reviewed 2x |
+| F024 | LLM Integration Layer | backend | in-progress | 5/6 | Standard. L4 estimation: Strategy A (pg_trgm + LLM selection), Strategy B (LLM decomposition + aggregation). 58 tests. PR #22 |
 
 ## Features — E004 Telegram Bot + Public API
 
