@@ -56,6 +56,7 @@ const VALID_RESULT = {
   confidenceLevel: 'high' as const,
   estimationMethod: 'official' as const,
   source: VALID_SOURCE,
+  similarityDistance: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -317,6 +318,7 @@ describe('EstimateDataSchema', () => {
       chainSlug: 'mcdonalds-es',
       level1Hit: true,
       level2Hit: false,
+      level3Hit: false,
       matchType: 'exact_dish',
       result: VALID_RESULT,
       cachedAt: null,
@@ -330,6 +332,7 @@ describe('EstimateDataSchema', () => {
       chainSlug: null,
       level1Hit: false,
       level2Hit: false,
+      level3Hit: false,
       matchType: null,
       result: null,
       cachedAt: null,
@@ -343,6 +346,7 @@ describe('EstimateDataSchema', () => {
       chainSlug: 'mcdonalds-es',
       level1Hit: true,
       level2Hit: false,
+      level3Hit: false,
       matchType: 'exact_dish',
       result: VALID_RESULT,
       cachedAt: '2026-03-17T14:00:00.000Z',
@@ -356,6 +360,7 @@ describe('EstimateDataSchema', () => {
       chainSlug: 'mcdonalds-es',
       level1Hit: false,
       level2Hit: true,
+      level3Hit: false,
       matchType: 'ingredient_dish_exact',
       result: {
         ...VALID_RESULT,
@@ -383,6 +388,7 @@ describe('EstimateDataSchema', () => {
       chainSlug: null,
       level1Hit: false,
       // level2Hit intentionally omitted
+      level3Hit: false,
       matchType: null,
       result: null,
       cachedAt: null,
@@ -404,6 +410,7 @@ describe('EstimateResponseSchema', () => {
         chainSlug: 'mcdonalds-es',
         level1Hit: true,
         level2Hit: false,
+        level3Hit: false,
         matchType: 'exact_dish',
         result: {
           entityType: 'dish',
@@ -438,6 +445,7 @@ describe('EstimateResponseSchema', () => {
             type: 'official',
             url: 'https://www.mcdonalds.es/nutritional.pdf',
           },
+          similarityDistance: null,
         },
         cachedAt: null,
       },
@@ -454,6 +462,7 @@ describe('EstimateResponseSchema', () => {
         chainSlug: null,
         level1Hit: false,
         level2Hit: false,
+        level3Hit: false,
         matchType: null,
         result: null,
         cachedAt: null,

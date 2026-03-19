@@ -423,6 +423,7 @@ const VALID_L2_RESULT = {
     type: 'estimated' as const,
     url: null,
   },
+  similarityDistance: null,
 };
 
 describe('Section D — Schema validation edge cases for L2 fields', () => {
@@ -489,6 +490,7 @@ describe('Section D — Schema validation edge cases for L2 fields', () => {
       chainSlug: null,
       level1Hit: false,
       // level2Hit intentionally omitted
+      level3Hit: false,
       matchType: 'ingredient_dish_exact',
       result: VALID_L2_RESULT,
       cachedAt: null,
@@ -502,6 +504,7 @@ describe('Section D — Schema validation edge cases for L2 fields', () => {
       chainSlug: null,
       level1Hit: false,
       level2Hit: true,
+      level3Hit: false,
       matchType: 'ingredient_dish_exact',
       result: VALID_L2_RESULT,
       cachedAt: null,
@@ -516,6 +519,7 @@ describe('Section D — Schema validation edge cases for L2 fields', () => {
       chainSlug: null,
       level1Hit: false,
       level2Hit: true,
+      level3Hit: false,
       matchType: 'ingredient_dish_fts',
       result: ftsResult,
       cachedAt: null,
@@ -532,6 +536,7 @@ describe('Section D — Schema validation edge cases for L2 fields', () => {
       chainSlug: null,
       level1Hit: false,
       level2Hit: true,
+      level3Hit: false,
       matchType: null,
       result: null,
       cachedAt: null,
@@ -545,6 +550,7 @@ describe('Section D — Schema validation edge cases for L2 fields', () => {
       chainSlug: null,
       level1Hit: false,
       level2Hit: 'true', // string instead of boolean
+      level3Hit: false,
       matchType: null,
       result: null,
       cachedAt: null,
@@ -558,6 +564,7 @@ describe('Section D — Schema validation edge cases for L2 fields', () => {
       chainSlug: null,
       level1Hit: false,
       level2Hit: 1, // number instead of boolean
+      level3Hit: false,
       matchType: null,
       result: null,
       cachedAt: null,
@@ -571,6 +578,7 @@ describe('Section D — Schema validation edge cases for L2 fields', () => {
       chainSlug: 'mcdonalds-es',
       level1Hit: true,
       level2Hit: false,
+      level3Hit: false,
       matchType: 'exact_dish',
       result: {
         ...VALID_L2_RESULT,

@@ -1450,11 +1450,10 @@ paths:
 
   /estimate:
     get:
-      summary: Estimation Engine — Level 1 (official data) + Level 2 (ingredient-based)
+      summary: Estimation Engine — Level 1 (official data) + Level 2 (ingredient-based) + Level 3 (similarity)
       description: |
         Queries the database for nutritional data matching the given dish or food name.
-        Implements a two-level cascade (F020 + F021) from the three-level cascade defined
-        in ADR-001. Level 3 (pgvector similarity) is added in F022.
+        Implements the full three-level cascade (F020 + F021 + F022) defined in ADR-001.
 
         **Level 1 — Official Data Lookup (F020)**
         Highest-confidence tier. Tries four strategies in priority order against the
@@ -1465,7 +1464,7 @@ paths:
         4. FTS match on `foods.name_es` / `foods.name`
 
         Level 1 result: `level1Hit: true`, `confidenceLevel: "high"`,
-        `estimationMethod: "official"`. Level 2 is not attempted.
+        `estimationMethod: "official"`. Level 2 and 3 are not attempted.
 
         **Level 2 — Ingredient-Based Estimation (F021)**
         Attempted only when Level 1 returns no match. Decomposes the queried dish into its
@@ -1487,25 +1486,50 @@ paths:
         `source.type: "estimated"`, `source.name: "Computed from ingredients"`,
         `nutrients.referenceBasis: "per_serving"`.
 
-        **Scope:** `chainSlug` / `restaurantId` scoping applies to dish strategies at both
-        levels. Food strategies (Level 1 strategies 3–4) are always global.
-        If `restaurantId` is provided with `chainSlug`, `restaurantId` takes precedence.
+        **Level 3 — Similarity Extrapolation (F022)**
+        Attempted only when both Level 1 and Level 2 return no match. Generates an embedding
+        vector for the query text by calling OpenAI (`text-embedding-3-small`, 1536 dims) at
+        request time, then uses pgvector cosine distance (`<->` operator) to find the nearest
+        neighbour in `dishes.embedding` (scoped by `chainSlug`/`restaurantId` when provided)
+        and in `foods.embedding` (always global). Dishes are searched first; foods are the
+        fallback.
+
+        A match is only returned when the cosine distance is below the configured threshold
+        (default: 0.5). If no match is below the threshold in either table, the response is a
+        total miss.
+
+        Level 3 result: `level3Hit: true`, `confidenceLevel: "low"`,
+        `estimationMethod: "extrapolation"`, `matchType: "similarity_dish"` or
+        `"similarity_food"`, `source` taken from the matched entity's data source row.
+
+        **Level 3 skip conditions (fail-gracefully):**
+        - `OPENAI_API_KEY` is not configured → Level 3 is silently skipped; response is a
+          total miss (`level1Hit: false, level2Hit: false, level3Hit: false`).
+        - OpenAI API call fails after retries → Level 3 is silently skipped; same total-miss
+          response. The error is logged at `warn` level.
+        - Neither dishes nor foods have any embeddings → no rows within threshold; total miss.
+
+        **Latency note:** Level 3 adds ~200–500 ms due to the OpenAI embedding call. The
+        response is cached after L3 executes, so repeated queries benefit from the cache.
+
+        **Scope:** `chainSlug` / `restaurantId` scoping applies to dish strategies at all
+        three levels. Food strategies (Level 1 strategies 3–4, Level 3 food similarity) are
+        always global. If `restaurantId` is provided with `chainSlug`, `restaurantId` takes
+        precedence.
 
         **Cache:** Unified cache key `fxp:estimate:<query>:<chainSlug>:<restaurantId>`. Stores
-        the final response regardless of which level produced it (L1 hit, L2 hit, or total miss).
-        TTL = 300 seconds, fail-open. The `cachedAt` field is non-null when data came from cache.
+        the final response regardless of which level produced it (L1 hit, L2 hit, L3 hit, or
+        total miss). TTL = 300 seconds, fail-open. The `cachedAt` field is non-null when data
+        came from cache.
 
-        **Miss semantics:** A complete miss (no match at either level) returns HTTP 200 with
-        `level1Hit: false`, `level2Hit: false`, and `result: null`. This is NOT a 404.
-
-        **Integration note:** F023 (Engine Router) will call `level1Lookup()` and
-        `level2Lookup()` directly (not via HTTP) and will add `level3Hit`. This endpoint is
-        a two-level stub; it will be superseded by F023 without breaking changes.
+        **Miss semantics:** A complete miss (no match at any level) returns HTTP 200 with
+        `level1Hit: false`, `level2Hit: false`, `level3Hit: false`, and `result: null`.
+        This is NOT a 404.
 
         **Auth:** No auth required (Phase 1 — internal use). API key auth added in F026.
 
         **Rate limiting:** Subject to the global 100 req/15min/IP limit from F005.
-      operationId: estimateLevel1And2
+      operationId: estimateLevel1And2And3
       tags:
         - Estimation
       parameters:
@@ -1550,10 +1574,13 @@ paths:
           description: |
             Query completed successfully. Always HTTP 200 whether or not a match was found.
             - `level1Hit: true`  — official data found; `result` contains nutrients + source.
-              `level2Hit` is false (Level 2 not attempted).
+              `level2Hit` and `level3Hit` are false (lower levels not attempted).
             - `level2Hit: true`  — Level 1 missed; Level 2 found ingredients to aggregate.
-              `result` contains computed nutrients. `level1Hit` is false.
-            - Both false        — no match at either level; `result` is null.
+              `result` contains computed nutrients. `level1Hit` and `level3Hit` are false.
+            - `level3Hit: true`  — Level 1 and 2 both missed; Level 3 found a similar entity
+              via pgvector cosine similarity. `result` contains the similar entity's nutrients.
+              `level1Hit` and `level2Hit` are false.
+            - All three false   — no match at any level; `result` is null.
           content:
             application/json:
               schema:
@@ -1568,6 +1595,7 @@ paths:
                       chainSlug: "mcdonalds-es"
                       level1Hit: true
                       level2Hit: false
+                      level3Hit: false
                       matchType: "exact_dish"
                       result:
                         entityType: "dish"
@@ -1610,6 +1638,7 @@ paths:
                       chainSlug: null
                       level1Hit: true
                       level2Hit: false
+                      level3Hit: false
                       matchType: "fts_food"
                       result:
                         entityType: "food"
@@ -1652,6 +1681,7 @@ paths:
                       chainSlug: "mcdonalds-es"
                       level1Hit: true
                       level2Hit: false
+                      level3Hit: false
                       matchType: "exact_dish"
                       result:
                         entityType: "dish"
@@ -1694,6 +1724,7 @@ paths:
                       chainSlug: null
                       level1Hit: false
                       level2Hit: true
+                      level3Hit: false
                       matchType: "ingredient_dish_fts"
                       result:
                         entityType: "dish"
@@ -1736,6 +1767,7 @@ paths:
                       chainSlug: "some-chain"
                       level1Hit: false
                       level2Hit: true
+                      level3Hit: false
                       matchType: "ingredient_dish_exact"
                       result:
                         entityType: "dish"
@@ -1769,15 +1801,104 @@ paths:
                           type: "estimated"
                           url: null
                       cachedAt: null
-                miss:
-                  summary: No match found at Level 1 or Level 2
+                level3DishHit:
+                  summary: Level 3 hit — similarity match on a dish (L1 and L2 both missed)
                   value:
                     success: true
                     data:
-                      query: "pizza de atún con borde relleno"
+                      query: "sandwich de pollo crujiente"
+                      chainSlug: "burger-king-es"
+                      level1Hit: false
+                      level2Hit: false
+                      level3Hit: true
+                      matchType: "similarity_dish"
+                      result:
+                        entityType: "dish"
+                        entityId: "uuid-of-similar-dish"
+                        name: "Chicken Royale"
+                        nameEs: "Chicken Royale"
+                        restaurantId: "uuid-of-restaurant"
+                        chainSlug: "burger-king-es"
+                        portionGrams: null
+                        nutrients:
+                          calories: 490
+                          proteins: 29
+                          carbohydrates: 44
+                          sugars: 5
+                          fats: 22
+                          saturatedFats: 4
+                          fiber: 2
+                          salt: 1.9
+                          sodium: 760
+                          transFats: 0
+                          cholesterol: 60
+                          potassium: 350
+                          monounsaturatedFats: 8
+                          polyunsaturatedFats: 4
+                          referenceBasis: "per_serving"
+                        confidenceLevel: "low"
+                        estimationMethod: "extrapolation"
+                        source:
+                          id: "uuid-of-source"
+                          name: "Burger King Spain Official PDF"
+                          type: "official"
+                          url: null
+                        similarityDistance: 0.18
+                      cachedAt: null
+                level3FoodHit:
+                  summary: Level 3 hit — similarity match on a food (no dish match found)
+                  value:
+                    success: true
+                    data:
+                      query: "pechuguita a la plancha con arroz"
                       chainSlug: null
                       level1Hit: false
                       level2Hit: false
+                      level3Hit: true
+                      matchType: "similarity_food"
+                      result:
+                        entityType: "food"
+                        entityId: "uuid-of-similar-food"
+                        name: "Chicken, broilers or fryers, breast, meat only, cooked, roasted"
+                        nameEs: "Pechuga de pollo a la plancha"
+                        restaurantId: null
+                        chainSlug: null
+                        portionGrams: null
+                        nutrients:
+                          calories: 165
+                          proteins: 31
+                          carbohydrates: 0
+                          sugars: 0
+                          fats: 3.6
+                          saturatedFats: 1
+                          fiber: 0
+                          salt: 0.19
+                          sodium: 74
+                          transFats: 0
+                          cholesterol: 85
+                          potassium: 256
+                          monounsaturatedFats: 1.2
+                          polyunsaturatedFats: 0.7
+                          referenceBasis: "per_100g"
+                        confidenceLevel: "low"
+                        estimationMethod: "extrapolation"
+                        source:
+                          id: "uuid-of-usda-source"
+                          name: "USDA SR Legacy"
+                          type: "official"
+                          url: null
+                        similarityDistance: 0.31
+                      cachedAt: null
+                miss:
+                  summary: No match found at any level
+                  value:
+                    success: true
+                    data:
+                      query: "pizza de atún con borde relleno de queso extra"
+                      chainSlug: null
+                      level1Hit: false
+                      level2Hit: false
+                      level3Hit: false
                       matchType: null
                       result: null
                       cachedAt: null
@@ -3470,8 +3591,8 @@ components:
     EstimateResult:
       type: object
       description: |
-        The matched entity (dish or food) with its full nutrient profile. Present when
-        `level1Hit` is true; null when no match was found.
+        The matched entity (dish or food) with its full nutrient profile. Present when any
+        level hit flag is true; null when no match was found at any level.
       required:
         - entityType
         - entityId
@@ -3484,6 +3605,7 @@ components:
         - confidenceLevel
         - estimationMethod
         - source
+        - similarityDistance
       properties:
         entityType:
           type: string
@@ -3533,8 +3655,9 @@ components:
             Reflects the estimation method used:
             - "high"   — Level 1 official data (always high for L1 results).
             - "medium" — Level 2 ingredient-based, all ingredients resolved.
-            - "low"    — Level 2 ingredient-based, some ingredients unresolvable (partial sum).
-            F022/F023 will add further values for pgvector similarity results.
+            - "low"    — Level 2 ingredient-based, some ingredients unresolvable (partial sum);
+                         OR Level 3 similarity extrapolation (always low — nutrients come from
+                         a different but semantically similar entity).
           example: high
         estimationMethod:
           type: string
@@ -3543,7 +3666,7 @@ components:
             How the nutritional values were produced:
             - "official"     — Level 1: read directly from dish_nutrients or food_nutrients.
             - "ingredients"  — Level 2: aggregated from dish_ingredients via food_nutrients.
-            - "extrapolation"— Level 3 (F022): pgvector similarity match.
+            - "extrapolation"— Level 3: nutrients copied from the nearest pgvector neighbour.
             - "scraped"      — data sourced by the scraper pipeline (not produced by the engine).
           example: official
         source:
@@ -3552,19 +3675,30 @@ components:
             Traceability block. For Level 1 results, points to the data_sources row of the
             matched dish_nutrients or food_nutrients record. For Level 2 results, this is a
             synthetic computed provenance marker: source.id is the dish's data_sources UUID,
-            source.name is "Computed from ingredients", source.type is "estimated".
+            source.name is "Computed from ingredients", source.type is "estimated". For Level 3
+            results, points to the data_sources row of the similar entity (dish or food) that
+            was the nearest neighbour — the original entity's source, not a synthetic one.
+        similarityDistance:
+          type: number
+          nullable: true
+          description: |
+            Cosine distance between the query embedding and the matched entity's embedding.
+            Range: [0.0, 2.0] — 0.0 is identical, 2.0 is opposite. Only present and non-null
+            when `estimationMethod` is `"extrapolation"` (Level 3 hit). Null for Level 1 and
+            Level 2 results.
+          example: 0.18
 
     EstimateData:
       type: object
       description: |
-        The full payload for a GET /estimate response. Forward-compatible with the F023
-        Engine Router response — F023 will ADD fields (level3Hit) without removing any
-        fields defined here.
+        The full payload for a GET /estimate response. Covers all three estimation levels
+        (L1 + L2 + L3). F023 (Engine Router) will use this same schema without modifications.
       required:
         - query
         - chainSlug
         - level1Hit
         - level2Hit
+        - level3Hit
         - matchType
         - result
         - cachedAt
@@ -3582,14 +3716,21 @@ components:
           type: boolean
           description: |
             True if Level 1 (official data lookup) produced a match. When true, level2Hit
-            is always false (Level 2 is not attempted after a Level 1 hit).
+            and level3Hit are always false (lower levels not attempted after a Level 1 hit).
           example: true
         level2Hit:
           type: boolean
           description: |
             True if Level 2 (ingredient-based estimation) produced a match. Only possible
-            when level1Hit is false. False when Level 1 hit, or when neither level produced
-            a result.
+            when level1Hit is false. When true, level3Hit is always false.
+          example: false
+        level3Hit:
+          type: boolean
+          description: |
+            True if Level 3 (pgvector similarity extrapolation) produced a match. Only
+            possible when both level1Hit and level2Hit are false. False when any upper level
+            hit, when OPENAI_API_KEY is not configured (graceful skip), when the OpenAI
+            call fails, or when no similar entity is within the cosine distance threshold.
           example: false
         matchType:
           type: string
@@ -3601,6 +3742,8 @@ components:
             - fts_food
             - ingredient_dish_exact
             - ingredient_dish_fts
+            - similarity_dish
+            - similarity_food
           description: |
             Which strategy produced the match.
             Level 1 strategies:
@@ -3613,15 +3756,19 @@ components:
                                       from dish_ingredients
             - ingredient_dish_fts   — FTS match on dishes.name/name_es, aggregated from
                                       dish_ingredients
-            Null when both level1Hit and level2Hit are false.
+            Level 3 strategies:
+            - similarity_dish      — nearest-neighbour pgvector cosine match on dishes.embedding
+            - similarity_food      — nearest-neighbour pgvector cosine match on foods.embedding
+                                     (dishes searched first; foods are the fallback)
+            Null when level1Hit, level2Hit, and level3Hit are all false.
           example: exact_dish
         result:
           nullable: true
           allOf:
             - $ref: '#/components/schemas/EstimateResult'
           description: |
-            The matched entity with nutrients and source. Null when both level1Hit and
-            level2Hit are false. Non-null when either level produces a result.
+            The matched entity with nutrients and source. Null when all three level hit flags
+            are false. Non-null when any level produces a result.
         cachedAt:
           type: string
           nullable: true

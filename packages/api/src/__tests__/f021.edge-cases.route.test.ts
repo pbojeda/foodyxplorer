@@ -96,6 +96,7 @@ const MOCK_L2_RESULT = {
       type: 'estimated' as const,
       url: null,
     },
+    similarityDistance: null,
   },
 };
 
@@ -124,6 +125,7 @@ const MOCK_L1_RESULT = {
       type: 'official' as const,
       url: 'https://www.mcdonalds.es/nutritional.pdf',
     },
+    similarityDistance: null,
   },
 };
 
@@ -258,6 +260,7 @@ describe('Section C — Route integration edge cases (F021)', () => {
       chainSlug: 'mcdonalds-es',
       level1Hit: false,
       level2Hit: true,
+      level3Hit: false,
       matchType: 'ingredient_dish_exact',
       result: MOCK_L2_RESULT.result,
       cachedAt: '2026-03-18T12:00:00.000Z',
@@ -285,6 +288,7 @@ describe('Section C — Route integration edge cases (F021)', () => {
       chainSlug: 'mcdonalds-es',
       level1Hit: true,
       level2Hit: false,
+      level3Hit: false,
       matchType: 'exact_dish',
       result: MOCK_L1_RESULT.result,
       cachedAt: '2026-03-18T12:00:00.000Z',
@@ -443,6 +447,7 @@ describe('Section C — Route integration edge cases (F021)', () => {
         chainSlug: null,
         level1Hit: false,
         level2Hit: false,
+        level3Hit: false,
         matchType: null,
         result: null,
         cachedAt: '2026-03-18T12:00:00.000Z',

@@ -39,6 +39,8 @@ export const EstimateMatchTypeSchema = z.enum([
   'fts_food',
   'ingredient_dish_exact',  // Level 2 — exact dish match via ingredient aggregation
   'ingredient_dish_fts',    // Level 2 — FTS dish match via ingredient aggregation
+  'similarity_dish',        // Level 3 — pgvector nearest-neighbour in dishes.embedding
+  'similarity_food',        // Level 3 — pgvector nearest-neighbour in foods.embedding
 ]);
 
 export type EstimateMatchType = z.infer<typeof EstimateMatchTypeSchema>;
@@ -96,6 +98,7 @@ export const EstimateResultSchema = z.object({
   confidenceLevel: ConfidenceLevelSchema,
   estimationMethod: EstimationMethodSchema,
   source: EstimateSourceSchema,
+  similarityDistance: z.number().min(0).max(2).nullable(), // null for L1/L2; cosine distance for L3
 });
 
 export type EstimateResult = z.infer<typeof EstimateResultSchema>;
@@ -109,6 +112,7 @@ export const EstimateDataSchema = z.object({
   chainSlug: z.string().nullable(),
   level1Hit: z.boolean(),
   level2Hit: z.boolean(),
+  level3Hit: z.boolean(), // NEW — true when Level 3 produced a similarity match
   matchType: EstimateMatchTypeSchema.nullable(),
   result: EstimateResultSchema.nullable(),
   cachedAt: z.string().nullable(),

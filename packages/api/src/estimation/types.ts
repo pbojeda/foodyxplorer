@@ -4,8 +4,12 @@
 // Level1Result          — output of level1Lookup(), includes matchType + EstimateResult
 // Level2LookupOptions   — input to level2Lookup()
 // Level2Result          — output of level2Lookup(), includes matchType + EstimateResult + resolution counts
+// Level3LookupOptions   — input to level3Lookup()
+// Level3Result          — output of level3Lookup(), includes matchType + EstimateResult + similarityDistance
 // DishQueryRow          — shape of a Kysely dish-strategy result row (before mapping)
 // FoodQueryRow          — shape of a Kysely food-strategy result row (before mapping)
+// DishSimilarityRow     — shape of a Kysely dish similarity search row
+// FoodSimilarityRow     — shape of a Kysely food similarity search row
 // IngredientNutrientRow — shape of a Kysely aggregating query row (Level 2)
 // Mapping functions     — mapDishRowToResult, mapFoodRowToResult, mapLevel2RowToResult
 
@@ -34,6 +38,15 @@ export interface Level2LookupOptions {
   restaurantId?: string;
 }
 
+export interface Level3LookupOptions {
+  chainSlug?: string;
+  restaurantId?: string;
+  /** Cosine distance threshold — matches below this value are returned. Default: 0.5. */
+  threshold?: number;
+  /** Pass undefined to skip Level 3 gracefully (no OpenAI call). */
+  openAiApiKey: string | undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Level 1 result
 // ---------------------------------------------------------------------------
@@ -54,6 +67,17 @@ export interface Level2Result {
   totalCount: number;
   /** Food UUIDs that contributed to the aggregation. Empty in F021; F023 will populate. */
   ingredientSources: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Level 3 result
+// ---------------------------------------------------------------------------
+
+export interface Level3Result {
+  matchType: EstimateMatchType;
+  result: EstimateResult;
+  /** Cosine distance of the winning match in [0.0, 2.0). */
+  similarityDistance: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -163,6 +187,20 @@ export interface IngredientNutrientRow {
   polyunsaturated_fats: string;
 }
 
+/** Raw row from the dish similarity search query (distance only — no nutrients). */
+export interface DishSimilarityRow {
+  dish_id: string;
+  /** Float returned as string by the pg driver. */
+  distance: string;
+}
+
+/** Raw row from the food similarity search query (distance only — no nutrients). */
+export interface FoodSimilarityRow {
+  food_id: string;
+  /** Float returned as string by the pg driver. */
+  distance: string;
+}
+
 // ---------------------------------------------------------------------------
 // parseDecimal helper
 // ---------------------------------------------------------------------------
@@ -244,6 +282,7 @@ export function mapDishRowToResult(row: DishQueryRow): EstimateResult {
     confidenceLevel: 'high',
     estimationMethod: 'official',
     source: mapSource(row),
+    similarityDistance: null,
   };
 }
 
@@ -265,6 +304,7 @@ export function mapFoodRowToResult(row: FoodQueryRow): EstimateResult {
     confidenceLevel: 'high',
     estimationMethod: 'official',
     source: mapSource(row),
+    similarityDistance: null,
   };
 }
 
@@ -321,6 +361,7 @@ export function mapLevel2RowToResult(row: IngredientNutrientRow): {
       type: 'estimated',
       url: null,
     },
+    similarityDistance: null,
   };
 
   return { result, resolvedCount, totalCount };
