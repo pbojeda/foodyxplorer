@@ -1,9 +1,10 @@
-// GET /estimate — Level 1 + Level 2 lookup (Estimation Engine E003).
+// GET /estimate — Level 1 + Level 2 + Level 3 lookup (Estimation Engine E003).
 //
 // Validates query params with EstimateQuerySchema.
 // Checks Redis cache (unified key) before executing lookup cascade.
 // L1 miss triggers Level 2 ingredient-based estimation.
-// Returns EstimateData with level1Hit/level2Hit flags.
+// L1+L2 miss triggers Level 3 pgvector similarity extrapolation.
+// Returns EstimateData with level1Hit/level2Hit/level3Hit flags.
 // Cache TTL: 300 seconds. Cache is fail-open (bypass on Redis errors).
 
 import type { FastifyPluginAsync } from 'fastify';
@@ -17,7 +18,9 @@ import {
 import type { DB } from '../generated/kysely-types.js';
 import { level1Lookup } from '../estimation/level1Lookup.js';
 import { level2Lookup } from '../estimation/level2Lookup.js';
+import { level3Lookup } from '../estimation/level3Lookup.js';
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
+import { config } from '../config.js';
 
 // ---------------------------------------------------------------------------
 // Plugin options
@@ -43,12 +46,15 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       schema: {
         querystring: EstimateQuerySchema,
         tags: ['Estimation'],
-        summary: 'Level 1 + Level 2 — official data and ingredient estimation',
+        operationId: 'estimateLevel1And2And3',
+        summary: 'Level 1 + Level 2 + Level 3 — official data, ingredient and similarity estimation',
         description:
           'Searches dishes and foods for an exact or FTS match against the official ' +
           'nutritional database (Level 1). On Level 1 miss, falls back to Level 2 ' +
-          'ingredient-based estimation. Returns level1Hit and level2Hit flags. ' +
-          'Returns level1Hit:false, level2Hit:false when no match is found (not a 404). ' +
+          'ingredient-based estimation. On Level 1+2 miss, falls back to Level 3 ' +
+          'pgvector similarity extrapolation. ' +
+          'Returns level1Hit, level2Hit and level3Hit flags. ' +
+          'Returns all hit flags false when no match is found (not a 404). ' +
           'Responses are cached in Redis for 300 seconds under a unified cache key.',
       },
     },
@@ -91,6 +97,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
           chainSlug: chainSlug ?? null,
           level1Hit: true,
           level2Hit: false,
+          level3Hit: false,
           matchType: lookupResult1.matchType,
           result: lookupResult1.result,
           cachedAt: null,
@@ -111,15 +118,48 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         );
       }
 
-      // --- Build response data (L2 hit or total miss) ---
-      const data: EstimateData = lookupResult2 !== null
+      // --- Level 2 hit: build response and cache ---
+      if (lookupResult2 !== null) {
+        const data: EstimateData = {
+          query,
+          chainSlug: chainSlug ?? null,
+          level1Hit: false,
+          level2Hit: true,
+          level3Hit: false,
+          matchType: lookupResult2.matchType,
+          result: lookupResult2.result,
+          cachedAt: null,
+        };
+        const dataToCache: EstimateData = { ...data, cachedAt: new Date().toISOString() };
+        await cacheSet(cacheKey, dataToCache, request.log);
+        return reply.send({ success: true, data });
+      }
+
+      // --- Level 3 fallback (L1+L2 miss) ---
+      let lookupResult3;
+      try {
+        lookupResult3 = await level3Lookup(db, normalizedQuery, {
+          chainSlug,
+          restaurantId,
+          openAiApiKey: config.OPENAI_API_KEY,
+        });
+      } catch (err) {
+        throw Object.assign(
+          new Error('Database query failed'),
+          { statusCode: 500, code: 'DB_UNAVAILABLE', cause: err },
+        );
+      }
+
+      // --- Build response data (L3 hit or total miss) ---
+      const data: EstimateData = lookupResult3 !== null
         ? {
             query,
             chainSlug: chainSlug ?? null,
             level1Hit: false,
-            level2Hit: true,
-            matchType: lookupResult2.matchType,
-            result: lookupResult2.result,
+            level2Hit: false,
+            level3Hit: true,
+            matchType: lookupResult3.matchType,
+            result: lookupResult3.result,
             cachedAt: null,
           }
         : {
@@ -127,6 +167,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
             chainSlug: chainSlug ?? null,
             level1Hit: false,
             level2Hit: false,
+            level3Hit: false,
             matchType: null,
             result: null,
             cachedAt: null,
