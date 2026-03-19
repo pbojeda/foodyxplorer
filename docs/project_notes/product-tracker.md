@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-19
 
-**Active Feature:** None — F022 complete. Next: F023 (Engine Router & Confidence API)
-**Step:** —
-**Branch:** develop
-**Complexity:** —
-**Context:** F022 merged via PR #20 (squash → develop, commit 18a20f8). 76 new tests. E003 progress: F020 done, F021 done, F022 done, F023-F024 pending.
+**Active Feature:** F023 — Engine Router & Confidence API
+**Step:** 4/6 (Finalize)
+**Branch:** feature/F023-engine-router-confidence-api
+**Complexity:** Standard
+**Context:** Extracting L1→L2→L3 cascade from estimate.ts into engineRouter module. Extension seam for F024 (L4 LLM). No schema changes. Ticket: docs/tickets/F023-engine-router-confidence-api.md
 
 ---
 
@@ -65,7 +65,7 @@
 | F020 | Level 1 — Official Data Lookup | backend | done | 6/6 | GET /estimate, 4-strategy cascade, Kysely bootstrap, CTE de-dup, Redis cache. 108 tests. PR #18 |
 | F021 | Level 2 — Ingredient-Based Estimation | backend | done | 6/6 | Standard. level2Lookup, nutrient aggregation from dish_ingredients, 2 strategies, confidence scoring. 80 new tests. PR #19 |
 | F022 | Level 3 — Similarity Extrapolation (pgvector) | backend | done | 6/6 | Standard. pgvector cosine similarity, OpenAI embedding at request time, fail-graceful |
-| F023 | Engine Router & Confidence API | backend | pending | — | |
+| F023 | Engine Router & Confidence API | backend | in-progress | 3/6 | Standard. Extract cascade to engineRouter module, F024 extension seam |
 | F024 | LLM Integration Layer | backend | pending | — | |
 
 ## Features — E004 Telegram Bot + Public API
