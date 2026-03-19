@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-19
 
-**Active Feature:** F023 — Engine Router & Confidence API
-**Step:** 5/6 (Review)
-**Branch:** feature/F023-engine-router-confidence-api
-**Complexity:** Standard
-**Context:** Extracting L1→L2→L3 cascade from estimate.ts into engineRouter module. Extension seam for F024 (L4 LLM). No schema changes. Ticket: docs/tickets/F023-engine-router-confidence-api.md
+**Active Feature:** None
+**Step:** —
+**Branch:** develop
+**Complexity:** —
+**Context:** F023 completed (93e563d). E003 has F020-F023 done, F024 (LLM Integration) pending.
 
 ---
 
@@ -65,7 +65,7 @@
 | F020 | Level 1 — Official Data Lookup | backend | done | 6/6 | GET /estimate, 4-strategy cascade, Kysely bootstrap, CTE de-dup, Redis cache. 108 tests. PR #18 |
 | F021 | Level 2 — Ingredient-Based Estimation | backend | done | 6/6 | Standard. level2Lookup, nutrient aggregation from dish_ingredients, 2 strategies, confidence scoring. 80 new tests. PR #19 |
 | F022 | Level 3 — Similarity Extrapolation (pgvector) | backend | done | 6/6 | Standard. pgvector cosine similarity, OpenAI embedding at request time, fail-graceful |
-| F023 | Engine Router & Confidence API | backend | in-progress | 5/6 | Standard. Extract cascade to engineRouter module, F024 extension seam |
+| F023 | Engine Router & Confidence API | backend | done | 6/6 | Standard. Extract cascade to engineRouter module, F024 extension seam |
 | F024 | LLM Integration Layer | backend | pending | — | |
 
 ## Features — E004 Telegram Bot + Public API
@@ -108,6 +108,7 @@
 | 2026-03-18 | F020 — Level 1 Official Data Lookup | f9af429 (squash merge to develop, PR #18) | GET /estimate, 4-strategy cascade (exact dish → FTS dish → exact food → FTS food), Kysely bootstrap (prisma-kysely + pg + singleton), CTE de-dup (ROW_NUMBER), 15 nutrients, Redis cache (fail-open, 300s). 7 Zod schemas. Code review: 1 Important fixed (cache key lowercase). QA: 2 bugs fixed (BUG-F020-01 trim order, BUG-F020-02 echo casing), 80 edge-case tests. 108 F020 tests (4 files). First E003 feature |
 | 2026-03-18 | F021 — Level 2 Ingredient-Based Estimation | 52f7212 (squash merge to develop, PR #19) | level2Lookup: 2-strategy cascade (exact dish → FTS dish), CTE aggregation SQL (4 tables), per_100g filter, confidence scoring (medium/low). Unified cache key (replaces estimate:l1). Route L2 fallback, level2Hit field, 2 new match types. Plan reviewed 2 rounds (9 fixes: 2C+4I+3S). Code review: APPROVED (0 issues). QA: 52 edge-case tests, 8 findings (0 bugs). 80 F021 tests (4 files, 1904 total) |
 | 2026-03-19 | F022 — Level 3 Similarity Extrapolation | 18a20f8 (squash merge to develop, PR #20) | level3Lookup: 2-strategy cascade (similarity_dish scoped → similarity_food global), pgvector `<->` cosine distance, OpenAI embedding at request time, fail-graceful. Plan reviewed 2 rounds (8 fixes). Code review: 1 CRITICAL fixed (similarityDistance propagation into result object), 1 IMPORTANT fixed (barrel exports). QA: 37 edge-case tests, NaN/Infinity guard added. 76 F022 tests (5 files, ~2018 total) |
+| 2026-03-19 | F023 — Engine Router & Confidence API | 93e563d (squash merge to develop, PR #21) | runEstimationCascade() extracts L1→L2→L3 cascade from route into engineRouter.ts. Level4LookupFn extension seam for F024. Route handler ~25 lines. Code review: APPROVED (1 IMPORTANT fixed: .trim() cache key). QA: 35 edge-case tests, 0 bugs. 57 F023 tests (4 files, 95 total with backward compat) |
 
 ---
 

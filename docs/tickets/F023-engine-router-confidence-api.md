@@ -1,7 +1,7 @@
 # F023: Engine Router & Confidence API
 
 **Feature:** F023 | **Type:** Backend-Refactor | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F023-engine-router-confidence-api
+**Status:** Done | **Branch:** feature/F023-engine-router-confidence-api (deleted)
 **Created:** 2026-03-19 | **Dependencies:** F020, F021, F022
 
 ---
@@ -195,8 +195,8 @@ The route continues to import `config` to read `OPENAI_API_KEY` and pass it as `
 - [x] Unit tests for `runEstimationCascade()` cover: L1 hit, L2 hit, L3 hit, total miss, DB error, L4 hit (mock) — 14 tests
 - [x] All existing F020/F021/F022 route tests pass without modification — 38 tests
 - [x] Barrel export updated (`packages/api/src/estimation/index.ts`)
-- [x] Unit tests for new functionality — 22 tests (14 unit + 8 route)
-- [x] All tests pass — 60/60
+- [x] Unit tests for new functionality — 57 tests (14 unit + 8 route + 35 QA edge-case)
+- [x] All tests pass — 95/95
 - [x] Build succeeds (4 pre-existing TS errors in batch-ingest scripts only)
 - [x] Specs updated (`api-spec.yaml`)
 
@@ -223,7 +223,7 @@ The route continues to import `config` to read `OPENAI_API_KEY` and pass it as `
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed — APPROVED, 1 IMPORTANT fixed (.trim())
 - [x] Step 5: `qa-engineer` executed — VERIFIED, 35 edge-case tests added, 0 bugs
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -238,6 +238,7 @@ The route continues to import `config` to read `OPENAI_API_KEY` and pass it as `
 | 2026-03-19 | Step 4: Finalize | production-code-validator: 0 issues, 60/60 tests |
 | 2026-03-19 | Step 5: Code review | APPROVED — 1 IMPORTANT (.trim() in cache key), 3 SUGGESTIONS |
 | 2026-03-19 | Step 5: QA | VERIFIED — 35 edge-case tests, 0 bugs, 95/95 total |
+| 2026-03-19 | Step 6: Complete | Squash merge to develop (93e563d), branch deleted, tracker updated |
 
 ---
 
