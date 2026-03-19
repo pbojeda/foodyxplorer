@@ -61,7 +61,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         request.query as EstimateQuery;
 
       // Normalize for cache key only. Router normalizes internally for DB lookups.
-      const normalizedQuery = query.replace(/\s+/g, ' ').toLowerCase();
+      const normalizedQuery = query.replace(/\s+/g, ' ').trim().toLowerCase();
 
       // Unified cache key: fxp:estimate:<query>:<chainSlug>:<restaurantId>
       const cacheKey = buildKey(
