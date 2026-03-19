@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-19
 
-**Active Feature:** F024 — LLM Integration Layer
-**Step:** 5/6 (Review)
-**Branch:** feature/F024-llm-integration-layer
-**Complexity:** Standard
-**Context:** Spec complete with 2 critical reviews (18 issues resolved). Key: Strategy A uses pg_trgm (not FTS). Schemas + engineRouter + api-spec already updated in Step 0.
+**Active Feature:** None
+**Step:** —
+**Branch:** develop
+**Complexity:** —
+**Context:** F024 completed (7d0e875). E003 complete (F020-F024 all done). E004 (Telegram Bot + Public API) is next.
 
 ---
 
@@ -24,7 +24,7 @@
 |------|------|--------|----------|--------------|
 | E001 | Infrastructure & Schema | done | F001-F006 | Day 0 complete |
 | E002 | Data Ingestion Pipeline | done | F007-F019 | E001 complete |
-| E003 | Estimation Engine | in-progress | F020-F024 | E001 complete, E002 partial |
+| E003 | Estimation Engine | done | F020-F024 | E001 complete, E002 partial |
 | E004 | Telegram Bot + Public API | pending | F025-F030 | E002 + E003 complete |
 
 ## Features — E001 Infrastructure & Schema
@@ -66,7 +66,7 @@
 | F021 | Level 2 — Ingredient-Based Estimation | backend | done | 6/6 | Standard. level2Lookup, nutrient aggregation from dish_ingredients, 2 strategies, confidence scoring. 80 new tests. PR #19 |
 | F022 | Level 3 — Similarity Extrapolation (pgvector) | backend | done | 6/6 | Standard. pgvector cosine similarity, OpenAI embedding at request time, fail-graceful |
 | F023 | Engine Router & Confidence API | backend | done | 6/6 | Standard. Extract cascade to engineRouter module, F024 extension seam |
-| F024 | LLM Integration Layer | backend | in-progress | 5/6 | Standard. L4 estimation: Strategy A (pg_trgm + LLM selection), Strategy B (LLM decomposition + aggregation). 58 tests. PR #22 |
+| F024 | LLM Integration Layer | backend | done | 6/6 | Standard. L4 estimation: Strategy A (pg_trgm + LLM selection), Strategy B (LLM decomposition + aggregation). 58 tests. PR #22 |
 
 ## Features — E004 Telegram Bot + Public API
 
@@ -109,6 +109,7 @@
 | 2026-03-18 | F021 — Level 2 Ingredient-Based Estimation | 52f7212 (squash merge to develop, PR #19) | level2Lookup: 2-strategy cascade (exact dish → FTS dish), CTE aggregation SQL (4 tables), per_100g filter, confidence scoring (medium/low). Unified cache key (replaces estimate:l1). Route L2 fallback, level2Hit field, 2 new match types. Plan reviewed 2 rounds (9 fixes: 2C+4I+3S). Code review: APPROVED (0 issues). QA: 52 edge-case tests, 8 findings (0 bugs). 80 F021 tests (4 files, 1904 total) |
 | 2026-03-19 | F022 — Level 3 Similarity Extrapolation | 18a20f8 (squash merge to develop, PR #20) | level3Lookup: 2-strategy cascade (similarity_dish scoped → similarity_food global), pgvector `<->` cosine distance, OpenAI embedding at request time, fail-graceful. Plan reviewed 2 rounds (8 fixes). Code review: 1 CRITICAL fixed (similarityDistance propagation into result object), 1 IMPORTANT fixed (barrel exports). QA: 37 edge-case tests, NaN/Infinity guard added. 76 F022 tests (5 files, ~2018 total) |
 | 2026-03-19 | F023 — Engine Router & Confidence API | 93e563d (squash merge to develop, PR #21) | runEstimationCascade() extracts L1→L2→L3 cascade from route into engineRouter.ts. Level4LookupFn extension seam for F024. Route handler ~25 lines. Code review: APPROVED (1 IMPORTANT fixed: .trim() cache key). QA: 35 edge-case tests, 0 bugs. 57 F023 tests (4 files, 95 total with backward compat) |
+| 2026-03-19 | F024 — LLM Integration Layer | 7d0e875 (squash merge to develop, PR #22) | level4Lookup: Strategy A (pg_trgm trigram + LLM selection) + Strategy B (LLM decomposition + L1 resolution + L2 aggregation). ADR-001 compliant. Fail-graceful (callChatCompletion returns null). pg_trgm extension. Spec reviewed 2x (18 issues). Plan reviewed by Codex gpt-5.4 + Gemini 2.5 Pro (8 issues resolved). Code review: APPROVED (1I fixed: spread vs mutation). QA: 29 edge-case tests, 0 bugs. 58 F024 tests (3 files, 2078 total). **E003 complete** |
 
 ---
 
