@@ -118,6 +118,7 @@ const MOCK_LEVEL1_RESULT = {
       type: 'official' as const,
       url: 'https://www.mcdonalds.es/nutritional.pdf',
     },
+    similarityDistance: null,
   },
 };
 
@@ -159,6 +160,7 @@ const MOCK_LEVEL2_RESULT = {
       type: 'estimated' as const,
       url: null,
     },
+    similarityDistance: null,
   },
 };
 
@@ -269,6 +271,7 @@ describe('GET /estimate — Level 2 integration', () => {
       chainSlug: 'mcdonalds-es',
       level1Hit: false,
       level2Hit: true,
+      level3Hit: false,
       matchType: 'ingredient_dish_exact',
       result: MOCK_LEVEL2_RESULT.result,
       cachedAt: '2026-03-18T10:00:00.000Z',

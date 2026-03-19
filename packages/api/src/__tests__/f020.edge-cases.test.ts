@@ -49,6 +49,7 @@ const BASE_RESULT_A = {
     type: 'official' as const,
     url: null,
   },
+  similarityDistance: null,
 };
 
 // ─── EstimateQuerySchema ─────────────────────────────────────────────────────
@@ -312,6 +313,7 @@ const ROUTE_MOCK_RESULT = {
       type: 'official' as const,
       url: null,
     },
+    similarityDistance: null,
   },
 };
 
