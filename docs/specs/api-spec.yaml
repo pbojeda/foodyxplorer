@@ -1453,7 +1453,11 @@ paths:
       summary: Estimation Engine — Level 1 (official data) + Level 2 (ingredient-based) + Level 3 (similarity)
       description: |
         Queries the database for nutritional data matching the given dish or food name.
-        Implements the full three-level cascade (F020 + F021 + F022) defined in ADR-001.
+        Implements the full three-level cascade (F020 + F021 + F022) defined in ADR-001,
+        routed through the `engineRouter` module (F023). The route handler is a thin shell:
+        cache check → `runEstimationCascade()` → cache write → response. The cascade is
+        extensible to Level 4 (F024 LLM Integration) without changes to this endpoint's
+        request/response schema.
 
         **Level 1 — Official Data Lookup (F020)**
         Highest-confidence tier. Tries four strategies in priority order against the
@@ -3691,8 +3695,9 @@ components:
     EstimateData:
       type: object
       description: |
-        The full payload for a GET /estimate response. Covers all three estimation levels
-        (L1 + L2 + L3). F023 (Engine Router) will use this same schema without modifications.
+        The full payload for a GET /estimate response. Covers all estimation levels
+        (L1 + L2 + L3, extensible to L4 in F024). F023 (Engine Router) uses this schema
+        without modifications — the cascade output maps directly into this shape.
       required:
         - query
         - chainSlug
