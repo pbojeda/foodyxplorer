@@ -47,10 +47,13 @@ tags:
     description: |
       Estimation Engine endpoints (E003, F020–F024). The engine is deterministic and
       auditable per ADR-001: it NEVER uses an LLM to calculate nutritional values.
-      Three levels cascade: Level 1 (official data lookup, F020) → Level 2
-      (ingredient-based calculation, F021) → Level 3 (pgvector similarity, F022).
-      F023 (Engine Router) orchestrates all levels. Every response includes source
-      traceability and a deterministic confidence level.
+      Four levels cascade: Level 1 (official data lookup, F020) → Level 2
+      (ingredient-based calculation, F021) → Level 3 (pgvector similarity, F022) →
+      Level 4 (LLM identification, F024). F023 (Engine Router) orchestrates all levels.
+      Every response includes source traceability and a deterministic confidence level.
+      The LLM in Level 4 is strictly an identification layer: it maps the query to known
+      DB entities (Strategy A) or decomposes a dish into known ingredients (Strategy B),
+      then delegates all arithmetic to the existing L1/L2 nutrient lookup logic.
 
 paths:
   /ingest/pdf:
@@ -1450,14 +1453,12 @@ paths:
 
   /estimate:
     get:
-      summary: Estimation Engine — Level 1 (official data) + Level 2 (ingredient-based) + Level 3 (similarity)
+      summary: Estimation Engine — L1 (official) + L2 (ingredients) + L3 (similarity) + L4 (LLM identification)
       description: |
         Queries the database for nutritional data matching the given dish or food name.
-        Implements the full three-level cascade (F020 + F021 + F022) defined in ADR-001,
+        Implements the full four-level cascade (F020 + F021 + F022 + F024) defined in ADR-001,
         routed through the `engineRouter` module (F023). The route handler is a thin shell:
-        cache check → `runEstimationCascade()` → cache write → response. The cascade is
-        extensible to Level 4 (F024 LLM Integration) without changes to this endpoint's
-        request/response schema.
+        cache check → `runEstimationCascade()` → cache write → response.
 
         **Level 1 — Official Data Lookup (F020)**
         Highest-confidence tier. Tries four strategies in priority order against the
@@ -1513,13 +1514,60 @@ paths:
           response. The error is logged at `warn` level.
         - Neither dishes nor foods have any embeddings → no rows within threshold; total miss.
 
-        **Latency note:** Level 3 adds ~200–500 ms due to the OpenAI embedding call. The
-        response is cached after L3 executes, so repeated queries benefit from the cache.
+        **Level 4 — LLM Identification (F024)**
+        Attempted only when Levels 1, 2, and 3 all miss. Calls the OpenAI Chat Completions
+        API (not embeddings) to identify the food entity described by the query. The LLM
+        NEVER calculates nutritional values (ADR-001). Two strategies, attempted in order:
+
+        **Strategy A — LLM food match (`llm_food_match`):**
+        The LLM receives a structured prompt listing candidate foods from the DB (top-10
+        candidates by `pg_trgm` trigram similarity — NOT FTS, which already failed in L1)
+        and is asked to identify the single best matching food by name. The identified food's
+        UUID is then looked up in `food_nutrients` to retrieve official DB nutrients.
+        The LLM acts as a semantic search layer; the DB
+        is the authoritative source of nutrition data.
+
+        **Strategy B — LLM ingredient decomposition (`llm_ingredient_decomposition`):**
+        If Strategy A returns no confident match, the LLM decomposes the queried dish into
+        a list of known ingredient names and approximate gram weights. Each ingredient name
+        is then resolved via an L1-style exact/FTS lookup against `foods`. Resolved ingredients
+        are aggregated with the same arithmetic as Level 2:
+        `nutrient_total = SUM( food_nutrient_per_100g[i] * gramWeight[i] / 100 )`.
+        Unresolved ingredients are counted; confidence is `"medium"` if all resolved,
+        `"low"` if any unresolved.
+
+        Both strategies use `chat.completions.create` with `OPENAI_CHAT_MODEL` (default:
+        `gpt-4o-mini`). Responses are cached in Redis under the same unified key as all
+        other levels. The LLM prompt includes only DB entity names (never raw nutritional
+        values), so the LLM cannot fabricate nutrient figures.
+
+        Level 4 result: `level4Hit: true`, `estimationMethod: "llm"`, `confidenceLevel:
+        "medium"` (Strategy A full match or Strategy B all-resolved) or `"low"` (Strategy B
+        partial). `source.type: "estimated"`, `source.name: "LLM-assisted identification"`.
+
+        **Level 4 skip conditions (fail-gracefully):**
+        - `OPENAI_API_KEY` is not configured → Level 4 silently skipped; total miss.
+        - `OPENAI_CHAT_MODEL` is not configured → Level 4 silently skipped; total miss.
+        - OpenAI API call fails after retries → Level 4 silently skipped; error logged at
+          `warn` level; total miss.
+        - LLM response cannot be parsed into a valid entity reference → skipped; total miss.
+        - LLM returns a name that does not resolve to any DB entity → skipped; total miss.
+
+        **Cost control:**
+        - LLM call results are cached in Redis (same unified key, TTL 300 s).
+        - Max prompt tokens controlled by `OPENAI_CHAT_MAX_TOKENS` (default: 512).
+        - Temperature fixed at 0 (deterministic output; no creative hallucination).
+        - Target: <0.05 EUR per uncached query. Monitored via logged `usage.total_tokens`.
+
+        **Latency note:** Level 3 adds ~200–500 ms due to the OpenAI embedding call. Level 4
+        adds ~500–1500 ms for the chat completion call. Both are only reached on a cache miss
+        and when lower levels also miss. The response is cached after any level executes, so
+        repeated queries benefit from the cache.
 
         **Scope:** `chainSlug` / `restaurantId` scoping applies to dish strategies at all
-        three levels. Food strategies (Level 1 strategies 3–4, Level 3 food similarity) are
-        always global. If `restaurantId` is provided with `chainSlug`, `restaurantId` takes
-        precedence.
+        four levels. Food strategies (Level 1 strategies 3–4, Level 3 food similarity,
+        Level 4 Strategy A) are always global. If `restaurantId` is provided with `chainSlug`,
+        `restaurantId` takes precedence.
 
         **Cache:** Unified cache key `fxp:estimate:<query>:<chainSlug>:<restaurantId>`. Stores
         the final response regardless of which level produced it (L1 hit, L2 hit, L3 hit, or
@@ -1527,13 +1575,13 @@ paths:
         came from cache.
 
         **Miss semantics:** A complete miss (no match at any level) returns HTTP 200 with
-        `level1Hit: false`, `level2Hit: false`, `level3Hit: false`, and `result: null`.
-        This is NOT a 404.
+        `level1Hit: false`, `level2Hit: false`, `level3Hit: false`, `level4Hit: false`,
+        and `result: null`. This is NOT a 404.
 
         **Auth:** No auth required (Phase 1 — internal use). API key auth added in F026.
 
         **Rate limiting:** Subject to the global 100 req/15min/IP limit from F005.
-      operationId: estimateLevel1And2And3
+      operationId: estimateAllLevels
       tags:
         - Estimation
       parameters:
@@ -1578,13 +1626,16 @@ paths:
           description: |
             Query completed successfully. Always HTTP 200 whether or not a match was found.
             - `level1Hit: true`  — official data found; `result` contains nutrients + source.
-              `level2Hit` and `level3Hit` are false (lower levels not attempted).
+              All other level flags are false (lower levels not attempted).
             - `level2Hit: true`  — Level 1 missed; Level 2 found ingredients to aggregate.
-              `result` contains computed nutrients. `level1Hit` and `level3Hit` are false.
-            - `level3Hit: true`  — Level 1 and 2 both missed; Level 3 found a similar entity
+              `result` contains computed nutrients. All other level flags are false.
+            - `level3Hit: true`  — Levels 1 and 2 both missed; Level 3 found a similar entity
               via pgvector cosine similarity. `result` contains the similar entity's nutrients.
-              `level1Hit` and `level2Hit` are false.
-            - All three false   — no match at any level; `result` is null.
+              `level1Hit`, `level2Hit`, and `level4Hit` are false.
+            - `level4Hit: true`  — Levels 1, 2, and 3 all missed; Level 4 (LLM identification)
+              resolved the query to a known DB entity. `result` contains DB nutrients.
+              `level1Hit`, `level2Hit`, and `level3Hit` are false.
+            - All four false    — no match at any level; `result` is null.
           content:
             application/json:
               schema:
@@ -1600,6 +1651,7 @@ paths:
                       level1Hit: true
                       level2Hit: false
                       level3Hit: false
+                      level4Hit: false
                       matchType: "exact_dish"
                       result:
                         entityType: "dish"
@@ -1643,6 +1695,7 @@ paths:
                       level1Hit: true
                       level2Hit: false
                       level3Hit: false
+                      level4Hit: false
                       matchType: "fts_food"
                       result:
                         entityType: "food"
@@ -1686,6 +1739,7 @@ paths:
                       level1Hit: true
                       level2Hit: false
                       level3Hit: false
+                      level4Hit: false
                       matchType: "exact_dish"
                       result:
                         entityType: "dish"
@@ -1729,6 +1783,7 @@ paths:
                       level1Hit: false
                       level2Hit: true
                       level3Hit: false
+                      level4Hit: false
                       matchType: "ingredient_dish_fts"
                       result:
                         entityType: "dish"
@@ -1772,6 +1827,7 @@ paths:
                       level1Hit: false
                       level2Hit: true
                       level3Hit: false
+                      level4Hit: false
                       matchType: "ingredient_dish_exact"
                       result:
                         entityType: "dish"
@@ -1815,6 +1871,7 @@ paths:
                       level1Hit: false
                       level2Hit: false
                       level3Hit: true
+                      level4Hit: false
                       matchType: "similarity_dish"
                       result:
                         entityType: "dish"
@@ -1859,6 +1916,7 @@ paths:
                       level1Hit: false
                       level2Hit: false
                       level3Hit: true
+                      level4Hit: false
                       matchType: "similarity_food"
                       result:
                         entityType: "food"
@@ -1894,7 +1952,7 @@ paths:
                         similarityDistance: 0.31
                       cachedAt: null
                 miss:
-                  summary: No match found at any level
+                  summary: No match found at any level (L1 + L2 + L3 + L4 all missed)
                   value:
                     success: true
                     data:
@@ -1903,8 +1961,99 @@ paths:
                       level1Hit: false
                       level2Hit: false
                       level3Hit: false
+                      level4Hit: false
                       matchType: null
                       result: null
+                      cachedAt: null
+                level4FoodMatchHit:
+                  summary: Level 4 hit — LLM identified closest known food (Strategy A)
+                  value:
+                    success: true
+                    data:
+                      query: "pizza de atún con borde relleno de queso extra"
+                      chainSlug: null
+                      level1Hit: false
+                      level2Hit: false
+                      level3Hit: false
+                      level4Hit: true
+                      matchType: "llm_food_match"
+                      result:
+                        entityType: "food"
+                        entityId: "uuid-of-food"
+                        name: "Pizza, cheese topping, regular crust"
+                        nameEs: "Pizza de queso"
+                        restaurantId: null
+                        chainSlug: null
+                        portionGrams: null
+                        nutrients:
+                          calories: 272
+                          proteins: 12
+                          carbohydrates: 33
+                          sugars: 3
+                          fats: 10
+                          saturatedFats: 5
+                          fiber: 2
+                          salt: 1.5
+                          sodium: 600
+                          transFats: 0
+                          cholesterol: 25
+                          potassium: 220
+                          monounsaturatedFats: 3
+                          polyunsaturatedFats: 1
+                          referenceBasis: "per_100g"
+                        confidenceLevel: "medium"
+                        estimationMethod: "llm"
+                        source:
+                          id: "00000000-0000-0000-0000-000000000099"
+                          name: "LLM-assisted identification"
+                          type: "estimated"
+                          url: null
+                        similarityDistance: null
+                      cachedAt: null
+                level4IngredientDecompositionHit:
+                  summary: Level 4 hit — LLM decomposed dish into ingredients → L2-style aggregation (Strategy B)
+                  value:
+                    success: true
+                    data:
+                      query: "wrap de pollo tikka con mango y yogur"
+                      chainSlug: null
+                      level1Hit: false
+                      level2Hit: false
+                      level3Hit: false
+                      level4Hit: true
+                      matchType: "llm_ingredient_decomposition"
+                      result:
+                        entityType: "food"
+                        entityId: "00000000-0000-0000-0000-000000000000"
+                        name: "LLM-decomposed: wrap de pollo tikka con mango y yogur"
+                        nameEs: null
+                        restaurantId: null
+                        chainSlug: null
+                        portionGrams: null
+                        nutrients:
+                          calories: 410
+                          proteins: 28
+                          carbohydrates: 48
+                          sugars: 12
+                          fats: 10
+                          saturatedFats: 3
+                          fiber: 4
+                          salt: 1.2
+                          sodium: 480
+                          transFats: 0
+                          cholesterol: 60
+                          potassium: 430
+                          monounsaturatedFats: 3
+                          polyunsaturatedFats: 2
+                          referenceBasis: "per_serving"
+                        confidenceLevel: "low"
+                        estimationMethod: "llm"
+                        source:
+                          id: "00000000-0000-0000-0000-000000000099"
+                          name: "LLM-assisted identification"
+                          type: "estimated"
+                          url: null
+                        similarityDistance: null
                       cachedAt: null
         '400':
           description: |
@@ -2939,6 +3088,7 @@ components:
         - scraped
         - ingredients
         - extrapolation
+        - llm
       properties:
         official:
           type: integer
@@ -2955,6 +3105,13 @@ components:
         extrapolation:
           type: integer
           minimum: 0
+          example: 0
+        llm:
+          type: integer
+          minimum: 0
+          description: |
+            Dishes estimated via Level 4 LLM identification (F024). Includes both
+            llm_food_match and llm_ingredient_decomposition match types.
           example: 0
 
     QualityConfidenceChain:
@@ -3658,18 +3815,23 @@ components:
           description: |
             Reflects the estimation method used:
             - "high"   — Level 1 official data (always high for L1 results).
-            - "medium" — Level 2 ingredient-based, all ingredients resolved.
+            - "medium" — Level 2 ingredient-based, all ingredients resolved;
+                         OR Level 4 Strategy A (LLM food match, full resolution);
+                         OR Level 4 Strategy B (LLM decomposition, all ingredients resolved).
             - "low"    — Level 2 ingredient-based, some ingredients unresolvable (partial sum);
                          OR Level 3 similarity extrapolation (always low — nutrients come from
-                         a different but semantically similar entity).
+                         a different but semantically similar entity);
+                         OR Level 4 Strategy B with some unresolvable ingredients.
           example: high
         estimationMethod:
           type: string
-          enum: [official, ingredients, extrapolation, scraped]
+          enum: [official, ingredients, extrapolation, scraped, llm]
           description: |
             How the nutritional values were produced:
             - "official"     — Level 1: read directly from dish_nutrients or food_nutrients.
             - "ingredients"  — Level 2: aggregated from dish_ingredients via food_nutrients.
+            - "llm"          — Level 4: LLM identified the food or decomposed the dish; nutrients
+                               still come from food_nutrients (LLM never calculates values).
             - "extrapolation"— Level 3: nutrients copied from the nearest pgvector neighbour.
             - "scraped"      — data sourced by the scraper pipeline (not produced by the engine).
           example: official
@@ -3682,28 +3844,32 @@ components:
             source.name is "Computed from ingredients", source.type is "estimated". For Level 3
             results, points to the data_sources row of the similar entity (dish or food) that
             was the nearest neighbour — the original entity's source, not a synthetic one.
+            For Level 4 results, this is a synthetic provenance marker:
+            source.id is a seed data_sources row UUID, source.name is
+            "LLM-assisted identification", source.type is "estimated", source.url is null.
         similarityDistance:
           type: number
           nullable: true
           description: |
             Cosine distance between the query embedding and the matched entity's embedding.
             Range: [0.0, 2.0] — 0.0 is identical, 2.0 is opposite. Only present and non-null
-            when `estimationMethod` is `"extrapolation"` (Level 3 hit). Null for Level 1 and
-            Level 2 results.
+            when `estimationMethod` is `"extrapolation"` (Level 3 hit). Null for Level 1,
+            Level 2, and Level 4 results.
           example: 0.18
 
     EstimateData:
       type: object
       description: |
-        The full payload for a GET /estimate response. Covers all estimation levels
-        (L1 + L2 + L3, extensible to L4 in F024). F023 (Engine Router) uses this schema
-        without modifications — the cascade output maps directly into this shape.
+        The full payload for a GET /estimate response. Covers all four estimation levels
+        (L1 + L2 + L3 + L4). F023 (Engine Router) uses this schema without modifications —
+        the cascade output maps directly into this shape.
       required:
         - query
         - chainSlug
         - level1Hit
         - level2Hit
         - level3Hit
+        - level4Hit
         - matchType
         - result
         - cachedAt
@@ -3737,6 +3903,15 @@ components:
             hit, when OPENAI_API_KEY is not configured (graceful skip), when the OpenAI
             call fails, or when no similar entity is within the cosine distance threshold.
           example: false
+        level4Hit:
+          type: boolean
+          description: |
+            True if Level 4 (LLM identification) produced a match. Only possible when
+            level1Hit, level2Hit, and level3Hit are all false. False when any upper level hit,
+            when OPENAI_API_KEY or OPENAI_CHAT_MODEL is not configured (graceful skip),
+            when the OpenAI chat completion call fails, or when the LLM response cannot be
+            resolved to a known DB entity.
+          example: false
         matchType:
           type: string
           nullable: true
@@ -3749,30 +3924,38 @@ components:
             - ingredient_dish_fts
             - similarity_dish
             - similarity_food
+            - llm_food_match
+            - llm_ingredient_decomposition
           description: |
             Which strategy produced the match.
             Level 1 strategies:
-            - exact_dish           — case-insensitive exact match on dishes.name
-            - fts_dish             — FTS match on dishes (Spanish or English)
-            - exact_food           — case-insensitive exact match on foods.name_es or foods.name
-            - fts_food             — FTS match on foods (Spanish or English)
+            - exact_dish                  — case-insensitive exact match on dishes.name
+            - fts_dish                    — FTS match on dishes (Spanish or English)
+            - exact_food                  — case-insensitive exact match on foods.name_es or foods.name
+            - fts_food                    — FTS match on foods (Spanish or English)
             Level 2 strategies:
-            - ingredient_dish_exact — case-insensitive exact match on dishes.name, aggregated
-                                      from dish_ingredients
-            - ingredient_dish_fts   — FTS match on dishes.name/name_es, aggregated from
-                                      dish_ingredients
+            - ingredient_dish_exact       — case-insensitive exact match on dishes.name, aggregated
+                                            from dish_ingredients
+            - ingredient_dish_fts         — FTS match on dishes.name/name_es, aggregated from
+                                            dish_ingredients
             Level 3 strategies:
-            - similarity_dish      — nearest-neighbour pgvector cosine match on dishes.embedding
-            - similarity_food      — nearest-neighbour pgvector cosine match on foods.embedding
-                                     (dishes searched first; foods are the fallback)
-            Null when level1Hit, level2Hit, and level3Hit are all false.
+            - similarity_dish             — nearest-neighbour pgvector cosine match on dishes.embedding
+            - similarity_food             — nearest-neighbour pgvector cosine match on foods.embedding
+                                            (dishes searched first; foods are the fallback)
+            Level 4 strategies:
+            - llm_food_match              — LLM identified the closest known food in the DB
+                                            (Strategy A). Nutrients come from food_nutrients.
+            - llm_ingredient_decomposition — LLM decomposed the query into known ingredients,
+                                            aggregated via L2-style arithmetic (Strategy B).
+                                            Nutrients are computed from resolved food_nutrients rows.
+            Null when all four level hit flags are false (total miss).
           example: exact_dish
         result:
           nullable: true
           allOf:
             - $ref: '#/components/schemas/EstimateResult'
           description: |
-            The matched entity with nutrients and source. Null when all three level hit flags
+            The matched entity with nutrients and source. Null when all four level hit flags
             are false. Non-null when any level produces a result.
         cachedAt:
           type: string

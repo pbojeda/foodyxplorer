@@ -11,6 +11,7 @@ export const EstimationMethodSchema = z.enum([
   'ingredients',
   'extrapolation',
   'scraped',
+  'llm',  // Level 4 — LLM-assisted identification; nutrients still come from the DB
 ]);
 export type EstimationMethod = z.infer<typeof EstimationMethodSchema>;
 

@@ -110,6 +110,7 @@ const ROUTER_L1_HIT = {
     level1Hit: true,
     level2Hit: false,
     level3Hit: false,
+    level4Hit: false,
     matchType: 'exact_dish' as const,
     result: BASE_ENTITY,
     cachedAt: null,
@@ -124,6 +125,7 @@ const ROUTER_TOTAL_MISS = {
     level1Hit: false,
     level2Hit: false,
     level3Hit: false,
+    level4Hit: false,
     matchType: null,
     result: null,
     cachedAt: null,
@@ -260,7 +262,7 @@ describe('GET /estimate — route edge cases (F023)', () => {
   it('EDGE_CASE-R06: cache hit → cacheSet not called and runEstimationCascade not called', async () => {
     const cachedData = {
       query: 'Big Mac', chainSlug: 'mcdonalds-es',
-      level1Hit: true, level2Hit: false, level3Hit: false,
+      level1Hit: true, level2Hit: false, level3Hit: false, level4Hit: false,
       matchType: 'exact_dish', result: BASE_ENTITY,
       cachedAt: '2026-03-19T10:00:00.000Z',
     };
