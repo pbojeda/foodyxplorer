@@ -247,6 +247,10 @@ export async function level3Lookup(
     if (embedding === undefined) {
       return null;
     }
+    // Guard against non-finite values (NaN/Infinity) that would cause pgvector parse errors
+    if (!embedding.every(Number.isFinite)) {
+      return null;
+    }
     vector = embedding;
   } catch {
     // OpenAI failures are graceful — log at warn level, return null
