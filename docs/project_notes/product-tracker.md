@@ -11,7 +11,7 @@
 **Last Updated:** 2026-03-19
 
 **Active Feature:** F024 — LLM Integration Layer
-**Step:** 3/6 (Implement)
+**Step:** 5/6 (Review)
 **Branch:** feature/F024-llm-integration-layer
 **Complexity:** Standard
 **Context:** Spec complete with 2 critical reviews (18 issues resolved). Key: Strategy A uses pg_trgm (not FTS). Schemas + engineRouter + api-spec already updated in Step 0.

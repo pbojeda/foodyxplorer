@@ -377,16 +377,18 @@ async function runStrategyA(
   const nutrientRow = await fetchFoodNutrients(db, selectedCandidate.id);
   if (nutrientRow === undefined) return null;
 
-  // Step 8: Build result — override source with LLM source
-  const result = mapFoodRowToResult(nutrientRow);
-  result.confidenceLevel = 'medium';
-  result.estimationMethod = 'llm';
-  result.similarityDistance = null;
-  result.source = {
-    id: LLM_SOURCE_ID,
-    name: LLM_SOURCE_NAME,
-    type: 'estimated',
-    url: null,
+  // Step 8: Build result — spread base and override with LLM-specific fields
+  const result: EstimateResult = {
+    ...mapFoodRowToResult(nutrientRow),
+    confidenceLevel: 'medium',
+    estimationMethod: 'llm',
+    similarityDistance: null,
+    source: {
+      id: LLM_SOURCE_ID,
+      name: LLM_SOURCE_NAME,
+      type: 'estimated',
+      url: null,
+    },
   };
 
   // Step 9: Return
