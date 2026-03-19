@@ -27,6 +27,10 @@ export const EnvSchema = z.object({
   OPENAI_EMBEDDING_MODEL: z.string().min(1).default('text-embedding-3-small'),
   OPENAI_EMBEDDING_BATCH_SIZE: z.coerce.number().int().min(1).max(2048).default(100),
   OPENAI_EMBEDDING_RPM: z.coerce.number().int().min(1).default(3000),
+  // Chat completions — used by Level 4 LLM Integration Layer (F024)
+  // No default for OPENAI_CHAT_MODEL — L4 is only active when explicitly configured by operators.
+  OPENAI_CHAT_MODEL: z.string().min(1).optional(),
+  OPENAI_CHAT_MAX_TOKENS: z.coerce.number().int().min(1).max(4096).default(512),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

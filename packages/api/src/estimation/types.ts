@@ -209,7 +209,7 @@ export interface FoodSimilarityRow {
  * Parse a Decimal(8,2) string from PostgreSQL to a JS number.
  * Returns 0 if the value is null or not parseable.
  */
-function parseDecimal(value: string | null | undefined): number {
+export function parseDecimal(value: string | null | undefined): number {
   if (value === null || value === undefined) return 0;
   const parsed = parseFloat(value);
   return isNaN(parsed) ? 0 : parsed;

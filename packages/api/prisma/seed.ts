@@ -43,6 +43,20 @@ async function main(): Promise<void> {
   });
   console.log(`DataSource created: ${dataSource.name}`);
 
+  // LLM data source — referenced by Level 4 LLM Integration Layer (F024)
+  const llmDataSource = await prisma.dataSource.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000017' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000017',
+      name: 'LLM-assisted identification',
+      type: 'estimated',
+      url: null,
+      lastUpdated: new Date('2026-01-01'),
+    },
+  });
+  console.log(`DataSource created: ${llmDataSource.name}`);
+
   // ---------------------------------------------------------------------------
   // Foods
   // ---------------------------------------------------------------------------

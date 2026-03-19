@@ -1,9 +1,9 @@
-// GET /estimate — Level 1 + Level 2 + Level 3 lookup (Estimation Engine E003).
+// GET /estimate — Level 1 + Level 2 + Level 3 + Level 4 lookup (Estimation Engine E003).
 //
 // Validates query params with EstimateQuerySchema.
 // Checks Redis cache (unified key) before executing lookup cascade.
 // Delegates cascade to runEstimationCascade() (F023 Engine Router).
-// Returns EstimateData with level1Hit/level2Hit/level3Hit flags.
+// Returns EstimateData with level1Hit/level2Hit/level3Hit/level4Hit flags.
 // Cache TTL: 300 seconds. Cache is fail-open (bypass on Redis errors).
 
 import type { FastifyPluginAsync } from 'fastify';
@@ -16,6 +16,7 @@ import {
 } from '@foodxplorer/shared';
 import type { DB } from '../generated/kysely-types.js';
 import { runEstimationCascade } from '../estimation/engineRouter.js';
+import { level4Lookup } from '../estimation/level4Lookup.js';
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 import { config } from '../config.js';
 
@@ -43,15 +44,16 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       schema: {
         querystring: EstimateQuerySchema,
         tags: ['Estimation'],
-        operationId: 'estimateLevel1And2And3',
-        summary: 'Level 1 + Level 2 + Level 3 — official data, ingredient and similarity estimation',
+        operationId: 'estimateAllLevels',
+        summary: 'Level 1 + Level 2 + Level 3 + Level 4 — official data, ingredient, similarity and LLM-assisted estimation',
         description:
           'Searches dishes and foods for an exact or FTS match against the official ' +
           'nutritional database (Level 1). On Level 1 miss, falls back to Level 2 ' +
           'ingredient-based estimation. On Level 1+2 miss, falls back to Level 3 ' +
-          'pgvector similarity extrapolation. ' +
-          'Cascade is orchestrated by runEstimationCascade() (F023). ' +
-          'Returns level1Hit, level2Hit and level3Hit flags. ' +
+          'pgvector similarity extrapolation. On Level 1+2+3 miss, falls back to Level 4 ' +
+          'LLM-assisted identification (pg_trgm food match or ingredient decomposition). ' +
+          'Cascade is orchestrated by runEstimationCascade() (F023/F024). ' +
+          'Returns level1Hit, level2Hit, level3Hit and level4Hit flags. ' +
           'Returns all hit flags false when no match is found (not a 404). ' +
           'Responses are cached in Redis for 300 seconds under a unified cache key.',
       },
@@ -75,13 +77,15 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         return reply.send({ success: true, data: cached });
       }
 
-      // --- Estimation cascade (L1→L2→L3) ---
+      // --- Estimation cascade (L1→L2→L3→L4) ---
       const routerResult = await runEstimationCascade({
         db,
         query,
         chainSlug,
         restaurantId,
         openAiApiKey: config.OPENAI_API_KEY,
+        level4Lookup,
+        logger: request.log,
       });
 
       // --- Cache write (with cachedAt timestamp) ---
