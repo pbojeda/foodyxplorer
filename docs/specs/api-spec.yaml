@@ -54,6 +54,12 @@ tags:
       The LLM in Level 4 is strictly an identification layer: it maps the query to known
       DB entities (Strategy A) or decomposes a dish into known ingredients (Strategy B),
       then delegates all arithmetic to the existing L1/L2 nutrient lookup logic.
+  - name: Catalog
+    description: |
+      Read-only catalog browsing endpoints (F025). Allow consumers to browse restaurants,
+      chains, and dishes before querying for nutritional data via GET /estimate.
+      All four endpoints cache responses for 60 seconds (fail-open on Redis errors).
+      No auth required in Phase 1 (auth added in F026).
 
 paths:
   /ingest/pdf:
@@ -2113,6 +2119,364 @@ paths:
                       message: "Database query failed during estimation lookup"
                       code: "DB_UNAVAILABLE"
 
+  /restaurants:
+    get:
+      summary: List restaurants
+      description: |
+        Returns a paginated list of restaurants with optional filters. Each item includes
+        a `dishCount` (total dishes for that restaurant). Responses are cached for 60s.
+      operationId: listRestaurants
+      tags:
+        - Catalog
+      parameters:
+        - name: countryCode
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Z]{2}$'
+          description: Filter by 2-letter uppercase country code (e.g. ES, FR).
+        - name: chainSlug
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[a-z0-9-]+$'
+            maxLength: 100
+          description: Filter by chain slug (e.g. mcdonalds-es).
+        - name: isActive
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: Filter by active status. Omit to return both active and inactive.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of restaurants.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required: [items, pagination]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RestaurantListItem'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          description: Validation error (invalid query parameter).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Validation failed"
+                  code: "VALIDATION_ERROR"
+        '500':
+          description: Database unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database query failed"
+                  code: "DB_UNAVAILABLE"
+
+  /restaurants/{id}/dishes:
+    get:
+      summary: List dishes for a restaurant
+      description: |
+        Returns a paginated list of dishes for a specific restaurant. Without `?search`
+        uses Prisma (name ASC). With `?search` uses Kysely trigram similarity
+        (threshold ≥ 0.15). Returns 404 if the restaurant UUID does not exist.
+      operationId: listRestaurantDishes
+      tags:
+        - Catalog
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Restaurant UUID.
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 255
+          description: Trigram similarity search on dish name and name_es.
+        - name: availability
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DishAvailability'
+          description: Filter by dish availability.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of dishes for the restaurant.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required: [items, pagination]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DishListItem'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          description: Validation error (invalid path param or query parameter).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Validation failed"
+                  code: "VALIDATION_ERROR"
+        '404':
+          description: Restaurant not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Restaurant not found"
+                  code: "NOT_FOUND"
+        '500':
+          description: Database unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database query failed"
+                  code: "DB_UNAVAILABLE"
+
+  /dishes/search:
+    get:
+      summary: Search dishes by name
+      description: |
+        Trigram similarity search across all dishes. `q` is required and must be
+        non-empty after trimming. `restaurantId` takes precedence over `chainSlug`
+        when both are provided. Returns empty results (never 404) when no match.
+      operationId: searchDishes
+      tags:
+        - Catalog
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+          description: Trigram similarity search term (min 1 non-whitespace char after trim).
+        - name: chainSlug
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[a-z0-9-]+$'
+            maxLength: 100
+          description: Scope search to a specific chain.
+        - name: restaurantId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Scope search to a specific restaurant. Takes precedence over chainSlug.
+        - name: availability
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DishAvailability'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated search results (empty list when no match — never 404).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required: [items, pagination]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DishListItem'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          description: Validation error (q missing or empty after trim).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Validation failed"
+                  code: "VALIDATION_ERROR"
+        '500':
+          description: Database unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database query failed"
+                  code: "DB_UNAVAILABLE"
+
+  /chains:
+    get:
+      summary: List chains
+      description: |
+        Returns a flat (non-paginated) list of chains with aggregated `dishCount`.
+        A chain entry is one per (chainSlug, countryCode) combination. `isActive`
+        is true if ANY restaurant in the group is active. Max ~20 chains.
+        Responses are cached for 60 seconds.
+      operationId: listChains
+      tags:
+        - Catalog
+      parameters:
+        - name: countryCode
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Z]{2}$'
+          description: Filter by 2-letter uppercase country code.
+        - name: isActive
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: Filter by active status. Omit to return both active and inactive.
+      responses:
+        '200':
+          description: Flat list of chain entries (not paginated).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChainListItem'
+        '400':
+          description: Validation error (invalid query parameter).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Validation failed"
+                  code: "VALIDATION_ERROR"
+        '500':
+          description: Database unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database query failed"
+                  code: "DB_UNAVAILABLE"
+
   /health:
     get:
       summary: Health check
@@ -3527,6 +3891,12 @@ components:
     # Shared response envelopes
     # -------------------------------------------------------------------------
 
+    DishAvailability:
+      type: string
+      enum: [available, seasonal, discontinued, regional]
+      example: available
+      description: Availability status of a dish.
+
     ErrorResponse:
       type: object
       required:
@@ -3977,6 +4347,127 @@ components:
           example: true
         data:
           $ref: '#/components/schemas/EstimateData'
+
+    # -------------------------------------------------------------------------
+    # F025 Catalog schemas
+    # -------------------------------------------------------------------------
+
+    PaginationMeta:
+      type: object
+      required: [page, pageSize, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+          example: 1
+        pageSize:
+          type: integer
+          example: 20
+        totalItems:
+          type: integer
+          example: 42
+        totalPages:
+          type: integer
+          example: 3
+          description: Math.ceil(totalItems / pageSize). 0 when totalItems is 0.
+
+    RestaurantListItem:
+      type: object
+      required: [id, name, chainSlug, countryCode, isActive, dishCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "McDonald's Spain"
+        nameEs:
+          type: string
+          nullable: true
+          example: "McDonald's España"
+        chainSlug:
+          type: string
+          example: "mcdonalds-es"
+        countryCode:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: "ES"
+        isActive:
+          type: boolean
+          example: true
+        logoUrl:
+          type: string
+          nullable: true
+        website:
+          type: string
+          nullable: true
+          example: "https://www.mcdonalds.es"
+        dishCount:
+          type: integer
+          minimum: 0
+          example: 127
+
+    DishListItem:
+      type: object
+      required: [id, name, restaurantId, chainSlug, restaurantName, availability]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Big Mac"
+        nameEs:
+          type: string
+          nullable: true
+          example: "Big Mac"
+        restaurantId:
+          type: string
+          format: uuid
+        chainSlug:
+          type: string
+          example: "mcdonalds-es"
+        restaurantName:
+          type: string
+          example: "McDonald's Spain"
+        availability:
+          $ref: '#/components/schemas/DishAvailability'
+        portionGrams:
+          type: number
+          nullable: true
+          example: 215
+        priceEur:
+          type: number
+          nullable: true
+          example: 5.5
+
+    ChainListItem:
+      type: object
+      required: [chainSlug, name, countryCode, dishCount, isActive]
+      properties:
+        chainSlug:
+          type: string
+          example: "mcdonalds-es"
+        name:
+          type: string
+          example: "McDonald's Spain"
+        nameEs:
+          type: string
+          nullable: true
+        countryCode:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: "ES"
+        dishCount:
+          type: integer
+          minimum: 0
+          example: 127
+          description: Aggregated across all restaurants with the same chainSlug.
+        isActive:
+          type: boolean
+          example: true
+          description: True if ANY restaurant in the chain group is active.
 
   securitySchemes:
     ApiKeyAuth:
