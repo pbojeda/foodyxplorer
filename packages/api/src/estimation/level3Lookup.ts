@@ -269,6 +269,7 @@ export async function level3Lookup(
           // Override confidence and method — extrapolation from similar entity
           result.confidenceLevel = 'low';
           result.estimationMethod = 'extrapolation';
+          result.similarityDistance = distance;
           return {
             matchType: 'similarity_dish',
             result,
@@ -291,6 +292,7 @@ export async function level3Lookup(
           // Override confidence and method — extrapolation from similar entity
           result.confidenceLevel = 'low';
           result.estimationMethod = 'extrapolation';
+          result.similarityDistance = distance;
           return {
             matchType: 'similarity_food',
             result,

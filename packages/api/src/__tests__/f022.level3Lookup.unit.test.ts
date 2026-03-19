@@ -259,6 +259,20 @@ describe('level3Lookup', () => {
     expect(result.result.entityId).toBe(MOCK_DISH_NUTRIENT_ROW.dish_id);
   });
 
+  it('strategy 1 propagates similarityDistance into result.result for API consumers', async () => {
+    mockExecuteQuery
+      .mockResolvedValueOnce({ rows: [MOCK_DISH_SIMILARITY_ROW] })
+      .mockResolvedValueOnce({ rows: [MOCK_DISH_NUTRIENT_ROW] });
+
+    const db = buildMockDb() as never;
+    const result = await level3Lookup(db, 'hamburguesa', { openAiApiKey: 'sk-test-key' });
+
+    expect(result).not.toBeNull();
+    if (result === null) throw new Error('Expected non-null result');
+    expect(result.result.similarityDistance).toBeCloseTo(0.18, 5);
+    expect(result.result.similarityDistance).not.toBeNull();
+  });
+
   it('strategy 1 short-circuits: does not call food strategy when dish matches', async () => {
     mockExecuteQuery
       .mockResolvedValueOnce({ rows: [MOCK_DISH_SIMILARITY_ROW] })
