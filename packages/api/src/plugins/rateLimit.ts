@@ -31,7 +31,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Config } from '../config.js';
 import type { ApiKeyContext } from '@foodxplorer/shared';
 import { redis } from '../lib/redis.js';
-import { ADMIN_PREFIXES } from './auth.js';
+import { ADMIN_PREFIXES } from './adminPrefixes.js';
 
 // ---------------------------------------------------------------------------
 // Exported helpers — tested in f026.auth.test.ts

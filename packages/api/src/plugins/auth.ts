@@ -34,6 +34,7 @@ import type { Config } from '../config.js';
 import type { ApiKeyContext } from '@foodxplorer/shared';
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 import { validateAdminKey } from './adminAuth.js';
+import { isAdminRoute } from './adminPrefixes.js';
 
 // ---------------------------------------------------------------------------
 // Fastify type augmentation
@@ -59,18 +60,6 @@ interface CachedApiKey {
 interface RegisterAuthOptions {
   prisma: PrismaClient;
   config: Config;
-}
-
-// ---------------------------------------------------------------------------
-// Admin route prefixes
-// ---------------------------------------------------------------------------
-
-/** Admin route prefixes — shared with rateLimit.ts for allowList */
-export const ADMIN_PREFIXES = ['/ingest/', '/quality/', '/embeddings/'] as const;
-
-export function isAdminRoute(url: string | undefined): boolean {
-  if (!url) return false;
-  return ADMIN_PREFIXES.some((prefix) => url.startsWith(prefix));
 }
 
 // ---------------------------------------------------------------------------
