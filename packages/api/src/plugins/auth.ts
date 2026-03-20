@@ -65,9 +65,10 @@ interface RegisterAuthOptions {
 // Admin route prefixes
 // ---------------------------------------------------------------------------
 
-const ADMIN_PREFIXES = ['/ingest/', '/quality/', '/embeddings/'];
+/** Admin route prefixes — shared with rateLimit.ts for allowList */
+export const ADMIN_PREFIXES = ['/ingest/', '/quality/', '/embeddings/'] as const;
 
-function isAdminRoute(url: string | undefined): boolean {
+export function isAdminRoute(url: string | undefined): boolean {
   if (!url) return false;
   return ADMIN_PREFIXES.some((prefix) => url.startsWith(prefix));
 }
@@ -167,12 +168,7 @@ export async function registerAuthMiddleware(
 
       // Set context
       request.apiKeyContext = { keyId: dbRow.id, tier: dbRow.tier };
-
-      // Fire-and-forget last_used_at update (bypass @updatedAt via raw SQL)
-      const keyId = dbRow.id;
-      void prisma.$executeRaw`UPDATE api_keys SET last_used_at = NOW() WHERE id = ${keyId}::uuid`
-        .catch((e: unknown) => request.log.debug({ err: e }, 'last_used_at update failed'));
-
+      touchLastUsed(dbRow.id);
       return;
     }
 
@@ -193,10 +189,12 @@ export async function registerAuthMiddleware(
 
     // Valid cached key
     request.apiKeyContext = { keyId: cached.keyId, tier: cached.tier };
-
-    // Fire-and-forget last_used_at update
-    const keyId = cached.keyId;
-    void prisma.$executeRaw`UPDATE api_keys SET last_used_at = NOW() WHERE id = ${keyId}::uuid`
-      .catch((e: unknown) => request.log.debug({ err: e }, 'last_used_at update failed'));
+    touchLastUsed(cached.keyId);
   });
+
+  // Fire-and-forget last_used_at update (bypass @updatedAt via raw SQL)
+  function touchLastUsed(keyId: string) {
+    void prisma.$executeRaw`UPDATE api_keys SET last_used_at = NOW() WHERE id = ${keyId}::uuid`
+      .catch((e: unknown) => app.log.debug({ err: e }, 'last_used_at update failed'));
+  }
 }

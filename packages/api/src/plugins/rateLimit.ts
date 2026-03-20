@@ -31,6 +31,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Config } from '../config.js';
 import type { ApiKeyContext } from '@foodxplorer/shared';
 import { redis } from '../lib/redis.js';
+import { ADMIN_PREFIXES } from './auth.js';
 
 // ---------------------------------------------------------------------------
 // Exported helpers — tested in f026.auth.test.ts
@@ -88,20 +89,16 @@ export async function registerRateLimit(
       const url = req.routeOptions.url ?? '';
       return (
         url === '/health' ||
-        url.startsWith('/ingest/') ||
-        url.startsWith('/quality/') ||
-        url.startsWith('/embeddings/')
+        ADMIN_PREFIXES.some((prefix) => url.startsWith(prefix))
       );
     },
     errorResponseBuilder: (_req, context) => {
       // Return an Error so Fastify's setErrorHandler catches it and formats
       // the response using the project error envelope via mapError.
-      const err = new Error('Too many requests, please try again later.');
-      (err as Error & { statusCode: number; code: string }).statusCode =
-        context.statusCode;
-      (err as Error & { statusCode: number; code: string }).code =
-        'RATE_LIMIT_EXCEEDED';
-      return err;
+      return Object.assign(
+        new Error('Too many requests, please try again later.'),
+        { statusCode: context.statusCode, code: 'RATE_LIMIT_EXCEEDED' },
+      );
     },
   });
 }

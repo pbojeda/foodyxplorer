@@ -8,7 +8,8 @@
 //     32 hex chars, prepend 'fxp_' → 36-char deterministic key.
 //   - If not set: crypto.randomBytes(16).toString('hex') → prepend 'fxp_'.
 //
-// Upsert by name = 'Telegram Bot' for idempotency (stable identity).
+// Upsert by keyHash for idempotency (same seed → same key → no-op upsert).
+// Changing BOT_API_KEY_SEED creates a NEW row; deactivate the old one manually.
 // The raw key is always printed to stdout — never stored unencrypted.
 
 import { createHash, createHmac, randomBytes } from 'node:crypto';
