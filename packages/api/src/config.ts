@@ -31,6 +31,14 @@ export const EnvSchema = z.object({
   // No default for OPENAI_CHAT_MODEL — L4 is only active when explicitly configured by operators.
   OPENAI_CHAT_MODEL: z.string().min(1).optional(),
   OPENAI_CHAT_MAX_TOKENS: z.coerce.number().int().min(1).max(4096).default(512),
+  // Auth — F026
+  // Required in production (validated at route level, not startup).
+  // Optional in test/dev — when absent, admin auth hook is skipped.
+  // Min 32 chars to prevent weak secrets.
+  ADMIN_API_KEY: z.string().min(32).optional(),
+  // Optional. When set, the seed script uses this as the deterministic seed
+  // for the bot API key (HMAC-SHA256 of seed → 32-char hex key).
+  BOT_API_KEY_SEED: z.string().min(1).optional(),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

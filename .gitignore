@@ -55,6 +55,10 @@ redisdata/
 .claude/settings.local.json
 .claude/agent-memory/
 .claude/projects/
+packages/api/.claude/
+
+# Initial docs (personal drafts, not part of the codebase)
+initialDoc/
 
 # Temporary files
 tmp/

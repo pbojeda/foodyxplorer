@@ -12,7 +12,7 @@ info:
     **Validation:**
     - Request bodies and query params are validated via `fastify-type-provider-zod`.
     - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
-  version: 0.1.0
+  version: 0.2.0
   contact:
     name: foodXPlorer
   license:
@@ -54,6 +54,12 @@ tags:
       The LLM in Level 4 is strictly an identification layer: it maps the query to known
       DB entities (Strategy A) or decomposes a dish into known ingredients (Strategy B),
       then delegates all arithmetic to the existing L1/L2 nutrient lookup logic.
+  - name: Catalog
+    description: |
+      Read-only catalog browsing endpoints (F025). Allow consumers to browse restaurants,
+      chains, and dishes before querying for nutritional data via GET /estimate.
+      All four endpoints cache responses for 60 seconds (fail-open on Redis errors).
+      Anonymous access allowed (lower rate limit). API key auth introduced in F026.
 
 paths:
   /ingest/pdf:
@@ -74,6 +80,8 @@ paths:
       operationId: ingestPdf
       tags:
         - Ingestion
+      security:
+        - AdminKeyAuth: []
       requestBody:
         required: true
         content:
@@ -265,6 +273,17 @@ paths:
                     error:
                       message: "No nutritional data could be parsed from this PDF"
                       code: "NO_NUTRITIONAL_DATA_FOUND"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
         '500':
           description: Database error during upsert
           content:
@@ -304,6 +323,8 @@ paths:
       operationId: ingestPdfUrl
       tags:
         - Ingestion
+      security:
+        - AdminKeyAuth: []
       requestBody:
         required: true
         content:
@@ -509,6 +530,17 @@ paths:
                     error:
                       message: "No nutritional data could be parsed from this PDF"
                       code: "NO_NUTRITIONAL_DATA_FOUND"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
         '500':
           description: Database error during upsert
           content:
@@ -547,6 +579,8 @@ paths:
       operationId: ingestUrl
       tags:
         - Ingestion
+      security:
+        - AdminKeyAuth: []
       requestBody:
         required: true
         content:
@@ -727,6 +761,17 @@ paths:
                     error:
                       message: "No nutritional data could be parsed from this URL"
                       code: "NO_NUTRITIONAL_DATA_FOUND"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
         '500':
           description: Database error during upsert
           content:
@@ -774,6 +819,8 @@ paths:
       operationId: ingestImageUrl
       tags:
         - Ingestion
+      security:
+        - AdminKeyAuth: []
       requestBody:
         required: true
         content:
@@ -993,6 +1040,17 @@ paths:
                     error:
                       message: "No nutritional data could be parsed from this image"
                       code: "NO_NUTRITIONAL_DATA_FOUND"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
         '500':
           description: Database error during upsert
           content:
@@ -1044,6 +1102,8 @@ paths:
       operationId: getQualityReport
       tags:
         - Quality
+      security:
+        - AdminKeyAuth: []
       parameters:
         - name: stalenessThresholdDays
           in: query
@@ -1266,6 +1326,17 @@ paths:
                         - path: ["chainSlug"]
                           message: "Invalid"
                           code: "invalid_string"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
         '500':
           description: Database error during quality check queries
           content:
@@ -1306,6 +1377,8 @@ paths:
       operationId: generateEmbeddings
       tags:
         - Embeddings
+      security:
+        - AdminKeyAuth: []
       requestBody:
         required: true
         content:
@@ -1437,6 +1510,17 @@ paths:
                     error:
                       message: "OPENAI_API_KEY is not configured"
                       code: "EMBEDDING_PROVIDER_UNAVAILABLE"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
         '500':
           description: Unrecoverable pipeline error (DB failure or unexpected exception)
           content:
@@ -1580,10 +1664,13 @@ paths:
 
         **Auth:** No auth required (Phase 1 — internal use). API key auth added in F026.
 
-        **Rate limiting:** Subject to the global 100 req/15min/IP limit from F005.
+        **Rate limiting (F026):** Anonymous: 30 req/15min/IP. Free key: 100/15min. Pro key: 1000/15min.
       operationId: estimateAllLevels
       tags:
         - Estimation
+      security:
+        - {}
+        - ApiKeyAuth: []
       parameters:
         - name: query
           in: query
@@ -2099,6 +2186,28 @@ paths:
                         - path: ["restaurantId"]
                           message: "Invalid uuid"
                           code: "invalid_string"
+        '401':
+          description: API key provided but invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid or expired API key"
+                  code: "UNAUTHORIZED"
+        '403':
+          description: API key provided but revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "API key has been revoked"
+                  code: "FORBIDDEN"
         '500':
           description: Database query failure
           content:
@@ -2112,6 +2221,466 @@ paths:
                     error:
                       message: "Database query failed during estimation lookup"
                       code: "DB_UNAVAILABLE"
+
+  /restaurants:
+    get:
+      summary: List restaurants
+      description: |
+        Returns a paginated list of restaurants with optional filters. Each item includes
+        a `dishCount` (total dishes for that restaurant). Responses are cached for 60s.
+      operationId: listRestaurants
+      tags:
+        - Catalog
+      security:
+        - {}            # Anonymous allowed (30 req/15min/IP)
+        - ApiKeyAuth: [] # Free: 100/15min, Pro: 1000/15min
+      parameters:
+        - name: countryCode
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Z]{2}$'
+          description: Filter by 2-letter uppercase country code (e.g. ES, FR).
+        - name: chainSlug
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[a-z0-9-]+$'
+            maxLength: 100
+          description: Filter by chain slug (e.g. mcdonalds-es).
+        - name: isActive
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: Filter by active status. Omit to return both active and inactive.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of restaurants.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required: [items, pagination]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RestaurantListItem'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          description: Validation error (invalid query parameter).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Validation failed"
+                  code: "VALIDATION_ERROR"
+        '401':
+          description: |
+            API key was provided but is invalid (not found or expired).
+            Only returned when a key is actively supplied — anonymous requests are not rejected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid or expired API key"
+                  code: "UNAUTHORIZED"
+        '403':
+          description: API key was provided and found, but has been revoked (is_active = false).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "API key has been revoked"
+                  code: "FORBIDDEN"
+        '500':
+          description: Database unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database query failed"
+                  code: "DB_UNAVAILABLE"
+
+  /restaurants/{id}/dishes:
+    get:
+      summary: List dishes for a restaurant
+      description: |
+        Returns a paginated list of dishes for a specific restaurant. Without `?search`
+        uses Prisma (name ASC). With `?search` uses Kysely trigram similarity
+        (threshold ≥ 0.15). Returns 404 if the restaurant UUID does not exist.
+      operationId: listRestaurantDishes
+      tags:
+        - Catalog
+      security:
+        - {}
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Restaurant UUID.
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 255
+          description: Trigram similarity search on dish name and name_es.
+        - name: availability
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DishAvailability'
+          description: Filter by dish availability.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of dishes for the restaurant.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required: [items, pagination]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DishListItem'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          description: Validation error (invalid path param or query parameter).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Validation failed"
+                  code: "VALIDATION_ERROR"
+        '404':
+          description: Restaurant not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Restaurant not found"
+                  code: "NOT_FOUND"
+        '401':
+          description: API key provided but invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid or expired API key"
+                  code: "UNAUTHORIZED"
+        '403':
+          description: API key provided but revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "API key has been revoked"
+                  code: "FORBIDDEN"
+        '500':
+          description: Database unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database query failed"
+                  code: "DB_UNAVAILABLE"
+
+  /dishes/search:
+    get:
+      summary: Search dishes by name
+      description: |
+        Trigram similarity search across all dishes. `q` is required and must be
+        non-empty after trimming. `restaurantId` takes precedence over `chainSlug`
+        when both are provided. Returns empty results (never 404) when no match.
+      operationId: searchDishes
+      tags:
+        - Catalog
+      security:
+        - {}
+        - ApiKeyAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+          description: Trigram similarity search term (min 1 non-whitespace char after trim).
+        - name: chainSlug
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[a-z0-9-]+$'
+            maxLength: 100
+          description: Scope search to a specific chain.
+        - name: restaurantId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Scope search to a specific restaurant. Takes precedence over chainSlug.
+        - name: availability
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DishAvailability'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated search results (empty list when no match — never 404).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    required: [items, pagination]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DishListItem'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationMeta'
+        '400':
+          description: Validation error (q missing or empty after trim).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Validation failed"
+                  code: "VALIDATION_ERROR"
+        '401':
+          description: API key provided but invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid or expired API key"
+                  code: "UNAUTHORIZED"
+        '403':
+          description: API key provided but revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "API key has been revoked"
+                  code: "FORBIDDEN"
+        '500':
+          description: Database unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database query failed"
+                  code: "DB_UNAVAILABLE"
+
+  /chains:
+    get:
+      summary: List chains
+      description: |
+        Returns a flat (non-paginated) list of chains with aggregated `dishCount`.
+        A chain entry is one per (chainSlug, countryCode) combination. `isActive`
+        is true if ANY restaurant in the group is active. Max ~20 chains.
+        Responses are cached for 60 seconds.
+      operationId: listChains
+      tags:
+        - Catalog
+      security:
+        - {}
+        - ApiKeyAuth: []
+      parameters:
+        - name: countryCode
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Z]{2}$'
+          description: Filter by 2-letter uppercase country code.
+        - name: isActive
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: Filter by active status. Omit to return both active and inactive.
+      responses:
+        '200':
+          description: Flat list of chain entries (not paginated).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChainListItem'
+        '400':
+          description: Validation error (invalid query parameter).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Validation failed"
+                  code: "VALIDATION_ERROR"
+        '401':
+          description: API key provided but invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid or expired API key"
+                  code: "UNAUTHORIZED"
+        '403':
+          description: API key provided but revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "API key has been revoked"
+                  code: "FORBIDDEN"
+        '500':
+          description: Database unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database query failed"
+                  code: "DB_UNAVAILABLE"
 
   /health:
     get:
@@ -3527,6 +4096,12 @@ components:
     # Shared response envelopes
     # -------------------------------------------------------------------------
 
+    DishAvailability:
+      type: string
+      enum: [available, seasonal, discontinued, regional]
+      example: available
+      description: Availability status of a dish.
+
     ErrorResponse:
       type: object
       required:
@@ -3978,9 +4553,233 @@ components:
         data:
           $ref: '#/components/schemas/EstimateData'
 
+    # -------------------------------------------------------------------------
+    # F025 Catalog schemas
+    # -------------------------------------------------------------------------
+
+    PaginationMeta:
+      type: object
+      required: [page, pageSize, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+          example: 1
+        pageSize:
+          type: integer
+          example: 20
+        totalItems:
+          type: integer
+          example: 42
+        totalPages:
+          type: integer
+          example: 3
+          description: Math.ceil(totalItems / pageSize). 0 when totalItems is 0.
+
+    RestaurantListItem:
+      type: object
+      required: [id, name, chainSlug, countryCode, isActive, dishCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "McDonald's Spain"
+        nameEs:
+          type: string
+          nullable: true
+          example: "McDonald's España"
+        chainSlug:
+          type: string
+          example: "mcdonalds-es"
+        countryCode:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: "ES"
+        isActive:
+          type: boolean
+          example: true
+        logoUrl:
+          type: string
+          nullable: true
+        website:
+          type: string
+          nullable: true
+          example: "https://www.mcdonalds.es"
+        dishCount:
+          type: integer
+          minimum: 0
+          example: 127
+
+    DishListItem:
+      type: object
+      required: [id, name, restaurantId, chainSlug, restaurantName, availability]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Big Mac"
+        nameEs:
+          type: string
+          nullable: true
+          example: "Big Mac"
+        restaurantId:
+          type: string
+          format: uuid
+        chainSlug:
+          type: string
+          example: "mcdonalds-es"
+        restaurantName:
+          type: string
+          example: "McDonald's Spain"
+        availability:
+          $ref: '#/components/schemas/DishAvailability'
+        portionGrams:
+          type: number
+          nullable: true
+          example: 215
+        priceEur:
+          type: number
+          nullable: true
+          example: 5.5
+
+    ChainListItem:
+      type: object
+      required: [chainSlug, name, countryCode, dishCount, isActive]
+      properties:
+        chainSlug:
+          type: string
+          example: "mcdonalds-es"
+        name:
+          type: string
+          example: "McDonald's Spain"
+        nameEs:
+          type: string
+          nullable: true
+        countryCode:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: "ES"
+        dishCount:
+          type: integer
+          minimum: 0
+          example: 127
+          description: Aggregated across all restaurants with the same chainSlug.
+        isActive:
+          type: boolean
+          example: true
+          description: True if ANY restaurant in the chain group is active.
+
+    # -------------------------------------------------------------------------
+    # Auth (F026)
+    # -------------------------------------------------------------------------
+
+    ApiKeyTier:
+      type: string
+      enum: [free, pro]
+      description: |
+        Rate limit tier for an API key.
+        - free: 100 requests per 15 minutes per key
+        - pro:  1000 requests per 15 minutes per key
+      example: free
+
+    ApiKey:
+      type: object
+      description: |
+        API key record as stored in the database. The raw key is never stored —
+        only key_hash (SHA-256) and key_prefix (first 8 chars) are persisted.
+        The raw key is shown only once at creation time.
+      required:
+        - id
+        - keyHash
+        - keyPrefix
+        - name
+        - tier
+        - isActive
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID primary key.
+          example: "11111111-1111-1111-1111-111111111111"
+        keyHash:
+          type: string
+          minLength: 64
+          maxLength: 64
+          description: |
+            SHA-256 hex digest of the raw API key. Used for lookup on every request.
+          example: "a3f5c...64 hex chars"
+        keyPrefix:
+          type: string
+          minLength: 8
+          maxLength: 8
+          description: |
+            First 8 characters of the raw API key (e.g. "fxp_a1b2"). Used for
+            operator identification — never for authentication.
+          example: "fxp_a1b2"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Human-readable label for this key (e.g. "Telegram Bot", "Web App").
+          example: "Telegram Bot"
+        tier:
+          $ref: '#/components/schemas/ApiKeyTier'
+        isActive:
+          type: boolean
+          default: true
+          description: |
+            Whether the key is active. Set to false to soft-revoke without deleting.
+            Revoked keys receive HTTP 403.
+          example: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Optional expiry timestamp. Expired keys receive HTTP 401.
+            Null means the key never expires.
+          example: null
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Timestamp of the most recent authenticated request using this key.
+            Updated asynchronously (fire-and-forget) — may lag by one request.
+          example: "2026-03-19T12:00:00.000Z"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-03-19T10:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-03-19T10:00:00.000Z"
+
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
       in: header
       name: X-API-Key
-      description: API key authentication (introduced in F026)
+      description: |
+        Optional API key for public-facing endpoints (F026). Callers without a key are
+        allowed but subject to the anonymous rate limit (30 req/15min/IP). Callers with
+        a valid key receive a higher limit (free: 100/15min, pro: 1000/15min).
+        Accepted via X-API-Key header only (no query param fallback — keys in URLs leak
+        into logs and browser history).
+        Key format: fxp_<32 hex chars> (36 chars total).
+    AdminKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        Required API key for admin/internal endpoints (F026). Must equal the
+        ADMIN_API_KEY environment variable (compared via SHA-256 hash to prevent timing
+        attacks). No database lookup — env var comparison only.

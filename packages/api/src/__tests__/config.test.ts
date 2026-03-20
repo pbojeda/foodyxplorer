@@ -196,3 +196,42 @@ describe('OpenAI config vars', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });
+
+describe('Auth config vars (F026)', () => {
+  beforeEach(() => {
+    exitSpy.mockClear();
+  });
+
+  it('parses successfully when ADMIN_API_KEY is absent (optional)', () => {
+    const config = parseConfig({ ...VALID_ENV });
+    expect(config.ADMIN_API_KEY).toBeUndefined();
+  });
+
+  it('accepts ADMIN_API_KEY with exactly 32 characters', () => {
+    const key32 = 'a'.repeat(32);
+    const config = parseConfig({ ...VALID_ENV, ADMIN_API_KEY: key32 });
+    expect(config.ADMIN_API_KEY).toBe(key32);
+  });
+
+  it('accepts ADMIN_API_KEY with more than 32 characters', () => {
+    const key64 = 'b'.repeat(64);
+    const config = parseConfig({ ...VALID_ENV, ADMIN_API_KEY: key64 });
+    expect(config.ADMIN_API_KEY).toBe(key64);
+  });
+
+  it('calls process.exit(1) when ADMIN_API_KEY is present with 31 chars (too short)', () => {
+    const key31 = 'c'.repeat(31);
+    expect(() => parseConfig({ ...VALID_ENV, ADMIN_API_KEY: key31 })).toThrow('process.exit called');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('parses successfully when BOT_API_KEY_SEED is absent (optional)', () => {
+    const config = parseConfig({ ...VALID_ENV });
+    expect(config.BOT_API_KEY_SEED).toBeUndefined();
+  });
+
+  it('accepts BOT_API_KEY_SEED when present', () => {
+    const config = parseConfig({ ...VALID_ENV, BOT_API_KEY_SEED: 'my-seed-value' });
+    expect(config.BOT_API_KEY_SEED).toBe('my-seed-value');
+  });
+});

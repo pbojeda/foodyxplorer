@@ -294,6 +294,34 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // UNAUTHORIZED — invalid or missing API key (F026)
+  if (asAny['code'] === 'UNAUTHORIZED') {
+    return {
+      statusCode: 401,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'UNAUTHORIZED',
+        },
+      },
+    };
+  }
+
+  // FORBIDDEN — valid key but access revoked (F026)
+  if (asAny['code'] === 'FORBIDDEN') {
+    return {
+      statusCode: 403,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'FORBIDDEN',
+        },
+      },
+    };
+  }
+
   // RATE_LIMIT_EXCEEDED — @fastify/rate-limit exceeded response
   if (asAny['code'] === 'RATE_LIMIT_EXCEEDED') {
     return {

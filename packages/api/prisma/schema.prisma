@@ -82,6 +82,13 @@ enum DishAvailability {
   @@map("dish_availability")
 }
 
+enum ApiKeyTier {
+  free
+  pro
+
+  @@map("api_key_tier")
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -392,4 +399,24 @@ model DishDishCategory {
   @@id([dishId, dishCategoryId])
   @@index([dishCategoryId])
   @@map("dish_dish_categories")
+}
+
+// ---------------------------------------------------------------------------
+// F026 — API Keys
+// ---------------------------------------------------------------------------
+
+model ApiKey {
+  id         String     @id @default(uuid()) @db.Uuid
+  keyHash    String     @unique @map("key_hash") @db.VarChar(64)
+  keyPrefix  String     @map("key_prefix") @db.VarChar(8)
+  name       String     @db.VarChar(255)
+  tier       ApiKeyTier @default(free)
+  isActive   Boolean    @default(true) @map("is_active")
+  expiresAt  DateTime?  @map("expires_at") @db.Timestamptz
+  lastUsedAt DateTime?  @map("last_used_at") @db.Timestamptz
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  @@index([keyPrefix])
+  @@map("api_keys")
 }

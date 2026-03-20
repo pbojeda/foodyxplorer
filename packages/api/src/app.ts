@@ -3,7 +3,7 @@
 // All plugins are registered here. server.ts is the only file that calls
 // server.listen(). Tests import buildApp() directly and use .inject().
 //
-// Plugin registration order: swagger → cors → rateLimit → errorHandler → routes
+// Plugin registration order: swagger → cors → authMiddleware → rateLimit → multipart → errorHandler → routes
 
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
@@ -20,6 +20,7 @@ import { prisma as defaultPrisma } from './lib/prisma.js';
 import { redis as defaultRedis } from './lib/redis.js';
 import { registerSwagger } from './plugins/swagger.js';
 import { registerCors } from './plugins/cors.js';
+import { registerAuthMiddleware } from './plugins/auth.js';
 import { registerRateLimit } from './plugins/rateLimit.js';
 import { registerErrorHandler } from './errors/errorHandler.js';
 import { healthRoutes } from './routes/health.js';
@@ -30,6 +31,7 @@ import { ingestImageUrlRoutes } from './routes/ingest/image-url.js';
 import { qualityRoutes } from './routes/quality.js';
 import { embeddingRoutes } from './routes/embeddings.js';
 import { estimateRoutes } from './routes/estimate.js';
+import { catalogRoutes } from './routes/catalog.js';
 import { getKysely } from './lib/kysely.js';
 
 // ---------------------------------------------------------------------------
@@ -83,6 +85,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   // (swagger, cors, rateLimit) complete before app.ready() is called.
   await registerSwagger(app, cfg);
   await registerCors(app, cfg);
+  await registerAuthMiddleware(app, { prisma: prismaClient, config: cfg });
   await registerRateLimit(app, cfg);
   // Register multipart before route plugins (file upload support)
   await app.register(fastifyMultipart, {
@@ -98,6 +101,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(qualityRoutes, { prisma: prismaClient });
   await app.register(embeddingRoutes, { prisma: prismaClient });
   await app.register(estimateRoutes, { db: getKysely() });
+  await app.register(catalogRoutes, { prisma: prismaClient, db: getKysely() });
 
   return app;
 }
