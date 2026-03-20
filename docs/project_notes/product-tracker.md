@@ -8,13 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-19
+**Last Updated:** 2026-03-20
 
-**Active Feature:** F026 — API Rate Limiting + Auth (API Key)
-**Step:** 5/6 (Review)
-**Branch:** feature/F026-api-rate-limiting-auth
-**Complexity:** Standard
-**Context:** Implementation complete. 122 tests (49 core + 73 QA). production-code-validator APPROVED. code-review-specialist APPROVED (2I fixed). qa-engineer VERIFIED. PR #23 open. Awaiting Merge Approval.
+**Active Feature:** None — no active work
+**Step:** —
+**Branch:** develop
+**Complexity:** —
+**Context:** F026 completed. Next: F027 (Telegram Bot — Command Handler)
 
 ---
 
@@ -73,7 +73,7 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F025 | Fastify Routes — Core Endpoints | backend | done | 6/6 | Standard. 4 catalog endpoints. 67 tests. Review: 1 fix (chains grouping), 33 QA edge-case tests |
-| F026 | API Rate Limiting + Auth (API Key) | backend | in-progress | 5/6 | Standard. 122 tests. PR #23. Awaiting merge approval |
+| F026 | API Rate Limiting + Auth (API Key) | backend | done | 6/6 | Standard. 122 tests. PR #23. Squash merged cc51626 |
 | F027 | Telegram Bot — Command Handler | backend | pending | — | |
 | F028 | Telegram Bot — Natural Language Handler | backend | pending | — | |
 | F029 | Query Log & Analytics | backend | pending | — | |
@@ -111,6 +111,7 @@
 | 2026-03-19 | F023 — Engine Router & Confidence API | 93e563d (squash merge to develop, PR #21) | runEstimationCascade() extracts L1→L2→L3 cascade from route into engineRouter.ts. Level4LookupFn extension seam for F024. Route handler ~25 lines. Code review: APPROVED (1 IMPORTANT fixed: .trim() cache key). QA: 35 edge-case tests, 0 bugs. 57 F023 tests (4 files, 95 total with backward compat) |
 | 2026-03-19 | F024 — LLM Integration Layer | 7d0e875 (squash merge to develop, PR #22) | level4Lookup: Strategy A (pg_trgm trigram + LLM selection) + Strategy B (LLM decomposition + L1 resolution + L2 aggregation). ADR-001 compliant. Fail-graceful (callChatCompletion returns null). pg_trgm extension. Spec reviewed 2x (18 issues). Plan reviewed by Codex gpt-5.4 + Gemini 2.5 Pro (8 issues resolved). Code review: APPROVED (1I fixed: spread vs mutation). QA: 29 edge-case tests, 0 bugs. 58 F024 tests (3 files, 2078 total). **E003 complete** |
 | 2026-03-19 | F025 — Fastify Routes — Core Endpoints | 85d7c6d (squash merge to develop, PR #25) | 4 catalog endpoints (restaurants, dishes, chains, search). 11 Zod schemas, GIN trigram indexes, dual Prisma/Kysely mappers, 60s cache. Spec reviewed 3x (7 issues). Plan reviewed 3x (9 issues + Gemini 2.5 Pro). Code review: 1 IMPORTANT fixed (chains grouping key). QA: 33 edge-case tests. 67 F025 tests (2 files). **First E004 feature** |
+| 2026-03-20 | F026 — API Rate Limiting + Auth (API Key) | cc51626 (squash merge to develop, PR #23) | API key auth (SHA-256 hash, Redis 60s cache, fail-closed), 3-tier rate limiting (30/100/1000), admin auth (ADMIN_API_KEY env var, timingSafeEqual). Global onRequest hook (URL-based routing). Seed script (HMAC-SHA256 deterministic). Spec reviewed 2x (13 issues). Plan reviewed 2x + Codex GPT-5.4 (10 issues). Code review: 2 IMPORTANT fixed (prefix dedup, comment). QA: 73 edge-case tests. 122 F026 tests (6 files) |
 
 ---
 
