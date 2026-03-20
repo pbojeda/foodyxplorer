@@ -46,3 +46,8 @@ export const DishAvailability = {
   regional: "regional",
 } as const;
 export type DishAvailability = (typeof DishAvailability)[keyof typeof DishAvailability];
+export const ApiKeyTier = {
+  free: "free",
+  pro: "pro",
+} as const;
+export type ApiKeyTier = (typeof ApiKeyTier)[keyof typeof ApiKeyTier];

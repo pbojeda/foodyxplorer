@@ -12,7 +12,7 @@ info:
     **Validation:**
     - Request bodies and query params are validated via `fastify-type-provider-zod`.
     - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
-  version: 0.1.0
+  version: 0.2.0
   contact:
     name: foodXPlorer
   license:
@@ -59,7 +59,7 @@ tags:
       Read-only catalog browsing endpoints (F025). Allow consumers to browse restaurants,
       chains, and dishes before querying for nutritional data via GET /estimate.
       All four endpoints cache responses for 60 seconds (fail-open on Redis errors).
-      No auth required in Phase 1 (auth added in F026).
+      Anonymous access allowed (lower rate limit). API key auth introduced in F026.
 
 paths:
   /ingest/pdf:
@@ -80,6 +80,8 @@ paths:
       operationId: ingestPdf
       tags:
         - Ingestion
+      security:
+        - AdminKeyAuth: []
       requestBody:
         required: true
         content:
@@ -271,6 +273,17 @@ paths:
                     error:
                       message: "No nutritional data could be parsed from this PDF"
                       code: "NO_NUTRITIONAL_DATA_FOUND"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
         '500':
           description: Database error during upsert
           content:
@@ -310,6 +323,8 @@ paths:
       operationId: ingestPdfUrl
       tags:
         - Ingestion
+      security:
+        - AdminKeyAuth: []
       requestBody:
         required: true
         content:
@@ -515,6 +530,17 @@ paths:
                     error:
                       message: "No nutritional data could be parsed from this PDF"
                       code: "NO_NUTRITIONAL_DATA_FOUND"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
         '500':
           description: Database error during upsert
           content:
@@ -553,6 +579,8 @@ paths:
       operationId: ingestUrl
       tags:
         - Ingestion
+      security:
+        - AdminKeyAuth: []
       requestBody:
         required: true
         content:
@@ -733,6 +761,17 @@ paths:
                     error:
                       message: "No nutritional data could be parsed from this URL"
                       code: "NO_NUTRITIONAL_DATA_FOUND"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
         '500':
           description: Database error during upsert
           content:
@@ -780,6 +819,8 @@ paths:
       operationId: ingestImageUrl
       tags:
         - Ingestion
+      security:
+        - AdminKeyAuth: []
       requestBody:
         required: true
         content:
@@ -999,6 +1040,17 @@ paths:
                     error:
                       message: "No nutritional data could be parsed from this image"
                       code: "NO_NUTRITIONAL_DATA_FOUND"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
         '500':
           description: Database error during upsert
           content:
@@ -1050,6 +1102,8 @@ paths:
       operationId: getQualityReport
       tags:
         - Quality
+      security:
+        - AdminKeyAuth: []
       parameters:
         - name: stalenessThresholdDays
           in: query
@@ -1272,6 +1326,17 @@ paths:
                         - path: ["chainSlug"]
                           message: "Invalid"
                           code: "invalid_string"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
         '500':
           description: Database error during quality check queries
           content:
@@ -1312,6 +1377,8 @@ paths:
       operationId: generateEmbeddings
       tags:
         - Embeddings
+      security:
+        - AdminKeyAuth: []
       requestBody:
         required: true
         content:
@@ -1443,6 +1510,17 @@ paths:
                     error:
                       message: "OPENAI_API_KEY is not configured"
                       code: "EMBEDDING_PROVIDER_UNAVAILABLE"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
         '500':
           description: Unrecoverable pipeline error (DB failure or unexpected exception)
           content:
@@ -1586,10 +1664,13 @@ paths:
 
         **Auth:** No auth required (Phase 1 — internal use). API key auth added in F026.
 
-        **Rate limiting:** Subject to the global 100 req/15min/IP limit from F005.
+        **Rate limiting (F026):** Anonymous: 30 req/15min/IP. Free key: 100/15min. Pro key: 1000/15min.
       operationId: estimateAllLevels
       tags:
         - Estimation
+      security:
+        - {}
+        - ApiKeyAuth: []
       parameters:
         - name: query
           in: query
@@ -2105,6 +2186,28 @@ paths:
                         - path: ["restaurantId"]
                           message: "Invalid uuid"
                           code: "invalid_string"
+        '401':
+          description: API key provided but invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid or expired API key"
+                  code: "UNAUTHORIZED"
+        '403':
+          description: API key provided but revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "API key has been revoked"
+                  code: "FORBIDDEN"
         '500':
           description: Database query failure
           content:
@@ -2128,6 +2231,9 @@ paths:
       operationId: listRestaurants
       tags:
         - Catalog
+      security:
+        - {}            # Anonymous allowed (30 req/15min/IP)
+        - ApiKeyAuth: [] # Free: 100/15min, Pro: 1000/15min
       parameters:
         - name: countryCode
           in: query
@@ -2199,6 +2305,30 @@ paths:
                 error:
                   message: "Validation failed"
                   code: "VALIDATION_ERROR"
+        '401':
+          description: |
+            API key was provided but is invalid (not found or expired).
+            Only returned when a key is actively supplied — anonymous requests are not rejected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid or expired API key"
+                  code: "UNAUTHORIZED"
+        '403':
+          description: API key was provided and found, but has been revoked (is_active = false).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "API key has been revoked"
+                  code: "FORBIDDEN"
         '500':
           description: Database unavailable.
           content:
@@ -2221,6 +2351,9 @@ paths:
       operationId: listRestaurantDishes
       tags:
         - Catalog
+      security:
+        - {}
+        - ApiKeyAuth: []
       parameters:
         - name: id
           in: path
@@ -2301,6 +2434,28 @@ paths:
                 error:
                   message: "Restaurant not found"
                   code: "NOT_FOUND"
+        '401':
+          description: API key provided but invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid or expired API key"
+                  code: "UNAUTHORIZED"
+        '403':
+          description: API key provided but revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "API key has been revoked"
+                  code: "FORBIDDEN"
         '500':
           description: Database unavailable.
           content:
@@ -2323,6 +2478,9 @@ paths:
       operationId: searchDishes
       tags:
         - Catalog
+      security:
+        - {}
+        - ApiKeyAuth: []
       parameters:
         - name: q
           in: query
@@ -2400,6 +2558,28 @@ paths:
                 error:
                   message: "Validation failed"
                   code: "VALIDATION_ERROR"
+        '401':
+          description: API key provided but invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid or expired API key"
+                  code: "UNAUTHORIZED"
+        '403':
+          description: API key provided but revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "API key has been revoked"
+                  code: "FORBIDDEN"
         '500':
           description: Database unavailable.
           content:
@@ -2423,6 +2603,9 @@ paths:
       operationId: listChains
       tags:
         - Catalog
+      security:
+        - {}
+        - ApiKeyAuth: []
       parameters:
         - name: countryCode
           in: query
@@ -2465,6 +2648,28 @@ paths:
                 error:
                   message: "Validation failed"
                   code: "VALIDATION_ERROR"
+        '401':
+          description: API key provided but invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid or expired API key"
+                  code: "UNAUTHORIZED"
+        '403':
+          description: API key provided but revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "API key has been revoked"
+                  code: "FORBIDDEN"
         '500':
           description: Database unavailable.
           content:
@@ -4469,9 +4674,112 @@ components:
           example: true
           description: True if ANY restaurant in the chain group is active.
 
+    # -------------------------------------------------------------------------
+    # Auth (F026)
+    # -------------------------------------------------------------------------
+
+    ApiKeyTier:
+      type: string
+      enum: [free, pro]
+      description: |
+        Rate limit tier for an API key.
+        - free: 100 requests per 15 minutes per key
+        - pro:  1000 requests per 15 minutes per key
+      example: free
+
+    ApiKey:
+      type: object
+      description: |
+        API key record as stored in the database. The raw key is never stored —
+        only key_hash (SHA-256) and key_prefix (first 8 chars) are persisted.
+        The raw key is shown only once at creation time.
+      required:
+        - id
+        - keyHash
+        - keyPrefix
+        - name
+        - tier
+        - isActive
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID primary key.
+          example: "11111111-1111-1111-1111-111111111111"
+        keyHash:
+          type: string
+          minLength: 64
+          maxLength: 64
+          description: |
+            SHA-256 hex digest of the raw API key. Used for lookup on every request.
+          example: "a3f5c...64 hex chars"
+        keyPrefix:
+          type: string
+          minLength: 8
+          maxLength: 8
+          description: |
+            First 8 characters of the raw API key (e.g. "fxp_a1b2"). Used for
+            operator identification — never for authentication.
+          example: "fxp_a1b2"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Human-readable label for this key (e.g. "Telegram Bot", "Web App").
+          example: "Telegram Bot"
+        tier:
+          $ref: '#/components/schemas/ApiKeyTier'
+        isActive:
+          type: boolean
+          default: true
+          description: |
+            Whether the key is active. Set to false to soft-revoke without deleting.
+            Revoked keys receive HTTP 403.
+          example: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Optional expiry timestamp. Expired keys receive HTTP 401.
+            Null means the key never expires.
+          example: null
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Timestamp of the most recent authenticated request using this key.
+            Updated asynchronously (fire-and-forget) — may lag by one request.
+          example: "2026-03-19T12:00:00.000Z"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-03-19T10:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-03-19T10:00:00.000Z"
+
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
       in: header
       name: X-API-Key
-      description: API key authentication (introduced in F026)
+      description: |
+        Optional API key for public-facing endpoints (F026). Callers without a key are
+        allowed but subject to the anonymous rate limit (30 req/15min/IP). Callers with
+        a valid key receive a higher limit (free: 100/15min, pro: 1000/15min).
+        Accepted via X-API-Key header only (no query param fallback — keys in URLs leak
+        into logs and browser history).
+        Key format: fxp_<32 hex chars> (36 chars total).
+    AdminKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        Required API key for admin/internal endpoints (F026). Must equal the
+        ADMIN_API_KEY environment variable (compared via SHA-256 hash to prevent timing
+        attacks). No database lookup — env var comparison only.

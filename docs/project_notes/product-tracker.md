@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-19
 
-**Active Feature:** None — no active work
-**Step:** —
-**Branch:** develop
-**Complexity:** —
-**Context:** F025 completed. Next: F026 (API Rate Limiting + Auth)
+**Active Feature:** F026 — API Rate Limiting + Auth (API Key)
+**Step:** 3/6 (Implement)
+**Branch:** feature/F026-api-rate-limiting-auth
+**Complexity:** Standard
+**Context:** Plan approved. Implementing 11-step TDD plan: shared schemas → Prisma migration → config → error handler → adminAuth → auth → rateLimit → app.ts → seed script → tests → docs.
 
 ---
 
@@ -73,7 +73,7 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F025 | Fastify Routes — Core Endpoints | backend | done | 6/6 | Standard. 4 catalog endpoints. 67 tests. Review: 1 fix (chains grouping), 33 QA edge-case tests |
-| F026 | API Rate Limiting + Auth (API Key) | backend | pending | — | |
+| F026 | API Rate Limiting + Auth (API Key) | backend | in-progress | 3/6 | Standard. Plan approved. TDD implementation in progress |
 | F027 | Telegram Bot — Command Handler | backend | pending | — | |
 | F028 | Telegram Bot — Natural Language Handler | backend | pending | — | |
 | F029 | Query Log & Analytics | backend | pending | — | |
@@ -110,7 +110,7 @@
 | 2026-03-19 | F022 — Level 3 Similarity Extrapolation | 18a20f8 (squash merge to develop, PR #20) | level3Lookup: 2-strategy cascade (similarity_dish scoped → similarity_food global), pgvector `<->` cosine distance, OpenAI embedding at request time, fail-graceful. Plan reviewed 2 rounds (8 fixes). Code review: 1 CRITICAL fixed (similarityDistance propagation into result object), 1 IMPORTANT fixed (barrel exports). QA: 37 edge-case tests, NaN/Infinity guard added. 76 F022 tests (5 files, ~2018 total) |
 | 2026-03-19 | F023 — Engine Router & Confidence API | 93e563d (squash merge to develop, PR #21) | runEstimationCascade() extracts L1→L2→L3 cascade from route into engineRouter.ts. Level4LookupFn extension seam for F024. Route handler ~25 lines. Code review: APPROVED (1 IMPORTANT fixed: .trim() cache key). QA: 35 edge-case tests, 0 bugs. 57 F023 tests (4 files, 95 total with backward compat) |
 | 2026-03-19 | F024 — LLM Integration Layer | 7d0e875 (squash merge to develop, PR #22) | level4Lookup: Strategy A (pg_trgm trigram + LLM selection) + Strategy B (LLM decomposition + L1 resolution + L2 aggregation). ADR-001 compliant. Fail-graceful (callChatCompletion returns null). pg_trgm extension. Spec reviewed 2x (18 issues). Plan reviewed by Codex gpt-5.4 + Gemini 2.5 Pro (8 issues resolved). Code review: APPROVED (1I fixed: spread vs mutation). QA: 29 edge-case tests, 0 bugs. 58 F024 tests (3 files, 2078 total). **E003 complete** |
-| 2026-03-19 | F025 — Fastify Routes — Core Endpoints | (pending squash merge) | 4 catalog endpoints (restaurants, dishes, chains, search). 11 Zod schemas, GIN trigram indexes, dual Prisma/Kysely mappers, 60s cache. Spec reviewed 3x (7 issues). Plan reviewed 3x (9 issues + Gemini 2.5 Pro). Code review: 1 IMPORTANT fixed (chains grouping key). QA: 33 edge-case tests. 67 F025 tests (2 files). **First E004 feature** |
+| 2026-03-19 | F025 — Fastify Routes — Core Endpoints | 85d7c6d (squash merge to develop, PR #25) | 4 catalog endpoints (restaurants, dishes, chains, search). 11 Zod schemas, GIN trigram indexes, dual Prisma/Kysely mappers, 60s cache. Spec reviewed 3x (7 issues). Plan reviewed 3x (9 issues + Gemini 2.5 Pro). Code review: 1 IMPORTANT fixed (chains grouping key). QA: 33 edge-case tests. 67 F025 tests (2 files). **First E004 feature** |
 
 ---
 

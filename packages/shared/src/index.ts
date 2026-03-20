@@ -17,3 +17,4 @@ export * from './schemas/qualityReport';
 export * from './schemas/embeddingGenerate';
 export * from './schemas/estimate';
 export * from './schemas/catalog';
+export * from './schemas/apiKey';

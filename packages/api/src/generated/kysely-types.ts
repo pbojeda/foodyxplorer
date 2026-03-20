@@ -13,8 +13,21 @@ import type {
   FoodType,
   NutrientReferenceBasis,
   DishAvailability,
+  ApiKeyTier,
 } from "./kysely-enums";
 
+export type ApiKey = {
+  id: string;
+  key_hash: string;
+  key_prefix: string;
+  name: string;
+  tier: Generated<ApiKeyTier>;
+  is_active: Generated<boolean>;
+  expires_at: Timestamp | null;
+  last_used_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Timestamp;
+};
 export type CookingMethod = {
   id: string;
   name: string;
@@ -196,6 +209,7 @@ export type StandardPortion = {
   updated_at: Timestamp;
 };
 export type DB = {
+  api_keys: ApiKey;
   cooking_methods: CookingMethod;
   data_sources: DataSource;
   dish_categories: DishCategory;

@@ -3,7 +3,7 @@
 // All plugins are registered here. server.ts is the only file that calls
 // server.listen(). Tests import buildApp() directly and use .inject().
 //
-// Plugin registration order: swagger → cors → rateLimit → errorHandler → routes
+// Plugin registration order: swagger → cors → authMiddleware → rateLimit → multipart → errorHandler → routes
 
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
@@ -20,6 +20,7 @@ import { prisma as defaultPrisma } from './lib/prisma.js';
 import { redis as defaultRedis } from './lib/redis.js';
 import { registerSwagger } from './plugins/swagger.js';
 import { registerCors } from './plugins/cors.js';
+import { registerAuthMiddleware } from './plugins/auth.js';
 import { registerRateLimit } from './plugins/rateLimit.js';
 import { registerErrorHandler } from './errors/errorHandler.js';
 import { healthRoutes } from './routes/health.js';
@@ -84,6 +85,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   // (swagger, cors, rateLimit) complete before app.ready() is called.
   await registerSwagger(app, cfg);
   await registerCors(app, cfg);
+  await registerAuthMiddleware(app, { prisma: prismaClient, config: cfg });
   await registerRateLimit(app, cfg);
   // Register multipart before route plugins (file upload support)
   await app.register(fastifyMultipart, {

@@ -372,4 +372,48 @@ describe('mapError', () => {
       expect(result.body.error.message).toBe('OPENAI_API_KEY is not configured');
     });
   });
+
+  describe('UNAUTHORIZED (F026)', () => {
+    it('maps to 401 with UNAUTHORIZED code and original message', () => {
+      const err = Object.assign(
+        new Error('Invalid or expired API key'),
+        { code: 'UNAUTHORIZED' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(401);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('UNAUTHORIZED');
+      expect(result.body.error.message).toBe('Invalid or expired API key');
+    });
+
+    it('passes through custom message from the error', () => {
+      const err = Object.assign(
+        new Error('Admin API key required'),
+        { code: 'UNAUTHORIZED' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(401);
+      expect(result.body.error.message).toBe('Admin API key required');
+    });
+  });
+
+  describe('FORBIDDEN (F026)', () => {
+    it('maps to 403 with FORBIDDEN code and original message', () => {
+      const err = Object.assign(
+        new Error('API key has been revoked'),
+        { code: 'FORBIDDEN' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(403);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('FORBIDDEN');
+      expect(result.body.error.message).toBe('API key has been revoked');
+    });
+  });
 });
