@@ -18,9 +18,45 @@ vi.mock('node-telegram-bot-api', () => {
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { ApiClient } from '../apiClient.js';
+import type { EstimateData } from '@foodxplorer/shared';
 import { buildBot } from '../bot.js';
 import type { BotConfig } from '../config.js';
 import type TelegramBot from 'node-telegram-bot-api';
+
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+
+const ESTIMATE_DATA_WITH_RESULT: EstimateData = {
+  query: 'big mac',
+  chainSlug: null,
+  level1Hit: true,
+  level2Hit: false,
+  level3Hit: false,
+  level4Hit: false,
+  matchType: 'exact_dish',
+  cachedAt: null,
+  result: {
+    entityType: 'dish',
+    entityId: 'fd000000-0001-4000-a000-000000000001',
+    name: 'Big Mac',
+    nameEs: 'Big Mac',
+    restaurantId: 'fd000000-0002-4000-a000-000000000001',
+    chainSlug: 'mcdonalds-es',
+    portionGrams: 200,
+    confidenceLevel: 'high',
+    estimationMethod: 'official',
+    similarityDistance: null,
+    source: { id: 'fd000000-0004-4000-a000-000000000001', name: 'src', type: 'official', url: null },
+    nutrients: {
+      calories: 563, proteins: 26.5, carbohydrates: 45, sugars: 0,
+      fats: 30, saturatedFats: 0, fiber: 0, salt: 0, sodium: 0,
+      transFats: 0, cholesterol: 0, potassium: 0,
+      monounsaturatedFats: 0, polyunsaturatedFats: 0,
+      referenceBasis: 'per_serving',
+    },
+  },
+};
 
 // ---------------------------------------------------------------------------
 // MockApiClient
@@ -213,15 +249,53 @@ describe('buildBot', () => {
     expect(mockBot.sendMessage).not.toHaveBeenCalled();
   });
 
-  it('does NOT send a reply for plain text messages (not commands)', async () => {
+  it('routes plain text to NL handler — calls estimate and sendMessage', async () => {
+    mockClient.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
     mockBot.sendMessage.mockResolvedValue({});
 
     const onCalls = mockBot.on.mock.calls as Array<[string, (msg: TelegramBot.Message) => void]>;
     const messageHandler = onCalls.find(([event]) => event === 'message');
     const handler = defined(messageHandler?.[1], 'message handler');
 
-    await handler(makeMessage('hello world'));
+    handler(makeMessage('big mac'));
+    // wrapHandler fires a floating promise — drain the microtask queue
+    await new Promise<void>((resolve) => setImmediate(resolve));
 
+    expect(mockClient.estimate).toHaveBeenCalledOnce();
+    expect(mockBot.sendMessage).toHaveBeenCalledOnce();
+  });
+
+  it('does NOT call estimate or sendMessage for media message (no msg.text)', async () => {
+    const onCalls = mockBot.on.mock.calls as Array<[string, (msg: TelegramBot.Message) => void]>;
+    const messageHandler = onCalls.find(([event]) => event === 'message');
+    const handler = defined(messageHandler?.[1], 'message handler');
+
+    // Media message: no text property
+    await handler({ chat: { id: 123 } } as TelegramBot.Message);
+
+    expect(mockClient.estimate).not.toHaveBeenCalled();
+    expect(mockBot.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call estimate or sendMessage for empty text message', async () => {
+    const onCalls = mockBot.on.mock.calls as Array<[string, (msg: TelegramBot.Message) => void]>;
+    const messageHandler = onCalls.find(([event]) => event === 'message');
+    const handler = defined(messageHandler?.[1], 'message handler');
+
+    await handler(makeMessage(''));
+
+    expect(mockClient.estimate).not.toHaveBeenCalled();
+    expect(mockBot.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call estimate or sendMessage for whitespace-only text', async () => {
+    const onCalls = mockBot.on.mock.calls as Array<[string, (msg: TelegramBot.Message) => void]>;
+    const messageHandler = onCalls.find(([event]) => event === 'message');
+    const handler = defined(messageHandler?.[1], 'message handler');
+
+    await handler(makeMessage('   '));
+
+    expect(mockClient.estimate).not.toHaveBeenCalled();
     expect(mockBot.sendMessage).not.toHaveBeenCalled();
   });
 });
