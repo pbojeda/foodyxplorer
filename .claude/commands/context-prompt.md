@@ -13,6 +13,15 @@ El prompt debe incluir TODO lo necesario para que una nueva sesion (o post-compa
 9. **Que hacer**: siguiente tarea (next task), contexto de lo que implica, notas del usuario relevantes
 10. **Notas importantes**: cualquier decision o restriccion que el usuario haya comunicado (ej: "Domino's es JPEG no PDF", "maxima reutilizacion")
 
+### Workflow Recovery (CRITICO)
+
+Esta seccion evita que el agente pierda la nocion del proceso de desarrollo despues de /compact:
+
+11. **Step actual del workflow**: En cual de los 6 steps (Spec, Setup, Plan, Implement, Finalize, Review) esta la feature activa
+12. **Checkpoints pendientes**: Que aprobaciones faltan (Spec, Ticket, Plan, Commit, Merge)
+13. **Recordatorio de merge checklist**: Si esta en Step 5 o posterior, incluir explicitamente: "Antes de pedir merge approval, DEBES leer `references/merge-checklist.md` y ejecutar TODAS las acciones (0-8). Rellena la tabla `## Merge Checklist Evidence` del ticket con evidencia real para cada accion."
+14. **Recordatorio de orden**: "Despues de commit+PR, ejecuta code-review-specialist y qa-engineer (Step 5), luego ejecuta las acciones del merge-checklist. NO pidas merge approval sin completar el checklist."
+
 Para generar esto:
 - Lee `docs/project_notes/product-tracker.md` (Active Session + Features tables + Completion Log)
 - Lee `docs/project_notes/decisions.md` (ADRs recientes)
