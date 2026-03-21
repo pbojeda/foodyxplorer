@@ -94,6 +94,15 @@ describe('createApiClient', () => {
     expect((init.headers as Record<string, string>)?.['X-API-Key']).toBe('test-api-key');
   });
 
+  it('all requests include X-FXP-Source: bot header (F029)', async () => {
+    fetchMock.mockResolvedValue(makeResponse(200, { success: true, data: { items: [], pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 } } }));
+
+    await client.searchDishes({ q: 'test' });
+
+    const [_url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)?.['X-FXP-Source']).toBe('bot');
+  });
+
   it('throws ApiError with correct statusCode on 404 response', async () => {
     fetchMock.mockResolvedValue(makeResponse(404, { success: false, error: { code: 'NOT_FOUND', message: 'not found' } }));
 
