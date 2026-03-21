@@ -9,6 +9,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import fastifyPlugin from 'fastify-plugin';
 import type { Kysely } from 'kysely';
+import type { PrismaClient } from '@prisma/client';
 import {
   EstimateQuerySchema,
   type EstimateQuery,
@@ -26,6 +27,7 @@ import { config } from '../config.js';
 
 interface EstimatePluginOptions {
   db: Kysely<DB>;
+  prisma: PrismaClient;
 }
 
 // ---------------------------------------------------------------------------
