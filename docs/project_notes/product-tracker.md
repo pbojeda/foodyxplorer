@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-21
 
-**Active Feature:** F028 — Telegram Bot: Natural Language Handler
-**Step:** 5/6 (Review)
-**Branch:** feature/F028-natural-language-handler
-**Complexity:** Standard
-**Context:** Spec created (auto-approved L2). NL handler for plain text messages → estimate API. Heuristic parsing, no NLP/LLM.
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F028 completed 2026-03-21. Next: F029 (Query Log & Analytics) or F030 (Monitoring & Alerting)
 
 ---
 
@@ -75,7 +75,7 @@
 | F025 | Fastify Routes — Core Endpoints | backend | done | 6/6 | Standard. 4 catalog endpoints. 67 tests. Review: 1 fix (chains grouping), 33 QA edge-case tests |
 | F026 | API Rate Limiting + Auth (API Key) | backend | done | 6/6 | Standard. 122 tests. PR #23. Squash merged cc51626 |
 | F027 | Telegram Bot — Command Handler | backend | done | 6/6 | Standard. 227 tests, PR #24, SHA 3461f10 |
-| F028 | Telegram Bot — Natural Language Handler | backend | in-progress | 5/6 | Standard. NL handler for plain text → estimate. Heuristic parsing |
+| F028 | Telegram Bot — Natural Language Handler | backend | done | 6/6 | Standard. 307 tests, PR #25, SHA 0ddc21a |
 | F029 | Query Log & Analytics | backend | pending | — | |
 | F030 | Monitoring & Alerting | backend | pending | — | |
 
@@ -113,6 +113,7 @@
 | 2026-03-19 | F025 — Fastify Routes — Core Endpoints | 85d7c6d (squash merge to develop, PR #25) | 4 catalog endpoints (restaurants, dishes, chains, search). 11 Zod schemas, GIN trigram indexes, dual Prisma/Kysely mappers, 60s cache. Spec reviewed 3x (7 issues). Plan reviewed 3x (9 issues + Gemini 2.5 Pro). Code review: 1 IMPORTANT fixed (chains grouping key). QA: 33 edge-case tests. 67 F025 tests (2 files). **First E004 feature** |
 | 2026-03-20 | F026 — API Rate Limiting + Auth (API Key) | cc51626 (squash merge to develop, PR #23) | API key auth (SHA-256 hash, Redis 60s cache, fail-closed), 3-tier rate limiting (30/100/1000), admin auth (ADMIN_API_KEY env var, timingSafeEqual). Global onRequest hook (URL-based routing). Seed script (HMAC-SHA256 deterministic). Spec reviewed 2x (13 issues). Plan reviewed 2x + Codex GPT-5.4 (10 issues). Code review: 2 IMPORTANT fixed (prefix dedup, comment). QA: 73 edge-case tests. 122 F026 tests (6 files) |
 | 2026-03-21 | F027 — Telegram Bot — Command Handler | 3461f10 (squash merge to develop, PR #24) | Standalone Telegram bot (packages/bot), 8 slash commands, ApiClient DI pattern, MarkdownV2 formatting, Zod config, Pino logging, graceful shutdown. Plan reviewed: self-review 3 fixes + Codex GPT-5.4 7 issues. Code review: 2H+3M+5L (3 fixed). QA: 1H+2M+3L (5 fixed, 53 edge-case tests). 227 tests (7 files) |
+| 2026-03-21 | F028 — Telegram Bot — Natural Language Handler | 0ddc21a (squash merge to develop, PR #25) | NL handler for plain text → estimate API. extractFoodQuery (8 prefix patterns, chain slug, article stripping). Plan reviewed by Codex GPT-5.4 (4 issues fixed). Code review: APPROVED (1 dead regex removed). QA: 49 edge-case tests, 1 spec deviation fixed. 80 new tests (307 total, 8 files) |
 
 ---
 
