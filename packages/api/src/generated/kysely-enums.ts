@@ -51,3 +51,15 @@ export const ApiKeyTier = {
   pro: "pro",
 } as const;
 export type ApiKeyTier = (typeof ApiKeyTier)[keyof typeof ApiKeyTier];
+export const QueryLogLevelHit = {
+  l1: "l1",
+  l2: "l2",
+  l3: "l3",
+  l4: "l4",
+} as const;
+export type QueryLogLevelHit = (typeof QueryLogLevelHit)[keyof typeof QueryLogLevelHit];
+export const QueryLogSource = {
+  api: "api",
+  bot: "bot",
+} as const;
+export type QueryLogSource = (typeof QueryLogSource)[keyof typeof QueryLogSource];
