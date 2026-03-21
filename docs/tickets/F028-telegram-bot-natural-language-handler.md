@@ -660,13 +660,13 @@ Same shape used in `commands.test.ts` and `edge-cases.test.ts`. No real HTTP, no
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 13/13, DoD: 6/6, Workflow: 7/8 (Step 6 pending) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6 (Review), Features table: 5/6 |
+| 3. Update key_facts.md | [x] | Updated: Bot section — added NL handler entry (handlers/naturalLanguage.ts, extractFoodQuery, handleNaturalLanguage, MAX_NL_TEXT_LENGTH), updated bot.ts description (plain text routing), updated test count 307 (8 files) |
+| 4. Update decisions.md | [x] | N/A — no new ADRs needed |
+| 5. Commit documentation | [x] | Commit: 63b8195 |
+| 6. Verify clean working tree | [x] | `git status`: clean (after commit) |
 
 ---
 
