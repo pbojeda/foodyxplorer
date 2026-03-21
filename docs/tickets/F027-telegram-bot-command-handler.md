@@ -1,7 +1,7 @@
 # F027: Telegram Bot — Command Handler
 
 **Feature:** F027 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F027-telegram-bot-command-handler
+**Status:** Done | **Branch:** merged → develop (PR #24)
 **Created:** 2026-03-20 | **Dependencies:** F025 (catalog endpoints), F026 (API auth)
 
 ---
@@ -722,7 +722,7 @@ No integration tests (no DB, no real Telegram connection). The `ApiClient` is mo
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed
 - [x] Step 5: `qa-engineer` executed (Standard)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -736,6 +736,7 @@ No integration tests (no DB, no real Telegram connection). The `ApiClient` is mo
 | 2026-03-20 | Step 3: Implement | backend-developer agent. 174 tests across 6 files (config×15, apiClient×17, markdownUtils×32, formatters×40, commands×57, bot×13) |
 | 2026-03-20 | Step 4: Finalize | Quality gates: 174 tests pass, 0 TS errors, 0 lint errors. production-code-validator: APPROVED — 0 critical, 0 high, 1 low (localhost default, intentional Phase 1) |
 | 2026-03-21 | Step 5: Review | PR #24 created. code-review-specialist: 2H+3M+5L → 3 fixed (wrapHandler double-throw, encodeURIComponent, truncate suffix). qa-engineer: 1H+2M+3L → 5 fixed (backslash escape, minus escape, UUID lowercase, empty name fallback, info escaping). 53 edge-case tests added. Final: 227 tests, 0 TS errors, 0 lint errors |
+| 2026-03-21 | Step 6: Complete | Squash merged PR #24 → develop (SHA 3461f10). Branch deleted. Ticket closed, tracker updated, key_facts.md updated |
 
 ---
 
