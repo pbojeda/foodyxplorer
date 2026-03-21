@@ -21,7 +21,7 @@ export function formatEstimate(data: EstimateData): string {
   }
 
   const { result } = data;
-  const displayName = result.nameEs ?? result.name;
+  const displayName = result.nameEs ?? result.name ?? 'Plato';
   const n = result.nutrients;
 
   const lines: string[] = [

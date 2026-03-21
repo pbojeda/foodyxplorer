@@ -6,7 +6,7 @@
 
 // MarkdownV2 reserved characters per Telegram Bot API docs.
 // These must be escaped with a preceding backslash.
-const RESERVED_CHARS_REGEX = /([_*[\]()~`>#+\-=|{}.!])/g;
+const RESERVED_CHARS_REGEX = /([_*[\]()~`>#+\-=|{}.!\\])/g;
 
 /**
  * Escape all MarkdownV2 reserved characters in a string.
@@ -41,6 +41,6 @@ export function truncate(text: string, maxLen: number): string {
  *   formatNutrient(26.5, 'g')  → '26\.5 g'
  */
 export function formatNutrient(value: number, unit: string): string {
-  const formatted = String(value).replace('.', '\\.');
+  const formatted = String(value).replace(/[.-]/g, '\\$&');
   return `${formatted} ${unit}`;
 }

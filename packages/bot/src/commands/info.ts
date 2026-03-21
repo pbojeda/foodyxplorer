@@ -13,9 +13,9 @@ export async function handleInfo(config: BotConfig, apiClient: ApiClient): Promi
 
   try {
     const isHealthy = await apiClient.healthCheck();
-    apiStatus = isHealthy ? 'conectada ✅' : 'Sin conexion ❌';
+    apiStatus = isHealthy ? `${escapeMarkdown('conectada')} ✅` : `${escapeMarkdown('Sin conexion')} ❌`;
   } catch {
-    apiStatus = 'Sin conexion ❌';
+    apiStatus = `${escapeMarkdown('Sin conexion')} ❌`;
   }
 
   return [

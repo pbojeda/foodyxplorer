@@ -26,7 +26,7 @@ export async function handlePlatos(args: string, apiClient: ApiClient): Promise<
   }
 
   try {
-    const result = await apiClient.listRestaurantDishes(restaurantId, { page: 1, pageSize: 10 });
+    const result = await apiClient.listRestaurantDishes(restaurantId.toLowerCase(), { page: 1, pageSize: 10 });
     return formatDishList(result.items, result.pagination);
   } catch (err) {
     if (err instanceof ApiError && err.statusCode === 404) {
