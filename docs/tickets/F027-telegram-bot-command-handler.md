@@ -745,13 +745,13 @@ No integration tests (no DB, no real Telegram connection). The `ApiClient` is mo
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan, AC, DoD, Workflow Checklist, Completion Log, Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 15/15, DoD: 6/6, Workflow: 0-5/6 |
+| 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
+| 3. Update key_facts.md | [x] | Updated: Bot (packages/bot) section — config, apiClient, commands, formatters, bot wiring, tests |
+| 4. Update decisions.md | [x] | N/A — no new ADR required |
+| 5. Commit documentation | [x] | Commit: af0b80a |
+| 6. Verify clean working tree | [x] | `git status`: clean |
 
 ---
 
