@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-21
 
-**Active Feature:** None — no active work
-**Step:** —
-**Branch:** develop
-**Complexity:** —
-**Context:** F027 completed and merged. Next: F028 (Telegram Bot — Natural Language Handler)
+**Active Feature:** F028 — Telegram Bot: Natural Language Handler
+**Step:** 5/6 (Review)
+**Branch:** feature/F028-natural-language-handler
+**Complexity:** Standard
+**Context:** Spec created (auto-approved L2). NL handler for plain text messages → estimate API. Heuristic parsing, no NLP/LLM.
 
 ---
 
@@ -75,7 +75,7 @@
 | F025 | Fastify Routes — Core Endpoints | backend | done | 6/6 | Standard. 4 catalog endpoints. 67 tests. Review: 1 fix (chains grouping), 33 QA edge-case tests |
 | F026 | API Rate Limiting + Auth (API Key) | backend | done | 6/6 | Standard. 122 tests. PR #23. Squash merged cc51626 |
 | F027 | Telegram Bot — Command Handler | backend | done | 6/6 | Standard. 227 tests, PR #24, SHA 3461f10 |
-| F028 | Telegram Bot — Natural Language Handler | backend | pending | — | |
+| F028 | Telegram Bot — Natural Language Handler | backend | in-progress | 5/6 | Standard. NL handler for plain text → estimate. Heuristic parsing |
 | F029 | Query Log & Analytics | backend | pending | — | |
 | F030 | Monitoring & Alerting | backend | pending | — | |
 

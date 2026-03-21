@@ -19,6 +19,7 @@ import { handleRestaurantes } from './commands/restaurantes.js';
 import { handlePlatos } from './commands/platos.js';
 import { handleCadenas } from './commands/cadenas.js';
 import { handleInfo } from './commands/info.js';
+import { handleNaturalLanguage } from './handlers/naturalLanguage.js';
 
 const KNOWN_COMMANDS = new Set([
   'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info',
@@ -105,7 +106,9 @@ export function buildBot(config: BotConfig, apiClient: ApiClient): TelegramBot {
   bot.on('message', (msg) => {
     const text = msg.text ?? '';
     const cmdMatch = /^\/(\w+)/.exec(text);
+
     if (cmdMatch) {
+      // Unknown slash command
       const cmd = cmdMatch[1] ?? '';
       if (!KNOWN_COMMANDS.has(cmd)) {
         void send(
@@ -113,7 +116,15 @@ export function buildBot(config: BotConfig, apiClient: ApiClient): TelegramBot {
           escapeMarkdown('Comando no reconocido. Usa /help para ver los comandos disponibles.'),
         );
       }
+      return;
     }
+
+    // Plain text (no slash prefix) — route to NL handler
+    const trimmed = text.trim();
+    if (trimmed) {
+      void wrapHandler(() => handleNaturalLanguage(trimmed, apiClient))(msg);
+    }
+    // Empty text or media (no msg.text) → silently ignore
   });
 
   return bot;
