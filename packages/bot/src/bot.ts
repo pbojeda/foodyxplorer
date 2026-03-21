@@ -43,8 +43,12 @@ export function buildBot(config: BotConfig, apiClient: ApiClient): TelegramBot {
       const text = await handler();
       await send(msg.chat.id, text);
     } catch (err) {
-      logger.error({ err }, 'Unhandled command error');
-      await send(msg.chat.id, escapeMarkdown('Lo siento, ha ocurrido un error inesperado.'));
+      logger.error({ err, chatId: msg.chat.id }, 'Unhandled command error');
+      try {
+        await send(msg.chat.id, escapeMarkdown('Lo siento, ha ocurrido un error inesperado.'));
+      } catch (sendErr) {
+        logger.error({ sendErr, chatId: msg.chat.id }, 'Failed to send error message');
+      }
     }
   };
 

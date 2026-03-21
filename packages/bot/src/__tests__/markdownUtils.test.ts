@@ -114,8 +114,9 @@ describe('truncate', () => {
   it('truncates long string and appends lista recortada note', () => {
     const line = 'x'.repeat(20);
     const text = [line, line, line].join('\n');
-    const result = truncate(text, 30);
-    expect(result.length).toBeLessThanOrEqual(30 + '\n\n_Lista recortada_'.length);
+    const result = truncate(text, 60);
+    // Final string must never exceed maxLen (including suffix)
+    expect(result.length).toBeLessThanOrEqual(60);
     expect(result).toContain('_Lista recortada_');
   });
 

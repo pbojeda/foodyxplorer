@@ -148,7 +148,7 @@ export function createApiClient(config: BotConfig): ApiClient {
         page: String(params.page ?? 1),
         pageSize: String(params.pageSize ?? 10),
       };
-      return fetchJson<PaginatedResult<DishListItem>>(`/restaurants/${restaurantId}/dishes`, sp);
+      return fetchJson<PaginatedResult<DishListItem>>(`/restaurants/${encodeURIComponent(restaurantId)}/dishes`, sp);
     },
 
     async listChains() {

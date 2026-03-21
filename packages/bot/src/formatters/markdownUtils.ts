@@ -25,9 +25,10 @@ const TRUNCATED_SUFFIX = '\n\n_Lista recortada_';
 export function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
 
-  // Find the last newline before or at maxLen
-  const cutAt = text.lastIndexOf('\n', maxLen - 1);
-  const truncated = cutAt > 0 ? text.slice(0, cutAt) : text.slice(0, maxLen);
+  // Reserve space for the suffix so the final string never exceeds maxLen.
+  const effectiveMax = maxLen - TRUNCATED_SUFFIX.length;
+  const cutAt = text.lastIndexOf('\n', effectiveMax - 1);
+  const truncated = cutAt > 0 ? text.slice(0, cutAt) : text.slice(0, effectiveMax);
   return truncated + TRUNCATED_SUFFIX;
 }
 
