@@ -162,4 +162,12 @@ Quick reference for project configuration, infrastructure details, and important
 - **Runner**: `src/runner.ts` — `SCRAPER_CHAIN=<slug>` to run a chain. Instantiates from registry. Calls `disconnectPrisma()` before exit.
 
 ### Bot (packages/bot)
-- _To be populated_
+- **Package name**: `@foodxplorer/bot`
+- **Entry point**: `src/index.ts` — wires config → logger → apiClient → bot → starts polling. Graceful shutdown on SIGTERM/SIGINT (stop polling, flush Pino logs, exit 0)
+- **Config**: `src/config.ts` — `BotEnvSchema` (Zod), `parseConfig(env)`, `config` singleton. Required: `TELEGRAM_BOT_TOKEN`, `BOT_API_KEY`. Defaults: `API_BASE_URL=http://localhost:3001`, `LOG_LEVEL=info`, `NODE_ENV=development`, `BOT_VERSION=0.1.0`
+- **Logger**: `src/logger.ts` — `createLogger(level, nodeEnv)` factory, Pino with pino-pretty in dev. `logger` singleton
+- **ApiClient**: `src/apiClient.ts` — `ApiClient` interface (DI), `createApiClient(config)` implementation. 10s AbortController timeout. `ApiError` class (statusCode, code, message). Envelope parsing for `{success, data}`. `healthCheck()` bypasses envelope (treats 2xx as true, never throws). `listChains()` always sends `?isActive=true`. `listRestaurantDishes()` uses `encodeURIComponent` on restaurantId
+- **Commands**: `src/commands/` — 7 handlers (start, buscar, estimar, restaurantes, platos, cadenas, info) + `errorMessages.ts` (centralized ApiError → Spanish user message mapper). `/platos` validates UUID with Zod, lowercases before API call. `/estimar` splits on last ` en ` only when suffix matches chainSlug format (`/^[a-z0-9]+-[a-z0-9-]+$/`)
+- **Formatters**: `src/formatters/` — `markdownUtils.ts` (escapeMarkdown with 19 reserved chars including backslash, truncate with suffix-aware maxLen, formatNutrient with dot+minus escaping), `dishFormatter.ts`, `restaurantFormatter.ts`, `chainFormatter.ts`, `estimateFormatter.ts`
+- **Bot wiring**: `src/bot.ts` — `buildBot(config, apiClient)` factory. Creates TelegramBot with `polling: false`. Registers 8 `onText` handlers (anchored regex, `@botname` support), `polling_error` handler, `message` catch-all for unknown commands (KNOWN_COMMANDS set check). `wrapHandler` with nested try/catch for sendMessage failures
+- **Tests**: 227 tests across 7 files (config×15, apiClient×17, markdownUtils×32, formatters×40, commands×57, bot×13, edge-cases×53)
