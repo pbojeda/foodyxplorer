@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-20
 
-**Active Feature:** None — no active work
-**Step:** —
-**Branch:** develop
-**Complexity:** —
-**Context:** F026 completed. Next: F027 (Telegram Bot — Command Handler)
+**Active Feature:** F027 — Telegram Bot — Command Handler
+**Step:** 4/6 (Finalize)
+**Branch:** feature/F027-telegram-bot-command-handler
+**Complexity:** Standard
+**Context:** Step 4 complete. 174 tests, 0 TS errors, 0 lint. production-code-validator: APPROVED. Next: Step 5 (Review) — commit, PR, code-review-specialist, qa-engineer
 
 ---
 
@@ -74,7 +74,7 @@
 |----|---------|------|--------|------|-------|
 | F025 | Fastify Routes — Core Endpoints | backend | done | 6/6 | Standard. 4 catalog endpoints. 67 tests. Review: 1 fix (chains grouping), 33 QA edge-case tests |
 | F026 | API Rate Limiting + Auth (API Key) | backend | done | 6/6 | Standard. 122 tests. PR #23. Squash merged cc51626 |
-| F027 | Telegram Bot — Command Handler | backend | pending | — | |
+| F027 | Telegram Bot — Command Handler | backend | in-progress | 4/6 | Standard. 174 tests, 0 TS/lint errors. Validator: APPROVED |
 | F028 | Telegram Bot — Natural Language Handler | backend | pending | — | |
 | F029 | Query Log & Analytics | backend | pending | — | |
 | F030 | Monitoring & Alerting | backend | pending | — | |
