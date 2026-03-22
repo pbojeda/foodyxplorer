@@ -89,6 +89,22 @@ enum ApiKeyTier {
   @@map("api_key_tier")
 }
 
+enum QueryLogLevelHit {
+  l1
+  l2
+  l3
+  l4
+
+  @@map("query_log_level_hit")
+}
+
+enum QueryLogSource {
+  api
+  bot
+
+  @@map("query_log_source")
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -419,4 +435,30 @@ model ApiKey {
 
   @@index([keyPrefix])
   @@map("api_keys")
+}
+
+// ---------------------------------------------------------------------------
+// F029 — Query Logs
+// ---------------------------------------------------------------------------
+
+model QueryLog {
+  id             String            @id @default(uuid()) @db.Uuid
+  queryText      String            @map("query_text") @db.VarChar(255)
+  chainSlug      String?           @map("chain_slug") @db.VarChar(100)
+  restaurantId   String?           @map("restaurant_id") @db.Uuid
+  levelHit       QueryLogLevelHit? @map("level_hit")
+  cacheHit       Boolean           @map("cache_hit")
+  responseTimeMs Int               @map("response_time_ms")
+  apiKeyId       String?           @map("api_key_id") @db.Uuid
+  source         QueryLogSource    @default(api)
+  queriedAt      DateTime          @default(now()) @map("queried_at") @db.Timestamptz
+
+  // No @relation on restaurantId / apiKeyId — immutable audit records,
+  // no FK constraints intentionally omitted.
+
+  @@index([queriedAt(sort: Desc)])
+  @@index([chainSlug])
+  @@index([levelHit])
+  @@index([source])
+  @@map("query_logs")
 }

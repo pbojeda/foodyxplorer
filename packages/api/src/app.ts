@@ -32,6 +32,7 @@ import { qualityRoutes } from './routes/quality.js';
 import { embeddingRoutes } from './routes/embeddings.js';
 import { estimateRoutes } from './routes/estimate.js';
 import { catalogRoutes } from './routes/catalog.js';
+import { analyticsRoutes } from './routes/analytics.js';
 import { getKysely } from './lib/kysely.js';
 
 // ---------------------------------------------------------------------------
@@ -100,8 +101,9 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(ingestImageUrlRoutes, { prisma: prismaClient });
   await app.register(qualityRoutes, { prisma: prismaClient });
   await app.register(embeddingRoutes, { prisma: prismaClient });
-  await app.register(estimateRoutes, { db: getKysely() });
+  await app.register(estimateRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(catalogRoutes, { prisma: prismaClient, db: getKysely() });
+  await app.register(analyticsRoutes, { db: getKysely() });
 
   return app;
 }

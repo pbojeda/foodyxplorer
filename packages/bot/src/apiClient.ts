@@ -84,7 +84,7 @@ export function createApiClient(config: BotConfig): ApiClient {
 
     try {
       const response = await fetch(url.toString(), {
-        headers: { 'X-API-Key': apiKey },
+        headers: { 'X-API-Key': apiKey, 'X-FXP-Source': 'bot' },
         signal: controller.signal,
       });
 

@@ -60,6 +60,13 @@ tags:
       chains, and dishes before querying for nutritional data via GET /estimate.
       All four endpoints cache responses for 60 seconds (fail-open on Redis errors).
       Anonymous access allowed (lower rate limit). API key auth introduced in F026.
+  - name: Analytics
+    description: |
+      Query log analytics endpoints (F029). Every call to GET /estimate is recorded
+      asynchronously to the query_logs table. This endpoint aggregates those rows into
+      operational metrics: total query counts, level-hit distribution, top queried terms,
+      cache hit rate, average response time, and queries by chain and source.
+      Admin-only (requires X-API-Key matching ADMIN_API_KEY env var).
 
 paths:
   /ingest/pdf:
@@ -1543,6 +1550,7 @@ paths:
         Implements the full four-level cascade (F020 + F021 + F022 + F024) defined in ADR-001,
         routed through the `engineRouter` module (F023). The route handler is a thin shell:
         cache check → `runEstimationCascade()` → cache write → response.
+        Every call is logged asynchronously to query_logs (fire-and-forget — never affects response timing or status).
 
         **Level 1 — Official Data Lookup (F020)**
         Highest-confidence tier. Tries four strategies in priority order against the
@@ -2221,6 +2229,112 @@ paths:
                     error:
                       message: "Database query failed during estimation lookup"
                       code: "DB_UNAVAILABLE"
+
+  /analytics/queries:
+    get:
+      summary: Query log analytics
+      description: |
+        Aggregates query_logs into operational metrics. Admin-only.
+        Returns totalQueries, cacheHitRate (4 decimals, 0 when empty), avgResponseTimeMs
+        (null when empty), byLevel (l1/l2/l3/l4/miss counts), byChain (top chains by
+        query volume), bySource (api/bot breakdown), and topQueries (top N terms).
+        All counts are scoped by timeRange and optionally by chainSlug.
+      operationId: getQueryAnalytics
+      tags:
+        - Analytics
+      security:
+        - AdminKeyAuth: []
+      parameters:
+        - name: timeRange
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [24h, 7d, 30d, all]
+            default: 7d
+          description: Time window to scope the aggregation. 'all' applies no time filter.
+        - name: chainSlug
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[a-z0-9-]+$'
+          description: Optional chain slug to scope all aggregations to a single chain.
+        - name: topN
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          description: Maximum number of top query terms to return.
+      responses:
+        '200':
+          description: Analytics aggregation successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsQueryResponse'
+              example:
+                success: true
+                data:
+                  totalQueries: 1500
+                  cacheHitRate: 0.7500
+                  avgResponseTimeMs: 42.5
+                  byLevel:
+                    l1: 900
+                    l2: 200
+                    l3: 300
+                    l4: 50
+                    miss: 50
+                  byChain:
+                    - chainSlug: mcdonalds-es
+                      count: 800
+                    - chainSlug: subway-es
+                      count: 700
+                  bySource:
+                    api: 1200
+                    bot: 300
+                  topQueries:
+                    - queryText: big mac
+                      count: 150
+                    - queryText: whopper
+                      count: 120
+                  timeRange: 7d
+        '400':
+          description: Validation error (invalid timeRange, topN out of range, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Validation failed"
+                  code: "VALIDATION_ERROR"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Unauthorized"
+                  code: "UNAUTHORIZED"
+        '500':
+          description: Database unavailable during aggregation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database query failed during analytics aggregation"
+                  code: "DB_UNAVAILABLE"
 
   /restaurants:
     get:
@@ -4762,6 +4876,120 @@ components:
           type: string
           format: date-time
           example: "2026-03-19T10:00:00.000Z"
+
+    LevelDistribution:
+      type: object
+      description: Count of queries by cache/estimation level hit.
+      required: [l1, l2, l3, l4, miss]
+      properties:
+        l1:
+          type: integer
+          minimum: 0
+          description: Queries resolved at Level 1 (official data).
+        l2:
+          type: integer
+          minimum: 0
+          description: Queries resolved at Level 2 (ingredient-based).
+        l3:
+          type: integer
+          minimum: 0
+          description: Queries resolved at Level 3 (pgvector similarity).
+        l4:
+          type: integer
+          minimum: 0
+          description: Queries resolved at Level 4 (LLM identification).
+        miss:
+          type: integer
+          minimum: 0
+          description: Queries with no match at any level.
+
+    ChainQueryCount:
+      type: object
+      required: [chainSlug, count]
+      properties:
+        chainSlug:
+          type: string
+          example: mcdonalds-es
+        count:
+          type: integer
+          minimum: 0
+
+    TopQueryTerm:
+      type: object
+      required: [queryText, count]
+      properties:
+        queryText:
+          type: string
+          example: big mac
+        count:
+          type: integer
+          minimum: 0
+
+    SourceDistribution:
+      type: object
+      description: Count of queries by request source.
+      required: [api, bot]
+      properties:
+        api:
+          type: integer
+          minimum: 0
+          description: Queries from direct API callers (no X-FXP-Source: bot header).
+        bot:
+          type: integer
+          minimum: 0
+          description: Queries from the Telegram bot (X-FXP-Source: bot header).
+
+    AnalyticsData:
+      type: object
+      required: [totalQueries, cacheHitRate, avgResponseTimeMs, byLevel, byChain, bySource, topQueries, timeRange]
+      properties:
+        totalQueries:
+          type: integer
+          minimum: 0
+          description: Total number of queries in the selected time range.
+        cacheHitRate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Fraction of queries served from cache (0–1, 4 decimal places). 0 when totalQueries=0.
+          example: 0.7500
+        avgResponseTimeMs:
+          type: number
+          nullable: true
+          description: Average response time in milliseconds. null when totalQueries=0.
+          example: 42.5
+        byLevel:
+          $ref: '#/components/schemas/LevelDistribution'
+        byChain:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChainQueryCount'
+          description: Chains ordered by query count descending.
+        bySource:
+          $ref: '#/components/schemas/SourceDistribution'
+        topQueries:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopQueryTerm'
+          description: Top N query terms ordered by count descending.
+        scopedToChain:
+          type: string
+          description: Present when chainSlug filter was applied. Echoes the filter value.
+          example: mcdonalds-es
+        timeRange:
+          type: string
+          enum: [24h, 7d, 30d, all]
+          description: The time range used for this aggregation.
+
+    AnalyticsQueryResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/AnalyticsData'
 
   securitySchemes:
     ApiKeyAuth:

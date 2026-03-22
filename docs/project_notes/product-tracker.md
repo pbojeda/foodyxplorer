@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-21
 
-**Active Feature:** No active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F028 completed 2026-03-21. Next: F029 (Query Log & Analytics) or F030 (Monitoring & Alerting)
+**Active Feature:** F029 — Query Log & Analytics
+**Step:** 5/6 (Review)
+**Branch:** feature/F029-query-log-analytics
+**Complexity:** Standard
+**Context:** Implementation complete (8 commits), production-code-validator APPROVED (0 issues), 2660 tests passing. PR + code-review + QA in progress. Ticket: docs/tickets/F029-query-log-analytics.md
 
 ---
 
@@ -76,7 +76,7 @@
 | F026 | API Rate Limiting + Auth (API Key) | backend | done | 6/6 | Standard. 122 tests. PR #23. Squash merged cc51626 |
 | F027 | Telegram Bot — Command Handler | backend | done | 6/6 | Standard. 227 tests, PR #24, SHA 3461f10 |
 | F028 | Telegram Bot — Natural Language Handler | backend | done | 6/6 | Standard. 307 tests, PR #25, SHA 0ddc21a |
-| F029 | Query Log & Analytics | backend | pending | — | |
+| F029 | Query Log & Analytics | backend | in-progress | 5/6 | Standard. query_logs table, fire-and-forget logging, GET /analytics/queries |
 | F030 | Monitoring & Alerting | backend | pending | — | |
 
 ---

@@ -18,3 +18,4 @@ export * from './schemas/embeddingGenerate';
 export * from './schemas/estimate';
 export * from './schemas/catalog';
 export * from './schemas/apiKey';
+export * from './schemas/analytics';

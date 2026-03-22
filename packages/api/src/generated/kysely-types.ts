@@ -14,6 +14,8 @@ import type {
   NutrientReferenceBasis,
   DishAvailability,
   ApiKeyTier,
+  QueryLogLevelHit,
+  QueryLogSource,
 } from "./kysely-enums";
 
 export type ApiKey = {
@@ -160,6 +162,18 @@ export type FoodNutrient = {
   created_at: Generated<Timestamp>;
   updated_at: Timestamp;
 };
+export type QueryLog = {
+  id: string;
+  query_text: string;
+  chain_slug: string | null;
+  restaurant_id: string | null;
+  level_hit: QueryLogLevelHit | null;
+  cache_hit: boolean;
+  response_time_ms: number;
+  api_key_id: string | null;
+  source: Generated<QueryLogSource>;
+  queried_at: Generated<Timestamp>;
+};
 export type Recipe = {
   id: string;
   food_id: string;
@@ -220,6 +234,7 @@ export type DB = {
   dishes: Dish;
   food_nutrients: FoodNutrient;
   foods: Food;
+  query_logs: QueryLog;
   recipe_ingredients: RecipeIngredient;
   recipes: Recipe;
   restaurants: Restaurant;
