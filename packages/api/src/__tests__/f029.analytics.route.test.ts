@@ -29,8 +29,8 @@ const { kyselyContainer } = vi.hoisted(() => {
       groupBy: vi.fn().mockReturnThis(),
       orderBy: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
-      $if: vi.fn().mockImplementation((_cond: unknown, cb: (qb: unknown) => unknown) => {
-        cb(self);
+      $if: vi.fn().mockImplementation((cond: unknown, cb: (qb: unknown) => unknown) => {
+        if (cond) cb(self);
         return self;
       }),
       execute: vi.fn(executeFn),

@@ -204,13 +204,15 @@ const analyticsRoutesPlugin: FastifyPluginAsync<AnalyticsPluginOptions> = async 
       const scalarRow = scalarRows[0];
       const totalQueries = Number(scalarRow?.total_queries ?? 0);
 
+      const rawRate = Number(scalarRow?.cache_hit_rate ?? 0);
       const cacheHitRate = totalQueries === 0
         ? 0
-        : Number(scalarRow?.cache_hit_rate ?? 0);
+        : Math.min(1, Math.max(0, Number.isFinite(rawRate) ? rawRate : 0));
 
+      const rawAvg = Number(scalarRow?.avg_response_time_ms ?? 0);
       const avgResponseTimeMs = totalQueries === 0
         ? null
-        : Number(scalarRow?.avg_response_time_ms ?? 0);
+        : (Number.isFinite(rawAvg) ? rawAvg : null);
 
       // byLevel — zero-fill missing keys (GROUP BY omits zero-count levels)
       const levelMap = new Map<string | null, number>();

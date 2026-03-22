@@ -105,6 +105,27 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       let cacheHit: boolean;
       let levelHit: 'l1' | 'l2' | 'l3' | 'l4' | null;
 
+      // Fire-and-forget log write — fires AFTER the HTTP response is sent.
+      // Both code paths (cache hit / cascade) set cacheHit and levelHit
+      // before calling reply.send(), so the closured variables are ready.
+      reply.raw.once('finish', () => {
+        const responseTimeMs = Math.round(performance.now() - startMs);
+        void writeQueryLog(
+          prisma,
+          {
+            queryText:     query,
+            chainSlug:     chainSlug ?? null,
+            restaurantId:  restaurantId ?? null,
+            levelHit,
+            cacheHit,
+            responseTimeMs,
+            apiKeyId:      request.apiKeyContext?.keyId ?? null,
+            source,
+          },
+          request.log,
+        ).catch(() => {});
+      });
+
       // --- Cache check ---
       const cached = await cacheGet<EstimateData>(cacheKey, request.log);
       if (cached !== null) {
@@ -121,27 +142,6 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         } else {
           levelHit = null;
         }
-
-        // Fire-and-forget log write — after response sent
-        const capturedCacheHit = cacheHit;
-        const capturedLevelHit = levelHit;
-        reply.raw.once('finish', () => {
-          const responseTimeMs = Math.round(performance.now() - startMs);
-          void writeQueryLog(
-            prisma,
-            {
-              queryText:     query,
-              chainSlug:     chainSlug ?? null,
-              restaurantId:  restaurantId ?? null,
-              levelHit:      capturedLevelHit,
-              cacheHit:      capturedCacheHit,
-              responseTimeMs,
-              apiKeyId:      request.apiKeyContext?.keyId ?? null,
-              source,
-            },
-            request.log,
-          ).catch(() => {});
-        });
 
         return reply.send({ success: true, data: cached });
       }
@@ -166,27 +166,6 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         cachedAt: new Date().toISOString(),
       };
       await cacheSet(cacheKey, dataToCache, request.log);
-
-      // Fire-and-forget log write — after response sent
-      const capturedCacheHit = cacheHit;
-      const capturedLevelHit = levelHit;
-      reply.raw.once('finish', () => {
-        const responseTimeMs = Math.round(performance.now() - startMs);
-        void writeQueryLog(
-          prisma,
-          {
-            queryText:     query,
-            chainSlug:     chainSlug ?? null,
-            restaurantId:  restaurantId ?? null,
-            levelHit:      capturedLevelHit,
-            cacheHit:      capturedCacheHit,
-            responseTimeMs,
-            apiKeyId:      request.apiKeyContext?.keyId ?? null,
-            source,
-          },
-          request.log,
-        ).catch(() => {});
-      });
 
       return reply.send({ success: true, data: routerResult.data });
     },
