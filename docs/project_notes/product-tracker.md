@@ -25,7 +25,8 @@
 | E001 | Infrastructure & Schema | done | F001-F006 | Day 0 complete |
 | E002 | Data Ingestion Pipeline | done | F007-F019 | E001 complete |
 | E003 | Estimation Engine | done | F020-F024 | E001 complete, E002 partial |
-| E004 | Telegram Bot + Public API | in-progress | F025-F030 | E002 + E003 complete |
+| E004 | Telegram Bot + Public API | in-progress | F025-F032 | E002 + E003 complete |
+| E005 | Advanced Analysis & UX | planned | F033-F037 | E004 partial |
 
 ## Features — E001 Infrastructure & Schema
 
@@ -78,6 +79,17 @@
 | F028 | Telegram Bot — Natural Language Handler | backend | done | 6/6 | Standard. 307 tests, PR #25, SHA 0ddc21a |
 | F029 | Query Log & Analytics | backend | done | 6/6 | Standard. query_logs table, fire-and-forget logging, GET /analytics/queries |
 | F030 | Monitoring & Alerting | backend | pending | — | |
+
+## Features — E005 Advanced Analysis & UX
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F031 | Bot File Upload (multipart, inline keyboard) | fullstack | pending | — | Standard. Depends on F032. Bot downloads file → multipart to API. New POST /ingest/image. ADR-009 |
+| F032 | Restaurant Resolution + Creation (schema migration) | fullstack | pending | — | Standard. Schema migration (chainSlug nullable, address fields). Trigram search. Redis state. ADR-009 |
+| F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | pending | — | Simple. Quick win. Prompt fix for Strategy B. portion_multiplier pattern (ADR-009) |
+| F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-009 |
+| F035 | Recipe Calculation Endpoint (structured + free-form) | backend | pending | — | Standard. POST /calculate/recipe. Deterministic + LLM modes. Depends on F033 |
+| F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
 
 ---
 

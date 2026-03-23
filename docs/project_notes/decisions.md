@@ -287,3 +287,38 @@ The preprocessor is invoked from `POST /ingest/pdf-url` when an optional `chainS
 - (+) VIPS and 100 Montaditos become compelling test cases for E003 (estimation from allergens + ingredients + similarity)
 - (-) Phase 1 chain coverage is 7 chains (McDonald's, BK, KFC, Telepizza, Domino's, Subway, Pans) instead of 9
 - (-) Pans & Company source is Portuguese (vivabem.pt) — product names may need minor adaptation for Spain market
+
+### ADR-009: Field Testing Extension — Architecture Decisions from External Review (2026-03-23)
+
+**Context:** Strategic plan for extending foodXPlorer with 6 new capabilities (R1-R6): Telegram file upload, restaurant name resolution + creation, menu photo analysis, recipe calculation, and conversational context. Plan was reviewed by Codex GPT-5.4 and Gemini 2.5 Pro independently. Both returned VERDICT: REVISE. 8 unique issues identified across both reviews, all resolved.
+
+**Decisions:**
+
+1. **File transport: Multipart upload, NOT URL pass-through.** Bot downloads file via `getFileLink()` to buffer, uploads as multipart to API. Telegram bot token never crosses the API boundary. New `POST /ingest/image` endpoint (multipart equivalent of existing `/ingest/image-url`). Existing `POST /ingest/pdf` (multipart) reused for PDFs.
+
+2. **Restaurant model: Schema migration for independents.** `chainSlug` becomes nullable. New fields: `address`, `googleMapsUrl`, `latitude`, `longitude`. Slugging rule for independents: `independent-<name-slug>-<uuid-short>` to avoid collisions.
+
+3. **Photo disambiguation: Inline keyboard.** When bot receives a photo without command context, it shows a Telegram Inline Keyboard with 3 buttons: "Subir al catálogo", "Analizar menú", "Identificar plato". Clear contract for TDD.
+
+4. **Conversational state: Redis from day one.** Not in-memory Map. Key: `bot:state:{chatId}`, TTL 2h. Redis already available in the stack.
+
+5. **Portion sizes: `portion_multiplier` pattern (ADR-001 compliance).** LLM extracts base ingredients + a `portion_multiplier` field (0.7/1.0/1.3). Node.js engine applies the math. LLM never does arithmetic.
+
+6. **Menu analysis auth: API key required.** `POST /analyze/menu` is NOT public. Requires API key auth + rate limit (10 analyses/hour). Prevents abuse as OpenAI billing proxy.
+
+7. **OCR vs Vision API: Tool-specific.** Tesseract/pdf-parse for PDFs (free, high accuracy on text). Vision API (gpt-4o-mini) for photos (OCR unviable on phone photos). Fallback: Vision fails → Tesseract → <3 lines → descriptive error.
+
+8. **Google Maps: Deferred to Phase 2.** Short links (`maps.app.goo.gl/...`) require HTTP redirect following + HTML parsing. Too complex for Phase 1. Manual name entry only.
+
+**Reviewed by:** Codex GPT-5.4 (8 findings: 1C + 3I + 4S), Gemini 2.5 Pro (7 findings: 2C + 4I + 1S)
+
+**Consequences:**
+- (+) No security vulnerabilities (bot token protected, analyze endpoint rate-limited)
+- (+) Schema supports both chain and independent restaurants
+- (+) ADR-001 compliance maintained (LLM interprets, engine calculates)
+- (+) All UX flows defined for TDD implementation
+- (-) `POST /ingest/image` is new code (not reusing URL-based endpoint)
+- (-) Schema migration adds complexity to F032
+- (-) Google Maps integration delayed to Phase 2
+
+**Full plan:** `docs/project_notes/strategic-plan-r1-r6.md`
