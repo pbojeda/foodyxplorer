@@ -89,8 +89,8 @@ export const CHAIN_PDF_REGISTRY: ChainPdfConfig[] = [
     restaurantId:    CHAIN_SEED_IDS.SUBWAY_ES.RESTAURANT_ID,
     sourceId:        CHAIN_SEED_IDS.SUBWAY_ES.SOURCE_ID,
     updateFrequency: 'quarterly',
-    enabled:         true,
-    notes:           'URL pattern: MED_Nutritional_Information_CX_YYYY_FINAL_English.pdf. Quarterly cycle (C1-C4). Also available in Spanish and Catalan.',
+    enabled:         false,
+    notes:           'Disabled — PDF format changed (fixed-column table with categories). Needs custom preprocessor. Re-enable after Phase 2 development.',
   },
   {
     chainSlug:       'pans-and-company-es',
