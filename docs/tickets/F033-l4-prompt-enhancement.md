@@ -27,6 +27,7 @@ None.
 
 - LLM omits `portion_multiplier` → default to 1.0
 - LLM returns invalid multiplier (<=0, NaN) → default to 1.0
+- LLM returns multiplier >5.0 → default to 1.0 (hallucination guard)
 - Mixed input: "200g arroz con pollo" → LLM respects 200g for arroz, estimates pollo
 - No portion modifier in query → multiplier 1.0 (backward compatible)
 
@@ -47,7 +48,7 @@ N/A — Simple task.
 - [x] Tests: explicit grams "200g arroz" → 200g used exactly
 - [x] Tests: "plato pequeño" → multiplier < 1.0 applied
 - [x] Tests: missing/invalid multiplier → defaults to 1.0
-- [x] All tests pass (2726 total: 8 new F033 + 2718 existing)
+- [x] All tests pass (2728 total: 10 new F033 + 2718 existing)
 - [x] Build succeeds (preexisting errors in scraper/ingest routes unrelated to F033)
 
 ---
@@ -94,7 +95,7 @@ N/A — Simple task.
 | 2. Verify product tracker | [x] | Active Session: step 5/6 (Review), Features table: 5/6 |
 | 3. Update key_facts.md | [x] | N/A — no new models, endpoints, or reusable components |
 | 4. Update decisions.md | [x] | N/A — ADR-009 already covers portion_multiplier pattern |
-| 5. Commit documentation | [x] | Commit: (pending with this update) |
+| 5. Commit documentation | [x] | Commit: cf7db48 |
 | 6. Verify clean working tree | [x] | `git status`: clean after docs commit |
 
 ---

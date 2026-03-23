@@ -467,7 +467,7 @@ async function runStrategyB(
       return null;
     }
     ingredientArray = ing;
-    // Extract portion_multiplier — must be a positive finite number in [0.1, 5.0], else default 1.0
+    // Extract portion_multiplier — must be a positive finite number in (0, 5.0], else default 1.0
     const pm = obj['portion_multiplier'];
     if (typeof pm === 'number' && pm > 0 && pm <= 5.0 && Number.isFinite(pm)) {
       portionMultiplier = pm;
