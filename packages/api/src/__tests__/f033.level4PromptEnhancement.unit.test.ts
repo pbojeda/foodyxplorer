@@ -312,6 +312,26 @@ describe('F033 — Strategy B prompt enhancement', () => {
     expect(result?.result.portionGrams).toBe(150);
   });
 
+  it('defaults to 1.0 when portion_multiplier exceeds 5.0 (hallucination guard)', async () => {
+    mockExecuteQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [MOCK_FOOD_ROW_ARROZ] });
+
+    mockChatCreate.mockResolvedValueOnce(
+      makeChatResponse('{"ingredients": [{"name": "arroz", "grams": 150}], "portion_multiplier": 100}'),
+    );
+
+    const db = buildMockDb() as never;
+    const result = await level4Lookup(db, 'arroz blanco', {
+      openAiApiKey: 'sk-test-key',
+    });
+
+    expect(result).not.toBeNull();
+    // 100x multiplier → clamped to default 1.0
+    expect(result?.result.portionGrams).toBe(150);
+    expect(result?.result.nutrients.calories).toBeCloseTo(195, 1);
+  });
+
   it('defaults to 1.0 when portion_multiplier is a string', async () => {
     mockExecuteQuery
       .mockResolvedValueOnce({ rows: [] })
@@ -328,6 +348,33 @@ describe('F033 — Strategy B prompt enhancement', () => {
 
     expect(result).not.toBeNull();
     expect(result?.result.portionGrams).toBe(150);
+  });
+
+  // -------------------------------------------------------------------------
+  // Multi-ingredient with multiplier
+  // -------------------------------------------------------------------------
+
+  it('applies portion_multiplier across multiple ingredients', async () => {
+    mockExecuteQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [MOCK_FOOD_ROW_ARROZ] })
+      .mockResolvedValueOnce({ rows: [MOCK_FOOD_ROW_POLLO] });
+
+    // "arroz con pollo, porción grande" → multiplier 1.3
+    mockChatCreate.mockResolvedValueOnce(
+      makeChatResponse('{"ingredients": [{"name": "arroz", "grams": 150}, {"name": "pollo", "grams": 100}], "portion_multiplier": 1.3}'),
+    );
+
+    const db = buildMockDb() as never;
+    const result = await level4Lookup(db, 'arroz con pollo, porción grande', {
+      openAiApiKey: 'sk-test-key',
+    });
+
+    expect(result).not.toBeNull();
+    // portionGrams = (150 + 100) * 1.3 = 325
+    expect(result?.result.portionGrams).toBeCloseTo(325, 1);
+    // Calories: (130*1.5 + 165*1) * 1.3 = (195 + 165) * 1.3 = 360 * 1.3 = 468
+    expect(result?.result.nutrients.calories).toBeCloseTo(468, 1);
   });
 
   // -------------------------------------------------------------------------
