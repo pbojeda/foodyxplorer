@@ -334,7 +334,7 @@ const ingestPdfRoutesPlugin: FastifyPluginAsync<IngestPdfPluginOptions> = async 
 
               dishesUpserted++;
             }
-          });
+          }, { maxWait: 30_000, timeout: 120_000 });
         } catch (err) {
           // Re-throw domain errors — let the global error handler deal with them
           const DOMAIN_CODES = new Set([

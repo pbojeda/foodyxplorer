@@ -334,13 +334,14 @@ const ingestPdfUrlRoutesPlugin: FastifyPluginAsync<IngestPdfUrlPluginOptions> = 
 
               dishesUpserted++;
             }
-          });
+          }, { maxWait: 30_000, timeout: 120_000 });
         } catch (err) {
           // Re-throw domain errors — let the global error handler deal with them
           const asAny = err as Record<string, unknown>;
           if (typeof asAny['code'] === 'string' && DOMAIN_CODES.has(asAny['code'])) {
             throw err;
           }
+          console.error('[ingest] DB write error detail:', err);
           throw Object.assign(
             new Error('Database write failed'),
             { statusCode: 500, code: 'DB_UNAVAILABLE' },

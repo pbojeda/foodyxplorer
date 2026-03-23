@@ -140,7 +140,10 @@ async function ingestChain(
   try {
     const response = await fetchImpl(url, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(process.env['ADMIN_API_KEY'] ? { 'X-API-Key': process.env['ADMIN_API_KEY'] } : {}),
+      },
       body:    JSON.stringify({
         url:          chain.pdfUrl,
         restaurantId: chain.restaurantId,

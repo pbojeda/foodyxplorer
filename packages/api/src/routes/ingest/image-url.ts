@@ -332,7 +332,7 @@ const ingestImageUrlRoutesPlugin: FastifyPluginAsync<IngestImageUrlPluginOptions
 
               dishesUpserted++;
             }
-          });
+          }, { maxWait: 30_000, timeout: 120_000 });
         } catch (err) {
           // Re-throw domain errors — let the global error handler deal with them
           const asAny = err as Record<string, unknown>;
