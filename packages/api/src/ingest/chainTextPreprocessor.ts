@@ -49,6 +49,18 @@ export function preprocessChainText(chainSlug: string, lines: string[]): string[
       return lines;
     case 'pans-and-company-es':
       return preprocessPansAndCompanyEs(lines);
+    case 'five-guys-es':
+      return preprocessFiveGuysEs(lines);
+    case 'popeyes-es':
+      return preprocessPopeyesEs(lines);
+    case 'papa-johns-es':
+      return preprocessPapaJohnsEs(lines);
+    case 'pizza-hut-es':
+      return preprocessPizzaHutEs(lines);
+    case 'starbucks-es':
+      return preprocessStarbucksEs(lines);
+    case 'tim-hortons-es':
+      return preprocessTimHortonsEs(lines);
     default:
       return lines;
   }
@@ -516,5 +528,605 @@ function isTelepizzaMetaLine(line: string): boolean {
     (lower.includes('kj/kcal') && lower.includes('grasa')) ||
     lower.includes('---page break---') ||
     /^\d+$/.test(line.trim()) // page numbers
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Five Guys Spain
+// ---------------------------------------------------------------------------
+//
+// PDF layout:
+//   Multi-line header (one keyword per line):
+//     "Energía, kJ", "Energía, kcal", "Grasas totales, g", "de las cuales",
+//     "saturadas, g", "Carbohidratos, g", etc.
+//   Category headers: "CARNE", "PANES", "PATATAS", etc.
+//   Data rows (tab-separated):
+//     Name \t kJ \t kcal \t fat \t satfat \t carbs \t sugars \t fiber \t protein \t salt
+//
+// Some names span multiple lines (e.g. "Pequeñas - Cocinadas en aceite\nde cacahuete")
+//
+// Preprocessing:
+//   1. Skip multi-line header
+//   2. Inject synthetic header
+//   3. For each data row, strip kJ (first numeric value), keep kcal onwards
+
+function preprocessFiveGuysEs(lines: string[]): string[] {
+  const result: string[] = [];
+  const syntheticHeader = 'Calorías\tGrasas\tSaturadas\tHidratos\tAzúcares\tFibra\tProteínas\tSal';
+
+  let headerInjected = false;
+  let pendingName: string | null = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Skip meta/header lines
+    if (isFiveGuysMetaLine(trimmed)) continue;
+
+    // Detect data rows: contain tab + digit pattern
+    const isDataRow = /\t\d/.test(trimmed);
+
+    if (isDataRow) {
+      if (!headerInjected) {
+        result.push(syntheticHeader);
+        headerInjected = true;
+      }
+
+      // If there's a pending multi-line name, prepend it
+      let fullLine = trimmed;
+      if (pendingName !== null) {
+        // Check if line starts with a name or just numbers
+        const parts = fullLine.split('\t');
+        const firstPart = (parts[0] ?? '').trim();
+        if (firstPart.length > 0 && !/^\d/.test(firstPart)) {
+          fullLine = `${pendingName} ${fullLine}`;
+        } else {
+          fullLine = `${pendingName}\t${parts.slice(0).join('\t')}`;
+        }
+        pendingName = null;
+      }
+
+      // Strip kJ (first numeric column after name)
+      const stripped = stripFirstNValues(fullLine, 1);
+      if (stripped !== null) {
+        result.push(stripped);
+      }
+    } else {
+      // Non-data line — could be a category header or a continuation name
+      // Category headers are ALL CAPS
+      if (isAllCaps(trimmed) && trimmed.length > 1) {
+        // Category label — pass through
+        result.push(trimmed);
+        pendingName = null;
+      } else if (trimmed.length >= 2 && !/^\d/.test(trimmed)) {
+        // Could be first part of a multi-line dish name
+        // (e.g. "Pequeñas - Cocinadas en aceite")
+        pendingName = trimmed;
+      }
+    }
+  }
+
+  return result;
+}
+
+/** Returns true if this line is a Five Guys meta/header line to skip. */
+function isFiveGuysMetaLine(line: string): boolean {
+  const lower = line.toLowerCase();
+  return (
+    lower.startsWith('información') ||
+    lower.startsWith('nutricional') ||
+    lower.startsWith('fgjv') ||
+    lower.startsWith('energía') ||
+    lower.startsWith('grasas totales') ||
+    lower.startsWith('de las cuales') ||
+    lower.startsWith('de los cuales') ||
+    lower === 'saturadas, g' ||
+    lower.startsWith('carbohidratos') ||
+    lower === 'azúcares, g' ||
+    lower === 'fibra, g' ||
+    lower.startsWith('proteínas, g') ||
+    lower === 'sal, g' ||
+    lower.includes('---page break---')
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Popeyes Spain
+// ---------------------------------------------------------------------------
+//
+// PDF layout:
+//   Multi-line header (one keyword per line, fragmented):
+//     "Peso(g/m)", "Valor", "Energ", "ético", "(Kcal)", etc.
+//   Category headers: "PIEZAS DE POLLO", "SANDWICHES", etc.
+//   Data rows (tab-separated):
+//     Name \t weight \t kcal \t kJ \t protein \t carbs \t sugar \t fiber \t fat \t satfat \t sodium(mg) \t salt
+//
+// Column order: weight, kcal, kJ, proteins, carbs, sugars, fiber, fats, satfat, sodium(mg), salt(g)
+// We want: kcal, proteins, carbs, sugars, fiber, fats, satfat, salt (skip weight, kJ, sodium)
+
+function preprocessPopeyesEs(lines: string[]): string[] {
+  const result: string[] = [];
+  const syntheticHeader = 'Calorías\tProteínas\tHidratos\tAzúcares\tFibra\tGrasas\tSaturadas\tSal';
+
+  let headerInjected = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Skip meta/header lines
+    if (isPopeyesMetaLine(trimmed)) continue;
+
+    // Detect data rows: tab-separated with multiple numbers
+    const parts = trimmed.split('\t').map(p => p.trim());
+    const numericParts = parts.filter(p => /^\d/.test(p));
+
+    if (numericParts.length >= 10) {
+      if (!headerInjected) {
+        result.push(syntheticHeader);
+        headerInjected = true;
+      }
+
+      // Find name (non-numeric part before first tab-separated number)
+      const name = parts.filter(p => p.length > 0 && !/^\d/.test(p)).join(' ').trim();
+      if (name.length < 2) continue;
+
+      // Extract values: weight[0], kcal[1], kJ[2], protein[3], carbs[4], sugar[5], fiber[6], fat[7], satfat[8], sodium_mg[9], salt[10]
+      // We want: kcal, protein, carbs, sugar, fiber, fat, satfat, salt
+      const vals = numericParts;
+      if (vals.length >= 11) {
+        const kcal    = vals[1];
+        const protein = vals[3];
+        const carbs   = vals[4];
+        const sugar   = vals[5];
+        const fiber   = vals[6];
+        const fat     = vals[7];
+        const satfat  = vals[8];
+        const salt    = vals[10];
+        result.push(`${name}\t${kcal}\t${protein}\t${carbs}\t${sugar}\t${fiber}\t${fat}\t${satfat}\t${salt}`);
+      }
+    } else if (numericParts.length === 0 && trimmed.length > 1) {
+      // Category label
+      result.push(trimmed);
+    }
+  }
+
+  return result;
+}
+
+/** Returns true if this line is a Popeyes meta/header line to skip. */
+function isPopeyesMetaLine(line: string): boolean {
+  const lower = line.toLowerCase();
+  return (
+    lower.startsWith('información nutricional') ||
+    lower.startsWith('peso') ||
+    lower.startsWith('valor') ||
+    lower.startsWith('energ') ||
+    lower.startsWith('ético') ||
+    lower.startsWith('prote') ||
+    lower.startsWith('ínas') ||
+    lower.startsWith('hidratos') ||
+    lower.startsWith('carbono') ||
+    lower.startsWith('azúcar') ||
+    lower.startsWith('fibra') ||
+    lower.startsWith('grasas') ||
+    lower.startsWith('grasa sat') ||
+    lower.startsWith('sodio') ||
+    lower === 'sal' ||
+    lower === '(g)' ||
+    lower === '(mg)' ||
+    lower === '(kcal)' ||
+    lower === '(kj)' ||
+    lower.includes('---page break---')
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Papa John's Spain
+// ---------------------------------------------------------------------------
+//
+// PDF layout: Complex dual-column (two pizza sizes side-by-side).
+//   Multi-line header: "GRASAS", "_DE LAS", "CUALES", "SATURADAS", etc.
+//   Then "kJ kcal g g g g g g g kJ kcal g g g g g g g" unit line
+//   Data rows: "Name v1 v2 v3 v4 v5 v6 v7 v8 v9 Name2 v1 v2 ..." (dual)
+//
+// However the Pizza Hut-style pages (later) have a cleaner single format.
+// The main issue: product names are missing from data rows in dual-column format.
+// Each pair of 9 values (kJ kcal fat satfat carbs sugars protein salt sodium)
+// maps to a pizza variant.
+//
+// Actually looking more closely: "Original 1142.35 273.29 ..." — the name IS there.
+// Each line has: MassType kJ kcal fat satfat carbs sugars protein salt sodium [MassType2 ...]
+//
+// But wait — the product names (pizza types) appear to be ABOVE the sections
+// of mass type rows. This is extremely complex. Let me look at the full text more carefully.
+
+function preprocessPapaJohnsEs(lines: string[]): string[] {
+  const result: string[] = [];
+  // 7 columns: kcal, fat, satfat, carbs, sugars, protein, salt
+  const syntheticHeader = 'Calorías\tGrasas\tSaturadas\tHidratos\tAzúcares\tProteínas\tSal';
+
+  let headerInjected = false;
+  let lastPizzaName: string | null = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Skip meta/header lines
+    if (isPapaJohnsMetaLine(trimmed)) continue;
+
+    // Unit lines: "kJ kcal g g g g g g g kJ kcal g g g g g g g"
+    if (/^kJ\s+kcal/.test(trimmed)) continue;
+
+    // Detect data rows with dough type prefix.
+    // Format: "DoughType kJ kcal fat satfat carbs sugars protein salt sodium [DoughType2 ...]"
+    // The dough types are: Original, Masa fina, Borde mozzarella, Borde cheddar
+    const doughMatch = trimmed.match(
+      /^(Original|Masa fina|Borde mozzarella|Borde cheddar)\s+([\d.,]+\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+)/
+    );
+
+    if (doughMatch) {
+      if (!headerInjected) {
+        result.push(syntheticHeader);
+        headerInjected = true;
+      }
+
+      const doughType = doughMatch[1] ?? '';
+      const dataPart = doughMatch[2] ?? '';
+      const vals = dataPart.trim().split(/\s+/).map(v => v.replace(',', '.'));
+
+      // vals: kJ[0], kcal[1], fat[2], satfat[3], carbs[4], sugars[5], protein[6], salt[7], sodium[8]
+      if (vals.length >= 8 && lastPizzaName) {
+        const name = `${lastPizzaName} (${doughType})`;
+        const kcal    = vals[1];
+        const fat     = vals[2];
+        const satfat  = vals[3];
+        const carbs   = vals[4];
+        const sugars  = vals[5];
+        const protein = vals[6];
+        const salt    = vals[7];
+        result.push(`${name}\t${kcal}\t${fat}\t${satfat}\t${carbs}\t${sugars}\t${protein}\t${salt}`);
+      }
+
+      // Check for second pizza in same line (dual-column)
+      const remaining = trimmed.slice((doughMatch.index ?? 0) + doughMatch[0].length).trim();
+      const doughMatch2 = remaining.match(
+        /^(Original|Masa fina|Borde mozzarella|Borde cheddar)\s+([\d.,]+\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+)/
+      );
+      // Skip dual column for now — second pizza name context is lost
+      if (doughMatch2) {
+        // We'd need a second pizza name from context; skip for simplicity
+      }
+    } else if (/^\d/.test(trimmed) || trimmed.length < 2) {
+      // Page number or short noise
+      continue;
+    } else {
+      // Non-data, non-header line — could be a section header or pizza name
+      const lower = trimmed.toLowerCase();
+      // Section headers contain size keywords
+      if (/^(INDIVIDUAL|MEDIANA|FAMILIAR|MEGA|ENTRANTES|POSTRES|RACIONES|SALSAS|BEBIDAS|COMPLEMENTOS)/i.test(trimmed)) {
+        // Section header — reset pizza name
+        lastPizzaName = null;
+        result.push(trimmed);
+      } else if (lower.startsWith('valores nutricionales') || lower.startsWith('©')) {
+        continue;
+      } else {
+        // Pizza name (e.g. "Americana", "Bacon lovers", etc.)
+        lastPizzaName = trimmed;
+      }
+    }
+  }
+
+  return result;
+}
+
+/** Returns true if this line is a Papa John's meta/header line to skip. */
+function isPapaJohnsMetaLine(line: string): boolean {
+  const lower = line.toLowerCase();
+  return (
+    lower === 'grasas' ||
+    lower.startsWith('_de las') ||
+    lower.startsWith('_de los') ||
+    lower === 'cuales' ||
+    lower === 'saturadas' ||
+    lower === 'hidratos' ||
+    lower === 'de carbono' ||
+    lower === 'azúcares' ||
+    lower === 'proteínas' ||
+    lower === 'sal' ||
+    lower === 'sodio' ||
+    lower.includes('---page break---')
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Pizza Hut Spain
+// ---------------------------------------------------------------------------
+//
+// PDF layout:
+//   Multi-line header:
+//     "Energía Energía Grasas", "- de las", "cuales", "saturadas",
+//     "Hidratos de", "carbono", "- de los", "cuales", "azucares",
+//     "Proteínas \t Sal"
+//     "(kj) \t (kcal) \t (g) \t (g) \t (g) \t (g) \t (g) \t (g)"
+//   Section headers: "INDIVIDUAL MASA TRADICIONAL", etc.
+//   Data rows (tab-separated):
+//     Name \t kJ \t kcal \t fat \t satfat \t carbs \t sugars \t protein \t salt
+//   Footer: "Valores nutricionales por 100 g" + page number
+
+function preprocessPizzaHutEs(lines: string[]): string[] {
+  const result: string[] = [];
+  // 7 columns: kcal, fat, satfat, carbs, sugars, protein, salt
+  const syntheticHeader = 'Calorías\tGrasas\tSaturadas\tHidratos\tAzúcares\tProteínas\tSal';
+
+  let headerInjected = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Skip meta/header lines
+    if (isPizzaHutMetaLine(trimmed)) continue;
+
+    // Detect data rows: Name followed by tab-separated numbers
+    const isDataRow = /\t\d/.test(trimmed);
+
+    if (isDataRow) {
+      if (!headerInjected) {
+        result.push(syntheticHeader);
+        headerInjected = true;
+      }
+
+      // Strip kJ (first numeric column after name)
+      const stripped = stripFirstNValues(trimmed, 1);
+      if (stripped !== null) {
+        result.push(stripped);
+      }
+    } else if (trimmed.length > 1 && !/^\d/.test(trimmed) && !/^\(/.test(trimmed)) {
+      // Category label
+      result.push(trimmed);
+    }
+  }
+
+  return result;
+}
+
+/** Returns true if this line is a Pizza Hut meta/header line to skip. */
+function isPizzaHutMetaLine(line: string): boolean {
+  const lower = line.toLowerCase();
+  return (
+    lower.startsWith('energía') ||
+    lower.startsWith('- de las') ||
+    lower.startsWith('- de los') ||
+    lower === 'cuales' ||
+    lower === 'saturadas' ||
+    lower.startsWith('hidratos de') ||
+    lower === 'carbono' ||
+    lower === 'azucares' ||
+    lower === 'proteínas' ||
+    lower === 'sal' ||
+    lower.startsWith('(kj)') ||
+    lower.startsWith('valores nutricionales') ||
+    /^\d+$/.test(line.trim()) || // page numbers
+    lower.includes('---page break---')
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Starbucks Spain
+// ---------------------------------------------------------------------------
+//
+// PDF layout:
+//   Page 1: Cover page (skip)
+//   Pages 2+: Repeat header block:
+//     "PPK Report 100g Información nutricional PPK Report 100g."
+//     "© 2025. Starbucks Coffee España S.L. ..."
+//     "Los valores nutricionales aquí recogidos..."
+//     Multi-line header: "Valor energético", "(Kj)", "Valor energético", "(Kcal)",
+//       "Grasas (g)", "de las cuales:", "Saturadas (g)", etc.
+//   Data rows (tab-separated):
+//     Name \t kJ \t kcal \t fat \t satfat \t carbs \t sugars \t protein \t salt
+//
+//   Uses dot decimals (1.058,57 → actually 1058.57 read as "1.058,57" Spanish format)
+//   Wait — looking at the extracted text: "1.058,57" which is Spanish for 1058.57
+//   The numbers use dot as thousands separator and comma as decimal.
+
+function preprocessStarbucksEs(lines: string[]): string[] {
+  const result: string[] = [];
+  // 7 columns: kcal, fat, satfat, carbs, sugars, protein, salt
+  const syntheticHeader = 'Calorías\tGrasas\tSaturadas\tHidratos\tAzúcares\tProteínas\tSal';
+
+  let headerInjected = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Skip meta/header lines
+    if (isStarbucksMetaLine(trimmed)) continue;
+
+    // Detect data rows: Name followed by tab-separated numbers
+    const isDataRow = /\t[\d]/.test(trimmed);
+
+    if (isDataRow) {
+      if (!headerInjected) {
+        result.push(syntheticHeader);
+        headerInjected = true;
+      }
+
+      // Normalize Spanish number format: remove dots as thousands separators, replace comma with dot
+      // "1.058,57" → "1058.57", "0,00" → "0.00"
+      const parts = trimmed.split('\t');
+      const name = (parts[0] ?? '').trim();
+      if (name.length < 2) continue;
+
+      const numericParts = parts.slice(1).map(p => {
+        const v = p.trim();
+        // Remove dots used as thousands separator, replace comma with dot
+        return v.replace(/\./g, '').replace(',', '.');
+      });
+
+      // Strip kJ (first value), keep kcal onwards
+      if (numericParts.length >= 8) {
+        const kcal    = numericParts[1];
+        const fat     = numericParts[2];
+        const satfat  = numericParts[3];
+        const carbs   = numericParts[4];
+        const sugars  = numericParts[5];
+        const protein = numericParts[6];
+        const salt    = numericParts[7];
+        result.push(`${name}\t${kcal}\t${fat}\t${satfat}\t${carbs}\t${sugars}\t${protein}\t${salt}`);
+      }
+    }
+  }
+
+  return result;
+}
+
+/** Returns true if this line is a Starbucks meta/header line to skip. */
+function isStarbucksMetaLine(line: string): boolean {
+  const lower = line.toLowerCase();
+  return (
+    lower.startsWith('ppk report') ||
+    lower.startsWith('información nutricional') ||
+    lower.startsWith('© 20') ||
+    lower.startsWith('todos los derechos') ||
+    lower.startsWith('los valores nutricionales') ||
+    lower.startsWith('la información se ha') ||
+    lower.startsWith('variaciones') ||
+    lower.startsWith('puede suceder') ||
+    lower.startsWith('starbucks coffee') ||
+    lower.startsWith('valor energético') ||
+    lower.startsWith('grasas (g)') ||
+    lower.startsWith('de las cuales') ||
+    lower.startsWith('saturadas') ||
+    lower.startsWith('hidratos de') ||
+    lower.startsWith('carbono') ||
+    lower.startsWith('de los cuales') ||
+    lower.startsWith('azúcares') ||
+    lower.startsWith('proteínas') ||
+    lower === 'sal (g)' ||
+    lower.includes('---page break---') ||
+    lower.startsWith('spring 20')
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tim Hortons Spain
+// ---------------------------------------------------------------------------
+//
+// PDF layout:
+//   Multi-line header (keywords on separate lines):
+//     "Peso", "(g/ml)", "Valor Energético", "(KJ)", "Valor Energético", "(Kcal)",
+//     "Grasas(g)", "Grasas", "saturadas", "(g)", "Hidratos", "de carbono", "(g)",
+//     "Azúcares", "(g)", "Fibra", "alimentaria", "(g)", "Proteínas", "(g)", "Sal", "(g)", "Sodio", "(mg)"
+//   Category headers: "BERLITIMS", "BAKE GOODS TIMBITS", etc.
+//   Data rows (space/tab-separated):
+//     Name \t weight kJ kcal fat satfat carbs sugars fiber protein salt sodium(mg)
+//
+// Column order: weight, kJ, kcal, fat, satfat, carbs, sugars, fiber, protein, salt, sodium(mg)
+// We want: kcal, fat, satfat, carbs, sugars, fiber, protein, salt (skip weight, kJ, sodium)
+
+function preprocessTimHortonsEs(lines: string[]): string[] {
+  const result: string[] = [];
+  const syntheticHeader = 'Calorías\tGrasas\tSaturadas\tHidratos\tAzúcares\tFibra\tProteínas\tSal';
+
+  let headerInjected = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Skip meta/header lines
+    if (isTimHortonsMetaLine(trimmed)) continue;
+
+    // Tim Hortons data rows: "Name \t weight kJ kcal fat satfat carbs sugars fiber protein salt sodium"
+    // The name is tab-separated from the numeric values, but values are space-separated
+    const tabParts = trimmed.split('\t');
+    if (tabParts.length < 2) {
+      // Category header or noise
+      if (trimmed.length > 1 && !/^\d/.test(trimmed)) {
+        result.push(trimmed);
+      }
+      continue;
+    }
+
+    const name = (tabParts[0] ?? '').trim();
+    if (name.length < 2) continue;
+
+    // Rest of the line (after name) contains space-separated numbers
+    const dataPart = tabParts.slice(1).join(' ').trim();
+    // Handle comma decimals: "38.8" is valid but "38,8" should become "38.8"
+    const normalizedData = dataPart.replace(/(\d),(\d)/g, '$1.$2');
+    const vals = normalizedData.split(/\s+/).filter(v => /^[\d.]+$/.test(v));
+
+    // Need at least 11 values: weight, kJ, kcal, fat, satfat, carbs, sugars, fiber, protein, salt, sodium
+    if (vals.length >= 11) {
+      if (!headerInjected) {
+        result.push(syntheticHeader);
+        headerInjected = true;
+      }
+
+      // weight[0], kJ[1], kcal[2], fat[3], satfat[4], carbs[5], sugars[6], fiber[7], protein[8], salt[9], sodium[10]
+      const kcal    = vals[2];
+      const fat     = vals[3];
+      const satfat  = vals[4];
+      const carbs   = vals[5];
+      const sugars  = vals[6];
+      const fiber   = vals[7];
+      const protein = vals[8];
+      const salt    = vals[9];
+      result.push(`${name}\t${kcal}\t${fat}\t${satfat}\t${carbs}\t${sugars}\t${fiber}\t${protein}\t${salt}`);
+    } else if (vals.length >= 10) {
+      // Some rows may have fewer values (e.g. sodium = 0 omitted or merged)
+      if (!headerInjected) {
+        result.push(syntheticHeader);
+        headerInjected = true;
+      }
+
+      const kcal    = vals[2];
+      const fat     = vals[3];
+      const satfat  = vals[4];
+      const carbs   = vals[5];
+      const sugars  = vals[6];
+      const fiber   = vals[7];
+      const protein = vals[8];
+      const salt    = vals[9];
+      result.push(`${name}\t${kcal}\t${fat}\t${satfat}\t${carbs}\t${sugars}\t${fiber}\t${protein}\t${salt}`);
+    }
+  }
+
+  return result;
+}
+
+/** Returns true if this line is a Tim Hortons meta/header line to skip. */
+function isTimHortonsMetaLine(line: string): boolean {
+  const lower = line.toLowerCase();
+  return (
+    lower.startsWith('*la información') ||
+    lower.startsWith('información adicional') ||
+    lower.startsWith('ed.') ||
+    lower.startsWith('información nutricional') ||
+    lower === 'peso' ||
+    lower === '(g/ml)' ||
+    lower.startsWith('valor energético') ||
+    lower === '(kj)' ||
+    lower === '(kcal)' ||
+    lower.startsWith('grasas(g)') ||
+    lower === 'grasas' ||
+    lower === 'saturadas' ||
+    lower === '(g)' ||
+    lower === 'hidratos' ||
+    lower === 'de carbono' ||
+    lower === 'azúcares' ||
+    lower === 'fibra' ||
+    lower === 'alimentaria' ||
+    lower === 'proteínas' ||
+    lower === 'sal' ||
+    lower === 'sodio' ||
+    lower === '(mg)' ||
+    lower.includes('---page break---')
   );
 }

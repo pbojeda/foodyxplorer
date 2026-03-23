@@ -33,7 +33,8 @@ export const ChainPdfConfigSchema = z.object({
 export type ChainPdfConfig = z.infer<typeof ChainPdfConfigSchema>;
 
 // ---------------------------------------------------------------------------
-// Registry — 6 entries: BK, KFC, Telepizza, Five Guys, Subway, Pans & Company (Spain)
+// Registry — 11 entries: BK, KFC, Telepizza, Five Guys, Subway, Pans & Company,
+//                        Popeyes, Papa John's, Pizza Hut, Starbucks, Tim Hortons (Spain)
 // ---------------------------------------------------------------------------
 
 export const CHAIN_PDF_REGISTRY: ChainPdfConfig[] = [
@@ -74,12 +75,12 @@ export const CHAIN_PDF_REGISTRY: ChainPdfConfig[] = [
     chainSlug:       'five-guys-es',
     name:            'Five Guys Spain',
     countryCode:     'ES',
-    pdfUrl:          'https://fiveguys.es/app/uploads/sites/6/2026/02/FGES_ES_allergen-ingredients_print-SP_A4_20260303.pdf',
+    pdfUrl:          'https://fiveguys.es/app/uploads/sites/6/2024/10/FGES-Nutritional_SPANISH_221024.pdf',
     restaurantId:    CHAIN_SEED_IDS.FIVE_GUYS_ES.RESTAURANT_ID,
     sourceId:        CHAIN_SEED_IDS.FIVE_GUYS_ES.SOURCE_ID,
     updateFrequency: 'unknown',
-    enabled:         false,
-    notes:           'PDF contains allergen/ingredient list only — no calorie or macro data. Re-enable when a nutritional PDF is found. URL pattern: fiveguys.es/app/uploads/sites/6/YYYY/MM/...',
+    enabled:         true,
+    notes:           'Oct 2024 nutritional-only PDF. Multi-line header format requires chain-specific preprocessor.',
   },
   {
     chainSlug:       'subway-es',
@@ -102,5 +103,60 @@ export const CHAIN_PDF_REGISTRY: ChainPdfConfig[] = [
     updateFrequency: 'unknown',
     enabled:         false,
     notes:           'Disabled — original PDF URL (vivabem.pt) is 404. Only allergen PDF available at pansandcompany.com. No consolidated nutritional PDF found. Re-enable when a nutritional PDF is located.',
+  },
+  {
+    chainSlug:       'popeyes-es',
+    name:            'Popeyes Spain',
+    countryCode:     'ES',
+    pdfUrl:          'https://popeyes-prod.s3.eu-west-1.amazonaws.com/Nutricional_alergenos_Ed_00_Octubre_2021.pdf',
+    restaurantId:    CHAIN_SEED_IDS.POPEYES_ES.RESTAURANT_ID,
+    sourceId:        CHAIN_SEED_IDS.POPEYES_ES.SOURCE_ID,
+    updateFrequency: 'unknown',
+    enabled:         true,
+    notes:           'PDF from October 2021 — may be outdated. Only version publicly available. S3 hosted.',
+  },
+  {
+    chainSlug:       'papa-johns-es',
+    name:            "Papa John's Spain",
+    countryCode:     'ES',
+    pdfUrl:          'https://cdn.new.papajohns.es/Alergenos+Espa%C3%B1a/Inf_NutricionalEspa%C3%B1a+Ed+27.pdf',
+    restaurantId:    CHAIN_SEED_IDS.PAPA_JOHNS_ES.RESTAURANT_ID,
+    sourceId:        CHAIN_SEED_IDS.PAPA_JOHNS_ES.SOURCE_ID,
+    updateFrequency: 'unknown',
+    enabled:         true,
+    notes:           'CDN URL, edition 27. URL may change with new editions.',
+  },
+  {
+    chainSlug:       'pizza-hut-es',
+    name:            'Pizza Hut Spain',
+    countryCode:     'ES',
+    pdfUrl:          'https://s4d-mth-prd-01-ph-es-ecom-cms-cdne.azureedge.net/ecom-cms/assets/nutricion_ph26_89a1ae2af8.pdf',
+    restaurantId:    CHAIN_SEED_IDS.PIZZA_HUT_ES.RESTAURANT_ID,
+    sourceId:        CHAIN_SEED_IDS.PIZZA_HUT_ES.SOURCE_ID,
+    updateFrequency: 'unknown',
+    enabled:         true,
+    notes:           'Azure CDN. URL contains hash — may change on content update.',
+  },
+  {
+    chainSlug:       'starbucks-es',
+    name:            'Starbucks Spain',
+    countryCode:     'ES',
+    pdfUrl:          'https://www.starbucks.es/sites/starbucks-es-pwa/files/2025-03/250306%20FOOD%20Info%20nutricional%20x%20100g%20%20Spring%20-ESP%20V1.pdf',
+    restaurantId:    CHAIN_SEED_IDS.STARBUCKS_ES.RESTAURANT_ID,
+    sourceId:        CHAIN_SEED_IDS.STARBUCKS_ES.SOURCE_ID,
+    updateFrequency: 'quarterly',
+    enabled:         true,
+    notes:           'Spring 2025 food nutritional info per 100g. Server rejects HEAD requests (405). Seasonal updates expected.',
+  },
+  {
+    chainSlug:       'tim-hortons-es',
+    name:            'Tim Hortons Spain',
+    countryCode:     'ES',
+    pdfUrl:          'https://www.tim-hortons.es/docs/Nutricionales.TH.ES.pdf',
+    restaurantId:    CHAIN_SEED_IDS.TIM_HORTONS_ES.RESTAURANT_ID,
+    sourceId:        CHAIN_SEED_IDS.TIM_HORTONS_ES.SOURCE_ID,
+    updateFrequency: 'unknown',
+    enabled:         true,
+    notes:           'Static URL on official site. Relatively new chain in Spain.',
   },
 ];

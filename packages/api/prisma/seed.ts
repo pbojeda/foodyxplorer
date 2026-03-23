@@ -603,6 +603,14 @@ async function main(): Promise<void> {
   await seedPhase6(prisma);
   console.log('Phase 6 seeding complete.');
 
+  // ---------------------------------------------------------------------------
+  // Phase 7 — PDF Chain Restaurants: Popeyes, Papa John's, Pizza Hut,
+  //           Starbucks, Tim Hortons (Spain)
+  // ---------------------------------------------------------------------------
+  console.log('Starting Phase 7 seed: Popeyes, Papa John\'s, Pizza Hut, Starbucks, Tim Hortons...');
+  await seedPhase7(prisma);
+  console.log('Phase 7 seeding complete.');
+
   console.log('Seeding complete.');
 }
 
@@ -1035,6 +1043,147 @@ export async function seedPhase6(client: PrismaClient): Promise<void> {
       chainSlug:   'pans-and-company-es',
       countryCode: 'ES',
       website:     'https://www.pansandcompany.com',
+      isActive:    true,
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7: Popeyes, Papa John's, Pizza Hut, Starbucks, Tim Hortons (Spain)
+// ---------------------------------------------------------------------------
+
+export async function seedPhase7(client: PrismaClient): Promise<void> {
+  // Popeyes Spain
+  await client.dataSource.upsert({
+    where: { id: CHAIN_SEED_IDS.POPEYES_ES.SOURCE_ID },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.POPEYES_ES.SOURCE_ID,
+      name:        'Popeyes Spain — Nutritional PDF',
+      type:        'scraped',
+      url:         'https://popeyes-prod.s3.eu-west-1.amazonaws.com/Nutricional_alergenos_Ed_00_Octubre_2021.pdf',
+      lastUpdated: new Date('2026-03-23'),
+    },
+  });
+
+  await client.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'popeyes-es', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.POPEYES_ES.RESTAURANT_ID,
+      name:        'Popeyes Spain',
+      nameEs:      'Popeyes España',
+      chainSlug:   'popeyes-es',
+      countryCode: 'ES',
+      website:     'https://www.popeyes.es',
+      isActive:    true,
+    },
+  });
+
+  // Papa John's Spain
+  await client.dataSource.upsert({
+    where: { id: CHAIN_SEED_IDS.PAPA_JOHNS_ES.SOURCE_ID },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.PAPA_JOHNS_ES.SOURCE_ID,
+      name:        "Papa John's Spain — Nutritional PDF",
+      type:        'scraped',
+      url:         'https://cdn.new.papajohns.es/Alergenos+Espa%C3%B1a/Inf_NutricionalEspa%C3%B1a+Ed+27.pdf',
+      lastUpdated: new Date('2026-03-23'),
+    },
+  });
+
+  await client.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'papa-johns-es', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.PAPA_JOHNS_ES.RESTAURANT_ID,
+      name:        "Papa John's Spain",
+      nameEs:      "Papa John's España",
+      chainSlug:   'papa-johns-es',
+      countryCode: 'ES',
+      website:     'https://www.papajohns.es',
+      isActive:    true,
+    },
+  });
+
+  // Pizza Hut Spain
+  await client.dataSource.upsert({
+    where: { id: CHAIN_SEED_IDS.PIZZA_HUT_ES.SOURCE_ID },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.PIZZA_HUT_ES.SOURCE_ID,
+      name:        'Pizza Hut Spain — Nutritional PDF',
+      type:        'scraped',
+      url:         'https://s4d-mth-prd-01-ph-es-ecom-cms-cdne.azureedge.net/ecom-cms/assets/nutricion_ph26_89a1ae2af8.pdf',
+      lastUpdated: new Date('2026-03-23'),
+    },
+  });
+
+  await client.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'pizza-hut-es', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.PIZZA_HUT_ES.RESTAURANT_ID,
+      name:        'Pizza Hut Spain',
+      nameEs:      'Pizza Hut España',
+      chainSlug:   'pizza-hut-es',
+      countryCode: 'ES',
+      website:     'https://www.pizzahut.es',
+      isActive:    true,
+    },
+  });
+
+  // Starbucks Spain
+  await client.dataSource.upsert({
+    where: { id: CHAIN_SEED_IDS.STARBUCKS_ES.SOURCE_ID },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.STARBUCKS_ES.SOURCE_ID,
+      name:        'Starbucks Spain — Nutritional PDF',
+      type:        'scraped',
+      url:         'https://www.starbucks.es/sites/starbucks-es-pwa/files/2025-03/250306%20FOOD%20Info%20nutricional%20x%20100g%20%20Spring%20-ESP%20V1.pdf',
+      lastUpdated: new Date('2026-03-23'),
+    },
+  });
+
+  await client.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'starbucks-es', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.STARBUCKS_ES.RESTAURANT_ID,
+      name:        'Starbucks Spain',
+      nameEs:      'Starbucks España',
+      chainSlug:   'starbucks-es',
+      countryCode: 'ES',
+      website:     'https://www.starbucks.es',
+      isActive:    true,
+    },
+  });
+
+  // Tim Hortons Spain
+  await client.dataSource.upsert({
+    where: { id: CHAIN_SEED_IDS.TIM_HORTONS_ES.SOURCE_ID },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.TIM_HORTONS_ES.SOURCE_ID,
+      name:        'Tim Hortons Spain — Nutritional PDF',
+      type:        'scraped',
+      url:         'https://www.tim-hortons.es/docs/Nutricionales.TH.ES.pdf',
+      lastUpdated: new Date('2026-03-23'),
+    },
+  });
+
+  await client.restaurant.upsert({
+    where: { chainSlug_countryCode: { chainSlug: 'tim-hortons-es', countryCode: 'ES' } },
+    update: {},
+    create: {
+      id:          CHAIN_SEED_IDS.TIM_HORTONS_ES.RESTAURANT_ID,
+      name:        'Tim Hortons Spain',
+      nameEs:      'Tim Hortons España',
+      chainSlug:   'tim-hortons-es',
+      countryCode: 'ES',
+      website:     'https://www.tim-hortons.es',
       isActive:    true,
     },
   });
