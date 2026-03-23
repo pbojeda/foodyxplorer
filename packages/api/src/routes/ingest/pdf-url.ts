@@ -138,7 +138,7 @@ const ingestPdfUrlRoutesPlugin: FastifyPluginAsync<IngestPdfUrlPluginOptions> = 
             code: 'PROCESSING_TIMEOUT',
           }),
         );
-      }, 30_000);
+      }, 180_000);
     });
 
     const processingPromise = async (): Promise<{
