@@ -8,13 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-22
+**Last Updated:** 2026-03-23
 
-**Active Feature:** None
-**Step:** —
-**Branch:** develop
-**Complexity:** —
-**Context:** No active work. F029 completed and merged (PR #26, SHA c8c230d).
+**Active Feature:** F033 — L4 Prompt Enhancement
+**Step:** 5/6 (Review)
+**Branch:** feature/F033-l4-prompt-enhancement
+**Complexity:** Simple
+**Context:** Enhance Strategy B prompt to respect explicit gram amounts and return portion_multiplier for size modifiers. ADR-001 compliant (LLM interprets, engine calculates).
 
 ---
 
@@ -86,7 +86,7 @@
 |----|---------|------|--------|------|-------|
 | F031 | Bot File Upload (multipart, inline keyboard) | fullstack | pending | — | Standard. Depends on F032. Bot downloads file → multipart to API. New POST /ingest/image. ADR-009 |
 | F032 | Restaurant Resolution + Creation (schema migration) | fullstack | pending | — | Standard. Schema migration (chainSlug nullable, address fields). Trigram search. Redis state. ADR-009 |
-| F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | pending | — | Simple. Quick win. Prompt fix for Strategy B. portion_multiplier pattern (ADR-009) |
+| F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | in-progress | 5/6 | Simple. Quick win. Prompt fix for Strategy B. portion_multiplier pattern (ADR-009) |
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-009 |
 | F035 | Recipe Calculation Endpoint (structured + free-form) | backend | pending | — | Standard. POST /calculate/recipe. Deterministic + LLM modes. Depends on F033 |
 | F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |

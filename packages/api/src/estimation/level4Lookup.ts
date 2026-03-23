@@ -413,11 +413,19 @@ async function runStrategyB(
   // Step 1: Build user prompt
   const userMessage =
     `Query: '${query}'\n\n` +
-    `Decompose this food query into a list of base ingredients with approximate gram weights.\n` +
+    `Decompose this food query into a list of base ingredients with gram weights.\n` +
     `Use common, generic ingredient names likely found in a nutritional database\n` +
     `(e.g., 'huevo' not 'huevo de gallina campera', 'arroz' not 'arroz basmati ecológico').\n\n` +
-    `Reply with ONLY a valid JSON array, no other text:\n` +
-    `[{"name": "<ingredient>", "grams": <number>}, ...]`;
+    `IMPORTANT RULES:\n` +
+    `- If the user specifies exact gram amounts (e.g., "200g arroz"), use those exact values.\n` +
+    `- If no amounts are given, estimate reasonable gram weights for a standard serving.\n` +
+    `- If the query mentions a portion size (small/medium/large, pequeño/mediano/grande,\n` +
+    `  "half plate", "ración pequeña", etc.), include a "portion_multiplier" field:\n` +
+    `  0.7 for small, 1.0 for regular/medium, 1.3 for large. Do NOT adjust the gram weights\n` +
+    `  yourself — the multiplier is applied by the system.\n\n` +
+    `Reply with ONLY valid JSON, no other text. Use this format:\n` +
+    `{"ingredients": [{"name": "<ingredient>", "grams": <number>}, ...], "portion_multiplier": <number>}\n` +
+    `Omit "portion_multiplier" if no size modifier is mentioned.`;
 
   const messages: Array<{ role: 'system' | 'user'; content: string }> = [
     { role: 'system', content: SYSTEM_MESSAGE },
@@ -442,14 +450,36 @@ async function runStrategyB(
     return null;
   }
 
-  if (!Array.isArray(parsed)) {
-    logger?.warn({ response: cleaned }, 'L4 Strategy B: LLM response is not an array');
+  // Step 4: Extract ingredients array and portion_multiplier.
+  // Accepts two formats:
+  //   - New: { "ingredients": [...], "portion_multiplier": 0.7 }
+  //   - Legacy: [...]  (plain array, backward compatible)
+  let ingredientArray: unknown[];
+  let portionMultiplier = 1.0;
+
+  if (Array.isArray(parsed)) {
+    ingredientArray = parsed;
+  } else if (parsed !== null && typeof parsed === 'object') {
+    const obj = parsed as Record<string, unknown>;
+    const ing = obj['ingredients'];
+    if (!Array.isArray(ing)) {
+      logger?.warn({ response: cleaned }, 'L4 Strategy B: LLM response has no ingredients array');
+      return null;
+    }
+    ingredientArray = ing;
+    // Extract portion_multiplier — must be a positive finite number in (0, 5.0], else default 1.0
+    const pm = obj['portion_multiplier'];
+    if (typeof pm === 'number' && pm > 0 && pm <= 5.0 && Number.isFinite(pm)) {
+      portionMultiplier = pm;
+    }
+  } else {
+    logger?.warn({ response: cleaned }, 'L4 Strategy B: LLM response is not an array or object');
     return null;
   }
 
-  // Step 4: Validate each item
+  // Step 4b: Validate each ingredient item
   const validItems: IngredientItem[] = [];
-  for (const item of parsed) {
+  for (const item of ingredientArray) {
     if (item !== null && typeof item === 'object') {
       const rec = item as Record<string, unknown>;
       const name = rec['name'];
@@ -502,7 +532,8 @@ async function runStrategyB(
   };
 
   for (const { row, grams } of resolved) {
-    const factor = grams / 100;
+    // ADR-001: Engine calculates. Multiply per_100g value by (grams/100) by portionMultiplier.
+    const factor = (grams / 100) * portionMultiplier;
     aggregatedNutrients.calories += parseDecimal(row.calories) * factor;
     aggregatedNutrients.proteins += parseDecimal(row.proteins) * factor;
     aggregatedNutrients.carbohydrates += parseDecimal(row.carbohydrates) * factor;
@@ -529,10 +560,11 @@ async function runStrategyB(
     firstResolved,
   );
 
-  // Step 10: Sum ALL gram weights (resolved + unresolved) for portionGrams
-  const totalGrams =
+  // Step 10: Sum ALL gram weights (resolved + unresolved) for portionGrams, apply multiplier
+  const rawGrams =
     resolved.reduce((sum, i) => sum + i.grams, 0) +
     unresolved.reduce((sum, i) => sum + i.grams, 0);
+  const totalGrams = rawGrams * portionMultiplier;
 
   const confidenceLevel: 'medium' | 'low' = resolved.length === totalItems ? 'medium' : 'low';
 
