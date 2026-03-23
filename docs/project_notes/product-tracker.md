@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-23
 
-**Active Feature:** F033 — L4 Prompt Enhancement
-**Step:** 5/6 (Review)
-**Branch:** feature/F033-l4-prompt-enhancement
-**Complexity:** Simple
-**Context:** Enhance Strategy B prompt to respect explicit gram amounts and return portion_multiplier for size modifiers. ADR-001 compliant (LLM interprets, engine calculates).
+**Active Feature:** None
+**Step:** —
+**Branch:** develop
+**Complexity:** —
+**Context:** No active work. F033 completed and merged (PR #28, SHA e8aece8).
 
 ---
 
@@ -86,7 +86,7 @@
 |----|---------|------|--------|------|-------|
 | F031 | Bot File Upload (multipart, inline keyboard) | fullstack | pending | — | Standard. Depends on F032. Bot downloads file → multipart to API. New POST /ingest/image. ADR-009 |
 | F032 | Restaurant Resolution + Creation (schema migration) | fullstack | pending | — | Standard. Schema migration (chainSlug nullable, address fields). Trigram search. Redis state. ADR-009 |
-| F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | in-progress | 5/6 | Simple. Quick win. Prompt fix for Strategy B. portion_multiplier pattern (ADR-009) |
+| F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | done | 6/6 | Simple. PR #28, SHA e8aece8. 10 tests. portion_multiplier pattern (ADR-009) |
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-009 |
 | F035 | Recipe Calculation Endpoint (structured + free-form) | backend | pending | — | Standard. POST /calculate/recipe. Deterministic + LLM modes. Depends on F033 |
 | F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
@@ -127,6 +127,7 @@
 | 2026-03-21 | F027 — Telegram Bot — Command Handler | 3461f10 (squash merge to develop, PR #24) | Standalone Telegram bot (packages/bot), 8 slash commands, ApiClient DI pattern, MarkdownV2 formatting, Zod config, Pino logging, graceful shutdown. Plan reviewed: self-review 3 fixes + Codex GPT-5.4 7 issues. Code review: 2H+3M+5L (3 fixed). QA: 1H+2M+3L (5 fixed, 53 edge-case tests). 227 tests (7 files) |
 | 2026-03-21 | F028 — Telegram Bot — Natural Language Handler | 0ddc21a (squash merge to develop, PR #25) | NL handler for plain text → estimate API. extractFoodQuery (8 prefix patterns, chain slug, article stripping). Plan reviewed by Codex GPT-5.4 (4 issues fixed). Code review: APPROVED (1 dead regex removed). QA: 49 edge-case tests, 1 spec deviation fixed. 80 new tests (307 total, 8 files) |
 | 2026-03-22 | F029 — Query Log & Analytics | c8c230d (squash merge to develop, PR #26) | query_logs table (2 enums, 4 indexes, no FK), writeQueryLog fire-and-forget, GET /analytics/queries (5 Kysely queries), estimate route logging via reply.raw.once('finish'). Plan reviewed by Codex GPT-5.4 (8 fixes). Code review: APPROVED (2I fixed: DRY fire-and-forget, $if mock). QA: 2 bugs fixed (cacheHitRate clamp, NaN guard), 49 edge-case tests. 107 new F029 tests (2718 total) |
+| 2026-03-23 | F033 — L4 Prompt Enhancement | e8aece8 (squash merge to develop, PR #28) | Strategy B prompt: explicit gram amounts + portion_multiplier (ADR-001/ADR-009). Dual format parsing (object + legacy array). Hallucination guard (max 5.0). Code review: 1 IMPORTANT fixed. 10 new tests (2728 total) |
 
 ---
 
