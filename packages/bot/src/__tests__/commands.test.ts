@@ -31,6 +31,8 @@ function makeMockClient(): MockApiClient {
     listRestaurantDishes: vi.fn(),
     listChains: vi.fn(),
     healthCheck: vi.fn(),
+    searchRestaurants: vi.fn(),
+    createRestaurant: vi.fn(),
   };
 }
 
@@ -41,6 +43,8 @@ const TEST_CONFIG: BotConfig = {
   BOT_VERSION: '0.1.0',
   LOG_LEVEL: 'info',
   NODE_ENV: 'test',
+  ADMIN_API_KEY: 'test-admin-key',
+  REDIS_URL: 'redis://localhost:6380',
 };
 
 // ---------------------------------------------------------------------------
@@ -72,6 +76,7 @@ const RESTAURANT_ITEM: RestaurantListItem = {
   isActive: true,
   logoUrl: null,
   website: null,
+  address: null,
   dishCount: 42,
 };
 

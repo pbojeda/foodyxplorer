@@ -792,7 +792,7 @@ bot.on('callback_query', async (query) => {
 - [x] Step 0: `spec-creator` executed, specs updated
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: `backend-planner` + `frontend-planner` (bot) executed, plan approved
-- [ ] Step 3: `backend-developer` + `frontend-developer` (bot) executed with TDD
+- [x] Step 3: `backend-developer` + `frontend-developer` (bot) executed with TDD
 - [ ] Step 4: `production-code-validator` executed, quality gates pass
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed
@@ -807,6 +807,7 @@ bot.on('callback_query', async (query) => {
 | 2026-03-24 | Step 0: Spec | API spec updated, spec summary written |
 | 2026-03-24 | Step 1: Setup | Branch feature/F032-restaurant-resolution-creation, full ticket |
 | 2026-03-24 | Step 2: Plan | Backend + bot plans written. Self-review: 3 fixes. External review by Gemini + Codex: 2 CRITICAL + 3 IMPORTANT + 2 SUGGESTION → 7 fixes applied (auth method-aware, callback data compact, return type, slug util, test config, state simplification, pg_trgm note) |
+| 2026-03-24 | Step 3: Implement | Backend: 7 steps (schemas, migration, seed, error handler, admin prefix, catalog routes, tests). 59 API tests. Bot: 14 steps (ioredis, config, Redis singleton, conversation state, apiClient, /restaurante command, callback handler, wiring). 48 new bot tests. Total: 107 new tests, all passing. Build clean. |
 
 ---
 

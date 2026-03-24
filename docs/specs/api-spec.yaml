@@ -12,7 +12,7 @@ info:
     **Validation:**
     - Request bodies and query params are validated via `fastify-type-provider-zod`.
     - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
-  version: 0.2.0
+  version: 0.3.0
   contact:
     name: foodXPlorer
   license:
@@ -56,10 +56,11 @@ tags:
       then delegates all arithmetic to the existing L1/L2 nutrient lookup logic.
   - name: Catalog
     description: |
-      Read-only catalog browsing endpoints (F025). Allow consumers to browse restaurants,
-      chains, and dishes before querying for nutritional data via GET /estimate.
-      All four endpoints cache responses for 60 seconds (fail-open on Redis errors).
-      Anonymous access allowed (lower rate limit). API key auth introduced in F026.
+      Catalog browsing and management endpoints (F025, F032). Allow consumers to browse
+      restaurants, chains, and dishes before querying for nutritional data via GET /estimate.
+      Read endpoints cache responses for 60 seconds (fail-open on Redis errors).
+      Anonymous access allowed on read endpoints (lower rate limit). API key auth introduced
+      in F026. Write endpoints (POST /restaurants) are admin-only (F032).
   - name: Analytics
     description: |
       Query log analytics endpoints (F029). Every call to GET /estimate is recorded
@@ -2342,6 +2343,12 @@ paths:
       description: |
         Returns a paginated list of restaurants with optional filters. Each item includes
         a `dishCount` (total dishes for that restaurant). Responses are cached for 60s.
+
+        When `q` is provided, the list is filtered by trigram similarity on `restaurants.name`
+        using the pg_trgm `%` operator (threshold ≥ 0.15). The `q` filter is implemented
+        via Kysely (not Prisma) and is combined with any other active filters (countryCode,
+        chainSlug, isActive). When `q` is omitted the behaviour is unchanged from F025
+        (Prisma-based filter + sort by name ASC).
       operationId: listRestaurants
       tags:
         - Catalog
@@ -2349,6 +2356,18 @@ paths:
         - {}            # Anonymous allowed (30 req/15min/IP)
         - ApiKeyAuth: [] # Free: 100/15min, Pro: 1000/15min
       parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          description: |
+            Trigram similarity search on restaurant name (pg_trgm, threshold ≥ 0.15).
+            Case-insensitive. Used by the bot's /restaurante command to resolve a user-typed
+            name to a restaurant UUID. When omitted the full filtered list is returned.
+            When provided, results are ordered by trigram similarity score descending.
         - name: countryCode
           in: query
           required: false
@@ -2453,6 +2472,173 @@ paths:
                 success: false
                 error:
                   message: "Database query failed"
+                  code: "DB_UNAVAILABLE"
+
+    post:
+      summary: Create a restaurant
+      description: |
+        Creates a new restaurant record. Admin-only endpoint (F032).
+
+        **Chain vs Independent restaurants:**
+        - **Chain restaurant** (e.g. a new McDonald's outlet): provide `chainSlug` matching
+          an existing chain. The `@@unique([chainSlug, countryCode])` DB constraint applies —
+          a duplicate (chainSlug, countryCode) pair is rejected with 409.
+        - **Independent restaurant** (no chain affiliation): omit `chainSlug`. The server
+          auto-generates a slug using the pattern `independent-<name-slugified>-<uuid-short>`
+          (e.g. `independent-la-tasca-de-pepe-a3f2`). This slug is stored in `chainSlug` so
+          the unique constraint remains satisfied. Independent restaurants are identifiable by
+          the `independent-` prefix on their `chainSlug`.
+
+        **New location fields (all optional, Phase 1 — manual entry only):**
+        - `address` — free-text street address (max 500 chars).
+        - `latitude` / `longitude` — decimal GPS coordinates (range ±90 / ±180).
+        - `googleMapsUrl` — URL to the restaurant's Google Maps listing (Phase 2: bot will
+          auto-fill from short link; Phase 1: caller provides the full URL or omits).
+
+        **DataSource for bot-uploaded dishes:**
+        A fixed "Telegram Upload" DataSource with UUID `00000000-0000-0000-0000-000000000099`
+        is used when the bot creates a restaurant and subsequently uploads dishes via
+        `POST /ingest/image`. This source is seeded in `seed.ts` (F032 migration).
+
+        **Idempotency:** If a chain restaurant with the same (chainSlug, countryCode) already
+        exists, returns 409 DUPLICATE_RESTAURANT. Does not upsert.
+      operationId: createRestaurant
+      tags:
+        - Catalog
+      security:
+        - AdminKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRestaurantBody'
+            examples:
+              chainRestaurant:
+                summary: New outlet of an existing chain
+                value:
+                  name: "McDonald's Paseo de Gracia"
+                  nameEs: "McDonald's Paseo de Gracia"
+                  chainSlug: "mcdonalds-es"
+                  countryCode: "ES"
+                  website: "https://www.mcdonalds.es"
+                  address: "Paseo de Gracia, 40, 08007 Barcelona"
+                  latitude: 41.3917
+                  longitude: 2.1650
+              independentRestaurant:
+                summary: Independent restaurant (no chain — chainSlug auto-generated)
+                value:
+                  name: "La Tasca de Pepe"
+                  countryCode: "ES"
+                  address: "Calle Mayor, 12, 28013 Madrid"
+      responses:
+        '201':
+          description: Restaurant created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateRestaurantResponse'
+              examples:
+                chainCreated:
+                  summary: Chain restaurant created
+                  value:
+                    success: true
+                    data:
+                      id: "00000000-0000-0000-0006-000000000020"
+                      name: "McDonald's Paseo de Gracia"
+                      nameEs: "McDonald's Paseo de Gracia"
+                      chainSlug: "mcdonalds-es"
+                      countryCode: "ES"
+                      isActive: true
+                      website: "https://www.mcdonalds.es"
+                      logoUrl: null
+                      address: "Paseo de Gracia, 40, 08007 Barcelona"
+                      latitude: 41.3917
+                      longitude: 2.1650
+                      googleMapsUrl: null
+                      createdAt: "2026-03-24T12:00:00.000Z"
+                independentCreated:
+                  summary: Independent restaurant created (auto-generated chainSlug)
+                  value:
+                    success: true
+                    data:
+                      id: "00000000-0000-0000-0006-000000000021"
+                      name: "La Tasca de Pepe"
+                      nameEs: null
+                      chainSlug: "independent-la-tasca-de-pepe-a3f2"
+                      countryCode: "ES"
+                      isActive: true
+                      website: null
+                      logoUrl: null
+                      address: "Calle Mayor, 12, 28013 Madrid"
+                      latitude: null
+                      longitude: null
+                      googleMapsUrl: null
+                      createdAt: "2026-03-24T12:00:00.000Z"
+        '400':
+          description: Validation error (missing required fields, invalid UUID, invalid coordinates, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingName:
+                  summary: name field missing
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["name"]
+                          message: "Required"
+                          code: "invalid_type"
+                invalidLatitude:
+                  summary: latitude out of range
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["latitude"]
+                          message: "Number must be greater than or equal to -90"
+                          code: "too_small"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
+        '409':
+          description: |
+            A restaurant with the same (chainSlug, countryCode) already exists.
+            Only possible when `chainSlug` is explicitly provided (chain restaurants).
+            Independent restaurants cannot collide because their slug includes a UUID fragment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "A restaurant with this chainSlug and countryCode already exists"
+                  code: "DUPLICATE_RESTAURANT"
+        '500':
+          description: Database error during insert.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database write failed"
                   code: "DB_UNAVAILABLE"
 
   /restaurants/{id}/dishes:
@@ -4668,7 +4854,7 @@ components:
           $ref: '#/components/schemas/EstimateData'
 
     # -------------------------------------------------------------------------
-    # F025 Catalog schemas
+    # F025 / F032 Catalog schemas
     # -------------------------------------------------------------------------
 
     PaginationMeta:
@@ -4692,6 +4878,10 @@ components:
     RestaurantListItem:
       type: object
       required: [id, name, chainSlug, countryCode, isActive, dishCount]
+      description: |
+        A restaurant as returned by GET /restaurants. `chainSlug` is always present in the
+        response (never null) — independent restaurants have a server-generated slug with
+        the `independent-` prefix.
       properties:
         id:
           type: string
@@ -4705,6 +4895,10 @@ components:
           example: "McDonald's España"
         chainSlug:
           type: string
+          description: |
+            Chain slug for chain restaurants (e.g. "mcdonalds-es"). For independent
+            restaurants this is auto-generated as "independent-<name-slug>-<uuid-short>"
+            and is never null in the response.
           example: "mcdonalds-es"
         countryCode:
           type: string
@@ -4721,10 +4915,200 @@ components:
           type: string
           nullable: true
           example: "https://www.mcdonalds.es"
+        address:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Free-text street address. Null if not provided at creation time.
+          example: "Paseo de Gracia, 40, 08007 Barcelona"
+        latitude:
+          type: number
+          nullable: true
+          minimum: -90
+          maximum: 90
+          description: GPS latitude (decimal degrees). Null if not provided.
+          example: 41.3917
+        longitude:
+          type: number
+          nullable: true
+          minimum: -180
+          maximum: 180
+          description: GPS longitude (decimal degrees). Null if not provided.
+          example: 2.1650
+        googleMapsUrl:
+          type: string
+          nullable: true
+          description: |
+            URL to the Google Maps listing. Phase 1 — caller provides full URL manually.
+            Phase 2 — bot auto-fills from short link.
+          example: null
         dishCount:
           type: integer
           minimum: 0
           example: 127
+
+    CreateRestaurantBody:
+      type: object
+      description: |
+        Request body for POST /restaurants. `chainSlug` is optional — omit it to create
+        an independent restaurant (server auto-generates the slug). `name` is required;
+        all location fields are optional (Phase 1 — manual entry only).
+      required:
+        - name
+        - countryCode
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Restaurant name (English or primary language).
+          example: "La Tasca de Pepe"
+        nameEs:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Spanish name if different from `name`. Null if not applicable.
+          example: null
+        chainSlug:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          minLength: 1
+          maxLength: 100
+          description: |
+            Chain slug for chain restaurants. Must match the pattern `^[a-z0-9-]+$`.
+            Omit for independent restaurants — the server auto-generates a slug as
+            `independent-<name-slugified>-<uuid-short>`.
+          example: "mcdonalds-es"
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          minLength: 2
+          maxLength: 2
+          description: ISO 3166-1 alpha-2 country code (uppercase).
+          example: "ES"
+        website:
+          type: string
+          nullable: true
+          description: Full URL to the restaurant's website.
+          example: "https://www.mcdonalds.es"
+        logoUrl:
+          type: string
+          nullable: true
+          description: Full URL to the restaurant's logo image.
+          example: null
+        address:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Free-text street address.
+          example: "Calle Mayor, 12, 28013 Madrid"
+        latitude:
+          type: number
+          nullable: true
+          minimum: -90
+          maximum: 90
+          description: GPS latitude (decimal degrees). Range -90 to 90.
+          example: 40.4153
+        longitude:
+          type: number
+          nullable: true
+          minimum: -180
+          maximum: 180
+          description: GPS longitude (decimal degrees). Range -180 to 180.
+          example: -3.7074
+        googleMapsUrl:
+          type: string
+          nullable: true
+          description: |
+            Full URL to the Google Maps listing (e.g. https://maps.google.com/?cid=...).
+            Phase 1: manual entry by caller. Phase 2: bot resolves short links automatically.
+          example: null
+
+    CreatedRestaurant:
+      type: object
+      description: The newly created restaurant record as returned by POST /restaurants.
+      required:
+        - id
+        - name
+        - chainSlug
+        - countryCode
+        - isActive
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Server-generated UUID for the new restaurant.
+          example: "00000000-0000-0000-0006-000000000021"
+        name:
+          type: string
+          example: "La Tasca de Pepe"
+        nameEs:
+          type: string
+          nullable: true
+          example: null
+        chainSlug:
+          type: string
+          description: |
+            For chain restaurants: the value provided in the request body.
+            For independent restaurants: the auto-generated slug
+            (`independent-<name-slug>-<uuid-short>`).
+          example: "independent-la-tasca-de-pepe-a3f2"
+        countryCode:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: "ES"
+        isActive:
+          type: boolean
+          example: true
+          description: Always true at creation time.
+        website:
+          type: string
+          nullable: true
+          example: null
+        logoUrl:
+          type: string
+          nullable: true
+          example: null
+        address:
+          type: string
+          nullable: true
+          maxLength: 500
+          example: "Calle Mayor, 12, 28013 Madrid"
+        latitude:
+          type: number
+          nullable: true
+          minimum: -90
+          maximum: 90
+          example: null
+        longitude:
+          type: number
+          nullable: true
+          minimum: -180
+          maximum: 180
+          example: null
+        googleMapsUrl:
+          type: string
+          nullable: true
+          example: null
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO-8601 creation timestamp.
+          example: "2026-03-24T12:00:00.000Z"
+
+    CreateRestaurantResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/CreatedRestaurant'
 
     DishListItem:
       type: object

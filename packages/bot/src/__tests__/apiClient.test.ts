@@ -20,6 +20,7 @@ const TEST_CONFIG: BotConfig = {
   BOT_VERSION: '0.0.0',
   LOG_LEVEL: 'info',
   NODE_ENV: 'test',
+  REDIS_URL: 'redis://localhost:6380',
 };
 
 // ---------------------------------------------------------------------------
