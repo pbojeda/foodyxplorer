@@ -80,6 +80,9 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate --schema=packages/api/prisma/schema.prisma
 
+      - name: Build workspace dependencies
+        run: npm run build -w @foodxplorer/shared -w @foodxplorer/scraper
+
       - name: Typecheck
         run: npm run typecheck
 
