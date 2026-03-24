@@ -74,8 +74,10 @@ jobs:
           psql -h localhost -p 5433 -U foodxplorer -d foodxplorer_test \
             -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
 
-      - name: Run migrations
-        run: npx prisma migrate deploy --schema=packages/api/prisma/schema.prisma
+      - name: Run migrations (dev + test databases)
+        run: |
+          npx prisma migrate deploy --schema=packages/api/prisma/schema.prisma
+          DATABASE_URL=$DATABASE_URL_TEST DIRECT_URL=$DATABASE_URL_TEST npx prisma migrate deploy --schema=packages/api/prisma/schema.prisma
 
       - name: Generate Prisma Client
         run: npx prisma generate --schema=packages/api/prisma/schema.prisma
