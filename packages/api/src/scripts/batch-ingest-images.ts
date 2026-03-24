@@ -317,7 +317,10 @@ async function main(): Promise<void> {
   process.exit(results.some((r) => r.status === 'error') ? 1 : 0);
 }
 
-main().catch((err: unknown) => {
-  console.error(err);
-  process.exit(1);
-});
+// Run when executed directly via tsx/node (not when imported by tests)
+if (require.main === module) {
+  main().catch((err: unknown) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
