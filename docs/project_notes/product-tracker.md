@@ -11,10 +11,10 @@
 **Last Updated:** 2026-03-24
 
 **Active Feature:** F032 — Restaurant Resolution + Creation
-**Step:** 4/6 (Finalize)
+**Step:** 5/6 (Review)
 **Branch:** feature/F032-restaurant-resolution-creation
 **Complexity:** Standard
-**Context:** Implementation complete. Backend: 59 tests. Bot: 48 new tests. Total: 107 new F032 tests. All passing, build clean. Running production-code-validator next.
+**Context:** Implementation complete. Production-code-validator: 1 critical + 1 medium fixed. Code review: 4 important fixed (slug 8-hex, URL validation, chainSlug regex, safeAnswerCallback, JSDoc). QA: 51 edge-case tests added, 4 findings fixed. PR #29 created. Total F032 tests: 158 (97 API + 61 bot). Awaiting merge approval.
 
 ---
 
@@ -85,7 +85,7 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F031 | Bot File Upload (multipart, inline keyboard) | fullstack | pending | — | Standard. Depends on F032. Bot downloads file → multipart to API. New POST /ingest/image. ADR-009 |
-| F032 | Restaurant Resolution + Creation (schema migration) | fullstack | in-progress | 2/6 | Standard. Schema migration (address fields). Trigram search. POST /restaurants. Bot /restaurante + Redis state. ADR-009 |
+| F032 | Restaurant Resolution + Creation (schema migration) | fullstack | in-progress | 5/6 | Standard. Schema migration (address fields). Trigram search. POST /restaurants. Bot /restaurante + Redis state. PR #29 |
 | F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | done | 6/6 | Simple. PR #28, SHA e8aece8. 10 tests. portion_multiplier pattern (ADR-009) |
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-009 |
 | F035 | Recipe Calculation Endpoint (structured + free-form) | backend | pending | — | Standard. POST /calculate/recipe. Deterministic + LLM modes. Depends on F033 |
