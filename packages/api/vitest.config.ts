@@ -22,13 +22,6 @@ export default defineConfig({
   },
   test: {
     fileParallelism: false,
-    exclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      // batch-ingest-images.test.ts calls process.exit(1) as side-effect
-      // when the script's main() runs during import. Exclude until fixed.
-      '**/scripts/batch-ingest-images.test.ts',
-    ],
     env: {
       NODE_ENV: 'test',
       DATABASE_URL:

@@ -83,18 +83,13 @@ jobs:
         run: npx prisma generate --schema=packages/api/prisma/schema.prisma
 
       - name: Build workspace dependencies
-        run: npm run build -w @foodxplorer/shared
+        run: npm run build -w @foodxplorer/shared -w @foodxplorer/scraper
 
-      - name: Typecheck (shared + bot)
-        run: npm run typecheck -w @foodxplorer/shared -w @foodxplorer/bot
-
-      # Note: api typecheck skipped — depends on scraper dist/ which has
-      # Prisma type issues. Tests still validate api code via vitest/tsx.
-      # TODO: Fix scraper Prisma types and re-enable api typecheck.
+      - name: Typecheck
+        run: npm run typecheck
 
       - name: Lint
-        run: npm run lint || true
-        # TODO: Fix 51 lint errors in test files (non-null assertions, unused vars)
+        run: npm run lint
 
       - name: Test
         run: npm test
