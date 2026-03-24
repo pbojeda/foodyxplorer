@@ -130,6 +130,7 @@ function formatMarkdown(report: QualityReportData): string {
   lines.push(`- Scraped: ${cd.byEstimationMethod.scraped}`);
   lines.push(`- Ingredients: ${cd.byEstimationMethod.ingredients}`);
   lines.push(`- Extrapolation: ${cd.byEstimationMethod.extrapolation}`);
+  lines.push(`- LLM: ${cd.byEstimationMethod.llm}`);
   lines.push('');
 
   // 6. Data Freshness

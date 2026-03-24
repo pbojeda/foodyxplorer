@@ -122,6 +122,7 @@ export const QualityConfidenceByEstimationMethodSchema = z.object({
   scraped: z.number().int().nonnegative(),
   ingredients: z.number().int().nonnegative(),
   extrapolation: z.number().int().nonnegative(),
+  llm: z.number().int().nonnegative(),
 });
 
 export type QualityConfidenceByEstimationMethod = z.infer<typeof QualityConfidenceByEstimationMethodSchema>;

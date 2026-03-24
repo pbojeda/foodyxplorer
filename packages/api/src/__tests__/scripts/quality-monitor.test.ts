@@ -65,7 +65,7 @@ const sampleReport = {
   },
   confidenceDistribution: {
     global: { high: 40, medium: 40, low: 20 },
-    byEstimationMethod: { official: 30, scraped: 50, ingredients: 10, extrapolation: 10 },
+    byEstimationMethod: { official: 30, scraped: 50, ingredients: 10, extrapolation: 10, llm: 0 },
     byChain: [],
   },
   dataFreshness: {

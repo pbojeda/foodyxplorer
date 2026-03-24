@@ -649,7 +649,7 @@ const reportWithChainSummary = {
   },
   confidenceDistribution: {
     global: { high: 30, medium: 15, low: 5 },
-    byEstimationMethod: { official: 20, scraped: 25, ingredients: 3, extrapolation: 2 },
+    byEstimationMethod: { official: 20, scraped: 25, ingredients: 3, extrapolation: 2, llm: 0 },
     byChain: [],
   },
   dataFreshness: { totalSources: 2, staleSources: 0, staleSourcesDetail: [] },
