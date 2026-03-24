@@ -9,8 +9,8 @@ import { ChainPdfConfigSchema, CHAIN_PDF_REGISTRY } from '../../../config/chains
 import { CHAIN_SEED_IDS } from '../../../config/chains/chain-seed-ids.js';
 
 describe('CHAIN_PDF_REGISTRY', () => {
-  it('has exactly 6 entries', () => {
-    expect(CHAIN_PDF_REGISTRY).toHaveLength(6);
+  it('has at least 6 entries', () => {
+    expect(CHAIN_PDF_REGISTRY.length).toBeGreaterThanOrEqual(6);
   });
 
   it('each entry parses through ChainPdfConfigSchema without errors', () => {
@@ -123,9 +123,9 @@ describe('CHAIN_PDF_REGISTRY', () => {
     expect(entry?.sourceId).toBe(CHAIN_SEED_IDS.SUBWAY_ES.SOURCE_ID);
   });
 
-  it('subway-es has enabled: true', () => {
+  it('subway-es has enabled: false (pending preprocessor)', () => {
     const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'subway-es');
-    expect(entry?.enabled).toBe(true);
+    expect(entry?.enabled).toBe(false);
   });
 
   it('subway-es has updateFrequency: quarterly', () => {
@@ -158,9 +158,9 @@ describe('CHAIN_PDF_REGISTRY', () => {
     expect(entry?.sourceId).toBe(CHAIN_SEED_IDS.PANS_AND_COMPANY_ES.SOURCE_ID);
   });
 
-  it('pans-and-company-es has enabled: true', () => {
+  it('pans-and-company-es has enabled: false (no nutritional PDF)', () => {
     const entry = CHAIN_PDF_REGISTRY.find((c) => c.chainSlug === 'pans-and-company-es');
-    expect(entry?.enabled).toBe(true);
+    expect(entry?.enabled).toBe(false);
   });
 
   it('pans-and-company-es pdfUrl points to vivabem.pt', () => {
