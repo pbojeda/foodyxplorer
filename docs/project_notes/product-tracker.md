@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-24
 
-**Active Feature:** F032 — Restaurant Resolution + Creation
-**Step:** 5/6 (Review)
-**Branch:** feature/F032-restaurant-resolution-creation
-**Complexity:** Standard
-**Context:** Implementation complete. Production-code-validator: 1 critical + 1 medium fixed. Code review: 4 important fixed (slug 8-hex, URL validation, chainSlug regex, safeAnswerCallback, JSDoc). QA: 51 edge-case tests added, 4 findings fixed. PR #29 created. Total F032 tests: 158 (97 API + 61 bot). Awaiting merge approval.
+**Active Feature:** None — no active work
+**Step:** —
+**Branch:** develop
+**Complexity:** —
+**Context:** F032 completed and merged. Next candidates: F031 (Bot File Upload, depends on F032 done), F034 (Menu Analysis, independent).
 
 ---
 
@@ -85,7 +85,7 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F031 | Bot File Upload (multipart, inline keyboard) | fullstack | pending | — | Standard. Depends on F032. Bot downloads file → multipart to API. New POST /ingest/image. ADR-009 |
-| F032 | Restaurant Resolution + Creation (schema migration) | fullstack | in-progress | 5/6 | Standard. Schema migration (address fields). Trigram search. POST /restaurants. Bot /restaurante + Redis state. PR #29 |
+| F032 | Restaurant Resolution + Creation (schema migration) | fullstack | done | 6/6 | Standard. Schema migration (address fields). Trigram search. POST /restaurants. Bot /restaurante + Redis state. PR #29, SHA d71cf09 |
 | F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | done | 6/6 | Simple. PR #28, SHA e8aece8. 10 tests. portion_multiplier pattern (ADR-009) |
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-009 |
 | F035 | Recipe Calculation Endpoint (structured + free-form) | backend | pending | — | Standard. POST /calculate/recipe. Deterministic + LLM modes. Depends on F033 |
@@ -128,6 +128,7 @@
 | 2026-03-21 | F028 — Telegram Bot — Natural Language Handler | 0ddc21a (squash merge to develop, PR #25) | NL handler for plain text → estimate API. extractFoodQuery (8 prefix patterns, chain slug, article stripping). Plan reviewed by Codex GPT-5.4 (4 issues fixed). Code review: APPROVED (1 dead regex removed). QA: 49 edge-case tests, 1 spec deviation fixed. 80 new tests (307 total, 8 files) |
 | 2026-03-22 | F029 — Query Log & Analytics | c8c230d (squash merge to develop, PR #26) | query_logs table (2 enums, 4 indexes, no FK), writeQueryLog fire-and-forget, GET /analytics/queries (5 Kysely queries), estimate route logging via reply.raw.once('finish'). Plan reviewed by Codex GPT-5.4 (8 fixes). Code review: APPROVED (2I fixed: DRY fire-and-forget, $if mock). QA: 2 bugs fixed (cacheHitRate clamp, NaN guard), 49 edge-case tests. 107 new F029 tests (2718 total) |
 | 2026-03-23 | F033 — L4 Prompt Enhancement | e8aece8 (squash merge to develop, PR #28) | Strategy B prompt: explicit gram amounts + portion_multiplier (ADR-001/ADR-009). Dual format parsing (object + legacy array). Hallucination guard (max 5.0). Code review: 1 IMPORTANT fixed. 10 new tests (2728 total) |
+| 2026-03-24 | F032 — Restaurant Resolution + Creation | d71cf09 (squash merge to develop, PR #29) | Fullstack (API + Bot). Schema migration (4 location fields). GET /restaurants?q= trigram search (Kysely, pg_trgm). POST /restaurants admin endpoint (auto-slug independent-*-uuid8). Bot /restaurante command + inline keyboards + Redis conversation state (TTL 2h). Seed Phase 8 (Telegram Upload DataSource). Plan reviewed by Gemini + Codex (7 fixes). Production validator: 1 critical (auth header). Code review: 4 important fixed (slug 8-hex, URL validation, chainSlug regex, safeAnswerCallback). QA: 51 edge-case tests. 158 new F032 tests (97 API + 61 bot). 43 files changed |
 
 ---
 
