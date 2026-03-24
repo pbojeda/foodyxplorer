@@ -1,5 +1,5 @@
 # ===========================================
-# CI Pipeline — foodXPlorer
+# CI Pipeline — nutriXplorer
 # ===========================================
 # Runs on pushes and PRs to develop and main branches.
 # Tests run against local PostgreSQL (pgvector + pg_trgm) and Redis.
@@ -45,6 +45,7 @@ jobs:
       NODE_ENV: test
       DATABASE_URL: postgresql://foodxplorer:foodxplorer@localhost:5433/foodxplorer_dev
       DATABASE_URL_TEST: postgresql://foodxplorer:foodxplorer@localhost:5433/foodxplorer_test
+      DIRECT_URL: postgresql://foodxplorer:foodxplorer@localhost:5433/foodxplorer_dev
       REDIS_URL: redis://localhost:6380
 
     steps:
@@ -57,7 +58,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Setup PostgreSQL extensions
+      - name: Setup PostgreSQL extensions and test database
         env:
           PGPASSWORD: foodxplorer
         run: |
@@ -65,11 +66,11 @@ jobs:
           psql -h localhost -p 5433 -U foodxplorer -d foodxplorer_dev \
             -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
 
-          # Create and setup test database
-          psql -h localhost -p 5433 -U foodxplorer -d foodxplorer_dev \
-            -c "SELECT 'CREATE DATABASE foodxplorer_test' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'foodxplorer_test');" \
-            | psql -h localhost -p 5433 -U foodxplorer -d foodxplorer_dev
+          # Create test database
+          psql -h localhost -p 5433 -U foodxplorer -d postgres \
+            -c "CREATE DATABASE foodxplorer_test OWNER foodxplorer;" || true
 
+          # Enable extensions on test database
           psql -h localhost -p 5433 -U foodxplorer -d foodxplorer_test \
             -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
 
