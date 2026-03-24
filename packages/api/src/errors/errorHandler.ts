@@ -322,6 +322,20 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // DUPLICATE_RESTAURANT — (chainSlug, countryCode) unique constraint violation (F032)
+  if (asAny['code'] === 'DUPLICATE_RESTAURANT') {
+    return {
+      statusCode: 409,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'DUPLICATE_RESTAURANT',
+        },
+      },
+    };
+  }
+
   // RATE_LIMIT_EXCEEDED — @fastify/rate-limit exceeded response
   if (asAny['code'] === 'RATE_LIMIT_EXCEEDED') {
     return {

@@ -77,7 +77,7 @@ export async function registerAuthMiddleware(
     if (url === '/health') return;
 
     // Admin routes — use ADMIN_API_KEY env var comparison
-    if (isAdminRoute(url)) {
+    if (isAdminRoute(url, request.method)) {
       if (!config.ADMIN_API_KEY) {
         // Fail-open in test env — skip admin auth when ADMIN_API_KEY absent
         if (config.NODE_ENV === 'test') return;
