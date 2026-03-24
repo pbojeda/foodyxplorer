@@ -824,7 +824,7 @@ bot.on('callback_query', async (query) => {
 | 2. Verify product tracker | [x] | Active Session: step 5/6 (Review), Features table: 5/6 in-progress |
 | 3. Update key_facts.md | [x] | Updated: error codes (+DUPLICATE_RESTAURANT), migrations (+f032), seed (+Phase 8), catalog routes (5 endpoints, trigram, POST), auth (method-aware), bot (config, apiClient, commands, wiring, Redis, conversation state, callback handler, slugify, tests) |
 | 4. Update decisions.md | [x] | N/A — no new ADR required |
-| 5. Commit documentation | [x] | Commit: (pending — will be committed with this evidence) |
+| 5. Commit documentation | [x] | Commit: d02db05 |
 | 6. Verify clean working tree | [x] | `git status`: clean after docs commit |
 
 ---
