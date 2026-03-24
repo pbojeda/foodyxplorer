@@ -81,10 +81,10 @@ jobs:
         run: npx prisma generate --schema=packages/api/prisma/schema.prisma
 
       - name: Build workspace dependencies
-        run: npm run build -w @foodxplorer/shared -w @foodxplorer/scraper
+        run: npm run build -w @foodxplorer/shared
 
       - name: Typecheck
-        run: npm run typecheck
+        run: npm run typecheck -w @foodxplorer/shared -w @foodxplorer/api -w @foodxplorer/bot
 
       - name: Lint
         run: npm run lint
