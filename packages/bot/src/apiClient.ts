@@ -131,8 +131,8 @@ export function createApiClient(config: BotConfig): ApiClient {
 
   /**
    * Generic JSON POST with envelope parsing.
-   * Attaches X-API-Key (BOT_API_KEY) and X-FXP-Source: bot headers.
-   * Optionally sends X-Admin-API-Key for admin endpoints.
+   * Attaches X-API-Key and X-FXP-Source: bot headers.
+   * When `adminKey` is provided, it replaces the default BOT_API_KEY in the X-API-Key header.
    * Throws ApiError on any non-2xx or network/timeout error.
    */
   async function postJson<T>(path: string, body: unknown, adminKey?: string): Promise<T> {

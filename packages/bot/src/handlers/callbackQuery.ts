@@ -17,6 +17,15 @@ import { handleApiError } from '../commands/errorMessages.js';
 import { escapeMarkdown } from '../formatters/markdownUtils.js';
 import { logger } from '../logger.js';
 
+/** Dismiss the Telegram spinner. Never throws — a failed answer is harmless. */
+async function safeAnswerCallback(bot: TelegramBot, queryId: string): Promise<void> {
+  try {
+    await bot.answerCallbackQuery(queryId);
+  } catch (err) {
+    logger.warn({ err, queryId }, 'answerCallbackQuery failed');
+  }
+}
+
 /**
  * Handle a Telegram callback_query event.
  *
@@ -40,7 +49,7 @@ export async function handleCallbackQuery(
 
   if (!chatId) {
     // No chat context — just dismiss the spinner and return
-    await bot.answerCallbackQuery(query.id);
+    await safeAnswerCallback(bot, query.id);
     return;
   }
 
@@ -73,7 +82,7 @@ export async function handleCallbackQuery(
       );
     }
 
-    await bot.answerCallbackQuery(query.id);
+    await safeAnswerCallback(bot, query.id);
     return;
   }
 
@@ -91,7 +100,7 @@ export async function handleCallbackQuery(
         escapeMarkdown('No hay búsqueda pendiente. Usa /restaurante <nombre> para buscar.'),
         { parse_mode: 'MarkdownV2' },
       );
-      await bot.answerCallbackQuery(query.id);
+      await safeAnswerCallback(bot, query.id);
       return;
     }
 
@@ -123,7 +132,7 @@ export async function handleCallbackQuery(
       }
     }
 
-    await bot.answerCallbackQuery(query.id);
+    await safeAnswerCallback(bot, query.id);
     return;
   }
 
@@ -131,5 +140,5 @@ export async function handleCallbackQuery(
   // Unknown callback_data — silently dismiss spinner
   // -------------------------------------------------------------------------
 
-  await bot.answerCallbackQuery(query.id);
+  await safeAnswerCallback(bot, query.id);
 }

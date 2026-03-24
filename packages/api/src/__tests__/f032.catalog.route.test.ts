@@ -425,7 +425,7 @@ describe('POST /restaurants', () => {
     // but what matters is that create() was called with an auto-generated slug
     const createCall = mockRestaurantCreate.mock.calls[0];
     const passedChainSlug = (createCall?.[0] as { data: { chainSlug: string } })?.data?.chainSlug;
-    expect(passedChainSlug).toMatch(/^independent-[a-z0-9-]+-[a-z0-9]{4}$/);
+    expect(passedChainSlug).toMatch(/^independent-[a-z0-9-]+-[a-z0-9]{8}$/);
   });
 
   it('returns 400 VALIDATION_ERROR when name is missing', async () => {

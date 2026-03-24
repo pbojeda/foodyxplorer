@@ -229,7 +229,7 @@ describe('mapError — DUPLICATE_RESTAURANT error code', () => {
 describe('generateIndependentSlug', () => {
   it('returns a string matching the expected pattern', () => {
     const slug = generateIndependentSlug("McDonald's Burgos");
-    expect(slug).toMatch(/^independent-[a-z0-9-]+-[a-z0-9]{4}$/);
+    expect(slug).toMatch(/^independent-[a-z0-9-]+-[a-z0-9]{8}$/);
   });
 
   it('contains "independent-" prefix', () => {
@@ -240,7 +240,7 @@ describe('generateIndependentSlug', () => {
   it('strips special characters from name', () => {
     const slug = generateIndependentSlug("McDonald's!");
     // The apostrophe and exclamation mark should be stripped
-    expect(slug).toMatch(/^independent-mcdonalds-[a-z0-9]{4}$/);
+    expect(slug).toMatch(/^independent-mcdonalds-[a-z0-9]{8}$/);
   });
 
   it('lowercases the name', () => {
@@ -264,13 +264,13 @@ describe('generateIndependentSlug', () => {
     const slug2 = generateIndependentSlug('Same Name');
     // Very high probability they differ (1/65536 chance of collision)
     // We just verify the format; collisions are statistically negligible
-    expect(slug1).toMatch(/^independent-same-name-[a-z0-9]{4}$/);
-    expect(slug2).toMatch(/^independent-same-name-[a-z0-9]{4}$/);
+    expect(slug1).toMatch(/^independent-same-name-[a-z0-9]{8}$/);
+    expect(slug2).toMatch(/^independent-same-name-[a-z0-9]{8}$/);
   });
 
-  it('ends with exactly 4 lowercase alphanumeric chars', () => {
+  it('ends with exactly 8 lowercase alphanumeric chars', () => {
     const slug = generateIndependentSlug('Test');
     const suffix = slug.split('-').at(-1);
-    expect(suffix).toMatch(/^[a-z0-9]{4}$/);
+    expect(suffix).toMatch(/^[a-z0-9]{8}$/);
   });
 });
