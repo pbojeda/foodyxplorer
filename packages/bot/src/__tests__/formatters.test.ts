@@ -53,6 +53,7 @@ const RESTAURANT: RestaurantListItem = {
   isActive: true,
   logoUrl: null,
   website: null,
+  address: null,
   dishCount: 42,
 };
 

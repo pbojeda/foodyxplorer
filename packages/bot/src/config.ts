@@ -18,6 +18,8 @@ export const BotEnvSchema = z.object({
   BOT_VERSION:        z.string().default('0.1.0'),
   LOG_LEVEL:          z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
   NODE_ENV:           z.enum(['development', 'production', 'test']).default('development'),
+  ADMIN_API_KEY:      z.string().min(1).optional(),
+  REDIS_URL:          z.string().url().default('redis://localhost:6380'),
 });
 
 export type BotConfig = z.infer<typeof BotEnvSchema>;

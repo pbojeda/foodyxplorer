@@ -55,6 +55,7 @@ redisdata/
 .claude/settings.local.json
 .claude/agent-memory/
 .claude/projects/
+.claude/worktrees/
 packages/api/.claude/
 
 # Initial docs (personal drafts, not part of the codebase)

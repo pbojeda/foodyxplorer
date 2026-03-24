@@ -7,7 +7,7 @@
 // The ApiClient interface is designed for dependency injection — tests inject
 // a mock implementation, no real HTTP is made during unit tests.
 
-import type { DishListItem, RestaurantListItem, ChainListItem, EstimateData, PaginationMeta } from '@foodxplorer/shared';
+import type { DishListItem, RestaurantListItem, ChainListItem, EstimateData, PaginationMeta, Restaurant, CreateRestaurantBody } from '@foodxplorer/shared';
 import type { BotConfig } from './config.js';
 
 // ---------------------------------------------------------------------------
@@ -38,6 +38,17 @@ export interface ApiClient {
    * Never throws.
    */
   healthCheck(): Promise<boolean>;
+  /**
+   * Search restaurants by name using trigram similarity (F032).
+   * Returns up to the requested number of results ordered by similarity.
+   */
+  searchRestaurants(q: string): Promise<PaginatedResult<RestaurantListItem>>;
+  /**
+   * Create a new restaurant via the admin endpoint (F032).
+   * Requires ADMIN_API_KEY in config.
+   * Throws ApiError(409) if a duplicate restaurant exists.
+   */
+  createRestaurant(body: CreateRestaurantBody): Promise<Restaurant>;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +129,62 @@ export function createApiClient(config: BotConfig): ApiClient {
     }
   }
 
+  /**
+   * Generic JSON POST with envelope parsing.
+   * Attaches X-API-Key and X-FXP-Source: bot headers.
+   * When `adminKey` is provided, it replaces the default BOT_API_KEY in the X-API-Key header.
+   * Throws ApiError on any non-2xx or network/timeout error.
+   */
+  async function postJson<T>(path: string, body: unknown, adminKey?: string): Promise<T> {
+    const url = new URL(path, baseUrl + '/');
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-API-Key': adminKey ?? apiKey,
+      'X-FXP-Source': 'bot',
+    };
+
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timer);
+
+      if (!response.ok) {
+        let code = 'API_ERROR';
+        let message = `HTTP ${response.status}`;
+        try {
+          const errBody = await response.json() as { success: boolean; error?: { code?: string; message?: string } };
+          if (errBody.error?.code) code = errBody.error.code;
+          if (errBody.error?.message) message = errBody.error.message;
+        } catch {
+          // ignore parse error — use defaults
+        }
+        throw new ApiError(response.status, code, message);
+      }
+
+      const envelope = await response.json() as { success: boolean; data: T };
+      return envelope.data;
+    } catch (err) {
+      clearTimeout(timer);
+
+      if (err instanceof ApiError) throw err;
+
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new ApiError(408, 'TIMEOUT', 'Request timed out');
+      }
+
+      throw new ApiError(0, 'NETWORK_ERROR', err instanceof Error ? err.message : 'Network error');
+    }
+  }
+
   return {
     async searchDishes(params) {
       const sp: Record<string, string> = {
@@ -172,6 +239,14 @@ export function createApiClient(config: BotConfig): ApiClient {
         clearTimeout(timer);
         return false;
       }
+    },
+
+    async searchRestaurants(q) {
+      return fetchJson<PaginatedResult<RestaurantListItem>>('/restaurants', { q, pageSize: '5' });
+    },
+
+    async createRestaurant(body) {
+      return postJson<Restaurant>('/restaurants', body, config.ADMIN_API_KEY);
     },
   };
 }

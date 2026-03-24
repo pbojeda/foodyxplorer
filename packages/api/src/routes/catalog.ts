@@ -4,6 +4,7 @@
 // GET /restaurants/:id/dishes — paginated dish list for a restaurant
 // GET /dishes/search       — trigram similarity search across all dishes
 // GET /chains              — flat chain list with aggregated dishCount
+// POST /restaurants        — create a new restaurant (admin, F032)
 //
 // Prisma for simple list/filter queries.
 // Kysely for trigram search queries (requires raw SQL fragments).
@@ -11,7 +12,8 @@
 
 import type { FastifyPluginAsync } from 'fastify';
 import fastifyPlugin from 'fastify-plugin';
-import type { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import type { Kysely, SqlBool } from 'kysely';
 import { sql } from 'kysely';
 import type { DB } from '../generated/kysely-types.js';
@@ -21,11 +23,14 @@ import {
   RestaurantDishListQuerySchema,
   DishSearchQuerySchema,
   ChainListQuerySchema,
+  CreateRestaurantBodySchema,
   type RestaurantListItem,
   type DishListItem,
   type ChainListItem,
+  type CreateRestaurantBody,
 } from '@foodxplorer/shared';
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
+import { generateIndependentSlug } from '../utils/slugify.js';
 
 // ---------------------------------------------------------------------------
 // Plugin options
@@ -45,7 +50,7 @@ type PrismaDishWithRestaurant = Prisma.DishGetPayload<{
   include: { restaurant: { select: { name: true; chainSlug: true } } };
 }>;
 
-// Kysely trigram query row
+// Kysely trigram query row — dishes
 interface KyselyDishRow {
   id: string;
   name: string;
@@ -56,6 +61,20 @@ interface KyselyDishRow {
   availability: string;
   portion_grams: string | null;
   price_eur: string | null;
+}
+
+// Kysely trigram query row — restaurants (F032)
+interface KyselyRestaurantRow {
+  id: string;
+  name: string;
+  name_es: string | null;
+  chain_slug: string;
+  country_code: string;
+  is_active: boolean;
+  logo_url: string | null;
+  website: string | null;
+  address: string | null;
+  dish_count: string; // COUNT returns string from pg driver
 }
 
 // ---------------------------------------------------------------------------
@@ -95,6 +114,25 @@ function mapKyselyDishRow(row: KyselyDishRow): DishListItem {
     availability: row.availability as DishListItem['availability'],
     portionGrams: row.portion_grams ? Number(row.portion_grams) : null,
     priceEur: row.price_eur ? Number(row.price_eur) : null,
+  };
+}
+
+/**
+ * Map a Kysely flat row (snake_case) to RestaurantListItem.
+ * dish_count arrives as a string from COUNT — convert with Number().
+ */
+function mapKyselyRestaurantRow(row: KyselyRestaurantRow): RestaurantListItem {
+  return {
+    id: row.id,
+    name: row.name,
+    nameEs: row.name_es,
+    chainSlug: row.chain_slug,
+    countryCode: row.country_code,
+    isActive: row.is_active,
+    logoUrl: row.logo_url,
+    website: row.website,
+    address: row.address,
+    dishCount: Number(row.dish_count),
   };
 }
 
@@ -140,55 +178,114 @@ const catalogRoutesPlugin: FastifyPluginAsync<CatalogPluginOptions> = async (
       },
     },
     async (request, reply) => {
-      const { countryCode, chainSlug, isActive, page, pageSize } =
+      const { countryCode, chainSlug, isActive, page, pageSize, q } =
         request.query as {
           countryCode?: string;
           chainSlug?: string;
           isActive?: boolean;
           page: number;
           pageSize: number;
+          q?: string;
         };
 
-      const cacheKey = buildKey('restaurants', stableKey({ countryCode, chainSlug, isActive, page, pageSize }));
+      const cacheKey = buildKey('restaurants', stableKey({ countryCode, chainSlug, isActive, page, pageSize, q }));
 
       const cached = await cacheGet<{ items: RestaurantListItem[]; pagination: unknown }>(cacheKey, request.log);
       if (cached !== null) {
         return reply.send({ success: true, data: cached });
       }
 
-      const where = {
-        ...(countryCode !== undefined && { countryCode }),
-        ...(chainSlug !== undefined && { chainSlug }),
-        ...(isActive !== undefined && { isActive }),
-      };
-
       let items: RestaurantListItem[];
       let totalItems: number;
 
       try {
-        const [rows, count] = await Promise.all([
-          prisma.restaurant.findMany({
-            where,
-            include: { _count: { select: { dishes: true } } },
-            orderBy: { name: 'asc' },
-            skip: (page - 1) * pageSize,
-            take: pageSize,
-          }),
-          prisma.restaurant.count({ where }),
-        ]);
+        if (q) {
+          // Kysely trigram path — similarity search on restaurant name
+          let query = db
+            .selectFrom('restaurants as r')
+            .select([
+              'r.id',
+              'r.name',
+              'r.name_es',
+              'r.chain_slug',
+              'r.country_code',
+              'r.is_active',
+              'r.logo_url',
+              'r.website',
+              'r.address',
+              sql<string>`(SELECT COUNT(*) FROM dishes WHERE restaurant_id = r.id)`.as('dish_count'),
+            ])
+            .where(sql<SqlBool>`similarity(r.name, ${q}) > 0.15`);
 
-        totalItems = count;
-        items = rows.map(({ _count, ...rest }) => ({
-          id: rest.id,
-          name: rest.name,
-          nameEs: rest.nameEs,
-          chainSlug: rest.chainSlug,
-          countryCode: rest.countryCode,
-          isActive: rest.isActive,
-          logoUrl: rest.logoUrl,
-          website: rest.website,
-          dishCount: _count.dishes,
-        }));
+          if (countryCode !== undefined) {
+            query = query.where('r.country_code', '=', countryCode);
+          }
+          if (chainSlug !== undefined) {
+            query = query.where('r.chain_slug', '=', chainSlug);
+          }
+          if (isActive !== undefined) {
+            query = query.where('r.is_active', '=', isActive);
+          }
+
+          // Count query with same filters
+          let countQuery = db
+            .selectFrom('restaurants as r')
+            .select(db.fn.countAll().as('count'))
+            .where(sql<SqlBool>`similarity(r.name, ${q}) > 0.15`);
+
+          if (countryCode !== undefined) {
+            countQuery = countQuery.where('r.country_code', '=', countryCode);
+          }
+          if (chainSlug !== undefined) {
+            countQuery = countQuery.where('r.chain_slug', '=', chainSlug);
+          }
+          if (isActive !== undefined) {
+            countQuery = countQuery.where('r.is_active', '=', isActive);
+          }
+
+          const countResult = await countQuery.executeTakeFirstOrThrow();
+          totalItems = Number(countResult.count);
+
+          const rows = await query
+            .orderBy(sql`similarity(r.name, ${q}) DESC`)
+            .limit(pageSize)
+            .offset((page - 1) * pageSize)
+            .execute();
+
+          items = (rows as unknown as KyselyRestaurantRow[]).map(mapKyselyRestaurantRow);
+        } else {
+          // Prisma path (existing behaviour — unchanged)
+          const where = {
+            ...(countryCode !== undefined && { countryCode }),
+            ...(chainSlug !== undefined && { chainSlug }),
+            ...(isActive !== undefined && { isActive }),
+          };
+
+          const [rows, count] = await Promise.all([
+            prisma.restaurant.findMany({
+              where,
+              include: { _count: { select: { dishes: true } } },
+              orderBy: { name: 'asc' },
+              skip: (page - 1) * pageSize,
+              take: pageSize,
+            }),
+            prisma.restaurant.count({ where }),
+          ]);
+
+          totalItems = count;
+          items = rows.map(({ _count, ...rest }) => ({
+            id: rest.id,
+            name: rest.name,
+            nameEs: rest.nameEs,
+            chainSlug: rest.chainSlug,
+            countryCode: rest.countryCode,
+            isActive: rest.isActive,
+            logoUrl: rest.logoUrl,
+            website: rest.website,
+            address: rest.address ?? null,
+            dishCount: _count.dishes,
+          }));
+        }
       } catch {
         throw Object.assign(
           new Error('Database query failed'),
@@ -554,6 +651,102 @@ const catalogRoutesPlugin: FastifyPluginAsync<CatalogPluginOptions> = async (
       await cacheSet(cacheKey, data, request.log, { ttl: 60 });
 
       return reply.send({ success: true, data });
+    },
+  );
+  // -------------------------------------------------------------------------
+  // POST /restaurants (admin — F032)
+  // -------------------------------------------------------------------------
+
+  app.post(
+    '/restaurants',
+    {
+      schema: {
+        body: CreateRestaurantBodySchema,
+        tags: ['Catalog'],
+        operationId: 'createRestaurant',
+        summary: 'Create a restaurant',
+        description:
+          'Creates a new restaurant record. Admin endpoint — requires X-API-Key header. ' +
+          'If chainSlug is omitted, a unique slug is auto-generated (independent-<slug>-<uuid4>). ' +
+          'Returns HTTP 409 DUPLICATE_RESTAURANT if (chainSlug, countryCode) already exists.',
+      },
+    },
+    async (request, reply) => {
+      const body = request.body as CreateRestaurantBody;
+
+      // Auto-generate chainSlug for independent restaurants
+      const chainSlug = body.chainSlug ?? generateIndependentSlug(body.name);
+
+      let created: {
+        id: string;
+        name: string;
+        nameEs: string | null;
+        chainSlug: string;
+        website: string | null;
+        logoUrl: string | null;
+        countryCode: string;
+        isActive: boolean;
+        address: string | null;
+        googleMapsUrl: string | null;
+        latitude: unknown;
+        longitude: unknown;
+        createdAt: Date;
+        updatedAt: Date;
+      };
+
+      try {
+        created = await prisma.restaurant.create({
+          data: {
+            name: body.name,
+            countryCode: body.countryCode,
+            chainSlug,
+            nameEs: body.nameEs ?? null,
+            website: body.website ?? null,
+            logoUrl: body.logoUrl ?? null,
+            address: body.address ?? null,
+            googleMapsUrl: body.googleMapsUrl ?? null,
+            latitude: body.latitude ?? null,
+            longitude: body.longitude ?? null,
+          },
+        });
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2002'
+        ) {
+          throw Object.assign(
+            new Error('Restaurant already exists for this chain and country'),
+            { code: 'DUPLICATE_RESTAURANT' },
+          );
+        }
+        throw Object.assign(
+          new Error('Database query failed'),
+          { code: 'DB_UNAVAILABLE' },
+        );
+      }
+
+      const data = {
+        id: created.id,
+        name: created.name,
+        nameEs: created.nameEs,
+        chainSlug: created.chainSlug,
+        countryCode: created.countryCode,
+        isActive: created.isActive,
+        website: created.website,
+        logoUrl: created.logoUrl,
+        address: created.address,
+        googleMapsUrl: created.googleMapsUrl,
+        latitude: created.latitude != null
+          ? (created.latitude as Prisma.Decimal).toNumber()
+          : null,
+        longitude: created.longitude != null
+          ? (created.longitude as Prisma.Decimal).toNumber()
+          : null,
+        createdAt: created.createdAt,
+        updatedAt: created.updatedAt,
+      };
+
+      return reply.status(201).send({ success: true, data });
     },
   );
 };

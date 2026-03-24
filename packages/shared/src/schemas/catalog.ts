@@ -32,6 +32,7 @@ export const RestaurantListItemSchema = z.object({
   isActive:    z.boolean(),
   logoUrl:     z.string().nullable(),
   website:     z.string().nullable(),
+  address:     z.string().nullable(),
   dishCount:   z.number().int().nonnegative(),
 });
 export type RestaurantListItem = z.infer<typeof RestaurantListItemSchema>;
@@ -76,6 +77,7 @@ export const RestaurantListQuerySchema = z.object({
   countryCode: z.string().length(2).regex(/^[A-Z]{2}$/).optional(),
   chainSlug:   z.string().regex(/^[a-z0-9-]+$/).max(100).optional(),
   isActive:    BooleanStringSchema.optional(),
+  q:           z.string().trim().min(1).max(100).optional(),
 });
 export type RestaurantListQuery = z.infer<typeof RestaurantListQuerySchema>;
 
