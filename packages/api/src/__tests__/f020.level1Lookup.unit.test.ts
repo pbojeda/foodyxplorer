@@ -122,10 +122,10 @@ describe('level1Lookup', () => {
     const result = await level1Lookup(db, 'Big Mac', { chainSlug: 'mcdonalds-es' });
 
     expect(result).not.toBeNull();
-    expect(result!.matchType).toBe('exact_dish');
-    expect(result!.result.entityType).toBe('dish');
-    expect(result!.result.name).toBe('Big Mac');
-    expect(result!.result.chainSlug).toBe('mcdonalds-es');
+    expect(result?.matchType).toBe('exact_dish');
+    expect(result?.result.entityType).toBe('dish');
+    expect(result?.result.name).toBe('Big Mac');
+    expect(result?.result.chainSlug).toBe('mcdonalds-es');
     // Only 1 DB call (strategy 1 hit)
     expect(mockExecuteQuery).toHaveBeenCalledTimes(1);
   });
@@ -137,7 +137,7 @@ describe('level1Lookup', () => {
     const result = await level1Lookup(db, 'Big Mac', {});
 
     expect(result).not.toBeNull();
-    const n = result!.result.nutrients;
+    const n = result?.result.nutrients;
     expect(n.calories).toBe(550);
     expect(n.proteins).toBe(25);
     expect(n.carbohydrates).toBe(46);
@@ -161,7 +161,7 @@ describe('level1Lookup', () => {
     const db = buildMockDb() as never;
     const result = await level1Lookup(db, 'Big Mac', {});
 
-    expect(result!.result.source).toEqual({
+    expect(result?.result.source).toEqual({
       id: 'fd000000-0001-4000-a000-000000000003',
       name: "McDonald's Spain Official PDF",
       type: 'official',
@@ -175,8 +175,8 @@ describe('level1Lookup', () => {
     const db = buildMockDb() as never;
     const result = await level1Lookup(db, 'Big Mac', {});
 
-    expect(result!.result.confidenceLevel).toBe('high');
-    expect(result!.result.estimationMethod).toBe('official');
+    expect(result?.result.confidenceLevel).toBe('high');
+    expect(result?.result.estimationMethod).toBe('official');
   });
 
   // -------------------------------------------------------------------------
@@ -192,7 +192,7 @@ describe('level1Lookup', () => {
     const result = await level1Lookup(db, 'hamburguesa grande', {});
 
     expect(result).not.toBeNull();
-    expect(result!.matchType).toBe('fts_dish');
+    expect(result?.matchType).toBe('fts_dish');
     expect(mockExecuteQuery).toHaveBeenCalledTimes(2);
   });
 
@@ -210,11 +210,11 @@ describe('level1Lookup', () => {
     const result = await level1Lookup(db, 'Chicken Breast', {});
 
     expect(result).not.toBeNull();
-    expect(result!.matchType).toBe('exact_food');
-    expect(result!.result.entityType).toBe('food');
-    expect(result!.result.restaurantId).toBeNull();
-    expect(result!.result.chainSlug).toBeNull();
-    expect(result!.result.portionGrams).toBeNull();
+    expect(result?.matchType).toBe('exact_food');
+    expect(result?.result.entityType).toBe('food');
+    expect(result?.result.restaurantId).toBeNull();
+    expect(result?.result.chainSlug).toBeNull();
+    expect(result?.result.portionGrams).toBeNull();
     expect(mockExecuteQuery).toHaveBeenCalledTimes(3);
   });
 
@@ -228,7 +228,7 @@ describe('level1Lookup', () => {
     const result = await level1Lookup(db, 'Chicken Breast', {});
 
     expect(result).not.toBeNull();
-    const n = result!.result.nutrients;
+    const n = result?.result.nutrients;
     expect(n.calories).toBe(165);
     expect(n.proteins).toBe(31);
     expect(n.cholesterol).toBe(85);
@@ -253,8 +253,8 @@ describe('level1Lookup', () => {
     const result = await level1Lookup(db, 'pollo', {});
 
     expect(result).not.toBeNull();
-    expect(result!.matchType).toBe('fts_food');
-    expect(result!.result.entityType).toBe('food');
+    expect(result?.matchType).toBe('fts_food');
+    expect(result?.result.entityType).toBe('food');
     expect(mockExecuteQuery).toHaveBeenCalledTimes(4);
   });
 
@@ -304,7 +304,7 @@ describe('level1Lookup', () => {
     const result = await level1Lookup(db, 'pollo', { chainSlug: 'mcdonalds-es' });
 
     expect(result).not.toBeNull();
-    expect(result!.matchType).toBe('exact_food');
+    expect(result?.matchType).toBe('exact_food');
     expect(mockExecuteQuery).toHaveBeenCalledTimes(3);
   });
 
@@ -319,7 +319,7 @@ describe('level1Lookup', () => {
     const db = buildMockDb() as never;
     const result = await level1Lookup(db, 'Big Mac', {});
 
-    expect(result!.result.portionGrams).toBeNull();
+    expect(result?.result.portionGrams).toBeNull();
   });
 
   it('maps portion_grams=215.00 to portionGrams=215', async () => {
@@ -328,7 +328,7 @@ describe('level1Lookup', () => {
     const db = buildMockDb() as never;
     const result = await level1Lookup(db, 'Big Mac', {});
 
-    expect(result!.result.portionGrams).toBe(215);
+    expect(result?.result.portionGrams).toBe(215);
   });
 
   // -------------------------------------------------------------------------

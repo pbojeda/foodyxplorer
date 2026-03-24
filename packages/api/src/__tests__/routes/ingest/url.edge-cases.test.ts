@@ -497,10 +497,10 @@ describe('Response shape', () => {
     expect(body.data.skippedReasons.length).toBeGreaterThanOrEqual(1);
     const reason = body.data.skippedReasons[0];
     expect(reason).toBeDefined();
-    expect(typeof reason!.dishName).toBe('string');
-    expect(typeof reason!.reason).toBe('string');
-    expect(reason!.dishName.length).toBeGreaterThan(0);
-    expect(reason!.reason.length).toBeGreaterThan(0);
+    expect(typeof reason?.dishName).toBe('string');
+    expect(typeof reason?.reason).toBe('string');
+    expect(reason?.dishName.length).toBeGreaterThan(0);
+    expect(reason?.reason.length).toBeGreaterThan(0);
   }, 15_000);
 });
 

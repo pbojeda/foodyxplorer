@@ -44,7 +44,7 @@ function daysAgo(days: number): Date {
   return new Date(Date.now() - days * 86400 * 1000);
 }
 
-function makeDishNutrientRow(overrides: {
+function _makeDishNutrientRow(overrides: {
   calories?: number;
   proteins?: number;
   carbohydrates?: number;
@@ -279,7 +279,7 @@ describe('checkNutrientCompleteness() — byChain ghost and zeroCalories values'
 // We mock all six check functions inline (no vi.mock at module level to keep
 // these tests isolated from the assembleReport.test.ts module-level mocks).
 
-function buildAssembleReportPrisma(
+function _buildAssembleReportPrisma(
   totalDishes = 10,
   totalRestaurants = 2,
 ): PrismaClient {
@@ -320,6 +320,7 @@ describe('assembleReport() — chainSummary edge cases', () => {
       if (!chainMap.has(slug)) {
         chainMap.set(slug, { totalDishes: 0, dishesWithoutNutrients: 0, ghostRowCount: 0, caloriesAboveThreshold: 0, totalDuplicateDishes: 0 });
       }
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return chainMap.get(slug)!;
     };
 

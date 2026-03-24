@@ -40,7 +40,7 @@ const FAKE_PDF_BUFFER = Buffer.from('%PDF-1.4 fake content for testing');
 const FAKE_PNG_BUFFER = Buffer.from('\x89PNG\r\n\x1a\n fake png content');
 const EMPTY_BUFFER = Buffer.alloc(0);
 // Buffer that starts with %PDF but is otherwise truncated/corrupt
-const CORRUPT_PDF_BUFFER = Buffer.from('%PDF-1.4\x00\x01\x02');
+const _CORRUPT_PDF_BUFFER = Buffer.from('%PDF-1.4\x00\x01\x02');
 
 // ---------------------------------------------------------------------------
 // Multipart helper (duplicated minimally from main test)

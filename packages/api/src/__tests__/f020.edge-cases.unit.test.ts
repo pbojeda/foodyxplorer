@@ -108,7 +108,7 @@ describe('Section B — level1Lookup unit edge cases (real implementation)', () 
 
       expect(result).not.toBeNull();
       // BUG: DB value 0 silently becomes null — no error, no log
-      expect(result!.result.portionGrams).toBeNull();
+      expect(result?.result.portionGrams).toBeNull();
     });
 
     // BUG-F020-04: parseDecimal('-1.00') returns -1. Then -1 > 0 is false.
@@ -122,7 +122,7 @@ describe('Section B — level1Lookup unit edge cases (real implementation)', () 
 
       expect(result).not.toBeNull();
       // BUG: negative portion silently becomes null — masked data quality issue
-      expect(result!.result.portionGrams).toBeNull();
+      expect(result?.result.portionGrams).toBeNull();
     });
 
     it('portion_grams="0.01" correctly maps to portionGrams=0.01', async () => {
@@ -133,7 +133,7 @@ describe('Section B — level1Lookup unit edge cases (real implementation)', () 
       const result = await level1Lookup(db, 'Test Dish', {});
 
       expect(result).not.toBeNull();
-      expect(result!.result.portionGrams).toBe(0.01);
+      expect(result?.result.portionGrams).toBe(0.01);
     });
 
     it('portion_grams=null correctly maps to portionGrams=null', async () => {
@@ -144,7 +144,7 @@ describe('Section B — level1Lookup unit edge cases (real implementation)', () 
       const result = await level1Lookup(db, 'Test Dish', {});
 
       expect(result).not.toBeNull();
-      expect(result!.result.portionGrams).toBeNull();
+      expect(result?.result.portionGrams).toBeNull();
     });
   });
 
@@ -165,7 +165,7 @@ describe('Section B — level1Lookup unit edge cases (real implementation)', () 
       const result = await level1Lookup(db, 'Test Dish', {});
 
       expect(result).not.toBeNull();
-      const n = result!.result.nutrients;
+      const n = result?.result.nutrients;
       // All null nutrients become 0 — this is safe but masks missing data
       expect(n.calories).toBe(0);
       expect(n.proteins).toBe(0);
@@ -190,7 +190,7 @@ describe('Section B — level1Lookup unit edge cases (real implementation)', () 
       const result = await level1Lookup(db, 'Test Dish', {});
 
       expect(result).not.toBeNull();
-      expect(result!.result.source.url).toBeNull();
+      expect(result?.result.source.url).toBeNull();
     });
 
     it('food row with source_url=null → source.url=null in result (strategy 3)', async () => {
@@ -203,7 +203,7 @@ describe('Section B — level1Lookup unit edge cases (real implementation)', () 
       const result = await level1Lookup(db, 'Chicken', {});
 
       expect(result).not.toBeNull();
-      expect(result!.result.source.url).toBeNull();
+      expect(result?.result.source.url).toBeNull();
     });
   });
 
@@ -316,8 +316,8 @@ describe('Section B — level1Lookup unit edge cases (real implementation)', () 
       const result = await level1Lookup(db, 'Test Dish', {});
 
       expect(result).not.toBeNull();
-      expect(result!.matchType).toBe('exact_dish');
-      const n = result!.result.nutrients;
+      expect(result?.matchType).toBe('exact_dish');
+      const n = result?.result.nutrients;
       expect(n.calories).toBe(300);
       expect(n.proteins).toBe(10);
       expect(n.carbohydrates).toBe(40);

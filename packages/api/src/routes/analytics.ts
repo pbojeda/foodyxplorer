@@ -122,7 +122,7 @@ const analyticsRoutesPlugin: FastifyPluginAsync<AnalyticsPluginOptions> = async 
               qb.where(sql<boolean>`queried_at >= NOW() - INTERVAL ${sql.lit(interval)}`),
             )
             .$if(hasChainFilter, qb =>
-              qb.where('chain_slug', '=', chainSlug!),
+              qb.where('chain_slug', '=', chainSlug ?? ''),
             )
             .execute() as Promise<ScalarRow[]>,
 
@@ -136,7 +136,7 @@ const analyticsRoutesPlugin: FastifyPluginAsync<AnalyticsPluginOptions> = async 
               qb.where(sql<boolean>`queried_at >= NOW() - INTERVAL ${sql.lit(interval)}`),
             )
             .$if(hasChainFilter, qb =>
-              qb.where('chain_slug', '=', chainSlug!),
+              qb.where('chain_slug', '=', chainSlug ?? ''),
             )
             .groupBy('level_hit')
             .execute() as Promise<LevelRow[]>,
@@ -152,7 +152,7 @@ const analyticsRoutesPlugin: FastifyPluginAsync<AnalyticsPluginOptions> = async 
               qb.where(sql<boolean>`queried_at >= NOW() - INTERVAL ${sql.lit(interval)}`),
             )
             .$if(hasChainFilter, qb =>
-              qb.where('chain_slug', '=', chainSlug!),
+              qb.where('chain_slug', '=', chainSlug ?? ''),
             )
             .groupBy('chain_slug')
             .orderBy(db.fn.countAll(), 'desc')
@@ -168,7 +168,7 @@ const analyticsRoutesPlugin: FastifyPluginAsync<AnalyticsPluginOptions> = async 
               qb.where(sql<boolean>`queried_at >= NOW() - INTERVAL ${sql.lit(interval)}`),
             )
             .$if(hasChainFilter, qb =>
-              qb.where('chain_slug', '=', chainSlug!),
+              qb.where('chain_slug', '=', chainSlug ?? ''),
             )
             .groupBy('source')
             .execute() as Promise<SourceRow[]>,
@@ -183,7 +183,7 @@ const analyticsRoutesPlugin: FastifyPluginAsync<AnalyticsPluginOptions> = async 
               qb.where(sql<boolean>`queried_at >= NOW() - INTERVAL ${sql.lit(interval)}`),
             )
             .$if(hasChainFilter, qb =>
-              qb.where('chain_slug', '=', chainSlug!),
+              qb.where('chain_slug', '=', chainSlug ?? ''),
             )
             .groupBy('query_text')
             .orderBy(db.fn.countAll(), 'desc')
