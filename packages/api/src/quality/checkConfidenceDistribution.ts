@@ -110,6 +110,7 @@ export async function checkConfidenceDistribution(
       scraped: 0,
       ingredients: 0,
       extrapolation: 0,
+        llm: 0,
       llm: 0,
     };
     const method = row.estimationMethod as keyof QualityConfidenceByEstimationMethod;
@@ -131,6 +132,7 @@ export async function checkConfidenceDistribution(
         scraped: 0,
         ingredients: 0,
         extrapolation: 0,
+        llm: 0,
       };
       return {
         chainSlug,
