@@ -1,0 +1,2 @@
+description = "Review the current Spec using an external AI model for independent critique before planning (optional, for Standard/Complex features)"
+prompt = "Read the file .gemini/commands/review-spec-instructions.md and follow the instructions to review the current Spec with an external model."

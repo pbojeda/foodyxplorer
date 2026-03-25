@@ -1,0 +1,2 @@
+description = "Generate a complete context recovery prompt to paste after compaction or at the start of a new session"
+prompt = "Read the file .gemini/commands/context-prompt-instructions.md and follow the instructions to generate a context recovery prompt."

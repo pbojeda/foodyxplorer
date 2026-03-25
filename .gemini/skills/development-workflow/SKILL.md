@@ -70,6 +70,8 @@ Ask user to classify complexity before starting. See `references/complexity-guid
 1. Follow the instructions in `.gemini/agents/spec-creator.md`
 2. Update global spec files (`api-spec.yaml`, `ui-components.md`) and validation schemas if applicable
 3. Write spec summary into the ticket's `## Spec` section
+4. **Spec Self-Review:** Re-read the spec critically. Are requirements complete? Edge cases covered? API contract well-defined? Acceptance criteria testable? Does the spec conflict with existing architecture (`key_facts.md`, `decisions.md`)? Update the spec with any fixes found before proceeding.
+5. **Optional:** Run `/review-spec` for external model review (recommended for Standard/Complex)
 
 **→ CHECKPOINT: Spec Approval** — Update tracker (Active Session + Features table): step `0/6 (Spec)`
 

@@ -12,16 +12,18 @@ Review the Implementation Plan in the current ticket using external models for i
 2. **Detect available reviewers** — Check which external CLIs are installed:
 
 ```bash
-which gemini 2>/dev/null && echo "gemini: available" || echo "gemini: not found"
-which codex 2>/dev/null && echo "codex: available" || echo "codex: not found"
+command -v gemini >/dev/null 2>&1 && echo "gemini: available" || echo "gemini: not found"
+command -v codex >/dev/null 2>&1 && echo "codex: available" || echo "codex: not found"
 ```
 
 3. **Prepare the review input** — Extract the spec and plan into a temp file with the review prompt. Use the feature ID from the Active Session (e.g., `F023`):
 
 ```bash
-TICKET=$(ls docs/tickets/F023-*.md)  # Use the feature ID from Step 1
+TICKET="$(echo docs/tickets/F023-*.md)"  # Use the feature ID from Step 1; verify exactly one match
+REVIEW_DIR="/tmp/review-plan-$(basename "$PWD")"
+mkdir -p "$REVIEW_DIR"
 
-cat > /tmp/review-prompt.txt <<'CRITERIA'
+cat > "$REVIEW_DIR/input.txt" <<'CRITERIA'
 You are reviewing an Implementation Plan for a software feature. Your job is to find real problems, not praise. But if the plan is solid, say APPROVED — do not manufacture issues that are not there.
 
 Below you will find the Spec (what to build) and the Implementation Plan (how to build it). Review the plan and report:
@@ -39,7 +41,7 @@ End with: VERDICT: APPROVED | VERDICT: REVISE (if any CRITICAL or 2+ IMPORTANT i
 SPEC AND PLAN:
 CRITERIA
 
-sed -n '/## Spec/,/## Acceptance Criteria/p' "$TICKET" >> /tmp/review-prompt.txt
+sed -n '/^## Spec$/,/^## Acceptance Criteria$/p' "$TICKET" >> "$REVIEW_DIR/input.txt"
 ```
 
 4. **Send for review** — Execute **only one** of the following paths based on Step 2 results:
@@ -47,24 +49,28 @@ sed -n '/## Spec/,/## Acceptance Criteria/p' "$TICKET" >> /tmp/review-prompt.txt
 ### Path A: Both CLIs available (best — two independent perspectives)
 
 ```bash
-cat /tmp/review-prompt.txt | gemini > /tmp/review-gemini.txt 2>&1 &
-cat /tmp/review-prompt.txt | codex exec - > /tmp/review-codex.txt 2>&1 &
-wait
+cat "$REVIEW_DIR/input.txt" | gemini > "$REVIEW_DIR/gemini.txt" 2>&1 &
+PID_GEMINI=$!
+cat "$REVIEW_DIR/input.txt" | codex exec - > "$REVIEW_DIR/codex.txt" 2>&1 &
+PID_CODEX=$!
 
-echo "=== GEMINI REVIEW ===" && cat /tmp/review-gemini.txt
-echo "=== CODEX REVIEW ===" && cat /tmp/review-codex.txt
+wait $PID_GEMINI && echo "Gemini: OK" || echo "Gemini: FAILED (exit $?) — check $REVIEW_DIR/gemini.txt"
+wait $PID_CODEX && echo "Codex: OK" || echo "Codex: FAILED (exit $?) — check $REVIEW_DIR/codex.txt"
+
+echo "=== GEMINI REVIEW ===" && cat "$REVIEW_DIR/gemini.txt"
+echo "=== CODEX REVIEW ===" && cat "$REVIEW_DIR/codex.txt"
 ```
 
-Consolidate findings — issues flagged by both models independently carry higher weight. Deduplicate and prioritize.
+Consolidate findings — issues flagged by both models independently carry higher weight. Deduplicate and prioritize. Ignore output from any reviewer that failed.
 
 ### Path B: One CLI available
 
 ```bash
 # Gemini only
-cat /tmp/review-prompt.txt | gemini
+cat "$REVIEW_DIR/input.txt" | gemini
 
 # Codex only
-cat /tmp/review-prompt.txt | codex exec -
+cat "$REVIEW_DIR/input.txt" | codex exec -
 ```
 
 ### Path C: No external CLI available (self-review fallback)

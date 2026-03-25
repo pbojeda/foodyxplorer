@@ -1,6 +1,8 @@
-Generate a complete context recovery prompt to paste after /compact or at the start of a new session.
+## Context Prompt — Instructions
 
-## What to include
+Generate a complete context recovery prompt to paste after compaction or at the start of a new session.
+
+### What to include
 
 The prompt must contain EVERYTHING needed for a new session (or post-compact) to continue work without information loss:
 
@@ -15,16 +17,16 @@ The prompt must contain EVERYTHING needed for a new session (or post-compact) to
 9. **Next action**: the specific next thing to do, with context
 10. **User notes**: any decisions or constraints communicated by the user
 
-### Workflow Recovery (CRITICAL)
+#### Workflow Recovery (CRITICAL)
 
-This section prevents the agent from losing track of the development process after /compact:
+This section prevents the agent from losing track of the development process after compaction:
 
 11. **Current workflow step**: Which of the 6 steps (Spec, Setup, Plan, Implement, Finalize, Review) is active
 12. **Pending checkpoints**: Which approvals remain (Spec, Ticket, Plan, Commit, Merge)
 13. **Merge checklist reminder**: If at Step 5 or later, explicitly state: "Before requesting merge approval, you MUST read `references/merge-checklist.md` and execute ALL actions (0-8). Fill the `## Merge Checklist Evidence` table in the ticket with real evidence for each action."
 14. **Step order reminder**: "After commit+PR, run code-review-specialist and qa-engineer (Step 5), then execute merge-checklist actions. Do NOT request merge approval without completing the checklist."
 
-## How to generate
+### How to generate
 
 - Read `docs/project_notes/product-tracker.md` (Active Session + Features tables + Completion Log)
 - Read `docs/project_notes/decisions.md` (recent ADRs)
@@ -33,12 +35,12 @@ This section prevents the agent from losing track of the development process aft
 - Run `git log --oneline -5` and `git status` for current state
 - Read `.sdd-version` for SDD DevFlow version
 
-## Output format
+### Output format
 
 Structured markdown with tables, ready to paste directly as the first message of a new session. The prompt should be self-contained — the receiving agent should not need to ask clarifying questions.
 
-## Context
+### Context
 
 - Users work remotely with long sessions — interruptions are costly
-- After /review-plan + plan approval, context is typically at 50%+ usage, making /compact necessary before implementation
-- The workflow recovery section is essential: without it, the agent may skip merge checklist actions after /compact
+- After plan review + plan approval, context is typically at 50%+ usage, making compaction necessary before implementation
+- The workflow recovery section is essential: without it, the agent may skip merge checklist actions after compaction
