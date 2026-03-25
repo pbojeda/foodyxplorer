@@ -90,6 +90,8 @@ export const BRAND_NAMES: ReadonlySet<string> = new Set([
 // Spanish indicator words for heuristic detection
 // ---------------------------------------------------------------------------
 
+// Words that are unambiguously Spanish (not shared with English/Italian).
+// Excluded: pizza (Italian/English), salsa (English loanword), menu/menú (English cognate).
 const SPANISH_INDICATOR_WORDS = [
   'con',
   'de',
@@ -103,11 +105,7 @@ const SPANISH_INDICATOR_WORDS = [
   'queso',
   'ensalada',
   'patatas',
-  'salsa',
   'pechuga',
-  'menú',
-  'menu',
-  'pizza',
   'bocadillo',
   'refresco',
 ];
@@ -227,14 +225,6 @@ export async function runTranslateDishNames(
   opts: TranslateDishNamesOptions,
   prismaOverride?: PrismaClient,
 ): Promise<TranslationSummary> {
-  // Validate API key before doing anything else
-  const apiKey = process.env['OPENAI_API_KEY'];
-  if (!apiKey) {
-    throw new Error(
-      'OPENAI_API_KEY environment variable is not set. Cannot initialize OpenAI client.',
-    );
-  }
-
   const prismaClient = prismaOverride ?? defaultPrisma;
 
   // Build Prisma query filters
@@ -265,12 +255,6 @@ export async function runTranslateDishNames(
     failed: 0,
     skipped: 0,
   };
-
-  if (opts.dryRun) {
-    console.log('[translate-dish-names] Dry-run mode — no writes will be made');
-    summary.skipped = total;
-    return summary;
-  }
 
   // Classify all dishes locally
   const brandDishes: typeof dishes = [];
@@ -311,6 +295,17 @@ export async function runTranslateDishNames(
   console.log(`[translate-dish-names] Step 3: ${shortDishes.length + mixedDishes.length + codeDishes.length} short/ambiguous/code/mixed names → copied as-is`);
   console.log(`[translate-dish-names] Step 4: ${llmDishes.length} names to translate via gpt-4o-mini`);
 
+  if (opts.dryRun) {
+    console.log('[translate-dish-names] Dry-run mode — no writes will be made');
+    summary.brandCopy = brandDishes.length;
+    summary.esCopy = esDishes.length;
+    summary.shortCopy = shortDishes.length;
+    summary.mixedCopy = mixedDishes.length;
+    summary.codeCopy = codeDishes.length;
+    summary.skipped = total;
+    return summary;
+  }
+
   // Write non-LLM dishes immediately
   const nonLlmBuckets: Array<{
     bucket: typeof dishes;
@@ -344,6 +339,14 @@ export async function runTranslateDishNames(
     return summary;
   }
 
+  // Validate API key only when LLM translation is needed
+  const apiKey = process.env['OPENAI_API_KEY'];
+  if (!apiKey) {
+    throw new Error(
+      'OPENAI_API_KEY environment variable is not set. Cannot initialize OpenAI client.',
+    );
+  }
+
   // Initialize OpenAI client
   const openai = new OpenAI({ apiKey });
 
@@ -363,7 +366,7 @@ export async function runTranslateDishNames(
       `[translate-dish-names] Translating batch ${batchIdx + 1}/${batches.length} (${names.length} names)...`,
     );
 
-    let response: unknown;
+    let response: string | null = null;
     let success = false;
     const maxAttempts = 3;
 
@@ -377,14 +380,10 @@ export async function runTranslateDishNames(
           ],
         });
 
-        const content = (completion as {
-          choices: Array<{ message: { content: string | null } }>;
-          usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
-        }).choices[0]?.message.content;
+        const content = completion.choices[0]?.message.content ?? null;
 
-        if (completion && typeof (completion as { usage?: unknown }).usage === 'object') {
-          const usage = (completion as { usage: { total_tokens: number } }).usage;
-          totalCostTokens += usage.total_tokens;
+        if (completion.usage) {
+          totalCostTokens += completion.usage.total_tokens;
         }
 
         response = content;
@@ -393,7 +392,7 @@ export async function runTranslateDishNames(
       } catch (err) {
         const isRetryable =
           err instanceof Error &&
-          (err.message.includes('429') || err.message.includes('5') );
+          (err.message.includes('429') || /\b5\d{2}\b/.test(err.message));
 
         if (attempt < maxAttempts && isRetryable) {
           const delay = Math.pow(2, attempt - 1) * 2000;
@@ -408,7 +407,7 @@ export async function runTranslateDishNames(
       }
     }
 
-    if (!success || response === undefined) {
+    if (!success || response === null) {
       console.error(`[translate-dish-names] Batch ${batchIdx + 1} failed — skipping ${names.length} dishes`);
       summary.failed += names.length;
       continue;
@@ -417,8 +416,7 @@ export async function runTranslateDishNames(
     // Parse response
     let parsed: unknown;
     try {
-      const contentStr = typeof response === 'string' ? response : String(response);
-      parsed = JSON.parse(contentStr);
+      parsed = JSON.parse(response);
     } catch {
       console.error(`[translate-dish-names] Batch ${batchIdx + 1} JSON parse failure — skipping ${names.length} dishes`);
       summary.failed += names.length;

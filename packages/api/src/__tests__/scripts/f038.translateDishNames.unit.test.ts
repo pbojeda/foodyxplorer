@@ -337,8 +337,10 @@ describe('runTranslateDishNames() — missing OPENAI_API_KEY', () => {
     delete process.env['OPENAI_API_KEY'];
   });
 
-  it('throws a fatal error when OPENAI_API_KEY is missing', async () => {
-    const mockPrisma = makeMockPrisma([]);
+  it('throws a fatal error when OPENAI_API_KEY is missing and LLM dishes exist', async () => {
+    const mockPrisma = makeMockPrisma([
+      { id: 'dish-1', name: 'Grilled Chicken Salad', restaurant: { chainSlug: 'burger-king-es' } },
+    ]);
 
     await expect(
       runTranslateDishNames(
