@@ -1,7 +1,7 @@
 # F038: Multilingual Dish Name Resolution
 
 **Feature:** F038 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F038-multilingual-dish-names
+**Status:** Review | **Branch:** feature/F038-multilingual-dish-names
 **Created:** 2026-03-25 | **Dependencies:** None (ADR-010 already written)
 
 ---
@@ -439,7 +439,7 @@ if (isMain) { void main(); }
 | 2026-03-25 | Plan reviewed by Codex GPT-5.4 | VERDICT: REVISE. 4 IMPORTANT + 2 SUGGESTION. All 6 addressed: (1) added mixed/code classification steps, (2) added Step 7 embedding regeneration, (3) added L1 integration test for AC-9, (4) removed --concurrency flag (YAGNI), (5) fixed Prisma import pattern, (6) detailed dry-run stdout format. Gemini unavailable (config error). |
 | 2026-03-25 | Implementation complete | 7 steps implemented with TDD. 55 initial tests. Commit cf7a4b3 |
 | 2026-03-25 | Code review fixes | Fixed retry logic (regex), SDK types for OpenAI, Zod enum, removed ambiguous Spanish indicators, deferred API key check. Commit 84a3717 |
-| 2026-03-25 | QA verified | 91 total tests (80 original + 11 QA edge-case). All ACs verified. 0 regressions. Commit 9b9e803 |
+| 2026-03-25 | QA verified | 91 total tests (55 original + 36 QA edge-case). All ACs verified. 0 regressions. Commit 9b9e803 |
 | 2026-03-25 | PR created | PR #30 → develop. Squash merge strategy |
 
 ---
