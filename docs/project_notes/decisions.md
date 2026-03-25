@@ -322,3 +322,42 @@ The preprocessor is invoked from `POST /ingest/pdf-url` when an optional `chainS
 - (-) Google Maps integration delayed to Phase 2
 
 **Full plan:** `docs/project_notes/strategic-plan-r1-r6.md`
+
+### ADR-010: Multilingual Dish Names — Populate name_es, Defer Query-Time Translation (2026-03-25)
+
+**Context:** 883/885 dishes have `name_es = NULL`. Names are stored in the PDF source language (mostly English from chain nutrition PDFs). Spanish-speaking users searching in Spanish experience L1 FTS failures (Spanish parser on English text) and L3 embedding degradation. L4 (LLM decomposition) compensates but is the most expensive level. ADR-003 noted: "Multilingual names: Deferred — name + nameEs is sufficient for Phase 1. Revisit before Phase 2."
+
+Analysis of the real usage pattern revealed that the primary use case (generic dishes from local restaurants like "tortilla de patatas") already works via L4 Strategy B, which decomposes into ingredients resolved against the `foods` table (100% `name_es` coverage, NOT NULL). The i18n gap affects only ~200 descriptive chain dishes (e.g., "Grilled Chicken Salad" not findable as "ensalada de pollo") that fall to L4 instead of being caught by L1/L3.
+
+Three approaches were evaluated in `docs/research/i18n-solution-proposal-2026-03-24.md`. External review by Codex GPT-5.4 (2 CRITICAL, 6 IMPORTANT) and Gemini 2.5 Pro (2 CRITICAL, 2 IMPORTANT) both returned VERDICT: REVISE on the initially proposed Enfoque B+ (Canonical English). Key issues: translation drift between ingest and query-time engines, loss of ADR-001 traceability when rewriting `name`, upsert identity breakage, and YAGNI for hypothetical future languages.
+
+**Decision:**
+
+1. **Enfoque A (Populate `name_es`)** — Populate `name_es` for all dishes via batch LLM translation. Fix ingest pipeline to always populate `name_es`. `name` remains the original PDF text (immutable, ADR-001 traceability preserved).
+
+2. **New field `name_source_locale`** — `VARCHAR(5)`, nullable, default `NULL` (backfilled with detection). Values: `'en'`, `'es'`, `'mixed'`, `'unknown'`. Provides metadata about the language of the original PDF without altering `name`.
+
+3. **No query-time translation** — L1 FTS already supports dual-language search via `COALESCE(name_es, name)` with Spanish parser + `name` with English parser. Once `name_es` is populated, L1 works for Spanish queries without any runtime translation service.
+
+4. **Regenerate embeddings** — `buildDishText()` already includes `nameEs` when non-null. Populating `name_es` automatically makes embeddings bilingual, improving L3 for cross-lingual queries.
+
+5. **Translation provider for batch: LLM (gpt-4o-mini)** — One-time batch translation of ~885 dish names. Cost: ~$0.20. No runtime translation service dependency.
+
+6. **Evolution path** — When a 3rd language is needed: (a) add `name_XX` column for small N, or (b) introduce `dish_translations` table (industry standard pattern: MyFitnessPal, FatSecret, Open Food Facts). Migration from `{name, name_es}` to `{name, dish_translations}` is mechanical and low-risk. Query-time translation service introduced only when justified by actual demand.
+
+**Alternatives Considered:**
+- Enfoque B+ (Canonical English): Rejected — both external reviewers flagged critical issues: translation drift (two engines produce different strings → L1 exact match fails), `name` field rewrite breaks ADR-001 traceability, upsert identity breakage (`restaurantId + name` used for dedup), external API dependency in critical path. Overengineers for hypothetical future languages (YAGNI).
+- Enfoque C (Hybrid): Rejected — combines complexity of A and B without clear benefit over A alone. Dual search strategy adds maintenance burden.
+- Query-time language detection + translation: Deferred — unnecessary for ES+EN market. The `foods` table already has 100% `name_es` coverage, and L4 handles multilingual input natively.
+
+**Reviewed by:** Codex GPT-5.4 (VERDICT: REVISE on B+), Gemini 2.5 Pro (VERDICT: REVISE on B+, recommended Enfoque A)
+
+**Consequences:**
+- (+) `name` preserved as original PDF text — ADR-001 traceability intact
+- (+) Zero runtime dependencies — no external translation API in critical path
+- (+) L1 FTS works for Spanish queries without code changes (existing indexes + COALESCE)
+- (+) L3 embeddings become bilingual automatically via `buildDishText()`
+- (+) Simple implementation (~1-2 days) vs B+ (~4-5 days)
+- (+) Clean evolution path to N languages via `dish_translations` table when needed
+- (-) Each new language requires a batch translation + schema change (acceptable tradeoff per YAGNI)
+- (-) ~$0.20 one-time cost for batch LLM translation
