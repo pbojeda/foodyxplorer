@@ -71,7 +71,7 @@ Ask user to classify complexity before starting. See `references/complexity-guid
 2. Update global spec files (`api-spec.yaml`, `ui-components.md`) and validation schemas if applicable
 3. Write spec summary into the ticket's `## Spec` section
 4. **Spec Self-Review:** Re-read the spec critically. Are requirements complete? Edge cases covered? API contract well-defined? Acceptance criteria testable? Does the spec conflict with existing architecture (`key_facts.md`, `decisions.md`)? Update the spec with any fixes found before proceeding.
-5. **Optional:** Run `/review-spec` for external model review (recommended for Standard/Complex)
+5. **Cross-Model Spec Review:** Run `/review-spec`. If at least one external CLI is available (`claude`, `codex`), this provides independent validation from other models. If no external CLIs are detected, skip this step (the self-review above is sufficient).
 
 **→ CHECKPOINT: Spec Approval** — Update tracker (Active Session + Features table): step `0/6 (Spec)`
 
@@ -108,7 +108,8 @@ See `references/branching-strategy.md` for details.
    - Dependencies between steps that force a different order?
    - Over-engineering or unnecessary abstractions?
    Update the plan with any fixes found before proceeding.
-5. Update tracker: step `2/6 (Plan)` (Active Session + Features table)
+5. **Cross-Model Plan Review:** Run `/review-plan`. If at least one external CLI is available (`claude`, `codex`), this provides independent validation from other models. If no external CLIs are detected, skip this step (the self-review above is sufficient).
+6. Update tracker: step `2/6 (Plan)` (Active Session + Features table)
 
 **→ CHECKPOINT: Plan Approval**
 
