@@ -316,7 +316,7 @@ model Dish {
   sourceId         String           @map("source_id") @db.Uuid
   name             String           @db.VarChar(255)
   nameEs           String?          @map("name_es") @db.VarChar(255)
-  nameSourceLocale String?          @map("name_source_locale") @db.VarChar(5)
+  nameSourceLocale String?          @map("name_source_locale") @db.VarChar(16)
   description      String?          @db.Text
   externalId       String?          @map("external_id") @db.VarChar(100)
   availability     DishAvailability @default(available)
