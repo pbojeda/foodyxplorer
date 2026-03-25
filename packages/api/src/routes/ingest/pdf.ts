@@ -23,6 +23,7 @@ import {
 
 import { extractText } from '../../lib/pdfParser.js';
 import { parseNutritionTable } from '../../ingest/nutritionTableParser.js';
+import { getChainSourceLocale } from '../../ingest/chainLocaleRegistry.js';
 
 // ---------------------------------------------------------------------------
 // Zod schemas (API-internal)
@@ -201,7 +202,14 @@ const ingestPdfRoutesPlugin: FastifyPluginAsync<IngestPdfPluginOptions> = async 
       const validDishes: z.infer<typeof NormalizedDishDataSchema>[] = [];
       const skippedReasons: IngestPdfSkippedReason[] = [];
 
+      // F038: pdf.ts has no chainSlug — locale is unknown, nameSourceLocale = null.
+      // The batch translate-dish-names script will classify and translate these later.
+      const chainSourceLocale = getChainSourceLocale(undefined);
+      const nameSourceLocale: string | null =
+        chainSourceLocale === 'unknown' ? null : chainSourceLocale;
+
       for (const raw of rawDishes) {
+        // No nameEs assignment for generic PDF upload (chainSlug unknown).
         // Normalize nutrients — returns null if required fields missing or calorie > 9000
         const normalizedNutrients = normalizeNutrients(raw.nutrients);
         if (normalizedNutrients === null) {
@@ -262,6 +270,7 @@ const ingestPdfRoutesPlugin: FastifyPluginAsync<IngestPdfPluginOptions> = async 
                     sourceId: dish.sourceId,
                     name: dish.name,
                     nameEs: dish.nameEs,
+                    nameSourceLocale,
                     description: dish.description,
                     externalId: dish.externalId,
                     availability: dish.availability,
@@ -280,6 +289,7 @@ const ingestPdfRoutesPlugin: FastifyPluginAsync<IngestPdfPluginOptions> = async 
                   data: {
                     sourceId: dish.sourceId,
                     nameEs: dish.nameEs,
+                    nameSourceLocale,
                     description: dish.description,
                     availability: dish.availability,
                     portionGrams: dish.portionGrams,

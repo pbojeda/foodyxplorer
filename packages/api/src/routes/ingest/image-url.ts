@@ -27,6 +27,7 @@ import { downloadImage } from '../../lib/imageDownloader.js';
 import { extractTextFromImage } from '../../lib/imageOcrExtractor.js';
 import { parseNutritionTable } from '../../ingest/nutritionTableParser.js';
 import { preprocessChainText } from '../../ingest/chainTextPreprocessor.js';
+import { getChainSourceLocale } from '../../ingest/chainLocaleRegistry.js';
 
 // ---------------------------------------------------------------------------
 // Zod schemas (API-internal)
@@ -200,7 +201,25 @@ const ingestImageUrlRoutesPlugin: FastifyPluginAsync<IngestImageUrlPluginOptions
       const validDishes: z.infer<typeof NormalizedDishDataSchema>[] = [];
       const skippedReasons: IngestImageUrlSkippedReason[] = [];
 
+      // Determine chain source locale once, outside the loop (F038)
+      const chainSourceLocale = getChainSourceLocale(chainSlug);
+      // nameSourceLocale to write: 'en' or 'es' for known chains, null for unknown
+      const nameSourceLocale: string | null =
+        chainSourceLocale === 'unknown' ? null : chainSourceLocale;
+
       for (const raw of rawDishes) {
+        // F038: Populate nameEs based on chain source locale before normalizeDish()
+        if (chainSourceLocale === 'es') {
+          raw.nameEs = raw.name;
+        } else if (chainSourceLocale === 'en') {
+          // Leave nameEs undefined — run translate-dish-names script to backfill
+          request.log.warn(
+            { dishName: raw.name },
+            '[ingest] nameEs not set — run translate-dish-names script',
+          );
+        }
+        // else 'unknown': leave nameEs undefined, no warning
+
         // Normalize nutrients — returns null if required fields missing or calorie > 9000
         const normalizedNutrients = normalizeNutrients(raw.nutrients);
         if (normalizedNutrients === null) {
@@ -260,6 +279,7 @@ const ingestImageUrlRoutesPlugin: FastifyPluginAsync<IngestImageUrlPluginOptions
                     sourceId:         dish.sourceId,
                     name:             dish.name,
                     nameEs:           dish.nameEs,
+                    nameSourceLocale,
                     description:      dish.description,
                     externalId:       dish.externalId,
                     availability:     dish.availability,
@@ -278,6 +298,7 @@ const ingestImageUrlRoutesPlugin: FastifyPluginAsync<IngestImageUrlPluginOptions
                   data:  {
                     sourceId:         dish.sourceId,
                     nameEs:           dish.nameEs,
+                    nameSourceLocale,
                     description:      dish.description,
                     availability:     dish.availability,
                     portionGrams:     dish.portionGrams,
