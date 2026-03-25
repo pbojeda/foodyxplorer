@@ -55,6 +55,7 @@ export type Dish = {
   source_id: string;
   name: string;
   name_es: string | null;
+  name_source_locale: string | null;
   description: string | null;
   external_id: string | null;
   availability: Generated<DishAvailability>;
