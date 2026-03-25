@@ -1,7 +1,7 @@
 # F038: Multilingual Dish Name Resolution
 
 **Feature:** F038 | **Type:** Backend-Feature | **Priority:** High
-**Status:** Review | **Branch:** feature/F038-multilingual-dish-names
+**Status:** Done | **Branch:** feature/F038-multilingual-dish-names
 **Created:** 2026-03-25 | **Dependencies:** None (ADR-010 already written)
 
 ---
@@ -426,7 +426,7 @@ if (isMain) { void main(); }
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed
 - [x] Step 5: `qa-engineer` executed (Standard)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -441,6 +441,7 @@ if (isMain) { void main(); }
 | 2026-03-25 | Code review fixes | Fixed retry logic (regex), SDK types for OpenAI, Zod enum, removed ambiguous Spanish indicators, deferred API key check. Commit 84a3717 |
 | 2026-03-25 | QA verified | 91 total tests (55 original + 36 QA edge-case). All ACs verified. 0 regressions. Commit 9b9e803 |
 | 2026-03-25 | PR created | PR #30 → develop. Squash merge strategy |
+| 2026-03-25 | Merged & completed | Squash merged to develop. Branch deleted. 91 tests, 21 files changed, +3631 lines |
 
 ---
 

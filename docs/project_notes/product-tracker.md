@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-25
 
-**Active Feature:** F038 — Multilingual Dish Name Resolution
-**Step:** 5/6 (Review)
-**Branch:** feature/F038-multilingual-dish-names
-**Complexity:** Standard
-**Context:** Spec approved (Opción A per ADR-010). Schema migration (name_source_locale), batch translation script (gpt-4o-mini), ingest pipeline fix for Spanish chains, embedding regeneration. No API changes. Ticket: docs/tickets/F038-multilingual-dish-names.md. Spec: docs/specs/f038-multilingual-dish-names-spec.md.
+**Active Feature:** None — no active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F038 completed and merged to develop (PR #30, 2026-03-25). 91 tests, 21 files, +3631 lines.
 
 ---
 
@@ -84,7 +84,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F038 | Multilingual Dish Name Resolution | backend | in-progress | 5/6 | Standard. Populate name_es for all dishes, fix ingest pipeline, new name_source_locale field, regenerate embeddings. ADR-010. Priority: before F031/F034 |
+| F038 | Multilingual Dish Name Resolution | backend | done | 6/6 | Standard. Populate name_es for all dishes, fix ingest pipeline, new name_source_locale field, regenerate embeddings. ADR-010. Priority: before F031/F034 |
 | F031 | Bot File Upload (multipart, inline keyboard) | fullstack | pending | — | Standard. Depends on F032. Bot downloads file → multipart to API. New POST /ingest/image. ADR-009 |
 | F032 | Restaurant Resolution + Creation (schema migration) | fullstack | done | 6/6 | Standard. Schema migration (address fields). Trigram search. POST /restaurants. Bot /restaurante + Redis state. PR #29, SHA d71cf09 |
 | F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | done | 6/6 | Simple. PR #28, SHA e8aece8. 10 tests. portion_multiplier pattern (ADR-009) |
