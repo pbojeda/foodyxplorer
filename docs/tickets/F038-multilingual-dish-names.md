@@ -455,7 +455,7 @@ if (isMain) { void main(); }
 | 2. Verify product tracker | [x] | Active Session: step 5/6 (Review), Features table: 5/6, in-progress |
 | 3. Update key_facts.md | [x] | Added: translate-dish-names script, chain locale registry |
 | 4. Update decisions.md | [x] | ADR-010 already added in previous session (commit 089d907) |
-| 5. Commit documentation | [x] | Commit: (pending — docs commit below) |
+| 5. Commit documentation | [x] | Commit: 9f3e682 |
 | 6. Verify clean working tree | [x] | `git status`: clean after docs commit |
 
 ---
