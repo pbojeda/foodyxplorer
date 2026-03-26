@@ -13,6 +13,46 @@ export const en: Dictionary = {
     microcopy: 'No spam. No commitments. We will notify you when we launch.',
     trustPills: ['Verified data', 'Visible confidence', 'Made in Spain'],
   },
+  variants: {
+    a: {
+      hero: {
+        eyebrow: 'Know what you eat',
+        headline: 'Eat out without going blind.',
+        subtitle:
+          'Enjoy eating out with more context and less improvisation. Calories, macros, and visible confidence level before deciding.',
+        supporting: 'No spam. Launch and early access only.',
+      },
+    },
+    c: {
+      hero: {
+        eyebrow: 'The problem nobody has solved',
+        headline: 'When you eat out, you decide blind.',
+        subtitle:
+          'You do not know how many calories a dish has. You do not know if the data is reliable. And with allergies, improvising is not an option.',
+        scrollCta: 'See how we solve it',
+      },
+    },
+    d: {
+      hero: {
+        eyebrow: 'Try it now',
+        headline: 'Search any dish. See what you know.',
+        subtitle:
+          'Type a dish and discover calories, macros, and confidence level.',
+      },
+    },
+    f: {
+      hero: {
+        eyebrow: 'For families with food allergies',
+        headline: 'Eat out without fear.',
+        subtitle:
+          'Verified allergens in Spanish restaurants. If there is no official data, we do not take chances.',
+      },
+    },
+  },
+  postSimulatorCta: {
+    headline: 'Do you like what you see?',
+    subtitle: 'Sign up to access when we launch.',
+  },
   problem: {
     eyebrow: 'The problem',
     headline: 'When you eat out, you decide almost blind',
@@ -101,6 +141,8 @@ export const en: Dictionary = {
   },
   emotionalBlock: {
     headline: 'What would eating out with more calm feel like?',
+    quote: '"Finally, I can go out to eat with my family without constant fear of allergens."',
+    quoteAuthor: 'Beta user, Madrid',
     scenarios: [
       {
         scene: 'Reading the menu',
@@ -145,10 +187,38 @@ export const en: Dictionary = {
       },
     ],
   },
+  productDemo: {
+    eyebrow: 'What a real query looks like',
+    headline: 'More real product, less abstract promise',
+    subtitle:
+      'The experience is designed for the exact moment of deciding: you type, you understand where the data comes from, and you choose with more context.',
+  },
+  searchSimulator: {
+    eyebrow: 'Interactive demo',
+    headline: 'You get it in 10 seconds',
+    subtitle:
+      'More than a number: an answer that tells you what it knows, where it knows it from, and when it should not present itself as verified.',
+  },
+  restaurants: {
+    eyebrow: 'Where it works',
+    headline: 'Restaurants across Spain',
+    subtitle:
+      'From chains with official data to your neighborhood bar. nutriXplorer adjusts confidence to the available data.',
+    items: [
+      { label: 'National chains', note: 'Official data' },
+      { label: 'Traditional cuisine', note: 'Smart estimation' },
+      { label: 'Local restaurants', note: 'Inferred by similarity' },
+    ],
+  },
+  audienceGrid: {
+    eyebrow: 'Who is starting today',
+    headline: 'Who is starting today',
+  },
   waitlistCta: {
     headline: 'Be the first to try it',
     subtitle:
       'nutriXplorer is in development. Join the waitlist and be among the first to access it when we launch.',
+    urgency: 'Limited spots for early access',
     trustNote: 'No spam. No commitments. We only notify you when we launch.',
   },
   footer: {

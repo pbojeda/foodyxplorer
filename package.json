@@ -6,12 +6,13 @@
     "packages/shared",
     "packages/api",
     "packages/bot",
-    "packages/scraper"
+    "packages/scraper",
+    "packages/landing"
   ],
   "scripts": {
     "dev:api": "npm run dev -w @foodxplorer/api",
     "dev:bot": "npm run dev -w @foodxplorer/bot",
-"build": "npm run build --workspaces",
+    "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces --if-present",
@@ -35,5 +36,8 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "next": "^14.2.29"
   }
 }

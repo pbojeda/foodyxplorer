@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react';
 import { EmotionalBlock } from '@/components/sections/EmotionalBlock';
 import { getDictionary } from '@/lib/i18n';
 
-// Mock next/image
 jest.mock('next/image', () => {
   return function MockImage({
     src,
@@ -35,19 +34,26 @@ describe('EmotionalBlock', () => {
     }
   });
 
-  it('renders at least one image', () => {
+  it('renders scenario items with CheckCircle2 icons', () => {
     render(<EmotionalBlock dict={dict.emotionalBlock} />);
-    const images = screen.getAllByRole('img');
-    expect(images.length).toBeGreaterThan(0);
+    // Each scenario has a CheckCircle2 icon (mocked as span[data-testid])
+    const icons = screen.getAllByTestId('icon-CheckCircle2');
+    expect(icons.length).toBe(dict.emotionalBlock.scenarios.length);
   });
 
-  it('image has descriptive alt text', () => {
+  it('renders section as a landmark', () => {
     render(<EmotionalBlock dict={dict.emotionalBlock} />);
-    const images = screen.getAllByRole('img');
-    expect(images.length).toBeGreaterThan(0);
-    images.forEach((img) => {
-      expect(img).toHaveAttribute('alt');
-      expect(img.getAttribute('alt')).not.toBe('');
-    });
+    expect(screen.getByRole('region')).toBeInTheDocument();
+  });
+
+  it('renders the food photo image', () => {
+    render(<EmotionalBlock dict={dict.emotionalBlock} />);
+    const img = screen.getByAltText(/amigos/i);
+    expect(img).toBeInTheDocument();
+  });
+
+  it('renders the quote block', () => {
+    render(<EmotionalBlock dict={dict.emotionalBlock} />);
+    expect(screen.getByText(dict.emotionalBlock.quote)).toBeInTheDocument();
   });
 });

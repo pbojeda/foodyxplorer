@@ -1,8 +1,10 @@
-export type Variant = 'a' | 'b';
+export type Variant = 'a' | 'c' | 'd' | 'f';
+
+export type Palette = 'botanical' | 'med';
 
 export type Locale = 'es' | 'en';
 
-export type WaitlistPayload = { email: string };
+export type WaitlistPayload = { email: string; phone?: string; variant: string; source: string };
 
 export type WaitlistResponse = { success: boolean; error?: string };
 
@@ -30,11 +32,12 @@ export type AnalyticsEventPayload = {
 
 export type SectionId =
   | 'hero'
-  | 'problem'
+  | 'product-demo'
   | 'how-it-works'
   | 'trust-engine'
   | 'for-who'
   | 'emotional'
   | 'comparison'
+  | 'restaurants'
   | 'waitlist-cta'
   | 'footer';

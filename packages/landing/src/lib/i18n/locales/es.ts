@@ -1,15 +1,55 @@
 export const es = {
   hero: {
     eyebrow: 'Conoce lo que comes',
-    headlineA: 'Come fuera con tranquilidad',
-    headlineB: 'Conoce lo que comes. Come sin ir a ciegas.',
+    headlineA: 'Come fuera sin ir a ciegas.',
+    headlineB: 'Disfruta de comer fuera con más contexto y menos improvisación.',
     subtitleA:
-      'La forma más clara de entender qué estás comiendo en restaurantes de España: calorías, macros y nivel de confianza visible antes de decidir.',
+      'Disfruta de comer fuera con más contexto y menos improvisación. Calorías, macros y nivel de confianza visible antes de decidir.',
     subtitleB:
       'Información nutricional de restaurantes españoles con trazabilidad real. Calorías, macros y confianza en cada plato.',
     cta: 'Quiero probarlo',
     microcopy: 'Sin spam. Sin compromisos. Avisamos cuando lancemos.',
     trustPills: ['Datos verificados', 'Confianza visible', 'Hecho en España'],
+  },
+  variants: {
+    a: {
+      hero: {
+        eyebrow: 'Conoce lo que comes',
+        headline: 'Come fuera sin ir a ciegas.',
+        subtitle:
+          'Disfruta de comer fuera con más contexto y menos improvisación. Calorías, macros y nivel de confianza visible antes de decidir.',
+        supporting: 'Sin spam. Solo lanzamiento y acceso temprano.',
+      },
+    },
+    c: {
+      hero: {
+        eyebrow: 'El problema que nadie ha resuelto',
+        headline: 'Cuando comes fuera, decides a ciegas.',
+        subtitle:
+          'No sabes cuántas calorías tiene un plato. No sabes si el dato es fiable. Y si hay alergias, improvisar no vale.',
+        scrollCta: 'Ver cómo lo solucionamos',
+      },
+    },
+    d: {
+      hero: {
+        eyebrow: 'Pruébalo ahora',
+        headline: 'Busca cualquier plato. Mira qué sabes.',
+        subtitle:
+          'Escribe un plato y descubre calorías, macros y nivel de confianza.',
+      },
+    },
+    f: {
+      hero: {
+        eyebrow: 'Para familias con alergias alimentarias',
+        headline: 'Come fuera sin miedo.',
+        subtitle:
+          'Alérgenos verificados en restaurantes de España. Si no hay dato oficial, no nos la jugamos.',
+      },
+    },
+  },
+  postSimulatorCta: {
+    headline: '¿Te gusta lo que ves?',
+    subtitle: 'Apúntate para acceder cuando lancemos.',
   },
   problem: {
     eyebrow: 'El problema',
@@ -20,7 +60,7 @@ export const es = {
   },
   howItWorks: {
     eyebrow: 'Cómo funciona',
-    headline: 'Tres pasos. Sin complicaciones.',
+    headline: 'Lo entiendes en 10 segundos',
     steps: [
       {
         title: 'Busca un plato',
@@ -40,8 +80,8 @@ export const es = {
     ],
   },
   trustEngine: {
-    eyebrow: 'Motor de confianza',
-    headline: 'No todos los datos son iguales. Nosotros te lo decimos.',
+    eyebrow: 'Reglas de confianza',
+    headline: 'Qué hace distinta a cada respuesta',
     subtitle:
       'nutriXplorer no inventa precisión donde no la hay. Cada dato lleva su nivel de confianza visible, para que sepas exactamente en qué te puedes apoyar.',
     levels: [
@@ -72,7 +112,7 @@ export const es = {
       'Cuando el dato de alérgenos no está verificado, te lo indicamos claramente. Nunca asumimos que algo es seguro si no lo hemos comprobado.',
   },
   forWho: {
-    eyebrow: 'Para quién es',
+    eyebrow: 'Para quién empieza hoy',
     headline: '¿Te reconoces aquí?',
     profiles: [
       {
@@ -98,7 +138,9 @@ export const es = {
     ],
   },
   emotionalBlock: {
-    headline: '¿Cómo sería comer fuera con más calma?',
+    headline: 'Volver a disfrutar de comer fuera',
+    quote: '"Por fin puedo salir a comer con mi familia sin el miedo constante a los alérgenos."',
+    quoteAuthor: 'Usuario beta, Madrid',
     scenarios: [
       {
         scene: 'Mirar la carta',
@@ -118,7 +160,7 @@ export const es = {
     ],
   },
   comparison: {
-    headline: '¿Por qué no usar lo que ya existe?',
+    headline: 'Lo habitual hoy frente a lo que propone nutriXplorer',
     cards: [
       {
         title: 'Apps de fitness',
@@ -143,10 +185,38 @@ export const es = {
       },
     ],
   },
+  productDemo: {
+    eyebrow: 'Así se vería una consulta real',
+    headline: 'Más producto real, menos promesa abstracta',
+    subtitle:
+      'La experiencia está pensada para el momento exacto de decidir: escribes, entiendes de dónde sale el dato y eliges con más contexto.',
+  },
+  searchSimulator: {
+    eyebrow: 'Demo interactiva',
+    headline: 'Lo entiendes en 10 segundos',
+    subtitle:
+      'Más que un número: una respuesta que te dice qué sabe, de dónde lo sabe y cuándo no debería presentarse como verificado.',
+  },
+  restaurants: {
+    eyebrow: 'Dónde funciona',
+    headline: 'Restaurantes de toda España',
+    subtitle:
+      'Desde cadenas con datos oficiales hasta el bar de tu barrio. nutriXplorer ajusta la confianza al dato disponible.',
+    items: [
+      { label: 'Cadenas nacionales', note: 'Dato oficial' },
+      { label: 'Cocina tradicional', note: 'Estimación inteligente' },
+      { label: 'Restaurantes locales', note: 'Inferido por similitud' },
+    ],
+  },
+  audienceGrid: {
+    eyebrow: 'Para quién empieza hoy',
+    headline: 'Para quién empieza hoy',
+  },
   waitlistCta: {
     headline: 'Sé el primero en probarlo',
     subtitle:
       'nutriXplorer está en fase de desarrollo. Únete a la lista de espera y sé de los primeros en acceder cuando lancemos.',
+    urgency: 'Plazas limitadas para el acceso anticipado',
     trustNote: 'Sin spam. Sin compromisos. Solo te avisamos cuando lancemos.',
   },
   footer: {

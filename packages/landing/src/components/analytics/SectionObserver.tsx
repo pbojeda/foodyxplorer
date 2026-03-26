@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { Variant } from '@/types';
+import type { Variant, SectionId } from '@/types';
 import { trackEvent, getUtmParams } from '@/lib/analytics';
 
 interface SectionObserverProps {
-  sectionId: string;
+  sectionId: SectionId;
   variant: Variant;
   children: React.ReactNode;
 }

@@ -12,6 +12,8 @@ export function trackEvent(payload: AnalyticsEventPayload): void {
 
   if (window.dataLayer) {
     window.dataLayer.push(payload);
+  } else if (process.env.NODE_ENV === 'development') {
+    console.debug('[Analytics]', payload);
   }
 }
 

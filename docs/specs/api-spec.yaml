@@ -2522,6 +2522,177 @@ paths:
                       message: "Database query failed during estimation lookup"
                       code: "DB_UNAVAILABLE"
 
+  # -------------------------------------------------------------------------
+  # Calculation — Recipe (F035)
+  # -------------------------------------------------------------------------
+
+  /calculate/recipe:
+    post:
+      summary: Calculate aggregate nutritional information for a recipe
+      description: |
+        Accepts a recipe in structured (typed ingredient array) or free-form (plain text) mode.
+        Resolves each ingredient via a food-only cascade (direct_id → exact_food → fts_food →
+        similarity_food → llm_food_match). Returns per-ingredient breakdown plus aggregated totals.
+        Partial resolution allowed (200 with unresolvedIngredients and confidenceLevel: "low").
+        Zero resolution returns 422 RECIPE_UNRESOLVABLE.
+        Route timeout: 30s → 408 PROCESSING_TIMEOUT. Cached in Redis for 300s.
+      tags: [Calculation]
+      operationId: calculateRecipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [mode, ingredients]
+                  properties:
+                    mode:
+                      type: string
+                      enum: [structured]
+                    ingredients:
+                      type: array
+                      minItems: 1
+                      maxItems: 50
+                      items:
+                        type: object
+                        properties:
+                          foodId:
+                            type: string
+                            format: uuid
+                          name:
+                            type: string
+                            minLength: 1
+                            maxLength: 255
+                          grams:
+                            type: number
+                            exclusiveMinimum: 0
+                            maximum: 5000
+                          portionMultiplier:
+                            type: number
+                            minimum: 0.1
+                            maximum: 5.0
+                            default: 1.0
+                        required: [grams]
+                - type: object
+                  required: [mode, text]
+                  properties:
+                    mode:
+                      type: string
+                      enum: [free-form]
+                    text:
+                      type: string
+                      minLength: 1
+                      maxLength: 2000
+              discriminator:
+                propertyName: mode
+      responses:
+        "200":
+          description: Recipe calculated successfully (partial or full resolution)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    type: object
+                    properties:
+                      mode:
+                        type: string
+                        enum: [structured, free-form]
+                      resolvedCount:
+                        type: integer
+                      unresolvedCount:
+                        type: integer
+                      confidenceLevel:
+                        type: string
+                        enum: [medium, low]
+                      totalNutrients:
+                        $ref: "#/components/schemas/RecipeNutrients"
+                      ingredients:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            input:
+                              type: object
+                              properties:
+                                foodId:
+                                  type: string
+                                  nullable: true
+                                name:
+                                  type: string
+                                  nullable: true
+                                grams:
+                                  type: number
+                                portionMultiplier:
+                                  type: number
+                            resolved:
+                              type: boolean
+                            resolvedAs:
+                              type: object
+                              nullable: true
+                              properties:
+                                entityId:
+                                  type: string
+                                name:
+                                  type: string
+                                nameEs:
+                                  type: string
+                                  nullable: true
+                                matchType:
+                                  type: string
+                            nutrients:
+                              $ref: "#/components/schemas/RecipeNutrients"
+                              nullable: true
+                      unresolvedIngredients:
+                        type: array
+                        items:
+                          type: string
+                      parsedIngredients:
+                        type: array
+                        description: Only present in free-form mode
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            grams:
+                              type: number
+                            portionMultiplier:
+                              type: number
+                      cachedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "408":
+          description: Processing timeout (30s exceeded)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Recipe unresolvable or free-form parse failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /analytics/queries:
     get:
       summary: Query log analytics
@@ -5177,6 +5348,75 @@ components:
     # -------------------------------------------------------------------------
     # Estimation Engine (E003 / F020)
     # -------------------------------------------------------------------------
+
+    RecipeNutrients:
+      type: object
+      description: |
+        Nutrient profile for a recipe ingredient or recipe total (F035).
+        Same 14 fields as EstimateNutrients but all values are nullable:
+        if a nutrient is null for ALL resolved ingredients, the field is null (not 0).
+        referenceBasis is always "per_serving" for recipe results.
+      properties:
+        calories:
+          type: number
+          minimum: 0
+          nullable: true
+        proteins:
+          type: number
+          minimum: 0
+          nullable: true
+        carbohydrates:
+          type: number
+          minimum: 0
+          nullable: true
+        sugars:
+          type: number
+          minimum: 0
+          nullable: true
+        fats:
+          type: number
+          minimum: 0
+          nullable: true
+        saturatedFats:
+          type: number
+          minimum: 0
+          nullable: true
+        fiber:
+          type: number
+          minimum: 0
+          nullable: true
+        salt:
+          type: number
+          minimum: 0
+          nullable: true
+        sodium:
+          type: number
+          minimum: 0
+          nullable: true
+        transFats:
+          type: number
+          minimum: 0
+          nullable: true
+        cholesterol:
+          type: number
+          minimum: 0
+          nullable: true
+        potassium:
+          type: number
+          minimum: 0
+          nullable: true
+        monounsaturatedFats:
+          type: number
+          minimum: 0
+          nullable: true
+        polyunsaturatedFats:
+          type: number
+          minimum: 0
+          nullable: true
+        referenceBasis:
+          type: string
+          enum: [per_serving]
+          description: Always "per_serving" for recipe results.
 
     EstimateNutrients:
       type: object

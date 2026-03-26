@@ -19,6 +19,11 @@ describe('WaitlistCTASection', () => {
     expect(screen.getByText(dict.waitlistCta.subtitle)).toBeInTheDocument();
   });
 
+  it('renders the urgency copy', () => {
+    render(<WaitlistCTASection dict={dict.waitlistCta} variant="a" />);
+    expect(screen.getByText(dict.waitlistCta.urgency)).toBeInTheDocument();
+  });
+
   it('renders the trust note', () => {
     render(<WaitlistCTASection dict={dict.waitlistCta} variant="a" />);
     expect(screen.getByText(dict.waitlistCta.trustNote)).toBeInTheDocument();
@@ -29,8 +34,13 @@ describe('WaitlistCTASection', () => {
     expect(screen.getByRole('button', { name: /únete/i })).toBeInTheDocument();
   });
 
-  it('renders with variant b', () => {
-    render(<WaitlistCTASection dict={dict.waitlistCta} variant="b" />);
+  it('renders phone field (showPhone=true in CTA section)', () => {
+    render(<WaitlistCTASection dict={dict.waitlistCta} variant="a" />);
+    expect(screen.getByPlaceholderText(/teléfono/i)).toBeInTheDocument();
+  });
+
+  it('renders with variant c', () => {
+    render(<WaitlistCTASection dict={dict.waitlistCta} variant="c" />);
     expect(screen.getByText(dict.waitlistCta.headline)).toBeInTheDocument();
   });
 });

@@ -38,13 +38,17 @@ export function WaitlistCTASection({ dict, variant }: WaitlistCTASectionProps) {
           >
             {dict.headline}
           </h2>
-          <p className="text-lg md:text-xl leading-relaxed text-slate-300 mb-10">
+          <p className="text-lg md:text-xl leading-relaxed text-slate-300 mb-4">
             {dict.subtitle}
           </p>
+          {/* Urgency copy */}
+          <p className="text-sm font-semibold text-brand-orange mb-8 uppercase tracking-widest">
+            {dict.urgency}
+          </p>
 
-          {/* Waitlist form */}
+          {/* Waitlist form — with phone (the ONLY place with phone field) */}
           <div className="mb-6">
-            <WaitlistForm source="cta" variant={variant} />
+            <WaitlistForm source="cta" variant={variant} showPhone={true} />
           </div>
 
           {/* Trust note */}

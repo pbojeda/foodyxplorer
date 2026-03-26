@@ -3,22 +3,6 @@ import { render, screen } from '@testing-library/react';
 import { ForWhoSection } from '@/components/sections/ForWhoSection';
 import { getDictionary } from '@/lib/i18n';
 
-// Mock next/image
-jest.mock('next/image', () => {
-  return function MockImage({
-    src,
-    alt,
-    ...props
-  }: {
-    src: string;
-    alt: string;
-    [key: string]: unknown;
-  }) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} {...props} />;
-  };
-});
-
 const dict = getDictionary('es');
 
 describe('ForWhoSection', () => {
@@ -32,21 +16,20 @@ describe('ForWhoSection', () => {
     expect(screen.getByText(dict.forWho.eyebrow)).toBeInTheDocument();
   });
 
-  it('renders all 4 profile cards', () => {
+  it('renders AudienceGrid with 4 audience cards', () => {
     render(<ForWhoSection dict={dict.forWho} />);
-    for (const profile of dict.forWho.profiles) {
-      expect(screen.getByText(profile.title)).toBeInTheDocument();
-      expect(screen.getByText(profile.description)).toBeInTheDocument();
-    }
+    // AudienceGrid renders 4 "Empieza si tú eres…" labels
+    const labels = screen.getAllByText(/empieza si tú eres/i);
+    expect(labels).toHaveLength(4);
   });
 
-  it('renders profile images with alt text', () => {
+  it('renders audience card for macro trackers', () => {
     render(<ForWhoSection dict={dict.forWho} />);
-    const images = screen.getAllByRole('img');
-    expect(images.length).toBeGreaterThanOrEqual(4);
-    images.forEach((img) => {
-      expect(img).toHaveAttribute('alt');
-      expect(img.getAttribute('alt')).not.toBe('');
-    });
+    expect(screen.getByText(/quien cuenta macros/i)).toBeInTheDocument();
+  });
+
+  it('renders audience card for allergen management', () => {
+    render(<ForWhoSection dict={dict.forWho} />);
+    expect(screen.getByText(/quien evita alérgenos/i)).toBeInTheDocument();
   });
 });

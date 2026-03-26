@@ -1,7 +1,10 @@
 import type { Dictionary } from '@/lib/i18n';
+import { SearchSimulatorWithCTA } from '@/components/features/SearchSimulatorWithCTA';
+import type { Variant } from '@/types';
 
 interface HowItWorksSectionProps {
   dict: Dictionary['howItWorks'];
+  variant?: Variant;
 }
 
 // Inline SVG icons for each step
@@ -59,52 +62,52 @@ const StepIcons = [
   </svg>,
 ];
 
-export function HowItWorksSection({ dict }: HowItWorksSectionProps) {
+export function HowItWorksSection({ dict, variant = 'a' }: HowItWorksSectionProps) {
   return (
     <section
       aria-labelledby="how-it-works-heading"
       data-section="how-it-works"
-      className="bg-slate-50 py-20 lg:py-24"
+      id="como-funciona"
+      className="bg-paper py-16 lg:py-20"
     >
-      <div className="max-w-container mx-auto px-6">
+      <div className="section-shell">
         {/* Header */}
-        <div className="text-center mb-16">
-          <p className="text-[13px] md:text-sm font-semibold tracking-widest uppercase text-brand-orange mb-4">
+        <div className="mb-16 text-center">
+          <p className="mb-4 text-[13px] font-semibold uppercase tracking-widest text-brand-orange md:text-sm">
             {dict.eyebrow}
           </p>
           <h2
             id="how-it-works-heading"
-            className="text-3xl md:text-[44px] font-bold tracking-tight leading-snug text-slate-900"
+            className="text-3xl font-bold leading-snug tracking-tight text-slate-900 md:text-[44px]"
           >
             {dict.headline}
           </h2>
         </div>
 
         {/* 3-column grid on lg+, single column on mobile */}
-        <ol className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+        <ol className="mb-12 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-12">
           {dict.steps.map((step, index) => (
             <li key={step.title} className="relative flex flex-col">
               {/* Step number — decorative large numeral */}
               <span
                 aria-hidden="true"
-                className="absolute -top-4 -left-2 text-7xl font-black text-brand-green opacity-10 select-none leading-none"
+                className="-left-2 -top-4 absolute select-none text-7xl font-black leading-none text-brand-green opacity-10"
               >
                 {index + 1}
               </span>
               {/* Icon */}
-              <div className="relative mb-5 text-brand-green">
-                {StepIcons[index]}
-              </div>
+              <div className="relative mb-5 text-brand-green">{StepIcons[index]}</div>
               {/* Content */}
-              <h3 className="text-xl md:text-[28px] font-bold text-slate-900 mb-3">
+              <h3 className="mb-3 text-xl font-bold text-slate-900 md:text-[28px]">
                 {step.title}
               </h3>
-              <p className="text-base leading-relaxed text-slate-600">
-                {step.description}
-              </p>
+              <p className="text-base leading-relaxed text-slate-600">{step.description}</p>
             </li>
           ))}
         </ol>
+
+        {/* SearchSimulator with post-interaction CTA — embedded below steps */}
+        <SearchSimulatorWithCTA variant={variant} />
       </div>
     </section>
   );

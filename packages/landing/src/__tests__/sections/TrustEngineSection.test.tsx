@@ -31,10 +31,10 @@ describe('TrustEngineSection', () => {
     expect(screen.getByText(dict.trustEngine.allergenDescription)).toBeInTheDocument();
   });
 
-  it('has dark background section', () => {
+  it('has light background section', () => {
     const { container } = render(<TrustEngineSection dict={dict.trustEngine} />);
     const section = container.querySelector('section');
-    expect(section?.className).toContain('bg-slate-950');
+    expect(section?.className).toContain('bg-paper');
   });
 
   it('renders subtitle', () => {

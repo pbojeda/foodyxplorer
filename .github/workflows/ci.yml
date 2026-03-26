@@ -38,6 +38,7 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       bot: ${{ steps.filter.outputs.bot }}
       scraper: ${{ steps.filter.outputs.scraper }}
+      landing: ${{ steps.filter.outputs.landing }}
       root: ${{ steps.filter.outputs.root }}
     steps:
       - uses: actions/checkout@v4
@@ -54,6 +55,8 @@ jobs:
               - 'packages/bot/**'
             scraper:
               - 'packages/scraper/**'
+            landing:
+              - 'packages/landing/**'
             root:
               - 'package.json'
               - 'package-lock.json'
@@ -246,3 +249,38 @@ jobs:
 
       - name: Test scraper
         run: npm run test -w @foodxplorer/scraper
+
+  # ───────────────────────────────────────────
+  # Test Landing
+  # Triggers: landing or root changes
+  # No DB/Redis needed — standalone Next.js package
+  # ───────────────────────────────────────────
+  test-landing:
+    needs: changes
+    if: >-
+      needs.changes.outputs.landing == 'true' ||
+      needs.changes.outputs.root == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: cd packages/landing && npm ci
+
+      - name: Typecheck landing
+        run: cd packages/landing && npm run typecheck
+
+      - name: Lint landing
+        run: cd packages/landing && npm run lint
+
+      - name: Test landing
+        run: cd packages/landing && npm test
+
+      - name: Build landing
+        run: cd packages/landing && npm run build

@@ -214,6 +214,126 @@ Contains legal links, secondary copy, and a lightweight email-only waitlist entr
 
 ---
 
+## Landing Package — nutriXplorer (F044 updates)
+
+**Feature:** F044 — Visual Overhaul + Multi-Variant A/B System
+
+### Changes to Variant type
+
+`Variant` is now `'a' | 'c' | 'd' | 'f'` (removed 'b'; fallback is always 'a').
+
+### Updated HeroSection
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| variant | `Variant` | Yes | — | Determines layout and copy |
+| dict | `Dictionary['hero']` | Yes | — | Shared hero copy |
+| variantsCopy | `Dictionary['variants']` | No | — | Per-variant copy overrides |
+
+**Variants:**
+- **A** (default): 55/45 asymmetric, `hero-telegram-lentejas.png`, email-only WaitlistForm
+- **C** (pain-first): Dark bg, no form, scroll CTA link to `#como-funciona`
+- **D** (demo-first): Minimal header, SearchSimulator embedded via layout
+- **F** (allergen): 55/45, `trust-allergen-family.png`, email-only WaitlistForm
+
+### Updated WaitlistForm
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| source | `'hero' \| 'cta' \| 'footer' \| 'post-simulator'` | Yes | — | Form placement |
+| variant | `Variant` | Yes | — | A/B variant |
+| showPhone | `boolean` | No | `false` | Show optional phone field |
+
+**Rule:** Phone field only shown in `WaitlistCTASection` (`showPhone={true}`). All other forms are email-only.
+
+### Updated WaitlistCTASection
+
+Adds `urgency` text ("Plazas limitadas...") and passes `showPhone={true}` to WaitlistForm.
+
+### Updated EmotionalBlock (MAJOR REFACTOR)
+
+Asymmetric 2-column layout:
+- Left: `emotional-friends-dining.jpg` in card-surface frame
+- Right: 3 scenario items (CheckCircle2 icons) + blockquote
+
+### Updated AudienceGrid (MAJOR REFACTOR)
+
+Image cards with darkened overlay:
+- Each card uses a lifestyle photo background with gradient overlay
+- Cards: `for-who-fitness-guy.jpg`, `trust-allergen-family.png`, `emotional-friends-dining.jpg`, `restaurants-map-street.jpg`
+
+### Updated HowItWorksSection
+
+- Step 1 shows `how-it-works-menu-scan.png` above the icon
+- Now uses `SearchSimulatorWithCTA` instead of bare `SearchSimulator`
+- Accepts optional `variant` prop (passed through to SearchSimulatorWithCTA)
+
+### Updated TrustEngineSection
+
+Allergen callout is now 2-column: text left, `trust-allergen-family.png` right (hidden on mobile).
+
+### Updated RestaurantsSection
+
+2-column layout: text left, `restaurants-map-street.jpg` right (hidden on mobile).
+
+### Updated ProductDemo
+
+Adds `demo-pulpo-feira.png` food photo above the app mockup.
+
+### New: PostSimulatorCTA
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| variant | `Variant` | Yes | — | For WaitlistForm |
+| show | `boolean` | Yes | — | Whether to render (controlled by parent) |
+
+**Behavior:** Email-only WaitlistForm with `source="post-simulator"`. Returns null when `show=false`.
+
+### New: SearchSimulatorWithCTA
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| variant | `Variant` | Yes | — | Passed to PostSimulatorCTA |
+
+Wraps `SearchSimulator` + `PostSimulatorCTA`. Starts with `hasInteracted=true` since the simulator defaults to showing a result (pulpo a feira).
+
+### New: VisualDivider
+
+**Type:** Decorative | **Client:** No (Server Component)
+
+Full-bleed horizontal strip (h-24) with blurred `emotional-friends-dining.jpg`. `aria-hidden="true"`. Used between EmotionalBlock and TrustEngine in Variant A.
+
+### New Variant Layouts (page.tsx)
+
+Each layout is a Server Component function:
+- **VariantALayout**: Standard flow + VisualDivider between EmotionalBlock and TrustEngine
+- **VariantCLayout**: EmotionalBlock moved up (amplifies pain before solution)
+- **VariantDLayout**: ProductDemo and TrustEngine come before EmotionalBlock
+- **VariantFLayout**: TrustEngine first (allergen guardrail is the star)
+
+### Images added (public/images/)
+
+| File | Source | Used in |
+|------|--------|---------|
+| `hero-telegram-lentejas.png` | 1.png | HeroSection (variant A) |
+| `how-it-works-menu-scan.png` | 2.png | HowItWorksSection step 1 |
+| `demo-pulpo-feira.png` | 3.png | ProductDemo |
+| `trust-allergen-family.png` | 7.png | TrustEngineSection allergen, HeroSection F, AudienceGrid |
+| `emotional-friends-dining.jpg` | 8.jpg | EmotionalBlock, AudienceGrid, VisualDivider |
+| `demo-huevos-rotos.png` | 10.png | Available for future use |
+| `restaurants-map-street.jpg` | 12.jpg | RestaurantsSection, AudienceGrid |
+| `for-who-fitness-guy.jpg` | unnamed-10.jpg | AudienceGrid |
+
+---
+
 ## Shared UI Primitives
 
 List the primitive components available in your project (e.g., from shadcn/ui):
@@ -329,3 +449,132 @@ Mounted in layout: `ScrollTracker`, `Analytics`, `SpeedInsights`.
 ---
 
 *Update this file BEFORE implementing new components or pages.*
+
+---
+
+## Landing Package — v5 Overhaul (F044)
+
+New components and updated sections for the v5 visual refresh. Glass-card aesthetic, SearchSimulator demo, and restructured page layout.
+
+### New Design Tokens (Tailwind v5)
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `botanical` | `#2D5A27` | Alias for `brand-green` |
+| `energy` | `#FF8C42` | Alias for `brand-orange` |
+| `paper` | `#F7F7F2` | Section backgrounds (replaces `ivory` in some sections) |
+| `mist` | `#EEF4EC` | Light green tint backgrounds |
+| `shadow-lift` | `0 18px 60px rgba(45,90,39,0.18)` | Elevated card shadow |
+| `.card-surface` | `rounded-[32px] border border-white/70 bg-white/90 shadow-soft backdrop-blur` | Glass card component class |
+| `.section-shell` | `mx-auto max-w-7xl px-5 md:px-8 lg:px-10` | Standard section container |
+| `.accent-ring` | `ring-1 ring-green-200/30` | Subtle ring accent |
+
+### New Components (F044)
+
+#### SiteHeader
+**Type:** Feature | **Client:** No (Server Component)
+**File:** `src/components/SiteHeader.tsx`
+
+Sticky top navigation with nutriXplorer logo, nav links (Demo, Cómo funciona, Para quién), and "Pedir acceso anticipado" CTA button. Mobile shows abbreviated CTA ("Acceso").
+
+**Props:** None
+
+#### SearchSimulator
+**Type:** Feature | **Client:** Yes (`'use client'`)
+**File:** `src/components/SearchSimulator.tsx`
+
+Interactive demo with 10 pre-loaded dishes. Autocomplete dropdown, quick-select pills, 850ms loading animation, result card with macros grid + allergen guardrail.
+
+**Props:** None (self-contained with DISHES data from `@/lib/content`)
+
+**State:**
+- `query: string` — current search input
+- `state: 'idle' | 'loading' | 'result'` — simulator state
+- `activeDish: Dish` — currently displayed dish
+- `showDropdown: boolean` — autocomplete visibility
+
+**Interactions:**
+- Type → filters DISHES by query, shows autocomplete dropdown
+- Select dish (pill or dropdown) → 850ms loading animation → result card
+- "Ver resultado" button → runs first matching suggestion
+- Unknown query → "No encontrado" message
+
+#### ProductDemo
+**Type:** Feature | **Client:** Yes (`'use client'`)
+**File:** `src/components/ProductDemo.tsx`
+
+Shows a real query flow timeline (3 steps: Usuario → Motor → Respuesta) plus an app mockup with L2 result for "Pulpo a feira". Uses Framer Motion `whileInView` animation.
+
+**Props:** None
+
+#### AudienceGrid
+**Type:** Feature | **Client:** No (Server Component)
+**File:** `src/components/AudienceGrid.tsx`
+
+4-card grid for user profiles: Quien cuenta macros, Quien evita alérgenos, Quien busca equilibrio, Quien decide sobre la marcha. Each card links to #waitlist.
+
+**Props:** None
+
+#### Reveal
+**Type:** Primitive | **Client:** Yes (`'use client'`)
+**File:** `src/components/Reveal.tsx`
+
+Scroll-triggered fade+slide animation wrapper using Framer Motion `whileInView`. Respects `prefers-reduced-motion`.
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| children | `React.ReactNode` | Yes | — | Content to animate |
+| delay | `number` | No | `0` | Animation delay in seconds |
+| className | `string` | No | — | Wrapper className |
+
+#### RestaurantsSection
+**Type:** Feature | **Client:** No (Server Component)
+**File:** `src/components/sections/RestaurantsSection.tsx`
+
+Minimal card section showing 3 restaurant types with confidence level notes. Uses `card-surface` glass card wrapper.
+
+**Props:**
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| dict | `Dictionary['restaurants']` | Yes | i18n copy |
+
+### Updated Section Components (F044)
+
+| Component | Change |
+|-----------|--------|
+| `HowItWorksSection` | Updated to `bg-paper`, uses `section-shell`, embeds `SearchSimulator` below steps |
+| `TrustEngineSection` | Switched from dark `bg-slate-950` to light `bg-paper` card style with light-colored confidence badges |
+| `ForWhoSection` | Replaced image profile cards with `AudienceGrid` component |
+| `EmotionalBlock` | Replaced image+scenarios layout with glass-card list using `CheckCircle2` icons |
+| `ComparisonSection` | Updated headline to v5 copy |
+| `WaitlistForm` | Added optional phone field with validation (`/^\+\d{7,15}$/` stripped of spaces) |
+
+### Updated Page Structure (F044)
+
+New section order in `page.tsx`:
+```
+SiteHeader (sticky header, outside <main>)
+HeroSection
+ProductDemo (wrapped in section-shell)
+HowItWorksSection (includes embedded SearchSimulator)
+EmotionalBlock
+TrustEngineSection
+ForWhoSection (includes AudienceGrid)
+ComparisonSection
+RestaurantsSection
+WaitlistCTASection
+Footer
+```
+
+### Data Layer
+
+#### `src/lib/content.ts`
+Contains `DISHES` array (10 pre-loaded dishes), `Dish` type, `getConfidenceBadgeClass()`, `getLevelDisplay()`.
+
+#### `src/lib/i18n/locales/es.ts` — New Keys (F044)
+- `productDemo`: eyebrow, headline, subtitle
+- `searchSimulator`: eyebrow, headline, subtitle
+- `restaurants`: eyebrow, headline, subtitle, items[]
+- `audienceGrid`: eyebrow, headline
+

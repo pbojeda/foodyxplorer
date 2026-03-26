@@ -1,5 +1,5 @@
 /**
- * F039 — Landing Page: Edge-Case & Spec-Deviation Tests (jsdom environment)
+ * F039 / F044 — Landing Page: Edge-Case & Spec-Deviation Tests (jsdom environment)
  *
  * QA-authored tests targeting gaps not covered by the developer's test suite.
  * Run with: npm test -- edge-cases
@@ -9,50 +9,63 @@
 
 // ---------------------------------------------------------------------------
 // 1. ab-testing — boundary, invalid inputs, stateless guarantee
+// F044 update: variant set is now a|c|d|f; fallback is always 'a' (no random)
 // ---------------------------------------------------------------------------
 import { resolveVariant } from '@/lib/ab-testing';
 
 describe('resolveVariant — boundary & edge cases', () => {
-  it('returns "b" when random is exactly 0.5 (not strictly < 0.5)', () => {
-    // boundary: random() < 0.5 ? 'a' : 'b' — at 0.5 the result must be 'b'
-    expect(resolveVariant(undefined, undefined, () => 0.5)).toBe('b');
+  it('returns "a" as default fallback when no searchParam or cookie', () => {
+    expect(resolveVariant(undefined, undefined)).toBe('a');
   });
 
-  it('returns "a" when random is 0.4999…', () => {
-    expect(resolveVariant(undefined, undefined, () => 0.4999)).toBe('a');
+  it('returns "c" when searchParam is "c"', () => {
+    expect(resolveVariant('c', undefined)).toBe('c');
+  });
+
+  it('returns "d" when searchParam is "d"', () => {
+    expect(resolveVariant('d', undefined)).toBe('d');
+  });
+
+  it('returns "f" when searchParam is "f"', () => {
+    expect(resolveVariant('f', undefined)).toBe('f');
   });
 
   it('falls back to cookie when searchParam is "A" (wrong case — case-sensitive)', () => {
-    // 'A' is not a valid variant; cookie 'b' should win
-    expect(resolveVariant('A', 'b')).toBe('b');
+    // 'A' is not a valid variant; cookie 'c' should win
+    expect(resolveVariant('A', 'c')).toBe('c');
   });
 
-  it('falls back to random when both searchParam and cookie are empty strings', () => {
-    expect(resolveVariant('', '', () => 0.3)).toBe('a');
-    expect(resolveVariant('', '', () => 0.7)).toBe('b');
+  it('falls back to "a" when both searchParam and cookie are empty strings', () => {
+    expect(resolveVariant('', '')).toBe('a');
   });
 
-  it('falls back to random when cookie is an invalid value "c"', () => {
-    // invalid cookie must NOT win; random applies
-    expect(resolveVariant(undefined, 'c', () => 0.3)).toBe('a');
-    expect(resolveVariant(undefined, 'c', () => 0.7)).toBe('b');
+  it('falls back to "a" when cookie is an invalid value "b" (b is no longer valid)', () => {
+    // 'b' was removed from valid variants; fall back to default 'a'
+    expect(resolveVariant(undefined, 'b')).toBe('a');
   });
 
-  it('URL param wins even when random would produce the opposite variant', () => {
-    // Explicit param always wins — injecting random that would return 'b'
-    expect(resolveVariant('a', undefined, () => 0.9)).toBe('a');
+  it('URL param wins even when cookie is also set', () => {
+    // Explicit param always wins
+    expect(resolveVariant('a', 'c')).toBe('a');
+    expect(resolveVariant('c', 'a')).toBe('c');
   });
 });
 
 describe('resolveVariant — stateless across multiple calls', () => {
-  it('returns different results based only on injected random, not accumulated state', () => {
-    const result1 = resolveVariant(undefined, undefined, () => 0.1);
-    const result2 = resolveVariant(undefined, undefined, () => 0.9);
+  it('returns consistent results across multiple calls (no state leakage)', () => {
+    const result1 = resolveVariant(undefined, undefined);
+    const result2 = resolveVariant(undefined, undefined);
+    const result3 = resolveVariant(undefined, undefined);
+    // All should return the same default 'a'
     expect(result1).toBe('a');
-    expect(result2).toBe('b');
-    // Third call with same seed as first — must still return 'a' (no side effects)
-    const result3 = resolveVariant(undefined, undefined, () => 0.1);
+    expect(result2).toBe('a');
     expect(result3).toBe('a');
+  });
+
+  it('URL param consistently takes priority regardless of call order', () => {
+    expect(resolveVariant('c', 'a')).toBe('c');
+    expect(resolveVariant('a', 'c')).toBe('a');
+    expect(resolveVariant('d', 'f')).toBe('d');
   });
 });
 

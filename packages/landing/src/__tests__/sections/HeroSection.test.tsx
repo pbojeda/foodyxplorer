@@ -64,18 +64,28 @@ describe('HeroSection', () => {
     mockTrackEvent.mockClear();
   });
 
-  it('renders variant A content when variant="a"', () => {
-    render(<HeroSection variant="a" dict={dict.hero} />);
-    expect(screen.getByText(dict.hero.headlineA)).toBeInTheDocument();
+  it('renders variant A headline when variant="a"', () => {
+    render(<HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} />);
+    expect(screen.getByText(dict.variants.a.hero.headline)).toBeInTheDocument();
   });
 
-  it('renders variant B content when variant="b"', () => {
-    render(<HeroSection variant="b" dict={dict.hero} />);
-    expect(screen.getByText(dict.hero.headlineB)).toBeInTheDocument();
+  it('renders variant C headline when variant="c"', () => {
+    render(<HeroSection variant="c" dict={dict.hero} variantsCopy={dict.variants} />);
+    expect(screen.getByText(dict.variants.c.hero.headline)).toBeInTheDocument();
+  });
+
+  it('renders variant D headline when variant="d"', () => {
+    render(<HeroSection variant="d" dict={dict.hero} variantsCopy={dict.variants} />);
+    expect(screen.getByText(dict.variants.d.hero.headline)).toBeInTheDocument();
+  });
+
+  it('renders variant F headline when variant="f"', () => {
+    render(<HeroSection variant="f" dict={dict.hero} variantsCopy={dict.variants} />);
+    expect(screen.getByText(dict.variants.f.hero.headline)).toBeInTheDocument();
   });
 
   it('fires landing_view on mount', async () => {
-    render(<HeroSection variant="a" dict={dict.hero} />);
+    render(<HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} />);
     await waitFor(() => {
       expect(mockTrackEvent).toHaveBeenCalledWith(
         expect.objectContaining({ event: 'landing_view' })
@@ -84,7 +94,7 @@ describe('HeroSection', () => {
   });
 
   it('fires variant_assigned on mount', async () => {
-    render(<HeroSection variant="a" dict={dict.hero} />);
+    render(<HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} />);
     await waitFor(() => {
       expect(mockTrackEvent).toHaveBeenCalledWith(
         expect.objectContaining({ event: 'variant_assigned', variant: 'a' })
@@ -92,23 +102,36 @@ describe('HeroSection', () => {
     });
   });
 
-  it('contains WaitlistForm', () => {
-    render(<HeroSection variant="a" dict={dict.hero} />);
+  it('contains WaitlistForm in variant A', () => {
+    render(<HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} />);
     expect(
       screen.getByRole('button', { name: /únete/i })
     ).toBeInTheDocument();
   });
 
-  it('contains 3 trust pills', () => {
-    render(<HeroSection variant="a" dict={dict.hero} />);
+  it('contains 3 trust pills in variant A', () => {
+    render(<HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} />);
     expect(screen.getByText('Datos verificados')).toBeInTheDocument();
     expect(screen.getByText('Confianza visible')).toBeInTheDocument();
     expect(screen.getByText('Hecho en España')).toBeInTheDocument();
   });
 
-  it('uses priority on hero image', () => {
-    render(<HeroSection variant="a" dict={dict.hero} />);
+  it('uses priority on hero image in variant A', () => {
+    render(<HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} />);
     const img = screen.getAllByRole('img')[0];
     expect(img).toHaveAttribute('data-priority', 'true');
+  });
+
+  it('variant C shows scroll CTA link instead of WaitlistForm', () => {
+    render(<HeroSection variant="c" dict={dict.hero} variantsCopy={dict.variants} />);
+    expect(screen.getByRole('link', { name: /ver cómo/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /únete/i })).not.toBeInTheDocument();
+  });
+
+  it('variant F shows WaitlistForm email-only', () => {
+    render(<HeroSection variant="f" dict={dict.hero} variantsCopy={dict.variants} />);
+    expect(screen.getByRole('button', { name: /únete/i })).toBeInTheDocument();
+    // No phone field (showPhone defaults to false)
+    expect(screen.queryByPlaceholderText(/teléfono/i)).not.toBeInTheDocument();
   });
 });

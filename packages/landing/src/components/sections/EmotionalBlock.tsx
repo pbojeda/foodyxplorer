@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { CheckCircle2 } from 'lucide-react';
 import type { Dictionary } from '@/lib/i18n';
 
 interface EmotionalBlockProps {
@@ -10,63 +11,63 @@ export function EmotionalBlock({ dict }: EmotionalBlockProps) {
     <section
       aria-labelledby="emotional-heading"
       data-section="emotional"
-      className="bg-ivory py-20 md:py-24"
+      className="bg-mist py-12 lg:py-16"
     >
-      <div className="max-w-[1200px] mx-auto px-5 md:px-8 lg:px-10">
-        {/* ASYMMETRIC layout: large image left, scenarios list right */}
-        <div className="flex flex-col md:flex-row md:items-center gap-12 md:gap-16">
-          {/* Left: Large food image — spans full width on mobile, 50% on desktop */}
-          <div className="md:w-1/2 shrink-0">
-            <div className="relative rounded-2xl overflow-hidden shadow-layered">
+      <div className="section-shell">
+        <div className="mx-auto max-w-2xl text-center mb-10">
+          <h2
+            id="emotional-heading"
+            className="text-3xl font-bold leading-snug tracking-tight text-slate-900 md:text-[44px]"
+          >
+            {dict.headline}
+          </h2>
+        </div>
+
+        {/* Asymmetric layout: left large photo, right content */}
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12 lg:items-center">
+          {/* Left — food photo in card-surface frame */}
+          <div className="card-surface overflow-hidden p-0">
+            <div className="relative h-72 lg:h-[480px]">
               <Image
-                src="/images/emotional-pulpo-feira.png"
-                alt="Pulpo a feira en un restaurante gallego, con información nutricional clara gracias a nutriXplorer"
-                width={700}
-                height={500}
-                className="object-cover w-full aspect-[4/3]"
-                sizes="(max-width: 768px) 100vw, 50vw"
-                loading="lazy"
-              />
-              {/* Subtle overlay gradient at bottom */}
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 bg-gradient-to-t from-slate-900/20 to-transparent pointer-events-none"
+                src="/images/emotional-friends-dining.jpg"
+                alt="Amigos disfrutando de una cena en restaurante, usando nutriXplorer para consultar información nutricional"
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 50vw"
               />
             </div>
           </div>
 
-          {/* Right: Scenarios list — deliberately NOT a card grid */}
-          <div className="md:w-1/2">
-            <h2
-              id="emotional-heading"
-              className="text-3xl md:text-[44px] font-bold tracking-tight leading-snug text-slate-900 mb-10 max-w-[520px]"
-            >
-              {dict.headline}
-            </h2>
-
-            <div className="flex flex-col gap-8">
-              {dict.scenarios.map((scenario, index) => (
-                <div key={scenario.scene} className="flex gap-5">
-                  {/* Index number — typographic element, not a badge */}
-                  <div className="shrink-0 w-8 h-8 rounded-full bg-brand-green/10 flex items-center justify-center mt-0.5">
-                    <span
-                      className="text-sm font-bold text-brand-green"
-                      aria-hidden="true"
-                    >
-                      {index + 1}
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                      {scenario.scene}
-                    </h3>
-                    <p className="text-base leading-relaxed text-slate-600">
-                      {scenario.description}
-                    </p>
-                  </div>
+          {/* Right — headline, bullet scenarios, quote */}
+          <div className="flex flex-col gap-5">
+            {dict.scenarios.map((scenario) => (
+              <div
+                key={scenario.scene}
+                className="card-surface flex items-start gap-5 p-6"
+              >
+                <CheckCircle2
+                  data-testid="icon-CheckCircle2"
+                  className="mt-0.5 h-6 w-6 shrink-0 text-botanical"
+                  aria-hidden="true"
+                />
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">{scenario.scene}</h3>
+                  <p className="mt-2 text-base leading-relaxed text-slate-600">
+                    {scenario.description}
+                  </p>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
+
+            {/* Quote block */}
+            <blockquote className="border-l-4 border-botanical pl-5 text-base italic leading-relaxed text-slate-600">
+              {dict.quote}
+              {dict.quoteAuthor && (
+                <cite className="mt-2 block text-sm font-semibold not-italic text-botanical">
+                  — {dict.quoteAuthor}
+                </cite>
+              )}
+            </blockquote>
           </div>
         </div>
       </div>
