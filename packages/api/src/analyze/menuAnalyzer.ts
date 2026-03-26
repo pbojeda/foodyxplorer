@@ -340,9 +340,9 @@ export async function analyzeMenu(opts: MenuAnalyzerOptions): Promise<MenuAnalys
       // A total miss (result: null, all levels missed) → estimate stays null.
       // A successful match → store full EstimateData.
       estimate = cascadeResult.data.result !== null ? cascadeResult.data : null;
-    } catch {
+    } catch (err) {
       // Cascade error for one dish → treat as null estimate, continue
-      logger.warn({ dishName }, 'Cascade failed for dish — using null estimate');
+      logger.warn({ dishName, err }, 'Cascade failed for dish — using null estimate');
     }
 
     processedDishes.push({ dishName, estimate });

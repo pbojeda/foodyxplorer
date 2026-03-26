@@ -82,8 +82,9 @@ const analyzeRoutesPlugin: FastifyPluginAsync<AnalyzePluginOptions> = async (
           const filePart = part as MultipartFilePart;
           fileBuffer = await filePart.toBuffer();
         } else {
-          // Drain extra file parts to avoid memory leaks
-          await (part as MultipartFilePart).toBuffer();
+          // Drain extra file parts without buffering (memory safety)
+          const stream = (part as MultipartFilePart).file;
+          stream.resume();
         }
       } else {
         const fieldPart = part as MultipartValue<string>;
