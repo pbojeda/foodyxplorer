@@ -8,13 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-25
+**Last Updated:** 2026-03-26
 
-**Active Feature:** None — no active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F038 completed and merged to develop (PR #30, 2026-03-25). 91 tests, 21 files, +3631 lines.
+**Active Feature:** F035 — Recipe Calculation Endpoint
+**Step:** 5/6 (Review) — PR #31, code review + QA complete, pending merge approval
+**Branch:** feature/F035-recipe-calculation-endpoint
+**Complexity:** Standard
+**Context:** Implementation complete. 116 tests (6 files), 18 files changed. Code review: approve with minor changes (applied). QA: verified, 16 edge case tests added. Merge checklist in progress.
 
 ---
 
@@ -89,7 +89,7 @@
 | F032 | Restaurant Resolution + Creation (schema migration) | fullstack | done | 6/6 | Standard. Schema migration (address fields). Trigram search. POST /restaurants. Bot /restaurante + Redis state. PR #29, SHA d71cf09 |
 | F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | done | 6/6 | Simple. PR #28, SHA e8aece8. 10 tests. portion_multiplier pattern (ADR-009) |
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-009 |
-| F035 | Recipe Calculation Endpoint (structured + free-form) | backend | pending | — | Standard. POST /calculate/recipe. Deterministic + LLM modes. Depends on F033 |
+| F035 | Recipe Calculation Endpoint (structured + free-form) | backend | in-progress | 5/6 | Standard. POST /calculate/recipe. PR #31. 116 tests. Code review + QA done |
 | F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
 
 ---
