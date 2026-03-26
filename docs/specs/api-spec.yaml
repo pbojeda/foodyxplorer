@@ -5639,11 +5639,11 @@ components:
         api:
           type: integer
           minimum: 0
-          description: Queries from direct API callers (no X-FXP-Source: bot header).
+          description: "Queries from direct API callers (no X-FXP-Source: bot header)."
         bot:
           type: integer
           minimum: 0
-          description: Queries from the Telegram bot (X-FXP-Source: bot header).
+          description: "Queries from the Telegram bot (X-FXP-Source: bot header)."
 
     AnalyticsData:
       type: object
