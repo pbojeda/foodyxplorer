@@ -14,7 +14,7 @@
 **Step:** 5/6 (Review) — PR #31, code review + QA complete, pending merge approval
 **Branch:** feature/F035-recipe-calculation-endpoint
 **Complexity:** Standard
-**Context:** Implementation complete. 116 tests (6 files), 18 files changed. Code review: approve with minor changes (applied). QA: verified, 16 edge case tests added. Merge checklist in progress.
+**Context:** Implementation complete. 116 tests (6 files), 18 files changed. Code review: approve with minor changes (applied). QA: verified, 16 edge case tests added. F039 merged to develop (SHA 64280e4).
 
 ---
 
@@ -92,6 +92,12 @@
 | F035 | Recipe Calculation Endpoint (structured + free-form) | backend | in-progress | 5/6 | Standard. POST /calculate/recipe. PR #31. 116 tests. Code review + QA done |
 | F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
 
+## Features — Marketing & Growth
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F039 | Landing Page — nutriXplorer | frontend | done | 6/6 | Standard. packages/landing/ standalone. Next.js 14 + Tailwind + Framer Motion. 9 sections, A/B hero, SEO, GDPR, analytics. 153 tests. SHA 64280e4 |
+
 ---
 
 ## Completion Log
@@ -130,6 +136,8 @@
 | 2026-03-22 | F029 — Query Log & Analytics | c8c230d (squash merge to develop, PR #26) | query_logs table (2 enums, 4 indexes, no FK), writeQueryLog fire-and-forget, GET /analytics/queries (5 Kysely queries), estimate route logging via reply.raw.once('finish'). Plan reviewed by Codex GPT-5.4 (8 fixes). Code review: APPROVED (2I fixed: DRY fire-and-forget, $if mock). QA: 2 bugs fixed (cacheHitRate clamp, NaN guard), 49 edge-case tests. 107 new F029 tests (2718 total) |
 | 2026-03-23 | F033 — L4 Prompt Enhancement | e8aece8 (squash merge to develop, PR #28) | Strategy B prompt: explicit gram amounts + portion_multiplier (ADR-001/ADR-009). Dual format parsing (object + legacy array). Hallucination guard (max 5.0). Code review: 1 IMPORTANT fixed. 10 new tests (2728 total) |
 | 2026-03-24 | F032 — Restaurant Resolution + Creation | d71cf09 (squash merge to develop, PR #29) | Fullstack (API + Bot). Schema migration (4 location fields). GET /restaurants?q= trigram search (Kysely, pg_trgm). POST /restaurants admin endpoint (auto-slug independent-*-uuid8). Bot /restaurante command + inline keyboards + Redis conversation state (TTL 2h). Seed Phase 8 (Telegram Upload DataSource). Plan reviewed by Gemini + Codex (7 fixes). Production validator: 1 critical (auth header). Code review: 4 important fixed (slug 8-hex, URL validation, chainSlug regex, safeAnswerCallback). QA: 51 edge-case tests. 158 new F032 tests (97 API + 61 bot). 43 files changed |
+| 2026-03-25 | F038 — Multilingual Dish Name Resolution | 45e9231 (squash merge to develop, PR #30) | Populate name_es for all dishes, fix ingest pipeline, name_source_locale field, regenerate embeddings. ADR-010. 91 tests, 21 files, +3631 lines |
+| 2026-03-26 | F039 — Landing Page (nutriXplorer) | 64280e4 (squash merge to develop) | Standalone packages/landing/ (Next.js 14 + Tailwind + Framer Motion). 9 sections, A/B hero variants, SEO (JSON-LD, sitemap, robots), GDPR CookieBanner, GA4 analytics, i18n (ES+EN stubs), progressive enhancement. Spec reviewed by Gemini 2.5 + Codex GPT-5.4 (25 issues). Plan reviewed by Gemini + Codex (13 issues). Production validator: 7 issues fixed. Code review: APPROVED. QA: VERIFIED. 153 tests (23 suites), 98 files changed |
 
 ---
 
