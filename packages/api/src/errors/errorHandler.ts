@@ -322,6 +322,34 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // RECIPE_UNRESOLVABLE — zero ingredients resolved in POST /calculate/recipe (F035)
+  if (asAny['code'] === 'RECIPE_UNRESOLVABLE') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'RECIPE_UNRESOLVABLE',
+        },
+      },
+    };
+  }
+
+  // FREE_FORM_PARSE_FAILED — LLM could not parse free-form recipe text (F035)
+  if (asAny['code'] === 'FREE_FORM_PARSE_FAILED') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'FREE_FORM_PARSE_FAILED',
+        },
+      },
+    };
+  }
+
   // DUPLICATE_RESTAURANT — (chainSlug, countryCode) unique constraint violation (F032)
   if (asAny['code'] === 'DUPLICATE_RESTAURANT') {
     return {
