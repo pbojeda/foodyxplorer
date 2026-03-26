@@ -3754,7 +3754,8 @@ paths:
         `application/pdf`. Mismatched Content-Type triggers `INVALID_IMAGE`.
 
         **Timeout:** 60 seconds (Vision API calls + N cascade calls may take longer
-        than standard routes). Exceeded timeout returns 408 `PROCESSING_TIMEOUT`.
+        than standard routes). On timeout, returns 200 with `partial: true` and
+        the dishes processed so far (per ADR-011 decision #5).
       security:
         - ApiKeyAuth: []
       requestBody:
@@ -3999,17 +4000,6 @@ paths:
                 error:
                   message: "API key required"
                   code: UNAUTHORIZED
-        '408':
-          description: Analysis exceeded the 60-second timeout
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                error:
-                  message: "Menu analysis timed out"
-                  code: PROCESSING_TIMEOUT
         '413':
           description: Uploaded file exceeds the 10 MB size limit
           content:
