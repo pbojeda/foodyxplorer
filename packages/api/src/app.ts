@@ -33,6 +33,7 @@ import { embeddingRoutes } from './routes/embeddings.js';
 import { estimateRoutes } from './routes/estimate.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { analyticsRoutes } from './routes/analytics.js';
+import { recipeCalculateRoutes } from './routes/recipeCalculate.js';
 import { getKysely } from './lib/kysely.js';
 
 // ---------------------------------------------------------------------------
@@ -104,6 +105,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(estimateRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(catalogRoutes, { prisma: prismaClient, db: getKysely() });
   await app.register(analyticsRoutes, { db: getKysely() });
+  await app.register(recipeCalculateRoutes, { db: getKysely(), prisma: prismaClient });
 
   return app;
 }

@@ -8,13 +8,15 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-25
+**Last Updated:** 2026-03-26
 
-**Active Feature:** None — no active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F038 completed and merged to develop (PR #30, 2026-03-25). 91 tests, 21 files, +3631 lines.
+**Active Feature:** F039 — Landing Page (nutriXplorer)
+**Step:** 5/6 (Review) — Merge approval pending
+**Branch:** feature/F039-landing-page
+**Complexity:** Standard
+**Context:** F039 implementation complete. All 9 sections, 153 tests (151 passed, 2 todo), build green, lint clean. production-code-validator passed, code-review-specialist APPROVED, QA VERIFIED. Merge checklist executed. Awaiting merge approval.
+
+> Previous session context: F035 was at Step 5/6 (Implement — complete, awaiting merge approval) on branch feature/F035-recipe-calculation-endpoint. Resume F035 after F039 is merged.
 
 ---
 
@@ -89,8 +91,14 @@
 | F032 | Restaurant Resolution + Creation (schema migration) | fullstack | done | 6/6 | Standard. Schema migration (address fields). Trigram search. POST /restaurants. Bot /restaurante + Redis state. PR #29, SHA d71cf09 |
 | F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | done | 6/6 | Simple. PR #28, SHA e8aece8. 10 tests. portion_multiplier pattern (ADR-009) |
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-009 |
-| F035 | Recipe Calculation Endpoint (structured + free-form) | backend | pending | — | Standard. POST /calculate/recipe. Deterministic + LLM modes. Depends on F033 |
+| F035 | Recipe Calculation Endpoint (structured + free-form) | backend | in-progress | 5/6 | Standard. POST /calculate/recipe. 100 tests. Awaiting merge. |
 | F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
+
+## Features — Marketing & Growth
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F039 | Landing Page — nutriXplorer | frontend | in-progress | 5/6 | Standard. New landing/ workspace. Next.js 14 + Tailwind + Framer Motion. Vercel deploy. Waitlist form, A/B hero, SEO, analytics. 153 tests. |
 
 ---
 

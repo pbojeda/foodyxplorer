@@ -11,7 +11,7 @@
   "scripts": {
     "dev:api": "npm run dev -w @foodxplorer/api",
     "dev:bot": "npm run dev -w @foodxplorer/bot",
-    "build": "npm run build --workspaces",
+"build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces --if-present",

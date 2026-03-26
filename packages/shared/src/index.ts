@@ -16,6 +16,7 @@ export * from './schemas/dishIngredient';
 export * from './schemas/qualityReport';
 export * from './schemas/embeddingGenerate';
 export * from './schemas/estimate';
+export * from './schemas/recipeCalculate';
 export * from './schemas/catalog';
 export * from './schemas/apiKey';
 export * from './schemas/analytics';

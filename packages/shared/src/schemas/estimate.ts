@@ -43,6 +43,7 @@ export const EstimateMatchTypeSchema = z.enum([
   'similarity_food',              // Level 3 — pgvector nearest-neighbour in foods.embedding
   'llm_food_match',               // Level 4 — LLM identifies closest known food in DB
   'llm_ingredient_decomposition', // Level 4 — LLM decomposes dish into known ingredients → L2-style aggregation
+  'direct_id',                    // F035 — direct UUID lookup in food_nutrients
 ]);
 
 export type EstimateMatchType = z.infer<typeof EstimateMatchTypeSchema>;

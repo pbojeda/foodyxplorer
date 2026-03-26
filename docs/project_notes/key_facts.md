@@ -16,7 +16,7 @@ Quick reference for project configuration, infrastructure details, and important
 - **Repository**: GitHub (público, licencia pendiente)
 - **Primary Language**: TypeScript (strict mode)
 - **Branching Strategy**: gitflow <!-- main (producción) + develop (integración) + feature/* -->
-- **Monorepo Layout**: npm workspaces — `packages/api`, `packages/bot`, `packages/shared`, `packages/scraper`
+- **Monorepo Layout**: npm workspaces — `packages/api`, `packages/bot`, `packages/shared`, `packages/scraper`, `packages/landing/`
 
 ## Technology Stack
 
@@ -28,6 +28,7 @@ Quick reference for project configuration, infrastructure details, and important
 - **Cache / Rate Limiting**: Redis
 - **Bot**: node-telegram-bot-api
 - **Web (Fase 2)**: Next.js (SSR/SEO)
+- **Landing (F039)**: Next.js 14 (App Router) + TypeScript strict + Tailwind CSS + Framer Motion — `packages/landing/` workspace, deployed on Vercel. Marketing page for nutriXplorer: waitlist capture, A/B hero variants, SEO (JSON-LD), @vercel/analytics.
 - **Validation**: Zod (schemas compartidos en packages/shared)
 
 ## Naming Conventions (Specs & Tickets)
