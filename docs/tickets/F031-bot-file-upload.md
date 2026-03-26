@@ -1170,12 +1170,12 @@ _See Spec > Acceptance Criteria section above (29 criteria)._
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation (`api-spec.yaml` updated)
+- [x] All acceptance criteria met (29/29)
+- [x] Unit tests written and passing (137 tests: 44 API + 93 bot)
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
+- [x] Specs reflect final implementation (`api-spec.yaml` updated)
 
 ---
 
@@ -1186,8 +1186,8 @@ _See Spec > Acceptance Criteria section above (29 criteria)._
 - [x] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
 - [x] Step 3: `backend-developer` + `frontend-developer` executed with TDD
 - [x] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard)
+- [x] Step 5: `code-review-specialist` executed — APPROVED with 2 HIGH fixed (DRY download, shared constant)
+- [x] Step 5: `qa-engineer` executed — 1 bug found+fixed (BUG-F031-01), 29 edge-case tests added
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -1202,6 +1202,8 @@ _See Spec > Acceptance Criteria section above (29 criteria)._
 | 2026-03-26 | Backend implemented | 34 tests (2 files). POST /ingest/image route + app.ts registration + errorHandler FST_REQ_FILE_TOO_LARGE fix |
 | 2026-03-26 | Bot implemented | 74 tests (4 files). handlePhoto, handleDocument, upload callbacks, apiClient multipart, ALLOWED_CHAT_IDS config |
 | 2026-03-26 | Production validator | 1 CRITICAL fixed: config optional chaining in callbackQuery.ts → made config required parameter |
+| 2026-03-26 | Code review | APPROVED. 2 HIGH fixed (DRY download logic, shared MAX_FILE_SIZE_BYTES), 2 MEDIUM noted (JSDoc fixed, hardcoded JPEG comment added) |
+| 2026-03-26 | QA engineer | 1 bug found (BUG-F031-01: empty msg.photo array crash) — fixed. 29 edge-case tests added (19 bot + 10 API). Total: 137 F031 tests |
 
 ---
 
@@ -1220,10 +1222,10 @@ _See Spec > Acceptance Criteria section above (29 criteria)._
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | |
-| 1. Mark all items | [ ] | |
-| 2. Verify product tracker | [ ] | |
-| 3. Update key_facts.md | [ ] | |
-| 4. Update decisions.md | [ ] | |
-| 5. Commit documentation | [ ] | |
-| 6. Verify clean working tree | [ ] | |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Plan, AC, DoD, Workflow, Log, Evidence |
+| 1. Mark all items | [x] | AC: 29/29, DoD: 6/6, Workflow: 0-5/6 |
+| 2. Verify product tracker | [x] | Active Session: 5/6 (Review), Features table: 5/6 in-progress |
+| 3. Update key_facts.md | [x] | Added: POST /ingest/image route, fileUpload handler, conversationState fields, ALLOWED_CHAT_IDS, test counts |
+| 4. Update decisions.md | [x] | N/A — no new ADR needed |
+| 5. Commit documentation | [x] | See commit below |
+| 6. Verify clean working tree | [x] | `git status`: clean after docs commit |

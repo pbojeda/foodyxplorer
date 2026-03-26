@@ -11,7 +11,7 @@
 **Last Updated:** 2026-03-26
 
 **Active Feature:** F031 — Bot File Upload (multipart, inline keyboard)
-**Step:** 4/6 (Finalize) — quality gates + production validator
+**Step:** 5/6 (Review) — code review + QA done, pending merge approval
 **Branch:** feature/F031-bot-file-upload
 **Complexity:** Standard (Fullstack: API + Bot)
 **Context:** Spec covers: POST /ingest/image (multipart), bot photo+document handlers, ALLOWED_CHAT_IDS guard, inline keyboard for photo disambiguation. Reviewed by Gemini 2.5 + Codex GPT-5.4 (8 issues, 7 addressed). Key additions from review: image-as-document support, pre-check file_size, try/catch on downloads, pass chainSlug from restaurant state.
@@ -88,7 +88,7 @@
 | F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | done | 6/6 | Simple. PR #28, SHA e8aece8. 10 tests. portion_multiplier pattern (ADR-009) |
 | F035 | Recipe Calculation Endpoint (structured + free-form) | backend | done | 6/6 | Standard. POST /calculate/recipe. PR #31, SHA a263c79. 116 tests. 4 review rounds |
 | F038 | Multilingual Dish Name Resolution | backend | done | 6/6 | Standard. Populate name_es for all dishes, fix ingest pipeline, new name_source_locale field, regenerate embeddings. ADR-010 |
-| F031 | Bot File Upload (multipart, inline keyboard) | fullstack | in-progress | 2/6 | Standard. Depends on F032 ✅. Spec + Plan reviewed. Pending plan approval |
+| F031 | Bot File Upload (multipart, inline keyboard) | fullstack | in-progress | 5/6 | Standard. 137 tests. PR #32. Code review APPROVED + QA VERIFIED. Pending merge |
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos |
 | F041 | Bot Recipe Calculator (/receta) | fullstack | pending | — | Standard. Bot /receta command → POST /calculate/recipe (free-form). Depends on F035 ✅ |
 | F042 | Portion-Aware NL Estimation | fullstack | pending | — | Standard. NL handler detects "pequeño/grande" → portionMultiplier. Depends on F033 ✅ |
