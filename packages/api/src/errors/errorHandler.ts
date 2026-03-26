@@ -280,6 +280,23 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // FST_REQ_FILE_TOO_LARGE — @fastify/multipart file size limit exceeded
+  // Maps to 413 PAYLOAD_TOO_LARGE using our standard error envelope.
+  // This also fixes a latent bug in POST /ingest/pdf where large uploads
+  // would return a raw Fastify error instead of the standard envelope.
+  if (asAny['code'] === 'FST_REQ_FILE_TOO_LARGE') {
+    return {
+      statusCode: 413,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'PAYLOAD_TOO_LARGE',
+        },
+      },
+    };
+  }
+
   // PAYLOAD_TOO_LARGE — response body exceeds size limit (e.g. PDF > 20 MB)
   if (asAny['code'] === 'PAYLOAD_TOO_LARGE') {
     return {

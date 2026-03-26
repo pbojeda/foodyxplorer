@@ -7,8 +7,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type TelegramBot from 'node-telegram-bot-api';
 import type { Redis } from 'ioredis';
 import type { ApiClient } from '../apiClient.js';
+import type { BotConfig } from '../config.js';
 import { ApiError } from '../apiClient.js';
 import { handleCallbackQuery } from '../handlers/callbackQuery.js';
+
+const DEFAULT_CONFIG: BotConfig = {
+  TELEGRAM_BOT_TOKEN: 'test-token',
+  API_BASE_URL: 'http://localhost:3001',
+  BOT_API_KEY: 'test-key',
+  REDIS_URL: 'redis://localhost:6380',
+  LOG_LEVEL: 'info',
+  NODE_ENV: 'test',
+  BOT_VERSION: '0.0.1',
+  ALLOWED_CHAT_IDS: [],
+};
 
 // ---------------------------------------------------------------------------
 // Helpers / fixtures
@@ -39,6 +51,8 @@ function makeMockClient(): { [K in keyof ApiClient]: ReturnType<typeof vi.fn> } 
     healthCheck: vi.fn(),
     searchRestaurants: vi.fn(),
     createRestaurant: vi.fn(),
+    uploadImage: vi.fn(),
+    uploadPdf: vi.fn(),
   };
 }
 
@@ -93,7 +107,7 @@ describe('handleCallbackQuery — sel:{uuid}', () => {
     const state = { searchResults: { 'uuid-abc': "McDonald's Madrid" }, pendingSearch: 'mcdonalds' };
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(JSON.stringify(state));
 
-    await handleCallbackQuery(makeQuery('sel:uuid-abc'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('sel:uuid-abc'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     // Should save the selectedRestaurant
     expect(redis.set).toHaveBeenCalledOnce();
@@ -112,7 +126,7 @@ describe('handleCallbackQuery — sel:{uuid}', () => {
     const state = { searchResults: { 'uuid-abc': 'Some Restaurant' } };
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(JSON.stringify(state));
 
-    await handleCallbackQuery(makeQuery('sel:uuid-abc'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('sel:uuid-abc'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('query-id-001');
   });
@@ -121,7 +135,7 @@ describe('handleCallbackQuery — sel:{uuid}', () => {
     const state = { searchResults: { 'uuid-other': 'Other Restaurant' } };
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(JSON.stringify(state));
 
-    await handleCallbackQuery(makeQuery('sel:uuid-missing'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('sel:uuid-missing'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     expect(bot.sendMessage).toHaveBeenCalledOnce();
     const [, text] = bot.sendMessage.mock.calls[0] as [number, string, unknown];
@@ -133,7 +147,7 @@ describe('handleCallbackQuery — sel:{uuid}', () => {
   it('sends fallback message when state is null (Redis miss)', async () => {
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
-    await handleCallbackQuery(makeQuery('sel:uuid-abc'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('sel:uuid-abc'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     expect(bot.answerCallbackQuery).toHaveBeenCalled();
     expect(bot.sendMessage).toHaveBeenCalledOnce();
@@ -162,7 +176,7 @@ describe('handleCallbackQuery — create_rest', () => {
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(JSON.stringify(state));
     apiClient.createRestaurant.mockResolvedValue(CREATED_RESTAURANT);
 
-    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     expect(apiClient.createRestaurant).toHaveBeenCalledWith({
       name: 'New Restaurant Name',
@@ -175,7 +189,7 @@ describe('handleCallbackQuery — create_rest', () => {
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(JSON.stringify(state));
     apiClient.createRestaurant.mockResolvedValue(CREATED_RESTAURANT);
 
-    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     const [, serialized] = (redis.set as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string, ...unknown[]];
     const saved = JSON.parse(serialized) as { selectedRestaurant?: { id: string; name: string } };
@@ -188,7 +202,7 @@ describe('handleCallbackQuery — create_rest', () => {
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(JSON.stringify(state));
     apiClient.createRestaurant.mockResolvedValue(CREATED_RESTAURANT);
 
-    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     expect(bot.sendMessage).toHaveBeenCalledOnce();
     const [, text] = bot.sendMessage.mock.calls[0] as [number, string, unknown];
@@ -200,7 +214,7 @@ describe('handleCallbackQuery — create_rest', () => {
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(JSON.stringify(state));
     apiClient.createRestaurant.mockResolvedValue(CREATED_RESTAURANT);
 
-    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('query-id-001');
   });
@@ -212,7 +226,7 @@ describe('handleCallbackQuery — create_rest', () => {
       new ApiError(409, 'DUPLICATE_RESTAURANT', 'Restaurant already exists'),
     );
 
-    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     expect(bot.sendMessage).toHaveBeenCalledOnce();
     const [, text] = bot.sendMessage.mock.calls[0] as [number, string, unknown];
@@ -227,7 +241,7 @@ describe('handleCallbackQuery — create_rest', () => {
       new ApiError(500, 'SERVER_ERROR', 'Internal error'),
     );
 
-    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     expect(bot.sendMessage).toHaveBeenCalledOnce();
     const [, text] = bot.sendMessage.mock.calls[0] as [number, string, unknown];
@@ -238,7 +252,7 @@ describe('handleCallbackQuery — create_rest', () => {
   it('sends fallback message when pendingSearch is missing from state', async () => {
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(JSON.stringify({}));
 
-    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     expect(apiClient.createRestaurant).not.toHaveBeenCalled();
     expect(bot.sendMessage).toHaveBeenCalledOnce();
@@ -248,7 +262,7 @@ describe('handleCallbackQuery — create_rest', () => {
   it('sends fallback message when state is null', async () => {
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
-    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('create_rest'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     expect(apiClient.createRestaurant).not.toHaveBeenCalled();
     expect(bot.answerCallbackQuery).toHaveBeenCalled();
@@ -274,7 +288,7 @@ describe('handleCallbackQuery — unknown data', () => {
   it('calls answerCallbackQuery and does NOT send a message for unknown data', async () => {
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
-    await handleCallbackQuery(makeQuery('unknown_action'), bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(makeQuery('unknown_action'), bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('query-id-001');
     expect(bot.sendMessage).not.toHaveBeenCalled();
@@ -287,7 +301,7 @@ describe('handleCallbackQuery — unknown data', () => {
       data: 'sel:uuid-abc',
     } as unknown as TelegramBot.CallbackQuery;
 
-    await handleCallbackQuery(queryNoMessage, bot as never, apiClient as unknown as ApiClient, redis);
+    await handleCallbackQuery(queryNoMessage, bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG);
 
     expect(bot.answerCallbackQuery).toHaveBeenCalledWith('qid');
     expect(bot.sendMessage).not.toHaveBeenCalled();

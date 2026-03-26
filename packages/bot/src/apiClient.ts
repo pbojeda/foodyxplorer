@@ -19,6 +19,17 @@ export interface PaginatedResult<T> {
   pagination: PaginationMeta;
 }
 
+export interface IngestImageResult {
+  dishesFound: number;
+  dishesUpserted: number;
+  dishesSkipped: number;
+  dryRun: boolean;
+  dishes: unknown[];
+  skippedReasons: Array<{ dishName: string; reason: string }>;
+}
+
+export type IngestPdfResult = IngestImageResult;
+
 export interface ApiClient {
   searchDishes(params: { q: string; page?: number; pageSize?: number }): Promise<PaginatedResult<DishListItem>>;
   /**
@@ -49,6 +60,33 @@ export interface ApiClient {
    * Throws ApiError(409) if a duplicate restaurant exists.
    */
   createRestaurant(body: CreateRestaurantBody): Promise<Restaurant>;
+  /**
+   * Upload an image file as multipart to POST /ingest/image (F031).
+   * Requires ADMIN_API_KEY in config. Throws ApiError(500, CONFIG_ERROR) if absent.
+   * Uses UPLOAD_TIMEOUT_MS (90s) to allow for server-side OCR processing.
+   */
+  uploadImage(params: {
+    fileBuffer: Buffer;
+    filename: string;
+    mimeType: string;
+    restaurantId: string;
+    sourceId: string;
+    dryRun?: boolean;
+    chainSlug?: string;
+  }): Promise<IngestImageResult>;
+  /**
+   * Upload a PDF file as multipart to POST /ingest/pdf (F031).
+   * Requires ADMIN_API_KEY in config. Throws ApiError(500, CONFIG_ERROR) if absent.
+   * Uses UPLOAD_TIMEOUT_MS (90s) to allow for server-side PDF processing.
+   */
+  uploadPdf(params: {
+    fileBuffer: Buffer;
+    filename: string;
+    restaurantId: string;
+    sourceId: string;
+    dryRun?: boolean;
+    chainSlug?: string;
+  }): Promise<IngestPdfResult>;
 }
 
 // ---------------------------------------------------------------------------
@@ -72,6 +110,7 @@ export class ApiError extends Error {
 // ---------------------------------------------------------------------------
 
 const REQUEST_TIMEOUT_MS = 10_000;
+export const UPLOAD_TIMEOUT_MS = 90_000;
 
 export function createApiClient(config: BotConfig): ApiClient {
   const baseUrl = config.API_BASE_URL.replace(/\/$/, '');
@@ -185,6 +224,64 @@ export function createApiClient(config: BotConfig): ApiClient {
     }
   }
 
+  /**
+   * Multipart POST with FormData body and envelope parsing.
+   * Does NOT set Content-Type header — fetch derives it automatically from
+   * the FormData body, which is required for the multipart boundary to be set.
+   * Uses UPLOAD_TIMEOUT_MS (90s) instead of REQUEST_TIMEOUT_MS.
+   * When `adminKey` is provided, it replaces the default BOT_API_KEY.
+   */
+  async function postFormData<T>(path: string, body: FormData, adminKey?: string): Promise<T> {
+    const url = new URL(path, baseUrl + '/');
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+
+    const headers: Record<string, string> = {
+      'X-API-Key': adminKey ?? apiKey,
+      'X-FXP-Source': 'bot',
+      // NOTE: Content-Type is intentionally omitted — fetch sets it automatically
+      // with the correct multipart boundary when body is a FormData instance.
+    };
+
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers,
+        body,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timer);
+
+      if (!response.ok) {
+        let code = 'API_ERROR';
+        let message = `HTTP ${response.status}`;
+        try {
+          const errBody = await response.json() as { success: boolean; error?: { code?: string; message?: string } };
+          if (errBody.error?.code) code = errBody.error.code;
+          if (errBody.error?.message) message = errBody.error.message;
+        } catch {
+          // ignore parse error — use defaults
+        }
+        throw new ApiError(response.status, code, message);
+      }
+
+      const envelope = await response.json() as { success: boolean; data: T };
+      return envelope.data;
+    } catch (err) {
+      clearTimeout(timer);
+
+      if (err instanceof ApiError) throw err;
+
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new ApiError(408, 'TIMEOUT', 'Request timed out');
+      }
+
+      throw new ApiError(0, 'NETWORK_ERROR', err instanceof Error ? err.message : 'Network error');
+    }
+  }
+
   return {
     async searchDishes(params) {
       const sp: Record<string, string> = {
@@ -247,6 +344,40 @@ export function createApiClient(config: BotConfig): ApiClient {
 
     async createRestaurant(body) {
       return postJson<Restaurant>('/restaurants', body, config.ADMIN_API_KEY);
+    },
+
+    async uploadImage(params) {
+      if (!config.ADMIN_API_KEY) {
+        throw new ApiError(500, 'CONFIG_ERROR', 'ADMIN_API_KEY not configured');
+      }
+
+      const form = new FormData();
+      form.append('restaurantId', params.restaurantId);
+      form.append('sourceId', params.sourceId);
+      form.append('dryRun', String(params.dryRun ?? false));
+      if (params.chainSlug !== undefined) {
+        form.append('chainSlug', params.chainSlug);
+      }
+      form.append('file', new Blob([new Uint8Array(params.fileBuffer)], { type: params.mimeType }), params.filename);
+
+      return postFormData<IngestImageResult>('/ingest/image', form, config.ADMIN_API_KEY);
+    },
+
+    async uploadPdf(params) {
+      if (!config.ADMIN_API_KEY) {
+        throw new ApiError(500, 'CONFIG_ERROR', 'ADMIN_API_KEY not configured');
+      }
+
+      const form = new FormData();
+      form.append('restaurantId', params.restaurantId);
+      form.append('sourceId', params.sourceId);
+      form.append('dryRun', String(params.dryRun ?? false));
+      if (params.chainSlug !== undefined) {
+        form.append('chainSlug', params.chainSlug);
+      }
+      form.append('file', new Blob([new Uint8Array(params.fileBuffer)], { type: 'application/pdf' }), params.filename);
+
+      return postFormData<IngestPdfResult>('/ingest/pdf', form, config.ADMIN_API_KEY);
     },
   };
 }

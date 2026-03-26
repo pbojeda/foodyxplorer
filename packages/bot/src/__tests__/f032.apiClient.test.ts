@@ -7,12 +7,12 @@ import type { ApiClient } from '../apiClient.js';
 import type { ApiError as ApiErrorType } from '../apiClient.js';
 import type { BotConfig } from '../config.js';
 
-let ApiError: typeof ApiErrorType;
+let _ApiError: typeof ApiErrorType;
 let createApiClient: (config: BotConfig) => ApiClient;
 
 beforeAll(async () => {
   const mod = await import('../apiClient.js');
-  ApiError = mod.ApiError as unknown as typeof ApiErrorType;
+  _ApiError = mod.ApiError as unknown as typeof ApiErrorType;
   createApiClient = mod.createApiClient;
 });
 
@@ -25,6 +25,7 @@ const TEST_CONFIG: BotConfig = {
   NODE_ENV: 'test',
   ADMIN_API_KEY: 'test-admin-key',
   REDIS_URL: 'redis://localhost:6380',
+  ALLOWED_CHAT_IDS: [],
 };
 
 // ---------------------------------------------------------------------------

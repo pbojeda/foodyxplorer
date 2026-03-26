@@ -24,6 +24,7 @@ const TEST_CONFIG: BotConfig = {
   LOG_LEVEL: 'info',
   NODE_ENV: 'test',
   REDIS_URL: 'redis://localhost:6380',
+  ALLOWED_CHAT_IDS: [],
 };
 
 function makeOkResponse(body: unknown) {

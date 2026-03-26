@@ -74,6 +74,8 @@ function makeMockClient(): { [K in keyof ApiClient]: ReturnType<typeof vi.fn> } 
     healthCheck: vi.fn(),
     searchRestaurants: vi.fn(),
     createRestaurant: vi.fn(),
+    uploadImage: vi.fn(),
+    uploadPdf: vi.fn(),
   };
 }
 
@@ -86,6 +88,7 @@ const TEST_CONFIG: BotConfig = {
   NODE_ENV: 'test',
   ADMIN_API_KEY: 'test-admin-key',
   REDIS_URL: 'redis://localhost:6380',
+  ALLOWED_CHAT_IDS: [],
 };
 
 // Minimal Redis mock — DI into buildBot
@@ -159,6 +162,18 @@ describe('buildBot', () => {
     const onCalls = mockBot.on.mock.calls as Array<[string, unknown]>;
     const messageCalls = onCalls.filter(([event]) => event === 'message');
     expect(messageCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('registers photo handler via bot.on (F031)', () => {
+    const onCalls = mockBot.on.mock.calls as Array<[string, unknown]>;
+    const photoCall = onCalls.find(([event]) => event === 'photo');
+    expect(photoCall).toBeDefined();
+  });
+
+  it('registers document handler via bot.on (F031)', () => {
+    const onCalls = mockBot.on.mock.calls as Array<[string, unknown]>;
+    const documentCall = onCalls.find(([event]) => event === 'document');
+    expect(documentCall).toBeDefined();
   });
 
   it('the /buscar regex matches "/buscar big mac"', () => {

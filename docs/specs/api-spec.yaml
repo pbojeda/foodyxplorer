@@ -12,7 +12,7 @@ info:
     **Validation:**
     - Request bodies and query params are validated via `fastify-type-provider-zod`.
     - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
-  version: 0.3.0
+  version: 0.4.0
   contact:
     name: foodXPlorer
   license:
@@ -27,11 +27,11 @@ tags:
     description: Infrastructure and health endpoints
   - name: Ingestion
     description: |
-      Data ingestion endpoints (F007b, F007c, F009, F011, F012). Accept external nutritional
-      data (PDF upload, PDF-URL download, URL scrape, or image-URL OCR), normalize to the
-      shared dish/nutrient schema, and persist to the database. These endpoints are NOT
-      part of F007 — they are specified and implemented in F007b, F007c, F009, F011, and
-      F012 respectively.
+      Data ingestion endpoints (F007b, F007c, F009, F011, F012, F031). Accept external nutritional
+      data (PDF upload, PDF-URL download, URL scrape, image-URL OCR, or direct image upload),
+      normalize to the shared dish/nutrient schema, and persist to the database. These endpoints
+      are NOT part of F007 — they are specified and implemented in F007b, F007c, F009, F011,
+      F012, and F031 respectively.
   - name: Quality
     description: |
       Data quality monitoring endpoints (F018). Audit ingested dish and nutrient data
@@ -1067,6 +1067,289 @@ paths:
                 error:
                   message: "Admin API key required"
                   code: "UNAUTHORIZED"
+        '500':
+          description: Database error during upsert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                dbError:
+                  value:
+                    success: false
+                    error:
+                      message: "Database write failed"
+                      code: "DB_UNAVAILABLE"
+
+  /ingest/image:
+    post:
+      summary: Ingest nutritional data from a direct image upload (OCR)
+      description: |
+        Accepts a multipart/form-data upload of a JPEG or PNG image containing a
+        nutritional table, runs OCR via Tesseract.js (languages: spa+eng), and
+        pipes the extracted text lines through the existing pipeline:
+        optional `chainTextPreprocessor` → `parseNutritionTable` →
+        `normalizeNutrients` / `normalizeDish` → Prisma `$transaction` upsert.
+
+        This is the multipart counterpart to `POST /ingest/image-url`. It is
+        intended for Telegram bot uploads, where the bot downloads the file
+        from Telegram servers into an in-process Buffer and then forwards it
+        to the API as multipart (keeping the Telegram bot token strictly inside
+        the bot process).
+
+        - Supported image formats: JPEG (magic bytes FFD8FF), PNG (magic bytes 89504E47).
+        - File field name in the multipart body must be `file`.
+        - `restaurantId`, `sourceId`, `dryRun`, and `chainSlug` are sent as
+          additional multipart text fields (same pattern as `POST /ingest/pdf`).
+        - `dryRun` is a string field (`"true"` / `"false"`) because multipart
+          form-data does not have a native boolean type.
+        - The `sourceId` for Telegram-originated uploads should be
+          `00000000-0000-0000-0000-000000000099` (seeded "Telegram Upload" DataSource).
+        - Partial success (some dishes skipped) returns HTTP 200. Only total failure
+          (zero parseable dishes after OCR) returns HTTP 422.
+        - Size limit: 10 MB (enforced by `@fastify/multipart` plugin limit in app.ts).
+        - Total pipeline timeout: 60 seconds (same as `POST /ingest/image-url`).
+        - Magic bytes are validated AFTER reading the buffer from the multipart
+          stream — unsupported formats return 422 INVALID_IMAGE.
+      operationId: ingestImage
+      tags:
+        - Ingestion
+      security:
+        - AdminKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - restaurantId
+                - sourceId
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |
+                    JPEG or PNG image file containing a nutritional table.
+                    Maximum size: 10 MB. Magic bytes are validated after upload.
+                restaurantId:
+                  type: string
+                  format: uuid
+                  description: UUID of the Restaurant row this data belongs to.
+                  example: "00000000-0000-0000-0006-000000000001"
+                sourceId:
+                  type: string
+                  format: uuid
+                  description: |
+                    UUID of the DataSource row representing this image's origin.
+                    For Telegram bot uploads, use `00000000-0000-0000-0000-000000000099`
+                    (the seeded "Telegram Upload" DataSource).
+                  example: "00000000-0000-0000-0000-000000000099"
+                dryRun:
+                  type: string
+                  enum: ["true", "false"]
+                  default: "false"
+                  description: |
+                    When "true", runs OCR, extraction, and normalization but skips
+                    all DB writes. The response still contains the full `dishes`
+                    array for inspection.
+                chainSlug:
+                  type: string
+                  pattern: "^[a-z0-9-]+$"
+                  minLength: 1
+                  maxLength: 100
+                  description: |
+                    Optional chain identifier (e.g. "dominos-es"). When provided,
+                    applies chain-specific text preprocessing to the OCR-extracted
+                    lines before parsing. When omitted, no preprocessing is applied.
+                  example: "dominos-es"
+      responses:
+        '200':
+          description: |
+            Ingestion successful (or dryRun completed). At least one dish was parsed
+            and upserted (or would be upserted in dryRun mode). Partial success
+            (some dishes skipped) also returns 200 — see `dishesSkipped` and
+            `skippedReasons` for details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestImageResponse'
+              examples:
+                success:
+                  summary: 8 dishes upserted, 1 skipped
+                  value:
+                    success: true
+                    data:
+                      dishesFound: 9
+                      dishesUpserted: 8
+                      dishesSkipped: 1
+                      dryRun: false
+                      dishes:
+                        - name: "Pizza Pepperoni"
+                          nameEs: "Pizza Pepperoni"
+                          nutrients:
+                            calories: 265
+                            proteins: 12
+                            carbohydrates: 29
+                            fats: 11
+                            saturatedFats: 5
+                            sugars: 3
+                            fiber: 1.5
+                            salt: 1.2
+                            sodium: 480
+                            transFats: 0
+                            cholesterol: 30
+                            potassium: 0
+                            monounsaturatedFats: 0
+                            polyunsaturatedFats: 0
+                            referenceBasis: "per_serving"
+                          confidenceLevel: "medium"
+                          estimationMethod: "scraped"
+                          availability: "available"
+                          restaurantId: "00000000-0000-0000-0006-000000000001"
+                          sourceId: "00000000-0000-0000-0000-000000000099"
+                      skippedReasons:
+                        - dishName: "Bebida"
+                          reason: "Missing required field: proteins"
+                dryRun:
+                  summary: dryRun=true — no DB writes
+                  value:
+                    success: true
+                    data:
+                      dishesFound: 5
+                      dishesUpserted: 0
+                      dishesSkipped: 0
+                      dryRun: true
+                      dishes: []
+                      skippedReasons: []
+        '400':
+          description: Validation error (missing fields, invalid UUID format, file missing)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                fileMissing:
+                  summary: No file part in multipart body
+                  value:
+                    success: false
+                    error:
+                      message: "No file uploaded"
+                      code: "VALIDATION_ERROR"
+                missingRestaurantId:
+                  summary: restaurantId missing
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["restaurantId"]
+                          message: "Required"
+                          code: "invalid_type"
+                invalidUuid:
+                  summary: sourceId is not a valid UUID
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["sourceId"]
+                          message: "Invalid uuid"
+                          code: "invalid_string"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
+        '404':
+          description: restaurantId or sourceId not found in the database
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                restaurantNotFound:
+                  summary: Restaurant row does not exist
+                  value:
+                    success: false
+                    error:
+                      message: "Restaurant not found"
+                      code: "NOT_FOUND"
+                sourceNotFound:
+                  summary: DataSource row does not exist
+                  value:
+                    success: false
+                    error:
+                      message: "Data source not found"
+                      code: "NOT_FOUND"
+        '408':
+          description: Image OCR + processing exceeded the 60-second timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                timeout:
+                  value:
+                    success: false
+                    error:
+                      message: "Processing timeout"
+                      code: "PROCESSING_TIMEOUT"
+        '413':
+          description: Uploaded image exceeds the 10 MB size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                tooLarge:
+                  value:
+                    success: false
+                    error:
+                      message: "File size exceeds the 10 MB limit"
+                      code: "PAYLOAD_TOO_LARGE"
+        '422':
+          description: |
+            Unprocessable image. One of three sub-cases:
+            - `INVALID_IMAGE`: uploaded file is not a valid JPEG or PNG (magic bytes mismatch).
+            - `OCR_FAILED`: Tesseract.js could not extract text from the image.
+            - `NO_NUTRITIONAL_DATA_FOUND`: OCR succeeded but no parseable nutritional
+              table was found, or all parsed rows failed normalization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidImage:
+                  summary: Not a JPEG or PNG
+                  value:
+                    success: false
+                    error:
+                      message: "Uploaded file is not a valid image (not JPEG or PNG)"
+                      code: "INVALID_IMAGE"
+                ocrFailed:
+                  summary: Tesseract OCR failure
+                  value:
+                    success: false
+                    error:
+                      message: "OCR failed to extract text from image"
+                      code: "OCR_FAILED"
+                noData:
+                  summary: No nutritional data found
+                  value:
+                    success: false
+                    error:
+                      message: "No nutritional data found in image"
+                      code: "NO_NUTRITIONAL_DATA_FOUND"
         '500':
           description: Database error during upsert
           content:
@@ -3897,6 +4180,80 @@ components:
           example: true
         data:
           $ref: '#/components/schemas/IngestImageUrlResult'
+
+    # -------------------------------------------------------------------------
+    # Ingestion — Image Upload / multipart (F031)
+    # -------------------------------------------------------------------------
+
+    IngestImageSkippedReason:
+      type: object
+      required:
+        - dishName
+        - reason
+      properties:
+        dishName:
+          type: string
+          description: The dish name as extracted from the OCR-parsed row.
+          example: "Bebida"
+        reason:
+          type: string
+          description: Human-readable explanation of why this dish was skipped.
+          example: "Missing required field: proteins"
+
+    IngestImageResult:
+      type: object
+      required:
+        - dishesFound
+        - dishesUpserted
+        - dishesSkipped
+        - dryRun
+        - dishes
+        - skippedReasons
+      properties:
+        dishesFound:
+          type: integer
+          minimum: 0
+          description: Total number of dish rows extracted from the image (after OCR) before normalization.
+          example: 9
+        dishesUpserted:
+          type: integer
+          minimum: 0
+          description: |
+            Number of dishes successfully normalized and written to (or that would be
+            written to, in dryRun mode) the database.
+          example: 8
+        dishesSkipped:
+          type: integer
+          minimum: 0
+          description: Number of dishes that failed normalization and were not persisted.
+          example: 1
+        dryRun:
+          type: boolean
+          description: Whether this was a dry run (no DB writes).
+          example: false
+        dishes:
+          type: array
+          description: |
+            All successfully normalized dishes. Present in both live and dryRun responses.
+          items:
+            $ref: '#/components/schemas/NormalizedDish'
+        skippedReasons:
+          type: array
+          description: One entry per skipped dish explaining the normalization failure.
+          items:
+            $ref: '#/components/schemas/IngestImageSkippedReason'
+
+    IngestImageResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/IngestImageResult'
 
     # -------------------------------------------------------------------------
     # Ingestion — URL (F007c)

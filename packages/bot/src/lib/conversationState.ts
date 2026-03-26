@@ -22,6 +22,8 @@ import type { Redis } from 'ioredis';
 export interface BotStateRestaurant {
   id: string;
   name: string;
+  /** Chain slug for chain restaurants. Used by upload handlers to enable chain-specific preprocessing. */
+  chainSlug?: string;
 }
 
 /**
@@ -34,11 +36,16 @@ export interface BotStateRestaurant {
  * - `pendingSearch`:      The last search term typed by the user, preserved
  *                         so the `create_rest` callback can create the
  *                         restaurant with the correct name.
+ * - `pendingPhotoFileId`: The Telegram file_id of the most recently received
+ *                         photo. Stored here because callback_data is limited
+ *                         to 64 bytes (too short for a Telegram file_id).
+ *                         Retrieved by the upload_ingest callback handler.
  */
 export interface BotState {
   selectedRestaurant?: BotStateRestaurant;
   searchResults?: Record<string, string>;  // { [uuid]: name }
   pendingSearch?: string;
+  pendingPhotoFileId?: string;
 }
 
 // ---------------------------------------------------------------------------

@@ -20,6 +20,15 @@ export const BotEnvSchema = z.object({
   NODE_ENV:           z.enum(['development', 'production', 'test']).default('development'),
   ADMIN_API_KEY:      z.string().min(1).optional(),
   REDIS_URL:          z.string().url().default('redis://localhost:6380'),
+  /**
+   * Comma-separated list of Telegram chat IDs allowed to use file upload features.
+   * Empty array (default) means ALL uploads are blocked unless explicitly configured.
+   * Example: ALLOWED_CHAT_IDS=123456789,987654321
+   */
+  ALLOWED_CHAT_IDS:   z.string().optional().transform((val) => {
+    if (!val) return [];
+    return val.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n));
+  }),
 });
 
 export type BotConfig = z.infer<typeof BotEnvSchema>;

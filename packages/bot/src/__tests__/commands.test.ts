@@ -33,6 +33,8 @@ function makeMockClient(): MockApiClient {
     healthCheck: vi.fn(),
     searchRestaurants: vi.fn(),
     createRestaurant: vi.fn(),
+    uploadImage: vi.fn(),
+    uploadPdf: vi.fn(),
   };
 }
 
@@ -45,6 +47,7 @@ const TEST_CONFIG: BotConfig = {
   NODE_ENV: 'test',
   ADMIN_API_KEY: 'test-admin-key',
   REDIS_URL: 'redis://localhost:6380',
+  ALLOWED_CHAT_IDS: [],
 };
 
 // ---------------------------------------------------------------------------
