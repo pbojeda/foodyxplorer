@@ -68,6 +68,12 @@ tags:
       operational metrics: total query counts, level-hit distribution, top queried terms,
       cache hit rate, average response time, and queries by chain and source.
       Admin-only (requires X-API-Key matching ADMIN_API_KEY env var).
+  - name: Calculation
+    description: |
+      Recipe calculation endpoints (F035). Compute aggregate nutritional information
+      for user-provided recipes. The engine resolves each ingredient via a food-only
+      cascade and aggregates nutrients. The LLM is only used for free-form text parsing
+      (ADR-001). Stateless — no writes to Recipe tables.
 
 paths:
   /ingest/pdf:
