@@ -11,10 +11,10 @@
 **Last Updated:** 2026-03-26
 
 **Active Feature:** F034 — Menu Analysis (OCR + Vision API)
-**Step:** 3/6 (Implement)
+**Step:** 5/6 (Review)
 **Branch:** feature/F034-menu-analysis-ocr-vision
 **Complexity:** Complex
-**Context:** Implementation complete. Backend: 93 new tests (schemas, openaiClient, dishNameParser, menuAnalyzer, route, edge cases). Bot: 48 new tests (apiClient, callbackQuery upload_menu/upload_dish). Build clean, lint clean (6 pre-existing errors in scripts/). Moving to Finalize.
+**Context:** Code review APPROVED, QA done (2 bugs fixed, 27 edge-case tests added). PR #34. 168 new tests total (93 API + 48 bot + 27 QA edge cases). Awaiting merge approval.
 
 ---
 
@@ -89,7 +89,7 @@
 | F035 | Recipe Calculation Endpoint (structured + free-form) | backend | done | 6/6 | Standard. POST /calculate/recipe. PR #31, SHA a263c79. 116 tests. 4 review rounds |
 | F038 | Multilingual Dish Name Resolution | backend | done | 6/6 | Standard. Populate name_es for all dishes, fix ingest pipeline, new name_source_locale field, regenerate embeddings. ADR-010 |
 | F031 | Bot File Upload (multipart, inline keyboard) | fullstack | done | 6/6 | Standard. PR #32, SHA 01d8b1f. 137 tests (8 files). POST /ingest/image + bot handlers. BUG-F031-01 fixed |
-| F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | in-progress | 2/6 | Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-011 |
+| F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | in-progress | 5/6 | Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-011. PR #34 |
 | F041 | Bot Recipe Calculator (/receta) | fullstack | pending | — | Standard. Bot /receta command → POST /calculate/recipe (free-form). Depends on F035 ✅ |
 | F042 | Portion-Aware NL Estimation | fullstack | pending | — | Standard. NL handler detects "pequeño/grande" → portionMultiplier. Depends on F033 ✅ |
 | F043 | Dish Comparison via Bot | fullstack | pending | — | Standard. "qué tiene más X, A o B?" → 2× /estimate → comparison |

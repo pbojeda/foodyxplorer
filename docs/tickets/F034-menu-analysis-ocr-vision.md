@@ -915,8 +915,8 @@ const MENU_ANALYSIS_RESULT: MenuAnalysisData = {
 - [x] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
 - [x] Step 3: `backend-developer` + `frontend-developer` executed with TDD
 - [x] Step 4: `production-code-validator` executed, quality gates pass (1 CRITICAL spec drift fixed)
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Complex)
+- [x] Step 5: `code-review-specialist` executed — APPROVED (0C/0H, 3M fixed)
+- [x] Step 5: `qa-engineer` executed — 2 bugs found+fixed (BUG-F034-01, BUG-F034-02), 27 edge-case tests added
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -931,6 +931,8 @@ const MENU_ANALYSIS_RESULT: MenuAnalysisData = {
 | 2026-03-26 | Backend implemented | 93 new tests. e3d3119 |
 | 2026-03-26 | Bot implemented | 48 new tests. d7ab406 |
 | 2026-03-26 | Production validator | 1 CRITICAL (spec drift: 408 vs 200+partial). Fixed: 14a72fd |
+| 2026-03-26 | Code review | APPROVED. 3 MEDIUM: cascade error log, file drain, magic bytes duplication. 2 fixed: 2a7bb68 |
+| 2026-03-26 | QA | 2 bugs: BUG-F034-01 (UNSUPPORTED_PDF not wrapped), BUG-F034-02 (0-dish timeout). Both fixed: 09f59ee. 27 edge-case tests added |
 
 ---
 
