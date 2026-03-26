@@ -870,41 +870,41 @@ const MENU_ANALYSIS_RESULT: MenuAnalysisData = {
 
 ## Acceptance Criteria
 
-- [ ] `POST /analyze/menu` endpoint accepts multipart file (JPEG/PNG/WebP/PDF, max 10MB)
-- [ ] `mode` parameter supports `auto`, `ocr`, `vision`, `identify` (default: `auto`)
-- [ ] OCR pipeline (PDF): `pdf-parse` → text lines → `parseDishNames` → dish names
-- [ ] OCR pipeline (image): `extractTextFromImage` → text lines → `parseDishNames` → dish names
-- [ ] Vision pipeline: image buffer → OpenAI gpt-4o-mini (maxTokens 2048) → JSON array of dish names
-- [ ] Identify pipeline: image buffer → OpenAI gpt-4o-mini → exactly 1 dish name
-- [ ] Fallback: Vision failure → Tesseract OCR (vision mode only). No fallback for `identify` mode
-- [ ] PDF rejected with `INVALID_IMAGE` in `vision` and `identify` modes
-- [ ] Per-dish estimation via `runEstimationCascade` for each extracted dish name
-- [ ] Response follows `MenuAnalysisResponse` schema (mode, dishCount, dishes, partial)
-- [ ] Partial results on timeout: return 200 with `partial: true` and dishes processed so far
-- [ ] API key auth required (anonymous rejected with 401)
-- [ ] Rate limit: 10 analyses/hour per API key (Redis counter, fail-open). Bot key exempt
-- [ ] Bot per-user rate limit: 5 analyses/hour per chatId (Redis counter in bot handler)
-- [ ] Error codes: MENU_ANALYSIS_FAILED, VISION_API_UNAVAILABLE, INVALID_IMAGE, OCR_FAILED
-- [ ] Bot `upload_menu` callback retrieves fileId from Redis BotState, calls POST /analyze/menu (mode: auto)
-- [ ] Bot `upload_dish` callback retrieves fileId from Redis BotState, calls POST /analyze/menu (mode: identify)
-- [ ] `apiClient.analyzeMenu()` method uses existing postFormData helper
-- [ ] `parseDishNames()` utility extracts dish name candidates from text lines
-- [ ] Unit tests for new functionality
-- [ ] All tests pass
-- [ ] Build succeeds
-- [ ] Specs updated (`api-spec.yaml` / shared schemas)
+- [x] `POST /analyze/menu` endpoint accepts multipart file (JPEG/PNG/WebP/PDF, max 10MB)
+- [x] `mode` parameter supports `auto`, `ocr`, `vision`, `identify` (default: `auto`)
+- [x] OCR pipeline (PDF): `pdf-parse` → text lines → `parseDishNames` → dish names
+- [x] OCR pipeline (image): `extractTextFromImage` → text lines → `parseDishNames` → dish names
+- [x] Vision pipeline: image buffer → OpenAI gpt-4o-mini (maxTokens 2048) → JSON array of dish names
+- [x] Identify pipeline: image buffer → OpenAI gpt-4o-mini → exactly 1 dish name
+- [x] Fallback: Vision failure → Tesseract OCR (vision mode only). No fallback for `identify` mode
+- [x] PDF rejected with `INVALID_IMAGE` in `vision` and `identify` modes
+- [x] Per-dish estimation via `runEstimationCascade` for each extracted dish name
+- [x] Response follows `MenuAnalysisResponse` schema (mode, dishCount, dishes, partial)
+- [x] Partial results on timeout: return 200 with `partial: true` and dishes processed so far
+- [x] API key auth required (anonymous rejected with 401)
+- [x] Rate limit: 10 analyses/hour per API key (Redis counter, fail-open). Bot key exempt
+- [x] Bot per-user rate limit: 5 analyses/hour per chatId (Redis counter in bot handler)
+- [x] Error codes: MENU_ANALYSIS_FAILED, VISION_API_UNAVAILABLE, INVALID_IMAGE, OCR_FAILED
+- [x] Bot `upload_menu` callback retrieves fileId from Redis BotState, calls POST /analyze/menu (mode: auto)
+- [x] Bot `upload_dish` callback retrieves fileId from Redis BotState, calls POST /analyze/menu (mode: identify)
+- [x] `apiClient.analyzeMenu()` method uses existing postFormData helper
+- [x] `parseDishNames()` utility extracts dish name candidates from text lines
+- [x] Unit tests: 141 new tests (93 API + 48 bot)
+- [x] All tests pass (API: 2244 pass + 139 pre-existing auth failures; Bot: 517 pass, 0 fail)
+- [x] Build succeeds (all 4 packages)
+- [x] Specs updated (`api-spec.yaml` / shared schemas)
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation
-- [ ] ADR-001 compliance verified (LLM identifies, engine calculates)
+- [x] All acceptance criteria met (23/23)
+- [x] Unit tests written and passing (141 new tests)
+- [x] Code follows project standards
+- [x] No linting errors (0 new; 6 pre-existing in scripts/)
+- [x] Build succeeds (all 4 packages)
+- [x] Specs reflect final implementation (408 removed per ADR-011)
+- [x] ADR-001 compliance verified (LLM identifies, engine calculates)
 
 ---
 
@@ -914,7 +914,7 @@ const MENU_ANALYSIS_RESULT: MenuAnalysisData = {
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
 - [x] Step 3: `backend-developer` + `frontend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
+- [x] Step 4: `production-code-validator` executed, quality gates pass (1 CRITICAL spec drift fixed)
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed (Complex)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
@@ -928,6 +928,9 @@ const MENU_ANALYSIS_RESULT: MenuAnalysisData = {
 | 2026-03-26 | Spec created | spec-creator agent + self-review |
 | 2026-03-26 | Spec reviewed | Gemini 2.5 + Codex GPT-5.4. 3 CRITICAL + 4 IMPORTANT + 3 SUGGESTION. All CRITICAL/IMPORTANT addressed |
 | 2026-03-26 | Plan reviewed | Gemini 2.5 + Codex GPT-5.4. 1C+3I+2S (Gemini) + 3I+2S (Codex). Issues addressed: callVisionCompletion new function (multimodal content), cooperative timeout (no Promise.race), markdown JSON stripping, pdfParser.ts wrapper, file-type magic bytes validation, response mode echoes request, api-spec already done |
+| 2026-03-26 | Backend implemented | 93 new tests. e3d3119 |
+| 2026-03-26 | Bot implemented | 48 new tests. d7ab406 |
+| 2026-03-26 | Production validator | 1 CRITICAL (spec drift: 408 vs 200+partial). Fixed: 14a72fd |
 
 ---
 
