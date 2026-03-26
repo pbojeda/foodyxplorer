@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-26
 
-**Active Feature:** F031 — Bot File Upload (multipart, inline keyboard)
-**Step:** 5/6 (Review) — code review + QA done, pending merge approval
-**Branch:** feature/F031-bot-file-upload
-**Complexity:** Standard (Fullstack: API + Bot)
-**Context:** Spec covers: POST /ingest/image (multipart), bot photo+document handlers, ALLOWED_CHAT_IDS guard, inline keyboard for photo disambiguation. Reviewed by Gemini 2.5 + Codex GPT-5.4 (8 issues, 7 addressed). Key additions from review: image-as-document support, pre-check file_size, try/catch on downloads, pass chainSlug from restaurant state.
+**Active Feature:** None — no active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F031 completed and squash-merged to develop (PR #32, SHA 01d8b1f, 2026-03-26). 137 tests (8 files), 32 files changed. POST /ingest/image + bot photo/document handlers. 4 review rounds (Gemini + Codex spec, Codex plan, code review, QA). BUG-F031-01 found+fixed.
 
 ---
 
@@ -88,7 +88,7 @@
 | F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | done | 6/6 | Simple. PR #28, SHA e8aece8. 10 tests. portion_multiplier pattern (ADR-009) |
 | F035 | Recipe Calculation Endpoint (structured + free-form) | backend | done | 6/6 | Standard. POST /calculate/recipe. PR #31, SHA a263c79. 116 tests. 4 review rounds |
 | F038 | Multilingual Dish Name Resolution | backend | done | 6/6 | Standard. Populate name_es for all dishes, fix ingest pipeline, new name_source_locale field, regenerate embeddings. ADR-010 |
-| F031 | Bot File Upload (multipart, inline keyboard) | fullstack | in-progress | 5/6 | Standard. 137 tests. PR #32. Code review APPROVED + QA VERIFIED. Pending merge |
+| F031 | Bot File Upload (multipart, inline keyboard) | fullstack | done | 6/6 | Standard. PR #32, SHA 01d8b1f. 137 tests (8 files). POST /ingest/image + bot handlers. BUG-F031-01 fixed |
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos |
 | F041 | Bot Recipe Calculator (/receta) | fullstack | pending | — | Standard. Bot /receta command → POST /calculate/recipe (free-form). Depends on F035 ✅ |
 | F042 | Portion-Aware NL Estimation | fullstack | pending | — | Standard. NL handler detects "pequeño/grande" → portionMultiplier. Depends on F033 ✅ |
@@ -143,6 +143,7 @@
 | 2026-03-25 | F038 — Multilingual Dish Name Resolution | 45e9231 (squash merge to develop, PR #30) | Populate name_es for all dishes, fix ingest pipeline, name_source_locale field, regenerate embeddings. ADR-010. 91 tests, 21 files, +3631 lines |
 | 2026-03-26 | F039 — Landing Page (nutriXplorer) | 64280e4 (squash merge to develop) | Standalone packages/landing/ (Next.js 14 + Tailwind + Framer Motion). 9 sections, A/B hero variants, SEO (JSON-LD, sitemap, robots), GDPR CookieBanner, GA4 analytics, i18n (ES+EN stubs), progressive enhancement. Spec reviewed by Gemini 2.5 + Codex GPT-5.4 (25 issues). Plan reviewed by Gemini + Codex (13 issues). Production validator: 7 issues fixed. Code review: APPROVED. QA: VERIFIED. 153 tests (23 suites), 98 files changed |
 | 2026-03-26 | F035 — Recipe Calculation Endpoint | a263c79 (squash merge to develop, PR #31) | POST /calculate/recipe: structured + free-form modes. Food-only cascade (direct_id → exact_food → fts_food → similarity_food → llm_food_match). Two-phase resolution (L1 parallel, L3/L4 sequential, budget 10). 14 nutrients, null-all→null, AbortController 30s. openaiClient.ts shared utility. Spec reviewed 4x (Gemini + Codex, ~25 issues). Plan reviewed 2x (Gemini + Codex). Production validator: 1C+2H+3M fixed. Code review: APPROVED (2 important fixed). QA: VERIFIED (16 edge-case tests). 116 F035 tests (6 files). 18 files changed |
+| 2026-03-26 | F031 — Bot File Upload | 01d8b1f (squash merge to develop, PR #32) | Fullstack (API + Bot). POST /ingest/image multipart endpoint + bot photo/document handlers + inline keyboard + ALLOWED_CHAT_IDS guard + apiClient multipart (90s timeout). FST_REQ_FILE_TOO_LARGE error mapping fix. Spec reviewed by Gemini+Codex (8 issues). Plan reviewed by Codex (5 issues). Production validator: 1C fixed. Code review: APPROVED (2H fixed: DRY download, shared constant). QA: 1 bug fixed (BUG-F031-01 empty photo array), 29 edge-case tests. 137 F031 tests (8 files). 32 files changed |
 
 ---
 
