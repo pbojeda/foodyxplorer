@@ -23,6 +23,7 @@ import { handleInfo } from './commands/info.js';
 import { handleRestaurante } from './commands/restaurante.js';
 import { handleNaturalLanguage } from './handlers/naturalLanguage.js';
 import { handleCallbackQuery } from './handlers/callbackQuery.js';
+import { handlePhoto, handleDocument } from './handlers/fileUpload.js';
 
 const KNOWN_COMMANDS = new Set([
   'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info', 'restaurante',
@@ -115,9 +116,25 @@ export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis):
 
   bot.on('callback_query', async (query) => {
     try {
-      await handleCallbackQuery(query, bot, apiClient, redis);
+      await handleCallbackQuery(query, bot, apiClient, redis, config);
     } catch (err) {
       logger.error({ err }, 'Unhandled callback_query error');
+    }
+  });
+
+  bot.on('photo', async (msg) => {
+    try {
+      await handlePhoto(msg, bot, apiClient, redis, config);
+    } catch (err) {
+      logger.error({ err, chatId: msg.chat.id }, 'Unhandled photo handler error');
+    }
+  });
+
+  bot.on('document', async (msg) => {
+    try {
+      await handleDocument(msg, bot, apiClient, redis, config);
+    } catch (err) {
+      logger.error({ err, chatId: msg.chat.id }, 'Unhandled document handler error');
     }
   });
 

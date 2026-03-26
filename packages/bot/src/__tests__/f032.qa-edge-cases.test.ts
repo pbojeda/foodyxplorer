@@ -16,12 +16,24 @@
 //  13. apiClient.searchRestaurants — sends pageSize=5 (bot cap matches inline keyboard max)
 //  14. apiClient.createRestaurant — sends Content-Type: application/json header
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type TelegramBot from 'node-telegram-bot-api';
 import type { Redis } from 'ioredis';
 import type { ApiClient, PaginatedResult } from '../apiClient.js';
+import type { BotConfig } from '../config.js';
 import type { RestaurantListItem, PaginationMeta } from '@foodxplorer/shared';
 import { ApiError } from '../apiClient.js';
+
+const DEFAULT_CONFIG: BotConfig = {
+  TELEGRAM_BOT_TOKEN: 'test-token',
+  API_BASE_URL: 'http://localhost:3001',
+  BOT_API_KEY: 'test-key',
+  REDIS_URL: 'redis://localhost:6380',
+  LOG_LEVEL: 'info',
+  NODE_ENV: 'test',
+  BOT_VERSION: '0.0.1',
+  ALLOWED_CHAT_IDS: [],
+};
 import { handleRestaurante } from '../commands/restaurante.js';
 import { handleCallbackQuery } from '../handlers/callbackQuery.js';
 import { getState, setState } from '../lib/conversationState.js';
@@ -56,6 +68,8 @@ function makeMockClient(): { [K in keyof ApiClient]: ReturnType<typeof vi.fn> } 
     healthCheck: vi.fn(),
     searchRestaurants: vi.fn(),
     createRestaurant: vi.fn(),
+    uploadImage: vi.fn(),
+    uploadPdf: vi.fn(),
   };
 }
 
@@ -254,6 +268,7 @@ describe('handleCallbackQuery — sel: edge cases (QA)', () => {
       bot as never,
       apiClient as unknown as ApiClient,
       redis,
+      DEFAULT_CONFIG,
     );
 
     // Empty string key not in searchResults → fallback message
@@ -286,7 +301,7 @@ describe('handleCallbackQuery — undefined callback_data (QA)', () => {
     } as unknown as TelegramBot.CallbackQuery;
 
     await expect(
-      handleCallbackQuery(queryNoData, bot as never, apiClient as unknown as ApiClient, redis),
+      handleCallbackQuery(queryNoData, bot as never, apiClient as unknown as ApiClient, redis, DEFAULT_CONFIG),
     ).resolves.toBeUndefined();
 
     // Should answer the callback (dismiss spinner) and NOT send a message
@@ -319,6 +334,7 @@ describe('handleCallbackQuery — create_rest with MarkdownV2 special chars (QA)
         bot as never,
         apiClient as unknown as ApiClient,
         redis,
+        DEFAULT_CONFIG,
       ),
     ).resolves.toBeUndefined();
 
@@ -349,6 +365,7 @@ describe('handleCallbackQuery — create_rest Redis failure (QA)', () => {
         bot as never,
         apiClient as unknown as ApiClient,
         redis,
+        DEFAULT_CONFIG,
       ),
     ).resolves.toBeUndefined();
 
@@ -379,6 +396,7 @@ describe('handleCallbackQuery — answerCallbackQuery failure (QA)', () => {
         bot as never,
         apiClient as unknown as ApiClient,
         redis,
+        DEFAULT_CONFIG,
       ),
     ).resolves.toBeUndefined();
 
@@ -466,6 +484,7 @@ describe('apiClient.searchRestaurants — pageSize cap (QA)', () => {
       NODE_ENV: 'test' as const,
       ADMIN_API_KEY: 'admin-key',
       REDIS_URL: 'redis://localhost:6380',
+      ALLOWED_CHAT_IDS: [] as number[],
     };
 
     const data = { items: [], pagination: { page: 1, pageSize: 5, totalItems: 0, totalPages: 0 } };
@@ -504,6 +523,7 @@ describe('apiClient.createRestaurant — Content-Type header (QA)', () => {
       NODE_ENV: 'test' as const,
       ADMIN_API_KEY: 'admin-key',
       REDIS_URL: 'redis://localhost:6380',
+      ALLOWED_CHAT_IDS: [] as number[],
     };
 
     const createdData = {

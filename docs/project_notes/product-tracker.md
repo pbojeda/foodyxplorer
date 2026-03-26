@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-26
 
-**Active Feature:** None — no active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F035 completed and squash-merged to develop (PR #31, SHA a263c79, 2026-03-26). 116 tests (6 files), 18 files changed. POST /calculate/recipe (structured + free-form). 4 review rounds (Gemini + Codex).
+**Active Feature:** F031 — Bot File Upload (multipart, inline keyboard)
+**Step:** 5/6 (Review) — code review + QA done, pending merge approval
+**Branch:** feature/F031-bot-file-upload
+**Complexity:** Standard (Fullstack: API + Bot)
+**Context:** Spec covers: POST /ingest/image (multipart), bot photo+document handlers, ALLOWED_CHAT_IDS guard, inline keyboard for photo disambiguation. Reviewed by Gemini 2.5 + Codex GPT-5.4 (8 issues, 7 addressed). Key additions from review: image-as-document support, pre-check file_size, try/catch on downloads, pass chainSlug from restaurant state.
 
 ---
 
@@ -84,12 +84,15 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F038 | Multilingual Dish Name Resolution | backend | done | 6/6 | Standard. Populate name_es for all dishes, fix ingest pipeline, new name_source_locale field, regenerate embeddings. ADR-010. Priority: before F031/F034 |
-| F031 | Bot File Upload (multipart, inline keyboard) | fullstack | pending | — | Standard. Depends on F032. Bot downloads file → multipart to API. New POST /ingest/image. ADR-009 |
 | F032 | Restaurant Resolution + Creation (schema migration) | fullstack | done | 6/6 | Standard. Schema migration (address fields). Trigram search. POST /restaurants. Bot /restaurante + Redis state. PR #29, SHA d71cf09 |
 | F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | done | 6/6 | Simple. PR #28, SHA e8aece8. 10 tests. portion_multiplier pattern (ADR-009) |
-| F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-009 |
 | F035 | Recipe Calculation Endpoint (structured + free-form) | backend | done | 6/6 | Standard. POST /calculate/recipe. PR #31, SHA a263c79. 116 tests. 4 review rounds |
+| F038 | Multilingual Dish Name Resolution | backend | done | 6/6 | Standard. Populate name_es for all dishes, fix ingest pipeline, new name_source_locale field, regenerate embeddings. ADR-010 |
+| F031 | Bot File Upload (multipart, inline keyboard) | fullstack | in-progress | 5/6 | Standard. 137 tests. PR #32. Code review APPROVED + QA VERIFIED. Pending merge |
+| F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos |
+| F041 | Bot Recipe Calculator (/receta) | fullstack | pending | — | Standard. Bot /receta command → POST /calculate/recipe (free-form). Depends on F035 ✅ |
+| F042 | Portion-Aware NL Estimation | fullstack | pending | — | Standard. NL handler detects "pequeño/grande" → portionMultiplier. Depends on F033 ✅ |
+| F043 | Dish Comparison via Bot | fullstack | pending | — | Standard. "qué tiene más X, A o B?" → 2× /estimate → comparison |
 | F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
 
 ## Features — Marketing & Growth
@@ -97,6 +100,7 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F039 | Landing Page — nutriXplorer | frontend | done | 6/6 | Standard. packages/landing/ standalone. Next.js 14 + Tailwind + Framer Motion. 9 sections, A/B hero, SEO, GDPR, analytics. 153 tests. SHA 64280e4 |
+| F040 | Landing Page FAQ Section | frontend | pending | — | Simple. FAQ accordion for landing page. Deferred from F039 |
 
 ---
 
