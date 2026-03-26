@@ -110,7 +110,7 @@ export async function handlePhoto(
   if (!config.ALLOWED_CHAT_IDS.includes(msg.chat.id)) return;
 
   // Guard: message must have a photo array
-  if (!msg.photo) return;
+  if (!msg.photo || msg.photo.length === 0) return;
 
   const state = await getState(redis, msg.chat.id);
 
