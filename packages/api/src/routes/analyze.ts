@@ -169,6 +169,14 @@ const analyzeRoutesPlugin: FastifyPluginAsync<AnalyzePluginOptions> = async (
 
       clearTimeout(timer);
 
+      // Guard: if timeout fired before any dish was processed, return error
+      if (result.dishes.length === 0) {
+        throw Object.assign(
+          new Error('Could not extract dish names from the provided file'),
+          { statusCode: 422, code: 'MENU_ANALYSIS_FAILED' },
+        );
+      }
+
       return reply.status(200).send({
         success: true,
         data: {

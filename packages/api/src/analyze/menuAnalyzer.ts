@@ -187,7 +187,19 @@ async function extractDishNames(
   // --- OCR pipeline ---
   if (mode === 'ocr') {
     if (fileType === 'pdf') {
-      const pages = await extractText(fileBuffer);
+      let pages: string[];
+      try {
+        pages = await extractText(fileBuffer);
+      } catch (err: unknown) {
+        const code = (err as Record<string, unknown>)?.['code'];
+        if (code === 'UNSUPPORTED_PDF') {
+          throw Object.assign(
+            new Error('PDF contains no extractable text — cannot analyze menu'),
+            { statusCode: 422, code: 'MENU_ANALYSIS_FAILED' },
+          );
+        }
+        throw err;
+      }
       const lines = pages.flatMap((page) => page.split('\n'));
       return parseDishNames(lines);
     } else {
@@ -249,7 +261,19 @@ async function extractDishNames(
   if (mode === 'auto') {
     if (fileType === 'pdf') {
       // PDF → OCR pipeline (no Vision needed)
-      const pages = await extractText(fileBuffer);
+      let pages: string[];
+      try {
+        pages = await extractText(fileBuffer);
+      } catch (err: unknown) {
+        const code = (err as Record<string, unknown>)?.['code'];
+        if (code === 'UNSUPPORTED_PDF') {
+          throw Object.assign(
+            new Error('PDF contains no extractable text — cannot analyze menu'),
+            { statusCode: 422, code: 'MENU_ANALYSIS_FAILED' },
+          );
+        }
+        throw err;
+      }
       const lines = pages.flatMap((page) => page.split('\n'));
       return parseDishNames(lines);
     } else {
