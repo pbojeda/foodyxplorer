@@ -7,7 +7,7 @@
 // The ApiClient interface is designed for dependency injection — tests inject
 // a mock implementation, no real HTTP is made during unit tests.
 
-import type { DishListItem, RestaurantListItem, ChainListItem, EstimateData, PaginationMeta, Restaurant, CreateRestaurantBody } from '@foodxplorer/shared';
+import type { DishListItem, RestaurantListItem, ChainListItem, EstimateData, PaginationMeta, Restaurant, CreateRestaurantBody, MenuAnalysisData } from '@foodxplorer/shared';
 import type { BotConfig } from './config.js';
 
 // ---------------------------------------------------------------------------
@@ -87,6 +87,17 @@ export interface ApiClient {
     dryRun?: boolean;
     chainSlug?: string;
   }): Promise<IngestPdfResult>;
+  /**
+   * Analyze a menu photo or PDF via POST /analyze/menu (F034).
+   * Uses BOT_API_KEY (not adminKey — public API key endpoint).
+   * Uses UPLOAD_TIMEOUT_MS (90s) to allow for server-side OCR/Vision processing.
+   */
+  analyzeMenu(params: {
+    fileBuffer: Buffer;
+    filename: string;
+    mimeType: string;
+    mode: 'auto' | 'ocr' | 'vision' | 'identify';
+  }): Promise<MenuAnalysisData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -378,6 +389,16 @@ export function createApiClient(config: BotConfig): ApiClient {
       form.append('file', new Blob([new Uint8Array(params.fileBuffer)], { type: 'application/pdf' }), params.filename);
 
       return postFormData<IngestPdfResult>('/ingest/pdf', form, config.ADMIN_API_KEY);
+    },
+
+    async analyzeMenu(params) {
+      const form = new FormData();
+      form.append('mode', params.mode);
+      form.append('file', new Blob([new Uint8Array(params.fileBuffer)], { type: params.mimeType }), params.filename);
+
+      // Uses BOT_API_KEY (no adminKey override) — public API key endpoint.
+      // postFormData already unwraps the { success, data } envelope and returns data.
+      return postFormData<MenuAnalysisData>('/analyze/menu', form);
     },
   };
 }

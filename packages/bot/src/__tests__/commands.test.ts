@@ -35,6 +35,7 @@ function makeMockClient(): MockApiClient {
     createRestaurant: vi.fn(),
     uploadImage: vi.fn(),
     uploadPdf: vi.fn(),
+    analyzeMenu: vi.fn(),
   };
 }
 
