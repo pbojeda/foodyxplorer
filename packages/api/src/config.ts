@@ -39,6 +39,10 @@ export const EnvSchema = z.object({
   // Optional. When set, the seed script uses this as the deterministic seed
   // for the bot API key (HMAC-SHA256 of seed → 32-char hex key).
   BOT_API_KEY_SEED: z.string().min(1).optional(),
+  // Optional. When set, the analyze route skips the 10/hour rate limit for
+  // requests matching this API key ID (the bot key is a single shared key
+  // across all Telegram users, so per-key limits would throttle all users).
+  BOT_KEY_ID: z.string().uuid().optional(),
 });
 
 export type Config = z.infer<typeof EnvSchema>;
