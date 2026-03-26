@@ -221,50 +221,6 @@ async function foodSimilaritySearch(
   return result.rows[0];
 }
 
-async function fetchFoodNutrientsByUuid(
-  db: Kysely<DB>,
-  foodId: string,
-): Promise<FoodQueryRow | undefined> {
-  const result = await sql<FoodQueryRow>`
-    WITH ranked_fn AS (
-      SELECT fn.*,
-             ROW_NUMBER() OVER (PARTITION BY fn.food_id ORDER BY fn.created_at DESC) AS rn
-      FROM food_nutrients fn
-      WHERE fn.reference_basis = 'per_100g'
-    )
-    SELECT
-      f.id          AS food_id,
-      f.name        AS food_name,
-      f.name_es     AS food_name_es,
-      rfn.calories::text,
-      rfn.proteins::text,
-      rfn.carbohydrates::text,
-      rfn.sugars::text,
-      rfn.fats::text,
-      rfn.saturated_fats::text,
-      rfn.fiber::text,
-      rfn.salt::text,
-      rfn.sodium::text,
-      rfn.trans_fats::text,
-      rfn.cholesterol::text,
-      rfn.potassium::text,
-      rfn.monounsaturated_fats::text,
-      rfn.polyunsaturated_fats::text,
-      rfn.reference_basis::text,
-      ds.id         AS source_id,
-      ds.name       AS source_name,
-      ds.type::text AS source_type,
-      ds.url        AS source_url
-    FROM foods f
-    JOIN ranked_fn rfn ON rfn.food_id = f.id AND rfn.rn = 1
-    JOIN data_sources ds ON ds.id = rfn.source_id
-    WHERE f.id = ${foodId}::uuid
-    LIMIT 1
-  `.execute(db);
-
-  return result.rows[0];
-}
-
 async function fetchCandidatesByTrigram(
   db: Kysely<DB>,
   name: string,
@@ -388,7 +344,7 @@ export async function resolveIngredientL3L4(
         if (similarityRow !== undefined) {
           const distance = parseFloat(similarityRow.distance);
           if (distance < SIMILARITY_THRESHOLD) {
-            const nutrientRow = await fetchFoodNutrientsByUuid(db, similarityRow.food_id);
+            const nutrientRow = await fetchFoodByUuid(db, similarityRow.food_id);
             if (nutrientRow !== undefined && nutrientRow.reference_basis === 'per_100g') {
               return {
                 resolved: true,
@@ -443,7 +399,7 @@ export async function resolveIngredientL3L4(
     const selectedCandidate = candidates[idx];
     if (selectedCandidate === undefined) return { resolved: false };
 
-    const nutrientRow = await fetchFoodNutrientsByUuid(db, selectedCandidate.id);
+    const nutrientRow = await fetchFoodByUuid(db, selectedCandidate.id);
     if (nutrientRow === undefined || nutrientRow.reference_basis !== 'per_100g') {
       return { resolved: false };
     }

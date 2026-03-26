@@ -240,7 +240,7 @@ async function executeRecipeCalculation(
 
     const input = ingredientInputs[idx];
     if (!input) continue;
-    const l3l4Result = await resolveIngredientL3L4(db, input, openAiApiKey, signal);
+    const l3l4Result = await resolveIngredientL3L4(db, input, openAiApiKey, signal, logger);
     finalResults[idx] = l3l4Result;
   }
 
