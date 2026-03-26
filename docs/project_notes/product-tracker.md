@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-26
 
-**Active Feature:** F035 — Recipe Calculation Endpoint
-**Step:** 5/6 (Review) — PR #31, code review + QA complete, pending merge approval
-**Branch:** feature/F035-recipe-calculation-endpoint
-**Complexity:** Standard
-**Context:** Implementation complete. 116 tests (6 files), 18 files changed. Code review: approve with minor changes (applied). QA: verified, 16 edge case tests added. F039 merged to develop (SHA 64280e4).
+**Active Feature:** None — no active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F035 completed and squash-merged to develop (PR #31, SHA a263c79, 2026-03-26). 116 tests (6 files), 18 files changed. POST /calculate/recipe (structured + free-form). 4 review rounds (Gemini + Codex).
 
 ---
 
@@ -89,7 +89,7 @@
 | F032 | Restaurant Resolution + Creation (schema migration) | fullstack | done | 6/6 | Standard. Schema migration (address fields). Trigram search. POST /restaurants. Bot /restaurante + Redis state. PR #29, SHA d71cf09 |
 | F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | done | 6/6 | Simple. PR #28, SHA e8aece8. 10 tests. portion_multiplier pattern (ADR-009) |
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-009 |
-| F035 | Recipe Calculation Endpoint (structured + free-form) | backend | in-progress | 5/6 | Standard. POST /calculate/recipe. PR #31. 116 tests. Code review + QA done |
+| F035 | Recipe Calculation Endpoint (structured + free-form) | backend | done | 6/6 | Standard. POST /calculate/recipe. PR #31, SHA a263c79. 116 tests. 4 review rounds |
 | F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
 
 ## Features — Marketing & Growth
@@ -138,6 +138,7 @@
 | 2026-03-24 | F032 — Restaurant Resolution + Creation | d71cf09 (squash merge to develop, PR #29) | Fullstack (API + Bot). Schema migration (4 location fields). GET /restaurants?q= trigram search (Kysely, pg_trgm). POST /restaurants admin endpoint (auto-slug independent-*-uuid8). Bot /restaurante command + inline keyboards + Redis conversation state (TTL 2h). Seed Phase 8 (Telegram Upload DataSource). Plan reviewed by Gemini + Codex (7 fixes). Production validator: 1 critical (auth header). Code review: 4 important fixed (slug 8-hex, URL validation, chainSlug regex, safeAnswerCallback). QA: 51 edge-case tests. 158 new F032 tests (97 API + 61 bot). 43 files changed |
 | 2026-03-25 | F038 — Multilingual Dish Name Resolution | 45e9231 (squash merge to develop, PR #30) | Populate name_es for all dishes, fix ingest pipeline, name_source_locale field, regenerate embeddings. ADR-010. 91 tests, 21 files, +3631 lines |
 | 2026-03-26 | F039 — Landing Page (nutriXplorer) | 64280e4 (squash merge to develop) | Standalone packages/landing/ (Next.js 14 + Tailwind + Framer Motion). 9 sections, A/B hero variants, SEO (JSON-LD, sitemap, robots), GDPR CookieBanner, GA4 analytics, i18n (ES+EN stubs), progressive enhancement. Spec reviewed by Gemini 2.5 + Codex GPT-5.4 (25 issues). Plan reviewed by Gemini + Codex (13 issues). Production validator: 7 issues fixed. Code review: APPROVED. QA: VERIFIED. 153 tests (23 suites), 98 files changed |
+| 2026-03-26 | F035 — Recipe Calculation Endpoint | a263c79 (squash merge to develop, PR #31) | POST /calculate/recipe: structured + free-form modes. Food-only cascade (direct_id → exact_food → fts_food → similarity_food → llm_food_match). Two-phase resolution (L1 parallel, L3/L4 sequential, budget 10). 14 nutrients, null-all→null, AbortController 30s. openaiClient.ts shared utility. Spec reviewed 4x (Gemini + Codex, ~25 issues). Plan reviewed 2x (Gemini + Codex). Production validator: 1C+2H+3M fixed. Code review: APPROVED (2 important fixed). QA: VERIFIED (16 edge-case tests). 116 F035 tests (6 files). 18 files changed |
 
 ---
 
