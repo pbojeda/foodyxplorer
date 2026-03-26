@@ -942,13 +942,13 @@ const MENU_ANALYSIS_RESULT: MenuAnalysisData = {
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan, AC, DoD, Workflow, Completion Log, Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 23/23, DoD: 7/7, Workflow: 6/7 (Step 6 pending) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
+| 3. Update key_facts.md | [x] | Updated: openaiClient (callVisionCompletion), analyze route, menuAnalyzer, dishNameParser, analysis schemas |
+| 4. Update decisions.md | [x] | ADR-011 added (Multi-Modal Menu Analysis Pipeline) |
+| 5. Commit documentation | [x] | Commit: 997af62 + 060f714 |
+| 6. Verify clean working tree | [x] | `git status`: clean (only packages/landing/package-lock.json untracked — pre-existing) |
 
 ---
 
