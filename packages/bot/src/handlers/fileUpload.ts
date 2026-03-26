@@ -24,7 +24,7 @@ import { logger } from '../logger.js';
 // ---------------------------------------------------------------------------
 
 export const UPLOAD_SOURCE_ID = '00000000-0000-0000-0000-000000000099';
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 // ---------------------------------------------------------------------------
 // Private helpers
@@ -36,7 +36,7 @@ const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
  * Checks response.ok (rejects non-2xx) and validates post-download buffer size.
  * Throws on any error — callers wrap in try/catch.
  */
-async function downloadTelegramFile(bot: TelegramBot, fileId: string): Promise<Buffer> {
+export async function downloadTelegramFile(bot: TelegramBot, fileId: string): Promise<Buffer> {
   const url = await bot.getFileLink(fileId);
   const response = await fetch(url);
 

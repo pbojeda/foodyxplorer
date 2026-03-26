@@ -20,9 +20,7 @@ import { getState, setState } from '../lib/conversationState.js';
 import { handleApiError } from '../commands/errorMessages.js';
 import { escapeMarkdown } from '../formatters/markdownUtils.js';
 import { logger } from '../logger.js';
-import { formatUploadSuccess, formatUploadError, UPLOAD_SOURCE_ID } from './fileUpload.js';
-
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+import { formatUploadSuccess, formatUploadError, UPLOAD_SOURCE_ID, MAX_FILE_SIZE_BYTES, downloadTelegramFile } from './fileUpload.js';
 
 /** Dismiss the Telegram spinner. Never throws — a failed answer is harmless. */
 async function safeAnswerCallback(bot: TelegramBot, queryId: string): Promise<void> {
@@ -40,8 +38,7 @@ async function safeAnswerCallback(bot: TelegramBot, queryId: string): Promise<vo
  * @param bot       TelegramBot instance (used to send messages + answer query).
  * @param apiClient API client for restaurant creation and file uploads.
  * @param redis     ioredis instance for conversation state.
- * @param config    Bot configuration (required for ALLOWED_CHAT_IDS guard in F031 branches).
- *                  Optional for backwards compatibility — when absent, upload branches are unreachable.
+ * @param config    Bot configuration (required — used for ALLOWED_CHAT_IDS guard in F031 upload branches).
  */
 export async function handleCallbackQuery(
   query: TelegramBot.CallbackQuery,
@@ -179,22 +176,10 @@ export async function handleCallbackQuery(
     // Inform user that processing has started (plain text — no parse_mode)
     await bot.sendMessage(chatId, 'Procesando imagen…');
 
-    // Download the file from Telegram
+    // Download the file from Telegram (reuses shared helper from fileUpload.ts)
     let fileBuffer: Buffer;
     try {
-      const url = await bot.getFileLink(state.pendingPhotoFileId);
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`Telegram file download failed: HTTP ${response.status}`);
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      fileBuffer = Buffer.from(arrayBuffer);
-
-      if (fileBuffer.length > MAX_FILE_SIZE_BYTES) {
-        throw new Error(`Downloaded file exceeds size limit: ${fileBuffer.length} bytes`);
-      }
+      fileBuffer = await downloadTelegramFile(bot, state.pendingPhotoFileId);
     } catch (err) {
       logger.warn({ err, chatId }, 'upload_ingest: file download failed');
       await bot.sendMessage(
@@ -205,7 +190,9 @@ export async function handleCallbackQuery(
       return;
     }
 
-    // Upload the image to the API
+    // Upload the image to the API.
+    // Telegram's `message.photo` type always delivers JPEG-compressed images,
+    // so hardcoding image/jpeg is safe. The API also validates via magic bytes.
     try {
       const result = await apiClient.uploadImage({
         fileBuffer,
