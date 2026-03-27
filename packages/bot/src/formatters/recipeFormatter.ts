@@ -132,10 +132,8 @@ export function formatRecipeResult(data: RecipeCalculateData): string {
   // Truncate ingredient lines until the assembled message fits.
   // We scan from the end, dropping one line at a time.
   const footerBlock = `\n\n${footer}`;
-  const headerAndFooterBase = header.length + ingredientHeaderLine.length + 1 + footerBlock.length;
 
   let kept = allLines.length;
-  let truncatedSection: string;
 
   while (kept > 0) {
     const extraCount = allLines.length - kept;
@@ -144,19 +142,14 @@ export function formatRecipeResult(data: RecipeCalculateData): string {
     const sectionBody = keptLines.join('\n') + suffix;
     const assembled = `${header}${ingredientHeaderLine}\n${sectionBody}${footerBlock}`;
     if (assembled.length <= MAX_MESSAGE_LENGTH) {
-      truncatedSection = assembled;
-      break;
+      return assembled;
     }
     kept--;
   }
 
   // If even keeping 0 lines doesn't fit (very long footer/header), just
   // return header + footer without ingredient lines.
-  if (kept === 0) {
-    const extraCount = allLines.length;
-    const suffix = extraCount > 0 ? `\n\\.\\.\\.  y ${extraCount} ingredientes más` : '';
-    truncatedSection = `${header}${ingredientHeaderLine}\n${suffix}${footerBlock}`;
-  }
-
-  return truncatedSection!;
+  const extraCount = allLines.length;
+  const suffix = extraCount > 0 ? `\n\\.\\.\\.  y ${extraCount} ingredientes más` : '';
+  return `${header}${ingredientHeaderLine}\n${suffix}${footerBlock}`;
 }
