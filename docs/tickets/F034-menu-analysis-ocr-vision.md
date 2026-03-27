@@ -1,7 +1,7 @@
 # F034: Menu Analysis (OCR + Vision API)
 
 **Feature:** F034 | **Type:** Fullstack-Feature | **Priority:** High
-**Status:** Spec | **Branch:** feature/F034-menu-analysis-ocr-vision
+**Status:** Review | **Branch:** feature/F034-menu-analysis-ocr-vision
 **Created:** 2026-03-26 | **Dependencies:** F031 ✅ (bot file upload), F023 ✅ (engine router), F026 ✅ (API key auth)
 
 ---
