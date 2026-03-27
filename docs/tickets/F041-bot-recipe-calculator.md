@@ -6,7 +6,7 @@
 | Epic         | E005 — Advanced Analysis & UX                      |
 | Type         | Fullstack (Bot-only — API already exists)          |
 | Priority     | High                                               |
-| Status       | Ready for Merge                                    |
+| Status       | Done                                               |
 | Branch       | feature/F041-bot-recipe-calculator                 |
 | Created      | 2026-03-27                                         |
 | Dependencies | F035 ✅ (POST /calculate/recipe endpoint)          |
@@ -532,7 +532,7 @@ In `packages/bot/src/__tests__/bot.test.ts`, add `calculateRecipe: vi.fn()` to `
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed — APPROVED (2M fixed: dead variable, non-null assertion)
 - [x] Step 5: `qa-engineer` executed — VERIFIED (0 bugs, 26 edge-case tests)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
