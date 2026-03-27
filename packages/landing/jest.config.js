@@ -1,4 +1,5 @@
 const nextJest = require('next/jest');
+const path = require('path');
 
 const createJestConfig = nextJest({
   dir: './',
@@ -11,6 +12,8 @@ const customJestConfig = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^lucide-react$': '<rootDir>/src/__mocks__/lucide-react.ts',
   },
+  // Ensure Jest resolves from landing's node_modules first (avoids workspace hoisting issues)
+  moduleDirectories: ['node_modules', path.resolve(__dirname, 'node_modules')],
   testMatch: [
     '**/__tests__/**/*.test.{ts,tsx}',
     '**/*.test.{ts,tsx}',
