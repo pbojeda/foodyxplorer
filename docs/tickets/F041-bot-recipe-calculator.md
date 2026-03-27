@@ -6,7 +6,7 @@
 | Epic         | E005 — Advanced Analysis & UX                      |
 | Type         | Fullstack (Bot-only — API already exists)          |
 | Priority     | High                                               |
-| Status       | In Progress                                        |
+| Status       | Ready for Merge                                    |
 | Branch       | feature/F041-bot-recipe-calculator                 |
 | Created      | 2026-03-27                                         |
 | Dependencies | F035 ✅ (POST /calculate/recipe endpoint)          |
@@ -508,7 +508,7 @@ In `packages/bot/src/__tests__/bot.test.ts`, add `calculateRecipe: vi.fn()` to `
 - [x] `portionMultiplier` shown when not 1.0 to avoid misleading grams display
 - [x] All user-facing strings are in Spanish
 - [x] All dynamic strings are escaped via `escapeMarkdown()`
-- [x] Unit tests cover: empty args, successful result formatting, partial resolution, all error codes, input length, rate limit (91 tests across 4 files)
+- [x] Unit tests cover: empty args, successful result formatting, partial resolution, all error codes, input length, rate limit (100 tests across 4 files (74 implementation + 26 QA))
 
 ---
 
@@ -543,7 +543,7 @@ In `packages/bot/src/__tests__/bot.test.ts`, add `calculateRecipe: vi.fn()` to `
 | 2026-03-27 | Spec drafted | spec-creator + self-review. Fixed: timeout 10s→30s, nullable nutrients handling, typo "Italian"→"Spanish" |
 | 2026-03-27 | Spec reviewed | Gemini 2.5 + Codex GPT-5.4. 1C+2I+1S (Gemini) + 3I+2S (Codex). 6 issues addressed: bot rate limit (5/hr per chatId), input length guard (2000 chars), portionMultiplier display, smart truncation (ingredient list only), timeout consistency (30s), /help text update |
 | 2026-03-27 | Plan written + reviewed | backend-planner agent. Reviewed by Gemini (2I+1S) + Codex (3I+1S). 6 issues fixed: truncation suffix standardized, wrapHandler→direct wiring, onText count 9→10, mock sweep (all test files), null nutrient field placeholder, multiline regex test |
-| 2026-03-27 | Implementation | backend-developer agent. 65 tests (3 files). TDD 8 steps. |
+| 2026-03-27 | Implementation | backend-developer agent. 74 tests (3 files). TDD 8 steps. |
 | 2026-03-27 | Finalize | Tests 621 pass, lint clean, build OK. Production validator: READY (0 issues) |
 | 2026-03-27 | Code review | code-review-specialist: APPROVED. 2M fixed (dead variable, non-null assertion). 0C 0H found |
 | 2026-03-27 | QA | qa-engineer: VERIFIED. 0 bugs. 26 edge-case tests added (f041.qa-edge-cases.test.ts). 621 total |
