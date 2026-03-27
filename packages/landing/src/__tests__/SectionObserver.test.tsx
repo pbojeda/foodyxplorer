@@ -41,7 +41,7 @@ describe('SectionObserver', () => {
 
   it('does not call trackEvent a second time (fires once and disconnects)', async () => {
     render(
-      <SectionObserver sectionId="problem" variant="b">
+      <SectionObserver sectionId="problem" variant="c">
         <div>Problem content</div>
       </SectionObserver>
     );

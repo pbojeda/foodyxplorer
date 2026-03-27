@@ -69,7 +69,7 @@ describe('POST /api/waitlist', () => {
   it('preserves variant b in redirect for form POST', async () => {
     const request = makeFormRequest({
       email: 'test@example.com',
-      variant: 'b',
+      variant: 'c',
     });
     const response = await POST(request);
     expect(response.status).toBe(303);

@@ -60,7 +60,7 @@ describe('CookieBanner', () => {
   });
 
   it('writes A/B cookie to document.cookie on accept click', () => {
-    render(<CookieBanner variant="b" />);
+    render(<CookieBanner variant="c" />);
     fireEvent.click(screen.getByRole('button', { name: /aceptar/i }));
 
     expect(cookieWritten).toContain(`${VARIANT_COOKIE}=b`);
