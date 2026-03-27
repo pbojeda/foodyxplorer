@@ -492,46 +492,46 @@ In `packages/bot/src/__tests__/bot.test.ts`, add `calculateRecipe: vi.fn()` to `
 
 ## Acceptance Criteria
 
-- [ ] `/receta` with no args returns a usage hint containing the format example
-- [ ] `/receta 200g pollo, 100g arroz` returns a formatted MarkdownV2 card with total calories, proteins, carbs, fats
-- [ ] Per-ingredient breakdown lists each resolved ingredient with its own calories and proteins
-- [ ] Unresolved ingredients are listed under `*No resueltos:*` when present
-- [ ] Confidence level shown as `media` or `baja` in Spanish (F035 only returns `medium`/`low`; `alta` mapped but not expected)
-- [ ] `RECIPE_UNRESOLVABLE` error yields a clear Spanish user message
-- [ ] `FREE_FORM_PARSE_FAILED` error yields a clear Spanish user message
-- [ ] Input > 2000 chars rejected with friendly message before API call
-- [ ] Bot-level rate limit (5/hr per chatId) prevents abuse; fail-open on Redis error
-- [ ] `receta` is present in `KNOWN_COMMANDS` (unknown-command catch-all does not fire for `/receta`)
-- [ ] `/start` and `/help` text updated to include `/receta` command
-- [ ] Multi-line ingredient text (newline-separated) is captured correctly by the regex
-- [ ] Output never exceeds 4096 Telegram characters (truncation in ingredient list only, totals/confidence always shown)
-- [ ] `portionMultiplier` shown when not 1.0 to avoid misleading grams display
-- [ ] All user-facing strings are in Spanish
-- [ ] All dynamic strings are escaped via `escapeMarkdown()`
-- [ ] Unit tests cover: empty args, successful result formatting, partial resolution, all error codes, input length, rate limit
+- [x] `/receta` with no args returns a usage hint containing the format example
+- [x] `/receta 200g pollo, 100g arroz` returns a formatted MarkdownV2 card with total calories, proteins, carbs, fats
+- [x] Per-ingredient breakdown lists each resolved ingredient with its own calories and proteins
+- [x] Unresolved ingredients are listed under `*No resueltos:*` when present
+- [x] Confidence level shown as `media` or `baja` in Spanish (F035 only returns `medium`/`low`; `alta` mapped but not expected)
+- [x] `RECIPE_UNRESOLVABLE` error yields a clear Spanish user message
+- [x] `FREE_FORM_PARSE_FAILED` error yields a clear Spanish user message
+- [x] Input > 2000 chars rejected with friendly message before API call
+- [x] Bot-level rate limit (5/hr per chatId) prevents abuse; fail-open on Redis error
+- [x] `receta` is present in `KNOWN_COMMANDS` (unknown-command catch-all does not fire for `/receta`)
+- [x] `/start` and `/help` text updated to include `/receta` command
+- [x] Multi-line ingredient text (newline-separated) is captured correctly by the regex
+- [x] Output never exceeds 4096 Telegram characters (truncation in ingredient list only, totals/confidence always shown)
+- [x] `portionMultiplier` shown when not 1.0 to avoid misleading grams display
+- [x] All user-facing strings are in Spanish
+- [x] All dynamic strings are escaped via `escapeMarkdown()`
+- [x] Unit tests cover: empty args, successful result formatting, partial resolution, all error codes, input length, rate limit (91 tests across 4 files)
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation
+- [x] All acceptance criteria met
+- [x] Unit tests written and passing (621 total bot tests)
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
+- [x] Specs reflect final implementation (no API changes needed)
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 0: `spec-creator` executed, specs updated
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
-- [ ] Step 3: `backend-developer` + `frontend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard)
+- [x] Step 0: `spec-creator` executed, specs updated
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 2: `backend-planner` executed, plan approved
+- [x] Step 3: `backend-developer` executed with TDD
+- [x] Step 4: `production-code-validator` executed, quality gates pass
+- [x] Step 5: `code-review-specialist` executed — APPROVED (2M fixed: dead variable, non-null assertion)
+- [x] Step 5: `qa-engineer` executed — VERIFIED (0 bugs, 26 edge-case tests)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -543,6 +543,10 @@ In `packages/bot/src/__tests__/bot.test.ts`, add `calculateRecipe: vi.fn()` to `
 | 2026-03-27 | Spec drafted | spec-creator + self-review. Fixed: timeout 10s→30s, nullable nutrients handling, typo "Italian"→"Spanish" |
 | 2026-03-27 | Spec reviewed | Gemini 2.5 + Codex GPT-5.4. 1C+2I+1S (Gemini) + 3I+2S (Codex). 6 issues addressed: bot rate limit (5/hr per chatId), input length guard (2000 chars), portionMultiplier display, smart truncation (ingredient list only), timeout consistency (30s), /help text update |
 | 2026-03-27 | Plan written + reviewed | backend-planner agent. Reviewed by Gemini (2I+1S) + Codex (3I+1S). 6 issues fixed: truncation suffix standardized, wrapHandler→direct wiring, onText count 9→10, mock sweep (all test files), null nutrient field placeholder, multiline regex test |
+| 2026-03-27 | Implementation | backend-developer agent. 65 tests (3 files). TDD 8 steps. |
+| 2026-03-27 | Finalize | Tests 621 pass, lint clean, build OK. Production validator: READY (0 issues) |
+| 2026-03-27 | Code review | code-review-specialist: APPROVED. 2M fixed (dead variable, non-null assertion). 0C 0H found |
+| 2026-03-27 | QA | qa-engineer: VERIFIED. 0 bugs. 26 edge-case tests added (f041.qa-edge-cases.test.ts). 621 total |
 
 ---
 
