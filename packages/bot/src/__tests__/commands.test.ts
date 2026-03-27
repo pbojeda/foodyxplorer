@@ -36,6 +36,7 @@ function makeMockClient(): MockApiClient {
     uploadImage: vi.fn(),
     uploadPdf: vi.fn(),
     analyzeMenu: vi.fn(),
+    calculateRecipe: vi.fn(),
   };
 }
 
@@ -171,6 +172,10 @@ describe('handleStart', () => {
 
   it('contains /help', () => {
     expect(handleStart()).toContain('/help');
+  });
+
+  it('contains /receta', () => {
+    expect(handleStart()).toContain('/receta');
   });
 
   it('contains at least one MarkdownV2 bold marker', () => {

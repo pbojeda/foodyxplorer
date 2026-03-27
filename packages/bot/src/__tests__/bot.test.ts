@@ -77,6 +77,7 @@ function makeMockClient(): { [K in keyof ApiClient]: ReturnType<typeof vi.fn> } 
     uploadImage: vi.fn(),
     uploadPdf: vi.fn(),
     analyzeMenu: vi.fn(),
+    calculateRecipe: vi.fn(),
   };
 }
 
@@ -143,8 +144,8 @@ describe('buildBot', () => {
     expect(bot).toBeDefined();
   });
 
-  it('registers onText exactly 9 times (one per command including /restaurante)', () => {
-    expect(mockBot.onText).toHaveBeenCalledTimes(9);
+  it('registers onText exactly 10 times (one per command including /restaurante and /receta)', () => {
+    expect(mockBot.onText).toHaveBeenCalledTimes(10);
   });
 
   it('registers polling_error handler via bot.on', () => {
@@ -319,6 +320,33 @@ describe('buildBot', () => {
 
     expect(mockClient.estimate).not.toHaveBeenCalled();
     expect(mockBot.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('"receta" is in KNOWN_COMMANDS (unknown-command catch-all does not fire for /receta)', async () => {
+    mockBot.sendMessage.mockResolvedValue({});
+
+    const onCalls = mockBot.on.mock.calls as Array<[string, (msg: TelegramBot.Message) => void]>;
+    const messageHandler = onCalls.find(([event]) => event === 'message');
+    const handler = defined(messageHandler?.[1], 'message handler');
+
+    // /receta is known — should NOT trigger the "no reconocido" reply
+    await handler(makeMessage('/receta'));
+
+    expect(mockBot.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('the /receta regex matches single-line input', () => {
+    const onTextCalls = mockBot.onText.mock.calls as Array<[RegExp, unknown]>;
+    const recetaCall = onTextCalls.find(([regex]) => regex.toString().includes('receta'));
+    expect(recetaCall).toBeDefined();
+    expect(recetaCall?.[0].test('/receta 200g pollo, 100g arroz')).toBe(true);
+  });
+
+  it('the /receta regex matches multiline input (s dotAll flag)', () => {
+    const onTextCalls = mockBot.onText.mock.calls as Array<[RegExp, unknown]>;
+    const recetaCall = onTextCalls.find(([regex]) => regex.toString().includes('receta'));
+    expect(recetaCall).toBeDefined();
+    expect(recetaCall?.[0].test('/receta 200g pollo\n100g arroz')).toBe(true);
   });
 
   it('does NOT call estimate or sendMessage for whitespace-only text', async () => {
