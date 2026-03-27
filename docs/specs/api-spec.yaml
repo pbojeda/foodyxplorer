@@ -12,7 +12,7 @@ info:
     **Validation:**
     - Request bodies and query params are validated via `fastify-type-provider-zod`.
     - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
-  version: 0.2.0
+  version: 0.4.0
   contact:
     name: foodXPlorer
   license:
@@ -27,11 +27,11 @@ tags:
     description: Infrastructure and health endpoints
   - name: Ingestion
     description: |
-      Data ingestion endpoints (F007b, F007c, F009, F011, F012). Accept external nutritional
-      data (PDF upload, PDF-URL download, URL scrape, or image-URL OCR), normalize to the
-      shared dish/nutrient schema, and persist to the database. These endpoints are NOT
-      part of F007 — they are specified and implemented in F007b, F007c, F009, F011, and
-      F012 respectively.
+      Data ingestion endpoints (F007b, F007c, F009, F011, F012, F031). Accept external nutritional
+      data (PDF upload, PDF-URL download, URL scrape, image-URL OCR, or direct image upload),
+      normalize to the shared dish/nutrient schema, and persist to the database. These endpoints
+      are NOT part of F007 — they are specified and implemented in F007b, F007c, F009, F011,
+      F012, and F031 respectively.
   - name: Quality
     description: |
       Data quality monitoring endpoints (F018). Audit ingested dish and nutrient data
@@ -56,10 +56,11 @@ tags:
       then delegates all arithmetic to the existing L1/L2 nutrient lookup logic.
   - name: Catalog
     description: |
-      Read-only catalog browsing endpoints (F025). Allow consumers to browse restaurants,
-      chains, and dishes before querying for nutritional data via GET /estimate.
-      All four endpoints cache responses for 60 seconds (fail-open on Redis errors).
-      Anonymous access allowed (lower rate limit). API key auth introduced in F026.
+      Catalog browsing and management endpoints (F025, F032). Allow consumers to browse
+      restaurants, chains, and dishes before querying for nutritional data via GET /estimate.
+      Read endpoints cache responses for 60 seconds (fail-open on Redis errors).
+      Anonymous access allowed on read endpoints (lower rate limit). API key auth introduced
+      in F026. Write endpoints (POST /restaurants) are admin-only (F032).
   - name: Analytics
     description: |
       Query log analytics endpoints (F029). Every call to GET /estimate is recorded
@@ -67,6 +68,23 @@ tags:
       operational metrics: total query counts, level-hit distribution, top queried terms,
       cache hit rate, average response time, and queries by chain and source.
       Admin-only (requires X-API-Key matching ADMIN_API_KEY env var).
+  - name: Calculation
+    description: |
+      Recipe calculation endpoints (F035). Compute aggregate nutritional information
+      for user-provided recipes. Stateless — does NOT persist to Recipe/RecipeIngredient
+      tables. Supports two modes: structured (typed ingredient array) and free-form
+      (plain-text parsed by LLM). The LLM is ONLY used to parse text into structured
+      tuples (ADR-001: engine calculates, LLM interprets). Partial resolution returns 200;
+      zero resolution returns 422 RECIPE_UNRESOLVABLE.
+  - name: Analysis
+    description: |
+      Menu and dish analysis endpoints (F034). Accept a photo or PDF of a restaurant
+      menu (or a photo of a single dish), extract dish names via OCR (Tesseract) or
+      Vision API (gpt-4o-mini), and run the estimation cascade on each name to return
+      nutritional estimates. Stateless — no DB writes. Requires API key auth.
+      Additional rate limit: 10 analyses per hour per key (beyond the standard tier limit).
+      ADR-001 applies: the Vision API is used ONLY to identify dish names; all nutrient
+      calculation goes through runEstimationCascade.
 
 paths:
   /ingest/pdf:
@@ -1058,6 +1076,289 @@ paths:
                 error:
                   message: "Admin API key required"
                   code: "UNAUTHORIZED"
+        '500':
+          description: Database error during upsert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                dbError:
+                  value:
+                    success: false
+                    error:
+                      message: "Database write failed"
+                      code: "DB_UNAVAILABLE"
+
+  /ingest/image:
+    post:
+      summary: Ingest nutritional data from a direct image upload (OCR)
+      description: |
+        Accepts a multipart/form-data upload of a JPEG or PNG image containing a
+        nutritional table, runs OCR via Tesseract.js (languages: spa+eng), and
+        pipes the extracted text lines through the existing pipeline:
+        optional `chainTextPreprocessor` → `parseNutritionTable` →
+        `normalizeNutrients` / `normalizeDish` → Prisma `$transaction` upsert.
+
+        This is the multipart counterpart to `POST /ingest/image-url`. It is
+        intended for Telegram bot uploads, where the bot downloads the file
+        from Telegram servers into an in-process Buffer and then forwards it
+        to the API as multipart (keeping the Telegram bot token strictly inside
+        the bot process).
+
+        - Supported image formats: JPEG (magic bytes FFD8FF), PNG (magic bytes 89504E47).
+        - File field name in the multipart body must be `file`.
+        - `restaurantId`, `sourceId`, `dryRun`, and `chainSlug` are sent as
+          additional multipart text fields (same pattern as `POST /ingest/pdf`).
+        - `dryRun` is a string field (`"true"` / `"false"`) because multipart
+          form-data does not have a native boolean type.
+        - The `sourceId` for Telegram-originated uploads should be
+          `00000000-0000-0000-0000-000000000099` (seeded "Telegram Upload" DataSource).
+        - Partial success (some dishes skipped) returns HTTP 200. Only total failure
+          (zero parseable dishes after OCR) returns HTTP 422.
+        - Size limit: 10 MB (enforced by `@fastify/multipart` plugin limit in app.ts).
+        - Total pipeline timeout: 60 seconds (same as `POST /ingest/image-url`).
+        - Magic bytes are validated AFTER reading the buffer from the multipart
+          stream — unsupported formats return 422 INVALID_IMAGE.
+      operationId: ingestImage
+      tags:
+        - Ingestion
+      security:
+        - AdminKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - restaurantId
+                - sourceId
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |
+                    JPEG or PNG image file containing a nutritional table.
+                    Maximum size: 10 MB. Magic bytes are validated after upload.
+                restaurantId:
+                  type: string
+                  format: uuid
+                  description: UUID of the Restaurant row this data belongs to.
+                  example: "00000000-0000-0000-0006-000000000001"
+                sourceId:
+                  type: string
+                  format: uuid
+                  description: |
+                    UUID of the DataSource row representing this image's origin.
+                    For Telegram bot uploads, use `00000000-0000-0000-0000-000000000099`
+                    (the seeded "Telegram Upload" DataSource).
+                  example: "00000000-0000-0000-0000-000000000099"
+                dryRun:
+                  type: string
+                  enum: ["true", "false"]
+                  default: "false"
+                  description: |
+                    When "true", runs OCR, extraction, and normalization but skips
+                    all DB writes. The response still contains the full `dishes`
+                    array for inspection.
+                chainSlug:
+                  type: string
+                  pattern: "^[a-z0-9-]+$"
+                  minLength: 1
+                  maxLength: 100
+                  description: |
+                    Optional chain identifier (e.g. "dominos-es"). When provided,
+                    applies chain-specific text preprocessing to the OCR-extracted
+                    lines before parsing. When omitted, no preprocessing is applied.
+                  example: "dominos-es"
+      responses:
+        '200':
+          description: |
+            Ingestion successful (or dryRun completed). At least one dish was parsed
+            and upserted (or would be upserted in dryRun mode). Partial success
+            (some dishes skipped) also returns 200 — see `dishesSkipped` and
+            `skippedReasons` for details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestImageResponse'
+              examples:
+                success:
+                  summary: 8 dishes upserted, 1 skipped
+                  value:
+                    success: true
+                    data:
+                      dishesFound: 9
+                      dishesUpserted: 8
+                      dishesSkipped: 1
+                      dryRun: false
+                      dishes:
+                        - name: "Pizza Pepperoni"
+                          nameEs: "Pizza Pepperoni"
+                          nutrients:
+                            calories: 265
+                            proteins: 12
+                            carbohydrates: 29
+                            fats: 11
+                            saturatedFats: 5
+                            sugars: 3
+                            fiber: 1.5
+                            salt: 1.2
+                            sodium: 480
+                            transFats: 0
+                            cholesterol: 30
+                            potassium: 0
+                            monounsaturatedFats: 0
+                            polyunsaturatedFats: 0
+                            referenceBasis: "per_serving"
+                          confidenceLevel: "medium"
+                          estimationMethod: "scraped"
+                          availability: "available"
+                          restaurantId: "00000000-0000-0000-0006-000000000001"
+                          sourceId: "00000000-0000-0000-0000-000000000099"
+                      skippedReasons:
+                        - dishName: "Bebida"
+                          reason: "Missing required field: proteins"
+                dryRun:
+                  summary: dryRun=true — no DB writes
+                  value:
+                    success: true
+                    data:
+                      dishesFound: 5
+                      dishesUpserted: 0
+                      dishesSkipped: 0
+                      dryRun: true
+                      dishes: []
+                      skippedReasons: []
+        '400':
+          description: Validation error (missing fields, invalid UUID format, file missing)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                fileMissing:
+                  summary: No file part in multipart body
+                  value:
+                    success: false
+                    error:
+                      message: "No file uploaded"
+                      code: "VALIDATION_ERROR"
+                missingRestaurantId:
+                  summary: restaurantId missing
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["restaurantId"]
+                          message: "Required"
+                          code: "invalid_type"
+                invalidUuid:
+                  summary: sourceId is not a valid UUID
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["sourceId"]
+                          message: "Invalid uuid"
+                          code: "invalid_string"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
+        '404':
+          description: restaurantId or sourceId not found in the database
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                restaurantNotFound:
+                  summary: Restaurant row does not exist
+                  value:
+                    success: false
+                    error:
+                      message: "Restaurant not found"
+                      code: "NOT_FOUND"
+                sourceNotFound:
+                  summary: DataSource row does not exist
+                  value:
+                    success: false
+                    error:
+                      message: "Data source not found"
+                      code: "NOT_FOUND"
+        '408':
+          description: Image OCR + processing exceeded the 60-second timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                timeout:
+                  value:
+                    success: false
+                    error:
+                      message: "Processing timeout"
+                      code: "PROCESSING_TIMEOUT"
+        '413':
+          description: Uploaded image exceeds the 10 MB size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                tooLarge:
+                  value:
+                    success: false
+                    error:
+                      message: "File size exceeds the 10 MB limit"
+                      code: "PAYLOAD_TOO_LARGE"
+        '422':
+          description: |
+            Unprocessable image. One of three sub-cases:
+            - `INVALID_IMAGE`: uploaded file is not a valid JPEG or PNG (magic bytes mismatch).
+            - `OCR_FAILED`: Tesseract.js could not extract text from the image.
+            - `NO_NUTRITIONAL_DATA_FOUND`: OCR succeeded but no parseable nutritional
+              table was found, or all parsed rows failed normalization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidImage:
+                  summary: Not a JPEG or PNG
+                  value:
+                    success: false
+                    error:
+                      message: "Uploaded file is not a valid image (not JPEG or PNG)"
+                      code: "INVALID_IMAGE"
+                ocrFailed:
+                  summary: Tesseract OCR failure
+                  value:
+                    success: false
+                    error:
+                      message: "OCR failed to extract text from image"
+                      code: "OCR_FAILED"
+                noData:
+                  summary: No nutritional data found
+                  value:
+                    success: false
+                    error:
+                      message: "No nutritional data found in image"
+                      code: "NO_NUTRITIONAL_DATA_FOUND"
         '500':
           description: Database error during upsert
           content:
@@ -2230,6 +2531,177 @@ paths:
                       message: "Database query failed during estimation lookup"
                       code: "DB_UNAVAILABLE"
 
+  # -------------------------------------------------------------------------
+  # Calculation — Recipe (F035)
+  # -------------------------------------------------------------------------
+
+  /calculate/recipe:
+    post:
+      summary: Calculate aggregate nutritional information for a recipe
+      description: |
+        Accepts a recipe in structured (typed ingredient array) or free-form (plain text) mode.
+        Resolves each ingredient via a food-only cascade (direct_id → exact_food → fts_food →
+        similarity_food → llm_food_match). Returns per-ingredient breakdown plus aggregated totals.
+        Partial resolution allowed (200 with unresolvedIngredients and confidenceLevel: "low").
+        Zero resolution returns 422 RECIPE_UNRESOLVABLE.
+        Route timeout: 30s → 408 PROCESSING_TIMEOUT. Cached in Redis for 300s.
+      tags: [Calculation]
+      operationId: calculateRecipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [mode, ingredients]
+                  properties:
+                    mode:
+                      type: string
+                      enum: [structured]
+                    ingredients:
+                      type: array
+                      minItems: 1
+                      maxItems: 50
+                      items:
+                        type: object
+                        properties:
+                          foodId:
+                            type: string
+                            format: uuid
+                          name:
+                            type: string
+                            minLength: 1
+                            maxLength: 255
+                          grams:
+                            type: number
+                            exclusiveMinimum: 0
+                            maximum: 5000
+                          portionMultiplier:
+                            type: number
+                            minimum: 0.1
+                            maximum: 5.0
+                            default: 1.0
+                        required: [grams]
+                - type: object
+                  required: [mode, text]
+                  properties:
+                    mode:
+                      type: string
+                      enum: [free-form]
+                    text:
+                      type: string
+                      minLength: 1
+                      maxLength: 2000
+              discriminator:
+                propertyName: mode
+      responses:
+        "200":
+          description: Recipe calculated successfully (partial or full resolution)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    type: object
+                    properties:
+                      mode:
+                        type: string
+                        enum: [structured, free-form]
+                      resolvedCount:
+                        type: integer
+                      unresolvedCount:
+                        type: integer
+                      confidenceLevel:
+                        type: string
+                        enum: [medium, low]
+                      totalNutrients:
+                        $ref: "#/components/schemas/RecipeNutrients"
+                      ingredients:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            input:
+                              type: object
+                              properties:
+                                foodId:
+                                  type: string
+                                  nullable: true
+                                name:
+                                  type: string
+                                  nullable: true
+                                grams:
+                                  type: number
+                                portionMultiplier:
+                                  type: number
+                            resolved:
+                              type: boolean
+                            resolvedAs:
+                              type: object
+                              nullable: true
+                              properties:
+                                entityId:
+                                  type: string
+                                name:
+                                  type: string
+                                nameEs:
+                                  type: string
+                                  nullable: true
+                                matchType:
+                                  type: string
+                            nutrients:
+                              $ref: "#/components/schemas/RecipeNutrients"
+                              nullable: true
+                      unresolvedIngredients:
+                        type: array
+                        items:
+                          type: string
+                      parsedIngredients:
+                        type: array
+                        description: Only present in free-form mode
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            grams:
+                              type: number
+                            portionMultiplier:
+                              type: number
+                      cachedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "408":
+          description: Processing timeout (30s exceeded)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Recipe unresolvable or free-form parse failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /analytics/queries:
     get:
       summary: Query log analytics
@@ -2342,6 +2814,12 @@ paths:
       description: |
         Returns a paginated list of restaurants with optional filters. Each item includes
         a `dishCount` (total dishes for that restaurant). Responses are cached for 60s.
+
+        When `q` is provided, the list is filtered by trigram similarity on `restaurants.name`
+        using the pg_trgm `%` operator (threshold ≥ 0.15). The `q` filter is implemented
+        via Kysely (not Prisma) and is combined with any other active filters (countryCode,
+        chainSlug, isActive). When `q` is omitted the behaviour is unchanged from F025
+        (Prisma-based filter + sort by name ASC).
       operationId: listRestaurants
       tags:
         - Catalog
@@ -2349,6 +2827,18 @@ paths:
         - {}            # Anonymous allowed (30 req/15min/IP)
         - ApiKeyAuth: [] # Free: 100/15min, Pro: 1000/15min
       parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          description: |
+            Trigram similarity search on restaurant name (pg_trgm, threshold ≥ 0.15).
+            Case-insensitive. Used by the bot's /restaurante command to resolve a user-typed
+            name to a restaurant UUID. When omitted the full filtered list is returned.
+            When provided, results are ordered by trigram similarity score descending.
         - name: countryCode
           in: query
           required: false
@@ -2453,6 +2943,173 @@ paths:
                 success: false
                 error:
                   message: "Database query failed"
+                  code: "DB_UNAVAILABLE"
+
+    post:
+      summary: Create a restaurant
+      description: |
+        Creates a new restaurant record. Admin-only endpoint (F032).
+
+        **Chain vs Independent restaurants:**
+        - **Chain restaurant** (e.g. a new McDonald's outlet): provide `chainSlug` matching
+          an existing chain. The `@@unique([chainSlug, countryCode])` DB constraint applies —
+          a duplicate (chainSlug, countryCode) pair is rejected with 409.
+        - **Independent restaurant** (no chain affiliation): omit `chainSlug`. The server
+          auto-generates a slug using the pattern `independent-<name-slugified>-<uuid-short>`
+          (e.g. `independent-la-tasca-de-pepe-a3f2`). This slug is stored in `chainSlug` so
+          the unique constraint remains satisfied. Independent restaurants are identifiable by
+          the `independent-` prefix on their `chainSlug`.
+
+        **New location fields (all optional, Phase 1 — manual entry only):**
+        - `address` — free-text street address (max 500 chars).
+        - `latitude` / `longitude` — decimal GPS coordinates (range ±90 / ±180).
+        - `googleMapsUrl` — URL to the restaurant's Google Maps listing (Phase 2: bot will
+          auto-fill from short link; Phase 1: caller provides the full URL or omits).
+
+        **DataSource for bot-uploaded dishes:**
+        A fixed "Telegram Upload" DataSource with UUID `00000000-0000-0000-0000-000000000099`
+        is used when the bot creates a restaurant and subsequently uploads dishes via
+        `POST /ingest/image`. This source is seeded in `seed.ts` (F032 migration).
+
+        **Idempotency:** If a chain restaurant with the same (chainSlug, countryCode) already
+        exists, returns 409 DUPLICATE_RESTAURANT. Does not upsert.
+      operationId: createRestaurant
+      tags:
+        - Catalog
+      security:
+        - AdminKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRestaurantBody'
+            examples:
+              chainRestaurant:
+                summary: New outlet of an existing chain
+                value:
+                  name: "McDonald's Paseo de Gracia"
+                  nameEs: "McDonald's Paseo de Gracia"
+                  chainSlug: "mcdonalds-es"
+                  countryCode: "ES"
+                  website: "https://www.mcdonalds.es"
+                  address: "Paseo de Gracia, 40, 08007 Barcelona"
+                  latitude: 41.3917
+                  longitude: 2.1650
+              independentRestaurant:
+                summary: Independent restaurant (no chain — chainSlug auto-generated)
+                value:
+                  name: "La Tasca de Pepe"
+                  countryCode: "ES"
+                  address: "Calle Mayor, 12, 28013 Madrid"
+      responses:
+        '201':
+          description: Restaurant created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateRestaurantResponse'
+              examples:
+                chainCreated:
+                  summary: Chain restaurant created
+                  value:
+                    success: true
+                    data:
+                      id: "00000000-0000-0000-0006-000000000020"
+                      name: "McDonald's Paseo de Gracia"
+                      nameEs: "McDonald's Paseo de Gracia"
+                      chainSlug: "mcdonalds-es"
+                      countryCode: "ES"
+                      isActive: true
+                      website: "https://www.mcdonalds.es"
+                      logoUrl: null
+                      address: "Paseo de Gracia, 40, 08007 Barcelona"
+                      latitude: 41.3917
+                      longitude: 2.1650
+                      googleMapsUrl: null
+                      createdAt: "2026-03-24T12:00:00.000Z"
+                independentCreated:
+                  summary: Independent restaurant created (auto-generated chainSlug)
+                  value:
+                    success: true
+                    data:
+                      id: "00000000-0000-0000-0006-000000000021"
+                      name: "La Tasca de Pepe"
+                      nameEs: null
+                      chainSlug: "independent-la-tasca-de-pepe-a3f2"
+                      countryCode: "ES"
+                      isActive: true
+                      website: null
+                      logoUrl: null
+                      address: "Calle Mayor, 12, 28013 Madrid"
+                      latitude: null
+                      longitude: null
+                      googleMapsUrl: null
+                      createdAt: "2026-03-24T12:00:00.000Z"
+        '400':
+          description: Validation error (missing required fields, invalid UUID, invalid coordinates, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingName:
+                  summary: name field missing
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["name"]
+                          message: "Required"
+                          code: "invalid_type"
+                invalidLatitude:
+                  summary: latitude out of range
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["latitude"]
+                          message: "Number must be greater than or equal to -90"
+                          code: "too_small"
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Admin API key required"
+                  code: "UNAUTHORIZED"
+        '409':
+          description: |
+            A restaurant with the same (chainSlug, countryCode) already exists.
+            Only possible when `chainSlug` is explicitly provided (chain restaurants).
+            Independent restaurants cannot collide because their slug includes a UUID fragment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "A restaurant with this chainSlug and countryCode already exists"
+                  code: "DUPLICATE_RESTAURANT"
+        '500':
+          description: Database error during insert.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database write failed"
                   code: "DB_UNAVAILABLE"
 
   /restaurants/{id}/dishes:
@@ -2883,6 +3540,713 @@ paths:
                     error:
                       message: "Redis connectivity check failed"
                       code: "REDIS_UNAVAILABLE"
+
+  /calculate/recipe:
+    post:
+      tags: [Calculation]
+      operationId: calculateRecipe
+      summary: Calculate aggregate nutritional information for a recipe
+      description: |
+        Accepts a recipe in structured (typed ingredient array) or free-form (plain text) mode.
+        Resolves each ingredient via a food-only cascade:
+          direct_id → exact_food → fts_food → similarity_food (L3) → llm_food_match (L4).
+        Returns per-ingredient breakdown plus aggregated totals.
+        Partial resolution returns 200 with unresolvedIngredients and confidenceLevel: "low".
+        Zero resolution returns 422 RECIPE_UNRESOLVABLE.
+        Free-form mode requires OPENAI_API_KEY; returns 422 FREE_FORM_PARSE_FAILED if parsing fails.
+        Route timeout: 30s → 408 PROCESSING_TIMEOUT.
+        Responses cached in Redis for 300 seconds (fxp:recipe:<mode>:<sha256>).
+        Stateless — no writes to Recipe or RecipeIngredient tables.
+        See ADR-001 (Motor calculates, LLM interprets), ADR-009 §5 (portion_multiplier).
+      security:
+        - PublicKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - title: StructuredBody
+                  type: object
+                  required: [mode, ingredients]
+                  properties:
+                    mode:
+                      type: string
+                      enum: [structured]
+                    ingredients:
+                      type: array
+                      minItems: 1
+                      maxItems: 50
+                      items:
+                        type: object
+                        required: [grams]
+                        properties:
+                          foodId:
+                            type: string
+                            format: uuid
+                            description: Direct UUID lookup in food_nutrients (mutually exclusive with name)
+                          name:
+                            type: string
+                            minLength: 1
+                            maxLength: 255
+                            description: Ingredient name for L1/L3/L4 resolution (mutually exclusive with foodId)
+                          grams:
+                            type: number
+                            exclusiveMinimum: 0
+                            maximum: 5000
+                          portionMultiplier:
+                            type: number
+                            minimum: 0.1
+                            maximum: 5.0
+                            default: 1.0
+                            description: LLM-provided hint per ADR-009 §5; applied as nutrient * grams/100 * portionMultiplier
+                - title: FreeFormBody
+                  type: object
+                  required: [mode, text]
+                  properties:
+                    mode:
+                      type: string
+                      enum: [free-form]
+                    text:
+                      type: string
+                      minLength: 1
+                      maxLength: 2000
+                      description: Plain-text recipe description (Spanish or English). Parsed by LLM into structured ingredients.
+            examples:
+              structured:
+                summary: Structured mode — direct_id + name-based
+                value:
+                  mode: structured
+                  ingredients:
+                    - foodId: "fd000000-0001-4000-a000-000000000001"
+                      grams: 200
+                    - name: "arroz blanco"
+                      grams: 100
+                    - name: "aceite de oliva virgen extra"
+                      grams: 15
+                      portionMultiplier: 1.0
+              freeForm:
+                summary: Free-form mode — LLM parses text
+                value:
+                  mode: free-form
+                  text: "200g de pechuga de pollo a la plancha, 100g de arroz blanco, 50ml de aceite de oliva"
+      responses:
+        '200':
+          description: |
+            Recipe nutrients aggregated successfully. resolvedCount ≥ 1.
+            If some ingredients are unresolved, unresolvedCount > 0 and confidenceLevel: "low".
+            cachedAt is null on first request; ISO string on cache hit.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    type: object
+                    properties:
+                      mode:
+                        type: string
+                        enum: [structured, free-form]
+                      resolvedCount:
+                        type: integer
+                        minimum: 0
+                      unresolvedCount:
+                        type: integer
+                        minimum: 0
+                      confidenceLevel:
+                        type: string
+                        enum: [medium, low]
+                        description: |
+                          medium — all resolved via direct_id, L1, or L3.
+                          low — any ingredient used L4 or is unresolved.
+                      totalNutrients:
+                        $ref: '#/components/schemas/RecipeNutrients'
+                      ingredients:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            input:
+                              type: object
+                              properties:
+                                foodId:
+                                  type: string
+                                  format: uuid
+                                  nullable: true
+                                name:
+                                  type: string
+                                  nullable: true
+                                grams:
+                                  type: number
+                                portionMultiplier:
+                                  type: number
+                            resolved:
+                              type: boolean
+                            resolvedAs:
+                              nullable: true
+                              type: object
+                              properties:
+                                entityId:
+                                  type: string
+                                  format: uuid
+                                name:
+                                  type: string
+                                nameEs:
+                                  type: string
+                                  nullable: true
+                                matchType:
+                                  type: string
+                                  enum: [direct_id, exact_food, fts_food, similarity_food, llm_food_match]
+                            nutrients:
+                              nullable: true
+                              $ref: '#/components/schemas/RecipeNutrients'
+                      unresolvedIngredients:
+                        type: array
+                        items:
+                          type: string
+                      parsedIngredients:
+                        description: Present only in free-form mode. LLM-extracted ingredient list before resolution.
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            grams:
+                              type: number
+                            portionMultiplier:
+                              type: number
+                      cachedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+              examples:
+                structuredPartial:
+                  summary: Structured mode — partial resolution
+                  value:
+                    success: true
+                    data:
+                      mode: structured
+                      resolvedCount: 1
+                      unresolvedCount: 1
+                      confidenceLevel: low
+                      totalNutrients:
+                        calories: 330
+                        proteins: 62
+                        carbohydrates: 0
+                        sugars: 0
+                        fats: 7.2
+                        saturatedFats: 2
+                        fiber: 0
+                        salt: 0.2
+                        sodium: 148
+                        transFats: 0
+                        cholesterol: 170
+                        potassium: 440
+                        monounsaturatedFats: 2.4
+                        polyunsaturatedFats: 1.6
+                        referenceBasis: per_serving
+                      ingredients:
+                        - input:
+                            foodId: null
+                            name: pechuga de pollo
+                            grams: 200
+                            portionMultiplier: 1.0
+                          resolved: true
+                          resolvedAs:
+                            entityId: "fd000000-0001-4000-a000-000000000001"
+                            name: "Chicken, broilers or fryers, breast"
+                            nameEs: "Pechuga de pollo"
+                            matchType: fts_food
+                          nutrients:
+                            calories: 330
+                            proteins: 62
+                            carbohydrates: 0
+                            sugars: 0
+                            fats: 7.2
+                            saturatedFats: 2
+                            fiber: 0
+                            salt: 0.2
+                            sodium: 148
+                            transFats: 0
+                            cholesterol: 170
+                            potassium: 440
+                            monounsaturatedFats: 2.4
+                            polyunsaturatedFats: 1.6
+                            referenceBasis: per_serving
+                        - input:
+                            foodId: null
+                            name: ingrediente raro
+                            grams: 50
+                            portionMultiplier: 1.0
+                          resolved: false
+                          resolvedAs: null
+                          nutrients: null
+                      unresolvedIngredients: ["ingrediente raro"]
+                      cachedAt: null
+        '400':
+          description: Validation error — invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                bothFoodIdAndName:
+                  summary: Both foodId and name provided
+                  value:
+                    success: false
+                    error:
+                      message: "Exactly one of foodId or name must be provided (not both, not neither)"
+                      code: VALIDATION_ERROR
+                gramsZero:
+                  summary: grams = 0 (not positive)
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: VALIDATION_ERROR
+        '408':
+          description: Route processing exceeded 30s timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Recipe calculation timed out"
+                  code: PROCESSING_TIMEOUT
+        '422':
+          description: |
+            RECIPE_UNRESOLVABLE — zero ingredients could be resolved (nothing to aggregate).
+            FREE_FORM_PARSE_FAILED — LLM could not extract any ingredients from free-form text.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unresolvable:
+                  summary: Zero ingredients resolved
+                  value:
+                    success: false
+                    error:
+                      message: "No ingredients could be resolved for this recipe"
+                      code: RECIPE_UNRESOLVABLE
+                freeFormFailed:
+                  summary: LLM parse failed (free-form mode)
+                  value:
+                    success: false
+                    error:
+                      message: "LLM failed to parse free-form recipe text"
+                      code: FREE_FORM_PARSE_FAILED
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /analyze/menu:
+    post:
+      tags: [Analysis]
+      operationId: analyzeMenu
+      summary: Extract dish names from a menu photo or PDF and return nutritional estimates
+      description: |
+        Accepts a photo (JPEG/PNG/WebP) or PDF of a restaurant menu, or a photo of a
+        single dish. Extracts dish names via one of four processing modes, then runs
+        `runEstimationCascade` on each name to return per-dish nutritional estimates.
+
+        **Processing modes:**
+        - `auto` (default): PDF files → OCR pipeline; image files → Vision API pipeline.
+        - `ocr`: PDF → `pdf-parse` text extraction → `parseDishNames`. Image →
+          `extractTextFromImage` (Tesseract) → `parseDishNames`. No PDF-to-image
+          rendering — PDFs use direct text extraction.
+        - `vision`: Image only (PDFs rejected with `INVALID_IMAGE`). Vision API
+          (gpt-4o-mini, maxTokens 2048) with menu-extraction prompt → JSON array of
+          dish name strings. OCR fallback on Vision API failure.
+        - `identify`: Image only (PDFs rejected with `INVALID_IMAGE`). Vision API with
+          single-dish-identification prompt → exactly 1 dish. No OCR fallback — if
+          Vision fails, `MENU_ANALYSIS_FAILED` is returned.
+
+        **OCR pipeline (PDF):** `pdf-parse` → text lines → `parseDishNames(lines)` →
+        string array of dish names.
+
+        **OCR pipeline (image):** `extractTextFromImage` (Tesseract) → text lines →
+        `parseDishNames(lines)` → string array of dish names.
+
+        **Vision API pipeline:** image buffer → OpenAI `gpt-4o-mini` chat completion
+        (maxTokens 2048) with a menu-extraction prompt → JSON array of dish name strings.
+
+        **Dish identification pipeline (`identify` mode):** image buffer → OpenAI
+        `gpt-4o-mini` chat completion with a single-dish identification prompt → exactly
+        1 dish name string.
+
+        **Fallback (vision mode only):** When `vision` mode is requested and the OpenAI
+        call fails, the handler attempts Tesseract OCR as a fallback. If OCR produces
+        fewer than 1 dish name, `MENU_ANALYSIS_FAILED` is returned. No fallback for
+        `identify` mode (OCR on a food photo is not useful).
+
+        **Per-dish estimation:** Each extracted dish name is passed individually to
+        `runEstimationCascade({ db, query: dishName, openAiApiKey, level4Lookup, logger })`.
+        A dish whose cascade returns a total miss is included with `estimate: null` (not
+        omitted from the response). The endpoint always returns HTTP 200 as long as at
+        least one dish name was extracted, even if all estimates are null.
+
+        **Stateless:** No writes to any database table.
+
+        **Rate limit:** 10 analyses per hour per API key (in addition to the standard
+        tier rate limit). Exceeding this limit returns HTTP 429 `RATE_LIMIT_EXCEEDED`.
+        The bot API key is exempt from this limit (per-user bot rate limiting is
+        enforced at the bot handler layer, not at the API level).
+
+        **Auth:** Public API key required (`X-API-Key` header). Anonymous requests are
+        rejected (HTTP 401). Admin key also accepted.
+
+        **Partial results:** If the 60-second timeout is reached while processing
+        cascade calls for individual dishes, the endpoint returns HTTP 200 with the
+        dishes processed so far and `partial: true`. This avoids discarding work
+        already completed.
+
+        **ADR compliance:** The Vision API identifies dish names only — it NEVER
+        calculates nutritional values. All nutrient computation goes through
+        `runEstimationCascade` (ADR-001).
+
+        **File constraints:** JPEG, PNG, WebP, or PDF. Maximum size: 10 MB.
+        Content-Type must be `image/jpeg`, `image/png`, `image/webp`, or
+        `application/pdf`. Mismatched Content-Type triggers `INVALID_IMAGE`.
+
+        **Timeout:** 60 seconds (Vision API calls + N cascade calls may take longer
+        than standard routes). On timeout, returns 200 with `partial: true` and
+        the dishes processed so far (per ADR-011 decision #5).
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |
+                    Menu photo (JPEG/PNG/WebP) or PDF file. Maximum size: 10 MB.
+                    Accepted MIME types: image/jpeg, image/png, image/webp,
+                    application/pdf. The Content-Type detected from the buffer
+                    (magic bytes) must match a supported type.
+                mode:
+                  type: string
+                  enum: [auto, ocr, vision, identify]
+                  default: auto
+                  description: |
+                    Processing mode:
+                    - `auto` (default): selects pipeline based on file type
+                      (PDF → OCR, image → Vision API).
+                    - `ocr`: force Tesseract OCR on any file type.
+                    - `vision`: force Vision API with menu-extraction prompt (image or PDF).
+                    - `identify`: Vision API with single-dish-identification prompt.
+                      Use this for photos of one food item/plate, not a full menu.
+            examples:
+              menuPhotoAuto:
+                summary: Menu photo — auto mode (selects Vision API)
+                value:
+                  file: <binary>
+                  mode: auto
+              menuPdfOcr:
+                summary: PDF menu — auto mode (selects OCR)
+                value:
+                  file: <binary>
+                  mode: auto
+              forcedVision:
+                summary: Force Vision API on a PDF menu photo
+                value:
+                  file: <binary>
+                  mode: vision
+              singleDish:
+                summary: Photo of one dish — identify mode
+                value:
+                  file: <binary>
+                  mode: identify
+      responses:
+        '200':
+          description: |
+            Analysis completed. At least one dish name was extracted. Individual
+            dishes may have `estimate: null` if the cascade returned a total miss —
+            this is NOT an error. `dishCount` reflects extracted names, not resolved
+            estimates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuAnalysisResponse'
+              examples:
+                menuSuccess:
+                  summary: 3 dishes extracted, 2 estimated
+                  value:
+                    success: true
+                    data:
+                      mode: auto
+                      dishCount: 3
+                      dishes:
+                        - dishName: "Big Mac"
+                          estimate:
+                            query: "Big Mac"
+                            chainSlug: null
+                            level1Hit: true
+                            level2Hit: false
+                            level3Hit: false
+                            level4Hit: false
+                            matchType: exact_dish
+                            result:
+                              entityId: "uuid-of-big-mac"
+                              entityType: dish
+                              name: "Big Mac"
+                              nameEs: "Big Mac"
+                              restaurantId: "uuid-of-restaurant"
+                              chainSlug: "mcdonalds-es"
+                              portionGrams: null
+                              nutrients:
+                                calories: 550
+                                proteins: 25
+                                carbohydrates: 46
+                                fats: 28
+                                saturatedFats: 10
+                                sugars: 9
+                                fiber: 3
+                                salt: 2.2
+                                sodium: 880
+                                transFats: 0.5
+                                cholesterol: 80
+                                potassium: 0
+                                monounsaturatedFats: 0
+                                polyunsaturatedFats: 0
+                                referenceBasis: per_serving
+                              confidenceLevel: high
+                              estimationMethod: official
+                              source:
+                                id: "uuid-of-source"
+                                name: "McDonald's Spain — Official PDF"
+                                url: null
+                                type: scraped
+                              similarityDistance: null
+                            cachedAt: null
+                        - dishName: "Hamburguesa Especial"
+                          estimate: null
+                        - dishName: "McPollo"
+                          estimate:
+                            query: "McPollo"
+                            chainSlug: null
+                            level1Hit: false
+                            level2Hit: false
+                            level3Hit: true
+                            level4Hit: false
+                            matchType: similarity_dish
+                            result:
+                              entityId: "uuid-of-mcpollo"
+                              entityType: dish
+                              name: "McPollo"
+                              nameEs: "McPollo"
+                              restaurantId: "uuid-of-restaurant"
+                              chainSlug: "mcdonalds-es"
+                              portionGrams: null
+                              nutrients:
+                                calories: 390
+                                proteins: 20
+                                carbohydrates: 42
+                                fats: 14
+                                saturatedFats: 3
+                                sugars: 5
+                                fiber: 2
+                                salt: 1.5
+                                sodium: 600
+                                transFats: 0
+                                cholesterol: 45
+                                potassium: 0
+                                monounsaturatedFats: 0
+                                polyunsaturatedFats: 0
+                                referenceBasis: per_serving
+                              confidenceLevel: low
+                              estimationMethod: extrapolation
+                              source:
+                                id: "uuid-of-source"
+                                name: "McDonald's Spain — Official PDF"
+                                url: null
+                                type: scraped
+                              similarityDistance: 0.22
+                            cachedAt: null
+                identifySuccess:
+                  summary: Single dish identified
+                  value:
+                    success: true
+                    data:
+                      mode: identify
+                      dishCount: 1
+                      dishes:
+                        - dishName: "Ensalada César con pollo"
+                          estimate:
+                            query: "Ensalada César con pollo"
+                            chainSlug: null
+                            level1Hit: false
+                            level2Hit: true
+                            level3Hit: false
+                            level4Hit: false
+                            matchType: ingredient_dish_fts
+                            result:
+                              entityId: "uuid-of-dish"
+                              entityType: dish
+                              name: "Caesar salad with chicken"
+                              nameEs: "Ensalada César con pollo"
+                              restaurantId: null
+                              chainSlug: null
+                              portionGrams: 350
+                              nutrients:
+                                calories: 320
+                                proteins: 28
+                                carbohydrates: 12
+                                fats: 18
+                                saturatedFats: 4
+                                sugars: 3
+                                fiber: 2
+                                salt: 1.1
+                                sodium: 440
+                                transFats: 0
+                                cholesterol: 72
+                                potassium: 0
+                                monounsaturatedFats: 0
+                                polyunsaturatedFats: 0
+                                referenceBasis: per_serving
+                              confidenceLevel: medium
+                              estimationMethod: ingredients
+                              source:
+                                id: "uuid-of-source"
+                                name: "Computed from ingredients"
+                                url: null
+                                type: estimated
+                              similarityDistance: null
+                            cachedAt: null
+        '400':
+          description: Validation error — missing file, unsupported mode value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingFile:
+                  summary: No file part in multipart body
+                  value:
+                    success: false
+                    error:
+                      message: "No file uploaded"
+                      code: VALIDATION_ERROR
+                invalidMode:
+                  summary: Unknown mode value
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: VALIDATION_ERROR
+                      details:
+                        - path: ["mode"]
+                          message: "Invalid enum value. Expected 'auto' | 'ocr' | 'vision' | 'identify'"
+                          code: invalid_enum_value
+        '401':
+          description: Missing or invalid API key (anonymous requests not permitted).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "API key required"
+                  code: UNAUTHORIZED
+        '413':
+          description: Uploaded file exceeds the 10 MB size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "File size exceeds the 10 MB limit"
+                  code: FST_REQ_FILE_TOO_LARGE
+        '422':
+          description: |
+            Analysis failed. Sub-cases:
+            - `INVALID_IMAGE`: file is not a supported type (not JPEG/PNG/WebP/PDF), or
+              the detected MIME type (from magic bytes) does not match a supported type.
+            - `OCR_FAILED`: OCR pipeline produced zero lines or only whitespace lines
+              (applies to `ocr` mode and to the OCR fallback path in `vision`/`identify`
+              mode).
+            - `MENU_ANALYSIS_FAILED`: Both the Vision API call AND the OCR fallback
+              produced fewer than 3 meaningful dish name candidates. Nothing to estimate.
+            - `VISION_API_UNAVAILABLE`: `OPENAI_API_KEY` is not configured and the
+              requested mode requires the Vision API (`vision` or `identify`), or `auto`
+              was selected with an image file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidImage:
+                  summary: Unsupported file type
+                  value:
+                    success: false
+                    error:
+                      message: "Uploaded file is not a supported type (JPEG, PNG, WebP, or PDF)"
+                      code: INVALID_IMAGE
+                ocrFailed:
+                  summary: OCR produced no output
+                  value:
+                    success: false
+                    error:
+                      message: "OCR extraction produced no readable text"
+                      code: OCR_FAILED
+                menuAnalysisFailed:
+                  summary: Vision API + OCR fallback both produced < 3 dish names
+                  value:
+                    success: false
+                    error:
+                      message: "Could not extract dish names from the provided file"
+                      code: MENU_ANALYSIS_FAILED
+                visionApiUnavailable:
+                  summary: OPENAI_API_KEY not configured
+                  value:
+                    success: false
+                    error:
+                      message: "Vision API is not configured. Use mode=ocr or provide OPENAI_API_KEY."
+                      code: VISION_API_UNAVAILABLE
+        '429':
+          description: |
+            Rate limit exceeded. Either the standard tier limit or the analysis-specific
+            limit of 10 requests per hour per key has been reached.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Rate limit exceeded. Menu analysis is limited to 10 requests per hour per key."
+                  code: RATE_LIMIT_EXCEEDED
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
@@ -3389,6 +4753,80 @@ components:
           example: true
         data:
           $ref: '#/components/schemas/IngestImageUrlResult'
+
+    # -------------------------------------------------------------------------
+    # Ingestion — Image Upload / multipart (F031)
+    # -------------------------------------------------------------------------
+
+    IngestImageSkippedReason:
+      type: object
+      required:
+        - dishName
+        - reason
+      properties:
+        dishName:
+          type: string
+          description: The dish name as extracted from the OCR-parsed row.
+          example: "Bebida"
+        reason:
+          type: string
+          description: Human-readable explanation of why this dish was skipped.
+          example: "Missing required field: proteins"
+
+    IngestImageResult:
+      type: object
+      required:
+        - dishesFound
+        - dishesUpserted
+        - dishesSkipped
+        - dryRun
+        - dishes
+        - skippedReasons
+      properties:
+        dishesFound:
+          type: integer
+          minimum: 0
+          description: Total number of dish rows extracted from the image (after OCR) before normalization.
+          example: 9
+        dishesUpserted:
+          type: integer
+          minimum: 0
+          description: |
+            Number of dishes successfully normalized and written to (or that would be
+            written to, in dryRun mode) the database.
+          example: 8
+        dishesSkipped:
+          type: integer
+          minimum: 0
+          description: Number of dishes that failed normalization and were not persisted.
+          example: 1
+        dryRun:
+          type: boolean
+          description: Whether this was a dry run (no DB writes).
+          example: false
+        dishes:
+          type: array
+          description: |
+            All successfully normalized dishes. Present in both live and dryRun responses.
+          items:
+            $ref: '#/components/schemas/NormalizedDish'
+        skippedReasons:
+          type: array
+          description: One entry per skipped dish explaining the normalization failure.
+          items:
+            $ref: '#/components/schemas/IngestImageSkippedReason'
+
+    IngestImageResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/IngestImageResult'
 
     # -------------------------------------------------------------------------
     # Ingestion — URL (F007c)
@@ -4310,8 +5748,164 @@ components:
               example: 8
 
     # -------------------------------------------------------------------------
+    # F034 / Analysis schemas
+    # -------------------------------------------------------------------------
+
+    MenuAnalysisDish:
+      type: object
+      description: |
+        A single dish extracted from the menu (or identified from a food photo), together
+        with the result of running the estimation cascade on its name. `estimate` is null
+        when the cascade returns a total miss across all four levels; the dish is still
+        included in the response for transparency.
+      required:
+        - dishName
+        - estimate
+      properties:
+        dishName:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: |
+            The dish name as extracted by OCR or Vision API, after basic trimming.
+            This is the raw string passed to `runEstimationCascade` as `query`.
+          example: "Big Mac"
+        estimate:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/EstimateData'
+          description: |
+            Full estimation cascade result for this dish name. Null when all four
+            cascade levels returned a miss (no matching dish or food found).
+
+    MenuAnalysisData:
+      type: object
+      description: |
+        Payload returned by POST /analyze/menu on success. Contains the resolved
+        processing mode, total dish count, and per-dish estimation results.
+      required:
+        - mode
+        - dishCount
+        - dishes
+        - partial
+      properties:
+        mode:
+          type: string
+          enum: [auto, ocr, vision, identify]
+          description: |
+            The processing mode actually used. For `auto`, this echoes `auto` (not the
+            resolved pipeline name) so callers can correlate with their request.
+          example: auto
+        dishCount:
+          type: integer
+          minimum: 1
+          description: |
+            Number of dish names extracted (and included in dishes array). Always ≥ 1
+            in a 200 response. For `identify` mode, dishCount is always 1.
+          example: 3
+        partial:
+          type: boolean
+          default: false
+          description: |
+            True when the 60-second timeout was reached while processing cascade calls
+            for individual dishes. The response contains only the dishes processed before
+            the timeout, not all extracted names. False in normal (complete) responses.
+          example: false
+        dishes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/MenuAnalysisDish'
+          description: |
+            Per-dish results in the order the names were extracted. Length equals
+            dishCount. Dishes with no cascade match have `estimate: null`.
+            For `identify` mode, this array contains exactly 1 entry.
+
+    MenuAnalysisResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+          example: true
+        data:
+          $ref: '#/components/schemas/MenuAnalysisData'
+
+    # -------------------------------------------------------------------------
     # Estimation Engine (E003 / F020)
     # -------------------------------------------------------------------------
+
+    RecipeNutrients:
+      type: object
+      description: |
+        Nutrient profile for a recipe ingredient or recipe total (F035).
+        Same 14 fields as EstimateNutrients but all values are nullable:
+        if a nutrient is null for ALL resolved ingredients, the field is null (not 0).
+        referenceBasis is always "per_serving" for recipe results.
+      properties:
+        calories:
+          type: number
+          minimum: 0
+          nullable: true
+        proteins:
+          type: number
+          minimum: 0
+          nullable: true
+        carbohydrates:
+          type: number
+          minimum: 0
+          nullable: true
+        sugars:
+          type: number
+          minimum: 0
+          nullable: true
+        fats:
+          type: number
+          minimum: 0
+          nullable: true
+        saturatedFats:
+          type: number
+          minimum: 0
+          nullable: true
+        fiber:
+          type: number
+          minimum: 0
+          nullable: true
+        salt:
+          type: number
+          minimum: 0
+          nullable: true
+        sodium:
+          type: number
+          minimum: 0
+          nullable: true
+        transFats:
+          type: number
+          minimum: 0
+          nullable: true
+        cholesterol:
+          type: number
+          minimum: 0
+          nullable: true
+        potassium:
+          type: number
+          minimum: 0
+          nullable: true
+        monounsaturatedFats:
+          type: number
+          minimum: 0
+          nullable: true
+        polyunsaturatedFats:
+          type: number
+          minimum: 0
+          nullable: true
+        referenceBasis:
+          type: string
+          enum: [per_serving]
+          description: Always "per_serving" for recipe results.
 
     EstimateNutrients:
       type: object
@@ -4668,7 +6262,7 @@ components:
           $ref: '#/components/schemas/EstimateData'
 
     # -------------------------------------------------------------------------
-    # F025 Catalog schemas
+    # F025 / F032 Catalog schemas
     # -------------------------------------------------------------------------
 
     PaginationMeta:
@@ -4692,6 +6286,10 @@ components:
     RestaurantListItem:
       type: object
       required: [id, name, chainSlug, countryCode, isActive, dishCount]
+      description: |
+        A restaurant as returned by GET /restaurants. `chainSlug` is always present in the
+        response (never null) — independent restaurants have a server-generated slug with
+        the `independent-` prefix.
       properties:
         id:
           type: string
@@ -4705,6 +6303,10 @@ components:
           example: "McDonald's España"
         chainSlug:
           type: string
+          description: |
+            Chain slug for chain restaurants (e.g. "mcdonalds-es"). For independent
+            restaurants this is auto-generated as "independent-<name-slug>-<uuid-short>"
+            and is never null in the response.
           example: "mcdonalds-es"
         countryCode:
           type: string
@@ -4721,10 +6323,200 @@ components:
           type: string
           nullable: true
           example: "https://www.mcdonalds.es"
+        address:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Free-text street address. Null if not provided at creation time.
+          example: "Paseo de Gracia, 40, 08007 Barcelona"
+        latitude:
+          type: number
+          nullable: true
+          minimum: -90
+          maximum: 90
+          description: GPS latitude (decimal degrees). Null if not provided.
+          example: 41.3917
+        longitude:
+          type: number
+          nullable: true
+          minimum: -180
+          maximum: 180
+          description: GPS longitude (decimal degrees). Null if not provided.
+          example: 2.1650
+        googleMapsUrl:
+          type: string
+          nullable: true
+          description: |
+            URL to the Google Maps listing. Phase 1 — caller provides full URL manually.
+            Phase 2 — bot auto-fills from short link.
+          example: null
         dishCount:
           type: integer
           minimum: 0
           example: 127
+
+    CreateRestaurantBody:
+      type: object
+      description: |
+        Request body for POST /restaurants. `chainSlug` is optional — omit it to create
+        an independent restaurant (server auto-generates the slug). `name` is required;
+        all location fields are optional (Phase 1 — manual entry only).
+      required:
+        - name
+        - countryCode
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Restaurant name (English or primary language).
+          example: "La Tasca de Pepe"
+        nameEs:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Spanish name if different from `name`. Null if not applicable.
+          example: null
+        chainSlug:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          minLength: 1
+          maxLength: 100
+          description: |
+            Chain slug for chain restaurants. Must match the pattern `^[a-z0-9-]+$`.
+            Omit for independent restaurants — the server auto-generates a slug as
+            `independent-<name-slugified>-<uuid-short>`.
+          example: "mcdonalds-es"
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          minLength: 2
+          maxLength: 2
+          description: ISO 3166-1 alpha-2 country code (uppercase).
+          example: "ES"
+        website:
+          type: string
+          nullable: true
+          description: Full URL to the restaurant's website.
+          example: "https://www.mcdonalds.es"
+        logoUrl:
+          type: string
+          nullable: true
+          description: Full URL to the restaurant's logo image.
+          example: null
+        address:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Free-text street address.
+          example: "Calle Mayor, 12, 28013 Madrid"
+        latitude:
+          type: number
+          nullable: true
+          minimum: -90
+          maximum: 90
+          description: GPS latitude (decimal degrees). Range -90 to 90.
+          example: 40.4153
+        longitude:
+          type: number
+          nullable: true
+          minimum: -180
+          maximum: 180
+          description: GPS longitude (decimal degrees). Range -180 to 180.
+          example: -3.7074
+        googleMapsUrl:
+          type: string
+          nullable: true
+          description: |
+            Full URL to the Google Maps listing (e.g. https://maps.google.com/?cid=...).
+            Phase 1: manual entry by caller. Phase 2: bot resolves short links automatically.
+          example: null
+
+    CreatedRestaurant:
+      type: object
+      description: The newly created restaurant record as returned by POST /restaurants.
+      required:
+        - id
+        - name
+        - chainSlug
+        - countryCode
+        - isActive
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Server-generated UUID for the new restaurant.
+          example: "00000000-0000-0000-0006-000000000021"
+        name:
+          type: string
+          example: "La Tasca de Pepe"
+        nameEs:
+          type: string
+          nullable: true
+          example: null
+        chainSlug:
+          type: string
+          description: |
+            For chain restaurants: the value provided in the request body.
+            For independent restaurants: the auto-generated slug
+            (`independent-<name-slug>-<uuid-short>`).
+          example: "independent-la-tasca-de-pepe-a3f2"
+        countryCode:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: "ES"
+        isActive:
+          type: boolean
+          example: true
+          description: Always true at creation time.
+        website:
+          type: string
+          nullable: true
+          example: null
+        logoUrl:
+          type: string
+          nullable: true
+          example: null
+        address:
+          type: string
+          nullable: true
+          maxLength: 500
+          example: "Calle Mayor, 12, 28013 Madrid"
+        latitude:
+          type: number
+          nullable: true
+          minimum: -90
+          maximum: 90
+          example: null
+        longitude:
+          type: number
+          nullable: true
+          minimum: -180
+          maximum: 180
+          example: null
+        googleMapsUrl:
+          type: string
+          nullable: true
+          example: null
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO-8601 creation timestamp.
+          example: "2026-03-24T12:00:00.000Z"
+
+    CreateRestaurantResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/CreatedRestaurant'
 
     DishListItem:
       type: object
@@ -4933,11 +6725,11 @@ components:
         api:
           type: integer
           minimum: 0
-          description: Queries from direct API callers (no X-FXP-Source: bot header).
+          description: "Queries from direct API callers (no X-FXP-Source: bot header)."
         bot:
           type: integer
           minimum: 0
-          description: Queries from the Telegram bot (X-FXP-Source: bot header).
+          description: "Queries from the Telegram bot (X-FXP-Source: bot header)."
 
     AnalyticsData:
       type: object

@@ -5,7 +5,7 @@
 
 ## Instructions
 
-Translate requirements into precise, standard-compliant specifications. Update global spec files AND the ticket's `## Spec` section.
+Translate requirements into precise, standard-compliant specifications. Update existing global spec files (`api-spec.yaml`, `ui-components.md`) AND the ticket's `## Spec` section. NEVER create per-feature spec files — the ticket IS the feature spec.
 
 ## Workflow
 
@@ -20,5 +20,6 @@ Translate requirements into precise, standard-compliant specifications. Update g
 
 - NEVER write implementation code — only specifications
 - ALWAYS follow existing patterns in spec files
-- ALWAYS update BOTH global spec files AND ticket's `## Spec` section
+- ALWAYS update existing global spec files (`api-spec.yaml`, `ui-components.md`) AND ticket's `## Spec` section
+- NEVER create per-feature spec files in `docs/specs/` — the ticket IS the feature spec
 - ALWAYS ask: "Does this spec look correct?"

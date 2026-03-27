@@ -280,6 +280,23 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // FST_REQ_FILE_TOO_LARGE — @fastify/multipart file size limit exceeded
+  // Maps to 413 PAYLOAD_TOO_LARGE using our standard error envelope.
+  // This also fixes a latent bug in POST /ingest/pdf where large uploads
+  // would return a raw Fastify error instead of the standard envelope.
+  if (asAny['code'] === 'FST_REQ_FILE_TOO_LARGE') {
+    return {
+      statusCode: 413,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'PAYLOAD_TOO_LARGE',
+        },
+      },
+    };
+  }
+
   // PAYLOAD_TOO_LARGE — response body exceeds size limit (e.g. PDF > 20 MB)
   if (asAny['code'] === 'PAYLOAD_TOO_LARGE') {
     return {
@@ -317,6 +334,76 @@ export function mapError(error: Error): MappedError {
         error: {
           message: error.message,
           code: 'FORBIDDEN',
+        },
+      },
+    };
+  }
+
+  // RECIPE_UNRESOLVABLE — zero ingredients resolved in POST /calculate/recipe (F035)
+  if (asAny['code'] === 'RECIPE_UNRESOLVABLE') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'RECIPE_UNRESOLVABLE',
+        },
+      },
+    };
+  }
+
+  // FREE_FORM_PARSE_FAILED — LLM could not parse free-form recipe text (F035)
+  if (asAny['code'] === 'FREE_FORM_PARSE_FAILED') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'FREE_FORM_PARSE_FAILED',
+        },
+      },
+    };
+  }
+
+  // MENU_ANALYSIS_FAILED — Vision API + OCR fallback both produced < 1 dish name (F034)
+  if (asAny['code'] === 'MENU_ANALYSIS_FAILED') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'MENU_ANALYSIS_FAILED',
+        },
+      },
+    };
+  }
+
+  // VISION_API_UNAVAILABLE — OPENAI_API_KEY not set and vision/identify/auto+image requested (F034)
+  if (asAny['code'] === 'VISION_API_UNAVAILABLE') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'VISION_API_UNAVAILABLE',
+        },
+      },
+    };
+  }
+
+  // DUPLICATE_RESTAURANT — (chainSlug, countryCode) unique constraint violation (F032)
+  if (asAny['code'] === 'DUPLICATE_RESTAURANT') {
+    return {
+      statusCode: 409,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'DUPLICATE_RESTAURANT',
         },
       },
     };

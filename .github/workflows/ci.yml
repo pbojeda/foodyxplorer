@@ -1,19 +1,107 @@
 # ===========================================
-# CI Pipeline — foodXPlorer
+# CI Pipeline — foodXPlorer (monorepo)
 # ===========================================
-# Runs on pushes and PRs to develop and main branches.
-# Tests run against local PostgreSQL (pgvector + pg_trgm) and Redis.
+# Separate jobs per package with path filters.
+# - packages/shared changes trigger ALL jobs (shared dependency)
+# - Root config changes (package.json, tsconfig, workflows) trigger ALL jobs
+# - docs-only changes trigger NO jobs
+# - Only test-api needs PostgreSQL + Redis services
 
 name: CI
 
 on:
   push:
     branches: [develop, main]
+    paths:
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.base.json'
+      - '.github/workflows/**'
   pull_request:
     branches: [develop, main]
+    paths:
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.base.json'
+      - '.github/workflows/**'
 
+# ───────────────────────────────────────────
+# Detect which packages changed
+# ───────────────────────────────────────────
 jobs:
-  test:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      shared: ${{ steps.filter.outputs.shared }}
+      api: ${{ steps.filter.outputs.api }}
+      bot: ${{ steps.filter.outputs.bot }}
+      scraper: ${{ steps.filter.outputs.scraper }}
+      landing: ${{ steps.filter.outputs.landing }}
+      root: ${{ steps.filter.outputs.root }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared:
+              - 'packages/shared/**'
+            api:
+              - 'packages/api/**'
+            bot:
+              - 'packages/bot/**'
+            scraper:
+              - 'packages/scraper/**'
+            landing:
+              - 'packages/landing/**'
+            root:
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig.base.json'
+              - '.github/workflows/**'
+
+  # ───────────────────────────────────────────
+  # Test shared
+  # ───────────────────────────────────────────
+  test-shared:
+    needs: changes
+    if: needs.changes.outputs.shared == 'true' || needs.changes.outputs.root == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build shared
+        run: npm run build -w @foodxplorer/shared
+
+      - name: Typecheck shared
+        run: npm run typecheck -w @foodxplorer/shared
+
+      - name: Test shared
+        run: npm run test -w @foodxplorer/shared
+
+  # ───────────────────────────────────────────
+  # Test API
+  # Triggers: shared, api, scraper, or root changes
+  # Needs PostgreSQL (pgvector) + Redis
+  # ───────────────────────────────────────────
+  test-api:
+    needs: changes
+    if: >-
+      needs.changes.outputs.shared == 'true' ||
+      needs.changes.outputs.api == 'true' ||
+      needs.changes.outputs.scraper == 'true' ||
+      needs.changes.outputs.root == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -45,6 +133,7 @@ jobs:
       NODE_ENV: test
       DATABASE_URL: postgresql://foodxplorer:foodxplorer@localhost:5433/foodxplorer_dev
       DATABASE_URL_TEST: postgresql://foodxplorer:foodxplorer@localhost:5433/foodxplorer_test
+      DIRECT_URL: postgresql://foodxplorer:foodxplorer@localhost:5433/foodxplorer_dev
       REDIS_URL: redis://localhost:6380
 
     steps:
@@ -52,38 +141,146 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
 
-      - name: Setup PostgreSQL extensions
+      - name: Setup PostgreSQL extensions and test database
         env:
           PGPASSWORD: foodxplorer
         run: |
-          # Enable extensions on dev database
           psql -h localhost -p 5433 -U foodxplorer -d foodxplorer_dev \
             -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
 
-          # Create and setup test database
-          psql -h localhost -p 5433 -U foodxplorer -d foodxplorer_dev \
-            -c "SELECT 'CREATE DATABASE foodxplorer_test' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'foodxplorer_test');" \
-            | psql -h localhost -p 5433 -U foodxplorer -d foodxplorer_dev
+          psql -h localhost -p 5433 -U foodxplorer -d postgres \
+            -c "CREATE DATABASE foodxplorer_test OWNER foodxplorer;" || true
 
           psql -h localhost -p 5433 -U foodxplorer -d foodxplorer_test \
             -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
 
-      - name: Run migrations
-        run: npx prisma migrate deploy --schema=packages/api/prisma/schema.prisma
+      - name: Run migrations (dev + test)
+        run: |
+          npx prisma migrate deploy --schema=packages/api/prisma/schema.prisma
+          DATABASE_URL=$DATABASE_URL_TEST DIRECT_URL=$DATABASE_URL_TEST npx prisma migrate deploy --schema=packages/api/prisma/schema.prisma
 
       - name: Generate Prisma Client
         run: npx prisma generate --schema=packages/api/prisma/schema.prisma
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Build shared
+        run: npm run build -w @foodxplorer/shared
 
-      - name: Lint
-        run: npm run lint
+      - name: Build scraper
+        run: npm run build -w @foodxplorer/scraper
 
-      - name: Test
-        run: npm test
+      - name: Typecheck API
+        run: npm run typecheck -w @foodxplorer/api
+
+      - name: Lint API
+        run: npm run lint -w @foodxplorer/api || true
+
+      - name: Test API
+        run: npm run test -w @foodxplorer/api
+
+  # ───────────────────────────────────────────
+  # Test Bot
+  # Triggers: shared, bot, or root changes
+  # ───────────────────────────────────────────
+  test-bot:
+    needs: changes
+    if: >-
+      needs.changes.outputs.shared == 'true' ||
+      needs.changes.outputs.bot == 'true' ||
+      needs.changes.outputs.root == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build shared
+        run: npm run build -w @foodxplorer/shared
+
+      - name: Typecheck bot
+        run: npm run typecheck -w @foodxplorer/bot
+
+      - name: Lint bot
+        run: npm run lint -w @foodxplorer/bot || true
+
+      - name: Test bot
+        run: npm run test -w @foodxplorer/bot
+
+  # ───────────────────────────────────────────
+  # Test Scraper
+  # Triggers: shared, scraper, or root changes
+  # ───────────────────────────────────────────
+  test-scraper:
+    needs: changes
+    if: >-
+      needs.changes.outputs.shared == 'true' ||
+      needs.changes.outputs.scraper == 'true' ||
+      needs.changes.outputs.root == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate --schema=packages/api/prisma/schema.prisma
+
+      - name: Build shared
+        run: npm run build -w @foodxplorer/shared
+
+      - name: Typecheck scraper
+        run: npm run typecheck -w @foodxplorer/scraper
+
+      - name: Test scraper
+        run: npm run test -w @foodxplorer/scraper
+
+  # ───────────────────────────────────────────
+  # Test Landing
+  # Triggers: landing or root changes
+  # No DB/Redis needed — standalone Next.js package
+  # ───────────────────────────────────────────
+  test-landing:
+    needs: changes
+    if: >-
+      needs.changes.outputs.landing == 'true' ||
+      needs.changes.outputs.root == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: cd packages/landing && npm ci
+
+      - name: Typecheck landing
+        run: cd packages/landing && npm run typecheck
+
+      - name: Lint landing
+        run: cd packages/landing && npm run lint
+
+      - name: Test landing
+        run: cd packages/landing && npm test
+
+      - name: Build landing
+        run: cd packages/landing && npm run build

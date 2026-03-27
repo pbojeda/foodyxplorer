@@ -60,6 +60,7 @@ export async function checkConfidenceDistribution(
     scraped: globalEstimation.find((r) => r.estimationMethod === 'scraped')?._count._all ?? 0,
     ingredients: globalEstimation.find((r) => r.estimationMethod === 'ingredients')?._count._all ?? 0,
     extrapolation: globalEstimation.find((r) => r.estimationMethod === 'extrapolation')?._count._all ?? 0,
+    llm: globalEstimation.find((r) => r.estimationMethod === 'llm')?._count._all ?? 0,
   };
 
   // Collect all restaurantIds referenced in byChain queries
@@ -109,6 +110,7 @@ export async function checkConfidenceDistribution(
       scraped: 0,
       ingredients: 0,
       extrapolation: 0,
+      llm: 0,
     };
     const method = row.estimationMethod as keyof QualityConfidenceByEstimationMethod;
     existing[method] = (existing[method] ?? 0) + row._count._all;
@@ -129,6 +131,7 @@ export async function checkConfidenceDistribution(
         scraped: 0,
         ingredients: 0,
         extrapolation: 0,
+        llm: 0,
       };
       return {
         chainSlug,

@@ -8,13 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-23
+**Last Updated:** 2026-03-27
 
-**Active Feature:** None
+**Active Feature:** None — no active work
 **Step:** —
-**Branch:** develop
+**Branch:** —
 **Complexity:** —
-**Context:** No active work. F033 completed and merged (PR #28, SHA e8aece8).
+**Context:** F034 completed and squash-merged to develop (PR #34, SHA a4fde9a, 2026-03-27). 168 tests (10 files), 37 files changed. POST /analyze/menu + bot upload_menu/upload_dish handlers. 6 review rounds (Gemini+Codex spec, Gemini+Codex plan, prod validator, code review, QA). BUG-F034-01 + BUG-F034-02 found+fixed. ADR-011.
 
 ---
 
@@ -84,12 +84,23 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F031 | Bot File Upload (multipart, inline keyboard) | fullstack | pending | — | Standard. Depends on F032. Bot downloads file → multipart to API. New POST /ingest/image. ADR-009 |
-| F032 | Restaurant Resolution + Creation (schema migration) | fullstack | pending | — | Standard. Schema migration (chainSlug nullable, address fields). Trigram search. Redis state. ADR-009 |
+| F032 | Restaurant Resolution + Creation (schema migration) | fullstack | done | 6/6 | Standard. Schema migration (address fields). Trigram search. POST /restaurants. Bot /restaurante + Redis state. PR #29, SHA d71cf09 |
 | F033 | L4 Prompt Enhancement (explicit amounts + portion_multiplier) | backend | done | 6/6 | Simple. PR #28, SHA e8aece8. 10 tests. portion_multiplier pattern (ADR-009) |
-| F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | pending | — | Standard-Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-009 |
-| F035 | Recipe Calculation Endpoint (structured + free-form) | backend | pending | — | Standard. POST /calculate/recipe. Deterministic + LLM modes. Depends on F033 |
+| F035 | Recipe Calculation Endpoint (structured + free-form) | backend | done | 6/6 | Standard. POST /calculate/recipe. PR #31, SHA a263c79. 116 tests. 4 review rounds |
+| F038 | Multilingual Dish Name Resolution | backend | done | 6/6 | Standard. Populate name_es for all dishes, fix ingest pipeline, new name_source_locale field, regenerate embeddings. ADR-010 |
+| F031 | Bot File Upload (multipart, inline keyboard) | fullstack | done | 6/6 | Standard. PR #32, SHA 01d8b1f. 137 tests (8 files). POST /ingest/image + bot handlers. BUG-F031-01 fixed |
+| F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | done | 6/6 | Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-011. PR #34, SHA a4fde9a. 168 tests (10 files). 37 files changed |
+| F041 | Bot Recipe Calculator (/receta) | fullstack | pending | — | Standard. Bot /receta command → POST /calculate/recipe (free-form). Depends on F035 ✅ |
+| F042 | Portion-Aware NL Estimation | fullstack | pending | — | Standard. NL handler detects "pequeño/grande" → portionMultiplier. Depends on F033 ✅ |
+| F043 | Dish Comparison via Bot | fullstack | pending | — | Standard. "qué tiene más X, A o B?" → 2× /estimate → comparison |
 | F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
+
+## Features — Marketing & Growth
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F039 | Landing Page — nutriXplorer | frontend | done | 6/6 | Standard. packages/landing/ standalone. Next.js 14 + Tailwind + Framer Motion. 9 sections, A/B hero, SEO, GDPR, analytics. 153 tests. SHA 64280e4 |
+| F040 | Landing Page FAQ Section | frontend | pending | — | Simple. FAQ accordion for landing page. Deferred from F039 |
 
 ---
 
@@ -128,6 +139,12 @@
 | 2026-03-21 | F028 — Telegram Bot — Natural Language Handler | 0ddc21a (squash merge to develop, PR #25) | NL handler for plain text → estimate API. extractFoodQuery (8 prefix patterns, chain slug, article stripping). Plan reviewed by Codex GPT-5.4 (4 issues fixed). Code review: APPROVED (1 dead regex removed). QA: 49 edge-case tests, 1 spec deviation fixed. 80 new tests (307 total, 8 files) |
 | 2026-03-22 | F029 — Query Log & Analytics | c8c230d (squash merge to develop, PR #26) | query_logs table (2 enums, 4 indexes, no FK), writeQueryLog fire-and-forget, GET /analytics/queries (5 Kysely queries), estimate route logging via reply.raw.once('finish'). Plan reviewed by Codex GPT-5.4 (8 fixes). Code review: APPROVED (2I fixed: DRY fire-and-forget, $if mock). QA: 2 bugs fixed (cacheHitRate clamp, NaN guard), 49 edge-case tests. 107 new F029 tests (2718 total) |
 | 2026-03-23 | F033 — L4 Prompt Enhancement | e8aece8 (squash merge to develop, PR #28) | Strategy B prompt: explicit gram amounts + portion_multiplier (ADR-001/ADR-009). Dual format parsing (object + legacy array). Hallucination guard (max 5.0). Code review: 1 IMPORTANT fixed. 10 new tests (2728 total) |
+| 2026-03-24 | F032 — Restaurant Resolution + Creation | d71cf09 (squash merge to develop, PR #29) | Fullstack (API + Bot). Schema migration (4 location fields). GET /restaurants?q= trigram search (Kysely, pg_trgm). POST /restaurants admin endpoint (auto-slug independent-*-uuid8). Bot /restaurante command + inline keyboards + Redis conversation state (TTL 2h). Seed Phase 8 (Telegram Upload DataSource). Plan reviewed by Gemini + Codex (7 fixes). Production validator: 1 critical (auth header). Code review: 4 important fixed (slug 8-hex, URL validation, chainSlug regex, safeAnswerCallback). QA: 51 edge-case tests. 158 new F032 tests (97 API + 61 bot). 43 files changed |
+| 2026-03-25 | F038 — Multilingual Dish Name Resolution | 45e9231 (squash merge to develop, PR #30) | Populate name_es for all dishes, fix ingest pipeline, name_source_locale field, regenerate embeddings. ADR-010. 91 tests, 21 files, +3631 lines |
+| 2026-03-26 | F039 — Landing Page (nutriXplorer) | 64280e4 (squash merge to develop) | Standalone packages/landing/ (Next.js 14 + Tailwind + Framer Motion). 9 sections, A/B hero variants, SEO (JSON-LD, sitemap, robots), GDPR CookieBanner, GA4 analytics, i18n (ES+EN stubs), progressive enhancement. Spec reviewed by Gemini 2.5 + Codex GPT-5.4 (25 issues). Plan reviewed by Gemini + Codex (13 issues). Production validator: 7 issues fixed. Code review: APPROVED. QA: VERIFIED. 153 tests (23 suites), 98 files changed |
+| 2026-03-26 | F035 — Recipe Calculation Endpoint | a263c79 (squash merge to develop, PR #31) | POST /calculate/recipe: structured + free-form modes. Food-only cascade (direct_id → exact_food → fts_food → similarity_food → llm_food_match). Two-phase resolution (L1 parallel, L3/L4 sequential, budget 10). 14 nutrients, null-all→null, AbortController 30s. openaiClient.ts shared utility. Spec reviewed 4x (Gemini + Codex, ~25 issues). Plan reviewed 2x (Gemini + Codex). Production validator: 1C+2H+3M fixed. Code review: APPROVED (2 important fixed). QA: VERIFIED (16 edge-case tests). 116 F035 tests (6 files). 18 files changed |
+| 2026-03-26 | F031 — Bot File Upload | 01d8b1f (squash merge to develop, PR #32) | Fullstack (API + Bot). POST /ingest/image multipart endpoint + bot photo/document handlers + inline keyboard + ALLOWED_CHAT_IDS guard + apiClient multipart (90s timeout). FST_REQ_FILE_TOO_LARGE error mapping fix. Spec reviewed by Gemini+Codex (8 issues). Plan reviewed by Codex (5 issues). Production validator: 1C fixed. Code review: APPROVED (2H fixed: DRY download, shared constant). QA: 1 bug fixed (BUG-F031-01 empty photo array), 29 edge-case tests. 137 F031 tests (8 files). 32 files changed |
+| 2026-03-27 | F034 — Menu Analysis (OCR + Vision API) | a4fde9a (squash merge to develop, PR #34) | Complex fullstack (API + Bot). POST /analyze/menu: 4 modes (auto/ocr/vision/identify), callVisionCompletion (multimodal base64), parseDishNames, per-dish runEstimationCascade, cooperative timeout (partial results), dual rate limiting (API 10/hr + bot 5/hr per chatId). Bot upload_menu + upload_dish callbacks. ADR-011. Spec reviewed by Gemini+Codex (7 issues). Plan reviewed by Gemini+Codex (7 issues). Production validator: 1C fixed (spec drift 408→200+partial). Code review: APPROVED (3M: 2 fixed). QA: 2 bugs fixed (BUG-F034-01 UNSUPPORTED_PDF wrapping, BUG-F034-02 0-dish timeout guard), 27 edge-case tests. 168 F034 tests (10 files). 37 files changed |
 
 ---
 

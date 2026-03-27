@@ -13,7 +13,7 @@
 //  10. buildDishText: nutrition appears without line-2 block (categories/methods all absent)
 //  11. mapDishRow: category_slugs with empty STRING_AGG token (e.g. trailing comma)
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 
 // ---------------------------------------------------------------------------
@@ -421,7 +421,7 @@ describe('CLI parseArgs — default and boundary behaviors', () => {
 
   // Test the default target behavior via direct function call
   it('runEmbeddingsCLI passes target "all" to pipeline when no --target specified', async () => {
-    const mockPipeline = vi.fn().mockResolvedValue({
+    const _mockPipeline = vi.fn().mockResolvedValue({
       target: 'all',
       dryRun: true,
       processedFoods: 0,
@@ -439,7 +439,7 @@ describe('CLI parseArgs — default and boundary behaviors', () => {
     const { runEmbeddingsCLI } = await import('../scripts/embeddings-generate.js');
 
     // Create a minimal mock prisma
-    const mockPrisma = {
+    const _mockPrisma = {
       $queryRaw: vi.fn().mockResolvedValue([]),
       $executeRawUnsafe: vi.fn().mockResolvedValue(0),
     } as unknown as PrismaClient;
@@ -742,7 +742,7 @@ describe('runEmbeddingPipeline — DB query failure on dishes phase', () => {
   });
 
   it('throws DB_UNAVAILABLE when $queryRaw fails during dishes phase', async () => {
-    let callCount = 0;
+    let _callCount = 0;
     const mockPrisma = {
       $queryRaw: vi.fn().mockImplementation((query: unknown) => {
         const sqlString =
@@ -752,7 +752,7 @@ describe('runEmbeddingPipeline — DB query failure on dishes phase', () => {
 
         // First call (foods query) succeeds, second call (dishes query) fails
         if (sqlString.includes('foods') && !sqlString.includes('COUNT')) {
-          callCount++;
+          _callCount++;
           return Promise.resolve([MOCK_FOOD_ROW]);
         }
         if (sqlString.includes('COUNT') && sqlString.includes('foods')) {

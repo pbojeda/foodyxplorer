@@ -38,6 +38,8 @@ const TEST_CONFIG: BotConfig = {
   BOT_VERSION: '0.1.0',
   LOG_LEVEL: 'info',
   NODE_ENV: 'test',
+  REDIS_URL: 'redis://localhost:6380',
+  ALLOWED_CHAT_IDS: [],
 };
 
 type MockApiClient = {
@@ -52,6 +54,11 @@ function makeMockClient(): MockApiClient {
     listRestaurantDishes: vi.fn(),
     listChains: vi.fn(),
     healthCheck: vi.fn(),
+    searchRestaurants: vi.fn(),
+    createRestaurant: vi.fn(),
+    uploadImage: vi.fn(),
+    uploadPdf: vi.fn(),
+    analyzeMenu: vi.fn(),
   };
 }
 

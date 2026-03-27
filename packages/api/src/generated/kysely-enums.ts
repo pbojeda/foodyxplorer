@@ -16,6 +16,7 @@ export const EstimationMethod = {
   ingredients: "ingredients",
   extrapolation: "extrapolation",
   scraped: "scraped",
+  llm: "llm",
 } as const;
 export type EstimationMethod = (typeof EstimationMethod)[keyof typeof EstimationMethod];
 export const PortionContext = {

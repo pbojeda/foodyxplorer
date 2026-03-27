@@ -83,7 +83,7 @@ describe('ConfidenceLevelSchema', () => {
 
 describe('EstimationMethodSchema', () => {
   it('accepts all valid values', () => {
-    const valid = ['official', 'ingredients', 'extrapolation', 'scraped'] as const;
+    const valid = ['official', 'ingredients', 'extrapolation', 'scraped', 'llm'] as const;
     for (const v of valid) {
       expect(EstimationMethodSchema.parse(v)).toBe(v);
     }

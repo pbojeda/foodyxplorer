@@ -179,7 +179,7 @@ export async function runEmbeddingPipeline(
 
       if (!dryRun) {
         const indexedBatches = chunkArray(
-          foods.map((f, i) => ({ item: f, text: allTexts[i]! })),
+          foods.map((f, i) => ({ item: f, text: allTexts[i] ?? '' })),
           batchSize,
         );
 
@@ -273,7 +273,7 @@ export async function runEmbeddingPipeline(
 
       if (!dryRun) {
         const indexedBatches = chunkArray(
-          dishes.map((d, i) => ({ item: d, text: allTexts[i]! })),
+          dishes.map((d, i) => ({ item: d, text: allTexts[i] ?? '' })),
           batchSize,
         );
 

@@ -12,8 +12,7 @@
 //   - chainSlug with pipe or injection characters → 400 VALIDATION_ERROR
 
 import { vi, describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 // ---------------------------------------------------------------------------

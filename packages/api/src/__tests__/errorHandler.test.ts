@@ -416,4 +416,36 @@ describe('mapError', () => {
       expect(result.body.error.message).toBe('API key has been revoked');
     });
   });
+
+  describe('MENU_ANALYSIS_FAILED (F034)', () => {
+    it('maps to 422 with MENU_ANALYSIS_FAILED code and original message', () => {
+      const err = Object.assign(
+        new Error('Menu analysis produced no dish names'),
+        { code: 'MENU_ANALYSIS_FAILED' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(422);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('MENU_ANALYSIS_FAILED');
+      expect(result.body.error.message).toBe('Menu analysis produced no dish names');
+    });
+  });
+
+  describe('VISION_API_UNAVAILABLE (F034)', () => {
+    it('maps to 422 with VISION_API_UNAVAILABLE code and original message', () => {
+      const err = Object.assign(
+        new Error('OPENAI_API_KEY is not configured — Vision API unavailable'),
+        { code: 'VISION_API_UNAVAILABLE' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(422);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('VISION_API_UNAVAILABLE');
+      expect(result.body.error.message).toBe('OPENAI_API_KEY is not configured — Vision API unavailable');
+    });
+  });
 });

@@ -231,10 +231,10 @@ function parseCliArgs(argv: string[]): ParsedCliArgs {
     } else if (arg === '--dry-run') {
       dryRun = true;
     } else if (arg === '--api-url' && args[i + 1] !== undefined) {
-      apiBaseUrl = args[i + 1];
+      apiBaseUrl = args[i + 1]!;
       i++;
     } else if (arg === '--concurrency' && args[i + 1] !== undefined) {
-      const parsed = parseInt(args[i + 1], 10);
+      const parsed = parseInt(args[i + 1]!, 10);
       if (!isNaN(parsed) && parsed > 0) {
         concurrency = parsed;
       } else {
@@ -298,7 +298,10 @@ async function main(): Promise<void> {
   process.exit(results.some((r) => r.status === 'error') ? 1 : 0);
 }
 
-main().catch((err: unknown) => {
-  console.error(err);
-  process.exit(1);
-});
+// Run when executed directly via tsx/node (not when imported by tests)
+if (require.main === module) {
+  main().catch((err: unknown) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

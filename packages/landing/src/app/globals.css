@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-inter: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Botanical palette (default) */
+  --color-botanical: #2d5a27;
+  --color-energy: #ff8c42;
+  --color-ivory: #fdfbf7;
+  --color-paper: #f7f7f2;
+  --color-mist: #eef4ec;
+  --color-accent-gold: #d4a843;
+  --color-dark-bg: #0f172a;
+}
+
+/* Mediterranean Bold palette — activated via ?palette=med */
+[data-palette='med'] {
+  --color-botanical: #c05621;
+  --color-energy: #4a5e3a;
+  --color-ivory: #fbf8f3;
+  --color-paper: #f5f0e8;
+  --color-mist: #ede8df;
+  --color-accent-gold: #d4a843;
+  --color-dark-bg: #2a1f1b;
+}
+
+@layer base {
+  body {
+    background-color: #fdfbf7; /* ivory */
+    color: #334155; /* slate-700 */
+  }
+
+  /* Ensure minimum 16px font size in inputs to prevent iOS zoom */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@layer utilities {
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-float,
+    .animate-badge-pulse,
+    .animate-fade-in {
+      animation: none;
+    }
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes badge-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+@layer components {
+  .card-surface {
+    @apply rounded-[32px] border border-white/70 bg-white/90 shadow-soft backdrop-blur;
+  }
+  .section-shell {
+    @apply mx-auto max-w-7xl px-5 md:px-8 lg:px-10;
+  }
+  .accent-ring {
+    @apply ring-1 ring-green-200/30;
+  }
+}

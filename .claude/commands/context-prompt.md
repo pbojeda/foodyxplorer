@@ -1,40 +1,44 @@
-Genera un prompt de recuperacion de contexto completo y detallado para pegar despues de hacer /compact o de un /clear.
+Generate a complete context recovery prompt to paste after /compact or at the start of a new session.
 
-El prompt debe incluir TODO lo necesario para que una nueva sesion (o post-compact) pueda continuar el trabajo sin perdida de informacion:
+## What to include
 
-1. **Estado del proyecto**: rama actual, ultimo commit, estado del working tree
-2. **Workflow**: SDD development workflow, autonomy level, branching strategy, idioma
-3. **Epics y progreso**: tabla con estado de cada epic (E001-E004)
-4. **Hallazgos estrategicos**: ADRs relevantes que afectan el backlog (ej: ADR-005, ADR-006 pivot PDF-first)
-5. **Backlog actual de E002**: tabla completa con todos los features (F007-F019), estado, y notas
-6. **Infraestructura existente**: endpoints de ingestion, shared utilities, scraper pattern, con paths exactos
-7. **Tests**: conteo total (API + scraper), archivos, estado de lint/build/tsc
-8. **Archivos clave a leer**: lista de los archivos que la nueva sesion debe leer primero
-9. **Que hacer**: siguiente tarea (next task), contexto de lo que implica, notas del usuario relevantes
-10. **Notas importantes**: cualquier decision o restriccion que el usuario haya comunicado (ej: "Domino's es JPEG no PDF", "maxima reutilizacion")
+The prompt must contain EVERYTHING needed for a new session (or post-compact) to continue work without information loss:
 
-### Workflow Recovery (CRITICO)
+1. **Project state**: current branch, last commit, working tree status, SDD version
+2. **Workflow**: SDD development workflow, autonomy level, branching strategy
+3. **Active feature**: current step in the 6-step workflow, what has been done, what remains
+4. **Epics and progress**: table with status of each epic
+5. **Backlog**: pending features with priorities and dependencies
+6. **Infrastructure**: key modules, endpoints, schemas, with exact file paths
+7. **Tests**: total count, files, lint/build/tsc status
+8. **Key files to read**: list of files the new session must read first
+9. **Next action**: the specific next thing to do, with context
+10. **User notes**: any decisions or constraints communicated by the user
 
-Esta seccion evita que el agente pierda la nocion del proceso de desarrollo despues de /compact:
+### Workflow Recovery (CRITICAL)
 
-11. **Step actual del workflow**: En cual de los 6 steps (Spec, Setup, Plan, Implement, Finalize, Review) esta la feature activa
-12. **Checkpoints pendientes**: Que aprobaciones faltan (Spec, Ticket, Plan, Commit, Merge)
-13. **Recordatorio de merge checklist**: Si esta en Step 5 o posterior, incluir explicitamente: "Antes de pedir merge approval, DEBES leer `references/merge-checklist.md` y ejecutar TODAS las acciones (0-8). Rellena la tabla `## Merge Checklist Evidence` del ticket con evidencia real para cada accion."
-14. **Recordatorio de orden**: "Despues de commit+PR, ejecuta code-review-specialist y qa-engineer (Step 5), luego ejecuta las acciones del merge-checklist. NO pidas merge approval sin completar el checklist."
+This section prevents the agent from losing track of the development process after /compact:
 
-Para generar esto:
-- Lee `docs/project_notes/product-tracker.md` (Active Session + Features tables + Completion Log)
-- Lee `docs/project_notes/decisions.md` (ADRs recientes)
-- Lee `docs/project_notes/key_facts.md` (stack, componentes)
-- Ejecuta `git log --oneline -3` y `git status` para estado actual
-- Revisa el ultimo ticket completado en `docs/tickets/` para referencia de patron
+11. **Current workflow step**: Which of the 6 steps (Spec, Setup, Plan, Implement, Finalize, Review) is active
+12. **Pending checkpoints**: Which approvals remain (Spec, Ticket, Plan, Commit, Merge)
+13. **Merge checklist reminder**: If at Step 5 or later, explicitly state: "Before requesting merge approval, you MUST read `references/merge-checklist.md` and execute ALL actions (0-8). Fill the `## Merge Checklist Evidence` table in the ticket with real evidence for each action."
+14. **Step order reminder**: "After commit+PR, run code-review-specialist and qa-engineer (Step 5), then execute merge-checklist actions. Do NOT request merge approval without completing the checklist."
 
-Formato: markdown estructurado con tablas, listo para pegar directamente como primer mensaje de una nueva sesion.
+## How to generate
 
-## Contexto del usuario                             
-                                                      
-  - Trabaja remotamente con sesiones largas 
-  — interrupciones por permisos son costosas              
-  - Prefiere prompts detallados de continuación       
-  - Principio guía: "Lo importante es hacerlo bien, que ya llevamos mucho trabajo hecho y no hay que estropear nada de lo anterior, solo mejorarlo"                                          
-  - Idioma: español para comunicación, inglés para artefactos técnicos
+- Read `docs/project_notes/product-tracker.md` (Active Session + Features tables + Completion Log)
+- Read `docs/project_notes/decisions.md` (recent ADRs)
+- Read `docs/project_notes/key_facts.md` (stack, components)
+- Read the current ticket in `docs/tickets/` if a feature is active
+- Run `git log --oneline -5` and `git status` for current state
+- Read `.sdd-version` for SDD DevFlow version
+
+## Output format
+
+Structured markdown with tables, ready to paste directly as the first message of a new session. The prompt should be self-contained — the receiving agent should not need to ask clarifying questions.
+
+## Context
+
+- Users work remotely with long sessions — interruptions are costly
+- After /review-plan + plan approval, context is typically at 50%+ usage, making /compact necessary before implementation
+- The workflow recovery section is essential: without it, the agent may skip merge checklist actions after /compact

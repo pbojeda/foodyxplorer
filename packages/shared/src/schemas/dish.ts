@@ -8,6 +8,7 @@ export const DishSchema = z.object({
   sourceId: z.string().uuid(),
   name: z.string().min(1).max(255),
   nameEs: z.string().min(1).max(255).nullable().optional(),
+  nameSourceLocale: z.enum(['en', 'es', 'mixed', 'unknown']).nullable().optional(),
   description: z.string().nullable().optional(),
   externalId: z.string().max(100).nullable().optional(),
   availability: DishAvailabilitySchema,

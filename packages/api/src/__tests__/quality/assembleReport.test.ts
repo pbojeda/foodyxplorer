@@ -76,12 +76,12 @@ const defaultDuplicatesResult = {
 
 const defaultConfidenceResult = {
   global: { high: 5, medium: 3, low: 2 },
-  byEstimationMethod: { official: 4, scraped: 4, ingredients: 1, extrapolation: 1 },
+  byEstimationMethod: { official: 4, scraped: 4, ingredients: 1, extrapolation: 1, llm: 0 },
   byChain: [
     {
       chainSlug: 'chain-a',
       high: 5, medium: 3, low: 2,
-      byEstimationMethod: { official: 4, scraped: 4, ingredients: 1, extrapolation: 1 },
+      byEstimationMethod: { official: 4, scraped: 4, ingredients: 1, extrapolation: 1, llm: 0 },
     },
   ],
 };

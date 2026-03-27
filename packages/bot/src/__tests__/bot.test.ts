@@ -11,6 +11,8 @@ vi.mock('node-telegram-bot-api', () => {
     on: vi.fn(),
     startPolling: vi.fn(),
     stopPolling: vi.fn(),
+    answerCallbackQuery: vi.fn(),
+    editMessageText: vi.fn(),
   };
   const MockTelegramBot = vi.fn(() => mockInstance);
   return { default: MockTelegramBot };
@@ -70,6 +72,11 @@ function makeMockClient(): { [K in keyof ApiClient]: ReturnType<typeof vi.fn> } 
     listRestaurantDishes: vi.fn(),
     listChains: vi.fn(),
     healthCheck: vi.fn(),
+    searchRestaurants: vi.fn(),
+    createRestaurant: vi.fn(),
+    uploadImage: vi.fn(),
+    uploadPdf: vi.fn(),
+    analyzeMenu: vi.fn(),
   };
 }
 
@@ -80,7 +87,13 @@ const TEST_CONFIG: BotConfig = {
   BOT_VERSION: '0.1.0',
   LOG_LEVEL: 'info',
   NODE_ENV: 'test',
+  ADMIN_API_KEY: 'test-admin-key',
+  REDIS_URL: 'redis://localhost:6380',
+  ALLOWED_CHAT_IDS: [],
 };
+
+// Minimal Redis mock — DI into buildBot
+const MOCK_REDIS = { get: vi.fn(), set: vi.fn(), del: vi.fn() };
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -95,6 +108,8 @@ function getMockBotInstance(bot: TelegramBot) {
     on: ReturnType<typeof vi.fn>;
     startPolling: ReturnType<typeof vi.fn>;
     stopPolling: ReturnType<typeof vi.fn>;
+    answerCallbackQuery: ReturnType<typeof vi.fn>;
+    editMessageText: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -120,7 +135,7 @@ describe('buildBot', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockClient = makeMockClient();
-    bot = buildBot(TEST_CONFIG, mockClient as unknown as ApiClient);
+    bot = buildBot(TEST_CONFIG, mockClient as unknown as ApiClient, MOCK_REDIS as never);
     mockBot = getMockBotInstance(bot);
   });
 
@@ -128,8 +143,8 @@ describe('buildBot', () => {
     expect(bot).toBeDefined();
   });
 
-  it('registers onText exactly 8 times (one per command)', () => {
-    expect(mockBot.onText).toHaveBeenCalledTimes(8);
+  it('registers onText exactly 9 times (one per command including /restaurante)', () => {
+    expect(mockBot.onText).toHaveBeenCalledTimes(9);
   });
 
   it('registers polling_error handler via bot.on', () => {
@@ -138,10 +153,28 @@ describe('buildBot', () => {
     expect(pollingErrorCall).toBeDefined();
   });
 
+  it('registers callback_query handler via bot.on', () => {
+    const onCalls = mockBot.on.mock.calls as Array<[string, unknown]>;
+    const callbackCall = onCalls.find(([event]) => event === 'callback_query');
+    expect(callbackCall).toBeDefined();
+  });
+
   it('registers message handler via bot.on for unknown command catch-all', () => {
     const onCalls = mockBot.on.mock.calls as Array<[string, unknown]>;
     const messageCalls = onCalls.filter(([event]) => event === 'message');
     expect(messageCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('registers photo handler via bot.on (F031)', () => {
+    const onCalls = mockBot.on.mock.calls as Array<[string, unknown]>;
+    const photoCall = onCalls.find(([event]) => event === 'photo');
+    expect(photoCall).toBeDefined();
+  });
+
+  it('registers document handler via bot.on (F031)', () => {
+    const onCalls = mockBot.on.mock.calls as Array<[string, unknown]>;
+    const documentCall = onCalls.find(([event]) => event === 'document');
+    expect(documentCall).toBeDefined();
   });
 
   it('the /buscar regex matches "/buscar big mac"', () => {

@@ -611,6 +611,13 @@ async function main(): Promise<void> {
   await seedPhase7(prisma);
   console.log('Phase 7 seeding complete.');
 
+  // ---------------------------------------------------------------------------
+  // Phase 8 — Telegram Upload DataSource (F032)
+  // ---------------------------------------------------------------------------
+  console.log('Starting Phase 8 seed: Telegram Upload DataSource...');
+  await seedPhase8(prisma);
+  console.log('Phase 8 seeding complete.');
+
   console.log('Seeding complete.');
 }
 
@@ -1187,6 +1194,24 @@ export async function seedPhase7(client: PrismaClient): Promise<void> {
       isActive:    true,
     },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Phase 8: Telegram Upload DataSource — exported for integration testing
+// ---------------------------------------------------------------------------
+
+export async function seedPhase8(client: PrismaClient): Promise<void> {
+  await client.dataSource.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000099' },
+    update: {},
+    create: {
+      id:   '00000000-0000-0000-0000-000000000099',
+      name: 'Telegram Upload',
+      type: 'user',
+      url:  null,
+    },
+  });
+  console.log('Phase 8: Telegram Upload DataSource upserted.');
 }
 
 main()

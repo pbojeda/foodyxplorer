@@ -11,7 +11,7 @@
 //   - upsertBotKey with pro tier: create.tier is always 'free' for bot
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import {
   generateDeterministicKey,
   generateRandomKey,
@@ -81,7 +81,6 @@ describe('generateDeterministicKey edge cases', () => {
   });
 
   it('key is only first 32 hex chars of HMAC digest (not full 64-char SHA-256 hex)', () => {
-    const { createHmac } = require('node:crypto') as { createHmac: typeof import('node:crypto').createHmac };
     const seed = 'boundary-test-seed';
     const key = generateDeterministicKey(seed);
     // Extract the hex portion (after 'fxp_')

@@ -1,0 +1,95 @@
+# ===========================================
+# Render Blueprint — nutriXplorer (monorepo)
+# ===========================================
+# Auto-deploy filters ensure each service only redeploys
+# when its relevant packages change.
+#
+# Services use Docker (Dockerfile in each package).
+# Environment variables are configured in the Render dashboard.
+#
+# To apply: Render Dashboard → Blueprints → New Blueprint Instance → select this repo
+
+services:
+  # ─── API (dev) ────────────────────────────
+  - type: web
+    name: nutrixplorer-api-dev
+    runtime: docker
+    dockerfilePath: packages/api/Dockerfile
+    dockerContext: .
+    branch: develop
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - packages/api/**
+        - packages/shared/**
+        - packages/scraper/**
+        - package.json
+        - package-lock.json
+      ignoredPaths:
+        - docs/**
+        - packages/bot/**
+        - "**/*.md"
+        - "**/*.test.ts"
+
+  # ─── API (prod) ───────────────────────────
+  - type: web
+    name: nutrixplorer-api-prod
+    runtime: docker
+    dockerfilePath: packages/api/Dockerfile
+    dockerContext: .
+    branch: main
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - packages/api/**
+        - packages/shared/**
+        - packages/scraper/**
+        - package.json
+        - package-lock.json
+      ignoredPaths:
+        - docs/**
+        - packages/bot/**
+        - "**/*.md"
+        - "**/*.test.ts"
+
+  # ─── Bot (dev) ────────────────────────────
+  - type: worker
+    name: nutrixplorer-bot-dev
+    runtime: docker
+    dockerfilePath: packages/bot/Dockerfile
+    dockerContext: .
+    branch: develop
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - packages/bot/**
+        - packages/shared/**
+        - package.json
+        - package-lock.json
+      ignoredPaths:
+        - docs/**
+        - packages/api/**
+        - packages/scraper/**
+        - "**/*.md"
+        - "**/*.test.ts"
+
+  # ─── Bot (prod) ───────────────────────────
+  - type: worker
+    name: nutrixplorer-bot-prod
+    runtime: docker
+    dockerfilePath: packages/bot/Dockerfile
+    dockerContext: .
+    branch: main
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - packages/bot/**
+        - packages/shared/**
+        - package.json
+        - package-lock.json
+      ignoredPaths:
+        - docs/**
+        - packages/api/**
+        - packages/scraper/**
+        - "**/*.md"
+        - "**/*.test.ts"

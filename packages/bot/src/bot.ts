@@ -1,13 +1,14 @@
 // Telegram bot wiring — registers all command handlers.
 //
-// buildBot(config, apiClient) is the factory function. It creates a
-// TelegramBot instance with polling: false and wires all eight command
-// handlers plus the unknown-command catch-all.
+// buildBot(config, apiClient, redis) is the factory function. It creates a
+// TelegramBot instance with polling: false and wires nine command handlers
+// plus the unknown-command catch-all and the callback_query handler.
 //
 // Polling is started externally via bot.startPolling() in index.ts,
 // keeping buildBot side-effect-free for unit tests.
 
 import TelegramBot from 'node-telegram-bot-api';
+import type { Redis } from 'ioredis';
 import type { ApiClient } from './apiClient.js';
 import type { BotConfig } from './config.js';
 import { logger } from './logger.js';
@@ -19,13 +20,16 @@ import { handleRestaurantes } from './commands/restaurantes.js';
 import { handlePlatos } from './commands/platos.js';
 import { handleCadenas } from './commands/cadenas.js';
 import { handleInfo } from './commands/info.js';
+import { handleRestaurante } from './commands/restaurante.js';
 import { handleNaturalLanguage } from './handlers/naturalLanguage.js';
+import { handleCallbackQuery } from './handlers/callbackQuery.js';
+import { handlePhoto, handleDocument } from './handlers/fileUpload.js';
 
 const KNOWN_COMMANDS = new Set([
-  'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info',
+  'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info', 'restaurante',
 ]);
 
-export function buildBot(config: BotConfig, apiClient: ApiClient): TelegramBot {
+export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis): TelegramBot {
   const bot = new TelegramBot(config.TELEGRAM_BOT_TOKEN, { polling: false });
 
   /** Send a MarkdownV2-formatted message to a chat. */
@@ -86,6 +90,53 @@ export function buildBot(config: BotConfig, apiClient: ApiClient): TelegramBot {
   bot.onText(/^\/cadenas(?:@\w+)?$/, wrapHandler(() => handleCadenas(apiClient)));
 
   bot.onText(/^\/info(?:@\w+)?$/, wrapHandler(() => handleInfo(config, apiClient)));
+
+  // /restaurante is wired directly (not through wrapHandler) because it needs
+  // to send inline keyboards via reply_markup — wrapHandler only supports
+  // text-only Promise<string> returns.
+  bot.onText(
+    /^\/restaurante(?:@\w+)?(?:\s+(.+))?$/,
+    async (msg, match) => {
+      try {
+        await handleRestaurante(match?.[1] ?? '', msg.chat.id, bot, apiClient, redis);
+      } catch (err) {
+        logger.error({ err, chatId: msg.chat.id }, 'Unhandled /restaurante error');
+        try {
+          await send(msg.chat.id, escapeMarkdown('Lo siento, ha ocurrido un error inesperado.'));
+        } catch {
+          // ignore send failure
+        }
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // Callback query handler (inline keyboard interactions)
+  // -------------------------------------------------------------------------
+
+  bot.on('callback_query', async (query) => {
+    try {
+      await handleCallbackQuery(query, bot, apiClient, redis, config);
+    } catch (err) {
+      logger.error({ err }, 'Unhandled callback_query error');
+    }
+  });
+
+  bot.on('photo', async (msg) => {
+    try {
+      await handlePhoto(msg, bot, apiClient, redis, config);
+    } catch (err) {
+      logger.error({ err, chatId: msg.chat.id }, 'Unhandled photo handler error');
+    }
+  });
+
+  bot.on('document', async (msg) => {
+    try {
+      await handleDocument(msg, bot, apiClient, redis, config);
+    } catch (err) {
+      logger.error({ err, chatId: msg.chat.id }, 'Unhandled document handler error');
+    }
+  });
 
   // -------------------------------------------------------------------------
   // Polling error handler

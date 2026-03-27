@@ -1,0 +1,2 @@
+description = "Perform a comprehensive project review using multiple AI models in parallel (for MVP milestones)"
+prompt = "Read the file .gemini/commands/review-project-instructions.md and follow the instructions to perform a comprehensive project review."

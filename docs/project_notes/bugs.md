@@ -71,3 +71,29 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Solution**: Store original query (post-Zod-trim) for response echo. Use lowercased version only for cache key construction and DB lookup. Fixed in ce69f10.
 - **Prevention**: When normalizing user input for internal use (cache keys, DB queries), keep the original value separate for echo/display purposes.
 - **Feature**: F020 | **Found by**: qa-engineer | **Severity**: Low
+
+### 2026-03-26 — BUG-F034-01: UNSUPPORTED_PDF not wrapped as MENU_ANALYSIS_FAILED in menuAnalyzer
+
+- **Issue**: When `extractText` (pdf-parse wrapper) throws an `UNSUPPORTED_PDF` error (image-based PDF with no extractable text), the error propagates directly through `analyzeMenu` without being caught. The route's global error handler maps `UNSUPPORTED_PDF` to a 422 response with code `UNSUPPORTED_PDF`. However the F034 spec (Implementation Plan §PDF text extraction note) explicitly states: "If `extractText` throws `UNSUPPORTED_PDF`, catch and throw `MENU_ANALYSIS_FAILED` (422)". `UNSUPPORTED_PDF` is not listed in the F034 error code table — only `MENU_ANALYSIS_FAILED` is. Clients that only handle F034 error codes will encounter an undocumented code.
+- **Root Cause**: `menuAnalyzer.ts` at lines 190–193 (OCR mode, PDF branch) and lines 251–255 (auto mode, PDF branch) calls `extractText(fileBuffer)` without a try/catch to intercept `UNSUPPORTED_PDF` and re-throw it as `MENU_ANALYSIS_FAILED`.
+- **Solution**: Wrap each `extractText` call in a try/catch that catches errors with `code === 'UNSUPPORTED_PDF'` and re-throws a new error with `code: 'MENU_ANALYSIS_FAILED'` and `statusCode: 422`. Alternatively, catch all errors from `extractText` in the PDF branches and re-throw as `MENU_ANALYSIS_FAILED`.
+- **Prevention**: When delegating to lower-level utilities that can throw domain-specific error codes, always audit whether those codes are part of the calling layer's API contract. If not, wrap and re-throw.
+- **Feature**: F034 | **Found by**: qa-engineer | **Severity**: Low (functional — PDF still gets a 422; wrong code leaks through)
+- **Test**: `f034.additional-edge-cases.test.ts` — "analyzeMenu — extractText throws UNSUPPORTED_PDF" (two tests marked `[BUG-CANDIDATE]`)
+
+### 2026-03-26 — BUG-F034-02: partial:true with 0 dishes violates MenuAnalysisDataSchema.dishCount.min(1)
+
+- **Issue**: If `analyzeMenu` returns `partial: true` after processing zero dishes (AbortSignal fires before the first cascade iteration), the route sends `dishCount: 0` and `dishes: []`. The `MenuAnalysisDataSchema` enforces `dishCount: z.number().int().min(1)` and `dishes: z.array(...).min(1)`, so the response body violates the documented schema. The route does not validate its own response against the schema before sending — this is a data consistency gap. Clients that validate the response against the spec will reject it.
+- **Root Cause**: The route constructs the response directly from `result.dishes.length` (line 176 of `analyze.ts`) without checking whether the dishes array is empty in the partial case. The cooperative abort check in `analyzeMenu` (line 326) returns immediately with whatever has been processed, which can be an empty array.
+- **Solution**: Either (a) validate that `result.dishes.length >= 1` before sending (returning a MENU_ANALYSIS_FAILED if empty), or (b) loosen the schema to allow `dishCount: 0` in the partial case (`z.number().int().min(0)` when `partial: true`), or (c) only return `partial: true` when at least 1 dish was processed.
+- **Prevention**: Route handlers should validate their response shape against the documented schema before sending, especially for boundary cases created by timeout/abort paths.
+- **Feature**: F034 | **Found by**: qa-engineer | **Severity**: Low (only affects a race condition where the timeout fires before a single cascade call completes)
+- **Test**: `f034.additional-edge-cases.test.ts` — "analyzeMenu — AbortSignal pre-aborted" confirms the behavior.
+
+### 2026-03-26 — BUG-F031-01: handlePhoto crashes with TypeError on empty msg.photo array
+
+- **Issue**: `handlePhoto` in `packages/bot/src/handlers/fileUpload.ts` crashes with `TypeError: Cannot read properties of undefined (reading 'file_size')` when Telegram sends a message with an empty `msg.photo` array (`[]`). The outer `bot.on('photo', ...)` try/catch in `bot.ts` catches the error and logs it, but the user receives no response. Confirmed by QA test QA-B1 in `f031.qa-edge-cases.test.ts`.
+- **Root Cause**: The guard `if (!msg.photo) return;` only protects against `undefined`/`null`. An empty array `[]` is truthy, so it passes the guard. Then `photos[photos.length - 1]` evaluates to `photos[-1]` which is `undefined`. The non-null assertion `!` on line 133 (`const photo = photos[photos.length - 1]!`) suppresses the TypeScript compiler but does not prevent the runtime error. When `photo` is `undefined`, the subsequent `photo.file_size` access throws.
+- **Solution**: Add a length check after the `!msg.photo` guard: `if (!msg.photo || msg.photo.length === 0) return;`. This ensures `photos[photos.length - 1]` is always a defined `PhotoSize` object.
+- **Prevention**: Non-null assertions (`!`) should be used only when the value is provably non-null by invariant. When the invariant relies on a separate guard, the guard must explicitly cover the empty-array case for array types. Consider replacing `const photo = photos[photos.length - 1]!` with `const photo = photos.at(-1); if (!photo) return;` for defensive access.
+- **Feature**: F031 | **Found by**: qa-engineer | **Severity**: Medium (crashes silently — user gets no response, bot does not crash)

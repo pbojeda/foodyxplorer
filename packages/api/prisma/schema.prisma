@@ -44,6 +44,7 @@ enum EstimationMethod {
   ingredients
   extrapolation
   scraped
+  llm
 
   @@map("estimation_method")
 }
@@ -287,16 +288,20 @@ model DishCategory {
 }
 
 model Restaurant {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   @db.VarChar(255)
-  nameEs      String?  @map("name_es") @db.VarChar(255)
-  chainSlug   String   @map("chain_slug") @db.VarChar(100)
-  website     String?  @db.Text
-  logoUrl     String?  @map("logo_url") @db.Text
-  countryCode String   @default("ES") @map("country_code") @db.VarChar(2)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @db.VarChar(255)
+  nameEs        String?  @map("name_es") @db.VarChar(255)
+  chainSlug     String   @map("chain_slug") @db.VarChar(100)
+  website       String?  @db.Text
+  logoUrl       String?  @map("logo_url") @db.Text
+  countryCode   String   @default("ES") @map("country_code") @db.VarChar(2)
+  isActive      Boolean  @default(true) @map("is_active")
+  address       String?  @db.VarChar(500)
+  googleMapsUrl String?  @map("google_maps_url") @db.Text
+  latitude      Decimal? @db.Decimal(10, 7)
+  longitude     Decimal? @db.Decimal(10, 7)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   dishes Dish[]
 
@@ -311,6 +316,7 @@ model Dish {
   sourceId         String           @map("source_id") @db.Uuid
   name             String           @db.VarChar(255)
   nameEs           String?          @map("name_es") @db.VarChar(255)
+  nameSourceLocale String?          @map("name_source_locale") @db.VarChar(16)
   description      String?          @db.Text
   externalId       String?          @map("external_id") @db.VarChar(100)
   availability     DishAvailability @default(available)

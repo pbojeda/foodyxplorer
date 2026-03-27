@@ -55,6 +55,7 @@ export type Dish = {
   source_id: string;
   name: string;
   name_es: string | null;
+  name_source_locale: string | null;
   description: string | null;
   external_id: string | null;
   availability: Generated<DishAvailability>;
@@ -205,6 +206,10 @@ export type Restaurant = {
   logo_url: string | null;
   country_code: Generated<string>;
   is_active: Generated<boolean>;
+  address: string | null;
+  google_maps_url: string | null;
+  latitude: string | null;
+  longitude: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Timestamp;
 };
