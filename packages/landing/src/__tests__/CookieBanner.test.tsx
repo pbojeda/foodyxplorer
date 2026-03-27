@@ -63,7 +63,7 @@ describe('CookieBanner', () => {
     render(<CookieBanner variant="c" />);
     fireEvent.click(screen.getByRole('button', { name: /aceptar/i }));
 
-    expect(cookieWritten).toContain(`${VARIANT_COOKIE}=b`);
+    expect(cookieWritten).toContain(`${VARIANT_COOKIE}=c`);
   });
 
   it('stores rejected consent in localStorage on reject click', () => {

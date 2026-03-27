@@ -66,7 +66,7 @@ describe('POST /api/waitlist', () => {
     );
   });
 
-  it('preserves variant b in redirect for form POST', async () => {
+  it('preserves variant c in redirect for form POST', async () => {
     const request = makeFormRequest({
       email: 'test@example.com',
       variant: 'c',
@@ -74,7 +74,7 @@ describe('POST /api/waitlist', () => {
     const response = await POST(request);
     expect(response.status).toBe(303);
     expect(response.headers.get('location')).toBe(
-      '/?variant=b&waitlist=success'
+      '/?variant=c&waitlist=success'
     );
   });
 });
