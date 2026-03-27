@@ -31,6 +31,8 @@ function makeMockRedis() {
     get: vi.fn(),
     set: vi.fn(),
     del: vi.fn(),
+    incr: vi.fn().mockResolvedValue(1),
+    expire: vi.fn().mockResolvedValue(1),
   } as unknown as Redis;
 }
 
@@ -53,6 +55,7 @@ function makeMockClient(): { [K in keyof ApiClient]: ReturnType<typeof vi.fn> } 
     createRestaurant: vi.fn(),
     uploadImage: vi.fn(),
     uploadPdf: vi.fn(),
+    analyzeMenu: vi.fn(),
   };
 }
 

@@ -323,6 +323,44 @@ The preprocessor is invoked from `POST /ingest/pdf-url` when an optional `chainS
 
 **Full plan:** `docs/project_notes/strategic-plan-r1-r6.md`
 
+### ADR-011: Multi-Modal Menu Analysis Pipeline — OCR vs Vision API Routing (2026-03-26)
+
+**Context:** F034 introduces `POST /analyze/menu`, a stateless endpoint that extracts dish names from restaurant menu photos/PDFs and returns per-dish nutritional estimates via `runEstimationCascade`. The endpoint must handle four distinct input scenarios: PDF menus, menu photos, single dish photos, and forced OCR mode. Each has different optimal extraction strategies, fallback behavior, and failure modes. Key architectural decisions were shaped by external review (Gemini 2.5 Pro: 3C+2I, Codex GPT-5.4: 2I+3S).
+
+**Decisions:**
+
+1. **Tool-specific extraction — no universal pipeline.** PDFs use `pdf-parse` (direct text extraction, free, high precision). Images use Vision API `gpt-4o-mini` (OCR on phone photos is unreliable). No PDF-to-image conversion — eliminates heavy system dependency (Ghostscript/GraphicsMagick). `vision`/`identify` modes reject PDFs with `INVALID_IMAGE`.
+
+2. **Four processing modes with clear routing.** `auto` (default): MIME-based routing (PDF→OCR, image→Vision). `ocr`: force Tesseract on any file type. `vision`: force Vision API (images only). `identify`: Vision API with dish-identification prompt (images only, exactly 1 result).
+
+3. **Asymmetric fallback policy.** `vision` mode: Vision API fails → Tesseract OCR fallback → if < 1 dish name → `MENU_ANALYSIS_FAILED`. `identify` mode: no OCR fallback (OCR on a food photo produces garbage). Rationale: fallback quality depends on input type.
+
+4. **Vision API maxTokens override to 2048.** The project default is 512 tokens (`OPENAI_CHAT_MAX_TOKENS`). A menu with 30+ dishes generates ~600-1000 tokens of JSON. Override to 2048 for Vision API calls only to prevent truncation.
+
+5. **Partial results on timeout.** If the 60-second timeout is reached mid-cascade, return HTTP 200 with `partial: true` and dishes processed so far. Rationale: discarding 40 processed dishes because the 41st timed out is destructive UX.
+
+6. **Dual rate limiting strategy.** API-level: 10 analyses/hour per API key (Redis counter, fail-open). Bot key exempt (single shared key for all users). Bot-level: 5 analyses/hour per chatId (Redis counter in bot handler). Rationale: a single bot key shared across all Telegram users would throttle the entire bot at 10/hour.
+
+7. **ADR-001 strict compliance.** Vision API is used exclusively for dish name identification (string extraction). All nutrient computation is delegated to `runEstimationCascade`. The LLM never receives, produces, or estimates nutritional values.
+
+8. **Bot fileId retrieval from Redis BotState.** The inline keyboard callback query's message is the bot's own message (containing the keyboard), NOT the user's original photo. The `pendingPhotoFileId` is stored in Redis during `handlePhoto`/`handleDocument` (F031 pattern) and retrieved by the callback handler.
+
+**Alternatives Considered:**
+- PDF-to-image conversion for Vision mode: Rejected — requires Ghostscript or similar system dependency, adds DevOps complexity, and `pdf-parse` already provides high-quality text extraction for PDFs.
+- Universal fallback (always OCR on Vision failure): Rejected — OCR on food photos (identify mode) produces garbage text, wasting compute and returning misleading results.
+- Hard 408 on timeout: Rejected — discards completed work. Partial results preserve user value.
+- Single rate limit for all keys including bot: Rejected — bot key is shared across all Telegram users, would throttle the entire bot to 10 analyses/hour.
+
+**Reviewed by:** Gemini 2.5 Pro (3 CRITICAL + 2 IMPORTANT), Codex GPT-5.4 (2 IMPORTANT + 3 SUGGESTION)
+
+**Consequences:**
+- (+) No heavy system dependencies (no Ghostscript/pdf2pic)
+- (+) ADR-001 compliance maintained — LLM identifies, engine calculates
+- (+) Partial results preserve user value on large menus
+- (+) Bot rate limiting is per-user, not per-key
+- (-) `vision`/`identify` modes do not support PDFs (acceptable — PDFs have excellent text extraction via pdf-parse)
+- (-) Two rate limiting layers (API + bot) add implementation complexity
+
 ### ADR-010: Multilingual Dish Names — Populate name_es, Defer Query-Time Translation (2026-03-25)
 
 **Context:** 883/885 dishes have `name_es = NULL`. Names are stored in the PDF source language (mostly English from chain nutrition PDFs). Spanish-speaking users searching in Spanish experience L1 FTS failures (Spanish parser on English text) and L3 embedding degradation. L4 (LLM decomposition) compensates but is the most expensive level. ADR-003 noted: "Multilingual names: Deferred — name + nameEs is sufficient for Phase 1. Revisit before Phase 2."

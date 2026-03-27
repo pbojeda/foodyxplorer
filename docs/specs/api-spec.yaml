@@ -76,6 +76,15 @@ tags:
       (plain-text parsed by LLM). The LLM is ONLY used to parse text into structured
       tuples (ADR-001: engine calculates, LLM interprets). Partial resolution returns 200;
       zero resolution returns 422 RECIPE_UNRESOLVABLE.
+  - name: Analysis
+    description: |
+      Menu and dish analysis endpoints (F034). Accept a photo or PDF of a restaurant
+      menu (or a photo of a single dish), extract dish names via OCR (Tesseract) or
+      Vision API (gpt-4o-mini), and run the estimation cascade on each name to return
+      nutritional estimates. Stateless — no DB writes. Requires API key auth.
+      Additional rate limit: 10 analyses per hour per key (beyond the standard tier limit).
+      ADR-001 applies: the Vision API is used ONLY to identify dish names; all nutrient
+      calculation goes through runEstimationCascade.
 
 paths:
   /ingest/pdf:
@@ -3846,6 +3855,399 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /analyze/menu:
+    post:
+      tags: [Analysis]
+      operationId: analyzeMenu
+      summary: Extract dish names from a menu photo or PDF and return nutritional estimates
+      description: |
+        Accepts a photo (JPEG/PNG/WebP) or PDF of a restaurant menu, or a photo of a
+        single dish. Extracts dish names via one of four processing modes, then runs
+        `runEstimationCascade` on each name to return per-dish nutritional estimates.
+
+        **Processing modes:**
+        - `auto` (default): PDF files → OCR pipeline; image files → Vision API pipeline.
+        - `ocr`: PDF → `pdf-parse` text extraction → `parseDishNames`. Image →
+          `extractTextFromImage` (Tesseract) → `parseDishNames`. No PDF-to-image
+          rendering — PDFs use direct text extraction.
+        - `vision`: Image only (PDFs rejected with `INVALID_IMAGE`). Vision API
+          (gpt-4o-mini, maxTokens 2048) with menu-extraction prompt → JSON array of
+          dish name strings. OCR fallback on Vision API failure.
+        - `identify`: Image only (PDFs rejected with `INVALID_IMAGE`). Vision API with
+          single-dish-identification prompt → exactly 1 dish. No OCR fallback — if
+          Vision fails, `MENU_ANALYSIS_FAILED` is returned.
+
+        **OCR pipeline (PDF):** `pdf-parse` → text lines → `parseDishNames(lines)` →
+        string array of dish names.
+
+        **OCR pipeline (image):** `extractTextFromImage` (Tesseract) → text lines →
+        `parseDishNames(lines)` → string array of dish names.
+
+        **Vision API pipeline:** image buffer → OpenAI `gpt-4o-mini` chat completion
+        (maxTokens 2048) with a menu-extraction prompt → JSON array of dish name strings.
+
+        **Dish identification pipeline (`identify` mode):** image buffer → OpenAI
+        `gpt-4o-mini` chat completion with a single-dish identification prompt → exactly
+        1 dish name string.
+
+        **Fallback (vision mode only):** When `vision` mode is requested and the OpenAI
+        call fails, the handler attempts Tesseract OCR as a fallback. If OCR produces
+        fewer than 1 dish name, `MENU_ANALYSIS_FAILED` is returned. No fallback for
+        `identify` mode (OCR on a food photo is not useful).
+
+        **Per-dish estimation:** Each extracted dish name is passed individually to
+        `runEstimationCascade({ db, query: dishName, openAiApiKey, level4Lookup, logger })`.
+        A dish whose cascade returns a total miss is included with `estimate: null` (not
+        omitted from the response). The endpoint always returns HTTP 200 as long as at
+        least one dish name was extracted, even if all estimates are null.
+
+        **Stateless:** No writes to any database table.
+
+        **Rate limit:** 10 analyses per hour per API key (in addition to the standard
+        tier rate limit). Exceeding this limit returns HTTP 429 `RATE_LIMIT_EXCEEDED`.
+        The bot API key is exempt from this limit (per-user bot rate limiting is
+        enforced at the bot handler layer, not at the API level).
+
+        **Auth:** Public API key required (`X-API-Key` header). Anonymous requests are
+        rejected (HTTP 401). Admin key also accepted.
+
+        **Partial results:** If the 60-second timeout is reached while processing
+        cascade calls for individual dishes, the endpoint returns HTTP 200 with the
+        dishes processed so far and `partial: true`. This avoids discarding work
+        already completed.
+
+        **ADR compliance:** The Vision API identifies dish names only — it NEVER
+        calculates nutritional values. All nutrient computation goes through
+        `runEstimationCascade` (ADR-001).
+
+        **File constraints:** JPEG, PNG, WebP, or PDF. Maximum size: 10 MB.
+        Content-Type must be `image/jpeg`, `image/png`, `image/webp`, or
+        `application/pdf`. Mismatched Content-Type triggers `INVALID_IMAGE`.
+
+        **Timeout:** 60 seconds (Vision API calls + N cascade calls may take longer
+        than standard routes). On timeout, returns 200 with `partial: true` and
+        the dishes processed so far (per ADR-011 decision #5).
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |
+                    Menu photo (JPEG/PNG/WebP) or PDF file. Maximum size: 10 MB.
+                    Accepted MIME types: image/jpeg, image/png, image/webp,
+                    application/pdf. The Content-Type detected from the buffer
+                    (magic bytes) must match a supported type.
+                mode:
+                  type: string
+                  enum: [auto, ocr, vision, identify]
+                  default: auto
+                  description: |
+                    Processing mode:
+                    - `auto` (default): selects pipeline based on file type
+                      (PDF → OCR, image → Vision API).
+                    - `ocr`: force Tesseract OCR on any file type.
+                    - `vision`: force Vision API with menu-extraction prompt (image or PDF).
+                    - `identify`: Vision API with single-dish-identification prompt.
+                      Use this for photos of one food item/plate, not a full menu.
+            examples:
+              menuPhotoAuto:
+                summary: Menu photo — auto mode (selects Vision API)
+                value:
+                  file: <binary>
+                  mode: auto
+              menuPdfOcr:
+                summary: PDF menu — auto mode (selects OCR)
+                value:
+                  file: <binary>
+                  mode: auto
+              forcedVision:
+                summary: Force Vision API on a PDF menu photo
+                value:
+                  file: <binary>
+                  mode: vision
+              singleDish:
+                summary: Photo of one dish — identify mode
+                value:
+                  file: <binary>
+                  mode: identify
+      responses:
+        '200':
+          description: |
+            Analysis completed. At least one dish name was extracted. Individual
+            dishes may have `estimate: null` if the cascade returned a total miss —
+            this is NOT an error. `dishCount` reflects extracted names, not resolved
+            estimates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuAnalysisResponse'
+              examples:
+                menuSuccess:
+                  summary: 3 dishes extracted, 2 estimated
+                  value:
+                    success: true
+                    data:
+                      mode: auto
+                      dishCount: 3
+                      dishes:
+                        - dishName: "Big Mac"
+                          estimate:
+                            query: "Big Mac"
+                            chainSlug: null
+                            level1Hit: true
+                            level2Hit: false
+                            level3Hit: false
+                            level4Hit: false
+                            matchType: exact_dish
+                            result:
+                              entityId: "uuid-of-big-mac"
+                              entityType: dish
+                              name: "Big Mac"
+                              nameEs: "Big Mac"
+                              restaurantId: "uuid-of-restaurant"
+                              chainSlug: "mcdonalds-es"
+                              portionGrams: null
+                              nutrients:
+                                calories: 550
+                                proteins: 25
+                                carbohydrates: 46
+                                fats: 28
+                                saturatedFats: 10
+                                sugars: 9
+                                fiber: 3
+                                salt: 2.2
+                                sodium: 880
+                                transFats: 0.5
+                                cholesterol: 80
+                                potassium: 0
+                                monounsaturatedFats: 0
+                                polyunsaturatedFats: 0
+                                referenceBasis: per_serving
+                              confidenceLevel: high
+                              estimationMethod: official
+                              source:
+                                id: "uuid-of-source"
+                                name: "McDonald's Spain — Official PDF"
+                                url: null
+                                type: scraped
+                              similarityDistance: null
+                            cachedAt: null
+                        - dishName: "Hamburguesa Especial"
+                          estimate: null
+                        - dishName: "McPollo"
+                          estimate:
+                            query: "McPollo"
+                            chainSlug: null
+                            level1Hit: false
+                            level2Hit: false
+                            level3Hit: true
+                            level4Hit: false
+                            matchType: similarity_dish
+                            result:
+                              entityId: "uuid-of-mcpollo"
+                              entityType: dish
+                              name: "McPollo"
+                              nameEs: "McPollo"
+                              restaurantId: "uuid-of-restaurant"
+                              chainSlug: "mcdonalds-es"
+                              portionGrams: null
+                              nutrients:
+                                calories: 390
+                                proteins: 20
+                                carbohydrates: 42
+                                fats: 14
+                                saturatedFats: 3
+                                sugars: 5
+                                fiber: 2
+                                salt: 1.5
+                                sodium: 600
+                                transFats: 0
+                                cholesterol: 45
+                                potassium: 0
+                                monounsaturatedFats: 0
+                                polyunsaturatedFats: 0
+                                referenceBasis: per_serving
+                              confidenceLevel: low
+                              estimationMethod: extrapolation
+                              source:
+                                id: "uuid-of-source"
+                                name: "McDonald's Spain — Official PDF"
+                                url: null
+                                type: scraped
+                              similarityDistance: 0.22
+                            cachedAt: null
+                identifySuccess:
+                  summary: Single dish identified
+                  value:
+                    success: true
+                    data:
+                      mode: identify
+                      dishCount: 1
+                      dishes:
+                        - dishName: "Ensalada César con pollo"
+                          estimate:
+                            query: "Ensalada César con pollo"
+                            chainSlug: null
+                            level1Hit: false
+                            level2Hit: true
+                            level3Hit: false
+                            level4Hit: false
+                            matchType: ingredient_dish_fts
+                            result:
+                              entityId: "uuid-of-dish"
+                              entityType: dish
+                              name: "Caesar salad with chicken"
+                              nameEs: "Ensalada César con pollo"
+                              restaurantId: null
+                              chainSlug: null
+                              portionGrams: 350
+                              nutrients:
+                                calories: 320
+                                proteins: 28
+                                carbohydrates: 12
+                                fats: 18
+                                saturatedFats: 4
+                                sugars: 3
+                                fiber: 2
+                                salt: 1.1
+                                sodium: 440
+                                transFats: 0
+                                cholesterol: 72
+                                potassium: 0
+                                monounsaturatedFats: 0
+                                polyunsaturatedFats: 0
+                                referenceBasis: per_serving
+                              confidenceLevel: medium
+                              estimationMethod: ingredients
+                              source:
+                                id: "uuid-of-source"
+                                name: "Computed from ingredients"
+                                url: null
+                                type: estimated
+                              similarityDistance: null
+                            cachedAt: null
+        '400':
+          description: Validation error — missing file, unsupported mode value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingFile:
+                  summary: No file part in multipart body
+                  value:
+                    success: false
+                    error:
+                      message: "No file uploaded"
+                      code: VALIDATION_ERROR
+                invalidMode:
+                  summary: Unknown mode value
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: VALIDATION_ERROR
+                      details:
+                        - path: ["mode"]
+                          message: "Invalid enum value. Expected 'auto' | 'ocr' | 'vision' | 'identify'"
+                          code: invalid_enum_value
+        '401':
+          description: Missing or invalid API key (anonymous requests not permitted).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "API key required"
+                  code: UNAUTHORIZED
+        '413':
+          description: Uploaded file exceeds the 10 MB size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "File size exceeds the 10 MB limit"
+                  code: FST_REQ_FILE_TOO_LARGE
+        '422':
+          description: |
+            Analysis failed. Sub-cases:
+            - `INVALID_IMAGE`: file is not a supported type (not JPEG/PNG/WebP/PDF), or
+              the detected MIME type (from magic bytes) does not match a supported type.
+            - `OCR_FAILED`: OCR pipeline produced zero lines or only whitespace lines
+              (applies to `ocr` mode and to the OCR fallback path in `vision`/`identify`
+              mode).
+            - `MENU_ANALYSIS_FAILED`: Both the Vision API call AND the OCR fallback
+              produced fewer than 3 meaningful dish name candidates. Nothing to estimate.
+            - `VISION_API_UNAVAILABLE`: `OPENAI_API_KEY` is not configured and the
+              requested mode requires the Vision API (`vision` or `identify`), or `auto`
+              was selected with an image file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidImage:
+                  summary: Unsupported file type
+                  value:
+                    success: false
+                    error:
+                      message: "Uploaded file is not a supported type (JPEG, PNG, WebP, or PDF)"
+                      code: INVALID_IMAGE
+                ocrFailed:
+                  summary: OCR produced no output
+                  value:
+                    success: false
+                    error:
+                      message: "OCR extraction produced no readable text"
+                      code: OCR_FAILED
+                menuAnalysisFailed:
+                  summary: Vision API + OCR fallback both produced < 3 dish names
+                  value:
+                    success: false
+                    error:
+                      message: "Could not extract dish names from the provided file"
+                      code: MENU_ANALYSIS_FAILED
+                visionApiUnavailable:
+                  summary: OPENAI_API_KEY not configured
+                  value:
+                    success: false
+                    error:
+                      message: "Vision API is not configured. Use mode=ocr or provide OPENAI_API_KEY."
+                      code: VISION_API_UNAVAILABLE
+        '429':
+          description: |
+            Rate limit exceeded. Either the standard tier limit or the analysis-specific
+            limit of 10 requests per hour per key has been reached.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Rate limit exceeded. Menu analysis is limited to 10 requests per hour per key."
+                  code: RATE_LIMIT_EXCEEDED
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     # -------------------------------------------------------------------------
@@ -5344,6 +5746,93 @@ components:
             totalPages:
               type: integer
               example: 8
+
+    # -------------------------------------------------------------------------
+    # F034 / Analysis schemas
+    # -------------------------------------------------------------------------
+
+    MenuAnalysisDish:
+      type: object
+      description: |
+        A single dish extracted from the menu (or identified from a food photo), together
+        with the result of running the estimation cascade on its name. `estimate` is null
+        when the cascade returns a total miss across all four levels; the dish is still
+        included in the response for transparency.
+      required:
+        - dishName
+        - estimate
+      properties:
+        dishName:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: |
+            The dish name as extracted by OCR or Vision API, after basic trimming.
+            This is the raw string passed to `runEstimationCascade` as `query`.
+          example: "Big Mac"
+        estimate:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/EstimateData'
+          description: |
+            Full estimation cascade result for this dish name. Null when all four
+            cascade levels returned a miss (no matching dish or food found).
+
+    MenuAnalysisData:
+      type: object
+      description: |
+        Payload returned by POST /analyze/menu on success. Contains the resolved
+        processing mode, total dish count, and per-dish estimation results.
+      required:
+        - mode
+        - dishCount
+        - dishes
+        - partial
+      properties:
+        mode:
+          type: string
+          enum: [auto, ocr, vision, identify]
+          description: |
+            The processing mode actually used. For `auto`, this echoes `auto` (not the
+            resolved pipeline name) so callers can correlate with their request.
+          example: auto
+        dishCount:
+          type: integer
+          minimum: 1
+          description: |
+            Number of dish names extracted (and included in dishes array). Always ≥ 1
+            in a 200 response. For `identify` mode, dishCount is always 1.
+          example: 3
+        partial:
+          type: boolean
+          default: false
+          description: |
+            True when the 60-second timeout was reached while processing cascade calls
+            for individual dishes. The response contains only the dishes processed before
+            the timeout, not all extracted names. False in normal (complete) responses.
+          example: false
+        dishes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/MenuAnalysisDish'
+          description: |
+            Per-dish results in the order the names were extracted. Length equals
+            dishCount. Dishes with no cascade match have `estimate: null`.
+            For `identify` mode, this array contains exactly 1 entry.
+
+    MenuAnalysisResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+          example: true
+        data:
+          $ref: '#/components/schemas/MenuAnalysisData'
 
     # -------------------------------------------------------------------------
     # Estimation Engine (E003 / F020)

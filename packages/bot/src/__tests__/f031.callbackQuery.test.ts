@@ -22,6 +22,8 @@ function makeMockRedis() {
     get: vi.fn(),
     set: vi.fn(),
     del: vi.fn(),
+    incr: vi.fn().mockResolvedValue(1),
+    expire: vi.fn().mockResolvedValue(1),
   } as unknown as Redis;
 }
 
@@ -45,6 +47,7 @@ function makeMockClient(): { [K in keyof ApiClient]: ReturnType<typeof vi.fn> } 
     createRestaurant: vi.fn(),
     uploadImage: vi.fn(),
     uploadPdf: vi.fn(),
+    analyzeMenu: vi.fn(),
   };
 }
 
@@ -349,20 +352,22 @@ describe('handleCallbackQuery — upload_menu', () => {
     expect(bot.sendMessage).not.toHaveBeenCalled();
   });
 
-  it('sends "próximamente disponible" message', async () => {
+  it('sends "foto expirada" message when no pendingPhotoFileId in state (F034 replaces stub)', async () => {
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
     await handleCallbackQuery(makeQuery('upload_menu'), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG_ALLOWED);
 
     expect(bot.sendMessage).toHaveBeenCalledOnce();
     const [, text] = bot.sendMessage.mock.calls[0] as [number, string, unknown];
-    expect(text.toLowerCase()).toContain('próximamente');
+    expect(text.toLowerCase()).toMatch(/foto|expirado/);
   });
 
-  it('does NOT call getState or any API method', async () => {
+  it('reads state from Redis (real implementation, not stub)', async () => {
+    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
     await handleCallbackQuery(makeQuery('upload_menu'), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG_ALLOWED);
 
-    expect(redis.get).not.toHaveBeenCalled();
+    expect(redis.get).toHaveBeenCalled();
     expect(apiClient.uploadImage).not.toHaveBeenCalled();
     expect(apiClient.uploadPdf).not.toHaveBeenCalled();
   });
@@ -402,18 +407,22 @@ describe('handleCallbackQuery — upload_dish', () => {
     expect(bot.sendMessage).not.toHaveBeenCalled();
   });
 
-  it('sends "próximamente disponible" message', async () => {
+  it('sends "foto expirada" message when no pendingPhotoFileId in state (F034 replaces stub)', async () => {
+    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
     await handleCallbackQuery(makeQuery('upload_dish'), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG_ALLOWED);
 
     expect(bot.sendMessage).toHaveBeenCalledOnce();
     const [, text] = bot.sendMessage.mock.calls[0] as [number, string, unknown];
-    expect(text.toLowerCase()).toContain('próximamente');
+    expect(text.toLowerCase()).toMatch(/foto|expirado/);
   });
 
-  it('does NOT call getState or any API method', async () => {
+  it('reads state from Redis (real implementation, not stub)', async () => {
+    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
     await handleCallbackQuery(makeQuery('upload_dish'), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG_ALLOWED);
 
-    expect(redis.get).not.toHaveBeenCalled();
+    expect(redis.get).toHaveBeenCalled();
     expect(apiClient.uploadImage).not.toHaveBeenCalled();
   });
 });

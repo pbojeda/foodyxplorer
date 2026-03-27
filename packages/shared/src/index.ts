@@ -20,3 +20,4 @@ export * from './schemas/recipeCalculate';
 export * from './schemas/catalog';
 export * from './schemas/apiKey';
 export * from './schemas/analytics';
+export * from './schemas/analysis';

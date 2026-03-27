@@ -367,6 +367,34 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // MENU_ANALYSIS_FAILED — Vision API + OCR fallback both produced < 1 dish name (F034)
+  if (asAny['code'] === 'MENU_ANALYSIS_FAILED') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'MENU_ANALYSIS_FAILED',
+        },
+      },
+    };
+  }
+
+  // VISION_API_UNAVAILABLE — OPENAI_API_KEY not set and vision/identify/auto+image requested (F034)
+  if (asAny['code'] === 'VISION_API_UNAVAILABLE') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'VISION_API_UNAVAILABLE',
+        },
+      },
+    };
+  }
+
   // DUPLICATE_RESTAURANT — (chainSlug, countryCode) unique constraint violation (F032)
   if (asAny['code'] === 'DUPLICATE_RESTAURANT') {
     return {

@@ -136,6 +136,87 @@ export async function callChatCompletion(
 }
 
 // ---------------------------------------------------------------------------
+// callVisionCompletion — wraps OpenAI Vision (multimodal) chat with 2-attempt retry.
+//
+// Constructs a multimodal user message: [{ type: 'text', text: prompt },
+//   { type: 'image_url', image_url: { url: 'data:<mimeType>;base64,<imageBase64>' } }].
+// Returns the raw content string or null on failure. Never throws.
+// Same retry logic as callChatCompletion (2 attempts, 1s backoff).
+// ---------------------------------------------------------------------------
+
+export async function callVisionCompletion(
+  apiKey: string,
+  imageBase64: string,
+  mimeType: string,
+  prompt: string,
+  logger?: OpenAILogger,
+  maxTokens?: number,
+): Promise<string | null> {
+  const client = getOpenAIClient(apiKey);
+  const model = 'gpt-4o-mini';
+
+  const messages = [
+    {
+      role: 'user' as const,
+      content: [
+        { type: 'text' as const, text: prompt },
+        {
+          type: 'image_url' as const,
+          image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+        },
+      ],
+    },
+  ];
+
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await client.chat.completions.create({
+        model,
+        // OpenAI SDK types messages as ChatCompletionMessageParam which supports multimodal content
+        messages: messages as Parameters<typeof client.chat.completions.create>[0]['messages'],
+        temperature: 0,
+        max_tokens: maxTokens,
+      });
+
+      const content = response.choices[0]?.message?.content ?? null;
+      if (content === null) return null;
+
+      // Log token usage after successful call
+      if (response.usage) {
+        logger?.info(
+          {
+            promptTokens: response.usage.prompt_tokens,
+            completionTokens: response.usage.completion_tokens,
+            model,
+          },
+          'OpenAI vision call',
+        );
+      }
+
+      return content;
+    } catch (error) {
+      if (!isRetryableError(error)) {
+        logger?.warn({ error }, 'OpenAI vision call failed');
+        return null;
+      }
+
+      lastError = error;
+
+      // Retryable (429/5xx) — backoff before retry
+      if (attempt < MAX_RETRIES - 1) {
+        await sleep(RETRY_BACKOFF_MS);
+      }
+    }
+  }
+
+  // Exhausted retries
+  logger?.warn({ error: lastError }, 'OpenAI vision call failed');
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // callOpenAIEmbeddingsOnce — generate embedding for a single text string.
 //
 // Wraps callOpenAIEmbeddings (batch API) for single-text convenience.
