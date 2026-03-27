@@ -12,6 +12,7 @@ export function handleStart(): string {
     '',
     '/buscar \\<plato\\> — Busca platos por nombre',
     '/estimar \\<plato\\> \\[en \\<cadena\\>\\] — Estima la informacion nutricional',
+    '/receta \\<ingredientes\\> — Calcula la informacion nutricional de una receta',
     '/restaurantes \\[cadena\\] — Lista restaurantes \\(filtro opcional por cadena\\)',
     '/platos \\<restaurantId\\> — Lista los platos de un restaurante',
     '/cadenas — Muestra todas las cadenas activas',

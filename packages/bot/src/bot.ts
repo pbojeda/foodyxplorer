@@ -21,12 +21,13 @@ import { handlePlatos } from './commands/platos.js';
 import { handleCadenas } from './commands/cadenas.js';
 import { handleInfo } from './commands/info.js';
 import { handleRestaurante } from './commands/restaurante.js';
+import { handleReceta } from './commands/receta.js';
 import { handleNaturalLanguage } from './handlers/naturalLanguage.js';
 import { handleCallbackQuery } from './handlers/callbackQuery.js';
 import { handlePhoto, handleDocument } from './handlers/fileUpload.js';
 
 const KNOWN_COMMANDS = new Set([
-  'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info', 'restaurante',
+  'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info', 'restaurante', 'receta',
 ]);
 
 export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis): TelegramBot {
@@ -101,6 +102,25 @@ export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis):
         await handleRestaurante(match?.[1] ?? '', msg.chat.id, bot, apiClient, redis);
       } catch (err) {
         logger.error({ err, chatId: msg.chat.id }, 'Unhandled /restaurante error');
+        try {
+          await send(msg.chat.id, escapeMarkdown('Lo siento, ha ocurrido un error inesperado.'));
+        } catch {
+          // ignore send failure
+        }
+      }
+    },
+  );
+
+  // /receta is wired directly (not through wrapHandler) because it needs
+  // chatId and redis for per-user rate limiting — same pattern as /restaurante.
+  bot.onText(
+    /^\/receta(?:@\w+)?(?:\s+(.+))?$/s,
+    async (msg, match) => {
+      try {
+        const text = await handleReceta(match?.[1] ?? '', msg.chat.id, apiClient, redis);
+        await send(msg.chat.id, text);
+      } catch (err) {
+        logger.error({ err, chatId: msg.chat.id }, 'Unhandled /receta error');
         try {
           await send(msg.chat.id, escapeMarkdown('Lo siento, ha ocurrido un error inesperado.'));
         } catch {
