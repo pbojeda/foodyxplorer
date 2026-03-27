@@ -8,13 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-26
+**Last Updated:** 2026-03-27
 
-**Active Feature:** F034 — Menu Analysis (OCR + Vision API)
-**Step:** 5/6 (Review)
-**Branch:** feature/F034-menu-analysis-ocr-vision
-**Complexity:** Complex
-**Context:** Code review APPROVED, QA done (2 bugs fixed, 27 edge-case tests added). PR #34. 168 new tests total (93 API + 48 bot + 27 QA edge cases). Awaiting merge approval.
+**Active Feature:** None — no active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F034 completed and squash-merged to develop (PR #34, SHA a4fde9a, 2026-03-27). 168 tests (10 files), 37 files changed. POST /analyze/menu + bot upload_menu/upload_dish handlers. 6 review rounds (Gemini+Codex spec, Gemini+Codex plan, prod validator, code review, QA). BUG-F034-01 + BUG-F034-02 found+fixed. ADR-011.
 
 ---
 
@@ -89,7 +89,7 @@
 | F035 | Recipe Calculation Endpoint (structured + free-form) | backend | done | 6/6 | Standard. POST /calculate/recipe. PR #31, SHA a263c79. 116 tests. 4 review rounds |
 | F038 | Multilingual Dish Name Resolution | backend | done | 6/6 | Standard. Populate name_es for all dishes, fix ingest pipeline, new name_source_locale field, regenerate embeddings. ADR-010 |
 | F031 | Bot File Upload (multipart, inline keyboard) | fullstack | done | 6/6 | Standard. PR #32, SHA 01d8b1f. 137 tests (8 files). POST /ingest/image + bot handlers. BUG-F031-01 fixed |
-| F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | in-progress | 5/6 | Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-011. PR #34 |
+| F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | done | 6/6 | Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-011. PR #34, SHA a4fde9a. 168 tests (10 files). 37 files changed |
 | F041 | Bot Recipe Calculator (/receta) | fullstack | pending | — | Standard. Bot /receta command → POST /calculate/recipe (free-form). Depends on F035 ✅ |
 | F042 | Portion-Aware NL Estimation | fullstack | pending | — | Standard. NL handler detects "pequeño/grande" → portionMultiplier. Depends on F033 ✅ |
 | F043 | Dish Comparison via Bot | fullstack | pending | — | Standard. "qué tiene más X, A o B?" → 2× /estimate → comparison |
@@ -144,6 +144,7 @@
 | 2026-03-26 | F039 — Landing Page (nutriXplorer) | 64280e4 (squash merge to develop) | Standalone packages/landing/ (Next.js 14 + Tailwind + Framer Motion). 9 sections, A/B hero variants, SEO (JSON-LD, sitemap, robots), GDPR CookieBanner, GA4 analytics, i18n (ES+EN stubs), progressive enhancement. Spec reviewed by Gemini 2.5 + Codex GPT-5.4 (25 issues). Plan reviewed by Gemini + Codex (13 issues). Production validator: 7 issues fixed. Code review: APPROVED. QA: VERIFIED. 153 tests (23 suites), 98 files changed |
 | 2026-03-26 | F035 — Recipe Calculation Endpoint | a263c79 (squash merge to develop, PR #31) | POST /calculate/recipe: structured + free-form modes. Food-only cascade (direct_id → exact_food → fts_food → similarity_food → llm_food_match). Two-phase resolution (L1 parallel, L3/L4 sequential, budget 10). 14 nutrients, null-all→null, AbortController 30s. openaiClient.ts shared utility. Spec reviewed 4x (Gemini + Codex, ~25 issues). Plan reviewed 2x (Gemini + Codex). Production validator: 1C+2H+3M fixed. Code review: APPROVED (2 important fixed). QA: VERIFIED (16 edge-case tests). 116 F035 tests (6 files). 18 files changed |
 | 2026-03-26 | F031 — Bot File Upload | 01d8b1f (squash merge to develop, PR #32) | Fullstack (API + Bot). POST /ingest/image multipart endpoint + bot photo/document handlers + inline keyboard + ALLOWED_CHAT_IDS guard + apiClient multipart (90s timeout). FST_REQ_FILE_TOO_LARGE error mapping fix. Spec reviewed by Gemini+Codex (8 issues). Plan reviewed by Codex (5 issues). Production validator: 1C fixed. Code review: APPROVED (2H fixed: DRY download, shared constant). QA: 1 bug fixed (BUG-F031-01 empty photo array), 29 edge-case tests. 137 F031 tests (8 files). 32 files changed |
+| 2026-03-27 | F034 — Menu Analysis (OCR + Vision API) | a4fde9a (squash merge to develop, PR #34) | Complex fullstack (API + Bot). POST /analyze/menu: 4 modes (auto/ocr/vision/identify), callVisionCompletion (multimodal base64), parseDishNames, per-dish runEstimationCascade, cooperative timeout (partial results), dual rate limiting (API 10/hr + bot 5/hr per chatId). Bot upload_menu + upload_dish callbacks. ADR-011. Spec reviewed by Gemini+Codex (7 issues). Plan reviewed by Gemini+Codex (7 issues). Production validator: 1C fixed (spec drift 408→200+partial). Code review: APPROVED (3M: 2 fixed). QA: 2 bugs fixed (BUG-F034-01 UNSUPPORTED_PDF wrapping, BUG-F034-02 0-dish timeout guard), 27 edge-case tests. 168 F034 tests (10 files). 37 files changed |
 
 ---
 
