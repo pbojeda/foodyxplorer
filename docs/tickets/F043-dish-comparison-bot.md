@@ -551,7 +551,7 @@ Follow dependency order: parser (no deps) → formatter (depends on `EstimateDat
 ## Definition of Done
 
 - [x] All acceptance criteria met — 18/18
-- [x] Unit tests written and passing — 94 new tests, 811 total
+- [x] Unit tests written and passing — 176 tests (96 dev + 80 QA), 893 total
 - [x] Code follows project standards
 - [x] No linting errors — 0 new
 - [x] Build succeeds — clean
@@ -565,8 +565,8 @@ Follow dependency order: parser (no deps) → formatter (depends on `EstimateDat
 - [x] Step 2: `backend-planner` executed, plan approved
 - [x] Step 3: TDD implementation — 12 steps, 94 new tests
 - [x] Step 4: `production-code-validator` executed — READY FOR PRODUCTION
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard)
+- [x] Step 5: `code-review-specialist` executed — APPROVE, 1 fix applied
+- [x] Step 5: `qa-engineer` executed — 80 edge-case tests, 3 bugs found and fixed
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -586,6 +586,8 @@ Follow dependency order: parser (no deps) → formatter (depends on `EstimateDat
 | 2026-03-28 | Plan reviewed by Codex GPT-5.4 | 3I+3S (spec+plan combined). 1 new fix (outcome matrix), 2 already addressed (truncation, nutrient mapping), 1 fix (AbortController clarification). ACs refined |
 | 2026-03-28 | Implementation | 12 TDD steps completed: 8 files created, 3 modified. 94 new tests (811 total). Build + lint clean |
 | 2026-03-28 | production-code-validator | READY FOR PRODUCTION — 0 issues |
+| 2026-03-28 | code-review-specialist | APPROVE with 1 fix: "con" separator priority. 2 suggestions (CHAIN_SLUG_REGEX DRY, length guard test). Fix applied |
+| 2026-03-28 | qa-engineer | 80 edge-case tests, 16 initially failing → 3 bugs found (leading ¿, same-entity note, con in NL). All fixed, 893 tests passing |
 
 ---
 
@@ -595,13 +597,13 @@ Follow dependency order: parser (no deps) → formatter (depends on `EstimateDat
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Plan, AC, DoD, Workflow, Log, Evidence |
+| 1. Mark all items | [x] | AC: 18/18, DoD: 5/5, Workflow: 0-5/6 |
+| 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
+| 3. Update key_facts.md | [x] | N/A — bot-only, no new endpoints/schemas |
+| 4. Update decisions.md | [x] | N/A — no ADR required |
+| 5. Commit documentation | [ ] | Pending |
+| 6. Verify clean working tree | [ ] | Pending |
 
 ---
 

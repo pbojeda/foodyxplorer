@@ -105,3 +105,30 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Solution**: Corrected spec and implementation: `{ 0.5: 'media', 0.7: 'pequeña', 1.5: 'grande', 2.0: 'doble', 3.0: 'triple' }`. Approved by code-review-specialist.
 - **Prevention**: Distinguish input patterns (what the user types) from display labels (what the bot shows). Review label maps for semantic accuracy, not just spec compliance.
 - **Feature**: F042 | **Found by**: code-review-specialist | **Severity**: Low (spec correction, not runtime bug)
+
+### 2026-03-28 — BUG-F043-01: Leading ¿ (inverted question mark) blocks NL comparison detection
+
+- **Issue**: `extractComparisonQuery` uses `^` anchor in its prefix regexes. Spanish users who type `¿qué tiene más calorías, big mac o whopper?` (with the conventional Spanish opening `¿`) receive a single-dish estimate for the full garbled string instead of a comparison card. This is the exact motivating example from the ticket spec (F043, line 15). The NL handler calls `handleNaturalLanguage` on the trimmed text without stripping leading `¿` or `¡`.
+- **Root Cause**: All five prefix patterns in `comparisonParser.ts` anchor at `^`. `¿` is a valid UTF-8 character that appears before `qué` in formal Spanish, so the `^qu[eé]...` pattern never matches.
+- **Solution**: Strip leading `¿`/`¡` from text in `extractComparisonQuery` (or from `handleNaturalLanguage`) before applying prefix matching. One-liner: `const normalized = text.replace(/^[¿¡]+/, '').trim();` then pass `normalized` to `matchPrefix`. Trailing `?`/`!` can also be stripped before `splitByComparator` to prevent punctuation from ending up in the API query.
+- **Prevention**: When implementing intent detection with `^`-anchored regexes for Spanish text, always normalize leading/trailing Spanish punctuation characters (`¿`, `¡`, `?`, `!`) before matching.
+- **Tests**: `f043.qa-edge-cases.test.ts` — "F043 BUG-1" describe block (5 failing tests).
+- **Feature**: F043 | **Found by**: qa-engineer | **Severity**: High
+
+### 2026-03-28 — BUG-F043-02: Same-entity detection absent from formatComparison
+
+- **Issue**: When both dish queries resolve to the same database entity (same `entityId`), `formatComparison` silently renders identical values in both columns with no indicator. The spec (F043, line 302-303) explicitly requires the note: `_Ambos platos corresponden al mismo resultado en la base de datos\._`
+- **Root Cause**: `formatComparison` never compares `resultA.entityId` against `resultB.entityId`. The spec requirement was not implemented.
+- **Solution**: In `formatComparison`, after confirming both results are non-null, check `resultA.entityId === resultB.entityId`. If true, append the required note outside the code block.
+- **Prevention**: When a spec section lists edge case output requirements, add a corresponding test fixture where the edge case condition is satisfied, not just where results differ.
+- **Tests**: `f043.qa-edge-cases.test.ts` — "F043 BUG-2" describe block (1 failing test).
+- **Feature**: F043 | **Found by**: qa-engineer | **Severity**: Low
+
+### 2026-03-28 — BUG-F043-03: "con" separator in NL path beats "o" for dish names containing "con"
+
+- **Issue**: When a Spanish NL comparison query contains a dish whose name includes the word "con" (e.g., "pollo con verduras", "arroz con leche"), and the user separates the two dishes with "o" (e.g., `qué es más sano, pollo con verduras o hamburguesa`), the `splitByComparator` function splits on the first space-flanked ` con ` rather than the last space-flanked ` o `. This produces `dishA = "pollo"` / `dishB = "verduras o hamburguesa"` instead of `dishA = "pollo con verduras"` / `dishB = "hamburguesa"`.
+- **Root Cause**: `COMPARISON_SEPARATORS` orders `'con'` before `'o'`. Both use space-flanked + last-occurrence strategy. When "con" appears in the dish name before the "o" separator, "con" wins because it is tried first. The last-occurrence strategy helps when the separator appears multiple times, but cannot help when "con" in the dish name appears before the "o" separator in text position.
+- **Solution**: Separate the role of "con" in the command parser from the NL split. Option A: remove "con" from `COMPARISON_SEPARATORS` entirely and handle the `compara X con Y` NL pattern by using a dedicated regex that captures two named groups (everything before and after the last `con`). Option B: in `extractComparisonQuery`, when `con` wins but `o` or `y` also exists in the remainder, prefer the later-positioned `o`/`y` separator. Option C: only use `con` when it is the SOLE separator in the text (not when `o`/`y` also appears).
+- **Prevention**: When adding conjunctions like "con" as separators, verify they don't conflict with the same word appearing legitimately inside dish names. Prefer dedicated NL prefix groups over generic separator lists for context-sensitive parsing.
+- **Tests**: `f043.qa-edge-cases.test.ts` — "F043 BUG-3" describe block (2 failing NL tests). Note: `/comparar` command correctly handles "arroz con leche vs natillas" because `vs` has higher priority.
+- **Feature**: F043 | **Found by**: qa-engineer | **Severity**: Medium
