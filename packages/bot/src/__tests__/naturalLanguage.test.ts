@@ -15,6 +15,7 @@ import { extractFoodQuery, handleNaturalLanguage } from '../handlers/naturalLang
 const ESTIMATE_DATA_NULL: EstimateData = {
   query: 'xyz',
   chainSlug: null,
+  portionMultiplier: 1.0,
   level1Hit: false,
   level2Hit: false,
   level3Hit: false,
@@ -27,6 +28,7 @@ const ESTIMATE_DATA_NULL: EstimateData = {
 const ESTIMATE_DATA_WITH_RESULT: EstimateData = {
   query: 'big mac',
   chainSlug: null,
+  portionMultiplier: 1.0,
   level1Hit: true,
   level2Hit: false,
   level3Hit: false,
@@ -560,5 +562,49 @@ describe('handleNaturalLanguage — QA edge cases', () => {
     const calls = mock.estimate.mock.calls as Array<[{ query: string }]>;
     const queries = calls.map((c) => c[0].query).sort();
     expect(queries).toEqual(['big mac', 'whopper']);
+  });
+
+  // --- portionModifier integration ---
+
+  it('"big mac grande" → estimate called with query="big mac", portionMultiplier=1.5', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('big mac grande', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledWith({
+      query: 'big mac',
+      portionMultiplier: 1.5,
+    });
+  });
+
+  it('"big mac" (no modifier) → estimate called without portionMultiplier key', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    await handleNaturalLanguage('big mac', mock as unknown as ApiClient);
+    const args = mock.estimate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(args, 'portionMultiplier')).toBe(false);
+  });
+
+  it('"calorías de un big mac grande" → modifier extracted first, then prefix stripped', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('calorías de un big mac grande', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledWith({
+      query: 'big mac',
+      portionMultiplier: 1.5,
+    });
+  });
+
+  it('"big mac grande en mcdonalds-es" → modifier stripped, chain slug preserved', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('big mac grande en mcdonalds-es', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledWith({
+      query: 'big mac',
+      chainSlug: 'mcdonalds-es',
+      portionMultiplier: 1.5,
+    });
+  });
+
+  it('portionMultiplier=1.0 → property absent from estimate call', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    await handleNaturalLanguage('tortilla', mock as unknown as ApiClient);
+    const args = mock.estimate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(args, 'portionMultiplier')).toBe(false);
   });
 });

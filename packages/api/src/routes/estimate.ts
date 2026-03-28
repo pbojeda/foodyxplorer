@@ -18,6 +18,8 @@ import {
   EstimateQuerySchema,
   type EstimateQuery,
   type EstimateData,
+  type EstimateResult,
+  type EstimateNutrients,
 } from '@foodxplorer/shared';
 import type { DB } from '../generated/kysely-types.js';
 import { runEstimationCascade } from '../estimation/engineRouter.js';
@@ -36,6 +38,28 @@ const LEVEL_MAP: Record<1 | 2 | 3 | 4, 'l1' | 'l2' | 'l3' | 'l4'> = {
   3: 'l3',
   4: 'l4',
 };
+
+const NUMERIC_NUTRIENT_KEYS: ReadonlyArray<keyof Omit<EstimateNutrients, 'referenceBasis'>> = [
+  'calories', 'proteins', 'carbohydrates', 'sugars', 'fats', 'saturatedFats',
+  'fiber', 'salt', 'sodium', 'transFats', 'cholesterol', 'potassium',
+  'monounsaturatedFats', 'polyunsaturatedFats',
+];
+
+function applyPortionMultiplier(result: EstimateResult, multiplier: number): EstimateResult {
+  const scaledNutrients = { ...result.nutrients };
+  for (const key of NUMERIC_NUTRIENT_KEYS) {
+    scaledNutrients[key] = Math.round(scaledNutrients[key] * multiplier * 100) / 100;
+  }
+  scaledNutrients.referenceBasis = 'per_serving';
+
+  return {
+    ...result,
+    portionGrams: result.portionGrams !== null
+      ? Math.round(result.portionGrams * multiplier * 10) / 10
+      : null,
+    nutrients: scaledNutrients,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Plugin options
@@ -80,8 +104,12 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
     async (request, reply) => {
       const startMs = performance.now();
 
-      const { query, chainSlug, restaurantId } =
+      const { query, chainSlug, restaurantId, portionMultiplier } =
         request.query as EstimateQuery;
+
+      const effectiveMultiplier = portionMultiplier ?? 1;
+
+      request.log.debug({ portionMultiplier: effectiveMultiplier }, 'portion multiplier applied');
 
       // Parse X-FXP-Source header (array or comma-delimited string)
       const rawSource = request.headers['x-fxp-source'];
@@ -95,10 +123,10 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       // Normalize for cache key only. Router normalizes internally for DB lookups.
       const normalizedQuery = query.replace(/\s+/g, ' ').trim().toLowerCase();
 
-      // Unified cache key: fxp:estimate:<query>:<chainSlug>:<restaurantId>
+      // Unified cache key: fxp:estimate:<query>:<chainSlug>:<restaurantId>:<portionMultiplier>
       const cacheKey = buildKey(
         'estimate',
-        `${normalizedQuery}:${chainSlug ?? ''}:${restaurantId ?? ''}`,
+        `${normalizedQuery}:${chainSlug ?? ''}:${restaurantId ?? ''}:${effectiveMultiplier}`,
       );
 
       // Log entry variables — set in both code paths before reply.send()
@@ -160,14 +188,26 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       cacheHit = false;
       levelHit = routerResult.levelHit !== null ? LEVEL_MAP[routerResult.levelHit] : null;
 
+      // --- Apply portion multiplier ---
+      const scaledResult = (effectiveMultiplier !== 1 && routerResult.data.result !== null)
+        ? applyPortionMultiplier(routerResult.data.result, effectiveMultiplier)
+        : routerResult.data.result;
+
+      const estimateData: EstimateData = {
+        ...routerResult.data,
+        portionMultiplier: effectiveMultiplier,
+        result: scaledResult,
+        cachedAt: null,
+      };
+
       // --- Cache write (with cachedAt timestamp) ---
       const dataToCache: EstimateData = {
-        ...routerResult.data,
+        ...estimateData,
         cachedAt: new Date().toISOString(),
       };
       await cacheSet(cacheKey, dataToCache, request.log);
 
-      return reply.send({ success: true, data: routerResult.data });
+      return reply.send({ success: true, data: estimateData });
     },
   );
 };

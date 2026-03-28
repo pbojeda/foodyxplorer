@@ -2028,14 +2028,13 @@ paths:
 
             Applied as: `result.nutrients.* = base_value * portionMultiplier` and
             `result.portionGrams = base_portionGrams * portionMultiplier` (when non-null).
-            `referenceBasis` remains `per_serving` after multiplication.
+            When multiplier ≠ 1.0, `referenceBasis` is set to `per_serving` regardless of
+            the original value.
 
-            **L4 Strategy B exception:** when the cascade returns
-            `matchType: "llm_ingredient_decomposition"`, the multiplier has already been
-            applied internally by Level 4 (the LLM extracts its own `portion_multiplier`
-            from the query text). In this case the route handler does NOT re-apply the
-            external multiplier — nutrients are left unchanged. The multiplier is still
-            echoed in `data.portionMultiplier` for display purposes.
+            The multiplier is applied **uniformly** to all `matchType` values, including
+            `llm_ingredient_decomposition`. The bot strips size modifiers before calling,
+            so L4 never sees them in the query text. Callers are responsible for stripping
+            modifiers from the query when using this parameter.
 
             **Cache key:** the effective multiplier is included as a segment in the Redis
             cache key (`fxp:estimate:<query>:<chainSlug>:<restaurantId>:<multiplier>`),
@@ -2076,6 +2075,7 @@ paths:
                     data:
                       query: "Big Mac"
                       chainSlug: "mcdonalds-es"
+                      portionMultiplier: 1.0
                       level1Hit: true
                       level2Hit: false
                       level3Hit: false
@@ -2120,6 +2120,7 @@ paths:
                     data:
                       query: "pollo"
                       chainSlug: null
+                      portionMultiplier: 1.0
                       level1Hit: true
                       level2Hit: false
                       level3Hit: false
@@ -2386,6 +2387,7 @@ paths:
                     data:
                       query: "pizza de atún con borde relleno de queso extra"
                       chainSlug: null
+                      portionMultiplier: 1.0
                       level1Hit: false
                       level2Hit: false
                       level3Hit: false
@@ -2400,6 +2402,7 @@ paths:
                     data:
                       query: "pizza de atún con borde relleno de queso extra"
                       chainSlug: null
+                      portionMultiplier: 1.0
                       level1Hit: false
                       level2Hit: false
                       level3Hit: false
@@ -2445,6 +2448,7 @@ paths:
                     data:
                       query: "wrap de pollo tikka con mango y yogur"
                       chainSlug: null
+                      portionMultiplier: 1.0
                       level1Hit: false
                       level2Hit: false
                       level3Hit: false
@@ -2483,12 +2487,59 @@ paths:
                           url: null
                         similarityDistance: null
                       cachedAt: null
+                portionModifierApplied:
+                  summary: Large Big Mac (portionMultiplier=1.5)
+                  value:
+                    success: true
+                    data:
+                      query: "Big Mac"
+                      chainSlug: "mcdonalds-es"
+                      portionMultiplier: 1.5
+                      level1Hit: true
+                      level2Hit: false
+                      level3Hit: false
+                      level4Hit: false
+                      matchType: "exact_dish"
+                      result:
+                        entityType: "dish"
+                        entityId: "uuid-of-dish"
+                        name: "Big Mac"
+                        nameEs: "Big Mac"
+                        restaurantId: "uuid-of-restaurant"
+                        chainSlug: "mcdonalds-es"
+                        portionGrams: 300
+                        nutrients:
+                          calories: 825
+                          proteins: 37.5
+                          carbohydrates: 69
+                          sugars: 13.5
+                          fats: 42
+                          saturatedFats: 15
+                          fiber: 4.5
+                          salt: 3.3
+                          sodium: 1320
+                          transFats: 0.75
+                          cholesterol: 120
+                          potassium: 0
+                          monounsaturatedFats: 0
+                          polyunsaturatedFats: 0
+                          referenceBasis: "per_serving"
+                        confidenceLevel: "high"
+                        estimationMethod: "official"
+                        source:
+                          id: "uuid-of-source"
+                          name: "McDonald's Spain Official PDF"
+                          type: "official_pdf"
+                          url: null
+                        similarityDistance: null
+                      cachedAt: null
         '400':
           description: |
             Validation error. Sub-cases:
             - `query` is missing, empty, or exceeds 255 characters.
             - `restaurantId` is not a valid UUID format.
             - `chainSlug` contains characters outside `^[a-z0-9-]+$`.
+            - `portionMultiplier` is present but outside [0.1, 5.0] or not a number.
           content:
             application/json:
               schema:
@@ -6205,12 +6256,11 @@ components:
           minimum: 0.1
           maximum: 5.0
           description: |
-            The effective portion multiplier applied to all nutrient values and portionGrams
-            in this response (F042). Always present. Echoes the `portionMultiplier` query
-            param when supplied; 1.0 when the param was absent (no scaling). When
-            `matchType` is `llm_ingredient_decomposition`, the multiplier was applied
-            internally by Level 4 — the route handler does not re-apply it, but the field
-            still echoes the caller-supplied value for display purposes.
+            The effective portion multiplier applied uniformly to all nutrient values and
+            portionGrams in this response (F042). Always present. Echoes the `portionMultiplier`
+            query param when supplied; 1.0 when the param was absent (no scaling). Applied to
+            all matchTypes including `llm_ingredient_decomposition` — the bot strips modifiers
+            before calling, so the multiplier is always applied by the route handler.
           example: 1.5
         level1Hit:
           type: boolean

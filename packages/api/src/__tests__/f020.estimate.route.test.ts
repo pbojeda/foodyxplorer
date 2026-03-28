@@ -237,9 +237,11 @@ describe('GET /estimate', () => {
     const cachedData = {
       query: 'Big Mac',
       chainSlug: 'mcdonalds-es',
+      portionMultiplier: 1.0,
       level1Hit: true,
       level2Hit: false,
       level3Hit: false,
+      level4Hit: false,
       matchType: 'exact_dish',
       result: MOCK_LEVEL1_RESULT.result,
       cachedAt: '2026-03-17T14:00:00.000Z',
@@ -373,5 +375,160 @@ describe('GET /estimate', () => {
       'big mac',         // Zod trims; normalization collapses spaces + lowercases
       expect.any(Object),
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // portionMultiplier behaviour
+  // -------------------------------------------------------------------------
+
+  describe('portionMultiplier behaviour', () => {
+    it('L1 hit with portionMultiplier=1.5 → nutrients multiplied ×1.5', async () => {
+      mockLevel1Lookup.mockResolvedValueOnce(MOCK_LEVEL1_RESULT);
+
+      const app = await buildApp();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/estimate?query=Big+Mac&portionMultiplier=1.5',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ success: boolean; data: Record<string, unknown> }>();
+      expect(body.data['portionMultiplier']).toBe(1.5);
+      const result = body.data['result'] as Record<string, unknown>;
+      const nutrients = result['nutrients'] as Record<string, unknown>;
+      expect(nutrients['calories']).toBe(825);       // 550 × 1.5
+      expect(nutrients['proteins']).toBe(37.5);      // 25 × 1.5
+      expect(nutrients['salt']).toBe(3.3);           // 2.2 × 1.5
+      expect(nutrients['sodium']).toBe(1320);        // 880 × 1.5
+      expect(result['portionGrams']).toBe(322.5);    // 215 × 1.5
+      expect(nutrients['referenceBasis']).toBe('per_serving');
+    });
+
+    it('absent portionMultiplier → data.portionMultiplier === 1.0, nutrients unchanged', async () => {
+      mockLevel1Lookup.mockResolvedValueOnce(MOCK_LEVEL1_RESULT);
+
+      const app = await buildApp();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/estimate?query=Big+Mac',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ success: boolean; data: Record<string, unknown> }>();
+      expect(body.data['portionMultiplier']).toBe(1);
+      const result = body.data['result'] as Record<string, unknown>;
+      const nutrients = result['nutrients'] as Record<string, unknown>;
+      expect(nutrients['calories']).toBe(550);
+    });
+
+    it('explicit portionMultiplier=1.0 → nutrients unchanged', async () => {
+      mockLevel1Lookup.mockResolvedValueOnce(MOCK_LEVEL1_RESULT);
+
+      const app = await buildApp();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/estimate?query=Big+Mac&portionMultiplier=1.0',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ success: boolean; data: Record<string, unknown> }>();
+      expect(body.data['portionMultiplier']).toBe(1);
+      const result = body.data['result'] as Record<string, unknown>;
+      const nutrients = result['nutrients'] as Record<string, unknown>;
+      expect(nutrients['calories']).toBe(550);
+    });
+
+    it('total miss with portionMultiplier=1.5 → result null, multiplier echoed', async () => {
+      mockLevel1Lookup.mockResolvedValueOnce(null);
+
+      const app = await buildApp();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/estimate?query=unknown&portionMultiplier=1.5',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ success: boolean; data: Record<string, unknown> }>();
+      expect(body.data['portionMultiplier']).toBe(1.5);
+      expect(body.data['result']).toBeNull();
+    });
+
+    it('portionMultiplier=0 → 400 VALIDATION_ERROR', async () => {
+      const app = await buildApp();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/estimate?query=Big+Mac&portionMultiplier=0',
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<{ success: false; error: { code: string } }>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('portionMultiplier=6 → 400 VALIDATION_ERROR', async () => {
+      const app = await buildApp();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/estimate?query=Big+Mac&portionMultiplier=6',
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<{ success: false; error: { code: string } }>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('portionMultiplier=abc → 400 VALIDATION_ERROR', async () => {
+      const app = await buildApp();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/estimate?query=Big+Mac&portionMultiplier=abc',
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<{ success: false; error: { code: string } }>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('cache key includes multiplier segment :1.5', async () => {
+      mockLevel1Lookup.mockResolvedValueOnce(MOCK_LEVEL1_RESULT);
+
+      const app = await buildApp();
+      await app.inject({
+        method: 'GET',
+        url: '/estimate?query=Big+Mac&portionMultiplier=1.5',
+      });
+
+      expect(mockRedisGet).toHaveBeenCalledTimes(1);
+      const cacheKey = mockRedisGet.mock.calls[0]![0] as string;
+      expect(cacheKey).toMatch(/:1\.5$/);
+    });
+
+    it('cache key uses ":1" when multiplier absent', async () => {
+      mockLevel1Lookup.mockResolvedValueOnce(MOCK_LEVEL1_RESULT);
+
+      const app = await buildApp();
+      await app.inject({
+        method: 'GET',
+        url: '/estimate?query=Big+Mac',
+      });
+
+      expect(mockRedisGet).toHaveBeenCalledTimes(1);
+      const cacheKey = mockRedisGet.mock.calls[0]![0] as string;
+      expect(cacheKey).toMatch(/:1$/);
+    });
+
+    it('response with portionMultiplier=1.5 validates against EstimateResponseSchema', async () => {
+      mockLevel1Lookup.mockResolvedValueOnce(MOCK_LEVEL1_RESULT);
+
+      const app = await buildApp();
+      const response = await app.inject({
+        method: 'GET',
+        url: '/estimate?query=Big+Mac&portionMultiplier=1.5',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const parsed = EstimateResponseSchema.safeParse(response.json());
+      expect(parsed.success).toBe(true);
+    });
   });
 });

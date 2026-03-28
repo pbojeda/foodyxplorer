@@ -37,7 +37,7 @@ export interface ApiClient {
    * Always returns EstimateData (never null, never throws on null result).
    * The caller should check `data.result === null` to decide what to show.
    */
-  estimate(params: { query: string; chainSlug?: string }): Promise<EstimateData>;
+  estimate(params: { query: string; chainSlug?: string; portionMultiplier?: number }): Promise<EstimateData>;
   listRestaurants(params: { chainSlug?: string; page?: number; pageSize?: number }): Promise<PaginatedResult<RestaurantListItem>>;
   listRestaurantDishes(restaurantId: string, params: { page?: number; pageSize?: number }): Promise<PaginatedResult<DishListItem>>;
   /** Always sends ?isActive=true per spec — bot only shows active chains. */
@@ -314,6 +314,9 @@ export function createApiClient(config: BotConfig): ApiClient {
     async estimate(params) {
       const sp: Record<string, string> = { query: params.query };
       if (params.chainSlug) sp['chainSlug'] = params.chainSlug;
+      if (params.portionMultiplier !== undefined && params.portionMultiplier !== 1.0) {
+        sp['portionMultiplier'] = String(params.portionMultiplier);
+      }
       return fetchJson<EstimateData>('/estimate', sp);
     },
 

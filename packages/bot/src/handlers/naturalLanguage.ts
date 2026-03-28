@@ -9,6 +9,7 @@ import type { ApiClient } from '../apiClient.js';
 import { ApiError } from '../apiClient.js';
 import { formatEstimate } from '../formatters/estimateFormatter.js';
 import { handleApiError } from '../commands/errorMessages.js';
+import { extractPortionModifier } from '../lib/portionModifier.js';
 import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
@@ -117,10 +118,16 @@ export async function handleNaturalLanguage(
     return TOO_LONG_MESSAGE;
   }
 
-  const extracted = extractFoodQuery(trimmed);
+  const { cleanQuery, portionMultiplier } = extractPortionModifier(trimmed);
+  const extracted = extractFoodQuery(cleanQuery);
+
+  const estimateParams: Parameters<ApiClient['estimate']>[0] = { ...extracted };
+  if (portionMultiplier !== 1.0) {
+    estimateParams.portionMultiplier = portionMultiplier;
+  }
 
   try {
-    const data = await apiClient.estimate(extracted);
+    const data = await apiClient.estimate(estimateParams);
     return formatEstimate(data);
   } catch (err) {
     if (err instanceof ApiError) {

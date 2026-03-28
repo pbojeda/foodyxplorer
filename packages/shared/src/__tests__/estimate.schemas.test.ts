@@ -154,6 +154,51 @@ describe('EstimateQuerySchema', () => {
       expect(result.data.restaurantId).toBeUndefined();
     }
   });
+
+  // --- portionMultiplier ---
+
+  it('parses portionMultiplier: 1.5', () => {
+    const result = EstimateQuerySchema.safeParse({ query: 'Big Mac', portionMultiplier: 1.5 });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.portionMultiplier).toBe(1.5);
+  });
+
+  it('parses portionMultiplier at minimum boundary (0.1)', () => {
+    const result = EstimateQuerySchema.safeParse({ query: 'Big Mac', portionMultiplier: 0.1 });
+    expect(result.success).toBe(true);
+  });
+
+  it('parses portionMultiplier at maximum boundary (5.0)', () => {
+    const result = EstimateQuerySchema.safeParse({ query: 'Big Mac', portionMultiplier: 5.0 });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects portionMultiplier: 0 (below minimum)', () => {
+    const result = EstimateQuerySchema.safeParse({ query: 'Big Mac', portionMultiplier: 0 });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects portionMultiplier: 5.1 (above maximum)', () => {
+    const result = EstimateQuerySchema.safeParse({ query: 'Big Mac', portionMultiplier: 5.1 });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects portionMultiplier: "abc" (non-numeric string)', () => {
+    const result = EstimateQuerySchema.safeParse({ query: 'Big Mac', portionMultiplier: 'abc' });
+    expect(result.success).toBe(false);
+  });
+
+  it('portionMultiplier absent → parses successfully as undefined', () => {
+    const result = EstimateQuerySchema.safeParse({ query: 'Big Mac' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.portionMultiplier).toBeUndefined();
+  });
+
+  it('coerces portionMultiplier string "1.5" to number 1.5', () => {
+    const result = EstimateQuerySchema.safeParse({ query: 'Big Mac', portionMultiplier: '1.5' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.portionMultiplier).toBe(1.5);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -316,6 +361,7 @@ describe('EstimateDataSchema', () => {
     const data = {
       query: 'Big Mac',
       chainSlug: 'mcdonalds-es',
+      portionMultiplier: 1.0,
       level1Hit: true,
       level2Hit: false,
       level3Hit: false,
@@ -331,6 +377,7 @@ describe('EstimateDataSchema', () => {
     const data = {
       query: 'pizza de atún con borde relleno',
       chainSlug: null,
+      portionMultiplier: 1.0,
       level1Hit: false,
       level2Hit: false,
       level3Hit: false,
@@ -346,6 +393,7 @@ describe('EstimateDataSchema', () => {
     const data = {
       query: 'Big Mac',
       chainSlug: 'mcdonalds-es',
+      portionMultiplier: 1.0,
       level1Hit: true,
       level2Hit: false,
       level3Hit: false,
@@ -361,6 +409,7 @@ describe('EstimateDataSchema', () => {
     const data = {
       query: 'Big Mac',
       chainSlug: 'mcdonalds-es',
+      portionMultiplier: 1.0,
       level1Hit: false,
       level2Hit: true,
       level3Hit: false,
@@ -390,11 +439,77 @@ describe('EstimateDataSchema', () => {
     const data = {
       query: 'Big Mac',
       chainSlug: null,
+      portionMultiplier: 1.0,
       level1Hit: false,
       // level2Hit intentionally omitted
       level3Hit: false,
       matchType: null,
       result: null,
+      cachedAt: null,
+    };
+    expect(EstimateDataSchema.safeParse(data).success).toBe(false);
+  });
+
+  // --- portionMultiplier ---
+
+  it('parses portionMultiplier: 1.0 in data payload', () => {
+    const data = {
+      query: 'Big Mac',
+      chainSlug: null,
+      portionMultiplier: 1.0,
+      level1Hit: true,
+      level2Hit: false,
+      level3Hit: false,
+      level4Hit: false,
+      matchType: 'exact_dish',
+      result: VALID_RESULT,
+      cachedAt: null,
+    };
+    expect(EstimateDataSchema.safeParse(data).success).toBe(true);
+  });
+
+  it('rejects missing portionMultiplier (required field)', () => {
+    const data = {
+      query: 'Big Mac',
+      chainSlug: null,
+      level1Hit: true,
+      level2Hit: false,
+      level3Hit: false,
+      level4Hit: false,
+      matchType: 'exact_dish',
+      result: VALID_RESULT,
+      cachedAt: null,
+    };
+    expect(EstimateDataSchema.safeParse(data).success).toBe(false);
+  });
+
+  it('rejects portionMultiplier: 0.05 (below 0.1)', () => {
+    const data = {
+      query: 'Big Mac',
+      chainSlug: null,
+      portionMultiplier: 0.05,
+      level1Hit: true,
+      level2Hit: false,
+      level3Hit: false,
+      level4Hit: false,
+      matchType: 'exact_dish',
+      result: VALID_RESULT,
+      cachedAt: null,
+    };
+    expect(EstimateDataSchema.safeParse(data).success).toBe(false);
+  });
+
+  it('rejects portionMultiplier: 6.0 (above 5.0)', () => {
+    const data = {
+      query: 'Big Mac',
+      chainSlug: null,
+      portionMultiplier: 6.0,
+      level1Hit: true,
+      level2Hit: false,
+      level3Hit: false,
+      level4Hit: false,
+      matchType: 'exact_dish',
+      result: VALID_RESULT,
       cachedAt: null,
     };
     expect(EstimateDataSchema.safeParse(data).success).toBe(false);
@@ -412,6 +527,7 @@ describe('EstimateResponseSchema', () => {
       data: {
         query: 'Big Mac',
         chainSlug: 'mcdonalds-es',
+        portionMultiplier: 1.0,
         level1Hit: true,
         level2Hit: false,
         level3Hit: false,
@@ -465,6 +581,7 @@ describe('EstimateResponseSchema', () => {
       data: {
         query: 'pizza de atún con borde relleno',
         chainSlug: null,
+        portionMultiplier: 1.0,
         level1Hit: false,
         level2Hit: false,
         level3Hit: false,

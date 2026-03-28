@@ -60,6 +60,7 @@ describe('AnalyzeMenuBodySchema', () => {
 const mockEstimate: EstimateData = {
   query: 'Big Mac',
   chainSlug: null,
+  portionMultiplier: 1.0,
   level1Hit: true,
   level2Hit: false,
   level3Hit: false,

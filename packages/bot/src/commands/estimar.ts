@@ -3,6 +3,7 @@
 import type { ApiClient } from '../apiClient.js';
 import { handleApiError } from './errorMessages.js';
 import { formatEstimate } from '../formatters/estimateFormatter.js';
+import { extractPortionModifier } from '../lib/portionModifier.js';
 import { logger } from '../logger.js';
 
 // ChainSlug format: lowercase letters, digits, hyphens — MUST contain at least one hyphen.
@@ -51,12 +52,17 @@ export async function handleEstimar(args: string, apiClient: ApiClient): Promise
   }
 
   const { query, chainSlug } = parseEstimarArgs(trimmed);
+  const { cleanQuery, portionMultiplier } = extractPortionModifier(query);
+
+  const estimateParams: Parameters<ApiClient['estimate']>[0] = { query: cleanQuery };
+  if (chainSlug) estimateParams.chainSlug = chainSlug;
+  if (portionMultiplier !== 1.0) estimateParams.portionMultiplier = portionMultiplier;
 
   try {
-    const data = await apiClient.estimate({ query, chainSlug });
+    const data = await apiClient.estimate(estimateParams);
     return formatEstimate(data);
   } catch (err) {
-    logger.warn({ err, query, chainSlug }, '/estimar API error');
+    logger.warn({ err, query: cleanQuery, chainSlug, portionMultiplier }, '/estimar API error');
     return handleApiError(err);
   }
 }

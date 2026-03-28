@@ -9,6 +9,14 @@ const CONFIDENCE_MAP: Record<string, string> = {
   low: 'baja',
 };
 
+const PORTION_LABEL_MAP: Record<number, string> = {
+  0.5: 'pequeña',
+  0.7: 'mini',
+  1.5: 'grande',
+  2.0: 'doble',
+  3.0: 'triple',
+};
+
 /**
  * Format an EstimateData payload for Telegram MarkdownV2.
  *
@@ -26,12 +34,25 @@ export function formatEstimate(data: EstimateData): string {
 
   const lines: string[] = [
     `*${escapeMarkdown(displayName)}*`,
+  ];
+
+  // Portion modifier line — shown only when multiplier !== 1.0
+  if (data.portionMultiplier !== 1.0) {
+    const label = PORTION_LABEL_MAP[data.portionMultiplier]
+      ?? `×${data.portionMultiplier}`;
+    const portionLine = result.portionGrams !== null
+      ? `Porción: ${escapeMarkdown(label)} \\(x${escapeMarkdown(String(data.portionMultiplier))}\\) — ${escapeMarkdown(String(result.portionGrams))} g`
+      : `Porción: ${escapeMarkdown(label)} \\(x${escapeMarkdown(String(data.portionMultiplier))}\\)`;
+    lines.push(portionLine);
+  }
+
+  lines.push(
     '',
     `🔥 Calorías: ${formatNutrient(n.calories, 'kcal')}`,
     `🥩 Proteínas: ${formatNutrient(n.proteins, 'g')}`,
     `🍞 Carbohidratos: ${formatNutrient(n.carbohydrates, 'g')}`,
     `🧈 Grasas: ${formatNutrient(n.fats, 'g')}`,
-  ];
+  );
 
   // Optional nutrients — only show when > 0
   if (n.fiber > 0)        lines.push(`🌾 Fibra: ${formatNutrient(n.fiber, 'g')}`);
@@ -39,7 +60,8 @@ export function formatEstimate(data: EstimateData): string {
   if (n.sodium > 0)       lines.push(`🧂 Sodio: ${formatNutrient(n.sodium, 'mg')}`);
   if (n.salt > 0)         lines.push(`🧂 Sal: ${formatNutrient(n.salt, 'g')}`);
 
-  if (result.portionGrams !== null) {
+  // Portion grams line at the bottom — only when multiplier is 1.0 (standard portion)
+  if (data.portionMultiplier === 1.0 && result.portionGrams !== null) {
     lines.push('');
     lines.push(`Porción: ${escapeMarkdown(String(result.portionGrams))} g`);
   }

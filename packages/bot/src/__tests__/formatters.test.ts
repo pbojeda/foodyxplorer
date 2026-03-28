@@ -70,6 +70,7 @@ const CHAIN: ChainListItem = {
 const ESTIMATE_DATA_WITH_RESULT: EstimateData = {
   query: 'big mac',
   chainSlug: null,
+  portionMultiplier: 1.0,
   level1Hit: true,
   level2Hit: false,
   level3Hit: false,
@@ -116,6 +117,7 @@ const ESTIMATE_DATA_WITH_RESULT: EstimateData = {
 const ESTIMATE_DATA_NULL_RESULT: EstimateData = {
   query: 'xyz dish',
   chainSlug: null,
+  portionMultiplier: 1.0,
   level1Hit: false,
   level2Hit: false,
   level3Hit: false,
@@ -368,5 +370,87 @@ describe('formatEstimate', () => {
     // fiber = 3.5 should show, salt = 0 should not appear as a zero row
     // Just verify overall result is valid
     expect(result.length).toBeGreaterThan(10);
+  });
+
+  // --- portionMultiplier ---
+
+  it('portionMultiplier=1.5 → shows "grande" label', () => {
+    const data = { ...ESTIMATE_DATA_WITH_RESULT, portionMultiplier: 1.5 };
+    const result = formatEstimate(data);
+    expect(result).toContain('grande');
+    expect(result).toContain('x1');
+  });
+
+  it('portionMultiplier=2.0 → shows "doble" label', () => {
+    const data = { ...ESTIMATE_DATA_WITH_RESULT, portionMultiplier: 2.0 };
+    const result = formatEstimate(data);
+    expect(result).toContain('doble');
+  });
+
+  it('portionMultiplier=3.0 → shows "triple" label', () => {
+    const data = { ...ESTIMATE_DATA_WITH_RESULT, portionMultiplier: 3.0 };
+    const result = formatEstimate(data);
+    expect(result).toContain('triple');
+  });
+
+  it('portionMultiplier=0.5 → shows "pequeña" label', () => {
+    const data = { ...ESTIMATE_DATA_WITH_RESULT, portionMultiplier: 0.5 };
+    const result = formatEstimate(data);
+    expect(result).toContain('peque');
+  });
+
+  it('portionMultiplier=0.7 → shows "mini" label', () => {
+    const data = { ...ESTIMATE_DATA_WITH_RESULT, portionMultiplier: 0.7 };
+    const result = formatEstimate(data);
+    expect(result).toContain('mini');
+  });
+
+  it('portionMultiplier=1.0 → no portion label line', () => {
+    const result = formatEstimate(ESTIMATE_DATA_WITH_RESULT);
+    // Should NOT contain "grande", "doble", etc.
+    expect(result).not.toMatch(/Porción:.*grande/);
+    expect(result).not.toMatch(/Porción:.*doble/);
+  });
+
+  it('portionMultiplier≠1.0 with portionGrams → single combined Porción line', () => {
+    const data: EstimateData = {
+      ...ESTIMATE_DATA_WITH_RESULT,
+      portionMultiplier: 1.5,
+      result: { ...ESTIMATE_DATA_WITH_RESULT.result!, portionGrams: 300 },
+    };
+    const result = formatEstimate(data);
+    // Single line with label + grams
+    expect(result).toContain('grande');
+    expect(result).toContain('300');
+  });
+
+  it('portionMultiplier≠1.0 with portionGrams=null → Porción line without grams', () => {
+    const data: EstimateData = {
+      ...ESTIMATE_DATA_WITH_RESULT,
+      portionMultiplier: 1.5,
+      result: { ...ESTIMATE_DATA_WITH_RESULT.result!, portionGrams: null },
+    };
+    const result = formatEstimate(data);
+    expect(result).toContain('grande');
+    expect(result).not.toContain('null');
+  });
+
+  it('portionMultiplier=1.0 with portionGrams → shows bottom Porción line', () => {
+    const result = formatEstimate(ESTIMATE_DATA_WITH_RESULT);
+    // portionGrams = 200
+    expect(result).toContain('Porción: 200 g');
+  });
+
+  it('unknown multiplier (1.2) falls back to ×1.2 label', () => {
+    const data = { ...ESTIMATE_DATA_WITH_RESULT, portionMultiplier: 1.2 };
+    const result = formatEstimate(data);
+    expect(result).toContain('×1');
+  });
+
+  it('multiplier value in label is escaped for MarkdownV2', () => {
+    const data = { ...ESTIMATE_DATA_WITH_RESULT, portionMultiplier: 1.5 };
+    const result = formatEstimate(data);
+    // 1.5 → escaped as 1\.5
+    expect(result).toContain('1\\.5');
   });
 });
