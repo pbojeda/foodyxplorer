@@ -12,22 +12,26 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 
 export const CreateWaitlistSubmissionSchema = z.object({
-  email: z.string().email(),
-  // phone: trim whitespace, coerce empty/whitespace-only to null
+  email: z.string().email().max(320),
+  // phone: trim whitespace, validate format, coerce empty/whitespace-only to null
   phone: z
     .string()
     .optional()
     .transform((v) => {
       if (v === undefined) return null;
       const trimmed = v.trim();
-      return trimmed === '' ? null : trimmed;
+      if (trimmed === '') return null;
+      // Validate phone format server-side (matches frontend regex)
+      const stripped = trimmed.replace(/\s/g, '');
+      if (!/^\+\d{7,15}$/.test(stripped)) return null;
+      return trimmed;
     })
     .nullable(),
   variant: z.enum(['a', 'c', 'f']),
   source: z.enum(['hero', 'cta', 'footer', 'post-simulator']),
-  utm_source: z.string().optional(),
-  utm_medium: z.string().optional(),
-  utm_campaign: z.string().optional(),
+  utm_source: z.string().max(500).optional(),
+  utm_medium: z.string().max(500).optional(),
+  utm_campaign: z.string().max(500).optional(),
   // honeypot: any string or undefined — route handler does business logic rejection
   honeypot: z.string().optional(),
 });

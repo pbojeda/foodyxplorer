@@ -184,8 +184,9 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
       noValidate
       className="flex flex-col gap-3"
     >
-      {/* Progressive enhancement: hidden variant input for no-JS form POST */}
+      {/* Progressive enhancement: hidden inputs for no-JS form POST */}
       <input type="hidden" name="variant" value={variant} />
+      <input type="hidden" name="source" value={source} />
       {/* Anti-spam honeypot: visually hidden, must stay empty. Inline style avoids CSS purging. */}
       <input
         type="text"
