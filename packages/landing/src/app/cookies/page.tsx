@@ -125,8 +125,8 @@ export default function CookiesPage() {
               </p>
               <ul className="space-y-3 text-slate-600 list-disc pl-6">
                 <li>
-                  <strong>Panel de consentimiento:</strong> haz clic en el enlace "Gestionar
-                  cookies" en la parte inferior de cualquier página para reabrir el banner de
+                  <strong>Panel de consentimiento:</strong> haz clic en el enlace {'"'}Gestionar
+                  cookies{'"'} en la parte inferior de cualquier página para reabrir el banner de
                   consentimiento y modificar tus preferencias.
                 </li>
                 <li>
