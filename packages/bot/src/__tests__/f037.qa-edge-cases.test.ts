@@ -960,8 +960,8 @@ describe('spec compliance — acceptance criteria gap checks', () => {
     const setCall = redis.set.mock.calls[0] as [string, string, string, number];
     const saved = JSON.parse(setCall[1]) as Record<string, unknown>;
     expect(Object.prototype.hasOwnProperty.call(saved, 'chainContext')).toBe(false);
-    expect(saved.pendingSearch).toBe('pizza');
-    expect(saved.pendingPhotoFileId).toBe('file123');
+    expect(saved['pendingSearch']).toBe('pizza');
+    expect(saved['pendingPhotoFileId']).toBe('file123');
   });
 
   // AC#15: Redis down during /estimar → query sent without chainSlug (fail-open, no error message)
