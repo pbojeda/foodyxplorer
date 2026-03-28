@@ -6,7 +6,7 @@
 | Epic         | E005 — Advanced Analysis & UX                              |
 | Type         | Standard fullstack (API + Bot)                             |
 | Priority     | High                                                       |
-| Status       | In Progress                                                |
+| Status       | Ready for Merge                                            |
 | Branch       | feature/F042-portion-aware-nl-estimation                   |
 | Created      | 2026-03-28                                                 |
 | Dependencies | F020–F024 ✅ (estimation cascade), F028 ✅ (NL handler)   |
