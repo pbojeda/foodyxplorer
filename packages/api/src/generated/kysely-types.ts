@@ -227,6 +227,18 @@ export type StandardPortion = {
   created_at: Generated<Timestamp>;
   updated_at: Timestamp;
 };
+export type WaitlistSubmission = {
+  id: Generated<string>;
+  email: string;
+  phone: string | null;
+  variant: Generated<string>;
+  source: Generated<string>;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  ip_address: string | null;
+  created_at: Generated<Timestamp>;
+};
 export type DB = {
   api_keys: ApiKey;
   cooking_methods: CookingMethod;
@@ -244,4 +256,5 @@ export type DB = {
   recipes: Recipe;
   restaurants: Restaurant;
   standard_portions: StandardPortion;
+  waitlist_submissions: WaitlistSubmission;
 };
