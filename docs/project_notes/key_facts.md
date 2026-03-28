@@ -58,15 +58,19 @@ Quick reference for project configuration, infrastructure details, and important
 
 ## Infrastructure
 
-- **CI/CD**: GitHub Actions
-- **Hosting (early stage)**: Railway or Render (staging: develop, prod: main)
+- **CI/CD**: GitHub Actions (`ci.yml` with path-filtered jobs per package + `deploy-landing.yml`)
+- **Hosting (API, early stage)**: Railway or Render (staging: develop, prod: main)
+- **Hosting (Landing)**: Vercel (auto-deploy: preview on PR, production on push to main)
+- **Landing domain**: nutrixplorer.com (Vercel, configured 2026-03-27)
 - **Error Tracking**: Sentry (free plan)
 - **Uptime**: UptimeRobot or Better Uptime (free plan)
 
 ## Important URLs
 
-- **Production**: TBD
-- **Staging**: TBD
+- **Landing (Production)**: https://nutrixplorer.com
+- **Landing variants**: ?variant=a|c|d|f (content), ?palette=botanical|med (colors). See ADR-012
+- **API Production**: TBD
+- **API Staging**: TBD
 - **API Docs**: http://localhost:3001/docs (OpenAPI/Swagger)
 
 ## Reusable Components

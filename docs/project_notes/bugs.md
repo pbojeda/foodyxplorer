@@ -132,3 +132,67 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Prevention**: When adding conjunctions like "con" as separators, verify they don't conflict with the same word appearing legitimately inside dish names. Prefer dedicated NL prefix groups over generic separator lists for context-sensitive parsing.
 - **Tests**: `f043.qa-edge-cases.test.ts` — "F043 BUG-3" describe block (2 failing NL tests). Note: `/comparar` command correctly handles "arroz con leche vs natillas" because `vs` has higher priority.
 - **Feature**: F043 | **Found by**: qa-engineer | **Severity**: Medium
+
+### 2026-03-28 — BUG-LANDING-01: Legal pages return 404 (/privacidad, /cookies, /aviso-legal)
+
+- **Issue**: Footer and CookieBanner link to /privacidad, /cookies, /aviso-legal but no routes exist. All return 404.
+- **Root Cause**: Pages were planned but never created during F039/F044 implementation.
+- **Solution**: Pending — create static pages in src/app/privacidad/, src/app/cookies/, src/app/aviso-legal/.
+- **Prevention**: Any page that collects PII must have legal pages as a prerequisite (not a follow-up).
+- **Feature**: F039/F044 | **Found by**: Cross-model audit (Claude+Gemini+Codex) | **Severity**: Critical (GDPR/LSSI non-compliance)
+
+### 2026-03-28 — BUG-LANDING-02: og-image.jpg referenced in metadata but missing from public/
+
+- **Issue**: layout.tsx metadata references /og-image.jpg for OpenGraph and Twitter cards. File does not exist in packages/landing/public/. All social sharing shows broken or fallback preview.
+- **Root Cause**: Metadata was configured but the image asset was never created.
+- **Solution**: Pending — create 1200x630 branded image at packages/landing/public/og-image.jpg.
+- **Prevention**: After configuring OG metadata, verify the referenced assets exist (automated check in production-code-validator).
+- **Feature**: F039/F044 | **Found by**: Cross-model audit | **Severity**: Critical (blocks social sharing)
+
+### 2026-03-28 — BUG-LANDING-03: Anchor links #waitlist and #demo point to non-existent IDs
+
+- **Issue**: SiteHeader links to #waitlist and #demo. Neither ID exists in the DOM. Clicking does nothing.
+- **Root Cause**: SiteHeader was built with placeholder anchors that were never wired to section IDs.
+- **Solution**: Pending — add id="waitlist" to WaitlistCTASection, id="demo" to ProductDemo section.
+- **Prevention**: Test anchor navigation as part of section integration.
+- **Feature**: F044 | **Found by**: Cross-model audit | **Severity**: Important
+
+### 2026-03-28 — BUG-LANDING-04: Variant D hero promises "Busca cualquier plato" but SearchSimulator is not in hero
+
+- **Issue**: Variant D hero says "Busca cualquier plato. Mira qué sabes." but the SearchSimulator component is rendered in HowItWorksSection below the fold, not in the hero. A placeholder div exists but renders nothing.
+- **Root Cause**: Implementation didn't embed SearchSimulator in the hero as designed.
+- **Solution**: Pending — either embed SearchSimulator in hero or disable Variant D.
+- **Prevention**: After implementing a variant, verify the user journey matches the hero promise.
+- **Feature**: F044 | **Found by**: Cross-model audit | **Severity**: Critical (100% promise mismatch)
+
+### 2026-03-28 — BUG-LANDING-05: PostSimulatorCTA visible before user interacts with SearchSimulator
+
+- **Issue**: The "¿Te gusta lo que ves?" CTA with email form is visible from first render, before the user has used the SearchSimulator. It should only appear after a search interaction.
+- **Root Cause**: SearchSimulatorWithCTA initializes hasInteracted=true or doesn't gate visibility.
+- **Solution**: Pending — set hasInteracted=false, show CTA only after user completes a search.
+- **Prevention**: Interactive CTAs that depend on prior engagement should be gated by interaction state.
+- **Feature**: F044 | **Found by**: Codex audit | **Severity**: Important
+
+### 2026-03-28 — BUG-LANDING-06: PostSimulatorCTA uses animate-fadeIn but Tailwind defines animate-fade-in
+
+- **Issue**: CSS animation class mismatch — `animate-fadeIn` vs `animate-fade-in`. Animation doesn't play.
+- **Root Cause**: Typo in class name.
+- **Solution**: Pending — change to `animate-fade-in`.
+- **Prevention**: Use Tailwind IntelliSense to catch invalid class names.
+- **Feature**: F044 | **Found by**: Codex audit | **Severity**: Low
+
+### 2026-03-28 — BUG-LANDING-07: Missing suppressHydrationWarning on html tag
+
+- **Issue**: Palette script sets data-palette on `<html>` before hydration, causing React hydration mismatch warning.
+- **Root Cause**: layout.tsx `<html>` tag doesn't have `suppressHydrationWarning`.
+- **Solution**: Pending — add suppressHydrationWarning to `<html>` in layout.tsx.
+- **Prevention**: Any script that mutates DOM before hydration needs suppressHydrationWarning on the affected element.
+- **Feature**: F044 | **Found by**: Gemini audit | **Severity**: Important
+
+### 2026-03-28 — BUG-LANDING-08: JSON-LD SearchAction points to /?q= which doesn't function
+
+- **Issue**: seo.ts includes a SearchAction schema with urlTemplate `/?q={search_term_string}`. The page doesn't read or act on ?q= parameter.
+- **Root Cause**: SearchAction was added aspirationally but the functionality doesn't exist.
+- **Solution**: Pending — remove SearchAction from JSON-LD until search is functional.
+- **Prevention**: Only include structured data for features that actually exist.
+- **Feature**: F044 | **Found by**: Claude+Codex audit | **Severity**: Important
