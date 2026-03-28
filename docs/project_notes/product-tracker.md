@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-28
 
-**Active Feature:** F037 — Conversational Context Manager
-**Step:** 3/6 (Implement)
-**Branch:** feature/F037-conversational-context-manager
+**Active Feature:** F046 — Waitlist Persistence + Anti-Spam
+**Step:** 5/6 (Review)
+**Branch:** feature/F046-waitlist-persistence
 **Complexity:** Standard
-**Context:** Spec: Gemini+Codex, 10 fixes. Plan: Gemini+Codex, 9 fixes. 22 ACs, 12 TDD steps, ~90 tests. Plan approved. Implementing TDD steps 1-12.
+**Context:** Fullstack (API + landing + shared). PR #40. Code review approved, QA complete (3 bugs fixed). Ready for merge.
 
 ---
 

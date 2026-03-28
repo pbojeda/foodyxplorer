@@ -1,7 +1,7 @@
 # F046: Landing — Waitlist Persistence + Anti-Spam
 
 **Feature:** F046 | **Type:** Fullstack-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F046-waitlist-persistence
+**Status:** Ready for Merge | **Branch:** feature/F046-waitlist-persistence
 **Created:** 2026-03-28 | **Dependencies:** F045 (done)
 
 ---
@@ -651,7 +651,7 @@ This avoids calling `getUtmParams()` multiple times and keeps the code DRY.
 | 2. Verify product tracker | [x] | Features table: 3/6 → will update to 5/6 in docs commit |
 | 3. Update key_facts.md | [x] | Added: waitlist route, schemas, migration entries |
 | 4. Update decisions.md | [x] | N/A — no new ADR (waitlist persistence already in ADR-012) |
-| 5. Commit documentation | [x] | Commit: (see below) |
+| 5. Commit documentation | [x] | Commit: eeed41e |
 | 6. Verify clean working tree | [x] | `git status`: clean (after docs commit) |
 
 ---
