@@ -74,6 +74,17 @@ describe('splitByComparator', () => {
   it('does not match "o" when embedded in a word (not space-flanked)', () => {
     expect(splitByComparator('pollo')).toBeNull();
   });
+
+  it('"con" in dish names: "helado con chocolate vs tarta con nata" splits on "vs" (not "con")', () => {
+    expect(splitByComparator('helado con chocolate vs tarta con nata')).toEqual([
+      'helado con chocolate',
+      'tarta con nata',
+    ]);
+  });
+
+  it('"con" as separator: "big mac con whopper" splits correctly', () => {
+    expect(splitByComparator('big mac con whopper')).toEqual(['big mac', 'whopper']);
+  });
 });
 
 // ---------------------------------------------------------------------------

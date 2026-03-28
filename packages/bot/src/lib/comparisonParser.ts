@@ -26,8 +26,10 @@ export interface ParsedComparison {
 // Constants
 // ---------------------------------------------------------------------------
 
-// Ordered longest first — first match wins (priority by length).
-export const COMPARISON_SEPARATORS = ['versus', 'contra', 'con', 'vs', 'o', 'y'] as const;
+// Strong separators (word-boundary, first occurrence) tried first,
+// then weak separators (space-flanked, last occurrence).
+// This prevents "con" from matching inside dish names like "helado con chocolate".
+export const COMPARISON_SEPARATORS = ['versus', 'contra', 'vs', 'con', 'o', 'y'] as const;
 
 // ChainSlug format: lowercase letters, digits, hyphens — MUST contain at
 // least one hyphen. Copied verbatim from naturalLanguage.ts (F028 pattern).
@@ -87,8 +89,9 @@ export function splitByComparator(text: string): [string, string] | null {
     let regex: RegExp;
     let useLastOccurrence = false;
 
-    if (sep === 'o' || sep === 'y') {
-      // Space-flanked to avoid matching inside words.
+    if (sep === 'con' || sep === 'o' || sep === 'y') {
+      // Space-flanked + last-occurrence to avoid matching inside dish names
+      // ("helado con chocolate", "pollo o cerdo", etc.).
       regex = new RegExp(` ${sep} `, 'gi');
       useLastOccurrence = true;
     } else {
@@ -97,16 +100,17 @@ export function splitByComparator(text: string): [string, string] | null {
     }
 
     if (useLastOccurrence) {
-      // Find the last match.
+      // Find the last match — store both index and length.
       let lastIndex = -1;
+      let lastMatchLen = 0;
       let match: RegExpExecArray | null;
       while ((match = regex.exec(text)) !== null) {
         lastIndex = match.index;
+        lastMatchLen = match[0].length;
       }
       if (lastIndex !== -1) {
-        const matchStr = text.slice(lastIndex).match(regex)?.[0] ?? ` ${sep} `;
         const left = text.slice(0, lastIndex).trim();
-        const right = text.slice(lastIndex + matchStr.length).trim();
+        const right = text.slice(lastIndex + lastMatchLen).trim();
         if (left && right) return [left, right];
       }
     } else {
