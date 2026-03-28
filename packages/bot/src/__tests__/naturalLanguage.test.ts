@@ -608,3 +608,92 @@ describe('handleNaturalLanguage — QA edge cases', () => {
     expect(Object.prototype.hasOwnProperty.call(args, 'portionMultiplier')).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// F043 NL Comparison Detection
+// ---------------------------------------------------------------------------
+
+describe('handleNaturalLanguage — comparison detection', () => {
+  let mock: MockApiClient;
+
+  beforeEach(() => {
+    mock = makeMockClient();
+  });
+
+  it('"qué tiene más calorías, un big mac o un whopper" → estimate called twice (comparison)', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('qué tiene más calorías, un big mac o un whopper', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+  });
+
+  it('"compara big mac con whopper" → comparison detected, estimate called twice', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('compara big mac con whopper', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+  });
+
+  it('"qué engorda más, una pizza o una hamburguesa" → comparison with nutrientFocus calorías', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    const result = await handleNaturalLanguage('qué engorda más, una pizza o una hamburguesa', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+    // nutrientFocus "calorías" → should show (foco) label
+    expect(result).toContain('(foco)');
+  });
+
+  it('"compara big mac vs whopper" → comparison detected via "vs" separator', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('compara big mac vs whopper', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+  });
+
+  it('"qué tiene menos grasas, una pizza o una hamburguesa" → nutrientFocus grasas', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    const result = await handleNaturalLanguage('qué tiene menos grasas, una pizza o una hamburguesa', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+    expect(result).toContain('Grasas');
+  });
+
+  it('"big mac vs whopper" (no prefix) → falls through to single-dish path, estimate called once', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('big mac vs whopper', mock as unknown as ApiClient);
+    // No comparison prefix → single dish path
+    expect(mock.estimate).toHaveBeenCalledTimes(1);
+  });
+
+  it('"qué es más sano, una ensalada o un bollo" → comparison detected, no nutrientFocus', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    const result = await handleNaturalLanguage('qué es más sano, una ensalada o un bollo', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+    // No (foco) label since nutrientFocus is undefined
+    expect(result).not.toContain('(foco)');
+  });
+
+  it('comparison detected → estimate NOT called 3 times (only 2, not single-dish path)', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('compara big mac con whopper', mock as unknown as ApiClient);
+    // Comparison short-circuits before single-dish path
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+  });
+
+  it('one estimate returns null result → does not crash, shows partial data', async () => {
+    mock.estimate
+      .mockResolvedValueOnce(ESTIMATE_DATA_WITH_RESULT)
+      .mockResolvedValueOnce(ESTIMATE_DATA_NULL);
+    const result = await handleNaturalLanguage('compara big mac con xyz', mock as unknown as ApiClient);
+    expect(result).toContain('Big Mac');
+    expect(result).toContain('No se encontraron datos');
+  });
+
+  it('comparison with portion modifier in text still works', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('qué tiene más calorías, una big mac grande o un whopper', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+  });
+
+  it('MAX_NL_TEXT_LENGTH guard fires before comparison detection for text > 500 chars', async () => {
+    const longComparison = 'compara ' + 'a'.repeat(300) + ' vs ' + 'b'.repeat(200);
+    const result = await handleNaturalLanguage(longComparison, mock as unknown as ApiClient);
+    expect(result).toContain('específico');
+    expect(mock.estimate).not.toHaveBeenCalled();
+  });
+});

@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-28
 
-**Active Feature:** None — no active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F042 completed and squash-merged to develop (PR #36, SHA 67fc5c0, 2026-03-28). 140 tests (69 impl + 71 QA, 12 test files), 31 files changed. API portionMultiplier param + bot extractPortionModifier + formatter labels. Spec review (Gemini), plan review (Gemini), code review, QA. BUG-F042-01 resolved.
+**Active Feature:** F043 — Dish Comparison via Bot
+**Step:** 5/6 (Review)
+**Branch:** feature/F043-dish-comparison-bot
+**Complexity:** Standard
+**Context:** PR #37. Code review: 1 fix (con separator). QA: 3 bugs fixed (leading ¿, articles, same-entity). 893 tests, build clean. Awaiting merge approval.
 
 ---
 
@@ -92,7 +92,7 @@
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | done | 6/6 | Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-011. PR #34, SHA a4fde9a. 168 tests (10 files). 37 files changed |
 | F041 | Bot Recipe Calculator (/receta) | fullstack | done | 6/6 | Standard. Bot /receta command → POST /calculate/recipe (free-form). PR #35, SHA c1db312. 100 tests (4 files). 23 files changed |
 | F042 | Portion-Aware NL Estimation | fullstack | done | 6/6 | Standard. PR #36, SHA 67fc5c0. 140 tests (69 impl + 71 QA). BUG-F042-01 resolved |
-| F043 | Dish Comparison via Bot | fullstack | pending | — | Standard. "qué tiene más X, A o B?" → 2× /estimate → comparison |
+| F043 | Dish Comparison via Bot | fullstack | in-progress | 5/6 | Standard. /comparar + NL patterns → 2× /estimate → comparison card. PR #37 awaiting merge |
 | F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
 
 ## Features — Marketing & Growth

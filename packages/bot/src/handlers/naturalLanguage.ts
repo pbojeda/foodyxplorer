@@ -10,6 +10,8 @@ import { ApiError } from '../apiClient.js';
 import { formatEstimate } from '../formatters/estimateFormatter.js';
 import { handleApiError } from '../commands/errorMessages.js';
 import { extractPortionModifier } from '../lib/portionModifier.js';
+import { extractComparisonQuery } from '../lib/comparisonParser.js';
+import { runComparison } from '../lib/comparisonRunner.js';
 import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
@@ -116,6 +118,12 @@ export async function handleNaturalLanguage(
 
   if (trimmed.length > MAX_NL_TEXT_LENGTH) {
     return TOO_LONG_MESSAGE;
+  }
+
+  // Step 0 — Comparison detection (runs before single-dish path)
+  const comparison = extractComparisonQuery(trimmed);
+  if (comparison !== null) {
+    return runComparison(comparison.dishA, comparison.dishB, comparison.nutrientFocus, apiClient);
   }
 
   const { cleanQuery, portionMultiplier } = extractPortionModifier(trimmed);
