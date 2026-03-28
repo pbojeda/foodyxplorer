@@ -1,4 +1,4 @@
-export type Variant = 'a' | 'c' | 'd' | 'f';
+export type Variant = 'a' | 'c' | 'f';
 
 export type Palette = 'botanical' | 'med';
 

@@ -30,14 +30,6 @@ export const es = {
         scrollCta: 'Ver cómo lo solucionamos',
       },
     },
-    d: {
-      hero: {
-        eyebrow: 'Pruébalo ahora',
-        headline: 'Busca cualquier plato. Mira qué sabes.',
-        subtitle:
-          'Escribe un plato y descubre calorías, macros y nivel de confianza.',
-      },
-    },
     f: {
       hero: {
         eyebrow: 'Para familias con alergias alimentarias',

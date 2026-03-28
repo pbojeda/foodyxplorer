@@ -39,14 +39,29 @@ describe('SearchSimulatorWithCTA', () => {
     expect(screen.getByLabelText(/buscar plato/i)).toBeInTheDocument();
   });
 
-  it('initially shows PostSimulatorCTA (because simulator starts with a default result)', () => {
+  it('PostSimulatorCTA is hidden on initial render (BUG-LANDING-05)', () => {
     render(<SearchSimulatorWithCTA variant="a" />);
-    // The simulator starts in "result" state (pulpo a feira), so CTA should be visible
+    // CTA must NOT be visible before user has interacted
+    expect(screen.queryByText(/te gusta lo que ves/i)).not.toBeInTheDocument();
+  });
+
+  it('PostSimulatorCTA appears after onInteract fires', async () => {
+    const user = userEvent.setup();
+    render(<SearchSimulatorWithCTA variant="a" />);
+    // CTA hidden initially
+    expect(screen.queryByText(/te gusta lo que ves/i)).not.toBeInTheDocument();
+    // Click a dish chip to trigger interaction
+    const dishChips = screen.getAllByRole('button');
+    await user.click(dishChips[0]);
+    // CTA should now be visible
     expect(screen.getByText(/te gusta lo que ves/i)).toBeInTheDocument();
   });
 
-  it('PostSimulatorCTA shows email-only form', () => {
+  it('PostSimulatorCTA shows email-only form after interaction', async () => {
+    const user = userEvent.setup();
     render(<SearchSimulatorWithCTA variant="a" />);
+    const dishChips = screen.getAllByRole('button');
+    await user.click(dishChips[0]);
     expect(screen.getByRole('button', { name: /únete/i })).toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/teléfono/i)).not.toBeInTheDocument();
   });
