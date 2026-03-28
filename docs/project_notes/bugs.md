@@ -196,3 +196,27 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Solution**: Fixed in F045 — removed potentialAction (SearchAction) from generateWebSiteSchema() in seo.ts.
 - **Prevention**: Only include structured data for features that actually exist.
 - **Feature**: F044 | **Found by**: Claude+Codex audit | **Severity**: Important
+
+### 2026-03-28 — BUG-F046-01: WaitlistForm crashes on API errors — type contract mismatch between API error shape and component expectation
+
+- **Issue**: `WaitlistForm.tsx` types the error response body as `{ error?: string }` (line 141), but the Fastify `errorHandler.ts` ALWAYS returns `{ success: false, error: { code: string, message: string } }`. When any non-ok HTTP response is received (400, 429, 500), `setErrorMessage(data?.error)` stores an object in state. React then throws "Objects are not valid as a React child" when rendering `{errorMessage}` inside the `<p>` error element, crashing the form entirely.
+- **Root Cause**: Developer tests in `WaitlistForm.test.tsx` mock error responses with `error: 'Error del servidor'` (a plain string) — a format that the real API never produces. This hidden the type mismatch. The real API always returns `error` as a nested object.
+- **Solution**: In `WaitlistForm.tsx` handleSubmit error branch, extract the message from the error object before calling setErrorMessage: `const errMsg = typeof data?.error === 'object' ? (data.error as { message?: string }).message ?? 'Ha ocurrido un error.' : data?.error ?? 'Ha ocurrido un error.'; setErrorMessage(errMsg);`. Also fix the type annotation from `{ error?: string }` to `{ error?: string | { code: string; message: string } }`.
+- **Prevention**: Always mock API error responses with the exact shape the API actually returns. Integration-test the error path end-to-end (UI -> real fetch mock with real API response format). Use `satisfies` or typed API client responses to make mismatches compile-time errors.
+- **Feature**: F046 | **Found by**: QA edge-case tests | **Severity**: Critical (production crash on any API error)
+
+### 2026-03-28 — BUG-F046-02: POST /waitlist 409 response does not return existing record (spec deviation)
+
+- **Issue**: The ticket spec states "return 409 with the existing record" and "this makes the endpoint idempotent" (lines 51, 59, 156). The implementation on P2002 throws `DUPLICATE_EMAIL` which maps to `{ success: false, error: { code: 'DUPLICATE_EMAIL' } }`. The existing record is never fetched (`prisma.waitlistSubmission.findUnique` is not called), and `data` is absent from the 409 body.
+- **Root Cause**: The implementation plan in the same ticket (line 276) says "throw `DUPLICATE_EMAIL`" without referencing the spec requirement to return the existing record. The two sections of the ticket contradict each other and the developer followed the implementation plan rather than the spec description.
+- **Solution**: On P2002, query the existing record with `findUnique({ where: { email } })` and return 409 with the existing record in `data`. The error handler approach should be replaced with a direct reply: `return reply.status(409).send({ success: false, error: { code: 'DUPLICATE_EMAIL' }, data: { id: existing.id, email: existing.email } })`. Alternatively, accept the current behavior as intentional (landing treats 409 as success regardless of body content) and update the spec to match.
+- **Prevention**: When spec and implementation plan contradict each other, flag during implementation. QA should always compare the API response shape against the spec, not just the HTTP status code.
+- **Feature**: F046 | **Found by**: QA edge-case tests | **Severity**: Medium (functional but spec non-compliant; landing handles 409 as success regardless)
+
+### 2026-03-28 — BUG-F046-03: Email case sensitivity — same email with different casing bypasses duplicate detection
+
+- **Issue**: `USER@EXAMPLE.COM` and `user@example.com` are accepted as distinct registrations. The Postgres `UNIQUE` constraint on `waitlist_submissions.email` is case-sensitive by default (uses `btree` index, no `lower()` function or `citext` type). A user could register twice with the same email address using different capitalization.
+- **Root Cause**: The Zod schema and route handler store emails as-is without `toLowerCase()` normalization. The DB constraint enforces uniqueness but only exact-match. The email check constraint uses `~*` (case-insensitive regex), which validates format but not uniqueness.
+- **Solution**: Normalize email to lowercase before persisting: `email: body.email.toLowerCase()` in the route handler. Alternatively, create a functional unique index: `CREATE UNIQUE INDEX ON waitlist_submissions (lower(email))` and change the constraint. Also add `.toLowerCase()` or `.transform(v => v.toLowerCase())` to the Zod schema.
+- **Prevention**: Always normalize email addresses before persistence. Add an edge-case test for case-variant duplicates at both schema and DB levels.
+- **Feature**: F046 | **Found by**: QA edge-case tests | **Severity**: Low (duplicate registrations with different casing; no data loss, but inflates subscriber count)
