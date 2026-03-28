@@ -138,14 +138,19 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
           ...utmParams,
         });
       } else {
-        let data: { error?: string } | undefined;
+        let errorMsg = 'Ha ocurrido un error. Inténtalo de nuevo.';
         try {
-          data = await response.json();
+          const data = await response.json();
+          if (typeof data?.error === 'string') {
+            errorMsg = data.error;
+          } else if (typeof data?.error === 'object' && data.error?.message) {
+            errorMsg = data.error.message;
+          }
         } catch {
           /* non-JSON response */
         }
         setStatus('error');
-        setErrorMessage(data?.error ?? 'Ha ocurrido un error. Inténtalo de nuevo.');
+        setErrorMessage(errorMsg);
         trackEvent({
           event: 'waitlist_submit_error',
           variant,

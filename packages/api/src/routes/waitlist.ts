@@ -74,7 +74,7 @@ const waitlistRoutesPlugin: FastifyPluginAsync<WaitlistPluginOptions> = async (
       try {
         const submission = await prisma.waitlistSubmission.create({
           data: {
-            email: body.email,
+            email: body.email.toLowerCase(),
             phone: body.phone ?? null,
             variant: body.variant,
             source: body.source,
