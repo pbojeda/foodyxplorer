@@ -68,7 +68,7 @@ Quick reference for project configuration, infrastructure details, and important
 ## Important URLs
 
 - **Landing (Production)**: https://nutrixplorer.com
-- **Landing variants**: ?variant=a|c|d|f (content), ?palette=botanical|med (colors). See ADR-012
+- **Landing variants**: ?variant=a|c|f (content), ?palette=botanical|med (colors). Variant D removed in F045. See ADR-012
 - **API Production**: TBD
 - **API Staging**: TBD
 - **API Docs**: http://localhost:3001/docs (OpenAPI/Swagger)

@@ -1,7 +1,7 @@
 # F045: Landing — Critical Bug Fixes
 
 **Feature:** F045 | **Type:** Frontend-Bugfix | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F045-landing-critical-fixes
+**Status:** Ready for Merge | **Branch:** feature/F045-landing-critical-fixes
 **Created:** 2026-03-28 | **Dependencies:** None
 
 ---
