@@ -1,7 +1,7 @@
 # F043: Dish Comparison via Bot
 
 **Feature:** F043 | **Type:** Fullstack-Feature | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/F043-dish-comparison-bot
+**Status:** Ready for Merge | **Branch:** feature/F043-dish-comparison-bot
 **Created:** 2026-03-28 | **Dependencies:** F020–F024 ✅, F028 ✅, F042 ✅
 
 ---
@@ -615,14 +615,3 @@ Follow dependency order: parser (no deps) → formatter (depends on `EstimateDat
 - `parseDishExpression` is in `comparisonParser.ts`, NOT in `estimar.ts`, to avoid circular imports between command handlers.
 - Phase 1 scope: the "all-nutrient" comparison (no `nutrientFocus`) always shows the winner per every displayed nutrient row. A future phase could add an LLM-generated "overall healthier" verdict — explicitly out of scope for F043.
 
----
-
-## Merge Checklist Evidence
-
-| Check | Evidence |
-|---|---|
-| Spec written | This ticket |
-| API spec updated | N/A — no API changes |
-| Unit tests | TBD during implementation |
-| Integration tests | TBD during implementation |
-| Docs updated | N/A |
