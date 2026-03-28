@@ -74,11 +74,6 @@ describe('HeroSection', () => {
     expect(screen.getByText(dict.variants.c.hero.headline)).toBeInTheDocument();
   });
 
-  it('renders variant D headline when variant="d"', () => {
-    render(<HeroSection variant="d" dict={dict.hero} variantsCopy={dict.variants} />);
-    expect(screen.getByText(dict.variants.d.hero.headline)).toBeInTheDocument();
-  });
-
   it('renders variant F headline when variant="f"', () => {
     render(<HeroSection variant="f" dict={dict.hero} variantsCopy={dict.variants} />);
     expect(screen.getByText(dict.variants.f.hero.headline)).toBeInTheDocument();

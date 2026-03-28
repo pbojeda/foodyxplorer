@@ -1,5 +1,5 @@
 /**
- * F039 / F044 — Landing Page: Edge-Case & Spec-Deviation Tests (jsdom environment)
+ * F039 / F044 / F045 — Landing Page: Edge-Case & Spec-Deviation Tests (jsdom environment)
  *
  * QA-authored tests targeting gaps not covered by the developer's test suite.
  * Run with: npm test -- edge-cases
@@ -9,7 +9,7 @@
 
 // ---------------------------------------------------------------------------
 // 1. ab-testing — boundary, invalid inputs, stateless guarantee
-// F044 update: variant set is now a|c|d|f; fallback is always 'a' (no random)
+// F045 update: variant 'd' removed (ADR-012); valid set is now a|c|f
 // ---------------------------------------------------------------------------
 import { resolveVariant } from '@/lib/ab-testing';
 
@@ -22,8 +22,8 @@ describe('resolveVariant — boundary & edge cases', () => {
     expect(resolveVariant('c', undefined)).toBe('c');
   });
 
-  it('returns "d" when searchParam is "d"', () => {
-    expect(resolveVariant('d', undefined)).toBe('d');
+  it('returns "a" when searchParam is "d" (variant D removed — F045/ADR-012)', () => {
+    expect(resolveVariant('d', undefined)).toBe('a');
   });
 
   it('returns "f" when searchParam is "f"', () => {
@@ -65,7 +65,8 @@ describe('resolveVariant — stateless across multiple calls', () => {
   it('URL param consistently takes priority regardless of call order', () => {
     expect(resolveVariant('c', 'a')).toBe('c');
     expect(resolveVariant('a', 'c')).toBe('a');
-    expect(resolveVariant('d', 'f')).toBe('d');
+    // 'd' is no longer valid — falls back to 'f' (cookie wins as 'f' is still valid)
+    expect(resolveVariant('d', 'f')).toBe('f');
   });
 });
 

@@ -48,7 +48,7 @@ jest.mock('@/components/sections/RestaurantsSection', () => ({
 }));
 
 jest.mock('@/components/sections/WaitlistCTASection', () => ({
-  WaitlistCTASection: () => <section aria-label="Waitlist">Waitlist CTA</section>,
+  WaitlistCTASection: () => <section id="waitlist" aria-label="Waitlist">Waitlist CTA</section>,
 }));
 
 jest.mock('@/components/sections/Footer', () => ({
@@ -103,11 +103,11 @@ describe('LandingPage', () => {
     expect(hero).toHaveAttribute('data-variant', 'c');
   });
 
-  it('renders HeroSection with variant d when searchParams.variant is "d"', async () => {
+  it('renders HeroSection with variant a layout when searchParams.variant is "d" (variant D removed)', async () => {
     const jsx = await LandingPage({ searchParams: makeSearchParams({ variant: 'd' }) });
     render(jsx);
     const hero = screen.getByRole('region', { name: /inicio/i });
-    expect(hero).toHaveAttribute('data-variant', 'd');
+    expect(hero).toHaveAttribute('data-variant', 'a');
   });
 
   it('renders HeroSection with variant f when searchParams.variant is "f"', async () => {
@@ -148,5 +148,12 @@ describe('LandingPage', () => {
     render(jsx);
     const scripts = document.querySelectorAll('script[type="application/ld+json"]');
     expect(scripts.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('renders #demo and #waitlist anchor IDs for header nav links (BUG-LANDING-03)', async () => {
+    const jsx = await LandingPage({ searchParams: makeSearchParams({ variant: 'a' }) });
+    const { container } = render(jsx);
+    expect(container.querySelector('#demo')).not.toBeNull();
+    expect(container.querySelector('#waitlist')).not.toBeNull();
   });
 });

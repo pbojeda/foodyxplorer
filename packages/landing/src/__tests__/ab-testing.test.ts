@@ -13,8 +13,12 @@ describe('resolveVariant', () => {
     expect(resolveVariant('a', 'c')).toBe('a');
   });
 
-  it('returns "d" when searchParam is "d"', () => {
-    expect(resolveVariant('d', undefined)).toBe('d');
+  it('returns "a" when searchParam is "d" (variant D removed — ADR-012)', () => {
+    expect(resolveVariant('d', undefined)).toBe('a');
+  });
+
+  it('returns "a" when cookie is "d" (variant D removed — ADR-012)', () => {
+    expect(resolveVariant(undefined, 'd')).toBe('a');
   });
 
   it('returns "f" when searchParam is "f"', () => {

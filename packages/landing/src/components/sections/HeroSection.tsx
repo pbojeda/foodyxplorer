@@ -54,11 +54,6 @@ export function HeroSection({ variant, dict, variantsCopy }: HeroSectionProps) {
     return <HeroVariantC dict={dict} copy={copy} animProps={animProps} />;
   }
 
-  if (variant === 'd') {
-    const copy = variantsCopy?.d.hero;
-    return <HeroVariantD dict={dict} copy={copy} animProps={animProps} containerAnimProps={containerAnimProps} />;
-  }
-
   if (variant === 'f') {
     const copy = variantsCopy?.f.hero;
     return <HeroVariantF dict={dict} variant={variant} copy={copy} animProps={animProps} containerAnimProps={containerAnimProps} />;
@@ -244,59 +239,6 @@ function HeroVariantC({ dict, copy, animProps }: VariantCProps) {
             </svg>
           </a>
         </div>
-      </div>
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Variant D: Demo-First — minimal headline, SearchSimulator embedded
-// ---------------------------------------------------------------------------
-type VariantDCopy = {
-  eyebrow: string;
-  headline: string;
-  subtitle: string;
-};
-
-interface VariantDProps {
-  dict: Dictionary['hero'];
-  copy: VariantDCopy | undefined;
-  animProps: object;
-  containerAnimProps: object;
-}
-
-function HeroVariantD({ dict, copy, animProps, containerAnimProps }: VariantDProps) {
-  return (
-    <section
-      aria-label="Inicio"
-      className="relative bg-paper overflow-hidden py-12 lg:py-16"
-    >
-      <div className="relative max-w-container mx-auto px-6">
-        <motion.div
-          className="flex flex-col items-center text-center max-w-2xl mx-auto mb-10"
-          {...containerAnimProps}
-        >
-          <motion.p
-            className="text-[13px] md:text-sm font-semibold tracking-widest uppercase text-brand-orange mb-4"
-            {...animProps}
-          >
-            {copy?.eyebrow ?? dict.eyebrow}
-          </motion.p>
-          <motion.h1
-            className="text-4xl md:text-6xl font-extrabold tracking-tighter leading-tight text-slate-900 mb-4"
-            {...animProps}
-          >
-            {copy?.headline ?? dict.headlineA}
-          </motion.h1>
-          <motion.p
-            className="text-lg md:text-xl leading-relaxed text-slate-600"
-            {...animProps}
-          >
-            {copy?.subtitle ?? dict.subtitleA}
-          </motion.p>
-        </motion.div>
-        {/* SearchSimulator will be embedded by the VariantDLayout above the fold */}
-        <div data-simulator-hero="true" />
       </div>
     </section>
   );

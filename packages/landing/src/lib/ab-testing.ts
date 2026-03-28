@@ -3,7 +3,7 @@ import type { Variant } from '@/types';
 export const VARIANT_COOKIE_NAME = 'nx-variant';
 export const VARIANT_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days in seconds
 
-const VALID_VARIANTS: Variant[] = ['a', 'c', 'd', 'f'];
+const VALID_VARIANTS: Variant[] = ['a', 'c', 'f'];
 
 function isValidVariant(value: string | undefined): value is Variant {
   return VALID_VARIANTS.includes(value as Variant);

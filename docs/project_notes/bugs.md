@@ -137,7 +137,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 - **Issue**: Footer and CookieBanner link to /privacidad, /cookies, /aviso-legal but no routes exist. All return 404.
 - **Root Cause**: Pages were planned but never created during F039/F044 implementation.
-- **Solution**: Pending — create static pages in src/app/privacidad/, src/app/cookies/, src/app/aviso-legal/.
+- **Solution**: Fixed in F045 — created 3 Server Component pages with GDPR/LOPD/LSSI content, robots: { index: false }.
 - **Prevention**: Any page that collects PII must have legal pages as a prerequisite (not a follow-up).
 - **Feature**: F039/F044 | **Found by**: Cross-model audit (Claude+Gemini+Codex) | **Severity**: Critical (GDPR/LSSI non-compliance)
 
@@ -145,7 +145,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 - **Issue**: layout.tsx metadata references /og-image.jpg for OpenGraph and Twitter cards. File does not exist in packages/landing/public/. All social sharing shows broken or fallback preview.
 - **Root Cause**: Metadata was configured but the image asset was never created.
-- **Solution**: Pending — create 1200x630 branded image at packages/landing/public/og-image.jpg.
+- **Solution**: Fixed in F045 — generated 1200x630 branded OG image (botanical green, 45KB) at public/og-image.jpg.
 - **Prevention**: After configuring OG metadata, verify the referenced assets exist (automated check in production-code-validator).
 - **Feature**: F039/F044 | **Found by**: Cross-model audit | **Severity**: Critical (blocks social sharing)
 
@@ -153,7 +153,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 - **Issue**: SiteHeader links to #waitlist and #demo. Neither ID exists in the DOM. Clicking does nothing.
 - **Root Cause**: SiteHeader was built with placeholder anchors that were never wired to section IDs.
-- **Solution**: Pending — add id="waitlist" to WaitlistCTASection, id="demo" to ProductDemo section.
+- **Solution**: Fixed in F045 — added id="waitlist" to WaitlistCTASection, id="demo" to product-demo section in all variant layouts.
 - **Prevention**: Test anchor navigation as part of section integration.
 - **Feature**: F044 | **Found by**: Cross-model audit | **Severity**: Important
 
@@ -161,7 +161,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 - **Issue**: Variant D hero says "Busca cualquier plato. Mira qué sabes." but the SearchSimulator component is rendered in HowItWorksSection below the fold, not in the hero. A placeholder div exists but renders nothing.
 - **Root Cause**: Implementation didn't embed SearchSimulator in the hero as designed.
-- **Solution**: Pending — either embed SearchSimulator in hero or disable Variant D.
+- **Solution**: Fixed in F045 — Variant D fully removed per ADR-012 (types, routing, i18n, tests, API validation).
 - **Prevention**: After implementing a variant, verify the user journey matches the hero promise.
 - **Feature**: F044 | **Found by**: Cross-model audit | **Severity**: Critical (100% promise mismatch)
 
@@ -169,7 +169,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 - **Issue**: The "¿Te gusta lo que ves?" CTA with email form is visible from first render, before the user has used the SearchSimulator. It should only appear after a search interaction.
 - **Root Cause**: SearchSimulatorWithCTA initializes hasInteracted=true or doesn't gate visibility.
-- **Solution**: Pending — set hasInteracted=false, show CTA only after user completes a search.
+- **Solution**: Fixed in F045 — changed useState(true) to useState(false) in SearchSimulatorWithCTA; CTA gated by onInteract callback.
 - **Prevention**: Interactive CTAs that depend on prior engagement should be gated by interaction state.
 - **Feature**: F044 | **Found by**: Codex audit | **Severity**: Important
 
@@ -177,7 +177,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 - **Issue**: CSS animation class mismatch — `animate-fadeIn` vs `animate-fade-in`. Animation doesn't play.
 - **Root Cause**: Typo in class name.
-- **Solution**: Pending — change to `animate-fade-in`.
+- **Solution**: Fixed in F045 — changed class to `animate-fade-in` in PostSimulatorCTA.tsx.
 - **Prevention**: Use Tailwind IntelliSense to catch invalid class names.
 - **Feature**: F044 | **Found by**: Codex audit | **Severity**: Low
 
@@ -185,7 +185,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 - **Issue**: Palette script sets data-palette on `<html>` before hydration, causing React hydration mismatch warning.
 - **Root Cause**: layout.tsx `<html>` tag doesn't have `suppressHydrationWarning`.
-- **Solution**: Pending — add suppressHydrationWarning to `<html>` in layout.tsx.
+- **Solution**: Fixed in F045 — added suppressHydrationWarning to `<html>` tag in layout.tsx.
 - **Prevention**: Any script that mutates DOM before hydration needs suppressHydrationWarning on the affected element.
 - **Feature**: F044 | **Found by**: Gemini audit | **Severity**: Important
 
@@ -193,6 +193,6 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 - **Issue**: seo.ts includes a SearchAction schema with urlTemplate `/?q={search_term_string}`. The page doesn't read or act on ?q= parameter.
 - **Root Cause**: SearchAction was added aspirationally but the functionality doesn't exist.
-- **Solution**: Pending — remove SearchAction from JSON-LD until search is functional.
+- **Solution**: Fixed in F045 — removed potentialAction (SearchAction) from generateWebSiteSchema() in seo.ts.
 - **Prevention**: Only include structured data for features that actually exist.
 - **Feature**: F044 | **Found by**: Claude+Codex audit | **Severity**: Important

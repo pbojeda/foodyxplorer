@@ -32,14 +32,6 @@ export const en: Dictionary = {
         scrollCta: 'See how we solve it',
       },
     },
-    d: {
-      hero: {
-        eyebrow: 'Try it now',
-        headline: 'Search any dish. See what you know.',
-        subtitle:
-          'Type a dish and discover calories, macros, and confidence level.',
-      },
-    },
     f: {
       hero: {
         eyebrow: 'For families with food allergies',

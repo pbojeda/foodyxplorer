@@ -60,6 +60,7 @@ function VariantALayout({ dict, variant }: { dict: Dictionary; variant: Variant 
 
       <SectionObserver sectionId="product-demo" variant={variant}>
         <section
+          id="demo"
           aria-label={dict.productDemo.headline}
           data-section="product-demo"
           className="bg-paper py-12 lg:py-16"
@@ -121,6 +122,7 @@ function VariantCLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
 
       <SectionObserver sectionId="product-demo" variant={variant}>
         <section
+          id="demo"
           aria-label={dict.productDemo.headline}
           data-section="product-demo"
           className="bg-paper py-12 lg:py-16"
@@ -151,48 +153,6 @@ function VariantCLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
 }
 
 // ---------------------------------------------------------------------------
-// Variant D layout — "Demo-First"
-// Order: Hero (with SearchSimulator) → ProductDemo → TrustEngine → EmotionalBlock → Comparison → WaitlistCTA
-// ---------------------------------------------------------------------------
-function VariantDLayout({ dict, variant }: { dict: Dictionary; variant: Variant }) {
-  return (
-    <main>
-      <SectionObserver sectionId="hero" variant={variant}>
-        <HeroSection variant={variant} dict={dict.hero} variantsCopy={dict.variants} />
-      </SectionObserver>
-
-      <SectionObserver sectionId="product-demo" variant={variant}>
-        <section
-          aria-label={dict.productDemo.headline}
-          data-section="product-demo"
-          className="bg-paper py-12 lg:py-16"
-        >
-          <div className="section-shell">
-            <ProductDemo />
-          </div>
-        </section>
-      </SectionObserver>
-
-      <SectionObserver sectionId="trust-engine" variant={variant}>
-        <TrustEngineSection dict={dict.trustEngine} />
-      </SectionObserver>
-
-      <SectionObserver sectionId="emotional" variant={variant}>
-        <EmotionalBlock dict={dict.emotionalBlock} />
-      </SectionObserver>
-
-      <SectionObserver sectionId="comparison" variant={variant}>
-        <ComparisonSection dict={dict.comparison} />
-      </SectionObserver>
-
-      <SectionObserver sectionId="waitlist-cta" variant={variant}>
-        <WaitlistCTASection dict={dict.waitlistCta} variant={variant} />
-      </SectionObserver>
-    </main>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Variant F layout — "Single-Audience" (allergens focus)
 // Order: Hero (allergen image, email-only form) → TrustEngine → ProductDemo → HowItWorks → EmotionalBlock → WaitlistCTA
 // ---------------------------------------------------------------------------
@@ -209,6 +169,7 @@ function VariantFLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
 
       <SectionObserver sectionId="product-demo" variant={variant}>
         <section
+          id="demo"
           aria-label={dict.productDemo.headline}
           data-section="product-demo"
           className="bg-paper py-12 lg:py-16"
@@ -241,8 +202,6 @@ function getVariantLayout(variant: Variant, dict: Dictionary): React.JSX.Element
   switch (variant) {
     case 'c':
       return <VariantCLayout dict={dict} variant={variant} />;
-    case 'd':
-      return <VariantDLayout dict={dict} variant={variant} />;
     case 'f':
       return <VariantFLayout dict={dict} variant={variant} />;
     default:
