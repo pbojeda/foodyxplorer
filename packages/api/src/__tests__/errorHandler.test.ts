@@ -448,4 +448,20 @@ describe('mapError', () => {
       expect(result.body.error.message).toBe('OPENAI_API_KEY is not configured — Vision API unavailable');
     });
   });
+
+  describe('DUPLICATE_EMAIL (F046)', () => {
+    it('maps to 409 with DUPLICATE_EMAIL code and original message', () => {
+      const err = Object.assign(
+        new Error('Email already registered'),
+        { code: 'DUPLICATE_EMAIL' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(409);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('DUPLICATE_EMAIL');
+      expect(result.body.error.message).toBe('Email already registered');
+    });
+  });
 });
