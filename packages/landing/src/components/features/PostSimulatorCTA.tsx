@@ -19,7 +19,7 @@ export function PostSimulatorCTA({ variant, show }: PostSimulatorCTAProps) {
 
   return (
     <div
-      className="mt-6 animate-fadeIn rounded-[32px] border border-botanical/20 bg-mist p-6 md:p-8"
+      className="mt-6 animate-fade-in rounded-[32px] border border-botanical/20 bg-mist p-6 md:p-8"
       aria-live="polite"
     >
       <h3 className="mb-2 text-xl font-bold tracking-tight text-slate-900 md:text-2xl">
