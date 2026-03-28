@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-27
 
-**Active Feature:** None — no active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F041 completed and squash-merged to develop (PR #35, SHA c1db312, 2026-03-27). 100 tests (4 files), 23 files changed. Bot /receta command → POST /calculate/recipe (free-form). Rate limit 5/hr per chatId. Smart truncation. 4 review rounds (Gemini+Codex spec, Gemini+Codex plan, code review, QA).
+**Active Feature:** F042 — Portion-Aware NL Estimation
+**Step:** 2/6 (Plan)
+**Branch:** feature/F042-portion-aware-nl-estimation
+**Complexity:** Standard
+**Context:** Fullstack: API portionMultiplier param on GET /estimate + bot extractPortionModifier. Spec reviewed by Gemini (1C+2I fixed: removed L4 guard, added plurals, article stripping delegation).
 
 ---
 
@@ -91,7 +91,7 @@
 | F031 | Bot File Upload (multipart, inline keyboard) | fullstack | done | 6/6 | Standard. PR #32, SHA 01d8b1f. 137 tests (8 files). POST /ingest/image + bot handlers. BUG-F031-01 fixed |
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | done | 6/6 | Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-011. PR #34, SHA a4fde9a. 168 tests (10 files). 37 files changed |
 | F041 | Bot Recipe Calculator (/receta) | fullstack | done | 6/6 | Standard. Bot /receta command → POST /calculate/recipe (free-form). PR #35, SHA c1db312. 100 tests (4 files). 23 files changed |
-| F042 | Portion-Aware NL Estimation | fullstack | pending | — | Standard. NL handler detects "pequeño/grande" → portionMultiplier. Depends on F033 ✅ |
+| F042 | Portion-Aware NL Estimation | fullstack | in-progress | 2/6 | Standard. NL handler detects "pequeño/grande" → portionMultiplier. Depends on F033 ✅ |
 | F043 | Dish Comparison via Bot | fullstack | pending | — | Standard. "qué tiene más X, A o B?" → 2× /estimate → comparison |
 | F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
 

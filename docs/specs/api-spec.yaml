@@ -12,7 +12,7 @@ info:
     **Validation:**
     - Request bodies and query params are validated via `fastify-type-provider-zod`.
     - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
-  version: 0.4.0
+  version: 0.5.0
   contact:
     name: foodXPlorer
   license:
@@ -2017,6 +2017,38 @@ paths:
             type: string
             format: uuid
             example: "00000000-0000-0000-0001-000000000001"
+        - name: portionMultiplier
+          in: query
+          required: false
+          description: |
+            Portion size multiplier applied to all nutrient values and `portionGrams`
+            **after** the cascade resolves the base dish or food (F042). The query text
+            supplied must NOT contain size modifiers — the bot strips them before calling
+            (see `extractPortionModifier` in `packages/bot/src/lib/portionModifier.ts`).
+
+            Applied as: `result.nutrients.* = base_value * portionMultiplier` and
+            `result.portionGrams = base_portionGrams * portionMultiplier` (when non-null).
+            `referenceBasis` remains `per_serving` after multiplication.
+
+            **L4 Strategy B exception:** when the cascade returns
+            `matchType: "llm_ingredient_decomposition"`, the multiplier has already been
+            applied internally by Level 4 (the LLM extracts its own `portion_multiplier`
+            from the query text). In this case the route handler does NOT re-apply the
+            external multiplier — nutrients are left unchanged. The multiplier is still
+            echoed in `data.portionMultiplier` for display purposes.
+
+            **Cache key:** the effective multiplier is included as a segment in the Redis
+            cache key (`fxp:estimate:<query>:<chainSlug>:<restaurantId>:<multiplier>`),
+            so results for different multipliers are cached independently.
+
+            When absent, the default effective multiplier is 1.0 (no scaling).
+            The response always includes `data.portionMultiplier` echoing the effective value.
+          schema:
+            type: number
+            format: float
+            minimum: 0.1
+            maximum: 5.0
+            example: 1.5
       responses:
         '200':
           description: |
@@ -6149,6 +6181,7 @@ components:
       required:
         - query
         - chainSlug
+        - portionMultiplier
         - level1Hit
         - level2Hit
         - level3Hit
@@ -6166,6 +6199,19 @@ components:
           nullable: true
           description: The chainSlug parameter as provided, or null if omitted.
           example: "mcdonalds-es"
+        portionMultiplier:
+          type: number
+          format: float
+          minimum: 0.1
+          maximum: 5.0
+          description: |
+            The effective portion multiplier applied to all nutrient values and portionGrams
+            in this response (F042). Always present. Echoes the `portionMultiplier` query
+            param when supplied; 1.0 when the param was absent (no scaling). When
+            `matchType` is `llm_ingredient_decomposition`, the multiplier was applied
+            internally by Level 4 — the route handler does not re-apply it, but the field
+            still echoes the caller-supplied value for display purposes.
+          example: 1.5
         level1Hit:
           type: boolean
           description: |
