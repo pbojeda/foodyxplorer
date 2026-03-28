@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-28
 
-**Active Feature:** F046 — Waitlist Persistence + Anti-Spam
-**Step:** 5/6 (Review)
-**Branch:** feature/F046-waitlist-persistence
-**Complexity:** Standard
-**Context:** Fullstack (API + landing + shared). PR #40. Code review approved, QA complete (3 bugs fixed). Ready for merge.
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F046 completed and merged to develop (PR #40, squash). F037 also merged (PR #39).
 
 ---
 
@@ -102,7 +102,7 @@
 | F039 | Landing Page — nutriXplorer | frontend | done | 6/6 | Standard. packages/landing/ standalone. Next.js 14 + Tailwind + Framer Motion. 9 sections, A/B hero, SEO, GDPR, analytics. 153 tests. SHA 64280e4 |
 | F044 | Landing Page Overhaul — v5 design, 4 A/B variants, SearchSimulator | frontend | done | 6/6 | Standard. Glass-card aesthetic, 8 images, 4 variants (A/C/D/F), Mediterranean palette, PostSimulatorCTA. 286 tests. SHA 013935d |
 | F045 | Landing — Critical Bug Fixes | frontend | done | 6/6 | Standard. 9 fixes from audit: legal pages, og-image, canonical, anchors, variant D removed, CTA gating, animation typo, hydration warning, SearchAction. PR #38, 335 tests |
-| F046 | Landing — Waitlist Persistence + Anti-Spam | fullstack | in-progress | 5/6 | Standard. POST /waitlist + GET /admin/waitlist, Prisma migration, honeypot + rate limiting, landing form → Fastify API. PR #40 |
+| F046 | Landing — Waitlist Persistence + Anti-Spam | fullstack | done | 6/6 | Standard. POST /waitlist + GET /admin/waitlist, Prisma migration, honeypot + rate limiting, landing form → Fastify API. PR #40, SHA e0c83e8 |
 | F047 | Landing — Conversion Optimization | frontend | pending | — | Standard. GA4 initialization, mobile hamburger menu, social proof, benefit-oriented CTAs, phone field UX. Depends on F046 |
 | F040 | Landing Page FAQ Section + Schema | frontend | pending | — | Standard. FAQ accordion with structured data (FAQPage schema). Deferred from F039. Depends on F045 |
 | F048 | Landing — Performance & Accessibility | frontend | pending | — | Standard. SearchSimulator keyboard nav (WAI-ARIA combobox), replace framer-motion with CSS, security headers, prefers-reduced-motion. Depends on F047 |
@@ -155,6 +155,7 @@
 | 2026-03-28 | F043 — Dish Comparison via Bot | squash merge to develop, PR #37 | Standard bot-only. /comparar command + NL comparison detection (5 prefix patterns × 6 separators). Side-by-side MarkdownV2 code-block table with per-nutrient ✅ winner. Promise.allSettled, outcome matrix (timeout/error/unknown), length guard, same-entity note. Spec reviewed by Gemini+Codex (4C+6I+4S). Plan reviewed by Gemini+Codex (2C+5I+5S). Production validator: READY (0 issues). Code review: 1I fixed (con separator priority). QA: 3 bugs fixed (BUG-F043-01 leading ¿, BUG-F043-02 same-entity, BUG-F043-03 con in NL), 80 edge-case tests. 176 F043 tests (5 files). 11 files changed |
 | 2026-03-28 | F045 — Landing Critical Bug Fixes | squash merge to develop, PR #38 | Standard frontend. 9 fixes from cross-model audit: 3 legal pages (GDPR/LSSI), og-image (1200x630), canonical URL, anchor IDs (#waitlist, #demo), variant D removed (ADR-012), PostSimulatorCTA gated by interaction, animation typo, suppressHydrationWarning, SearchAction removed. Production validator: 1C fixed (variant D in API). Code review: APPROVED (1M: accidental file deletion restored). QA: VERIFIED (22 edge-case tests, 0 bugs). 335 tests (38 suites). 30 files changed |
 | 2026-03-28 | F037 — Conversational Context Manager | d6d32df (squash merge to develop, PR #39) | Standard bot-only. /contexto command (view/clear/set) + NL detection ("estoy en mcdonalds") + auto-inject chainSlug in /estimar, /comparar, NL handler. 4-tier fuzzy chain resolution (exact slug > exact name > prefix > bidirectional substring). BotStateChainContext in Redis, setStateStrict, real Redis TTL. Spec reviewed by Gemini+Codex (10 issues). Plan reviewed by Gemini+Codex (9 issues). Production validator: READY (0 issues). Code review: APPROVED (3I fixed). QA: 2 bugs fixed (BUG-F037-01 BORRAR case, BUG-F037-02 newline detector), 69 edge-case tests. 162 F037 tests (9 files). 30 files changed |
+| 2026-03-28 | F046 — Waitlist Persistence + Anti-Spam | e0c83e8 (squash merge to develop, PR #40) | Standard fullstack (API + landing + shared). POST /waitlist (public, honeypot, 5/15min rate limit, email lowercase, P2002→409 idempotent, form-urlencoded 303). GET /admin/waitlist (admin auth, paginated, sort). Prisma migration waitlist_submissions. Landing form → Fastify API, honeypot field, UTM params, 409-as-success. Deleted Next.js route. Zod schemas in shared. Production validator: READY. Code review: APPROVED (3I fixed: max-length, phone validation, source input). QA: 3 bugs (BUG-F046-01 critical fixed, BUG-F046-03 low fixed, BUG-F046-02 medium noted), 94 edge-case tests. API 2449, Landing 332, Shared 339. 31 files changed |
 
 ---
 
