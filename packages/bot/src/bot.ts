@@ -22,12 +22,13 @@ import { handleCadenas } from './commands/cadenas.js';
 import { handleInfo } from './commands/info.js';
 import { handleRestaurante } from './commands/restaurante.js';
 import { handleReceta } from './commands/receta.js';
+import { handleComparar } from './commands/comparar.js';
 import { handleNaturalLanguage } from './handlers/naturalLanguage.js';
 import { handleCallbackQuery } from './handlers/callbackQuery.js';
 import { handlePhoto, handleDocument } from './handlers/fileUpload.js';
 
 const KNOWN_COMMANDS = new Set([
-  'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info', 'restaurante', 'receta',
+  'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info', 'restaurante', 'receta', 'comparar',
 ]);
 
 export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis): TelegramBot {
@@ -128,6 +129,11 @@ export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis):
         }
       }
     },
+  );
+
+  bot.onText(
+    /^\/comparar(?:@\w+)?(?:\s+(.+))?$/s,
+    (msg, match) => wrapHandler(() => handleComparar(match?.[1] ?? '', apiClient))(msg),
   );
 
   // -------------------------------------------------------------------------
