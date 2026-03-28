@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-28
 
-**Active Feature:** F042 — Portion-Aware NL Estimation
-**Step:** 5/6 (Review)
-**Branch:** feature/F042-portion-aware-nl-estimation
-**Complexity:** Standard
-**Context:** PR #36. Code review: 1C+1S fixed. QA: 71 edge-case tests, BUG-F042-01 resolved. 140 total new tests. Ready for merge approval.
+**Active Feature:** None — no active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F042 completed and squash-merged to develop (PR #36, SHA 67fc5c0, 2026-03-28). 140 tests (69 impl + 71 QA, 12 test files), 31 files changed. API portionMultiplier param + bot extractPortionModifier + formatter labels. Spec review (Gemini), plan review (Gemini), code review, QA. BUG-F042-01 resolved.
 
 ---
 
@@ -91,7 +91,7 @@
 | F031 | Bot File Upload (multipart, inline keyboard) | fullstack | done | 6/6 | Standard. PR #32, SHA 01d8b1f. 137 tests (8 files). POST /ingest/image + bot handlers. BUG-F031-01 fixed |
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | done | 6/6 | Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-011. PR #34, SHA a4fde9a. 168 tests (10 files). 37 files changed |
 | F041 | Bot Recipe Calculator (/receta) | fullstack | done | 6/6 | Standard. Bot /receta command → POST /calculate/recipe (free-form). PR #35, SHA c1db312. 100 tests (4 files). 23 files changed |
-| F042 | Portion-Aware NL Estimation | fullstack | in-progress | 5/6 | Standard. PR #36. 140 new tests (69 impl + 71 QA). Code review: 1C+1S fixed. QA: 71 edge-cases, BUG-F042-01 resolved |
+| F042 | Portion-Aware NL Estimation | fullstack | done | 6/6 | Standard. PR #36, SHA 67fc5c0. 140 tests (69 impl + 71 QA). BUG-F042-01 resolved |
 | F043 | Dish Comparison via Bot | fullstack | pending | — | Standard. "qué tiene más X, A o B?" → 2× /estimate → comparison |
 | F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
 
@@ -146,6 +146,7 @@
 | 2026-03-26 | F031 — Bot File Upload | 01d8b1f (squash merge to develop, PR #32) | Fullstack (API + Bot). POST /ingest/image multipart endpoint + bot photo/document handlers + inline keyboard + ALLOWED_CHAT_IDS guard + apiClient multipart (90s timeout). FST_REQ_FILE_TOO_LARGE error mapping fix. Spec reviewed by Gemini+Codex (8 issues). Plan reviewed by Codex (5 issues). Production validator: 1C fixed. Code review: APPROVED (2H fixed: DRY download, shared constant). QA: 1 bug fixed (BUG-F031-01 empty photo array), 29 edge-case tests. 137 F031 tests (8 files). 32 files changed |
 | 2026-03-27 | F034 — Menu Analysis (OCR + Vision API) | a4fde9a (squash merge to develop, PR #34) | Complex fullstack (API + Bot). POST /analyze/menu: 4 modes (auto/ocr/vision/identify), callVisionCompletion (multimodal base64), parseDishNames, per-dish runEstimationCascade, cooperative timeout (partial results), dual rate limiting (API 10/hr + bot 5/hr per chatId). Bot upload_menu + upload_dish callbacks. ADR-011. Spec reviewed by Gemini+Codex (7 issues). Plan reviewed by Gemini+Codex (7 issues). Production validator: 1C fixed (spec drift 408→200+partial). Code review: APPROVED (3M: 2 fixed). QA: 2 bugs fixed (BUG-F034-01 UNSUPPORTED_PDF wrapping, BUG-F034-02 0-dish timeout guard), 27 edge-case tests. 168 F034 tests (10 files). 37 files changed |
 | 2026-03-27 | F041 — Bot Recipe Calculator (/receta) | c1db312 (squash merge to develop, PR #35) | Standard fullstack (bot-only — API exists). Bot /receta command → POST /calculate/recipe (free-form). Rate limit 5/hr per chatId (Redis, fail-open). Input guard 2000 chars. Smart truncation (ingredient list only). RECIPE_TIMEOUT_MS 30s. postJson optional timeout param. Spec reviewed by Gemini+Codex (6 issues). Plan reviewed by Gemini+Codex (6 issues). Production validator: READY (0 issues). Code review: APPROVED (2M fixed: dead variable, non-null assertion). QA: VERIFIED (0 bugs), 26 edge-case tests. 100 F041 tests (4 files). 23 files changed |
+| 2026-03-28 | F042 — Portion-Aware NL Estimation | 67fc5c0 (squash merge to develop, PR #36) | Standard fullstack (API + Bot). API: portionMultiplier param on GET /estimate (0.1-5.0), post-cascade nutrient scaling (2dp), portionGrams (1dp), referenceBasis→per_serving, extended cache key. Bot: extractPortionModifier pure function (15 regex patterns, Spanish size modifiers + plurals), integrated in NL handler + /estimar, formatter PORTION_LABEL_MAP. Spec reviewed by Gemini (1C+2I+1S). Plan reviewed by Gemini (1C+1I+1S). Production validator: 5 issues (3 fixed). Code review: 1C+1S fixed (edge-cases fixture, label semantics). QA: BUG-F042-01 resolved (label map spec correction), 71 edge-case tests. 140 F042 tests (12 files). 31 files changed |
 
 ---
 

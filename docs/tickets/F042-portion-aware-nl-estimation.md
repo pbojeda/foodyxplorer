@@ -6,7 +6,7 @@
 | Epic         | E005 — Advanced Analysis & UX                              |
 | Type         | Standard fullstack (API + Bot)                             |
 | Priority     | High                                                       |
-| Status       | Ready for Merge                                            |
+| Status       | Done                                                       |
 | Branch       | feature/F042-portion-aware-nl-estimation                   |
 | Created      | 2026-03-28                                                 |
 | Dependencies | F020–F024 ✅ (estimation cascade), F028 ✅ (NL handler)   |
@@ -731,7 +731,7 @@ Update all existing `formatEstimate` tests in the file that use `ESTIMATE_DATA_W
 - [x] Step 4: `production-code-validator` executed (5 issues found, 3 fixed), quality gates pass
 - [x] Step 5: `code-review-specialist` executed — 1 critical (edge-cases fixture), 1 suggestion (label map semantics), both fixed
 - [x] Step 5: `qa-engineer` executed — 71 edge-case tests, BUG-F042-01 (label semantics, resolved per code review)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -746,6 +746,7 @@ Update all existing `formatEstimate` tests in the file that use `ESTIMATE_DATA_W
 | 2026-03-28 | Finalized (Step 4) | production-code-validator: 1C (spec portionGrams example), 1H (estimar error logging), 3M. All fixed. Quality gates pass. |
 | 2026-03-28 | Code review (Step 5) | code-review-specialist: 1C (edge-cases fixture tsc), 1S (PORTION_LABEL_MAP 0.5→media). Both fixed. |
 | 2026-03-28 | QA review (Step 5) | qa-engineer: 71 edge-case tests across 6 files. BUG-F042-01 label semantics — resolved (spec corrected per code review). All 140 new tests green. |
+| 2026-03-28 | Complete (Step 6) | Squash merged to develop (PR #36, SHA 67fc5c0). Branch deleted. 140 tests (69 impl + 71 QA), 31 files changed. |
 
 ---
 
