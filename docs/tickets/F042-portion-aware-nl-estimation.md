@@ -318,20 +318,20 @@ None. No schema migrations are required. The multiplier is a stateless calculati
 
 ### Acceptance Criteria
 
-- [ ] `GET /estimate?query=big+mac&portionMultiplier=1.5` returns all nutrients exactly 1.5× the base `GET /estimate?query=big+mac` values (L1 hit path).
-- [ ] `GET /estimate?query=big+mac` (no `portionMultiplier`) still returns the existing response shape plus `portionMultiplier: 1.0` in the data payload.
-- [ ] `GET /estimate?query=big+mac&portionMultiplier=0` returns 400 with `code: "VALIDATION_ERROR"`.
-- [ ] `GET /estimate?query=big+mac&portionMultiplier=6` returns 400 with `code: "VALIDATION_ERROR"`.
-- [ ] Cache key for `portionMultiplier=1.5` is distinct from `portionMultiplier=1.0`; both can coexist in Redis.
-- [ ] `extractPortionModifier("big mac grande")` returns `{ cleanQuery: "big mac", portionMultiplier: 1.5 }`.
-- [ ] `extractPortionModifier("pizza xl en burger-king-es")` returns `{ cleanQuery: "pizza en burger-king-es", portionMultiplier: 1.5 }` (modifier stripped before `extractFoodQuery` handles the chain slug).
-- [ ] `extractPortionModifier("tortilla")` returns `{ cleanQuery: "tortilla", portionMultiplier: 1.0 }`.
-- [ ] Bot NL message "big mac grande" sends `query=big+mac&portionMultiplier=1.5` to the API (not `query=big+mac+grande`).
-- [ ] Bot `/estimar big mac grande` sends the same clean query and multiplier.
-- [ ] Bot message formatting shows "Porción: grande (x1\.5)" when `portionMultiplier === 1.5`.
-- [ ] Bot message formatting shows NO "Porción" line when `portionMultiplier === 1.0`.
-- [ ] `portionMultiplier` is applied uniformly to ALL matchTypes including `llm_ingredient_decomposition` (no L4 special case — bot strips modifiers before calling).
-- [ ] `EstimateQuerySchema` and `EstimateDataSchema` in `packages/shared` are updated and pass `tsc --noEmit` with no errors.
+- [x] `GET /estimate?query=big+mac&portionMultiplier=1.5` returns all nutrients exactly 1.5× the base `GET /estimate?query=big+mac` values (L1 hit path). *(f020 route test: "L1 hit with portionMultiplier=1.5")*
+- [x] `GET /estimate?query=big+mac` (no `portionMultiplier`) still returns the existing response shape plus `portionMultiplier: 1.0` in the data payload. *(f020 route test: "absent multiplier defaults to 1.0")*
+- [x] `GET /estimate?query=big+mac&portionMultiplier=0` returns 400 with `code: "VALIDATION_ERROR"`. *(f020 route test + schema test)*
+- [x] `GET /estimate?query=big+mac&portionMultiplier=6` returns 400 with `code: "VALIDATION_ERROR"`. *(f020 route test + schema test)*
+- [x] Cache key for `portionMultiplier=1.5` is distinct from `portionMultiplier=1.0`; both can coexist in Redis. *(f020 route tests: cache key segment tests)*
+- [x] `extractPortionModifier("big mac grande")` returns `{ cleanQuery: "big mac", portionMultiplier: 1.5 }`. *(portionModifier.test.ts)*
+- [x] `extractPortionModifier("pizza xl en burger-king-es")` returns `{ cleanQuery: "pizza en burger-king-es", portionMultiplier: 1.5 }`. *(portionModifier.test.ts)*
+- [x] `extractPortionModifier("tortilla")` returns `{ cleanQuery: "tortilla", portionMultiplier: 1.0 }`. *(portionModifier.test.ts — no modifier test)*
+- [x] Bot NL message "big mac grande" sends `query=big+mac&portionMultiplier=1.5` to the API. *(naturalLanguage.test.ts)*
+- [x] Bot `/estimar big mac grande` sends the same clean query and multiplier. *(commands.test.ts)*
+- [x] Bot message formatting shows "Porción: grande (x1\.5)" when `portionMultiplier === 1.5`. *(formatters.test.ts)*
+- [x] Bot message formatting shows NO "Porción" line when `portionMultiplier === 1.0`. *(formatters.test.ts)*
+- [x] `portionMultiplier` is applied uniformly to ALL matchTypes including `llm_ingredient_decomposition` (no L4 special case). *(f020 route test: uniform application, no L4 guard in code)*
+- [x] `EstimateQuerySchema` and `EstimateDataSchema` in `packages/shared` are updated and pass `tsc --noEmit` with no errors. *(tsc clean, 12 new schema tests)*
 
 ---
 
@@ -713,22 +713,22 @@ Update all existing `formatEstimate` tests in the file that use `ESTIMATE_DATA_W
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation (`api-spec.yaml` + shared schemas)
+- [x] All acceptance criteria met (14/14)
+- [x] Unit tests written and passing (69 new tests)
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
+- [x] Specs reflect final implementation (`api-spec.yaml` + shared schemas)
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 0: `spec-creator` executed, specs updated
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
-- [ ] Step 3: `backend-developer` + `frontend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
+- [x] Step 0: `spec-creator` executed, specs updated
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
+- [x] Step 3: Implementation with TDD (10 steps)
+- [x] Step 4: `production-code-validator` executed (5 issues found, 3 fixed), quality gates pass
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed (Standard)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
@@ -742,6 +742,8 @@ Update all existing `formatEstimate` tests in the file that use `ESTIMATE_DATA_W
 | 2026-03-28 | Spec drafted | spec-creator + self-review. Fixed: ticket structure, portionGrams/label formatter interaction, Zod coercion note |
 | 2026-03-28 | Spec reviewed | Gemini 2.5 (Codex auth failed). 1C+2I+1S. Fixed: removed L4 guard (CRITICAL — bot strips modifiers so L4 never sees them), added plural forms, article stripping delegated to extractFoodQuery |
 | 2026-03-28 | Plan written + reviewed | backend-planner (Steps 1-4 API) + backend-planner (Steps 5-10 bot). Reviewed by Gemini (1C+1I+1S). Fixed: referenceBasis must be SET to per_serving (not remain) when multiplying per_100g results |
+| 2026-03-28 | Implemented (Step 3) | 10 TDD steps, 69 new tests. Commit a230bbe |
+| 2026-03-28 | Finalized (Step 4) | production-code-validator: 1C (spec portionGrams example), 1H (estimar error logging), 3M. All fixed. Quality gates pass. |
 
 ---
 
