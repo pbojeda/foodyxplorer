@@ -10,8 +10,8 @@ const CONFIDENCE_MAP: Record<string, string> = {
 };
 
 const PORTION_LABEL_MAP: Record<number, string> = {
-  0.5: 'pequeña',
-  0.7: 'mini',
+  0.5: 'media',
+  0.7: 'pequeña',
   1.5: 'grande',
   2.0: 'doble',
   3.0: 'triple',

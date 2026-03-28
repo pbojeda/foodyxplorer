@@ -267,8 +267,8 @@ Only send the param when it differs from 1.0 — avoids polluting the cache key 
 
 | portionMultiplier | Spanish label       |
 |-------------------|---------------------|
-| 0.5               | pequeña (x0.5)      |
-| 0.7               | mini (x0.7)         |
+| 0.5               | media (x0.5)        |
+| 0.7               | pequeña (x0.7)      |
 | 1.5               | grande (x1.5)       |
 | 2.0               | doble (x2.0)        |
 | 3.0               | triple (x3.0)       |

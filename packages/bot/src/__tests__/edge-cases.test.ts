@@ -277,6 +277,7 @@ describe('handleEstimar — CHAIN_SLUG_REGEX edge cases', () => {
     mock.estimate.mockResolvedValue({
       query: 'test',
       chainSlug: null,
+      portionMultiplier: 1.0,
       level1Hit: false,
       level2Hit: false,
       level3Hit: false,
@@ -539,6 +540,7 @@ describe('formatEstimate — edge cases', () => {
     return {
       query: 'test',
       chainSlug: null,
+      portionMultiplier: 1.0,
       level1Hit: true,
       level2Hit: false,
       level3Hit: false,

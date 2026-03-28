@@ -393,16 +393,16 @@ describe('formatEstimate', () => {
     expect(result).toContain('triple');
   });
 
-  it('portionMultiplier=0.5 → shows "pequeña" label', () => {
+  it('portionMultiplier=0.5 → shows "media" label', () => {
     const data = { ...ESTIMATE_DATA_WITH_RESULT, portionMultiplier: 0.5 };
     const result = formatEstimate(data);
-    expect(result).toContain('peque');
+    expect(result).toContain('media');
   });
 
-  it('portionMultiplier=0.7 → shows "mini" label', () => {
+  it('portionMultiplier=0.7 → shows "pequeña" label', () => {
     const data = { ...ESTIMATE_DATA_WITH_RESULT, portionMultiplier: 0.7 };
     const result = formatEstimate(data);
-    expect(result).toContain('mini');
+    expect(result).toContain('peque');
   });
 
   it('portionMultiplier=1.0 → no portion label line', () => {
