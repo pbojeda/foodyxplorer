@@ -123,7 +123,7 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
     }
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/waitlist`, {
+      const response = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/waitlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, ...(phone.trim() ? { phone: phone.trim() } : {}), variant, source, ...utmParams, honeypot: '' }),
@@ -178,7 +178,7 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
 
   return (
     <form
-      action={`${process.env.NEXT_PUBLIC_API_URL}/waitlist`}
+      action={`${process.env['NEXT_PUBLIC_API_URL']}/waitlist`}
       method="POST"
       onSubmit={handleSubmit}
       noValidate
