@@ -11,10 +11,10 @@
 **Last Updated:** 2026-03-28
 
 **Active Feature:** F037 — Conversational Context Manager
-**Step:** 3/6 (Implement)
+**Step:** 5/6 (Review)
 **Branch:** feature/F037-conversational-context-manager
 **Complexity:** Standard
-**Context:** Spec: Gemini+Codex, 10 fixes. Plan: Gemini+Codex, 9 fixes. 22 ACs, 12 TDD steps, ~90 tests. Plan approved. Implementing TDD steps 1-12.
+**Context:** Spec+Plan reviewed by Gemini+Codex. Implementation: 12 TDD steps, 162 tests (93 impl + 69 QA). Code review: APPROVED (3I fixed). QA: 2 bugs fixed. 1055 total tests. PR #39. Awaiting Merge Approval.
 
 ---
 
@@ -93,7 +93,7 @@
 | F041 | Bot Recipe Calculator (/receta) | fullstack | done | 6/6 | Standard. Bot /receta command → POST /calculate/recipe (free-form). PR #35, SHA c1db312. 100 tests (4 files). 23 files changed |
 | F042 | Portion-Aware NL Estimation | fullstack | done | 6/6 | Standard. PR #36, SHA 67fc5c0. 140 tests (69 impl + 71 QA). BUG-F042-01 resolved |
 | F043 | Dish Comparison via Bot | fullstack | done | 6/6 | Standard. /comparar + NL patterns → 2× /estimate → comparison card. PR #37 merged |
-| F037 | Conversational Context Manager | fullstack | in-progress | 2/6 | Standard. Chain context per chatId, auto-inject in /estimar /comparar NL. Plan reviewed |
+| F037 | Conversational Context Manager | bot | in-progress | 5/6 | Standard. Chain context per chatId, auto-inject in /estimar /comparar NL. PR #39. 162 F037 tests, 1055 total |
 
 ## Features — Marketing & Growth
 

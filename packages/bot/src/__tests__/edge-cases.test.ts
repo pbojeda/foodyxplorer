@@ -15,7 +15,17 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
 import type { ApiClient } from '../apiClient.js';
+import type { Redis } from 'ioredis';
 import type { BotConfig } from '../config.js';
+
+function makeMockRedis() {
+  return {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn(),
+    del: vi.fn(),
+    ttl: vi.fn(),
+  } as unknown as Redis;
+}
 import type { DishListItem, PaginationMeta, EstimateData } from '@foodxplorer/shared';
 import { ApiError } from '../apiClient.js';
 import { escapeMarkdown, truncate, formatNutrient } from '../formatters/markdownUtils.js';
@@ -289,12 +299,12 @@ describe('handleEstimar — CHAIN_SLUG_REGEX edge cases', () => {
   });
 
   it('slug with only digits and hyphen is accepted (e.g. "123-es")', async () => {
-    await handleEstimar('pizza en 123-es', mock as unknown as ApiClient);
+    await handleEstimar('pizza en 123-es', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({ query: 'pizza', chainSlug: '123-es' });
   });
 
   it('slug with multiple hyphens is accepted (e.g. "subway-es-2")', async () => {
-    await handleEstimar('pizza en subway-es-2', mock as unknown as ApiClient);
+    await handleEstimar('pizza en subway-es-2', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({ query: 'pizza', chainSlug: 'subway-es-2' });
   });
 
@@ -302,7 +312,7 @@ describe('handleEstimar — CHAIN_SLUG_REGEX edge cases', () => {
     // "mcdonalds-" — regex /^[a-z0-9-]+-[a-z0-9-]+$/ requires at least one char after the last hyphen
     // The regex actually uses [a-z0-9-]+ for the suffix which allows "-" chars too.
     // Let's verify "mcdonalds-" does not match (empty suffix should fail [a-z0-9-]+).
-    await handleEstimar('pizza en mcdonalds-', mock as unknown as ApiClient);
+    await handleEstimar('pizza en mcdonalds-', 0, makeMockRedis(), mock as unknown as ApiClient);
     // Trailing hyphen — the part after "en " is "mcdonalds-" which ends in hyphen
     // [a-z0-9-]+ requires at least one char — a single hyphen counts!
     // "mcdonalds-" matches because the suffix part (-) is matched by [a-z0-9-]+
@@ -320,7 +330,7 @@ describe('handleEstimar — CHAIN_SLUG_REGEX edge cases', () => {
     // The regex /^[a-z0-9-]+-[a-z0-9-]+$/ — let us check "a-" and "--"
     // "--" : starts with "-" which matches [a-z0-9-]+, then "-" separator, then "-" which matches [a-z0-9-]+
     // So "--" might match the regex as a valid chainSlug — this is a false positive
-    await handleEstimar('pizza en --', mock as unknown as ApiClient);
+    await handleEstimar('pizza en --', 0, makeMockRedis(), mock as unknown as ApiClient);
     const call = mock.estimate.mock.calls[0] as [{ query: string; chainSlug?: string }];
     console.log('[QA] estimate call args for "pizza en --":', JSON.stringify(call[0]));
     // If chainSlug is "--", the API will return 404 or empty result (not a crash),
@@ -329,7 +339,7 @@ describe('handleEstimar — CHAIN_SLUG_REGEX edge cases', () => {
   });
 
   it('args with only " en " (no dish, no slug) returns usage hint', async () => {
-    const result = await handleEstimar(' en ', mock as unknown as ApiClient);
+    const result = await handleEstimar(' en ', 0, makeMockRedis(), mock as unknown as ApiClient);
     // After trim, " en " becomes "en" — no " en " separator found, so full string sent as query
     // Wait: trim of " en " is "en", then parseEstimarArgs("en") finds no " en " -> query = "en"
     // This calls estimate with { query: "en" } — not an error, but unusual.
@@ -339,7 +349,7 @@ describe('handleEstimar — CHAIN_SLUG_REGEX edge cases', () => {
 
   it('very long dish name does not cause regex catastrophic backtracking', async () => {
     const longName = 'a'.repeat(500) + ' en mcdonalds-es';
-    await handleEstimar(longName, mock as unknown as ApiClient);
+    await handleEstimar(longName, 0, makeMockRedis(), mock as unknown as ApiClient);
     const call = mock.estimate.mock.calls[0] as [{ query: string; chainSlug?: string }];
     expect(call[0]?.chainSlug).toBe('mcdonalds-es');
     expect(call[0]?.query).toBe('a'.repeat(500));

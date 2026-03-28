@@ -11,8 +11,18 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ApiClient } from '../apiClient.js';
+import type { Redis } from 'ioredis';
 import type { EstimateData } from '@foodxplorer/shared';
 import { ApiError } from '../apiClient.js';
+
+function makeMockRedis() {
+  return {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn(),
+    del: vi.fn(),
+    ttl: vi.fn(),
+  } as unknown as Redis;
+}
 import {
   splitByComparator,
   parseCompararArgs,
@@ -148,14 +158,14 @@ describe('F043 BUG-1: leading ¿ (inverted question mark) blocks comparison dete
     const mock = makeMockClient();
     mock.estimate.mockResolvedValue(DATA_A);
     // BUG: currently falls through to single-dish path → estimate called once
-    await handleNaturalLanguage('¿qué tiene más calorías, big mac o whopper', mock as unknown as ApiClient);
+    await handleNaturalLanguage('¿qué tiene más calorías, big mac o whopper', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledTimes(2);
   });
 
   it('handleNaturalLanguage calls estimate TWICE for "¿qué es más sano, la ensalada o el bollo?"', async () => {
     const mock = makeMockClient();
     mock.estimate.mockResolvedValue(DATA_A);
-    await handleNaturalLanguage('¿qué es más sano, la ensalada o el bollo?', mock as unknown as ApiClient);
+    await handleNaturalLanguage('¿qué es más sano, la ensalada o el bollo?', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledTimes(2);
   });
 
