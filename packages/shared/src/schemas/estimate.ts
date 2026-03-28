@@ -24,6 +24,7 @@ export const EstimateQuerySchema = z.object({
   query: z.string().trim().min(1).max(255),
   chainSlug: z.string().regex(/^[a-z0-9-]+$/).max(100).optional(),
   restaurantId: z.string().uuid().optional(),
+  portionMultiplier: z.coerce.number().min(0.1).max(5.0).optional(),
 });
 
 export type EstimateQuery = z.infer<typeof EstimateQuerySchema>;
@@ -113,6 +114,7 @@ export type EstimateResult = z.infer<typeof EstimateResultSchema>;
 export const EstimateDataSchema = z.object({
   query: z.string(),
   chainSlug: z.string().nullable(),
+  portionMultiplier: z.number().min(0.1).max(5.0),
   level1Hit: z.boolean(),
   level2Hit: z.boolean(),
   level3Hit: z.boolean(),  // true when Level 3 produced a similarity match

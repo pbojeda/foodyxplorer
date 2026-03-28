@@ -97,3 +97,11 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Solution**: Add a length check after the `!msg.photo` guard: `if (!msg.photo || msg.photo.length === 0) return;`. This ensures `photos[photos.length - 1]` is always a defined `PhotoSize` object.
 - **Prevention**: Non-null assertions (`!`) should be used only when the value is provably non-null by invariant. When the invariant relies on a separate guard, the guard must explicitly cover the empty-array case for array types. Consider replacing `const photo = photos[photos.length - 1]!` with `const photo = photos.at(-1); if (!photo) return;` for defensive access.
 - **Feature**: F031 | **Found by**: qa-engineer | **Severity**: Medium (crashes silently — user gets no response, bot does not crash)
+
+### 2026-03-28 — BUG-F042-01: PORTION_LABEL_MAP — spec labels corrected per code review
+
+- **Issue**: Original spec had `0.5 → "pequeña"` and `0.7 → "mini"`, but semantically "media ración" (0.5 multiplier) should display "media" (half), not "pequeña" (small).
+- **Root Cause**: Spec confusion between modifier tokens and display labels. "media ración" is the *input pattern* for 0.5, but the *display label* should match the concept: "media" = half portion.
+- **Solution**: Corrected spec and implementation: `{ 0.5: 'media', 0.7: 'pequeña', 1.5: 'grande', 2.0: 'doble', 3.0: 'triple' }`. Approved by code-review-specialist.
+- **Prevention**: Distinguish input patterns (what the user types) from display labels (what the bot shows). Review label maps for semantic accuracy, not just spec compliance.
+- **Feature**: F042 | **Found by**: code-review-specialist | **Severity**: Low (spec correction, not runtime bug)

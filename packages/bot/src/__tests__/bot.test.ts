@@ -32,6 +32,7 @@ import type TelegramBot from 'node-telegram-bot-api';
 const ESTIMATE_DATA_WITH_RESULT: EstimateData = {
   query: 'big mac',
   chainSlug: null,
+  portionMultiplier: 1.0,
   level1Hit: true,
   level2Hit: false,
   level3Hit: false,

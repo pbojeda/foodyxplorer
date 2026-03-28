@@ -156,6 +156,7 @@ describe('EstimateDataSchema — Level 3 hit', () => {
     const data = {
       query: 'hamburguesa',
       chainSlug: 'burger-king-es',
+      portionMultiplier: 1.0,
       level1Hit: false,
       level2Hit: false,
       level3Hit: true,
@@ -171,6 +172,7 @@ describe('EstimateDataSchema — Level 3 hit', () => {
     const data = {
       query: 'ternera picada',
       chainSlug: null,
+      portionMultiplier: 1.0,
       level1Hit: false,
       level2Hit: false,
       level3Hit: true,
@@ -186,6 +188,7 @@ describe('EstimateDataSchema — Level 3 hit', () => {
     const data = {
       query: 'hamburguesa',
       chainSlug: null,
+      portionMultiplier: 1.0,
       level1Hit: false,
       level2Hit: false,
       // level3Hit intentionally omitted
@@ -202,6 +205,7 @@ describe('EstimateDataSchema — Level 3 hit', () => {
     const data = {
       query: 'hamburguesa',
       chainSlug: null,
+      portionMultiplier: 1.0,
       level1Hit: true,
       level2Hit: false,
       level3Hit: true, // logically impossible but schema allows it
@@ -227,6 +231,7 @@ describe('EstimateResponseSchema — Level 3 round-trip', () => {
       data: {
         query: 'hamburguesa',
         chainSlug: 'burger-king-es',
+        portionMultiplier: 1.0,
         level1Hit: false,
         level2Hit: false,
         level3Hit: true,
@@ -253,6 +258,7 @@ describe('EstimateResponseSchema — Level 3 round-trip', () => {
       data: {
         query: 'ternera picada',
         chainSlug: null,
+        portionMultiplier: 1.0,
         level1Hit: false,
         level2Hit: false,
         level3Hit: true,
@@ -275,6 +281,7 @@ describe('EstimateResponseSchema — Level 3 round-trip', () => {
       data: {
         query: 'hamburguesa',
         chainSlug: 'burger-king-es',
+        portionMultiplier: 1.0,
         level1Hit: false,
         level2Hit: false,
         level3Hit: true,
@@ -293,6 +300,7 @@ describe('EstimateResponseSchema — Level 3 round-trip', () => {
       data: {
         query: 'something completely unknown',
         chainSlug: null,
+        portionMultiplier: 1.0,
         level1Hit: false,
         level2Hit: false,
         level3Hit: false,

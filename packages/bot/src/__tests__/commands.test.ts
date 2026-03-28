@@ -97,6 +97,7 @@ const CHAIN_ITEM: ChainListItem = {
 const ESTIMATE_DATA_NULL: EstimateData = {
   query: 'xyz',
   chainSlug: null,
+  portionMultiplier: 1.0,
   level1Hit: false,
   level2Hit: false,
   level3Hit: false,
@@ -109,6 +110,7 @@ const ESTIMATE_DATA_NULL: EstimateData = {
 const ESTIMATE_DATA_WITH_RESULT: EstimateData = {
   query: 'big mac',
   chainSlug: null,
+  portionMultiplier: 1.0,
   level1Hit: true,
   level2Hit: false,
   level3Hit: false,
@@ -331,6 +333,43 @@ describe('handleEstimar', () => {
     mock.estimate.mockRejectedValue(new ApiError(408, 'TIMEOUT', 'Timeout'));
     const result = await handleEstimar('test', mock as unknown as ApiClient);
     expect(result).toContain('tardo demasiado');
+  });
+
+  // --- portionModifier ---
+
+  it('"big mac grande" → estimate called with query="big mac", portionMultiplier=1.5', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleEstimar('big mac grande', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledWith({
+      query: 'big mac',
+      portionMultiplier: 1.5,
+    });
+  });
+
+  it('"big mac" (no modifier) → estimate called without portionMultiplier key', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    await handleEstimar('big mac', mock as unknown as ApiClient);
+    const args = mock.estimate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(args, 'portionMultiplier')).toBe(false);
+  });
+
+  it('"big mac grande en mcdonalds-es" → chain slug + modifier correctly split', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleEstimar('big mac grande en mcdonalds-es', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledWith({
+      query: 'big mac',
+      chainSlug: 'mcdonalds-es',
+      portionMultiplier: 1.5,
+    });
+  });
+
+  it('"pizza xl" → estimate called with query="pizza", portionMultiplier=1.5', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    await handleEstimar('pizza xl', mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledWith({
+      query: 'pizza',
+      portionMultiplier: 1.5,
+    });
   });
 });
 
