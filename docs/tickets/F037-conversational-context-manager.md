@@ -1,7 +1,7 @@
 # F037 — Conversational Context Manager
 
 **Feature:** F037 | **Type:** Bot-Feature | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F037-conversational-context-manager
+**Status:** Done | **Branch:** feature/F037-conversational-context-manager (deleted)
 **Created:** 2026-03-28 | **Dependencies:** F032 ✅ (Redis BotState), F043 ✅ (comparar + NL handler), F028 ✅ (NL handler)
 
 ---
@@ -407,7 +407,7 @@ These are extracted to keep handler code clean and unit-testable in isolation.
 - [x] No new Redis keys introduced.
 - [x] `api-spec.yaml` unchanged (no API changes).
 - [x] `ui-components.md` unchanged (bot-only feature).
-- [ ] Product tracker updated (F037 status → done, completion log entry added).
+- [x] Product tracker updated (F037 status → done, completion log entry added).
 
 ---
 
@@ -938,7 +938,7 @@ function makeMockRedis() {
 - [x] Step 3: TDD implementation — 12 steps, 93 new tests, 986 total
 - [x] Step 4: `production-code-validator` READY (0 issues), quality gates pass (tests/build/lint)
 - [x] Step 5: `code-review-specialist` APPROVED (0C, 3I fixed, 4S noted). `qa-engineer` 69 edge-case tests, 2 bugs fixed (BUG-F037-01, BUG-F037-02)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated, branch deleted, tracker updated. SHA d6d32df
 
 ---
 
@@ -961,6 +961,7 @@ function makeMockRedis() {
 | 2026-03-28 | Code review | code-review-specialist: APPROVED. 0C, 3I (redundant try/catch, asymmetric setState comment, Tier 4 trade-off), 4S |
 | 2026-03-28 | QA | qa-engineer: 69 edge-case tests. 2 bugs found and fixed: BUG-F037-01 (BORRAR case), BUG-F037-02 (newline in detector) |
 | 2026-03-28 | Review fixes | Removed redundant try/catch in 3 files, added asymmetry comment, fixed both QA bugs. 1055 tests total |
+| 2026-03-28 | Merge | Squash merge to develop (PR #39), SHA d6d32df. Branch deleted |
 
 ---
 

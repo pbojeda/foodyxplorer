@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-28
 
-**Active Feature:** F037 — Conversational Context Manager
-**Step:** 5/6 (Review)
-**Branch:** feature/F037-conversational-context-manager
-**Complexity:** Standard
-**Context:** Spec+Plan reviewed by Gemini+Codex. Implementation: 12 TDD steps, 162 tests (93 impl + 69 QA). Code review: APPROVED (3I fixed). QA: 2 bugs fixed. 1055 total tests. PR #39. Awaiting Merge Approval.
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F037 completed and merged to develop (PR #39, squash, SHA d6d32df). 1055 tests, build clean.
 
 ---
 
@@ -26,7 +26,7 @@
 | E002 | Data Ingestion Pipeline | done | F007-F019 | E001 complete |
 | E003 | Estimation Engine | done | F020-F024 | E001 complete, E002 partial |
 | E004 | Telegram Bot + Public API | in-progress | F025-F032 | E002 + E003 complete |
-| E005 | Advanced Analysis & UX | planned | F033-F037 | E004 partial |
+| E005 | Advanced Analysis & UX | done | F033-F037 | E004 partial |
 
 ## Features — E001 Infrastructure & Schema
 
@@ -93,7 +93,7 @@
 | F041 | Bot Recipe Calculator (/receta) | fullstack | done | 6/6 | Standard. Bot /receta command → POST /calculate/recipe (free-form). PR #35, SHA c1db312. 100 tests (4 files). 23 files changed |
 | F042 | Portion-Aware NL Estimation | fullstack | done | 6/6 | Standard. PR #36, SHA 67fc5c0. 140 tests (69 impl + 71 QA). BUG-F042-01 resolved |
 | F043 | Dish Comparison via Bot | fullstack | done | 6/6 | Standard. /comparar + NL patterns → 2× /estimate → comparison card. PR #37 merged |
-| F037 | Conversational Context Manager | bot | in-progress | 5/6 | Standard. Chain context per chatId, auto-inject in /estimar /comparar NL. PR #39. 162 F037 tests, 1055 total |
+| F037 | Conversational Context Manager | bot | done | 6/6 | Standard. Chain context per chatId, auto-inject in /estimar /comparar NL. PR #39, SHA d6d32df. 162 F037 tests, 1055 total |
 
 ## Features — Marketing & Growth
 
@@ -154,6 +154,7 @@
 | 2026-03-28 | F042 — Portion-Aware NL Estimation | 67fc5c0 (squash merge to develop, PR #36) | Standard fullstack (API + Bot). API: portionMultiplier param on GET /estimate (0.1-5.0), post-cascade nutrient scaling (2dp), portionGrams (1dp), referenceBasis→per_serving, extended cache key. Bot: extractPortionModifier pure function (15 regex patterns, Spanish size modifiers + plurals), integrated in NL handler + /estimar, formatter PORTION_LABEL_MAP. Spec reviewed by Gemini (1C+2I+1S). Plan reviewed by Gemini (1C+1I+1S). Production validator: 5 issues (3 fixed). Code review: 1C+1S fixed (edge-cases fixture, label semantics). QA: BUG-F042-01 resolved (label map spec correction), 71 edge-case tests. 140 F042 tests (12 files). 31 files changed |
 | 2026-03-28 | F043 — Dish Comparison via Bot | squash merge to develop, PR #37 | Standard bot-only. /comparar command + NL comparison detection (5 prefix patterns × 6 separators). Side-by-side MarkdownV2 code-block table with per-nutrient ✅ winner. Promise.allSettled, outcome matrix (timeout/error/unknown), length guard, same-entity note. Spec reviewed by Gemini+Codex (4C+6I+4S). Plan reviewed by Gemini+Codex (2C+5I+5S). Production validator: READY (0 issues). Code review: 1I fixed (con separator priority). QA: 3 bugs fixed (BUG-F043-01 leading ¿, BUG-F043-02 same-entity, BUG-F043-03 con in NL), 80 edge-case tests. 176 F043 tests (5 files). 11 files changed |
 | 2026-03-28 | F045 — Landing Critical Bug Fixes | squash merge to develop, PR #38 | Standard frontend. 9 fixes from cross-model audit: 3 legal pages (GDPR/LSSI), og-image (1200x630), canonical URL, anchor IDs (#waitlist, #demo), variant D removed (ADR-012), PostSimulatorCTA gated by interaction, animation typo, suppressHydrationWarning, SearchAction removed. Production validator: 1C fixed (variant D in API). Code review: APPROVED (1M: accidental file deletion restored). QA: VERIFIED (22 edge-case tests, 0 bugs). 335 tests (38 suites). 30 files changed |
+| 2026-03-28 | F037 — Conversational Context Manager | d6d32df (squash merge to develop, PR #39) | Standard bot-only. /contexto command (view/clear/set) + NL detection ("estoy en mcdonalds") + auto-inject chainSlug in /estimar, /comparar, NL handler. 4-tier fuzzy chain resolution (exact slug > exact name > prefix > bidirectional substring). BotStateChainContext in Redis, setStateStrict, real Redis TTL. Spec reviewed by Gemini+Codex (10 issues). Plan reviewed by Gemini+Codex (9 issues). Production validator: READY (0 issues). Code review: APPROVED (3I fixed). QA: 2 bugs fixed (BUG-F037-01 BORRAR case, BUG-F037-02 newline detector), 69 edge-case tests. 162 F037 tests (9 files). 30 files changed |
 
 ---
 
