@@ -602,8 +602,8 @@ Follow dependency order: parser (no deps) → formatter (depends on `EstimateDat
 | 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
 | 3. Update key_facts.md | [x] | N/A — bot-only, no new endpoints/schemas |
 | 4. Update decisions.md | [x] | N/A — no ADR required |
-| 5. Commit documentation | [ ] | Pending |
-| 6. Verify clean working tree | [ ] | Pending |
+| 5. Commit documentation | [x] | Commit: ffeae5e |
+| 6. Verify clean working tree | [x] | `git status`: clean (only untracked landing audit file) |
 
 ---
 
