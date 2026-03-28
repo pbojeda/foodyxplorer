@@ -5,6 +5,7 @@
 // handleNaturalLanguage: async handler — calls apiClient.estimate and returns
 //   a MarkdownV2-formatted response string.
 
+import type { Redis } from 'ioredis';
 import type { ApiClient } from '../apiClient.js';
 import { ApiError } from '../apiClient.js';
 import { formatEstimate } from '../formatters/estimateFormatter.js';
@@ -12,6 +13,10 @@ import { handleApiError } from '../commands/errorMessages.js';
 import { extractPortionModifier } from '../lib/portionModifier.js';
 import { extractComparisonQuery } from '../lib/comparisonParser.js';
 import { runComparison } from '../lib/comparisonRunner.js';
+import { getState, setState } from '../lib/conversationState.js';
+import { detectContextSet } from '../lib/contextDetector.js';
+import { resolveChain } from '../lib/chainResolver.js';
+import { formatContextConfirmation } from '../formatters/contextFormatter.js';
 import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
@@ -94,6 +99,53 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
 }
 
 // ---------------------------------------------------------------------------
+// handleNaturalLanguage — internal helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Internal helper for Step 0: attempt to set chain context.
+ * Returns:
+ * - string   — message to return to user (confirmation or ambiguity)
+ * - null     — silent fall-through (not detected, no chain found, or ApiError)
+ */
+async function handleContextSet(
+  chainIdentifier: string,
+  chatId: number,
+  redis: Redis,
+  apiClient: ApiClient,
+): Promise<string | null> {
+  let resolved;
+  try {
+    resolved = await resolveChain(chainIdentifier, apiClient);
+  } catch (err) {
+    if (err instanceof ApiError) {
+      // Silent fall-through on API errors in NL context detection
+      return null;
+    }
+    throw err;
+  }
+
+  if (resolved === null) {
+    // No chain found — fall through silently so the message can be treated as dish query
+    return null;
+  }
+
+  if (resolved === 'ambiguous') {
+    return 'Encontré varias cadenas con ese nombre\\. Por favor, usa el slug exacto \\(por ejemplo: mcdonalds\\-es\\)\\. Usa /cadenas para ver los slugs\\.';
+  }
+
+  // Write chain context to state
+  const state = (await getState(redis, chatId)) ?? {};
+  state.chainContext = {
+    chainSlug: resolved.chainSlug,
+    chainName: resolved.chainName,
+  };
+  await setState(redis, chatId, state);
+
+  return formatContextConfirmation(resolved.chainName, resolved.chainSlug);
+}
+
+// ---------------------------------------------------------------------------
 // handleNaturalLanguage
 // ---------------------------------------------------------------------------
 
@@ -112,6 +164,8 @@ const TOO_LONG_MESSAGE =
  */
 export async function handleNaturalLanguage(
   text: string,
+  chatId: number,
+  redis: Redis,
   apiClient: ApiClient,
 ): Promise<string> {
   const trimmed = text.trim();
@@ -120,16 +174,47 @@ export async function handleNaturalLanguage(
     return TOO_LONG_MESSAGE;
   }
 
-  // Step 0 — Comparison detection (runs before single-dish path)
-  const comparison = extractComparisonQuery(trimmed);
-  if (comparison !== null) {
-    return runComparison(comparison.dishA, comparison.dishB, comparison.nutrientFocus, apiClient);
+  // Step 0 — Context-set detection
+  const chainIdentifier = detectContextSet(trimmed);
+
+  if (chainIdentifier !== null) {
+    const result = await handleContextSet(chainIdentifier, chatId, redis, apiClient);
+    if (result !== null) return result;
+    // null → silent fall-through to Steps 1 & 2
   }
 
+  // ALWAYS load state for Steps 1 & 2 (even when Step 0 fired and fell through)
+  let fallbackChainSlug: string | undefined;
+  try {
+    const botState = await getState(redis, chatId);
+    fallbackChainSlug = botState?.chainContext?.chainSlug;
+  } catch {
+    // Fail-open: Redis error → no chain context injected
+  }
+
+  // Step 1 — Comparison detection
+  const comparison = extractComparisonQuery(trimmed);
+  if (comparison !== null) {
+    return runComparison(
+      comparison.dishA,
+      comparison.dishB,
+      comparison.nutrientFocus,
+      apiClient,
+      fallbackChainSlug,
+    );
+  }
+
+  // Step 2 — Single-dish path
   const { cleanQuery, portionMultiplier } = extractPortionModifier(trimmed);
   const extracted = extractFoodQuery(cleanQuery);
 
   const estimateParams: Parameters<ApiClient['estimate']>[0] = { ...extracted };
+
+  // Inject fallback chain slug when no explicit slug is present
+  if (!estimateParams.chainSlug && fallbackChainSlug) {
+    estimateParams.chainSlug = fallbackChainSlug;
+  }
+
   if (portionMultiplier !== 1.0) {
     estimateParams.portionMultiplier = portionMultiplier;
   }

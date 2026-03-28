@@ -95,7 +95,7 @@ const TEST_CONFIG: BotConfig = {
 };
 
 // Minimal Redis mock — DI into buildBot
-const MOCK_REDIS = { get: vi.fn(), set: vi.fn(), del: vi.fn() };
+const MOCK_REDIS = { get: vi.fn().mockResolvedValue(null), set: vi.fn(), del: vi.fn(), ttl: vi.fn() };
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -145,8 +145,8 @@ describe('buildBot', () => {
     expect(bot).toBeDefined();
   });
 
-  it('registers onText exactly 11 times (one per command including /restaurante, /receta, and /comparar)', () => {
-    expect(mockBot.onText).toHaveBeenCalledTimes(11);
+  it('registers onText exactly 12 times (one per command including /restaurante, /receta, /comparar, and /contexto)', () => {
+    expect(mockBot.onText).toHaveBeenCalledTimes(12);
   });
 
   it('registers polling_error handler via bot.on', () => {

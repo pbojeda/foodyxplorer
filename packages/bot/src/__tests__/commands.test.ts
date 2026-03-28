@@ -3,6 +3,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ApiClient } from '../apiClient.js';
+import type { Redis } from 'ioredis';
 import type { DishListItem, RestaurantListItem, ChainListItem, EstimateData, PaginationMeta } from '@foodxplorer/shared';
 import { ApiError } from '../apiClient.js';
 import { handleStart } from '../commands/start.js';
@@ -14,6 +15,15 @@ import { handleCadenas } from '../commands/cadenas.js';
 import { handleInfo } from '../commands/info.js';
 import { handleApiError } from '../commands/errorMessages.js';
 import type { BotConfig } from '../config.js';
+
+function makeMockRedis() {
+  return {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn(),
+    del: vi.fn(),
+    ttl: vi.fn(),
+  } as unknown as Redis;
+}
 
 // ---------------------------------------------------------------------------
 // MockApiClient
@@ -275,63 +285,63 @@ describe('handleEstimar', () => {
   });
 
   it('returns usage hint for empty args', async () => {
-    const result = await handleEstimar('', mock as unknown as ApiClient);
+    const result = await handleEstimar('', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('/estimar');
     expect(mock.estimate).not.toHaveBeenCalled();
   });
 
   it('calls estimate without chainSlug when no " en " present', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleEstimar('big mac', mock as unknown as ApiClient);
+    await handleEstimar('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({ query: 'big mac' });
   });
 
   it('splits on " en " and sets chainSlug when suffix matches slug format', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleEstimar('big mac en mcdonalds-es', mock as unknown as ApiClient);
+    await handleEstimar('big mac en mcdonalds-es', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({ query: 'big mac', chainSlug: 'mcdonalds-es' });
   });
 
   it('splits on LAST " en " for "pollo en salsa en mcdonalds-es"', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleEstimar('pollo en salsa en mcdonalds-es', mock as unknown as ApiClient);
+    await handleEstimar('pollo en salsa en mcdonalds-es', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({ query: 'pollo en salsa', chainSlug: 'mcdonalds-es' });
   });
 
   it('does NOT split when suffix "salsa" lacks a hyphen (not a chainSlug format)', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleEstimar('pollo en salsa', mock as unknown as ApiClient);
+    await handleEstimar('pollo en salsa', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({ query: 'pollo en salsa' });
   });
 
   it('splits "ensalada en mcdonalds-es" correctly', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleEstimar('ensalada en mcdonalds-es', mock as unknown as ApiClient);
+    await handleEstimar('ensalada en mcdonalds-es', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({ query: 'ensalada', chainSlug: 'mcdonalds-es' });
   });
 
   it('returns formatted estimate card when result is non-null', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
-    const result = await handleEstimar('big mac', mock as unknown as ApiClient);
+    const result = await handleEstimar('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('Big Mac');
     expect(result).toContain('563');
   });
 
   it('returns no-data message when result is null', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    const result = await handleEstimar('xyz dish', mock as unknown as ApiClient);
+    const result = await handleEstimar('xyz dish', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('No se encontraron datos nutricionales');
   });
 
   it('returns rate-limit message for 429 ApiError', async () => {
     mock.estimate.mockRejectedValue(new ApiError(429, 'RATE_LIMIT', 'Too many'));
-    const result = await handleEstimar('test', mock as unknown as ApiClient);
+    const result = await handleEstimar('test', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('Demasiadas consultas');
   });
 
   it('returns timeout message for TIMEOUT code', async () => {
     mock.estimate.mockRejectedValue(new ApiError(408, 'TIMEOUT', 'Timeout'));
-    const result = await handleEstimar('test', mock as unknown as ApiClient);
+    const result = await handleEstimar('test', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('tardo demasiado');
   });
 
@@ -339,7 +349,7 @@ describe('handleEstimar', () => {
 
   it('"big mac grande" → estimate called with query="big mac", portionMultiplier=1.5', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
-    await handleEstimar('big mac grande', mock as unknown as ApiClient);
+    await handleEstimar('big mac grande', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({
       query: 'big mac',
       portionMultiplier: 1.5,
@@ -348,14 +358,14 @@ describe('handleEstimar', () => {
 
   it('"big mac" (no modifier) → estimate called without portionMultiplier key', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleEstimar('big mac', mock as unknown as ApiClient);
+    await handleEstimar('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
     const args = mock.estimate.mock.calls[0]![0] as Record<string, unknown>;
     expect(Object.prototype.hasOwnProperty.call(args, 'portionMultiplier')).toBe(false);
   });
 
   it('"big mac grande en mcdonalds-es" → chain slug + modifier correctly split', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
-    await handleEstimar('big mac grande en mcdonalds-es', mock as unknown as ApiClient);
+    await handleEstimar('big mac grande en mcdonalds-es', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({
       query: 'big mac',
       chainSlug: 'mcdonalds-es',
@@ -365,7 +375,7 @@ describe('handleEstimar', () => {
 
   it('"pizza xl" → estimate called with query="pizza", portionMultiplier=1.5', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleEstimar('pizza xl', mock as unknown as ApiClient);
+    await handleEstimar('pizza xl', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({
       query: 'pizza',
       portionMultiplier: 1.5,

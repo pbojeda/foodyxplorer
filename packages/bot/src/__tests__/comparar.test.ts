@@ -2,8 +2,18 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ApiClient } from '../apiClient.js';
+import type { Redis } from 'ioredis';
 import type { EstimateData } from '@foodxplorer/shared';
 import { handleComparar } from '../commands/comparar.js';
+
+function makeMockRedis() {
+  return {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn(),
+    del: vi.fn(),
+    ttl: vi.fn(),
+  } as unknown as Redis;
+}
 
 // ---------------------------------------------------------------------------
 // MockApiClient
@@ -78,20 +88,20 @@ beforeEach(() => {
 
 describe('handleComparar', () => {
   it('returns usage hint when args is empty', async () => {
-    const result = await handleComparar('', client as unknown as ApiClient);
+    const result = await handleComparar('', 0, makeMockRedis(), client as unknown as ApiClient);
     expect(result).toContain('/comparar');
     expect(result).toContain('vs');
     expect(client.estimate).not.toHaveBeenCalled();
   });
 
   it('returns usage hint for whitespace-only args', async () => {
-    const result = await handleComparar('   ', client as unknown as ApiClient);
+    const result = await handleComparar('   ', 0, makeMockRedis(), client as unknown as ApiClient);
     expect(result).toContain('/comparar');
     expect(client.estimate).not.toHaveBeenCalled();
   });
 
   it('returns no-separator error when no recognised separator', async () => {
-    const result = await handleComparar('big mac', client as unknown as ApiClient);
+    const result = await handleComparar('big mac', 0, makeMockRedis(), client as unknown as ApiClient);
     expect(result).toContain('No encontr');
     expect(result).toContain('vs');
     expect(client.estimate).not.toHaveBeenCalled();
@@ -99,7 +109,7 @@ describe('handleComparar', () => {
 
   it('calls estimate twice for happy path "big mac vs whopper"', async () => {
     client.estimate.mockResolvedValue(ESTIMATE_DATA);
-    const result = await handleComparar('big mac vs whopper', client as unknown as ApiClient);
+    const result = await handleComparar('big mac vs whopper', 0, makeMockRedis(), client as unknown as ApiClient);
     expect(client.estimate).toHaveBeenCalledTimes(2);
     expect(typeof result).toBe('string');
     expect(result.length).toBeGreaterThan(0);
@@ -107,7 +117,7 @@ describe('handleComparar', () => {
 
   it('propagates the formatted comparison string', async () => {
     client.estimate.mockResolvedValue(ESTIMATE_DATA);
-    const result = await handleComparar('big mac vs whopper', client as unknown as ApiClient);
+    const result = await handleComparar('big mac vs whopper', 0, makeMockRedis(), client as unknown as ApiClient);
     // Should contain comparison card elements
     expect(result).toContain('Big Mac');
   });
@@ -115,13 +125,13 @@ describe('handleComparar', () => {
   it('rethrows unknown errors from runComparison', async () => {
     client.estimate.mockRejectedValue(new Error('random crash'));
     await expect(
-      handleComparar('big mac vs whopper', client as unknown as ApiClient),
+      handleComparar('big mac vs whopper', 0, makeMockRedis(), client as unknown as ApiClient),
     ).rejects.toThrow('random crash');
   });
 
   it('nutrientFocus is always undefined for slash command', async () => {
     client.estimate.mockResolvedValue(ESTIMATE_DATA);
-    const result = await handleComparar('big mac vs whopper', client as unknown as ApiClient);
+    const result = await handleComparar('big mac vs whopper', 0, makeMockRedis(), client as unknown as ApiClient);
     // No (foco) label should appear in the result
     expect(result).not.toContain('(foco)');
   });
