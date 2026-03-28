@@ -28,8 +28,9 @@ export interface ParsedComparison {
 
 // Strong separators (word-boundary, first occurrence) tried first,
 // then weak separators (space-flanked, last occurrence).
-// This prevents "con" from matching inside dish names like "helado con chocolate".
-export const COMPARISON_SEPARATORS = ['versus', 'contra', 'vs', 'con', 'o', 'y'] as const;
+// "con" is last because it's extremely common in Spanish dish names
+// ("helado con chocolate", "pollo con verduras", "arroz con leche").
+export const COMPARISON_SEPARATORS = ['versus', 'contra', 'vs', 'o', 'y', 'con'] as const;
 
 // ChainSlug format: lowercase letters, digits, hyphens — MUST contain at
 // least one hyphen. Copied verbatim from naturalLanguage.ts (F028 pattern).
@@ -170,7 +171,11 @@ export function parseDishExpression(text: string): {
     }
   }
 
-  // Step 2 — Portion modifier extraction
+  // Step 2 — Strip trailing punctuation (?, !) and leading articles (un, una, el, la).
+  remainder = remainder.replace(/[?!]+$/, '').trim();
+  remainder = remainder.replace(/^(?:un[ao]?|el|la)\s+/i, '');
+
+  // Step 3 — Portion modifier extraction
   const { cleanQuery, portionMultiplier } = extractPortionModifier(remainder);
 
   const result: { query: string; chainSlug?: string; portionMultiplier: number } = {
@@ -218,10 +223,16 @@ function matchPrefix(text: string): PrefixMatch | null {
  * Phase 2 — Pass remainder to splitByComparator for separator splitting.
  */
 export function extractComparisonQuery(text: string): ParsedComparison | null {
-  const prefixMatch = matchPrefix(text);
+  // Strip leading ¿/¡ and trailing ?/! — Spanish punctuation common in chat.
+  const cleaned = text.replace(/^[¿¡]+/, '').replace(/[?!]+$/, '').trim();
+
+  const prefixMatch = matchPrefix(cleaned);
   if (!prefixMatch) return null;
 
-  const split = splitByComparator(prefixMatch.remainder);
+  // Strip trailing punctuation from remainder too (e.g. "big mac o whopper?").
+  const remainder = prefixMatch.remainder.replace(/[?!]+$/, '').trim();
+
+  const split = splitByComparator(remainder);
   if (!split) return null;
 
   return {

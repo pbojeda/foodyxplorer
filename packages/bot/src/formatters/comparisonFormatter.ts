@@ -223,6 +223,12 @@ export function formatComparison(
     lines.push(`_Porción ${escapeMarkdown(nameB)}: ${escapeMarkdown(label)} \\(x${escapeMarkdown(String(dataB.portionMultiplier))}\\)_`);
   }
 
+  // Same-entity note.
+  if (resultA.entityId === resultB.entityId) {
+    lines.push('');
+    lines.push('_Ambos platos corresponden al mismo resultado en la base de datos\\._');
+  }
+
   return lines.join('\n');
 }
 
