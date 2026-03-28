@@ -12,6 +12,7 @@ interface WaitlistCTASectionProps {
 export function WaitlistCTASection({ dict, variant }: WaitlistCTASectionProps) {
   return (
     <section
+      id="waitlist"
       aria-labelledby="waitlist-cta-heading"
       data-section="waitlist-cta"
       className="py-20 md:py-28 relative overflow-hidden"

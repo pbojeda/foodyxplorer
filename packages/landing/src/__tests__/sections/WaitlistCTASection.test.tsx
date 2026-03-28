@@ -43,4 +43,9 @@ describe('WaitlistCTASection', () => {
     render(<WaitlistCTASection dict={dict.waitlistCta} variant="c" />);
     expect(screen.getByText(dict.waitlistCta.headline)).toBeInTheDocument();
   });
+
+  it('root section has id="waitlist" for anchor navigation (BUG-LANDING-03)', () => {
+    const { container } = render(<WaitlistCTASection dict={dict.waitlistCta} variant="a" />);
+    expect(container.querySelector('#waitlist')).not.toBeNull();
+  });
 });
