@@ -729,8 +729,8 @@ Update all existing `formatEstimate` tests in the file that use `ESTIMATE_DATA_W
 - [x] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
 - [x] Step 3: Implementation with TDD (10 steps)
 - [x] Step 4: `production-code-validator` executed (5 issues found, 3 fixed), quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard)
+- [x] Step 5: `code-review-specialist` executed — 1 critical (edge-cases fixture), 1 suggestion (label map semantics), both fixed
+- [x] Step 5: `qa-engineer` executed — 71 edge-case tests, BUG-F042-01 (label semantics, resolved per code review)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -744,6 +744,8 @@ Update all existing `formatEstimate` tests in the file that use `ESTIMATE_DATA_W
 | 2026-03-28 | Plan written + reviewed | backend-planner (Steps 1-4 API) + backend-planner (Steps 5-10 bot). Reviewed by Gemini (1C+1I+1S). Fixed: referenceBasis must be SET to per_serving (not remain) when multiplying per_100g results |
 | 2026-03-28 | Implemented (Step 3) | 10 TDD steps, 69 new tests. Commit a230bbe |
 | 2026-03-28 | Finalized (Step 4) | production-code-validator: 1C (spec portionGrams example), 1H (estimar error logging), 3M. All fixed. Quality gates pass. |
+| 2026-03-28 | Code review (Step 5) | code-review-specialist: 1C (edge-cases fixture tsc), 1S (PORTION_LABEL_MAP 0.5→media). Both fixed. |
+| 2026-03-28 | QA review (Step 5) | qa-engineer: 71 edge-case tests across 6 files. BUG-F042-01 label semantics — resolved (spec corrected per code review). All 140 new tests green. |
 
 ---
 

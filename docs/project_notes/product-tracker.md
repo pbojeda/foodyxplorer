@@ -14,7 +14,7 @@
 **Step:** 5/6 (Review)
 **Branch:** feature/F042-portion-aware-nl-estimation
 **Complexity:** Standard
-**Context:** Implementation complete (69 tests, 10 TDD steps). Validator: 5 issues found, 3 fixed. Quality gates pass. Ready for PR + code review + QA.
+**Context:** PR #36. Code review: 1C+1S fixed. QA: 71 edge-case tests, BUG-F042-01 resolved. 140 total new tests. Ready for merge approval.
 
 ---
 
