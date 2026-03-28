@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-28
 
-**Active Feature:** No active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F043 completed and merged to develop (PR #37, squash). 893 tests, build clean.
+**Active Feature:** F045 — Landing Critical Bug Fixes
+**Step:** 5/6 (Review)
+**Branch:** feature/F045-landing-critical-fixes
+**Complexity:** Standard
+**Context:** 9 bug fixes from cross-model audit. Working in worktree to avoid conflicts with F037.
 
 ---
 
@@ -101,7 +101,7 @@
 |----|---------|------|--------|------|-------|
 | F039 | Landing Page — nutriXplorer | frontend | done | 6/6 | Standard. packages/landing/ standalone. Next.js 14 + Tailwind + Framer Motion. 9 sections, A/B hero, SEO, GDPR, analytics. 153 tests. SHA 64280e4 |
 | F044 | Landing Page Overhaul — v5 design, 4 A/B variants, SearchSimulator | frontend | done | 6/6 | Standard. Glass-card aesthetic, 8 images, 4 variants (A/C/D/F), Mediterranean palette, PostSimulatorCTA. 286 tests. SHA 013935d |
-| F045 | Landing — Critical Bug Fixes | frontend | pending | — | Standard. Fix BUG-LANDING-01 to 08: legal pages, og-image, canonical, anchors, variant D hero, hydration warning, SearchAction. See audit 2026-03-28 |
+| F045 | Landing — Critical Bug Fixes | frontend | in-progress | 5/6 | Standard. Fix BUG-LANDING-01 to 08 + canonical URL: legal pages, og-image, canonical, anchors, variant D disabled, hydration warning, SearchAction. See audit 2026-03-28 |
 | F046 | Landing — Waitlist Persistence + Anti-Spam | fullstack | pending | — | Standard. POST /waitlist endpoint in packages/api, waitlist_submissions table, honeypot + rate limiting. ADR-012. Depends on F045 |
 | F047 | Landing — Conversion Optimization | frontend | pending | — | Standard. GA4 initialization, mobile hamburger menu, social proof, benefit-oriented CTAs, phone field UX. Depends on F046 |
 | F040 | Landing Page FAQ Section + Schema | frontend | pending | — | Standard. FAQ accordion with structured data (FAQPage schema). Deferred from F039. Depends on F045 |
