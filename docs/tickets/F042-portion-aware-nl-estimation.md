@@ -755,13 +755,13 @@ Update all existing `formatEstimate` tests in the file that use `ESTIMATE_DATA_W
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan, AC, DoD, Workflow, Completion Log, Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 14/14, DoD: 6/6, Workflow: 0-5/6 |
+| 2. Verify product tracker | [x] | Active Session: step 5/6 (Review), Features table: 5/6 |
+| 3. Update key_facts.md | [x] | Updated: estimate route (portionMultiplier param + cache key), estimate schemas (portionMultiplier fields), NL handler (pipeline update), portionModifier (new entry) |
+| 4. Update decisions.md | [x] | N/A — no new ADR needed |
+| 5. Commit documentation | [x] | Commit: ff335ea |
+| 6. Verify clean working tree | [x] | `git status`: clean |
 
 ---
 
