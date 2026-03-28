@@ -27,6 +27,15 @@ export interface BotStateRestaurant {
 }
 
 /**
+ * Per-chat chain context set by the user via /contexto or natural language.
+ * When present, /estimar and /comparar queries are scoped to this chain.
+ */
+export interface BotStateChainContext {
+  chainSlug: string;
+  chainName: string;
+}
+
+/**
  * The full state persisted for a chat session.
  *
  * - `selectedRestaurant`: The restaurant currently in context for the chat.
@@ -40,12 +49,14 @@ export interface BotStateRestaurant {
  *                         photo. Stored here because callback_data is limited
  *                         to 64 bytes (too short for a Telegram file_id).
  *                         Retrieved by the upload_ingest callback handler.
+ * - `chainContext`:       Active chain context set via /contexto or NL detection.
  */
 export interface BotState {
   selectedRestaurant?: BotStateRestaurant;
   searchResults?: Record<string, string>;  // { [uuid]: name }
   pendingSearch?: string;
   pendingPhotoFileId?: string;
+  chainContext?: BotStateChainContext;
 }
 
 // ---------------------------------------------------------------------------
@@ -54,7 +65,7 @@ export interface BotState {
 
 const STATE_TTL_SECONDS = 7200;
 
-function stateKey(chatId: number): string {
+export function stateKey(chatId: number): string {
   return `bot:state:${chatId}`;
 }
 
@@ -90,6 +101,23 @@ export async function setState(redis: Redis, chatId: number, state: BotState): P
     await redis.set(stateKey(chatId), JSON.stringify(state), 'EX', STATE_TTL_SECONDS);
   } catch {
     // Fail-open: Redis error → ignore
+  }
+}
+
+// ---------------------------------------------------------------------------
+// setStateStrict
+// ---------------------------------------------------------------------------
+
+/**
+ * Persist a BotState for a chat, refreshing the TTL.
+ * Returns true on success, false on Redis error (strict — errors are NOT swallowed).
+ */
+export async function setStateStrict(redis: Redis, chatId: number, state: BotState): Promise<boolean> {
+  try {
+    await redis.set(stateKey(chatId), JSON.stringify(state), 'EX', STATE_TTL_SECONDS);
+    return true;
+  } catch {
+    return false;
   }
 }
 

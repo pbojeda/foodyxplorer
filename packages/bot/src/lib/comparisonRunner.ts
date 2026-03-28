@@ -27,6 +27,7 @@ export async function runComparison(
   dishBText: string,
   nutrientFocus: string | undefined,
   apiClient: ApiClient,
+  fallbackChainSlug?: string,
 ): Promise<string> {
   const exprA = parseDishExpression(dishAText);
   const exprB = parseDishExpression(dishBText);
@@ -34,10 +35,12 @@ export async function runComparison(
   // Build estimate params — omit portionMultiplier when 1.0 (match existing pattern).
   const paramsA: Parameters<ApiClient['estimate']>[0] = { query: exprA.query };
   if (exprA.chainSlug) paramsA.chainSlug = exprA.chainSlug;
+  if (!exprA.chainSlug && fallbackChainSlug) paramsA.chainSlug = fallbackChainSlug;
   if (exprA.portionMultiplier !== 1.0) paramsA.portionMultiplier = exprA.portionMultiplier;
 
   const paramsB: Parameters<ApiClient['estimate']>[0] = { query: exprB.query };
   if (exprB.chainSlug) paramsB.chainSlug = exprB.chainSlug;
+  if (!exprB.chainSlug && fallbackChainSlug) paramsB.chainSlug = fallbackChainSlug;
   if (exprB.portionMultiplier !== 1.0) paramsB.portionMultiplier = exprB.portionMultiplier;
 
   const [settledA, settledB] = await Promise.allSettled([

@@ -189,6 +189,22 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Prevention**: Any script that mutates DOM before hydration needs suppressHydrationWarning on the affected element.
 - **Feature**: F044 | **Found by**: Gemini audit | **Severity**: Important
 
+### 2026-03-28 — BUG-F037-01: `/contexto BORRAR` (uppercase) routes to Set flow instead of Clear flow
+
+- **Issue**: Typing `/contexto BORRAR` (or any mixed-case variant: `Borrar`, `BORRAR`) is treated as a chain name to set, not as the clear subcommand. The user gets "No encontré ninguna cadena" instead of the expected clear confirmation. The existing chain context is NOT cleared.
+- **Root Cause**: `handleContexto` in `packages/bot/src/commands/contexto.ts` uses a strict case-sensitive equality check: `if (trimmed === 'borrar')`. The Telegram bot regex for `/contexto` passes `match[1]` verbatim — any casing variation bypasses the clear branch.
+- **Solution**: Change the equality check to a case-insensitive comparison: `if (trimmed.toLowerCase() === 'borrar')`. The spec does not require case-sensitivity on this subcommand, and Telegram users commonly send mixed-case inputs.
+- **Prevention**: Subcommand routing on freeform text args should always normalize case before comparing. Add test coverage for uppercase/mixed-case subcommand variants.
+- **Feature**: F037 | **Found by**: qa-engineer | **Severity**: Low (UX confusing but no data loss)
+
+### 2026-03-28 — BUG-F037-02: `detectContextSet` captures embedded newlines in chain identifier
+
+- **Issue**: Input `"estoy en\nmcdonalds"` (newline-separated, possible from copy-paste or multiline Telegram message via the `/s` regex in `bot.ts`) returns `"mcdonalds"` instead of null. The `\s+` in `CONTEXT_SET_REGEX` matches newlines, so the newline is consumed as part of the `\s+` between "en" and the capture. The capture group `[^,¿?!.]{1,50}` then captures everything after the newline.
+- **Root Cause**: `CONTEXT_SET_REGEX` is not anchored against multiline in the whitespace position, and `\s+` matches `\n`. This can cause surprising context-set matches for multi-line messages delivered from `/contexto` (which uses the `/s` dotAll flag in its registration regex).
+- **Solution**: In `detectContextSet`, reject captures that contain newlines: `if (/\n/.test(captured)) return null;`. Alternatively, change `\s+` to `[^\S\n]+` (horizontal whitespace only) in the regex.
+- **Prevention**: When writing regexes for Telegram bot input, account for the dotAll (`/s`) flag in the bot registration regex that can deliver multiline text. Test with `\n`-embedded inputs.
+- **Feature**: F037 | **Found by**: qa-engineer | **Severity**: Low (edge case, graceful downstream handling via resolveChain min-length guard in most scenarios)
+
 ### 2026-03-28 — BUG-LANDING-08: JSON-LD SearchAction points to /?q= which doesn't function
 
 - **Issue**: seo.ts includes a SearchAction schema with urlTemplate `/?q={search_term_string}`. The page doesn't read or act on ?q= parameter.

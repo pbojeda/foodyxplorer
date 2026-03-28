@@ -9,8 +9,18 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ApiClient } from '../apiClient.js';
+import type { Redis } from 'ioredis';
 import type { EstimateData } from '@foodxplorer/shared';
 import { handleNaturalLanguage } from '../handlers/naturalLanguage.js';
+
+function makeMockRedis() {
+  return {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn(),
+    del: vi.fn(),
+    ttl: vi.fn(),
+  } as unknown as Redis;
+}
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -67,7 +77,7 @@ describe('handleNaturalLanguage — F042 portionModifier edge cases', () => {
     // extractPortionModifier('grande') returns cleanQuery:'grande', multiplier:1.0 (empty-after-strip fallback)
     // portionMultiplier=1.0 → NOT passed to apiClient per spec
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleNaturalLanguage('grande', mock as unknown as ApiClient);
+    await handleNaturalLanguage('grande', 0, makeMockRedis(), mock as unknown as ApiClient);
 
     const args = mock.estimate.mock.calls[0]![0] as Record<string, unknown>;
     expect(args['query']).toBe('grande');
@@ -76,7 +86,7 @@ describe('handleNaturalLanguage — F042 portionModifier edge cases', () => {
 
   it('"grande big mac" → modifier at start → cleanQuery: "big mac", portionMultiplier: 1.5', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleNaturalLanguage('grande big mac', mock as unknown as ApiClient);
+    await handleNaturalLanguage('grande big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
 
     expect(mock.estimate).toHaveBeenCalledWith({
       query: 'big mac',
@@ -86,7 +96,7 @@ describe('handleNaturalLanguage — F042 portionModifier edge cases', () => {
 
   it('"triple sandwich de pollo" → modifier at start → cleanQuery: "sandwich de pollo", portionMultiplier: 3.0', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleNaturalLanguage('triple sandwich de pollo', mock as unknown as ApiClient);
+    await handleNaturalLanguage('triple sandwich de pollo', 0, makeMockRedis(), mock as unknown as ApiClient);
 
     expect(mock.estimate).toHaveBeenCalledWith({
       query: 'sandwich de pollo',
@@ -100,7 +110,7 @@ describe('handleNaturalLanguage — F042 portionModifier edge cases', () => {
     // Then extractFoodQuery('calorías de una tortilla')
     //   → query: 'tortilla'
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleNaturalLanguage('calorías de una tortilla doble', mock as unknown as ApiClient);
+    await handleNaturalLanguage('calorías de una tortilla doble', 0, makeMockRedis(), mock as unknown as ApiClient);
 
     expect(mock.estimate).toHaveBeenCalledWith({
       query: 'tortilla',
@@ -115,7 +125,7 @@ describe('handleNaturalLanguage — F042 portionModifier edge cases', () => {
     //   NOTE: bare 'de' is NOT in the ARTICLE_PATTERN (only del, un, una, el, la etc.)
     //   so the query remains 'de pollo', not 'pollo'.
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleNaturalLanguage('media ración de pollo en mcdonalds-es', mock as unknown as ApiClient);
+    await handleNaturalLanguage('media ración de pollo en mcdonalds-es', 0, makeMockRedis(), mock as unknown as ApiClient);
 
     expect(mock.estimate).toHaveBeenCalledWith({
       query: 'de pollo',
@@ -126,7 +136,7 @@ describe('handleNaturalLanguage — F042 portionModifier edge cases', () => {
 
   it('"pizza mini" → portionMultiplier: 0.7 sent to apiClient', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleNaturalLanguage('pizza mini', mock as unknown as ApiClient);
+    await handleNaturalLanguage('pizza mini', 0, makeMockRedis(), mock as unknown as ApiClient);
 
     expect(mock.estimate).toHaveBeenCalledWith({
       query: 'pizza',
@@ -136,7 +146,7 @@ describe('handleNaturalLanguage — F042 portionModifier edge cases', () => {
 
   it('"half burger" → portionMultiplier: 0.5 sent to apiClient', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleNaturalLanguage('half burger', mock as unknown as ApiClient);
+    await handleNaturalLanguage('half burger', 0, makeMockRedis(), mock as unknown as ApiClient);
 
     expect(mock.estimate).toHaveBeenCalledWith({
       query: 'burger',
@@ -146,7 +156,7 @@ describe('handleNaturalLanguage — F042 portionModifier edge cases', () => {
 
   it('"pizza medias" (standalone medias) → portionMultiplier: 0.5, cleanQuery: "pizza"', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleNaturalLanguage('pizza medias', mock as unknown as ApiClient);
+    await handleNaturalLanguage('pizza medias', 0, makeMockRedis(), mock as unknown as ApiClient);
 
     expect(mock.estimate).toHaveBeenCalledWith({
       query: 'pizza',
