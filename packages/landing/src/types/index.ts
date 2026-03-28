@@ -4,7 +4,16 @@ export type Palette = 'botanical' | 'med';
 
 export type Locale = 'es' | 'en';
 
-export type WaitlistPayload = { email: string; phone?: string; variant: string; source: string };
+export type WaitlistPayload = {
+  email: string;
+  phone?: string;
+  variant: string;
+  source: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  honeypot: string;
+};
 
 export type WaitlistResponse = { success: boolean; error?: string };
 

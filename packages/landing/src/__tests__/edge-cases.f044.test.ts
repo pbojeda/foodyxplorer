@@ -5,8 +5,8 @@
  *
  * QA-authored tests targeting gaps not covered by the developer's test suite.
  *
- * API-route cases use the node environment so Request/Response are available natively.
- * Non-API cases (phone schema, content integrity) are pure unit tests with no DOM needs.
+ * Note: API route tests (sections 2 and 6) removed in F046 — the Next.js
+ * /api/waitlist route was deleted and replaced by the Fastify API.
  */
 
 // ---------------------------------------------------------------------------
@@ -19,7 +19,7 @@
 // ---------------------------------------------------------------------------
 import { z } from 'zod';
 
-// Reproduce the exact schema used by WaitlistForm and the API route
+// Reproduce the exact schema used by WaitlistForm
 const phoneSchema = z
   .string()
   .optional()
@@ -94,85 +94,6 @@ describe('Phone validation — boundary and edge cases', () => {
 
   it('rejects a phone number with letters (+34ABC345678)', () => {
     expect(phoneValid('+34ABC345678')).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 2. WaitlistPayload type drift — phone field missing in types/index.ts
-//    This is a static analysis concern; we verify the runtime behaviour
-//    by testing the route directly.
-// ---------------------------------------------------------------------------
-import { POST } from '@/app/api/waitlist/route';
-
-function makeJsonRequest(body: unknown) {
-  return new Request('http://localhost/api/waitlist', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-}
-
-describe('POST /api/waitlist — phone field edge cases', () => {
-  it('returns 200 when phone is absent (optional)', async () => {
-    const req = makeJsonRequest({ email: 'user@example.com' });
-    const res = await POST(req);
-    expect(res.status).toBe(200);
-  });
-
-  it('returns 200 when phone is an empty string (optional)', async () => {
-    const req = makeJsonRequest({ email: 'user@example.com', phone: '' });
-    const res = await POST(req);
-    expect(res.status).toBe(200);
-  });
-
-  it('returns 200 when phone is a valid Spanish number', async () => {
-    const req = makeJsonRequest({ email: 'user@example.com', phone: '+34612345678' });
-    const res = await POST(req);
-    expect(res.status).toBe(200);
-  });
-
-  it('returns 400 when phone is present but invalid format', async () => {
-    const req = makeJsonRequest({ email: 'user@example.com', phone: 'notaphone' });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 400 when phone is a number without + prefix', async () => {
-    const req = makeJsonRequest({ email: 'user@example.com', phone: '34612345678' });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 400 when phone is too short (+12345)', async () => {
-    const req = makeJsonRequest({ email: 'user@example.com', phone: '+12345' });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 400 when phone is excessively long (16 digits after +)', async () => {
-    const req = makeJsonRequest({ email: 'user@example.com', phone: '+1234567890123456' });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 400 when phone contains letters', async () => {
-    const req = makeJsonRequest({ email: 'user@example.com', phone: '+34ABC345678' });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-
-  // -------------------------------------------------------------------------
-  // Double-submit: submit the same valid payload twice back-to-back.
-  // Each POST must return a well-formed HTTP response (no crash on second call).
-  // -------------------------------------------------------------------------
-  it('handles two rapid consecutive requests without crashing', async () => {
-    const payload = { email: 'user@example.com' };
-    const [r1, r2] = await Promise.all([
-      POST(makeJsonRequest(payload)),
-      POST(makeJsonRequest(payload)),
-    ]);
-    expect([200, 400]).toContain(r1.status);
-    expect([200, 400]).toContain(r2.status);
   });
 });
 
@@ -346,83 +267,4 @@ describe('SearchSimulator filter logic — edge cases', () => {
     expect(() => filterDishes(longQuery)).not.toThrow();
     expect(filterDishes(longQuery)).toHaveLength(0);
   });
-});
-
-// ---------------------------------------------------------------------------
-// 6. API route — concurrent requests and additional security cases
-// ---------------------------------------------------------------------------
-describe('POST /api/waitlist — concurrency and additional security', () => {
-  it('handles 10 concurrent valid requests without crashing', async () => {
-    const requests = Array.from({ length: 10 }, (_, i) =>
-      POST(
-        makeJsonRequest({ email: `user${i}@example.com` })
-      )
-    );
-    const responses = await Promise.all(requests);
-    for (const res of responses) {
-      expect(res.status).toBe(200);
-    }
-  });
-
-  it('rejects email with embedded newline (CRLF injection attempt)', async () => {
-    const req = makeJsonRequest({ email: 'user\r\n@example.com' });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-
-  it('rejects email with null byte', async () => {
-    const req = makeJsonRequest({ email: 'user\0@example.com' });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-
-  it('rejects email that is an array', async () => {
-    const req = makeJsonRequest({ email: ['user@example.com'] });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-
-  it('rejects email that is an object', async () => {
-    const req = makeJsonRequest({ email: { value: 'user@example.com' } });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-
-  it('returns a body with success:false and an error string on 400', async () => {
-    const req = makeJsonRequest({ email: 'not-valid' });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-    const body = await res.json() as { success: boolean; error?: string };
-    expect(body.success).toBe(false);
-    expect(typeof body.error).toBe('string');
-    expect(body.error!.length).toBeGreaterThan(0);
-  });
-
-  /**
-   * RISK — No rate limiting implemented.
-   * The route currently accepts unlimited POST requests.
-   * An attacker can spam the waitlist with synthetic addresses.
-   * Fix: add rate limiting middleware (e.g. Upstash Ratelimit) at the
-   * Next.js middleware layer before the route handler runs.
-   *
-   * Marked .todo because implementing rate limiting is outside the
-   * scope of F044, but the risk should be tracked.
-   */
-  it.todo('[RISK] POST /api/waitlist has no rate limiting — waitlist can be spammed');
-
-  /**
-   * BUG — Double-submit race condition in WaitlistForm:
-   * handleSubmit does NOT check if status === 'loading' before proceeding.
-   * If two submit events fire before the first setStatus('loading') renders
-   * (theoretically possible in concurrent React), both would proceed to fetch.
-   *
-   * In practice, React batches state updates so the second submit is blocked
-   * by the button being disabled, but the form's onSubmit handler has no guard.
-   *
-   * Marked .todo to document the gap; severity LOW because the disabled button
-   * provides a practical guard for normal browser interaction.
-   */
-  it.todo(
-    '[BUG] WaitlistForm.handleSubmit has no early return when status === "loading"'
-  );
 });

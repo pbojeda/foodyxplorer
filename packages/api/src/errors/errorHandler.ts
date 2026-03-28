@@ -409,6 +409,20 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // DUPLICATE_EMAIL — email unique constraint violation in waitlist_submissions (F046)
+  if (asAny['code'] === 'DUPLICATE_EMAIL') {
+    return {
+      statusCode: 409,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'DUPLICATE_EMAIL',
+        },
+      },
+    };
+  }
+
   // RATE_LIMIT_EXCEEDED — @fastify/rate-limit exceeded response
   if (asAny['code'] === 'RATE_LIMIT_EXCEEDED') {
     return {

@@ -4,7 +4,7 @@
 // Both modules import from here instead of from each other.
 
 /** Admin route URL prefixes (trailing slash required for prefix matching) */
-export const ADMIN_PREFIXES = ['/ingest/', '/quality/', '/embeddings/', '/analytics/'] as const;
+export const ADMIN_PREFIXES = ['/ingest/', '/quality/', '/embeddings/', '/analytics/', '/admin/'] as const;
 
 export function isAdminRoute(url: string | undefined, method?: string): boolean {
   if (!url) return false;

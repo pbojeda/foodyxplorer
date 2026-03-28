@@ -13,6 +13,7 @@ import {
 import type { PrismaClient } from '@prisma/client';
 import type { Redis } from 'ioredis';
 
+import fastifyFormbody from '@fastify/formbody';
 import fastifyMultipart from '@fastify/multipart';
 
 import { config as defaultConfig, type Config } from './config.js';
@@ -36,6 +37,7 @@ import { catalogRoutes } from './routes/catalog.js';
 import { analyticsRoutes } from './routes/analytics.js';
 import { recipeCalculateRoutes } from './routes/recipeCalculate.js';
 import { analyzeRoutes } from './routes/analyze.js';
+import { waitlistRoutes } from './routes/waitlist.js';
 import { getKysely } from './lib/kysely.js';
 
 // ---------------------------------------------------------------------------
@@ -63,7 +65,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   let app: FastifyInstance;
 
   if (cfg.NODE_ENV === 'test') {
-    app = Fastify({ logger: false });
+    app = Fastify({ logger: false, trustProxy: true });
   } else if (cfg.NODE_ENV === 'development') {
     app = Fastify({
       logger: {
@@ -72,12 +74,14 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
           target: 'pino-pretty',
         },
       },
+      trustProxy: true,
     });
   } else {
     app = Fastify({
       logger: {
         level: cfg.LOG_LEVEL,
       },
+      trustProxy: true,
     });
   }
 
@@ -91,6 +95,8 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await registerCors(app, cfg);
   await registerAuthMiddleware(app, { prisma: prismaClient, config: cfg });
   await registerRateLimit(app, cfg);
+  // Register formbody before multipart (application/x-www-form-urlencoded support for /waitlist)
+  await app.register(fastifyFormbody);
   // Register multipart before route plugins (file upload support)
   await app.register(fastifyMultipart, {
     limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
@@ -110,6 +116,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(analyticsRoutes, { db: getKysely() });
   await app.register(recipeCalculateRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(analyzeRoutes, { db: getKysely(), prisma: prismaClient });
+  await app.register(waitlistRoutes, { prisma: prismaClient });
 
   return app;
 }
