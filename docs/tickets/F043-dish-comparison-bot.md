@@ -1,7 +1,7 @@
 # F043: Dish Comparison via Bot
 
 **Feature:** F043 | **Type:** Fullstack-Feature | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F043-dish-comparison-bot
+**Status:** Done | **Branch:** merged to develop (squash)
 **Created:** 2026-03-28 | **Dependencies:** F020–F024 ✅, F028 ✅, F042 ✅
 
 ---
@@ -567,7 +567,7 @@ Follow dependency order: parser (no deps) → formatter (depends on `EstimateDat
 - [x] Step 4: `production-code-validator` executed — READY FOR PRODUCTION
 - [x] Step 5: `code-review-specialist` executed — APPROVE, 1 fix applied
 - [x] Step 5: `qa-engineer` executed — 80 edge-case tests, 3 bugs found and fixed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 

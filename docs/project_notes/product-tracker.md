@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-28
 
-**Active Feature:** F043 — Dish Comparison via Bot
-**Step:** 5/6 (Review)
-**Branch:** feature/F043-dish-comparison-bot
-**Complexity:** Standard
-**Context:** PR #37. Code review: 1 fix (con separator). QA: 3 bugs fixed (leading ¿, articles, same-entity). 893 tests, build clean. Awaiting merge approval.
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F043 completed and merged to develop (PR #37, squash). 893 tests, build clean.
 
 ---
 
@@ -92,7 +92,7 @@
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | done | 6/6 | Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-011. PR #34, SHA a4fde9a. 168 tests (10 files). 37 files changed |
 | F041 | Bot Recipe Calculator (/receta) | fullstack | done | 6/6 | Standard. Bot /receta command → POST /calculate/recipe (free-form). PR #35, SHA c1db312. 100 tests (4 files). 23 files changed |
 | F042 | Portion-Aware NL Estimation | fullstack | done | 6/6 | Standard. PR #36, SHA 67fc5c0. 140 tests (69 impl + 71 QA). BUG-F042-01 resolved |
-| F043 | Dish Comparison via Bot | fullstack | in-progress | 5/6 | Standard. /comparar + NL patterns → 2× /estimate → comparison card. PR #37 awaiting merge |
+| F043 | Dish Comparison via Bot | fullstack | done | 6/6 | Standard. /comparar + NL patterns → 2× /estimate → comparison card. PR #37 merged |
 | F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
 
 ## Features — Marketing & Growth
@@ -147,6 +147,7 @@
 | 2026-03-27 | F034 — Menu Analysis (OCR + Vision API) | a4fde9a (squash merge to develop, PR #34) | Complex fullstack (API + Bot). POST /analyze/menu: 4 modes (auto/ocr/vision/identify), callVisionCompletion (multimodal base64), parseDishNames, per-dish runEstimationCascade, cooperative timeout (partial results), dual rate limiting (API 10/hr + bot 5/hr per chatId). Bot upload_menu + upload_dish callbacks. ADR-011. Spec reviewed by Gemini+Codex (7 issues). Plan reviewed by Gemini+Codex (7 issues). Production validator: 1C fixed (spec drift 408→200+partial). Code review: APPROVED (3M: 2 fixed). QA: 2 bugs fixed (BUG-F034-01 UNSUPPORTED_PDF wrapping, BUG-F034-02 0-dish timeout guard), 27 edge-case tests. 168 F034 tests (10 files). 37 files changed |
 | 2026-03-27 | F041 — Bot Recipe Calculator (/receta) | c1db312 (squash merge to develop, PR #35) | Standard fullstack (bot-only — API exists). Bot /receta command → POST /calculate/recipe (free-form). Rate limit 5/hr per chatId (Redis, fail-open). Input guard 2000 chars. Smart truncation (ingredient list only). RECIPE_TIMEOUT_MS 30s. postJson optional timeout param. Spec reviewed by Gemini+Codex (6 issues). Plan reviewed by Gemini+Codex (6 issues). Production validator: READY (0 issues). Code review: APPROVED (2M fixed: dead variable, non-null assertion). QA: VERIFIED (0 bugs), 26 edge-case tests. 100 F041 tests (4 files). 23 files changed |
 | 2026-03-28 | F042 — Portion-Aware NL Estimation | 67fc5c0 (squash merge to develop, PR #36) | Standard fullstack (API + Bot). API: portionMultiplier param on GET /estimate (0.1-5.0), post-cascade nutrient scaling (2dp), portionGrams (1dp), referenceBasis→per_serving, extended cache key. Bot: extractPortionModifier pure function (15 regex patterns, Spanish size modifiers + plurals), integrated in NL handler + /estimar, formatter PORTION_LABEL_MAP. Spec reviewed by Gemini (1C+2I+1S). Plan reviewed by Gemini (1C+1I+1S). Production validator: 5 issues (3 fixed). Code review: 1C+1S fixed (edge-cases fixture, label semantics). QA: BUG-F042-01 resolved (label map spec correction), 71 edge-case tests. 140 F042 tests (12 files). 31 files changed |
+| 2026-03-28 | F043 — Dish Comparison via Bot | squash merge to develop, PR #37 | Standard bot-only. /comparar command + NL comparison detection (5 prefix patterns × 6 separators). Side-by-side MarkdownV2 code-block table with per-nutrient ✅ winner. Promise.allSettled, outcome matrix (timeout/error/unknown), length guard, same-entity note. Spec reviewed by Gemini+Codex (4C+6I+4S). Plan reviewed by Gemini+Codex (2C+5I+5S). Production validator: READY (0 issues). Code review: 1I fixed (con separator priority). QA: 3 bugs fixed (BUG-F043-01 leading ¿, BUG-F043-02 same-entity, BUG-F043-03 con in NL), 80 edge-case tests. 176 F043 tests (5 files). 11 files changed |
 
 ---
 
