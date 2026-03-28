@@ -102,7 +102,7 @@
 | F039 | Landing Page — nutriXplorer | frontend | done | 6/6 | Standard. packages/landing/ standalone. Next.js 14 + Tailwind + Framer Motion. 9 sections, A/B hero, SEO, GDPR, analytics. 153 tests. SHA 64280e4 |
 | F044 | Landing Page Overhaul — v5 design, 4 A/B variants, SearchSimulator | frontend | done | 6/6 | Standard. Glass-card aesthetic, 8 images, 4 variants (A/C/D/F), Mediterranean palette, PostSimulatorCTA. 286 tests. SHA 013935d |
 | F045 | Landing — Critical Bug Fixes | frontend | done | 6/6 | Standard. 9 fixes from audit: legal pages, og-image, canonical, anchors, variant D removed, CTA gating, animation typo, hydration warning, SearchAction. PR #38, 335 tests |
-| F046 | Landing — Waitlist Persistence + Anti-Spam | fullstack | pending | — | Standard. POST /waitlist endpoint in packages/api, waitlist_submissions table, honeypot + rate limiting. ADR-012. Depends on F045 |
+| F046 | Landing — Waitlist Persistence + Anti-Spam | fullstack | in-progress | 5/6 | Standard. POST /waitlist + GET /admin/waitlist, Prisma migration, honeypot + rate limiting, landing form → Fastify API. PR #40 |
 | F047 | Landing — Conversion Optimization | frontend | pending | — | Standard. GA4 initialization, mobile hamburger menu, social proof, benefit-oriented CTAs, phone field UX. Depends on F046 |
 | F040 | Landing Page FAQ Section + Schema | frontend | pending | — | Standard. FAQ accordion with structured data (FAQPage schema). Deferred from F039. Depends on F045 |
 | F048 | Landing — Performance & Accessibility | frontend | pending | — | Standard. SearchSimulator keyboard nav (WAI-ARIA combobox), replace framer-motion with CSS, security headers, prefers-reduced-motion. Depends on F047 |
