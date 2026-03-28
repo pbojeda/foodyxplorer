@@ -30,14 +30,10 @@ export async function handleComparar(
     return 'No encontré dos platos para comparar\\. Usa "vs", "o", "versus" o "contra" para separar los platos\\.\nEjemplo: /comparar big mac vs whopper';
   }
 
-  // Read chain context from Redis (fail-open) — provides fallback for dishes without explicit slug
-  let fallbackChainSlug: string | undefined;
-  try {
-    const state = await getState(redis, chatId);
-    fallbackChainSlug = state?.chainContext?.chainSlug;
-  } catch {
-    // Fail-open: Redis error → no fallback
-  }
+  // Read chain context from Redis — provides fallback for dishes without explicit slug.
+  // getState is fail-open (returns null on Redis error).
+  const state = await getState(redis, chatId);
+  const fallbackChainSlug = state?.chainContext?.chainSlug;
 
   return runComparison(parsed.dishA, parsed.dishB, undefined, apiClient, fallbackChainSlug);
 }

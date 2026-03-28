@@ -50,13 +50,15 @@ export async function handleContexto(
   // Clear flow
   // -------------------------------------------------------------------------
 
-  if (trimmed === 'borrar') {
+  if (trimmed.toLowerCase() === 'borrar') {
     const state = await getState(redis, chatId);
     if (!state?.chainContext) {
       return formatContextCleared();
     }
 
     delete state.chainContext;
+    // Clear uses fail-open setState (not setStateStrict) because clearing is idempotent —
+    // if the write fails, the key will expire via TTL anyway.
     await setState(redis, chatId, state);
     return formatContextCleared();
   }

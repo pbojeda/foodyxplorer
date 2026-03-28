@@ -23,7 +23,7 @@ export function detectContextSet(text: string): string | null {
     .replace(/[?!.]+$/, '')
     .trim();
 
-  if (!stripped) return null;
+  if (!stripped || /\n/.test(stripped)) return null;
 
   const match = CONTEXT_SET_REGEX.exec(stripped);
   if (!match) return null;

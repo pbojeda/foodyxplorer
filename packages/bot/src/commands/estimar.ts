@@ -73,15 +73,11 @@ export async function handleEstimar(
     // Explicit slug in args — use it directly, no Redis read
     estimateParams.chainSlug = explicitChainSlug;
   } else {
-    // No explicit slug — read state from Redis (fail-open)
-    try {
-      const state = await getState(redis, chatId);
-      if (state?.chainContext?.chainSlug) {
-        estimateParams.chainSlug = state.chainContext.chainSlug;
-        contextChainName = state.chainContext.chainName;
-      }
-    } catch {
-      // Fail-open: Redis error → proceed without chain context
+    // No explicit slug — read state from Redis (getState is fail-open: returns null on error)
+    const state = await getState(redis, chatId);
+    if (state?.chainContext?.chainSlug) {
+      estimateParams.chainSlug = state.chainContext.chainSlug;
+      contextChainName = state.chainContext.chainName;
     }
   }
 

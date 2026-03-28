@@ -183,14 +183,10 @@ export async function handleNaturalLanguage(
     // null → silent fall-through to Steps 1 & 2
   }
 
-  // ALWAYS load state for Steps 1 & 2 (even when Step 0 fired and fell through)
-  let fallbackChainSlug: string | undefined;
-  try {
-    const botState = await getState(redis, chatId);
-    fallbackChainSlug = botState?.chainContext?.chainSlug;
-  } catch {
-    // Fail-open: Redis error → no chain context injected
-  }
+  // ALWAYS load state for Steps 1 & 2 (even when Step 0 fired and fell through).
+  // getState is fail-open (returns null on Redis error).
+  const botState = await getState(redis, chatId);
+  const fallbackChainSlug = botState?.chainContext?.chainSlug;
 
   // Step 1 — Comparison detection
   const comparison = extractComparisonQuery(trimmed);
