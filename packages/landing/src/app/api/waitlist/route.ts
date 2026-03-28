@@ -24,7 +24,7 @@ export async function POST(request: Request): Promise<Response> {
     const email = formData.get('email') as string | null;
     const phone = (formData.get('phone') as string | null) ?? undefined;
     const rawVariant = (formData.get('variant') as string | null) ?? 'a';
-    const variant = ['a', 'c', 'd', 'f'].includes(rawVariant) ? rawVariant : 'a';
+    const variant = ['a', 'c', 'f'].includes(rawVariant) ? rawVariant : 'a';
 
     const result = waitlistSchema.safeParse({ email, phone });
 
