@@ -1,7 +1,7 @@
 # F040: Landing Page FAQ Section + Schema
 
 **Feature:** F040 | **Type:** Frontend-Feature | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/F040-faq-section-schema
+**Status:** Ready for Merge | **Branch:** feature/F040-faq-section-schema
 **Created:** 2026-03-29 | **Dependencies:** F045 done
 
 ---
@@ -289,7 +289,7 @@ _page.test.tsx additions_
 | 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
 | 3. Update key_facts.md | [x] | N/A — no new endpoints, models, or shared utilities |
 | 4. Update decisions.md | [x] | N/A — no ADR needed |
-| 5. Commit documentation | [x] | Commit: 175b28f |
+| 5. Commit documentation | [x] | Commit: c525b43 |
 | 6. Verify clean working tree | [x] | `git status`: clean |
 
 ---

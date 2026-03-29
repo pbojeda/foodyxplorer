@@ -104,7 +104,7 @@
 | F045 | Landing — Critical Bug Fixes | frontend | done | 6/6 | Standard. 9 fixes from audit: legal pages, og-image, canonical, anchors, variant D removed, CTA gating, animation typo, hydration warning, SearchAction. PR #38, 335 tests |
 | F046 | Landing — Waitlist Persistence + Anti-Spam | fullstack | done | 6/6 | Standard. POST /waitlist + GET /admin/waitlist, Prisma migration, honeypot + rate limiting, landing form → Fastify API. PR #40, SHA e0c83e8 |
 | F047 | Landing — Conversion Optimization | frontend | pending | — | Standard. GA4 initialization, mobile hamburger menu, social proof, benefit-oriented CTAs, phone field UX. Depends on F046 |
-| F040 | Landing Page FAQ Section + Schema | frontend | in-progress | 5/6 | Standard. FAQ accordion with structured data (FAQPage schema). Deferred from F039. Depends on F045 |
+| F040 | Landing Page FAQ Section + Schema | frontend | ready-for-merge | 5/6 | Standard. FAQ accordion with structured data (FAQPage schema). Deferred from F039. Depends on F045 |
 | F048 | Landing — Performance & Accessibility | frontend | pending | — | Standard. SearchSimulator keyboard nav (WAI-ARIA combobox), replace framer-motion with CSS, security headers, prefers-reduced-motion. Depends on F047 |
 
 ---
