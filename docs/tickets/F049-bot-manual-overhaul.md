@@ -10,7 +10,7 @@
 
 ### Description
 
-Comprehensive rewrite of `docs/user-manual-bot.md` to fix all 16 remaining findings from the cross-model audit (`docs/research/bot-manual-audit-2026-03-29.md`). The audit (Claude + Gemini 2.5 Pro + Codex GPT-5.4) identified 2 critical factual errors, 7 important undocumented/incorrectly documented features, and 6 suggestions for completeness.
+Comprehensive rewrite of `docs/user-manual-bot.md` to fix all 16 remaining findings from the cross-model audit (`docs/research/bot-manual-audit-2026-03-29.md`). The audit (Claude + Gemini 2.5 Pro + Codex GPT-5.4) identified 2 critical factual errors, 8 important undocumented/incorrectly documented features, and 6 suggestions for completeness.
 
 ### Changes Required
 
