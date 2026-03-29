@@ -200,7 +200,7 @@ El bot devuelve:
 *Resultado de la receta*
 
 🔥 Calorias: 845 kcal
-🥩 Proteinas: 52.3 g
+🥩 Proteinas: 69.1 g
 🍞 Carbohidratos: 78.0 g
 🧈 Grasas: 28.5 g
 
@@ -528,7 +528,7 @@ Nota: si Redis no esta disponible, los limites de tasa se desactivan (fail-open)
 
 | Situacion | Mensaje |
 |-----------|---------|
-| Sin argumentos | "Uso: /receta \<ingredientes\>" |
+| Sin argumentos | "Uso: /receta `<ingredientes>`" |
 | Texto demasiado largo | "La receta es demasiado larga. El limite es de 2000 caracteres." |
 | Limite por hora | "Has alcanzado el limite de recetas por hora. Intentalo mas tarde." |
 | Ingredientes no resueltos | "No se pudo resolver ningun ingrediente de la receta." |
@@ -538,13 +538,15 @@ Nota: si Redis no esta disponible, los limites de tasa se desactivan (fail-open)
 
 | Situacion | Mensaje |
 |-----------|---------|
-| Sin restaurante seleccionado | "No hay restaurante seleccionado. Usa /restaurante \<nombre\> de nuevo." |
+| Sin restaurante seleccionado | "No hay restaurante seleccionado. Usa /restaurante `<nombre>` de nuevo." |
 | Analisis de menu fallido | "No se pudieron identificar platos en el menu." |
 | Imagen invalida | "Imagen no valida o no soportada." |
 | OCR fallido | "No se pudo extraer texto de la imagen. Asegurate de que el texto del menu sea legible." |
 | Identificacion fallida | "No se pudo identificar el plato." |
 | Limite por hora | "Has alcanzado el limite de analisis por hora." |
 | Foto expirada | "No se pudo descargar el archivo. Intentalo de nuevo." |
+| Archivo demasiado grande | "El archivo supera el limite de 10 MB." |
+| Vision API no disponible | "El servicio de analisis de imagenes no esta disponible." |
 
 ### Errores de contexto
 
