@@ -208,6 +208,42 @@ export const es = {
     cta: 'Probar gratis',
     mobileCta: 'Probar',
   },
+  faq: {
+    eyebrow: 'Preguntas frecuentes',
+    headline: 'Lo que necesitas saber',
+    items: [
+      {
+        question: '¿Qué es nutriXplorer?',
+        answer:
+          'nutriXplorer es una plataforma abierta que te dice las calorías, macros y nivel de confianza de cualquier plato en restaurantes de España. Funciona a través de un bot de Telegram y un motor de estimación de cuatro niveles.',
+      },
+      {
+        question: '¿De dónde salen los datos nutricionales?',
+        answer:
+          'Combinamos datos oficiales de las propias cadenas, bases nutricionales de referencia, análisis por ingredientes y, cuando no hay otra fuente, estimaciones por similitud o inteligencia artificial. Cada respuesta indica su nivel de confianza para que siempre sepas en qué te puedes apoyar.',
+      },
+      {
+        question: '¿Qué restaurantes están disponibles?',
+        answer:
+          "Actualmente cubrimos 10 cadenas españolas con datos oficiales (McDonald's, Burger King, KFC, Telepizza, Subway, Domino's, Pans & Company y más). Estamos expandiendo la cobertura a restaurantes locales y nuevas cadenas cada semana.",
+      },
+      {
+        question: '¿Es gratis?',
+        answer:
+          'Sí. Durante la fase beta, el acceso al bot de Telegram y a todas las consultas es completamente gratuito. Nuestro objetivo es que la información nutricional básica sea siempre accesible.',
+      },
+      {
+        question: '¿Mis datos están seguros?',
+        answer:
+          'No almacenamos datos personales ni hacemos tracking. Las consultas al bot son anónimas. Cumplimos con el RGPD y nuestra política de privacidad está disponible en la web.',
+      },
+      {
+        question: '¿Cómo puedo acceder?',
+        answer:
+          'Apúntate a la lista de espera en esta página y te avisaremos cuando lancemos. Los primeros en apuntarse tendrán acceso anticipado al bot de Telegram.',
+      },
+    ],
+  },
   waitlistCta: {
     headline: 'Descubre exactamente qué comes en tu restaurante favorito',
     subtitle:
