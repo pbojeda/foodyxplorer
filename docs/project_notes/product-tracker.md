@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-29
 
-**Active Feature:** No active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F047 completed and merged to develop (PR #42, squash).
+**Active Feature:** F049 — Bot User Manual Overhaul
+**Step:** 5/6 (Review)
+**Branch:** feature/F049-bot-manual-overhaul
+**Complexity:** Standard
+**Context:** Docs-only. 16 findings from cross-model audit. Verification review done, 3 fixes applied.
 
 ---
 
@@ -111,7 +111,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F049 | Bot User Manual Overhaul | docs | pending | — | Standard. Fix 2 critical doc errors (context fallback lie, TTL refresh lie), 8 important gaps (undocumented features, incorrect claims), 6 suggestions. From cross-model audit (Claude + Gemini + Codex) |
+| F049 | Bot User Manual Overhaul | docs | in-progress | 5/6 | Standard. Fix 2 critical doc errors (context fallback lie, TTL refresh lie), 8 important gaps (undocumented features, incorrect claims), 6 suggestions. From cross-model audit (Claude + Gemini + Codex) |
 | F050 | Bot NL Punctuation Fix + Help Update | bot | done | 6/6 | Simple. BUG-AUDIT-01 fix (¿ stripping in extractFoodQuery) + /start help update. PR #43, SHA d243c1e. 11 tests, 1066 total | Simple. Fix BUG-AUDIT-01 (`¿` not stripped in extractFoodQuery). Update /start help text to include /comparar, /contexto, /restaurante |
 
 ---

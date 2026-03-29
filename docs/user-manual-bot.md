@@ -1,7 +1,7 @@
 # Manual de Usuario — foodXPlorer Bot (Telegram)
 
 > Guia completa de todas las funcionalidades del bot de Telegram de foodXPlorer.
-> Ultima actualizacion: 2026-03-28 (incluye F043 — Comparacion de platos, F037 — Contexto conversacional)
+> Ultima actualizacion: 2026-03-29 (incluye F050 — NL punctuation fix, F049 — Manual overhaul)
 
 ---
 
@@ -95,7 +95,7 @@ Confianza: alta
 
 ### Resultado
 
-Devuelve una lista de hasta 10 platos con nombre, restaurante y cadena. Util para encontrar el nombre exacto antes de usar `/estimar`.
+Devuelve una lista de hasta 10 platos con nombre, ID, restaurante y cadena. Si hay mas resultados, muestra "Mostrando X de Y". Util para encontrar el nombre exacto antes de usar `/estimar`.
 
 ---
 
@@ -156,6 +156,11 @@ Cadena: mcdonalds-es / burger-king-es
 | Calorias, Grasas, Grasas saturadas, Sodio, Sal | Valor **mas bajo** ✅ |
 | Proteinas, Fibra | Valor **mas alto** ✅ |
 | Carbohidratos | Sin indicador (ambiguo nutricionalmente) |
+| Empate en nutriente enfocado | Ambos con guion (`—`) |
+
+### Foco nutricional
+
+Cuando la consulta menciona un nutriente especifico (ej. `que tiene mas proteinas, big mac o whopper`), la fila de ese nutriente aparece **primera** en la tabla con la etiqueta `(foco)`.
 
 ### Casos especiales
 
@@ -182,12 +187,40 @@ Cadena: mcdonalds-es / burger-king-es
 | `/receta 2 huevos, 100g bacon, tostadas` | Cantidades y nombres libres |
 | `/receta ensalada cesar con pollo a la plancha` | Texto libre (el LLM lo interpreta) |
 
+### Resultado
+
+El bot devuelve:
+
+1. **Totales** — calorias, proteinas, carbohidratos, grasas (+ opcionales si > 0)
+2. **Desglose por ingrediente** — cada ingrediente resuelto con sus calorias y proteinas
+3. **Ingredientes no resueltos** — lista de ingredientes que no se pudieron identificar
+4. **Nivel de confianza** — alta, media o baja segun la calidad de la resolucion
+
+```
+*Resultado de la receta*
+
+🔥 Calorias: 845 kcal
+🥩 Proteinas: 69.1 g
+🍞 Carbohidratos: 78.0 g
+🧈 Grasas: 28.5 g
+
+*Ingredientes (3/3):*
+• Pollo — 200g → 330 kcal, 62.0 g prot
+• Arroz — 100g → 365 kcal, 7.1 g prot
+• Aceite de oliva — 50g → 150 kcal, 0.0 g prot
+
+Confianza: media
+```
+
+Si la receta tiene muchos ingredientes y el mensaje supera el limite de Telegram (4000 caracteres), el desglose se trunca automaticamente: `... y X ingredientes mas`.
+
 ### Notas
 
 - Limite de **2000 caracteres** por receta.
 - Limite de **5 recetas por hora** por usuario.
 - El bot usa IA para interpretar ingredientes escritos de forma libre.
 - Si no entiende la lista: "No entendi la lista de ingredientes. Intenta con el formato: 200g pollo, 100g arroz."
+- Si no puede resolver ningun ingrediente: "No se pudo resolver ningun ingrediente de la receta."
 
 ---
 
@@ -251,6 +284,8 @@ Anade una palabra de tamano al nombre del plato para ajustar las cantidades. Fun
 | `doble` / `racion doble` | x2.0 | `doble whopper` |
 | `triple` | x3.0 | `triple hamburguesa` |
 
+> **Nota:** Tambien se aceptan plurales: `dobles`, `grandes`, `triples`, `minis`, `raciones dobles`, `medias raciones`.
+
 ### Ejemplos combinados
 
 | Input | Plato | Multiplicador |
@@ -267,19 +302,28 @@ El bot recuerda tu cadena de restaurante durante la conversacion. Si estableces 
 
 ### Establecer contexto
 
-Escribe frases como:
+Hay dos formas de establecer contexto:
+
+**1. Con el comando `/contexto`:**
+
+| Input | Que hace |
+|-------|----------|
+| `/contexto mcdonalds` | Busca la cadena por nombre y activa el contexto |
+| `/contexto mcdonalds-es` | Activa contexto con slug directo |
+
+**2. Con lenguaje natural** (patron exacto `estoy en [articulo] <cadena>`):
 
 | Input | Que hace |
 |-------|----------|
 | `estoy en mcdonalds` | Activa contexto McDonald's |
-| `estoy en el burger king` | Activa contexto Burger King |
-| `estoy en mcdonalds-es` | Activa contexto con slug directo |
+| `estoy en el burger king` | Activa contexto Burger King (articulo opcional) |
 
-El bot respondera confirmando el contexto activo:
+> **Nota:** La deteccion por lenguaje natural solo reconoce el patron exacto `estoy en ...` — maximo 50 caracteres, sin comas, sin saltos de linea. Para otros casos, usa `/contexto <cadena>`.
+
+Si el nombre coincide con varias cadenas, el bot pedira que uses el slug exacto:
 
 ```
-✅ Contexto: McDonald's Spain (mcdonalds-es)
-Tus consultas se buscaran en esa cadena. Escribe /contexto para ver o borrar.
+Encontre varias cadenas con ese nombre. Por favor, usa el slug exacto (por ejemplo: mcdonalds-es). Usa /cadenas para ver los slugs.
 ```
 
 ### Usar el contexto
@@ -294,35 +338,28 @@ Usuario: big mac
 Bot:     *Big Mac*
          🔥 Calorias: 563 kcal
          ...
-         Cadena: mcdonalds-es       ← automatico
-
-Usuario: mcnuggets
-Bot:     *Chicken McNuggets (6 uds)*
-         🔥 Calorias: 259 kcal
-         ...
-         Cadena: mcdonalds-es       ← automatico
-
-Usuario: whopper
-Bot:     *Whopper*
-         🔥 Calorias: 672 kcal
-         ...
-         Cadena: burger-king-es     ← no existe en McDonald's, busca globalmente
+         Cadena: mcdonalds-es
+         Contexto activo: McDonald's Spain
 ```
+
+> **Importante:** el contexto filtra **dentro de la cadena activa**. Si buscas un plato que no existe en esa cadena (ej. `whopper` estando en McDonald's), el resultado sera "no se encontraron datos". Para buscar en otra cadena, especifica `en <cadena>` explicitamente o borra el contexto con `/contexto borrar`.
 
 ### Ver y borrar contexto
 
 | Comando | Que hace |
 |---------|----------|
-| `/contexto` | Muestra el contexto activo (cadena y hora de expiracion) |
+| `/contexto` | Muestra el contexto activo (cadena y tiempo restante) |
 | `/contexto borrar` | Borra el contexto manualmente |
+| `/contexto <cadena>` | Establece el contexto directamente |
 
 ### Expiracion automatica
 
-El contexto expira automaticamente tras **2 horas de inactividad**. Cada mensaje que envias reinicia el temporizador.
+El contexto expira automaticamente tras **2 horas** desde el ultimo cambio de contexto (establecer o borrar). Las consultas normales (`/estimar`, lenguaje natural, etc.) **no reinician** el temporizador.
 
 ### Notas
 
-- El contexto funciona con `/estimar`, `/comparar`, `/receta` y con lenguaje natural.
+- El contexto funciona con `/estimar`, `/comparar` y con lenguaje natural.
+- `/receta` **no** utiliza el contexto (las recetas no se filtran por cadena).
 - Si especificas `en <cadena>` explicitamente en un comando, esa cadena tiene prioridad sobre el contexto activo.
 - El contexto se almacena por chat (si usas el bot en un grupo, el contexto es compartido por todo el grupo).
 - `/comparar` aplica el contexto a ambos platos, a menos que cada uno tenga su propia cadena.
@@ -337,7 +374,7 @@ El contexto expira automaticamente tras **2 horas de inactividad**. Cada mensaje
 /cadenas
 ```
 
-Muestra todas las cadenas de restaurantes activas en la base de datos (ej. mcdonalds-es, burger-king-es, telepizza-es).
+Muestra todas las cadenas de restaurantes activas con nombre, slug, pais y numero de platos. Si hay muchas cadenas, la lista se trunca con un indicador "Mostrando X de Y".
 
 ### Listar restaurantes
 
@@ -373,7 +410,7 @@ El ID es un UUID que obtienes de `/restaurantes`. Ejemplo:
 | `/restaurante` | Muestra el restaurante seleccionado actualmente |
 | `/restaurante mcdonalds` | Busca restaurantes con ese nombre |
 
-Cuando buscas, el bot muestra botones para seleccionar uno. Si no existe, puedes crearlo directamente desde el bot. El restaurante seleccionado se usa como contexto para subir fotos y documentos.
+Cuando buscas, el bot muestra botones inline para seleccionar un restaurante. Si la busqueda no encuentra resultados, aparece un boton **"Crear restaurante"** que permite crearlo directamente desde el chat. El restaurante seleccionado se usa como contexto para subir fotos y documentos.
 
 ---
 
@@ -390,15 +427,23 @@ Envia una **foto** al bot y aparecera un menu con tres opciones:
 ### Requisitos
 
 - Debes tener un **restaurante seleccionado** (usa `/restaurante <nombre>` primero).
-- Tu chat debe estar en la lista de chats permitidos.
+- Tu chat debe estar en la lista de chats permitidos (`ALLOWED_CHAT_IDS`).
 - Tamano maximo: **10 MB**.
+
+> **Nota:** Si tu chat no esta autorizado, el bot **no responde** al envio de fotos ni documentos (silencio total, sin mensaje de error).
 
 ### Ejemplo de flujo
 
 1. `/restaurante mcdonalds` → seleccionas "McDonald's Spain"
 2. Envias una foto del menu
 3. Pulsas "🧮 Analizar menu"
-4. El bot responde con los platos encontrados y sus nutrientes estimados
+4. El bot responde con los platos encontrados y sus nutrientes estimados (4 nutrientes principales: calorias, proteinas, carbohidratos, grasas)
+
+### Comportamiento especial
+
+- **Resultados parciales:** si el analisis tarda demasiado, el bot devuelve los platos que haya podido analizar hasta ese momento junto con un aviso de timeout.
+- **Platos sin datos:** dentro de la lista de resultados, los platos que no pudieron ser estimados aparecen marcados como "sin datos".
+- **Identificacion fallida:** si "Identificar plato" no reconoce nada en la foto: "No se pudo identificar el plato."
 
 ### Limite
 
@@ -459,13 +504,15 @@ API: conectada ✅
 | Texto libre (NL) | 500 caracteres | Por mensaje |
 | Texto de receta | 2000 caracteres | Por mensaje |
 | Tamano de archivo | 10 MB | Por archivo |
-| Contexto conversacional | 2 horas | Expira por inactividad |
+| Contexto conversacional | 2 horas | Desde ultimo set/clear |
 
 Nota: si Redis no esta disponible, los limites de tasa se desactivan (fail-open) y las peticiones se procesan igualmente.
 
 ---
 
 ## 14. Mensajes de error
+
+### Errores generales
 
 | Situacion | Mensaje |
 |-----------|---------|
@@ -476,6 +523,39 @@ Nota: si Redis no esta disponible, los limites de tasa se desactivan (fail-open)
 | Error de configuracion | "Error de configuracion del bot." |
 | Error generico | "Ha ocurrido un error inesperado." |
 | Comando desconocido | "Comando no reconocido. Usa /help para ver los comandos disponibles." |
+
+### Errores de /receta
+
+| Situacion | Mensaje |
+|-----------|---------|
+| Sin argumentos | "Uso: /receta `<ingredientes>`" |
+| Texto demasiado largo | "La receta es demasiado larga. El limite es de 2000 caracteres." |
+| Limite por hora | "Has alcanzado el limite de recetas por hora. Intentalo mas tarde." |
+| Ingredientes no resueltos | "No se pudo resolver ningun ingrediente de la receta." |
+| LLM no entiende la lista | "No entendi la lista de ingredientes. Intenta con el formato: 200g pollo, 100g arroz." |
+
+### Errores de fotos y analisis
+
+| Situacion | Mensaje |
+|-----------|---------|
+| Sin restaurante seleccionado | "No hay restaurante seleccionado. Usa /restaurante `<nombre>` de nuevo." |
+| Analisis de menu fallido | "No se pudieron identificar platos en el menu." |
+| Imagen invalida | "Imagen no valida o no soportada." |
+| OCR fallido | "No se pudo extraer texto de la imagen. Asegurate de que el texto del menu sea legible." |
+| Identificacion fallida | "No se pudo identificar el plato." |
+| Limite por hora | "Has alcanzado el limite de analisis por hora." |
+| Foto expirada | "No se pudo descargar el archivo. Intentalo de nuevo." |
+| Archivo demasiado grande | "El archivo supera el limite de 10 MB." |
+| Vision API no disponible | "El servicio de analisis de imagenes no esta disponible." |
+
+### Errores de contexto
+
+| Situacion | Mensaje |
+|-----------|---------|
+| Cadena no encontrada | "No encontre ninguna cadena con ese nombre. Usa /cadenas para ver las cadenas disponibles." |
+| Multiples coincidencias | "Encontre varias cadenas con ese nombre. Usa el slug exacto." |
+| Error al guardar | "No pude guardar el contexto. Intentalo de nuevo." |
+| API no disponible | "No pude comprobar las cadenas ahora mismo. Intentalo de nuevo." |
 
 ---
 
@@ -492,7 +572,7 @@ Nota: si Redis no esta disponible, los limites de tasa se desactivan (fail-open)
 | `/restaurantes` | Lista restaurantes | `/restaurantes mcdonalds-es` |
 | `/platos` | Platos de un restaurante | `/platos <uuid>` |
 | `/restaurante` | Selecciona contexto de restaurante | `/restaurante mcdonalds` |
-| `/contexto` | Ver o borrar contexto de cadena | `/contexto borrar` |
+| `/contexto` | Ver, establecer o borrar contexto | `/contexto mcdonalds-es` |
 | `/info` | Estado del bot y la API | `/info` |
 
 ---
