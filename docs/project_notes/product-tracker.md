@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-29
 
-**Active Feature:** F050 — Bot NL Punctuation Fix + Help Update
-**Step:** 5/6 (Review)
-**Branch:** feature/F050-nl-punctuation-fix
-**Complexity:** Simple
-**Context:** BUG-AUDIT-01: `¿` not stripped in extractFoodQuery. Also update /start help text.
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F050 completed and merged to develop (d243c1e, PR #43). F049 (manual overhaul) pending.
 
 ---
 
@@ -112,7 +112,7 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F049 | Bot User Manual Overhaul | docs | pending | — | Standard. Fix 2 critical doc errors (context fallback lie, TTL refresh lie), 8 important gaps (undocumented features, incorrect claims), 6 suggestions. From cross-model audit (Claude + Gemini + Codex) |
-| F050 | Bot NL Punctuation Fix + Help Update | bot | in-progress | 5/6 | Simple. Fix BUG-AUDIT-01 (`¿` not stripped in extractFoodQuery). Update /start help text to include /comparar, /contexto, /restaurante |
+| F050 | Bot NL Punctuation Fix + Help Update | bot | done | 6/6 | Simple. BUG-AUDIT-01 fix (¿ stripping in extractFoodQuery) + /start help update. PR #43, SHA d243c1e. 11 tests, 1066 total | Simple. Fix BUG-AUDIT-01 (`¿` not stripped in extractFoodQuery). Update /start help text to include /comparar, /contexto, /restaurante |
 
 ---
 
@@ -163,6 +163,7 @@
 | 2026-03-28 | F045 — Landing Critical Bug Fixes | squash merge to develop, PR #38 | Standard frontend. 9 fixes from cross-model audit: 3 legal pages (GDPR/LSSI), og-image (1200x630), canonical URL, anchor IDs (#waitlist, #demo), variant D removed (ADR-012), PostSimulatorCTA gated by interaction, animation typo, suppressHydrationWarning, SearchAction removed. Production validator: 1C fixed (variant D in API). Code review: APPROVED (1M: accidental file deletion restored). QA: VERIFIED (22 edge-case tests, 0 bugs). 335 tests (38 suites). 30 files changed |
 | 2026-03-28 | F037 — Conversational Context Manager | d6d32df (squash merge to develop, PR #39) | Standard bot-only. /contexto command (view/clear/set) + NL detection ("estoy en mcdonalds") + auto-inject chainSlug in /estimar, /comparar, NL handler. 4-tier fuzzy chain resolution (exact slug > exact name > prefix > bidirectional substring). BotStateChainContext in Redis, setStateStrict, real Redis TTL. Spec reviewed by Gemini+Codex (10 issues). Plan reviewed by Gemini+Codex (9 issues). Production validator: READY (0 issues). Code review: APPROVED (3I fixed). QA: 2 bugs fixed (BUG-F037-01 BORRAR case, BUG-F037-02 newline detector), 69 edge-case tests. 162 F037 tests (9 files). 30 files changed |
 | 2026-03-29 | F040 — Landing Page FAQ Section + Schema | a93faba (squash merge to develop, PR #41) | Standard frontend. FAQ accordion with native `<details>`/`<summary>`, FAQPage JSON-LD, 6 items es/en, placed before WaitlistCTA in all 3 variants. Spec reviewed by Gemini+Codex (5I+2S). Plan reviewed by Gemini+Codex (1C+4I+2S). Production validator: 1C fixed (ui-components.md). Code review: APPROVED (1I fixed). QA: VERIFIED (26 edge-case tests, 0 bugs). 374 tests (40 suites). 14 files changed |
+| 2026-03-29 | F050 — Bot NL Punctuation Fix + Help Update | d243c1e (squash merge to develop, PR #43) | Simple bugfix. BUG-AUDIT-01: strip ¿¡?! in extractFoodQuery. /start help updated with /comparar, /contexto, /restaurante. 11 new tests, 1066 total. 6 files changed |
 | 2026-03-28 | F046 — Waitlist Persistence + Anti-Spam | e0c83e8 (squash merge to develop, PR #40) | Standard fullstack (API + landing + shared). POST /waitlist (public, honeypot, 5/15min rate limit, email lowercase, P2002→409 idempotent, form-urlencoded 303). GET /admin/waitlist (admin auth, paginated, sort). Prisma migration waitlist_submissions. Landing form → Fastify API, honeypot field, UTM params, 409-as-success. Deleted Next.js route. Zod schemas in shared. Production validator: READY. Code review: APPROVED (3I fixed: max-length, phone validation, source input). QA: 3 bugs (BUG-F046-01 critical fixed, BUG-F046-03 low fixed, BUG-F046-02 medium noted), 94 edge-case tests. API 2449, Landing 332, Shared 339. 31 files changed |
 
 ---

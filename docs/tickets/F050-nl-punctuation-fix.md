@@ -1,7 +1,7 @@
 # F050: Bot NL Punctuation Fix + Help Update
 
 **Feature:** F050 | **Type:** Bot-Bugfix | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F050-nl-punctuation-fix
+**Status:** Done | **Branch:** (merged to develop, deleted)
 **Created:** 2026-03-29 | **Dependencies:** None
 
 ---
@@ -45,8 +45,8 @@ N/A — Simple task.
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 3: TDD implementation
 - [x] Step 4: Quality gates pass
-- [ ] Step 5: PR created, review
-- [ ] Step 6: Ticket updated, branch deleted
+- [x] Step 5: PR created, review
+- [x] Step 6: Ticket updated, branch deleted
 
 ---
 
@@ -56,6 +56,7 @@ N/A — Simple task.
 |------|--------|-------|
 | 2026-03-29 | Ticket created | Simple bugfix, from cross-model manual audit |
 | 2026-03-29 | Implementation | TDD: 8 punctuation tests + 3 help tests → fix extractFoodQuery + start.ts. 1066 total passing |
+| 2026-03-29 | Squash merged to develop | SHA d243c1e, PR #43. Branch deleted |
 
 ---
 
