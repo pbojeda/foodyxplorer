@@ -254,6 +254,14 @@ describe('isAdminRoute — method-aware routing', () => {
   it('8c: DELETE /restaurants is NOT an admin route', () => {
     expect(isAdminRoute('/restaurants', 'DELETE')).toBe(false);
   });
+
+  it('GET /admin/waitlist IS an admin route (F046)', () => {
+    expect(isAdminRoute('/admin/waitlist', 'GET')).toBe(true);
+  });
+
+  it('GET /admin/ prefix matches (F046)', () => {
+    expect(isAdminRoute('/admin/anything', 'GET')).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

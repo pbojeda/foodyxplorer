@@ -53,8 +53,8 @@ export interface EngineRouterOptions {
 }
 
 export type EngineRouterResult = {
-  /** Full EstimateData for the HTTP response. data.query echoes the raw query. */
-  data: EstimateData;
+  /** Cascade data — portionMultiplier is added by the route handler, not the cascade. */
+  data: Omit<EstimateData, 'portionMultiplier'>;
   /** Internal debug flag — which level produced the result (null = total miss). NOT exposed in HTTP response. */
   levelHit: 1 | 2 | 3 | 4 | null;
 };

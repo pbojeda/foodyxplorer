@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { WaitlistForm } from '@/components/features/WaitlistForm';
 import type { Dictionary } from '@/lib/i18n';
 import type { Variant } from '@/types';
@@ -10,8 +11,28 @@ interface WaitlistCTASectionProps {
 }
 
 export function WaitlistCTASection({ dict, variant }: WaitlistCTASectionProps) {
+  const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch(`${process.env['NEXT_PUBLIC_API_URL']}/waitlist/count`)
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data: { success: boolean; data?: { count: number } }) => {
+        if (
+          data?.success &&
+          typeof data.data?.count === 'number' &&
+          data.data.count >= 10
+        ) {
+          setWaitlistCount(data.data.count);
+        }
+      })
+      .catch(() => {
+        // Graceful degradation — counter stays null
+      });
+  }, []);
+
   return (
     <section
+      id="waitlist"
       aria-labelledby="waitlist-cta-heading"
       data-section="waitlist-cta"
       className="py-20 md:py-28 relative overflow-hidden"
@@ -51,13 +72,20 @@ export function WaitlistCTASection({ dict, variant }: WaitlistCTASectionProps) {
             <WaitlistForm source="cta" variant={variant} showPhone={true} />
           </div>
 
+          {/* Social proof counter — shown only when count >= 10 */}
+          {waitlistCount !== null && (
+            <p className="text-sm font-medium text-emerald-400 mb-4">
+              Ya se han apuntado {waitlistCount} personas
+            </p>
+          )}
+
           {/* Trust note */}
-          <p className="text-sm text-slate-400 text-center">
+          <p className="text-sm text-slate-500 text-center">
             {dict.trustNote}
           </p>
 
           {/* Open source badge */}
-          <div className="mt-6 flex items-center justify-center gap-2 text-slate-400">
+          <div className="mt-6 flex items-center justify-center gap-2 text-slate-500">
             <svg
               aria-hidden="true"
               width="16"

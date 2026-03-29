@@ -7,7 +7,7 @@ export const es = {
       'Disfruta de comer fuera con más contexto y menos improvisación. Calorías, macros y nivel de confianza visible antes de decidir.',
     subtitleB:
       'Información nutricional de restaurantes españoles con trazabilidad real. Calorías, macros y confianza en cada plato.',
-    cta: 'Quiero probarlo',
+    cta: 'Quiero saber qué como',
     microcopy: 'Sin spam. Sin compromisos. Avisamos cuando lancemos.',
     trustPills: ['Datos verificados', 'Confianza visible', 'Hecho en España'],
   },
@@ -28,14 +28,6 @@ export const es = {
         subtitle:
           'No sabes cuántas calorías tiene un plato. No sabes si el dato es fiable. Y si hay alergias, improvisar no vale.',
         scrollCta: 'Ver cómo lo solucionamos',
-      },
-    },
-    d: {
-      hero: {
-        eyebrow: 'Pruébalo ahora',
-        headline: 'Busca cualquier plato. Mira qué sabes.',
-        subtitle:
-          'Escribe un plato y descubre calorías, macros y nivel de confianza.',
       },
     },
     f: {
@@ -183,6 +175,14 @@ export const es = {
           'La opción más usada. Rápida, gratuita, completamente poco fiable. Y encima genera culpa cuando el resultado no encaja con tus objetivos.',
         advantage: 'nutriXplorer te da un punto de referencia real.',
       },
+      {
+        title: 'ChatGPT / IAs generativas',
+        versus: 'vs. nutriXplorer',
+        description:
+          'Responde con datos genéricos de bases públicas. Sin verificar contra menús reales. Puede inventar valores (alucinaciones). No distingue entre datos de cadena y estimaciones.',
+        advantage:
+          'nutriXplorer verifica cada dato contra la fuente original y muestra su nivel de confianza.',
+      },
     ],
   },
   productDemo: {
@@ -212,8 +212,48 @@ export const es = {
     eyebrow: 'Para quién empieza hoy',
     headline: 'Para quién empieza hoy',
   },
+  siteHeader: {
+    cta: 'Probar gratis',
+    mobileCta: 'Probar',
+  },
+  faq: {
+    eyebrow: 'Preguntas frecuentes',
+    headline: 'Lo que necesitas saber',
+    items: [
+      {
+        question: '¿Qué es nutriXplorer?',
+        answer:
+          'nutriXplorer es una plataforma abierta que te dice las calorías, macros y nivel de confianza de cualquier plato en restaurantes de España. Funciona a través de un bot de Telegram y un motor de estimación de cuatro niveles.',
+      },
+      {
+        question: '¿De dónde salen los datos nutricionales?',
+        answer:
+          'Combinamos datos oficiales de las propias cadenas, bases nutricionales de referencia, análisis por ingredientes y, cuando no hay otra fuente, estimaciones por similitud o inteligencia artificial. Cada respuesta indica su nivel de confianza para que siempre sepas en qué te puedes apoyar.',
+      },
+      {
+        question: '¿Qué restaurantes están disponibles?',
+        answer:
+          "Actualmente cubrimos 10 cadenas españolas con datos oficiales (McDonald's, Burger King, KFC, Telepizza, Subway, Domino's, Pans & Company y más). Estamos expandiendo la cobertura a restaurantes locales y nuevas cadenas cada semana.",
+      },
+      {
+        question: '¿Es gratis?',
+        answer:
+          'Sí. Durante la fase beta, el acceso al bot de Telegram y a todas las consultas es completamente gratuito. Nuestro objetivo es que la información nutricional básica sea siempre accesible.',
+      },
+      {
+        question: '¿Mis datos están seguros?',
+        answer:
+          'No almacenamos datos personales ni hacemos tracking. Las consultas al bot son anónimas. Cumplimos con el RGPD y nuestra política de privacidad está disponible en la web.',
+      },
+      {
+        question: '¿Cómo puedo acceder?',
+        answer:
+          'Apúntate a la lista de espera en esta página y te avisaremos cuando lancemos. Los primeros en apuntarse tendrán acceso anticipado al bot de Telegram.',
+      },
+    ],
+  },
   waitlistCta: {
-    headline: 'Sé el primero en probarlo',
+    headline: 'Descubre exactamente qué comes en tu restaurante favorito',
     subtitle:
       'nutriXplorer está en fase de desarrollo. Únete a la lista de espera y sé de los primeros en acceder cuando lancemos.',
     urgency: 'Plazas limitadas para el acceso anticipado',

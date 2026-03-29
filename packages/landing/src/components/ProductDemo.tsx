@@ -49,7 +49,7 @@ export function ProductDemo() {
                 key={item.title}
                 className="rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-soft"
               >
-                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Paso {index + 1} · {item.title}
                 </div>
                 <div className="mt-2 font-semibold text-slate-900">{item.value}</div>

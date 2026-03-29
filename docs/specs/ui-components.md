@@ -334,6 +334,82 @@ Each layout is a Server Component function:
 
 ---
 
+## Landing Package — nutriXplorer (F047 updates)
+
+**Feature:** F047 — Landing Conversion Optimization
+
+### Updated WaitlistForm (F047)
+
+**New props:**
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| submitLabel | `string` | No | `'Únete a la waitlist'` | Submit button label |
+
+**New behaviors (phone field):**
+- `onFocus`: if phone is empty, auto-fills `+34` (no trailing space)
+- `onBlur`: clears bare `+34` (no digits); prepends `+34` for bare 9-digit numbers; leaves other codes unchanged
+
+### Updated WaitlistCTASection (F047)
+
+**New behavior:**
+- Fetches `GET ${NEXT_PUBLIC_API_URL}/waitlist/count` on mount
+- Shows "Ya se han apuntado X personas" only when `count >= 10`
+- Graceful degradation: counter hidden on fetch error or count < 10
+
+### New: MobileMenu
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| navLinks | `{ label: string; href: string }[]` | Yes | — | Navigation links |
+| ctaText | `string` | Yes | — | Desktop CTA text (passed from SiteHeader) |
+| mobileCta | `string` | Yes | — | Mobile CTA button text |
+
+**State:** `isOpen: boolean`
+
+**Behaviors:**
+- Hamburger button (3-line/X icon) — only visible `md:hidden`
+- `aria-expanded` on button, `aria-controls` → panel id
+- Panel: `block` when open, `hidden` when closed (CSS, no framer-motion)
+- Closes on: nav link click, outside `mousedown`, `Escape` key
+- SiteHeader remains a Server Component — MobileMenu is the only Client piece
+
+### New: WaitlistSuccessBanner
+
+**Type:** Feature | **Client:** Yes (`'use client'`) — requires `<Suspense fallback={null}>` in page.tsx
+
+**Props:** None
+
+**State:** `dismissed: boolean`
+
+**Behavior:**
+- Reads `?waitlist=success` via `useSearchParams()`
+- Renders `role="status"` green banner with success message
+- Dismiss button removes banner client-side only
+- Used for no-JS success feedback (form POST redirect)
+- Returns null if `waitlist` param absent or not `'success'`
+
+### Updated SiteHeader (F047)
+
+- CTA copy: `'Pedir acceso anticipado'` → `'Probar gratis'` (desktop)
+- Mobile standalone `<a>Acceso</a>` removed; replaced by `<MobileMenu>` Client Component
+- Constants `WAITLIST_CTA = 'Probar gratis'`, `MOBILE_CTA_TEXT = 'Probar'`
+
+### Updated CookieBanner GA4 (F047)
+
+The `onLoad` callback now properly bootstraps GA4:
+1. `window.dataLayer = window.dataLayer || []`
+2. `window.gtag = function(...args) { dataLayer.push(args) }`
+3. `window.gtag('js', new Date())`
+4. `window.gtag('config', GA_ID)`
+
+Script tag has `id="ga4-script"` for onLoad callback identification.
+
+---
+
 ## Shared UI Primitives
 
 List the primitive components available in your project (e.g., from shadcn/ui):
@@ -539,6 +615,21 @@ Minimal card section showing 3 restaurant types with confidence level notes. Use
 |------|------|----------|-------------|
 | dict | `Dictionary['restaurants']` | Yes | i18n copy |
 
+#### FAQSection
+**Type:** Feature | **Client:** No (Server Component)
+**File:** `src/components/sections/FAQSection.tsx`
+
+Accordion section with 6 FAQ items using native `<details>`/`<summary>` elements. All details share `name="faq"` for exclusive toggling (one open at a time). Returns null if items array is empty. No JavaScript required — progressive enhancement.
+
+**Props:**
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| dict | `Dictionary['faq']` | Yes | Accordion data: eyebrow, headline, items (6 Q&A pairs) |
+
+**Structured Data:** `generateFAQPageSchema()` in `lib/seo.ts` produces FAQPage JSON-LD from the same dictionary items. Conditionally rendered in `page.tsx` when items exist.
+
+**Analytics:** Wrapped by `SectionObserver` for `section_view` event tracking (conditionally, only when items exist).
+
 ### Updated Section Components (F044)
 
 | Component | Change |
@@ -563,6 +654,7 @@ TrustEngineSection
 ForWhoSection (includes AudienceGrid)
 ComparisonSection
 RestaurantsSection
+FAQSection (conditional — only if faq.items.length > 0)
 WaitlistCTASection
 Footer
 ```

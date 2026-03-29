@@ -11,13 +11,12 @@ interface SearchSimulatorWithCTAProps {
 
 /**
  * SearchSimulatorWithCTA — wraps SearchSimulator with a post-interaction CTA.
- * The PostSimulatorCTA is visible from the start since SearchSimulator
- * initializes with a default result (pulpo a feira), meaning the user
- * can already see a result when the page loads.
+ * The PostSimulatorCTA is hidden until the user interacts with the SearchSimulator.
+ * BUG-LANDING-05: CTA was incorrectly visible on initial load; fixed by starting with false.
  */
 export function SearchSimulatorWithCTA({ variant }: SearchSimulatorWithCTAProps) {
-  // Start with true since SearchSimulator defaults to 'result' state
-  const [hasInteracted, setHasInteracted] = useState(true);
+  // Start with false — CTA only appears after user interaction
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   return (
     <div>

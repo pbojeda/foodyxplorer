@@ -1,161 +1,222 @@
-# 🥦 NutriTrack _(nombre provisional)_
+# foodXPlorer
 
 > **La base de datos nutricional abierta de restaurantes** — para restaurantes lo que Open Food Facts es para productos envasados.
 
-[![Estado](https://img.shields.io/badge/estado-en%20desarrollo-orange)](https://github.com)
-[![Fase](https://img.shields.io/badge/fase-1%20MVP-blue)](./PLAN_MAESTRO.md)
-[![Licencia](https://img.shields.io/badge/licencia-por%20definir-lightgrey)](./LICENSE)
-[![Metodología](https://img.shields.io/badge/metodología-Spec--Driven%20Development-teal)](https://github.com/pbojeda/sdd-devflow)
+[![Estado](https://img.shields.io/badge/estado-Fase%201%20completa-brightgreen)](https://github.com)
+[![Bot](https://img.shields.io/badge/bot-Telegram-blue)](https://t.me/foodXPlorerBot)
+[![Metodologia](https://img.shields.io/badge/metodologia-Spec--Driven%20Development-teal)](https://github.com/pbojeda/sdd-devflow)
 
 ---
 
-## ¿Qué es esto?
+## Que es foodXPlorer
 
-NutriTrack es una plataforma open source para consultar información nutricional de platos y restaurantes. Resuelve un problema concreto: **cuando comes fuera de casa, estás ciego nutricionalmente**.
+foodXPlorer es una plataforma open source para consultar informacion nutricional de platos de restaurantes y cadenas. Resuelve un problema concreto: **cuando comes fuera de casa, estas ciego nutricionalmente**.
 
-Las apps de nutrición (MyFitnessPal, Fitia) están pensadas para el tracking en casa. Las apps de restaurantes (TheFork, TripAdvisor) no tienen información nutricional. NutriTrack cubre ese hueco.
+Las apps de nutricion (MyFitnessPal, Fitia) estan pensadas para tracking en casa. Las apps de restaurantes (TheFork, TripAdvisor) no tienen informacion nutricional. foodXPlorer cubre ese hueco.
 
-**Cómo funciona:** un motor de estimación de tres niveles devuelve valores nutricionales con nivel de confianza explícito — siempre sabes si estás viendo datos oficiales, una estimación o una extrapolación. El LLM interpreta tu consulta y presenta el resultado. El motor calcula.
+**Como funciona:** un motor de estimacion de cuatro niveles devuelve valores nutricionales con nivel de confianza explicito — siempre sabes si estas viendo datos oficiales, una estimacion por ingredientes, una extrapolacion por similitud o una aproximacion por LLM. El bot de Telegram es la interfaz principal.
 
 ---
 
 ## Estado actual
 
-> ⚠️ **Proyecto en fase inicial de desarrollo.** El nombre, branding y modelo de negocio están pendientes de definición. El stack técnico y el modelo de datos son propuestas iniciales sujetas a revisión.
+Fase 1 completada. El bot de Telegram es funcional con todas las features del MVP.
 
-| Componente | Estado |
-|------------|--------|
-| PRD | ✅ Completo (v1.0) |
-| Modelo de datos | ✅ Propuesta inicial documentada |
-| Plan de desarrollo | ✅ Completo (v1.0) |
-| Nombre definitivo | 🔲 Pendiente |
-| Branding | 🔲 Pendiente |
-| Modelo de negocio | 🔲 Pendiente |
-| Repositorio / código | 🔲 En arranque (Fase 1) |
-
----
-
-## Documentación del proyecto
-
-| Documento | Descripción |
-|-----------|-------------|
-| [`PRD.md`](./PRD.md) | Product Requirements Document — visión, usuarios, casos de uso, arquitectura, modelo de negocio |
-| [`PLAN_MAESTRO.md`](./PLAN_MAESTRO.md) | Plan de desarrollo completo — metodología SDD, épicas, features, cronograma, KPIs |
-| [`nutritrack-db-diagram.md`](./nutritrack-db-diagram.md) | Modelo de datos completo con diagramas Mermaid |
-| [`nutritrack-market-research.md`](./nutritrack-market-research.md) | Investigación de mercado — competidores, tamaño de mercado, oportunidad |
-| [`docs/project_notes/`](./docs/project_notes/) | Memoria institucional del proyecto (sdd-devflow) |
-| [`docs/specs/`](./docs/specs/) | Especificaciones de épicas y features |
+| Componente | Estado | Notas |
+|------------|--------|-------|
+| API REST | Funcionando | Fastify + PostgreSQL + pgvector + Redis |
+| Bot Telegram | Funcionando | 12 comandos + lenguaje natural |
+| Motor de estimacion | Funcionando | 4 niveles de confianza |
+| Pipeline de ingestion | Funcionando | 10 cadenas espanolas scrapeadas |
+| Landing page | Funcionando | nutriXplorer.com (Next.js) |
+| Tests | 1055 passing | Build y lint clean |
 
 ---
 
-## Stack técnico _(propuesta inicial)_
+## Funcionalidades del bot
+
+### Comandos principales
+
+| Comando | Descripcion |
+|---------|-------------|
+| `/estimar <plato> [en <cadena>]` | Estima nutrientes de un plato |
+| `/comparar <plato_a> vs <plato_b>` | Compara dos platos lado a lado |
+| `/contexto [<cadena>\|borrar]` | Establece/ve/borra el contexto de cadena activo |
+| `/receta <texto libre>` | Calcula nutrientes de una receta completa |
+| `/buscar <texto>` | Busca platos en la base de datos |
+| `/restaurantes [cadena]` | Lista restaurantes |
+| `/restaurante <nombre>` | Busca/crea restaurante con teclado inline |
+| `/platos <restaurante_id>` | Lista platos de un restaurante |
+| `/cadenas` | Lista cadenas disponibles |
+| `/info` | Estado del sistema y version |
+| `/start` `/help` | Ayuda y lista de comandos |
+
+### Lenguaje natural
+
+El bot entiende espanol sin necesidad de comandos:
 
 ```
-Backend     Node.js + TypeScript · Fastify · Prisma + Kysely
-Base datos  PostgreSQL + pgvector + JSONB
-Caché       Redis
-Scraping    Crawlee + Playwright
-LLM         OpenAI / Anthropic API (solo capa de interpretación)
+cuantas calorias tiene un big mac
+que engorda mas, big mac o whopper
+estoy en mcdonalds              (establece contexto)
+big mac                          (usa el contexto activo)
+```
+
+### Contexto conversacional
+
+Cuando dices "estoy en mcdonalds" o usas `/contexto mcdonalds`, el bot recuerda la cadena durante 2 horas. Las consultas siguientes se filtran automaticamente por esa cadena sin necesidad de especificarla cada vez.
+
+### Modificadores de porcion
+
+```
+doble big mac           (x2)
+media racion de pollo   (x0.5)
+big mac xl              (x1.5)
+```
+
+### Analisis de menus
+
+Envia una foto o PDF de un menu y el bot lo analiza usando OCR + Vision AI, estimando los nutrientes de cada plato detectado.
+
+### Comparacion de platos
+
+```
+/comparar big mac vs whopper
+/comparar big mac en mcdonalds-es vs whopper en burger-king-es
+que engorda mas, big mac o whopper
+```
+
+Muestra una tabla comparativa con calorias, proteinas, grasas, carbohidratos y fibra, con indicador del "ganador" en cada nutriente.
+
+Ver [`docs/user-manual-bot.md`](./docs/user-manual-bot.md) para el manual completo con ejemplos.
+
+---
+
+## Arquitectura
+
+```
+packages/
+  api/        Fastify REST API (estimacion, busqueda, ingestion, recetas)
+  bot/        Telegram bot (node-telegram-bot-api)
+  shared/     Tipos y schemas compartidos (Zod)
+  scraper/    Pipeline de scraping (Crawlee + Playwright)
+  landing/    Landing page (Next.js 14 + Tailwind)
+```
+
+### Stack tecnico
+
+```
+Runtime     Node.js + TypeScript (strict)
+API         Fastify + OpenAPI + Zod validation
+Database    PostgreSQL 16 + pgvector + pg_trgm
+Cache       Redis (rate limiting, bot state, estimaciones)
+ORM         Prisma (migraciones) + Kysely (queries complejas)
 Bot         node-telegram-bot-api
-Web         Next.js (SSR para SEO)
-App móvil   React Native (Fase 3)
-Infra       Docker · Railway / Render
+Landing     Next.js 14 + Tailwind + Framer Motion
+LLM         OpenAI API (solo interpretacion + recetas)
+Scraping    Crawlee + Playwright
+Infra       Render + Supabase + Upstash + Cloudflare
 ```
+
+### Motor de estimacion
+
+| Nivel | Cuando aplica | Confianza |
+|-------|---------------|-----------|
+| **L1** — Dato oficial | El plato existe en BD con datos del restaurante | Alta |
+| **L2** — Estimacion por ingredientes | Se conocen los ingredientes | Media |
+| **L3** — Extrapolacion por similitud (pgvector) | Solo existe el nombre del plato | Baja |
+| **L4** — Aproximacion LLM | Sin coincidencia en BD | Muy baja |
+
+El nivel de confianza siempre es visible para el usuario.
+
+---
+
+## Desarrollo
+
+### Requisitos
+
+- Node.js 20+
+- PostgreSQL 16 con pgvector
+- Redis
+- Variables de entorno (ver `.env.example`)
+
+### Setup
+
+```bash
+npm install
+npx prisma migrate deploy --schema packages/api/prisma/schema.prisma
+npm run build
+```
+
+### Tests
+
+```bash
+npm test                        # todos los workspaces
+npm run -w @foodxplorer/bot test   # solo bot (1055 tests)
+npm run -w @foodxplorer/api test   # solo API
+```
+
+### Metodologia
+
+Este proyecto usa **Spec-Driven Development** con [sdd-devflow](https://github.com/pbojeda/sdd-devflow):
+
+```
+Spec -> Plan -> Implementacion TDD -> Validacion -> Code Review + QA -> Merge
+```
+
+Cada feature pasa por reviews cruzados con multiples modelos AI (Gemini, Codex, Claude) para spec, plan y codigo.
+
+---
+
+## Documentacion
+
+| Documento | Descripcion |
+|-----------|-------------|
+| [`docs/user-manual-bot.md`](./docs/user-manual-bot.md) | Manual completo del bot con ejemplos |
+| [`docs/specs/api-spec.yaml`](./docs/specs/api-spec.yaml) | Especificacion OpenAPI de la API REST |
+| [`docs/project_notes/`](./docs/project_notes/) | Memoria del proyecto (tracker, decisiones, bugs) |
+| [`docs/tickets/`](./docs/tickets/) | Tickets de cada feature con spec + plan + log |
+| [`PRD.md`](./PRD.md) | Product Requirements Document |
+| [`PLAN_MAESTRO.md`](./PLAN_MAESTRO.md) | Plan de desarrollo por fases |
 
 ---
 
 ## Roadmap
 
-### Fase 1 — Bot de Telegram + API (semanas 1-6)
-- [ ] Infrastructure & Schema (E001)
-- [ ] Data Ingestion Pipeline — 10 cadenas españolas (E002)
-- [ ] Estimation Engine — 3 niveles (E003)
-- [ ] Telegram Bot + API pública v0 (E004)
+### Fase 1 — Bot + API (completada)
 
-### Fase 2 — Web (meses 3-5)
-- [ ] Web promocional + newsletter (pre-lanzamiento)
-- [ ] Next.js app con búsqueda y mapa
-- [ ] Cuentas de usuario + reconocimiento por foto
-- [ ] Portal de restaurantes (beta)
-- [ ] API pública v1 con documentación
+- [x] E001: Infrastructure & Schema
+- [x] E002: Data Ingestion Pipeline (10 cadenas espanolas)
+- [x] E003: Estimation Engine (4 niveles)
+- [x] E004: Telegram Bot + API publica
+- [x] E005: Advanced Analysis & UX (recetas, comparacion, contexto, OCR)
 
-### Fase 3 — App Móvil (meses 6-9)
+### Fase 1.5 — Landing & Growth (en progreso)
+
+- [x] F039: Landing page (nutriXplorer.com)
+- [x] F044: Landing overhaul (v5 design, A/B variants)
+- [x] F045: Critical bug fixes
+- [ ] F046: Waitlist + anti-spam
+- [ ] F047: Conversion optimization
+- [ ] F048: Performance & accessibility
+
+### Fase 2 — Web app (planificada)
+
+- [ ] Next.js app con busqueda y mapa
+- [ ] Cuentas de usuario
+- [ ] API publica v1 con documentacion
+
+### Fase 3 — App movil (planificada)
+
 - [ ] React Native (iOS + Android)
 - [ ] Tracking de ingesta diaria
-- [ ] Programa de partners con restaurantes
-
-Ver [`PLAN_MAESTRO.md`](./PLAN_MAESTRO.md) para el detalle completo.
-
----
-
-## Motor de estimación
-
-El producto incluye un motor determinístico de tres niveles que cubre cualquier plato:
-
-| Nivel | Cuándo aplica | Confianza |
-|-------|---------------|-----------|
-| **Nivel 1** — Dato oficial | El plato existe en BD con datos del restaurante | 🟢 ALTA |
-| **Nivel 2** — Estimación por ingredientes | Se conocen los ingredientes pero no los valores calculados | 🟡 MEDIA |
-| **Nivel 3** — Extrapolación por similitud (pgvector) | Solo existe el nombre del plato | 🔴 BAJA |
-
-> El nivel de confianza siempre es visible para el usuario. Nunca se presenta una estimación como un dato oficial.
-
----
-
-## Metodología de desarrollo
-
-Este proyecto usa **Spec-Driven Development** con [sdd-devflow](https://github.com/pbojeda/sdd-devflow):
-
-```
-Spec aprobada → Plan aprobado → Implementación TDD → Validación → Review → Merge
-```
-
-**Principios inmutables:**
-1. **Spec First** — ningún código sin spec aprobada
-2. **Small Tasks** — una feature, un PR
-3. **TDD** — test rojo → código mínimo → test verde
-4. **Type Safety** — TypeScript strict, Zod en todos los boundaries
-5. **English Only** — código, commits y specs en inglés
-6. **Reuse Over Recreate** — comprobar antes de crear
-
----
-
-## Posicionamiento
-
-> _"[Nombre del producto] es para restaurantes lo que Open Food Facts es para productos envasados: la base de datos abierta, colaborativa y verificada de referencia."_
-
-**Mercado objetivo:** España primero · LATAM segundo · Global después
-
-**Referentes estratégicos:**
-- **Nutritionix** — valida el modelo B2B: 25K restaurantes ya pagan por gestionar sus datos en EEUU. España es territorio libre.
-- **Open Food Facts** — valida el modelo colaborativo: 4M productos en 150 países con datos abiertos y API pública.
-
----
-
-## Pendiente de definir
-
-- [ ] Nombre definitivo del producto
-- [ ] Branding (logotipo, paleta, tipografía, tono de voz)
-- [ ] Modelo de negocio (freemium, precios, open core vs SaaS)
-- [ ] Plan de marketing
-- [ ] Licencia open source (MIT / Apache 2.0 / AGPL)
-
----
-
-## Contribuir
-
-El proyecto está en fase inicial de arranque. Las contribuciones estarán abiertas una vez se publique la primera versión funcional del bot (Fase 1). Mientras tanto, puedes:
-
-- ⭐ Dejar una estrella si el proyecto te parece interesante
-- 📬 Contactar si eres un restaurante interesado en colaborar
-- 🐛 Abrir un issue si encuentras algún problema en la documentación
 
 ---
 
 ## Licencia
 
-Licencia pendiente de definición. Ver [`PRD.md § 8`](./PRD.md#8-pendientes-estratégicos) para el análisis de opciones (MIT / Apache 2.0 / AGPL).
+Licencia pendiente de definicion.
 
 ---
 
-_Versión 1.0 · Marzo 2026 · Spec-Driven Development + [sdd-devflow](https://github.com/pbojeda/sdd-devflow)_
+_Fase 1 completada - Marzo 2026 - [Spec-Driven Development](https://github.com/pbojeda/sdd-devflow)_

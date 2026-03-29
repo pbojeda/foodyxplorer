@@ -469,3 +469,18 @@ model QueryLog {
   @@index([source])
   @@map("query_logs")
 }
+
+model WaitlistSubmission {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email       String   @unique
+  phone       String?
+  variant     String   @default("a")
+  source      String   @default("hero")
+  utmSource   String?  @map("utm_source")
+  utmMedium   String?  @map("utm_medium")
+  utmCampaign String?  @map("utm_campaign")
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("waitlist_submissions")
+}

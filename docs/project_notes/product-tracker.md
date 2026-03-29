@@ -8,13 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-27
+**Last Updated:** 2026-03-29
 
-**Active Feature:** None — no active work
+**Active Feature:** No active work
 **Step:** —
 **Branch:** —
 **Complexity:** —
-**Context:** F034 completed and squash-merged to develop (PR #34, SHA a4fde9a, 2026-03-27). 168 tests (10 files), 37 files changed. POST /analyze/menu + bot upload_menu/upload_dish handlers. 6 review rounds (Gemini+Codex spec, Gemini+Codex plan, prod validator, code review, QA). BUG-F034-01 + BUG-F034-02 found+fixed. ADR-011.
+**Context:** F048 completed and merged to develop (PR #45, squash). All Marketing & Growth features done (F039-F048).
 
 ---
 
@@ -26,7 +26,7 @@
 | E002 | Data Ingestion Pipeline | done | F007-F019 | E001 complete |
 | E003 | Estimation Engine | done | F020-F024 | E001 complete, E002 partial |
 | E004 | Telegram Bot + Public API | in-progress | F025-F032 | E002 + E003 complete |
-| E005 | Advanced Analysis & UX | planned | F033-F037 | E004 partial |
+| E005 | Advanced Analysis & UX | done | F033-F037 | E004 partial |
 
 ## Features — E001 Infrastructure & Schema
 
@@ -90,10 +90,29 @@
 | F038 | Multilingual Dish Name Resolution | backend | done | 6/6 | Standard. Populate name_es for all dishes, fix ingest pipeline, new name_source_locale field, regenerate embeddings. ADR-010 |
 | F031 | Bot File Upload (multipart, inline keyboard) | fullstack | done | 6/6 | Standard. PR #32, SHA 01d8b1f. 137 tests (8 files). POST /ingest/image + bot handlers. BUG-F031-01 fixed |
 | F034 | Menu Analysis (PDF OCR + Vision API) | fullstack | done | 6/6 | Complex. POST /analyze/menu (auth required). parseDishNames for PDFs, Vision for photos. ADR-011. PR #34, SHA a4fde9a. 168 tests (10 files). 37 files changed |
-| F041 | Bot Recipe Calculator (/receta) | fullstack | pending | — | Standard. Bot /receta command → POST /calculate/recipe (free-form). Depends on F035 ✅ |
-| F042 | Portion-Aware NL Estimation | fullstack | pending | — | Standard. NL handler detects "pequeño/grande" → portionMultiplier. Depends on F033 ✅ |
-| F043 | Dish Comparison via Bot | fullstack | pending | — | Standard. "qué tiene más X, A o B?" → 2× /estimate → comparison |
-| F037 | Conversational Context Manager | fullstack | pending | — | Standard. Redis state per chatId. Deferred to Phase 3 |
+| F041 | Bot Recipe Calculator (/receta) | fullstack | done | 6/6 | Standard. Bot /receta command → POST /calculate/recipe (free-form). PR #35, SHA c1db312. 100 tests (4 files). 23 files changed |
+| F042 | Portion-Aware NL Estimation | fullstack | done | 6/6 | Standard. PR #36, SHA 67fc5c0. 140 tests (69 impl + 71 QA). BUG-F042-01 resolved |
+| F043 | Dish Comparison via Bot | fullstack | done | 6/6 | Standard. /comparar + NL patterns → 2× /estimate → comparison card. PR #37 merged |
+| F037 | Conversational Context Manager | bot | done | 6/6 | Standard. Chain context per chatId, auto-inject in /estimar /comparar NL. PR #39, SHA d6d32df. 162 F037 tests, 1055 total |
+
+## Features — Marketing & Growth
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F039 | Landing Page — nutriXplorer | frontend | done | 6/6 | Standard. packages/landing/ standalone. Next.js 14 + Tailwind + Framer Motion. 9 sections, A/B hero, SEO, GDPR, analytics. 153 tests. SHA 64280e4 |
+| F044 | Landing Page Overhaul — v5 design, 4 A/B variants, SearchSimulator | frontend | done | 6/6 | Standard. Glass-card aesthetic, 8 images, 4 variants (A/C/D/F), Mediterranean palette, PostSimulatorCTA. 286 tests. SHA 013935d |
+| F045 | Landing — Critical Bug Fixes | frontend | done | 6/6 | Standard. 9 fixes from audit: legal pages, og-image, canonical, anchors, variant D removed, CTA gating, animation typo, hydration warning, SearchAction. PR #38, 335 tests |
+| F046 | Landing — Waitlist Persistence + Anti-Spam | fullstack | done | 6/6 | Standard. POST /waitlist + GET /admin/waitlist, Prisma migration, honeypot + rate limiting, landing form → Fastify API. PR #40, SHA e0c83e8 |
+| F047 | Landing — Conversion Optimization | fullstack | done | 6/6 | Standard. 8 items: GA4 init, mobile menu, phone +34, success banner, forms reduced, social proof counter, CTA copy, contrast. GET /waitlist/count. PR #42, SHA a52546d |
+| F040 | Landing Page FAQ Section + Schema | frontend | done | 6/6 | Standard. FAQ accordion with structured data (FAQPage schema). Deferred from F039. Depends on F045 |
+| F048 | Landing — Performance & Accessibility | frontend | done | 6/6 | Standard. ARIA combobox, security headers, ChatGPT card, no-match UX, reduced-motion, localStorage. PR #45 |
+
+## Features — Quality & Documentation
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F049 | Bot User Manual Overhaul | docs | done | 6/6 | Standard. Fix 2 critical doc errors (context fallback lie, TTL refresh lie), 8 important gaps (undocumented features, incorrect claims), 6 suggestions. From cross-model audit (Claude + Gemini + Codex) |
+| F050 | Bot NL Punctuation Fix + Help Update | bot | done | 6/6 | Simple. BUG-AUDIT-01 fix (¿ stripping in extractFoodQuery) + /start help update. PR #43, SHA d243c1e. 11 tests, 1066 total | Simple. Fix BUG-AUDIT-01 (`¿` not stripped in extractFoodQuery). Update /start help text to include /comparar, /contexto, /restaurante |
 
 ## Features — Marketing & Growth
 
@@ -145,6 +164,17 @@
 | 2026-03-26 | F035 — Recipe Calculation Endpoint | a263c79 (squash merge to develop, PR #31) | POST /calculate/recipe: structured + free-form modes. Food-only cascade (direct_id → exact_food → fts_food → similarity_food → llm_food_match). Two-phase resolution (L1 parallel, L3/L4 sequential, budget 10). 14 nutrients, null-all→null, AbortController 30s. openaiClient.ts shared utility. Spec reviewed 4x (Gemini + Codex, ~25 issues). Plan reviewed 2x (Gemini + Codex). Production validator: 1C+2H+3M fixed. Code review: APPROVED (2 important fixed). QA: VERIFIED (16 edge-case tests). 116 F035 tests (6 files). 18 files changed |
 | 2026-03-26 | F031 — Bot File Upload | 01d8b1f (squash merge to develop, PR #32) | Fullstack (API + Bot). POST /ingest/image multipart endpoint + bot photo/document handlers + inline keyboard + ALLOWED_CHAT_IDS guard + apiClient multipart (90s timeout). FST_REQ_FILE_TOO_LARGE error mapping fix. Spec reviewed by Gemini+Codex (8 issues). Plan reviewed by Codex (5 issues). Production validator: 1C fixed. Code review: APPROVED (2H fixed: DRY download, shared constant). QA: 1 bug fixed (BUG-F031-01 empty photo array), 29 edge-case tests. 137 F031 tests (8 files). 32 files changed |
 | 2026-03-27 | F034 — Menu Analysis (OCR + Vision API) | a4fde9a (squash merge to develop, PR #34) | Complex fullstack (API + Bot). POST /analyze/menu: 4 modes (auto/ocr/vision/identify), callVisionCompletion (multimodal base64), parseDishNames, per-dish runEstimationCascade, cooperative timeout (partial results), dual rate limiting (API 10/hr + bot 5/hr per chatId). Bot upload_menu + upload_dish callbacks. ADR-011. Spec reviewed by Gemini+Codex (7 issues). Plan reviewed by Gemini+Codex (7 issues). Production validator: 1C fixed (spec drift 408→200+partial). Code review: APPROVED (3M: 2 fixed). QA: 2 bugs fixed (BUG-F034-01 UNSUPPORTED_PDF wrapping, BUG-F034-02 0-dish timeout guard), 27 edge-case tests. 168 F034 tests (10 files). 37 files changed |
+| 2026-03-27 | F041 — Bot Recipe Calculator (/receta) | c1db312 (squash merge to develop, PR #35) | Standard fullstack (bot-only — API exists). Bot /receta command → POST /calculate/recipe (free-form). Rate limit 5/hr per chatId (Redis, fail-open). Input guard 2000 chars. Smart truncation (ingredient list only). RECIPE_TIMEOUT_MS 30s. postJson optional timeout param. Spec reviewed by Gemini+Codex (6 issues). Plan reviewed by Gemini+Codex (6 issues). Production validator: READY (0 issues). Code review: APPROVED (2M fixed: dead variable, non-null assertion). QA: VERIFIED (0 bugs), 26 edge-case tests. 100 F041 tests (4 files). 23 files changed |
+| 2026-03-28 | F042 — Portion-Aware NL Estimation | 67fc5c0 (squash merge to develop, PR #36) | Standard fullstack (API + Bot). API: portionMultiplier param on GET /estimate (0.1-5.0), post-cascade nutrient scaling (2dp), portionGrams (1dp), referenceBasis→per_serving, extended cache key. Bot: extractPortionModifier pure function (15 regex patterns, Spanish size modifiers + plurals), integrated in NL handler + /estimar, formatter PORTION_LABEL_MAP. Spec reviewed by Gemini (1C+2I+1S). Plan reviewed by Gemini (1C+1I+1S). Production validator: 5 issues (3 fixed). Code review: 1C+1S fixed (edge-cases fixture, label semantics). QA: BUG-F042-01 resolved (label map spec correction), 71 edge-case tests. 140 F042 tests (12 files). 31 files changed |
+| 2026-03-28 | F043 — Dish Comparison via Bot | squash merge to develop, PR #37 | Standard bot-only. /comparar command + NL comparison detection (5 prefix patterns × 6 separators). Side-by-side MarkdownV2 code-block table with per-nutrient ✅ winner. Promise.allSettled, outcome matrix (timeout/error/unknown), length guard, same-entity note. Spec reviewed by Gemini+Codex (4C+6I+4S). Plan reviewed by Gemini+Codex (2C+5I+5S). Production validator: READY (0 issues). Code review: 1I fixed (con separator priority). QA: 3 bugs fixed (BUG-F043-01 leading ¿, BUG-F043-02 same-entity, BUG-F043-03 con in NL), 80 edge-case tests. 176 F043 tests (5 files). 11 files changed |
+| 2026-03-28 | F045 — Landing Critical Bug Fixes | squash merge to develop, PR #38 | Standard frontend. 9 fixes from cross-model audit: 3 legal pages (GDPR/LSSI), og-image (1200x630), canonical URL, anchor IDs (#waitlist, #demo), variant D removed (ADR-012), PostSimulatorCTA gated by interaction, animation typo, suppressHydrationWarning, SearchAction removed. Production validator: 1C fixed (variant D in API). Code review: APPROVED (1M: accidental file deletion restored). QA: VERIFIED (22 edge-case tests, 0 bugs). 335 tests (38 suites). 30 files changed |
+| 2026-03-28 | F037 — Conversational Context Manager | d6d32df (squash merge to develop, PR #39) | Standard bot-only. /contexto command (view/clear/set) + NL detection ("estoy en mcdonalds") + auto-inject chainSlug in /estimar, /comparar, NL handler. 4-tier fuzzy chain resolution (exact slug > exact name > prefix > bidirectional substring). BotStateChainContext in Redis, setStateStrict, real Redis TTL. Spec reviewed by Gemini+Codex (10 issues). Plan reviewed by Gemini+Codex (9 issues). Production validator: READY (0 issues). Code review: APPROVED (3I fixed). QA: 2 bugs fixed (BUG-F037-01 BORRAR case, BUG-F037-02 newline detector), 69 edge-case tests. 162 F037 tests (9 files). 30 files changed |
+| 2026-03-29 | F040 — Landing Page FAQ Section + Schema | a93faba (squash merge to develop, PR #41) | Standard frontend. FAQ accordion with native `<details>`/`<summary>`, FAQPage JSON-LD, 6 items es/en, placed before WaitlistCTA in all 3 variants. Spec reviewed by Gemini+Codex (5I+2S). Plan reviewed by Gemini+Codex (1C+4I+2S). Production validator: 1C fixed (ui-components.md). Code review: APPROVED (1I fixed). QA: VERIFIED (26 edge-case tests, 0 bugs). 374 tests (40 suites). 14 files changed |
+| 2026-03-29 | F048 — Landing Performance & Accessibility | b4a9d1a (squash merge to develop, PR #45) | Standard frontend. 6 P2 items: WAI-ARIA combobox (keyboard nav, aria-expanded/controls/activedescendant), security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy), ChatGPT 4th comparison card (es+en), no-match UX (query interpolation + suggestion pills), prefers-reduced-motion (CSS + MotionConfig), localStorage try/catch. Spec reviewed by Gemini+Codex (1C+6I). Plan reviewed by Gemini+Codex (5I). Code review: APPROVED (3 ARIA fixes). QA: VERIFIED (26 edge-case tests). 511 tests (47 suites). 15 files changed. **All Marketing & Growth features complete (F039-F048)** |
+| 2026-03-29 | F049 — Bot User Manual Overhaul | aaebacf (squash merge to develop, PR #44) | Standard docs-only. 16 findings from cross-model audit (Claude+Gemini+Codex): 2 critical factual errors, 8 important gaps, 6 suggestions. Verified by Gemini+Codex (16/16 FIXED + 3 new issues fixed). 3 files changed |
+| 2026-03-29 | F050 — Bot NL Punctuation Fix + Help Update | d243c1e (squash merge to develop, PR #43) | Simple bugfix. BUG-AUDIT-01: strip ¿¡?! in extractFoodQuery. /start help updated with /comparar, /contexto, /restaurante. 11 new tests, 1066 total. 6 files changed |
+| 2026-03-29 | F047 — Landing Conversion Optimization | a52546d (squash merge to develop, PR #42) | Standard fullstack (API + landing). 8 conversion items: GA4 init (dataLayer bootstrap), MobileMenu Client Component (hamburger, ARIA, Escape/outside click), phone auto-prepend +34, WaitlistSuccessBanner (useSearchParams + Suspense), forms reduced to 2 per variant, social proof counter (GET /waitlist/count, 5min cache), benefit-oriented CTA copy (Spanish), WCAG AA contrast fix. Spec reviewed by Gemini+Codex (2C+8I). Plan reviewed by Gemini+Codex (7I). Code review: APPROVED (3I noted). QA: 1 bug fixed (BUG-F047-01 Footer form), 29 edge-case tests. 446 landing tests (45 suites) + 4 API. 34 files changed |
+| 2026-03-28 | F046 — Waitlist Persistence + Anti-Spam | e0c83e8 (squash merge to develop, PR #40) | Standard fullstack (API + landing + shared). POST /waitlist (public, honeypot, 5/15min rate limit, email lowercase, P2002→409 idempotent, form-urlencoded 303). GET /admin/waitlist (admin auth, paginated, sort). Prisma migration waitlist_submissions. Landing form → Fastify API, honeypot field, UTM params, 409-as-success. Deleted Next.js route. Zod schemas in shared. Production validator: READY. Code review: APPROVED (3I fixed: max-length, phone validation, source input). QA: 3 bugs (BUG-F046-01 critical fixed, BUG-F046-03 low fixed, BUG-F046-02 medium noted), 94 edge-case tests. API 2449, Landing 332, Shared 339. 31 files changed |
 
 ---
 

@@ -21,12 +21,15 @@ import { handlePlatos } from './commands/platos.js';
 import { handleCadenas } from './commands/cadenas.js';
 import { handleInfo } from './commands/info.js';
 import { handleRestaurante } from './commands/restaurante.js';
+import { handleReceta } from './commands/receta.js';
+import { handleComparar } from './commands/comparar.js';
+import { handleContexto } from './commands/contexto.js';
 import { handleNaturalLanguage } from './handlers/naturalLanguage.js';
 import { handleCallbackQuery } from './handlers/callbackQuery.js';
 import { handlePhoto, handleDocument } from './handlers/fileUpload.js';
 
 const KNOWN_COMMANDS = new Set([
-  'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info', 'restaurante',
+  'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info', 'restaurante', 'receta', 'comparar', 'contexto',
 ]);
 
 export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis): TelegramBot {
@@ -74,7 +77,7 @@ export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis):
 
   bot.onText(
     /^\/estimar(?:@\w+)?(?:\s+(.+))?$/,
-    (msg, match) => wrapHandler(() => handleEstimar(match?.[1] ?? '', apiClient))(msg),
+    (msg, match) => wrapHandler(() => handleEstimar(match?.[1] ?? '', msg.chat.id, redis, apiClient))(msg),
   );
 
   bot.onText(
@@ -108,6 +111,48 @@ export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis):
         }
       }
     },
+  );
+
+  // /receta is wired directly (not through wrapHandler) because it needs
+  // chatId and redis for per-user rate limiting — same pattern as /restaurante.
+  bot.onText(
+    /^\/receta(?:@\w+)?(?:\s+(.+))?$/s,
+    async (msg, match) => {
+      try {
+        const text = await handleReceta(match?.[1] ?? '', msg.chat.id, apiClient, redis);
+        await send(msg.chat.id, text);
+      } catch (err) {
+        logger.error({ err, chatId: msg.chat.id }, 'Unhandled /receta error');
+        try {
+          await send(msg.chat.id, escapeMarkdown('Lo siento, ha ocurrido un error inesperado.'));
+        } catch {
+          // ignore send failure
+        }
+      }
+    },
+  );
+
+  // /contexto is wired directly because it needs chatId and redis.
+  bot.onText(
+    /^\/contexto(?:@\w+)?(?:\s+(.+))?$/,
+    async (msg, match) => {
+      try {
+        const text = await handleContexto(match?.[1] ?? '', msg.chat.id, redis, apiClient);
+        await send(msg.chat.id, text);
+      } catch (err) {
+        logger.error({ err, chatId: msg.chat.id }, 'Unhandled /contexto error');
+        try {
+          await send(msg.chat.id, escapeMarkdown('Lo siento, ha ocurrido un error inesperado.'));
+        } catch {
+          // ignore send failure
+        }
+      }
+    },
+  );
+
+  bot.onText(
+    /^\/comparar(?:@\w+)?(?:\s+(.+))?$/s,
+    (msg, match) => wrapHandler(() => handleComparar(match?.[1] ?? '', msg.chat.id, redis, apiClient))(msg),
   );
 
   // -------------------------------------------------------------------------
@@ -173,7 +218,7 @@ export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis):
     // Plain text (no slash prefix) — route to NL handler
     const trimmed = text.trim();
     if (trimmed) {
-      void wrapHandler(() => handleNaturalLanguage(trimmed, apiClient))(msg);
+      void wrapHandler(() => handleNaturalLanguage(trimmed, msg.chat.id, redis, apiClient))(msg);
     }
     // Empty text or media (no msg.text) → silently ignore
   });

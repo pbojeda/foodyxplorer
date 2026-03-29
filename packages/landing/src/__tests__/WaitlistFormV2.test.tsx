@@ -3,7 +3,7 @@
  * These tests complement (not replace) the existing WaitlistForm.test.tsx.
  */
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WaitlistForm } from '@/components/features/WaitlistForm';
 import * as analytics from '@/lib/analytics';
@@ -55,7 +55,9 @@ describe('WaitlistForm — phone field', () => {
     const user = userEvent.setup();
     render(<WaitlistForm source="cta" variant="a" showPhone={true} />);
     await user.type(screen.getByRole('textbox', { name: /email/i }), 'test@example.com');
-    await user.type(screen.getByPlaceholderText(/teléfono/i), '+34612345678');
+    // Use fireEvent.change to set the full phone number directly
+    // (avoids interaction with handlePhoneFocus auto-prepend)
+    fireEvent.change(screen.getByPlaceholderText(/teléfono/i), { target: { value: '+34612345678' } });
     await user.click(screen.getByRole('button', { name: /únete/i }));
     await waitFor(() => {
       expect(screen.getByText(/apuntado/i)).toBeInTheDocument();
@@ -90,10 +92,11 @@ describe('WaitlistForm — phone field', () => {
     const user = userEvent.setup();
     render(<WaitlistForm source="cta" variant="a" showPhone={true} />);
     await user.type(screen.getByRole('textbox', { name: /email/i }), 'test@example.com');
-    await user.type(screen.getByPlaceholderText(/teléfono/i), '+34612345678');
+    // Use fireEvent.change to set the phone directly without triggering focus auto-prepend
+    fireEvent.change(screen.getByPlaceholderText(/teléfono/i), { target: { value: '+34612345678' } });
     await user.click(screen.getByRole('button', { name: /únete/i }));
     await waitFor(() => {
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body) as Record<string, unknown>;
       expect(body.phone).toBe('+34612345678');
     });
   });
@@ -103,7 +106,8 @@ describe('WaitlistForm — phone field', () => {
     const user = userEvent.setup();
     render(<WaitlistForm source="cta" variant="a" showPhone={true} />);
     await user.type(screen.getByRole('textbox', { name: /email/i }), 'test@example.com');
-    await user.type(screen.getByPlaceholderText(/teléfono/i), '+12125550100');
+    // Use fireEvent.change to set a +1 international number directly
+    fireEvent.change(screen.getByPlaceholderText(/teléfono/i), { target: { value: '+12125550100' } });
     await user.click(screen.getByRole('button', { name: /únete/i }));
     await waitFor(() => {
       expect(screen.getByText(/apuntado/i)).toBeInTheDocument();

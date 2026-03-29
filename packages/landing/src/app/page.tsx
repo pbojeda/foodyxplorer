@@ -1,5 +1,7 @@
 import { cookies } from 'next/headers';
+import { Suspense } from 'react';
 import { SiteHeader } from '@/components/SiteHeader';
+import { WaitlistSuccessBanner } from '@/components/features/WaitlistSuccessBanner';
 import { HeroSection } from '@/components/sections/HeroSection';
 import { ProductDemo } from '@/components/ProductDemo';
 import { HowItWorksSection } from '@/components/sections/HowItWorksSection';
@@ -9,12 +11,13 @@ import { ForWhoSection } from '@/components/sections/ForWhoSection';
 import { ComparisonSection } from '@/components/sections/ComparisonSection';
 import { RestaurantsSection } from '@/components/sections/RestaurantsSection';
 import { WaitlistCTASection } from '@/components/sections/WaitlistCTASection';
+import { FAQSection } from '@/components/sections/FAQSection';
 import { Footer } from '@/components/sections/Footer';
 import { CookieBanner } from '@/components/analytics/CookieBanner';
 import { ScrollTracker } from '@/components/analytics/ScrollTracker';
 import { SectionObserver } from '@/components/analytics/SectionObserver';
 import { resolveVariant, VARIANT_COOKIE_NAME } from '@/lib/ab-testing';
-import { generateWebSiteSchema, generateSoftwareApplicationSchema } from '@/lib/seo';
+import { generateWebSiteSchema, generateSoftwareApplicationSchema, generateFAQPageSchema } from '@/lib/seo';
 import { getDictionary } from '@/lib/i18n';
 import { VisualDivider } from '@/components/VisualDivider';
 import type { Variant, Palette } from '@/types';
@@ -60,6 +63,7 @@ function VariantALayout({ dict, variant }: { dict: Dictionary; variant: Variant 
 
       <SectionObserver sectionId="product-demo" variant={variant}>
         <section
+          id="demo"
           aria-label={dict.productDemo.headline}
           data-section="product-demo"
           className="bg-paper py-12 lg:py-16"
@@ -97,6 +101,12 @@ function VariantALayout({ dict, variant }: { dict: Dictionary; variant: Variant 
         <RestaurantsSection dict={dict.restaurants} />
       </SectionObserver>
 
+      {dict.faq.items.length > 0 && (
+        <SectionObserver sectionId="faq" variant={variant}>
+          <FAQSection dict={dict.faq} />
+        </SectionObserver>
+      )}
+
       <SectionObserver sectionId="waitlist-cta" variant={variant}>
         <WaitlistCTASection dict={dict.waitlistCta} variant={variant} />
       </SectionObserver>
@@ -121,6 +131,7 @@ function VariantCLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
 
       <SectionObserver sectionId="product-demo" variant={variant}>
         <section
+          id="demo"
           aria-label={dict.productDemo.headline}
           data-section="product-demo"
           className="bg-paper py-12 lg:py-16"
@@ -143,47 +154,11 @@ function VariantCLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
         <ComparisonSection dict={dict.comparison} />
       </SectionObserver>
 
-      <SectionObserver sectionId="waitlist-cta" variant={variant}>
-        <WaitlistCTASection dict={dict.waitlistCta} variant={variant} />
-      </SectionObserver>
-    </main>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Variant D layout — "Demo-First"
-// Order: Hero (with SearchSimulator) → ProductDemo → TrustEngine → EmotionalBlock → Comparison → WaitlistCTA
-// ---------------------------------------------------------------------------
-function VariantDLayout({ dict, variant }: { dict: Dictionary; variant: Variant }) {
-  return (
-    <main>
-      <SectionObserver sectionId="hero" variant={variant}>
-        <HeroSection variant={variant} dict={dict.hero} variantsCopy={dict.variants} />
-      </SectionObserver>
-
-      <SectionObserver sectionId="product-demo" variant={variant}>
-        <section
-          aria-label={dict.productDemo.headline}
-          data-section="product-demo"
-          className="bg-paper py-12 lg:py-16"
-        >
-          <div className="section-shell">
-            <ProductDemo />
-          </div>
-        </section>
-      </SectionObserver>
-
-      <SectionObserver sectionId="trust-engine" variant={variant}>
-        <TrustEngineSection dict={dict.trustEngine} />
-      </SectionObserver>
-
-      <SectionObserver sectionId="emotional" variant={variant}>
-        <EmotionalBlock dict={dict.emotionalBlock} />
-      </SectionObserver>
-
-      <SectionObserver sectionId="comparison" variant={variant}>
-        <ComparisonSection dict={dict.comparison} />
-      </SectionObserver>
+      {dict.faq.items.length > 0 && (
+        <SectionObserver sectionId="faq" variant={variant}>
+          <FAQSection dict={dict.faq} />
+        </SectionObserver>
+      )}
 
       <SectionObserver sectionId="waitlist-cta" variant={variant}>
         <WaitlistCTASection dict={dict.waitlistCta} variant={variant} />
@@ -209,6 +184,7 @@ function VariantFLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
 
       <SectionObserver sectionId="product-demo" variant={variant}>
         <section
+          id="demo"
           aria-label={dict.productDemo.headline}
           data-section="product-demo"
           className="bg-paper py-12 lg:py-16"
@@ -227,6 +203,12 @@ function VariantFLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
         <EmotionalBlock dict={dict.emotionalBlock} />
       </SectionObserver>
 
+      {dict.faq.items.length > 0 && (
+        <SectionObserver sectionId="faq" variant={variant}>
+          <FAQSection dict={dict.faq} />
+        </SectionObserver>
+      )}
+
       <SectionObserver sectionId="waitlist-cta" variant={variant}>
         <WaitlistCTASection dict={dict.waitlistCta} variant={variant} />
       </SectionObserver>
@@ -241,8 +223,6 @@ function getVariantLayout(variant: Variant, dict: Dictionary): React.JSX.Element
   switch (variant) {
     case 'c':
       return <VariantCLayout dict={dict} variant={variant} />;
-    case 'd':
-      return <VariantDLayout dict={dict} variant={variant} />;
     case 'f':
       return <VariantFLayout dict={dict} variant={variant} />;
     default:
@@ -263,6 +243,8 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
 
   const websiteSchema = generateWebSiteSchema();
   const softwareSchema = generateSoftwareApplicationSchema();
+  const faqSchema =
+    dict.faq.items.length > 0 ? generateFAQPageSchema(dict.faq.items) : null;
 
   return (
     <>
@@ -282,9 +264,20 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(softwareSchema) }}
       />
+      {faqSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(faqSchema) }}
+        />
+      )}
 
       {/* Sticky site header */}
       <SiteHeader />
+
+      {/* No-JS waitlist success banner — useSearchParams requires Suspense to preserve SSG */}
+      <Suspense fallback={null}>
+        <WaitlistSuccessBanner />
+      </Suspense>
 
       {/* Variant-specific layout */}
       {getVariantLayout(variant, dict)}

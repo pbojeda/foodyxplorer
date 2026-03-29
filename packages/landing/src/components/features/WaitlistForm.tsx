@@ -37,9 +37,11 @@ interface WaitlistFormProps {
   variant: Variant;
   /** When true, shows the phone field. Default: false. Phone is only shown in the final WaitlistCTA section. */
   showPhone?: boolean;
+  /** Label for the submit button. Default: 'Únete a la waitlist'. */
+  submitLabel?: string;
 }
 
-export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFormProps) {
+export function WaitlistForm({ source, variant, showPhone = false, submitLabel = 'Únete a la waitlist' }: WaitlistFormProps) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [status, setStatus] = useState<FormStatus>('idle');
@@ -85,6 +87,28 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
     setTouched(true);
   }
 
+  function handlePhoneFocus() {
+    if (phone === '') {
+      setPhone('+34');
+    }
+  }
+
+  function handlePhoneBlur() {
+    setPhoneTouched(true);
+    const trimmed = phone.trim();
+    if (trimmed === '+34') {
+      // Bare prefix with no digits — clear it
+      setPhone('');
+      return;
+    }
+    if (/^\d{9}$/.test(trimmed)) {
+      // 9-digit number without any prefix — prepend +34
+      setPhone('+34' + trimmed);
+      return;
+    }
+    // Otherwise leave unchanged (already has a country code, has digits after +34, etc.)
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (status === 'loading') return;
@@ -102,13 +126,15 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
     setStatus('loading');
     setErrorMessage(null);
 
+    const utmParams = getUtmParams();
+
     // Fire CTA analytics
     if (source === 'hero') {
       trackEvent({
         event: 'hero_cta_click',
         variant,
         lang: 'es',
-        ...getUtmParams(),
+        ...utmParams,
       });
     } else {
       trackEvent({
@@ -116,39 +142,44 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
         source,
         variant,
         lang: 'es',
-        ...getUtmParams(),
+        ...utmParams,
       });
     }
 
     try {
-      const response = await fetch('/api/waitlist', {
+      const response = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/waitlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, ...(phone.trim() ? { phone: phone.trim() } : {}), variant, source }),
+        body: JSON.stringify({ email, ...(phone.trim() ? { phone: phone.trim() } : {}), variant, source, ...utmParams, honeypot: '' }),
       });
 
-      if (response.ok) {
+      if (response.ok || response.status === 409) {
         setStatus('success');
         trackEvent({
           event: 'waitlist_submit_success',
           variant,
           lang: 'es',
-          ...getUtmParams(),
+          ...utmParams,
         });
       } else {
-        let data: { error?: string } | undefined;
+        let errorMsg = 'Ha ocurrido un error. Inténtalo de nuevo.';
         try {
-          data = await response.json();
+          const data = await response.json();
+          if (typeof data?.error === 'string') {
+            errorMsg = data.error;
+          } else if (typeof data?.error === 'object' && data.error?.message) {
+            errorMsg = data.error.message;
+          }
         } catch {
           /* non-JSON response */
         }
         setStatus('error');
-        setErrorMessage(data?.error ?? 'Ha ocurrido un error. Inténtalo de nuevo.');
+        setErrorMessage(errorMsg);
         trackEvent({
           event: 'waitlist_submit_error',
           variant,
           lang: 'es',
-          ...getUtmParams(),
+          ...utmParams,
         });
       }
     } catch {
@@ -158,7 +189,7 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
         event: 'waitlist_submit_error',
         variant,
         lang: 'es',
-        ...getUtmParams(),
+        ...utmParams,
       });
     }
   }
@@ -176,14 +207,26 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
 
   return (
     <form
-      action="/api/waitlist"
+      action={`${process.env['NEXT_PUBLIC_API_URL']}/waitlist`}
       method="POST"
       onSubmit={handleSubmit}
       noValidate
       className="flex flex-col gap-3"
     >
-      {/* Progressive enhancement: hidden variant input for no-JS form POST */}
+      {/* Progressive enhancement: hidden inputs for no-JS form POST */}
       <input type="hidden" name="variant" value={variant} />
+      <input type="hidden" name="source" value={source} />
+      {/* Anti-spam honeypot: visually hidden, must stay empty. Inline style avoids CSS purging. */}
+      <input
+        type="text"
+        name="honeypot"
+        tabIndex={-1}
+        aria-hidden="true"
+        autoComplete="off"
+        value=""
+        readOnly
+        style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0, overflow: 'hidden' }}
+      />
 
       <Input
         id={`waitlist-email-${source}`}
@@ -206,7 +249,7 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
             htmlFor={`waitlist-phone-${source}`}
             className="text-sm font-medium text-slate-700"
           >
-            Teléfono <span className="font-normal text-slate-400">(opcional)</span>
+            Teléfono <span className="font-normal text-slate-500">(opcional)</span>
           </label>
           <input
             id={`waitlist-phone-${source}`}
@@ -214,7 +257,8 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
             placeholder="Tu teléfono (opcional)"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            onBlur={() => setPhoneTouched(true)}
+            onFocus={handlePhoneFocus}
+            onBlur={handlePhoneBlur}
             autoComplete="tel"
             disabled={status === 'loading'}
             aria-describedby={`waitlist-phone-help-${source}`}
@@ -225,7 +269,7 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
               {phoneError}
             </p>
           )}
-          <p id={`waitlist-phone-help-${source}`} className="text-xs text-slate-400">
+          <p id={`waitlist-phone-help-${source}`} className="text-xs text-slate-500">
             Formato: +34 612 345 678 (opcional)
           </p>
         </div>
@@ -245,7 +289,7 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
         disabled={status === 'loading'}
         className="w-full"
       >
-        Únete a la waitlist
+        {submitLabel}
       </Button>
 
       <p className="text-center text-xs text-slate-500">

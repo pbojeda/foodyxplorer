@@ -9,14 +9,23 @@ export function generateWebSiteSchema() {
     url: SITE_URL,
     description:
       'Información nutricional de restaurantes en España: calorías, macros y nivel de confianza visible.',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: {
-        '@type': 'EntryPoint',
-        urlTemplate: `${SITE_URL}/?q={search_term_string}`,
+  };
+}
+
+export function generateFAQPageSchema(
+  items: ReadonlyArray<{ question: string; answer: string }>,
+) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
       },
-      'query-input': 'required name=search_term_string',
-    },
+    })),
   };
 }
 

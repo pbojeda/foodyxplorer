@@ -7,7 +7,7 @@
 // The ApiClient interface is designed for dependency injection — tests inject
 // a mock implementation, no real HTTP is made during unit tests.
 
-import type { DishListItem, RestaurantListItem, ChainListItem, EstimateData, PaginationMeta, Restaurant, CreateRestaurantBody, MenuAnalysisData } from '@foodxplorer/shared';
+import type { DishListItem, RestaurantListItem, ChainListItem, EstimateData, PaginationMeta, Restaurant, CreateRestaurantBody, MenuAnalysisData, RecipeCalculateData } from '@foodxplorer/shared';
 import type { BotConfig } from './config.js';
 
 // ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ export interface ApiClient {
    * Always returns EstimateData (never null, never throws on null result).
    * The caller should check `data.result === null` to decide what to show.
    */
-  estimate(params: { query: string; chainSlug?: string }): Promise<EstimateData>;
+  estimate(params: { query: string; chainSlug?: string; portionMultiplier?: number }): Promise<EstimateData>;
   listRestaurants(params: { chainSlug?: string; page?: number; pageSize?: number }): Promise<PaginatedResult<RestaurantListItem>>;
   listRestaurantDishes(restaurantId: string, params: { page?: number; pageSize?: number }): Promise<PaginatedResult<DishListItem>>;
   /** Always sends ?isActive=true per spec — bot only shows active chains. */
@@ -98,6 +98,13 @@ export interface ApiClient {
     mimeType: string;
     mode: 'auto' | 'ocr' | 'vision' | 'identify';
   }): Promise<MenuAnalysisData>;
+  /**
+   * Calculate aggregate nutrition for a free-form recipe text (F041).
+   * Uses BOT_API_KEY (not adminKey — public endpoint).
+   * Uses RECIPE_TIMEOUT_MS (30s) — LLM parsing + multi-ingredient resolution
+   * can take up to ~10s; the default 10s REQUEST_TIMEOUT_MS is too short.
+   */
+  calculateRecipe(text: string): Promise<RecipeCalculateData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -122,6 +129,7 @@ export class ApiError extends Error {
 
 const REQUEST_TIMEOUT_MS = 10_000;
 export const UPLOAD_TIMEOUT_MS = 90_000;
+export const RECIPE_TIMEOUT_MS = 30_000;
 
 export function createApiClient(config: BotConfig): ApiClient {
   const baseUrl = config.API_BASE_URL.replace(/\/$/, '');
@@ -185,11 +193,11 @@ export function createApiClient(config: BotConfig): ApiClient {
    * When `adminKey` is provided, it replaces the default BOT_API_KEY in the X-API-Key header.
    * Throws ApiError on any non-2xx or network/timeout error.
    */
-  async function postJson<T>(path: string, body: unknown, adminKey?: string): Promise<T> {
+  async function postJson<T>(path: string, body: unknown, adminKey?: string, timeout: number = REQUEST_TIMEOUT_MS): Promise<T> {
     const url = new URL(path, baseUrl + '/');
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), timeout);
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -306,6 +314,9 @@ export function createApiClient(config: BotConfig): ApiClient {
     async estimate(params) {
       const sp: Record<string, string> = { query: params.query };
       if (params.chainSlug) sp['chainSlug'] = params.chainSlug;
+      if (params.portionMultiplier !== undefined && params.portionMultiplier !== 1.0) {
+        sp['portionMultiplier'] = String(params.portionMultiplier);
+      }
       return fetchJson<EstimateData>('/estimate', sp);
     },
 
@@ -399,6 +410,13 @@ export function createApiClient(config: BotConfig): ApiClient {
       // Uses BOT_API_KEY (no adminKey override) — public API key endpoint.
       // postFormData already unwraps the { success, data } envelope and returns data.
       return postFormData<MenuAnalysisData>('/analyze/menu', form);
+    },
+
+    async calculateRecipe(text) {
+      // Uses BOT_API_KEY (no adminKey) — public endpoint.
+      // RECIPE_TIMEOUT_MS (30s) overrides the default 10s — LLM parsing + multi-ingredient
+      // resolution can take up to ~10s per ingredient before returning.
+      return postJson<RecipeCalculateData>('/calculate/recipe', { mode: 'free-form', text }, undefined, RECIPE_TIMEOUT_MS);
     },
   };
 }

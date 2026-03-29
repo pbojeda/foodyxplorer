@@ -182,6 +182,7 @@ describe('createApiClient', () => {
     const estimateData = {
       query: 'big mac',
       chainSlug: null,
+      portionMultiplier: 1.0,
       level1Hit: true,
       level2Hit: false,
       level3Hit: false,
@@ -195,6 +196,66 @@ describe('createApiClient', () => {
     const result = await client.estimate({ query: 'big mac' });
     expect(result.query).toBe('big mac');
     expect(result.result).toBeNull();
+  });
+
+  it('estimate sends portionMultiplier=1.5 in querystring', async () => {
+    const estimateData = {
+      query: 'big mac',
+      chainSlug: null,
+      portionMultiplier: 1.5,
+      level1Hit: true,
+      level2Hit: false,
+      level3Hit: false,
+      level4Hit: false,
+      matchType: 'exact_dish',
+      result: null,
+      cachedAt: null,
+    };
+    fetchMock.mockResolvedValue(makeResponse(200, { success: true, data: estimateData }));
+
+    await client.estimate({ query: 'big mac', portionMultiplier: 1.5 });
+    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    expect(url.searchParams.get('portionMultiplier')).toBe('1.5');
+  });
+
+  it('estimate omits portionMultiplier when absent', async () => {
+    const estimateData = {
+      query: 'big mac',
+      chainSlug: null,
+      portionMultiplier: 1.0,
+      level1Hit: true,
+      level2Hit: false,
+      level3Hit: false,
+      level4Hit: false,
+      matchType: 'exact_dish',
+      result: null,
+      cachedAt: null,
+    };
+    fetchMock.mockResolvedValue(makeResponse(200, { success: true, data: estimateData }));
+
+    await client.estimate({ query: 'big mac' });
+    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    expect(url.searchParams.has('portionMultiplier')).toBe(false);
+  });
+
+  it('estimate omits portionMultiplier when 1.0', async () => {
+    const estimateData = {
+      query: 'big mac',
+      chainSlug: null,
+      portionMultiplier: 1.0,
+      level1Hit: true,
+      level2Hit: false,
+      level3Hit: false,
+      level4Hit: false,
+      matchType: 'exact_dish',
+      result: null,
+      cachedAt: null,
+    };
+    fetchMock.mockResolvedValue(makeResponse(200, { success: true, data: estimateData }));
+
+    await client.estimate({ query: 'big mac', portionMultiplier: 1.0 });
+    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    expect(url.searchParams.has('portionMultiplier')).toBe(false);
   });
 
   it('listRestaurants returns paginated result', async () => {

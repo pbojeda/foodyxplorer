@@ -32,6 +32,7 @@ import type TelegramBot from 'node-telegram-bot-api';
 const ESTIMATE_DATA_WITH_RESULT: EstimateData = {
   query: 'big mac',
   chainSlug: null,
+  portionMultiplier: 1.0,
   level1Hit: true,
   level2Hit: false,
   level3Hit: false,
@@ -77,6 +78,7 @@ function makeMockClient(): { [K in keyof ApiClient]: ReturnType<typeof vi.fn> } 
     uploadImage: vi.fn(),
     uploadPdf: vi.fn(),
     analyzeMenu: vi.fn(),
+    calculateRecipe: vi.fn(),
   };
 }
 
@@ -93,7 +95,7 @@ const TEST_CONFIG: BotConfig = {
 };
 
 // Minimal Redis mock — DI into buildBot
-const MOCK_REDIS = { get: vi.fn(), set: vi.fn(), del: vi.fn() };
+const MOCK_REDIS = { get: vi.fn().mockResolvedValue(null), set: vi.fn(), del: vi.fn(), ttl: vi.fn() };
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -143,8 +145,8 @@ describe('buildBot', () => {
     expect(bot).toBeDefined();
   });
 
-  it('registers onText exactly 9 times (one per command including /restaurante)', () => {
-    expect(mockBot.onText).toHaveBeenCalledTimes(9);
+  it('registers onText exactly 12 times (one per command including /restaurante, /receta, /comparar, and /contexto)', () => {
+    expect(mockBot.onText).toHaveBeenCalledTimes(12);
   });
 
   it('registers polling_error handler via bot.on', () => {
@@ -319,6 +321,33 @@ describe('buildBot', () => {
 
     expect(mockClient.estimate).not.toHaveBeenCalled();
     expect(mockBot.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('"receta" is in KNOWN_COMMANDS (unknown-command catch-all does not fire for /receta)', async () => {
+    mockBot.sendMessage.mockResolvedValue({});
+
+    const onCalls = mockBot.on.mock.calls as Array<[string, (msg: TelegramBot.Message) => void]>;
+    const messageHandler = onCalls.find(([event]) => event === 'message');
+    const handler = defined(messageHandler?.[1], 'message handler');
+
+    // /receta is known — should NOT trigger the "no reconocido" reply
+    await handler(makeMessage('/receta'));
+
+    expect(mockBot.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('the /receta regex matches single-line input', () => {
+    const onTextCalls = mockBot.onText.mock.calls as Array<[RegExp, unknown]>;
+    const recetaCall = onTextCalls.find(([regex]) => regex.toString().includes('receta'));
+    expect(recetaCall).toBeDefined();
+    expect(recetaCall?.[0].test('/receta 200g pollo, 100g arroz')).toBe(true);
+  });
+
+  it('the /receta regex matches multiline input (s dotAll flag)', () => {
+    const onTextCalls = mockBot.onText.mock.calls as Array<[RegExp, unknown]>;
+    const recetaCall = onTextCalls.find(([regex]) => regex.toString().includes('receta'));
+    expect(recetaCall).toBeDefined();
+    expect(recetaCall?.[0].test('/receta 200g pollo\n100g arroz')).toBe(true);
   });
 
   it('does NOT call estimate or sendMessage for whitespace-only text', async () => {

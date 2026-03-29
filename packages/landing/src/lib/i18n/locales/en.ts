@@ -32,14 +32,6 @@ export const en: Dictionary = {
         scrollCta: 'See how we solve it',
       },
     },
-    d: {
-      hero: {
-        eyebrow: 'Try it now',
-        headline: 'Search any dish. See what you know.',
-        subtitle:
-          'Type a dish and discover calories, macros, and confidence level.',
-      },
-    },
     f: {
       hero: {
         eyebrow: 'For families with food allergies',
@@ -185,6 +177,14 @@ export const en: Dictionary = {
           'The most widely used option. Fast, free, completely unreliable. And it generates guilt when the result does not match your goals.',
         advantage: 'nutriXplorer gives you a real reference point.',
       },
+      {
+        title: 'ChatGPT / Generative AIs',
+        versus: 'vs. nutriXplorer',
+        description:
+          'Responds with generic data from public databases. Not verified against real menus. May hallucinate values. Doesn\'t distinguish between chain data and estimates.',
+        advantage:
+          'nutriXplorer verifies every data point against the original source and shows its confidence level.',
+      },
     ],
   },
   productDemo: {
@@ -214,8 +214,48 @@ export const en: Dictionary = {
     eyebrow: 'Who is starting today',
     headline: 'Who is starting today',
   },
+  siteHeader: {
+    cta: 'Try for free',
+    mobileCta: 'Try',
+  },
+  faq: {
+    eyebrow: 'Frequently asked questions',
+    headline: 'What you need to know',
+    items: [
+      {
+        question: 'What is nutriXplorer?',
+        answer:
+          'nutriXplorer is an open platform that tells you the calories, macros, and confidence level of any dish at restaurants in Spain. It works through a Telegram bot and a four-level estimation engine.',
+      },
+      {
+        question: 'Where does the nutritional data come from?',
+        answer:
+          'We combine official data from restaurant chains, reference nutritional databases, ingredient-based analysis, and when no other source is available, similarity-based or AI estimates. Each answer shows its confidence level so you always know what you can rely on.',
+      },
+      {
+        question: 'Which restaurants are available?',
+        answer:
+          "We currently cover 10 Spanish chains with official data (McDonald's, Burger King, KFC, Telepizza, Subway, Domino's, Pans & Company, and more). We are expanding coverage to local restaurants and new chains every week.",
+      },
+      {
+        question: 'Is it free?',
+        answer:
+          'Yes. During the beta phase, access to the Telegram bot and all queries is completely free. Our goal is to keep basic nutritional information always accessible.',
+      },
+      {
+        question: 'Is my data safe?',
+        answer:
+          'We do not store personal data or track users. Bot queries are anonymous. We comply with GDPR and our privacy policy is available on the website.',
+      },
+      {
+        question: 'How can I get access?',
+        answer:
+          'Sign up for the waitlist on this page and we will notify you when we launch. Early sign-ups will get priority access to the Telegram bot.',
+      },
+    ],
+  },
   waitlistCta: {
-    headline: 'Be the first to try it',
+    headline: 'Discover exactly what you eat at your favourite restaurant',
     subtitle:
       'nutriXplorer is in development. Join the waitlist and be among the first to access it when we launch.',
     urgency: 'Limited spots for early access',

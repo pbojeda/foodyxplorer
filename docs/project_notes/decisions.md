@@ -399,3 +399,33 @@ Three approaches were evaluated in `docs/research/i18n-solution-proposal-2026-03
 - (+) Clean evolution path to N languages via `dish_translations` table when needed
 - (-) Each new language requires a batch translation + schema change (acceptable tradeoff per YAGNI)
 - (-) ~$0.20 one-time cost for batch LLM translation
+
+### ADR-012: Landing Page Variant Strategy and Palette Selection (2026-03-28)
+
+**Context:** The nutriXplorer landing page (F039/F044) was audited by three independent AI models (Claude Opus 4.6, Gemini 2.5, Codex GPT-5.4) across 8 combinations: 4 content variants (A=baseline, C=pain-first, D=demo-first, F=allergen-focused) × 2 color palettes (botanical=green, mediterranean=terracotta). The audit covered technical, SEO, UX, conversion, accessibility, and security dimensions. Full audit at `docs/research/landing-audit-2026-03-28.md`.
+
+**Decision:**
+
+1. **Default variant: A (Botanical)** — Solid baseline for broad organic traffic. Clear structure, SearchSimulator demo, balanced messaging.
+
+2. **Recommended for targeted campaigns: F (Botanical)** — Highest cross-model score (32/40). Clearest niche (celíacos/alergias), strongest emotional hook ("Come fuera sin miedo"), most concrete value proposition. Best for: Google Ads targeting allergy-related searches, parent communities, celiac associations.
+
+3. **Variant D: Disabled until fixed** — Hero promises "Busca cualquier plato" but SearchSimulator is not embedded in the hero. 100% promise-delivery mismatch. Do not send traffic to ?variant=d.
+
+4. **Palette: Botanical as default** — Unanimous cross-model consensus. Green (#2D5A27) communicates health, trust, and verification — aligns with the product's core value of data transparency. Mediterranean palette reserved for lifestyle/restaurant-oriented campaigns where warmth matters more than clinical trust.
+
+5. **A/B testing via URL params** — Keep current ?variant=a|c|d|f&palette=botanical|med approach. Simple, measurable, no server-side split needed. Each campaign URL can target a specific variant.
+
+6. **Waitlist persistence: PostgreSQL** — New endpoint POST /waitlist in packages/api (Fastify), not in the landing's Next.js API route. Table `waitlist_submissions` in existing PostgreSQL. The landing form calls the API. Centralizes data with the rest of the backend.
+
+**Alternatives Considered:**
+- Server-side random A/B split with cookie: Rejected for now — URL param approach is simpler, more transparent, and sufficient for manual campaign testing. Random split can be added later when traffic justifies automated optimization.
+- Mediterranean as default: Rejected — all 3 auditors agreed it dilutes the health/trust positioning. Terracotta communicates "restaurant" more than "data reliability".
+- External waitlist service (Mailchimp, Resend): Rejected — we already have PostgreSQL + Fastify. No need for external dependency.
+
+**Consequences:**
+- (+) Clear guidance for marketing: which URL to use for which campaign
+- (+) Variant D traffic blocked until BUG-LANDING-04 is resolved
+- (+) Waitlist data co-located with product data (same DB, same API)
+- (-) Requires new API endpoint + schema migration for waitlist table
+- (-) Mediterranean palette investment may be underutilized (only for specific campaigns)

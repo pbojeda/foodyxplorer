@@ -36,4 +36,11 @@ describe('PostSimulatorCTA', () => {
     // No phone field
     expect(screen.queryByPlaceholderText(/teléfono/i)).not.toBeInTheDocument();
   });
+
+  it('uses animate-fade-in class (not animate-fadeIn)', () => {
+    const { container } = render(<PostSimulatorCTA variant="a" show={true} />);
+    const wrapper = container.firstChild as HTMLElement;
+    expect(wrapper).toHaveClass('animate-fade-in');
+    expect(wrapper).not.toHaveClass('animate-fadeIn');
+  });
 });

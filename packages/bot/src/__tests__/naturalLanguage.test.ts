@@ -4,9 +4,19 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ApiClient } from '../apiClient.js';
+import type { Redis } from 'ioredis';
 import { ApiError } from '../apiClient.js';
 import type { EstimateData } from '@foodxplorer/shared';
 import { extractFoodQuery, handleNaturalLanguage } from '../handlers/naturalLanguage.js';
+
+function makeMockRedis() {
+  return {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn(),
+    del: vi.fn(),
+    ttl: vi.fn(),
+  } as unknown as Redis;
+}
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -15,6 +25,7 @@ import { extractFoodQuery, handleNaturalLanguage } from '../handlers/naturalLang
 const ESTIMATE_DATA_NULL: EstimateData = {
   query: 'xyz',
   chainSlug: null,
+  portionMultiplier: 1.0,
   level1Hit: false,
   level2Hit: false,
   level3Hit: false,
@@ -27,6 +38,7 @@ const ESTIMATE_DATA_NULL: EstimateData = {
 const ESTIMATE_DATA_WITH_RESULT: EstimateData = {
   query: 'big mac',
   chainSlug: null,
+  portionMultiplier: 1.0,
   level1Hit: true,
   level2Hit: false,
   level3Hit: false,
@@ -74,6 +86,7 @@ function makeMockClient(): MockApiClient {
     uploadImage: vi.fn(),
     uploadPdf: vi.fn(),
     analyzeMenu: vi.fn(),
+    calculateRecipe: vi.fn(),
   };
 }
 
@@ -172,6 +185,44 @@ describe('extractFoodQuery', () => {
 });
 
 // ---------------------------------------------------------------------------
+// extractFoodQuery — Spanish punctuation (BUG-AUDIT-01 / F050)
+// ---------------------------------------------------------------------------
+
+describe('extractFoodQuery — ¿¡ and ?! punctuation stripping (F050)', () => {
+  it('strips leading ¿ before prefix matching', () => {
+    expect(extractFoodQuery('¿cuántas calorías tiene un big mac?')).toEqual({ query: 'big mac' });
+  });
+
+  it('strips leading ¡ before prefix matching', () => {
+    expect(extractFoodQuery('¡cuántas calorías tiene un big mac!')).toEqual({ query: 'big mac' });
+  });
+
+  it('strips leading ¿¡ combined', () => {
+    expect(extractFoodQuery('¿¡cuántas calorías tiene una hamburguesa?!')).toEqual({ query: 'hamburguesa' });
+  });
+
+  it('strips trailing ? from plain dish name', () => {
+    expect(extractFoodQuery('big mac?')).toEqual({ query: 'big mac' });
+  });
+
+  it('strips trailing ! from plain dish name', () => {
+    expect(extractFoodQuery('big mac!')).toEqual({ query: 'big mac' });
+  });
+
+  it('handles ¿qué lleva un whopper?', () => {
+    expect(extractFoodQuery('¿qué lleva un whopper?')).toEqual({ query: 'whopper' });
+  });
+
+  it('handles ¿información nutricional del big mac?', () => {
+    expect(extractFoodQuery('¿información nutricional del big mac?')).toEqual({ query: 'big mac' });
+  });
+
+  it('preserves chain slug with punctuation stripping', () => {
+    expect(extractFoodQuery('¿calorías de un big mac en mcdonalds-es?')).toEqual({ query: 'big mac', chainSlug: 'mcdonalds-es' });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // handleNaturalLanguage
 // ---------------------------------------------------------------------------
 
@@ -184,19 +235,19 @@ describe('handleNaturalLanguage', () => {
 
   it('happy path: returns formatted card containing kcal value', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
-    const result = await handleNaturalLanguage('big mac', mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('563');
   });
 
   it('null result: returns no-data message', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    const result = await handleNaturalLanguage('xyz unknown dish', mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage('xyz unknown dish', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('No se encontraron datos nutricionales');
   });
 
   it('text > 500 chars: returns "sé más específico" without calling estimate', async () => {
     const longText = 'a'.repeat(501);
-    const result = await handleNaturalLanguage(longText, mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage(longText, 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('específico');
     expect(mock.estimate).not.toHaveBeenCalled();
   });
@@ -204,49 +255,49 @@ describe('handleNaturalLanguage', () => {
   it('text exactly 500 chars: accepted (calls estimate)', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
     const text500 = 'a'.repeat(500);
-    await handleNaturalLanguage(text500, mock as unknown as ApiClient);
+    await handleNaturalLanguage(text500, 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalled();
   });
 
   it('ApiError 429: returns rate-limit message', async () => {
     mock.estimate.mockRejectedValue(new ApiError(429, 'RATE_LIMIT', 'Too many'));
-    const result = await handleNaturalLanguage('big mac', mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('Demasiadas consultas');
   });
 
   it('ApiError 503: returns service-unavailable message', async () => {
     mock.estimate.mockRejectedValue(new ApiError(503, 'SERVICE_UNAVAILABLE', 'Service down'));
-    const result = await handleNaturalLanguage('big mac', mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('no esta disponible');
   });
 
   it('ApiError TIMEOUT: returns timeout message', async () => {
     mock.estimate.mockRejectedValue(new ApiError(408, 'TIMEOUT', 'Timeout'));
-    const result = await handleNaturalLanguage('big mac', mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('tardo demasiado');
   });
 
   it('ApiError NETWORK_ERROR: returns network-error message', async () => {
     mock.estimate.mockRejectedValue(new ApiError(0, 'NETWORK_ERROR', 'Network'));
-    const result = await handleNaturalLanguage('big mac', mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('conectar');
   });
 
   it('extraction feeds API: "calorías de un big mac" calls estimate with { query: "big mac" }', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleNaturalLanguage('calorías de un big mac', mock as unknown as ApiClient);
+    await handleNaturalLanguage('calorías de un big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({ query: 'big mac' });
   });
 
   it('chain extraction feeds API: "big mac en mcdonalds-es" calls estimate with query and chainSlug', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleNaturalLanguage('big mac en mcdonalds-es', mock as unknown as ApiClient);
+    await handleNaturalLanguage('big mac en mcdonalds-es', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({ query: 'big mac', chainSlug: 'mcdonalds-es' });
   });
 
   it('non-ApiError (TypeError) is rethrown, not caught', async () => {
     mock.estimate.mockRejectedValue(new TypeError('Unexpected'));
-    await expect(handleNaturalLanguage('big mac', mock as unknown as ApiClient)).rejects.toThrow(TypeError);
+    await expect(handleNaturalLanguage('big mac', 0, makeMockRedis(), mock as unknown as ApiClient)).rejects.toThrow(TypeError);
   });
 });
 
@@ -480,7 +531,7 @@ describe('handleNaturalLanguage — QA edge cases', () => {
 
   it('BOUNDARY: text of exactly 501 chars is rejected — estimate NOT called', async () => {
     const exactly501 = 'a'.repeat(501);
-    const result = await handleNaturalLanguage(exactly501, mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage(exactly501, 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('específico');
     expect(mock.estimate).not.toHaveBeenCalled();
   });
@@ -489,14 +540,14 @@ describe('handleNaturalLanguage — QA edge cases', () => {
     // " " + "a"*500 + " " = 502 raw chars, 500 trimmed — within limit (not > 500)
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
     const paddedExactly500 = ' ' + 'a'.repeat(500) + ' ';
-    await handleNaturalLanguage(paddedExactly500, mock as unknown as ApiClient);
+    await handleNaturalLanguage(paddedExactly500, 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledOnce();
   });
 
   it('BOUNDARY: whitespace-padded to 503 total but 501 trimmed — rejected', async () => {
     // " " + "a"*501 + " " = 503 raw chars, 501 trimmed — over limit
     const paddedExactly501 = ' ' + 'a'.repeat(501) + ' ';
-    const result = await handleNaturalLanguage(paddedExactly501, mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage(paddedExactly501, 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('específico');
     expect(mock.estimate).not.toHaveBeenCalled();
   });
@@ -504,33 +555,33 @@ describe('handleNaturalLanguage — QA edge cases', () => {
   it('too-long prompt contains "_big mac_" italic (not double-escaped by escapeMarkdown)', async () => {
     // Spec §Key Patterns #4: the >500 prompt must NOT use escapeMarkdown
     // because that would escape the _ delimiters and break italic formatting.
-    const result = await handleNaturalLanguage('a'.repeat(501), mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage('a'.repeat(501), 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('_big mac_');
     // Double-escaped form must NOT appear
     expect(result).not.toContain('\\_big mac\\_');
   });
 
   it('too-long prompt contains "Por favor" and "sé más específico"', async () => {
-    const result = await handleNaturalLanguage('a'.repeat(501), mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage('a'.repeat(501), 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('Por favor');
     expect(result).toContain('sé más específico');
   });
 
   it('ApiError 401: returns configuration error message', async () => {
     mock.estimate.mockRejectedValue(new ApiError(401, 'UNAUTHORIZED', 'Unauthorized'));
-    const result = await handleNaturalLanguage('big mac', mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('configuracion');
   });
 
   it('ApiError 500: returns service-unavailable message', async () => {
     mock.estimate.mockRejectedValue(new ApiError(500, 'SERVER_ERROR', 'Internal error'));
-    const result = await handleNaturalLanguage('big mac', mock as unknown as ApiClient);
+    const result = await handleNaturalLanguage('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(result).toContain('no esta disponible');
   });
 
   it('no slug: chainSlug property is absent from estimate call (matches spec)', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleNaturalLanguage('big mac', mock as unknown as ApiClient);
+    await handleNaturalLanguage('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
     const args = (mock.estimate.mock.calls[0] as [{ query: string; chainSlug?: string }])[0];
     expect(Object.prototype.hasOwnProperty.call(args, 'chainSlug')).toBe(false);
   });
@@ -540,7 +591,7 @@ describe('handleNaturalLanguage — QA edge cases', () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
     const text = 'a'.repeat(484) + ' en mcdonalds-es';
     expect(text.length).toBe(500);
-    await handleNaturalLanguage(text, mock as unknown as ApiClient);
+    await handleNaturalLanguage(text, 0, makeMockRedis(), mock as unknown as ApiClient);
     expect(mock.estimate).toHaveBeenCalledWith({
       query: 'a'.repeat(484),
       chainSlug: 'mcdonalds-es',
@@ -552,12 +603,145 @@ describe('handleNaturalLanguage — QA edge cases', () => {
     // Fire two concurrent calls — each must call estimate with its own args.
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
     await Promise.all([
-      handleNaturalLanguage('big mac', mock as unknown as ApiClient),
-      handleNaturalLanguage('whopper', mock as unknown as ApiClient),
+      handleNaturalLanguage('big mac', 0, makeMockRedis(), mock as unknown as ApiClient),
+      handleNaturalLanguage('whopper', 0, makeMockRedis(), mock as unknown as ApiClient),
     ]);
     expect(mock.estimate).toHaveBeenCalledTimes(2);
     const calls = mock.estimate.mock.calls as Array<[{ query: string }]>;
     const queries = calls.map((c) => c[0].query).sort();
     expect(queries).toEqual(['big mac', 'whopper']);
+  });
+
+  // --- portionModifier integration ---
+
+  it('"big mac grande" → estimate called with query="big mac", portionMultiplier=1.5', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('big mac grande', 0, makeMockRedis(), mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledWith({
+      query: 'big mac',
+      portionMultiplier: 1.5,
+    });
+  });
+
+  it('"big mac" (no modifier) → estimate called without portionMultiplier key', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    await handleNaturalLanguage('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
+    const args = mock.estimate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(args, 'portionMultiplier')).toBe(false);
+  });
+
+  it('"calorías de un big mac grande" → modifier extracted first, then prefix stripped', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('calorías de un big mac grande', 0, makeMockRedis(), mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledWith({
+      query: 'big mac',
+      portionMultiplier: 1.5,
+    });
+  });
+
+  it('"big mac grande en mcdonalds-es" → modifier stripped, chain slug preserved', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('big mac grande en mcdonalds-es', 0, makeMockRedis(), mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledWith({
+      query: 'big mac',
+      chainSlug: 'mcdonalds-es',
+      portionMultiplier: 1.5,
+    });
+  });
+
+  it('portionMultiplier=1.0 → property absent from estimate call', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    await handleNaturalLanguage('tortilla', 0, makeMockRedis(), mock as unknown as ApiClient);
+    const args = mock.estimate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(args, 'portionMultiplier')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F043 NL Comparison Detection
+// ---------------------------------------------------------------------------
+
+describe('handleNaturalLanguage — comparison detection', () => {
+  let mock: MockApiClient;
+
+  beforeEach(() => {
+    mock = makeMockClient();
+  });
+
+  it('"qué tiene más calorías, un big mac o un whopper" → estimate called twice (comparison)', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('qué tiene más calorías, un big mac o un whopper', 0, makeMockRedis(), mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+  });
+
+  it('"compara big mac con whopper" → comparison detected, estimate called twice', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('compara big mac con whopper', 0, makeMockRedis(), mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+  });
+
+  it('"qué engorda más, una pizza o una hamburguesa" → comparison with nutrientFocus calorías', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    const result = await handleNaturalLanguage('qué engorda más, una pizza o una hamburguesa', 0, makeMockRedis(), mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+    // nutrientFocus "calorías" → should show (foco) label
+    expect(result).toContain('(foco)');
+  });
+
+  it('"compara big mac vs whopper" → comparison detected via "vs" separator', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('compara big mac vs whopper', 0, makeMockRedis(), mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+  });
+
+  it('"qué tiene menos grasas, una pizza o una hamburguesa" → nutrientFocus grasas', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    const result = await handleNaturalLanguage('qué tiene menos grasas, una pizza o una hamburguesa', 0, makeMockRedis(), mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+    expect(result).toContain('Grasas');
+  });
+
+  it('"big mac vs whopper" (no prefix) → falls through to single-dish path, estimate called once', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('big mac vs whopper', 0, makeMockRedis(), mock as unknown as ApiClient);
+    // No comparison prefix → single dish path
+    expect(mock.estimate).toHaveBeenCalledTimes(1);
+  });
+
+  it('"qué es más sano, una ensalada o un bollo" → comparison detected, no nutrientFocus', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    const result = await handleNaturalLanguage('qué es más sano, una ensalada o un bollo', 0, makeMockRedis(), mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+    // No (foco) label since nutrientFocus is undefined
+    expect(result).not.toContain('(foco)');
+  });
+
+  it('comparison detected → estimate NOT called 3 times (only 2, not single-dish path)', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('compara big mac con whopper', 0, makeMockRedis(), mock as unknown as ApiClient);
+    // Comparison short-circuits before single-dish path
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+  });
+
+  it('one estimate returns null result → does not crash, shows partial data', async () => {
+    mock.estimate
+      .mockResolvedValueOnce(ESTIMATE_DATA_WITH_RESULT)
+      .mockResolvedValueOnce(ESTIMATE_DATA_NULL);
+    const result = await handleNaturalLanguage('compara big mac con xyz', 0, makeMockRedis(), mock as unknown as ApiClient);
+    expect(result).toContain('Big Mac');
+    expect(result).toContain('No se encontraron datos');
+  });
+
+  it('comparison with portion modifier in text still works', async () => {
+    mock.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    await handleNaturalLanguage('qué tiene más calorías, una big mac grande o un whopper', 0, makeMockRedis(), mock as unknown as ApiClient);
+    expect(mock.estimate).toHaveBeenCalledTimes(2);
+  });
+
+  it('MAX_NL_TEXT_LENGTH guard fires before comparison detection for text > 500 chars', async () => {
+    const longComparison = 'compara ' + 'a'.repeat(300) + ' vs ' + 'b'.repeat(200);
+    const result = await handleNaturalLanguage(longComparison, 0, makeMockRedis(), mock as unknown as ApiClient);
+    expect(result).toContain('específico');
+    expect(mock.estimate).not.toHaveBeenCalled();
   });
 });
