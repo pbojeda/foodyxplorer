@@ -92,6 +92,7 @@ N/A — Simple task.
 |------|--------|-------|
 | 2026-03-29 | Ticket created | From comprehensive audit finding I2 (Codex), verified against plan |
 | 2026-03-29 | Implementation | Removed selectedRestaurant guard from handlePhoto(). Adaptive keyboard: 2 buttons (analyze/identify) without restaurant, 3 with. 3 existing tests updated. 1093 total passing |
+| 2026-03-29 | Design decision | Implemented Option B (adaptive keyboard) instead of recommended Option A (always 3 buttons + error). Option B provides better UX by hiding unavailable actions rather than showing an error |
 
 ---
 
