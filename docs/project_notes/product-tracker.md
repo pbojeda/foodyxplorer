@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-29
 
-**Active Feature:** No active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F049 completed and merged to develop (aaebacf, PR #44). F050 also merged (d243c1e, PR #43).
+**Active Feature:** F048 — Landing Performance & Accessibility
+**Step:** 6/6
+**Branch:** feature/F048-landing-performance-a11y
+**Complexity:** Standard
+**Context:** F048 ready for merge. 6 items: ARIA combobox, security headers, ChatGPT card, no-match UX, reduced-motion, localStorage. 511 tests (47 suites).
 
 ---
 
@@ -105,7 +105,7 @@
 | F046 | Landing — Waitlist Persistence + Anti-Spam | fullstack | done | 6/6 | Standard. POST /waitlist + GET /admin/waitlist, Prisma migration, honeypot + rate limiting, landing form → Fastify API. PR #40, SHA e0c83e8 |
 | F047 | Landing — Conversion Optimization | fullstack | done | 6/6 | Standard. 8 items: GA4 init, mobile menu, phone +34, success banner, forms reduced, social proof counter, CTA copy, contrast. GET /waitlist/count. PR #42, SHA a52546d |
 | F040 | Landing Page FAQ Section + Schema | frontend | done | 6/6 | Standard. FAQ accordion with structured data (FAQPage schema). Deferred from F039. Depends on F045 |
-| F048 | Landing — Performance & Accessibility | frontend | pending | — | Standard. SearchSimulator keyboard nav (WAI-ARIA combobox), replace framer-motion with CSS, security headers, prefers-reduced-motion. Depends on F047 |
+| F048 | Landing — Performance & Accessibility | frontend | done | 6/6 | Standard. ARIA combobox, security headers, ChatGPT card, no-match UX, reduced-motion, localStorage. PR #45 |
 
 ## Features — Quality & Documentation
 

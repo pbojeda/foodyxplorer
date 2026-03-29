@@ -175,6 +175,14 @@ export const es = {
           'La opción más usada. Rápida, gratuita, completamente poco fiable. Y encima genera culpa cuando el resultado no encaja con tus objetivos.',
         advantage: 'nutriXplorer te da un punto de referencia real.',
       },
+      {
+        title: 'ChatGPT / IAs generativas',
+        versus: 'vs. nutriXplorer',
+        description:
+          'Responde con datos genéricos de bases públicas. Sin verificar contra menús reales. Puede inventar valores (alucinaciones). No distingue entre datos de cadena y estimaciones.',
+        advantage:
+          'nutriXplorer verifica cada dato contra la fuente original y muestra su nivel de confianza.',
+      },
     ],
   },
   productDemo: {

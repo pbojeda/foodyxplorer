@@ -11,7 +11,7 @@ describe('ComparisonSection', () => {
     expect(screen.getByText(dict.comparison.headline)).toBeInTheDocument();
   });
 
-  it('renders all 3 comparison cards', () => {
+  it('renders all 4 comparison cards', () => {
     render(<ComparisonSection dict={dict.comparison} />);
     for (const card of dict.comparison.cards) {
       expect(screen.getByText(card.title)).toBeInTheDocument();
