@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import Script from 'next/script';
 import type { Variant } from '@/types';
 import { VARIANT_COOKIE_NAME, VARIANT_COOKIE_MAX_AGE } from '@/lib/ab-testing';
+import { deleteGaCookies } from '@/lib/deleteGaCookies';
 
-const CONSENT_KEY = 'nx-cookie-consent';
+export const CONSENT_KEY = 'nx-cookie-consent';
 const GA_ID = process.env['NEXT_PUBLIC_GA_MEASUREMENT_ID'] ?? '';
 
 function safeGetItem(key: string): string | null {
@@ -51,6 +52,7 @@ export function CookieBanner({ variant }: CookieBannerProps) {
 
   function handleReject() {
     safeSetItem(CONSENT_KEY, 'rejected');
+    deleteGaCookies();
     setConsent('rejected');
   }
 

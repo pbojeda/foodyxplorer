@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import Link from 'next/link';
 import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -294,6 +295,14 @@ export function WaitlistForm({ source, variant, showPhone = false, submitLabel =
 
       <p className="text-center text-xs text-slate-500">
         Sin spam. Solo lanzamiento y acceso temprano.
+      </p>
+
+      <p className="text-center text-xs text-slate-500">
+        Al unirte, aceptas nuestra{' '}
+        <Link href="/privacidad" className="underline underline-offset-2 hover:text-slate-700">
+          Política de Privacidad
+        </Link>
+        . Responsable: Pablo Eduardo Ojeda Vasco. Finalidad: gestionar tu acceso anticipado.
       </p>
 
       <div aria-live="polite" aria-atomic="true" className="sr-only">

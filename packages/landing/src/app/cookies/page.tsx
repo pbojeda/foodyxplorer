@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
+import { CookieSettingsLink } from '@/components/analytics/CookieSettingsLink';
 
 export const metadata: Metadata = {
   title: 'Política de cookies | nutriXplorer',
@@ -173,6 +174,11 @@ export default function CookiesPage() {
         <Link href="/" className="text-sm text-slate-500 hover:text-slate-700 transition-colors">
           ← Volver al inicio
         </Link>
+        {' · '}
+        <CookieSettingsLink
+          label="Gestionar cookies"
+          className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+        />
       </footer>
     </>
   );
