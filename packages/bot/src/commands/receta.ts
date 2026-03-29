@@ -53,6 +53,27 @@ async function isRateLimited(redis: Redis, chatId: number): Promise<boolean> {
 }
 
 /**
+ * Returns true for errors that are NOT the user's fault (server 5xx, timeout, network).
+ * 4xx errors (bad input, rate limit) are considered user-caused.
+ */
+function isServerOrNetworkError(err: ApiError): boolean {
+  return err.statusCode >= 500 || err.code === 'TIMEOUT' || err.code === 'NETWORK_ERROR';
+}
+
+/**
+ * Decrement the rate-limit counter to refund a slot.
+ * Silently swallows Redis errors (fail-open).
+ */
+async function decrementRateLimit(redis: Redis, chatId: number): Promise<void> {
+  const key = `${RATE_LIMIT_KEY_PREFIX}${chatId}`;
+  try {
+    await redis.decr(key);
+  } catch {
+    logger.warn({ chatId }, '/receta rate-limit decrement failed (Redis error) — ignoring');
+  }
+}
+
+/**
  * Map recipe-specific error codes before delegating to the generic handler.
  * RECIPE_UNRESOLVABLE and FREE_FORM_PARSE_FAILED are 422 errors specific to
  * this endpoint and warrant more informative user messages.
@@ -106,6 +127,12 @@ export async function handleReceta(
     const data = await apiClient.calculateRecipe(trimmed);
     return formatRecipeResult(data);
   } catch (err) {
+    // Refund the rate-limit slot for server/network errors (not user errors).
+    // 4xx errors (422 RECIPE_UNRESOLVABLE, FREE_FORM_PARSE_FAILED, 429) are
+    // user-caused or legitimate throttles — keep the counter.
+    if (err instanceof ApiError && isServerOrNetworkError(err)) {
+      await decrementRateLimit(redis, chatId);
+    }
     logger.warn({ err, text: trimmed }, '/receta API error');
     return handleRecipeError(err);
   }
