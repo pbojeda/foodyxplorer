@@ -177,6 +177,14 @@ export const en: Dictionary = {
           'The most widely used option. Fast, free, completely unreliable. And it generates guilt when the result does not match your goals.',
         advantage: 'nutriXplorer gives you a real reference point.',
       },
+      {
+        title: 'ChatGPT / Generative AIs',
+        versus: 'vs. nutriXplorer',
+        description:
+          'Responds with generic data from public databases. Not verified against real menus. May hallucinate values. Doesn\'t distinguish between chain data and estimates.',
+        advantage:
+          'nutriXplorer verifies every data point against the original source and shows its confidence level.',
+      },
     ],
   },
   productDemo: {

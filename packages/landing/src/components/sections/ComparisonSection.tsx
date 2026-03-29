@@ -22,8 +22,8 @@ export function ComparisonSection({ dict }: ComparisonSectionProps) {
           </h2>
         </div>
 
-        {/* 3 comparison cards — NOT a table, intentionally card layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* 4 comparison cards — NOT a table, intentionally card layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {dict.cards.map((card) => (
             <div
               key={card.title}
