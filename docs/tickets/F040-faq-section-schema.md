@@ -1,7 +1,7 @@
 # F040: Landing Page FAQ Section + Schema
 
 **Feature:** F040 | **Type:** Frontend-Feature | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F040-faq-section-schema
+**Status:** Done | **Branch:** (merged to develop, deleted)
 **Created:** 2026-03-29 | **Dependencies:** F045 done
 
 ---
@@ -260,7 +260,7 @@ _page.test.tsx additions_
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed
 - [x] Step 5: `qa-engineer` executed (Standard/Complex)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -275,6 +275,7 @@ _page.test.tsx additions_
 | 2026-03-29 | Production validator | 1 CRITICAL fixed: FAQSection added to ui-components.md |
 | 2026-03-29 | Code review | APPROVED. 1 IMPORTANT fixed (empty-state integration test). 3 suggestions noted |
 | 2026-03-29 | QA edge-case tests | 26 tests added (2 files), all passing. 374 total |
+| 2026-03-29 | Squash merged to develop | SHA a93faba. Branch deleted |
 
 ---
 
