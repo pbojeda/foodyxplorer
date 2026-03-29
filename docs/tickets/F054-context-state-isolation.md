@@ -1,7 +1,7 @@
 # F054: Context State Isolation & NL Footer Consistency
 
 **Feature:** F054 | **Type:** Bug | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** `feature/F054-context-state-nl-footer`
+**Status:** Done | **Branch:** (merged to develop, deleted)
 **Created:** 2026-03-29 | **Dependencies:** None
 **Audit Source:** `docs/research/comprehensive-audit-2026-03-29.md` — Findings I3, I4
 
@@ -92,7 +92,7 @@ N/A — Simple task.
 - [x] Step 3: TDD implementation (4 tests, RED→GREEN)
 - [x] Step 4: Quality gates pass (1097 tests, tsc clean)
 - [x] Step 5: PR created (#49), review
-- [ ] Step 6: Ticket updated, branch deleted
+- [x] Step 6: Ticket updated, branch deleted
 
 ---
 
@@ -102,6 +102,7 @@ N/A — Simple task.
 |------|--------|-------|
 | 2026-03-29 | Ticket created | From comprehensive audit findings I3 + I4 (Codex), verified in code |
 | 2026-03-29 | Implementation | I3: Option B — updated manual Section 8 + Section 13 (TTL description). I4: added "Contexto activo" footer to NL handler matching /estimar pattern. 4 new tests, 1097 total passing |
+| 2026-03-29 | Squash merged to develop | SHA fb9d63b, PR #49. Branch deleted |
 
 ---
 
