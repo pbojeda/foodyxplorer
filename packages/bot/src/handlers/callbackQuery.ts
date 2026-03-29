@@ -236,12 +236,19 @@ export async function handleCallbackQuery(
   if (data.startsWith('sel:')) {
     const uuid = data.slice(4);
     const state = await getState(redis, chatId);
-    const name = state?.searchResults?.[uuid];
+    const entry = state?.searchResults?.[uuid];
+
+    // Backward compat: old-format entries are plain strings (name only).
+    const name = typeof entry === 'string' ? entry : entry?.name;
+    const chainSlug = typeof entry === 'object' ? entry?.chainSlug : undefined;
 
     if (name) {
+      const selected: { id: string; name: string; chainSlug?: string } = { id: uuid, name };
+      if (chainSlug) selected.chainSlug = chainSlug;
+
       await setState(redis, chatId, {
         ...state,
-        selectedRestaurant: { id: uuid, name },
+        selectedRestaurant: selected,
       });
 
       await bot.sendMessage(
@@ -284,9 +291,12 @@ export async function handleCallbackQuery(
       // Phase 1: Spain-only bot — dynamic countryCode deferred to F037
       const created = await apiClient.createRestaurant({ name, countryCode: 'ES' });
 
+      const selected: { id: string; name: string; chainSlug?: string } = { id: created.id, name: created.name };
+      if (created.chainSlug) selected.chainSlug = created.chainSlug;
+
       await setState(redis, chatId, {
         ...state,
-        selectedRestaurant: { id: created.id, name: created.name },
+        selectedRestaurant: selected,
       });
 
       await bot.sendMessage(

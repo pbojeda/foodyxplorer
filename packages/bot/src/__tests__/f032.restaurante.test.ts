@@ -178,9 +178,9 @@ describe('handleRestaurante — search path', () => {
     expect(redis.set).toHaveBeenCalledOnce();
     const [key, serialized] = (redis.set as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string, ...unknown[]];
     expect(key).toBe('bot:state:123');
-    const state = JSON.parse(serialized) as { pendingSearch: string; searchResults: Record<string, string> };
+    const state = JSON.parse(serialized) as { pendingSearch: string; searchResults: Record<string, { name: string; chainSlug?: string }> };
     expect(state.pendingSearch).toBe('test');
-    expect(state.searchResults?.['uuid-1']).toBe('Test Restaurant');
+    expect(state.searchResults?.['uuid-1']).toEqual({ name: 'Test Restaurant', chainSlug: 'test-es' });
   });
 
   it('shows at most 5 results even if API returns more', async () => {
