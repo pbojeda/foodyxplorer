@@ -1,4 +1,3 @@
-import { WaitlistForm } from '@/components/features/WaitlistForm';
 import type { Dictionary } from '@/lib/i18n';
 import type { Variant } from '@/types';
 
@@ -99,16 +98,7 @@ export function Footer({ dict, variant }: FooterProps) {
             </nav>
           </div>
 
-          {/* Secondary waitlist */}
-          <div>
-            <p className="text-[13px] font-semibold tracking-widest uppercase text-slate-500 mb-4">
-              Acceso anticipado
-            </p>
-            <p className="text-sm text-slate-400 mb-4 leading-relaxed">
-              Sé de los primeros en probarlo cuando lancemos.
-            </p>
-            <WaitlistForm source="footer" variant={variant} />
-          </div>
+          {/* Secondary column — removed WaitlistForm per S7 (max 2 forms: hero + WaitlistCTASection) */}
         </div>
 
         {/* Bottom bar */}
