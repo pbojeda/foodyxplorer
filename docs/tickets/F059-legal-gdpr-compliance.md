@@ -1,7 +1,7 @@
 # F059: Legal/GDPR Compliance Bundle
 
 **Feature:** F059 | **Type:** Frontend-Bugfix | **Priority:** Critical (launch blocker)
-**Status:** In Progress | **Branch:** feature/F059-legal-gdpr-compliance
+**Status:** Ready for Merge | **Branch:** feature/F059-legal-gdpr-compliance
 **Created:** 2026-03-29 | **Dependencies:** None
 **Audit Source:** `docs/research/landing-audit-2026-03-29.md` — Findings C1, C2, C3, I9
 
