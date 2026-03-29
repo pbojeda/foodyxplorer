@@ -96,6 +96,37 @@ describe('CookieBanner', () => {
   });
 });
 
+describe('CookieBanner — deletes GA cookies on reject (F059 C2)', () => {
+  let cookieSetSpy: jest.SpyInstance;
+  const cookieWrites: string[] = [];
+
+  beforeEach(() => {
+    localStorage.clear();
+    cookieWrites.length = 0;
+
+    const cookieDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
+    cookieSetSpy = jest.spyOn(document, 'cookie', 'set').mockImplementation((val: string) => {
+      cookieWrites.push(val);
+      cookieDescriptor?.set?.call(document, val);
+    });
+  });
+
+  afterEach(() => {
+    cookieSetSpy.mockRestore();
+  });
+
+  it('calls document.cookie setter with _ga expiry string on reject', () => {
+    // Seed a _ga cookie in document.cookie getter (simulated via string)
+    jest.spyOn(document, 'cookie', 'get').mockReturnValue('_ga=GA1.2.123456789.1234567890; nx-variant=a');
+
+    render(<CookieBanner variant="a" />);
+    fireEvent.click(screen.getByRole('button', { name: /rechazar/i }));
+
+    const gaDeletion = cookieWrites.find((w) => w.startsWith('_ga=') && w.includes('max-age=0'));
+    expect(gaDeletion).toBeDefined();
+  });
+});
+
 describe('CookieBanner — GA4 initialization (F047)', () => {
   beforeEach(() => {
     localStorage.clear();

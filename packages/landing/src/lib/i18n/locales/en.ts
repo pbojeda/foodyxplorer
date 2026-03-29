@@ -245,7 +245,7 @@ export const en: Dictionary = {
       {
         question: 'Is my data safe?',
         answer:
-          'We do not store personal data or track users. Bot queries are anonymous. We comply with GDPR and our privacy policy is available on the website.',
+          'We only store your email and phone (optional) when you join the waitlist. Analytics (Google Analytics 4) only runs if you accept cookies. Telegram bot queries will be anonymous. We comply with GDPR — see our privacy policy for full details.',
       },
       {
         question: 'How can I get access?',
@@ -268,6 +268,7 @@ export const en: Dictionary = {
       cookies: 'Cookie policy',
       legal: 'Legal notice',
     },
+    cookieSettings: 'Manage cookies',
     madeIn: 'Made in Spain',
     copyright: '© 2026 nutriXplorer. All rights reserved.',
   },

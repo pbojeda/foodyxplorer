@@ -243,7 +243,7 @@ export const es = {
       {
         question: '¿Mis datos están seguros?',
         answer:
-          'No almacenamos datos personales ni hacemos tracking. Las consultas al bot son anónimas. Cumplimos con el RGPD y nuestra política de privacidad está disponible en la web.',
+          'Solo almacenamos tu email y teléfono (opcional) cuando te apuntas a la lista de espera. El analytics (Google Analytics 4) se activa únicamente si aceptas las cookies. Las consultas al bot de Telegram serán anónimas. Cumplimos con el RGPD y puedes consultar todos los detalles en nuestra política de privacidad.',
       },
       {
         question: '¿Cómo puedo acceder?',
@@ -266,6 +266,7 @@ export const es = {
       cookies: 'Política de cookies',
       legal: 'Aviso legal',
     },
+    cookieSettings: 'Gestionar cookies',
     madeIn: 'Hecho en España',
     copyright: '© 2026 nutriXplorer. Todos los derechos reservados.',
   },
