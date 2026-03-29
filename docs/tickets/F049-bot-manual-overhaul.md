@@ -1,7 +1,7 @@
 # F049: Bot User Manual Overhaul
 
 **Feature:** F049 | **Type:** Docs | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F049-bot-manual-overhaul
+**Status:** Done | **Branch:** (merged to develop, deleted)
 **Created:** 2026-03-29 | **Dependencies:** F050 done
 
 ---
@@ -115,7 +115,7 @@ Update "Ultima actualizacion" date, verify all 16 findings addressed.
 - [x] Step 3: Manual rewritten
 - [x] Step 4: Quality review
 - [x] Step 5: Cross-model verification (Gemini + Codex): 16/16 FIXED
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -126,6 +126,7 @@ Update "Ultima actualizacion" date, verify all 16 findings addressed.
 | 2026-03-29 | Ticket created | Standard docs-only, 16 findings from cross-model audit |
 | 2026-03-29 | Manual rewritten | All 16 findings addressed in single commit |
 | 2026-03-29 | Cross-model verification | Gemini + Codex: 16/16 FIXED. 3 new issues found and fixed (protein math, markdown escaping, 2 missing errors) |
+| 2026-03-29 | Squash merged to develop | SHA aaebacf, PR #44. Branch deleted |
 
 ---
 
