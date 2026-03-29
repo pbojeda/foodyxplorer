@@ -1,7 +1,7 @@
 # F051: Bot Rate-Limit Ordering & Failed-Request Handling
 
 **Feature:** F051 | **Type:** Bug | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F051-bot-rate-limit-ordering
+**Status:** Done | **Branch:** (merged to develop, deleted)
 **Created:** 2026-03-29 | **Dependencies:** None
 **Audit Source:** `docs/research/comprehensive-audit-2026-03-29.md` — Findings C1, I11
 
@@ -80,7 +80,7 @@ N/A — Simple task.
 - [x] Step 3: TDD implementation (12 tests, RED→GREEN)
 - [x] Step 4: Quality gates pass (1078 tests, tsc clean)
 - [x] Step 5: PR created (#46), code review approved, merge checklist filled
-- [ ] Step 6: Ticket updated, branch deleted
+- [x] Step 6: Ticket updated, branch deleted
 
 ---
 
@@ -92,6 +92,7 @@ N/A — Simple task.
 | 2026-03-29 | Implementation | TDD: 12 tests (4 C1 + 8 I11). C1: reordered rate limit before download. I11: decrement counter on server/network errors. 1078 total passing |
 | 2026-03-29 | Spec deviation | I11: Implemented Option B (decrement on failure) instead of recommended Option A. Added redis.exists() guard to prevent negative counters when key expires between incr and decr |
 | 2026-03-29 | Code review | code-review-specialist: APPROVED. 1 fix applied (exists guard). Noted: same I11 pattern not applied to callbackQuery.ts upload handlers (future scope) |
+| 2026-03-29 | Squash merged to develop | SHA 714efb6, PR #46. Branch deleted |
 
 ---
 

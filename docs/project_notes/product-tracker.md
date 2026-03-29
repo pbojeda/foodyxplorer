@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-29
 
-**Active Feature:** F051 — Bot Rate-Limit Ordering & Failed-Request Handling
-**Step:** 5/6 (Review)
-**Branch:** feature/F051-bot-rate-limit-ordering
-**Complexity:** Simple
-**Context:** Bug fix from comprehensive audit (C1 + I11). F057+F058 (docs) running in parallel worktree.
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F051 completed and merged to develop (714efb6, PR #46). F057+F058 docs completed in worktree (pending integration).
 
 ---
 
@@ -113,7 +113,7 @@
 |----|---------|------|--------|------|-------|
 | F049 | Bot User Manual Overhaul | docs | done | 6/6 | Standard. Fix 2 critical doc errors (context fallback lie, TTL refresh lie), 8 important gaps (undocumented features, incorrect claims), 6 suggestions. From cross-model audit (Claude + Gemini + Codex) |
 | F050 | Bot NL Punctuation Fix + Help Update | bot | done | 6/6 | Simple. BUG-AUDIT-01 fix (¿ stripping in extractFoodQuery) + /start help update. PR #43, SHA d243c1e. 11 tests, 1066 total |
-| F051 | Bot Rate-Limit Ordering & Failed-Request Handling | bot | in-progress | 5/6 | Bug. C1: move isRateLimited() before downloadTelegramFile(). I11: don't count failed API requests against /receta rate limit. From audit C1 (Gemini), I11 (Claude) |
+| F051 | Bot Rate-Limit Ordering & Failed-Request Handling | bot | done | 6/6 | Bug. C1: move isRateLimited() before downloadTelegramFile(). I11: don't count failed API requests against /receta rate limit. From audit C1 (Gemini), I11 (Claude) |
 | F052 | Restaurant Selection chainSlug Propagation | bot | pending | — | Bug. chainSlug lost when selecting restaurant via inline keyboard — searchResults only stores name. From audit I1 (Codex) |
 | F053 | Decouple Menu Analysis from Restaurant Selection | bot | pending | — | Bug. handlePhoto() blocks all photo flows behind selectedRestaurant; analyze/identify don't need it. Plan says F034 independent. From audit I2 (Codex) |
 | F054 | Context State Isolation & NL Footer Consistency | bot | pending | — | Bug. I3: shared Redis key TTL refreshed by unrelated writes. I4: NL handler missing "Contexto activo" footer. From audit I3+I4 (Codex) |
@@ -121,6 +121,17 @@
 | F056 | MIME Detection Fallback Safety | bot | pending | — | Bug (low). Unknown magic bytes default to image/jpeg instead of showing error. From audit S7 (Claude, Gemini) |
 | F057 | Manual Corrections Batch | docs | pending | — | Docs. 5 fixes: /cadenas pagination claim, error table sync, plural modifiers, "half", NL length error. From audit I5+I6+S1+S2+S3. Depends on F053, F054 |
 | F058 | Strategic Plan Archival & Rate-Limit Decision Documentation | docs | pending | — | Docs. Mark plan as historical, document dual rate-limit strategy (ADR-013), portion multiplier split. From audit I8+I9+I10+S9 |
+
+## Features — Landing Pre-Launch Audit
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F059 | Legal/GDPR Compliance Bundle | frontend | pending | — | Critical. 4 fixes: legal placeholders (C1), cookie consent withdrawal (C2), inaccurate disclosures (C3), privacy link in form (I9). From landing audit 2026-03-29 (Claude+Gemini+Codex) |
+| F060 | GA4 Analytics Integration Fix | frontend | pending | — | High. Fix dataLayer.push→gtag, queue+replay pre-consent events. Requires GA4 Measurement ID from user. From landing audit I1 |
+| F061 | Landing Copy Accuracy | frontend | pending | — | High. FAQ "10 cadenas"→dynamic, fabricated testimonial, A/B comment mismatch, urgency claim. From landing audit I3+I4+I7+S6 |
+| F062 | Landing Assets & Hero Image Refresh | frontend | pending | — | Medium. Delete 9 unused images, review/replace hero image. From landing audit I5 |
+| F063 | Nav, A/B Cookie & Variant Fixes | frontend | pending | — | Medium. "Para quien" nav broken on C/F, nx-variant cookie consent-gated, Secure flag. From landing audit I2+I6+S3 |
+| F064 | Accessibility & Code Cleanup | frontend | pending | — | Low. aria-selected fix, contrast, mobile menu a11y, HSTS, CSP, dead code, keyframes, themeColor, sitemap. From landing audit I8+S1-S11 |
 
 ---
 
