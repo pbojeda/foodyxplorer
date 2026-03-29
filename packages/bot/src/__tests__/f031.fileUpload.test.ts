@@ -175,9 +175,9 @@ describe('handlePhoto', () => {
     expect(bot.sendMessage).toHaveBeenCalledOnce();
     const [, , options] = bot.sendMessage.mock.calls[0] as [number, string, { reply_markup?: { inline_keyboard: Array<Array<{ callback_data: string }>> } }];
     const callbacks = (options.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.callback_data);
-    expect(callbacks).toContain('upload_menu');
-    expect(callbacks).toContain('upload_dish');
-    expect(callbacks).not.toContain('upload_ingest');
+    expect(callbacks.some((c) => c.startsWith('upload_menu:'))).toBe(true);
+    expect(callbacks.some((c) => c.startsWith('upload_dish:'))).toBe(true);
+    expect(callbacks.some((c) => c.startsWith('upload_ingest:'))).toBe(false);
   });
 
   it('shows inline keyboard (analyze/identify only) when state has no selectedRestaurant (F053)', async () => {
@@ -189,8 +189,8 @@ describe('handlePhoto', () => {
     expect(bot.sendMessage).toHaveBeenCalledOnce();
     const [, , options] = bot.sendMessage.mock.calls[0] as [number, string, { reply_markup?: { inline_keyboard: Array<Array<{ callback_data: string }>> } }];
     const callbacks = (options.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.callback_data);
-    expect(callbacks).toContain('upload_menu');
-    expect(callbacks).not.toContain('upload_ingest');
+    expect(callbacks.some((c) => c.startsWith('upload_menu:'))).toBe(true);
+    expect(callbacks.some((c) => c.startsWith('upload_ingest:'))).toBe(false);
   });
 
   it('sends "El archivo supera el límite" message when file_size > 10MB', async () => {
@@ -243,9 +243,9 @@ describe('handlePhoto', () => {
     const [, , opts] = bot.sendMessage.mock.calls[0] as [number, string, TelegramBot.SendMessageOptions];
     const keyboard = (opts?.reply_markup as { inline_keyboard: TelegramBot.InlineKeyboardButton[][] })?.inline_keyboard;
     const allCallbackData = keyboard?.flat().map((btn) => btn.callback_data);
-    expect(allCallbackData).toContain('upload_ingest');
-    expect(allCallbackData).toContain('upload_menu');
-    expect(allCallbackData).toContain('upload_dish');
+    expect(allCallbackData?.some((c) => c?.startsWith('upload_ingest:'))).toBe(true);
+    expect(allCallbackData?.some((c) => c?.startsWith('upload_menu:'))).toBe(true);
+    expect(allCallbackData?.some((c) => c?.startsWith('upload_dish:'))).toBe(true);
   });
 
   it('setState preserves existing state fields alongside pendingPhotoFileId', async () => {

@@ -1,7 +1,7 @@
-// F053: Decouple menu analysis from restaurant selection.
+// F055: Stale-button nonce validation + unknown callback_data logging.
 //
-// handlePhoto() should show inline keyboard WITHOUT requiring selectedRestaurant.
-// upload_ingest callback still requires restaurant; upload_menu and upload_dish do not.
+// I7: Photo keyboard callbacks include a nonce. Stale nonce → user-friendly error.
+// S6: Unknown callback_data → logger.warn (not silently swallowed).
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type TelegramBot from 'node-telegram-bot-api';
@@ -10,6 +10,7 @@ import type { ApiClient } from '../apiClient.js';
 import { handlePhoto } from '../handlers/fileUpload.js';
 import { handleCallbackQuery } from '../handlers/callbackQuery.js';
 import type { BotConfig } from '../config.js';
+import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -110,10 +111,10 @@ function makeFetchOkWithBuffer(buf: Buffer) {
 }
 
 // ==========================================================================
-// handlePhoto without restaurant selected
+// I7 — Nonce in photo keyboard callback_data
 // ==========================================================================
 
-describe('F053 — handlePhoto works without selectedRestaurant', () => {
+describe('F055 — handlePhoto includes nonce in callback_data', () => {
   let redis: Redis;
   let bot: ReturnType<typeof makeMockBot>;
   let apiClient: ReturnType<typeof makeMockClient>;
@@ -125,100 +126,58 @@ describe('F053 — handlePhoto works without selectedRestaurant', () => {
     apiClient = makeMockClient();
   });
 
-  it('shows inline keyboard when no restaurant is selected (state null)', async () => {
+  it('callback_data includes nonce (format: action:nonce)', async () => {
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
     await handlePhoto(makePhotoMsg(CHAT_ID), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
 
-    // Should show keyboard, NOT "Primero selecciona" error
-    expect(bot.sendMessage).toHaveBeenCalledOnce();
-    const [, , options] = bot.sendMessage.mock.calls[0] as [number, string, { reply_markup?: { inline_keyboard: unknown[][] } }];
-    const keyboard = options.reply_markup?.inline_keyboard ?? [];
-    expect(keyboard.length).toBeGreaterThanOrEqual(2);
+    const [, , options] = bot.sendMessage.mock.calls[0] as [number, string, { reply_markup?: { inline_keyboard: Array<Array<{ callback_data: string }>> } }];
+    const callbacks = (options.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.callback_data);
+
+    // Each callback should have format action:nonce (with colon separator)
+    for (const cb of callbacks) {
+      expect(cb).toMatch(/^upload_(?:menu|dish|ingest):[a-f0-9]+$/);
+    }
   });
 
-  it('shows inline keyboard when state exists but no selectedRestaurant', async () => {
-    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(JSON.stringify({ pendingSearch: 'something' }));
-
-    await handlePhoto(makePhotoMsg(CHAT_ID), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
-
-    expect(bot.sendMessage).toHaveBeenCalledOnce();
-    const [, , options] = bot.sendMessage.mock.calls[0] as [number, string, { reply_markup?: { inline_keyboard: unknown[][] } }];
-    expect(options.reply_markup?.inline_keyboard).toBeDefined();
-  });
-
-  it('stores pendingPhotoFileId even without restaurant', async () => {
+  it('stores pendingPhotoNonce in Redis state', async () => {
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
     await handlePhoto(makePhotoMsg(CHAT_ID), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
 
-    expect(redis.set).toHaveBeenCalled();
     const [, serialized] = (redis.set as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string, ...unknown[]];
     const state = JSON.parse(serialized);
-    expect(state.pendingPhotoFileId).toBe('photo-file-id');
+    expect(state.pendingPhotoNonce).toBeDefined();
+    expect(typeof state.pendingPhotoNonce).toBe('string');
+    expect(state.pendingPhotoNonce.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('shows all 3 buttons when restaurant IS selected', async () => {
-    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(
-      JSON.stringify({ selectedRestaurant: { id: 'r1', name: 'Test' } }),
-    );
-
-    await handlePhoto(makePhotoMsg(CHAT_ID), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
-
-    const [, , options] = bot.sendMessage.mock.calls[0] as [number, string, { reply_markup?: { inline_keyboard: Array<Array<{ callback_data: string }>> } }];
-    const callbacks = (options.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.callback_data);
-    expect(callbacks.some((c) => c.startsWith('upload_ingest:'))).toBe(true);
-    expect(callbacks.some((c) => c.startsWith('upload_menu:'))).toBe(true);
-    expect(callbacks.some((c) => c.startsWith('upload_dish:'))).toBe(true);
-  });
-
-  it('shows only analyze/identify buttons when no restaurant (no upload_ingest)', async () => {
+  it('nonce in callback_data matches nonce in state', async () => {
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
     await handlePhoto(makePhotoMsg(CHAT_ID), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
 
+    // Get stored nonce
+    const [, serialized] = (redis.set as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string, ...unknown[]];
+    const state = JSON.parse(serialized);
+
+    // Get callback nonces
     const [, , options] = bot.sendMessage.mock.calls[0] as [number, string, { reply_markup?: { inline_keyboard: Array<Array<{ callback_data: string }>> } }];
     const callbacks = (options.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.callback_data);
-    expect(callbacks.some((c) => c.startsWith('upload_ingest:'))).toBe(false);
-    expect(callbacks.some((c) => c.startsWith('upload_menu:'))).toBe(true);
-    expect(callbacks.some((c) => c.startsWith('upload_dish:'))).toBe(true);
+    const nonces = callbacks.map((cb) => cb.split(':')[1]);
+
+    // All callback nonces should match stored nonce
+    for (const n of nonces) {
+      expect(n).toBe(state.pendingPhotoNonce);
+    }
   });
 });
 
 // ==========================================================================
-// upload_ingest still requires restaurant
+// I7 — Stale nonce rejection
 // ==========================================================================
 
-describe('F053 — upload_ingest still requires selectedRestaurant', () => {
-  let redis: Redis;
-  let bot: ReturnType<typeof makeMockBot>;
-  let apiClient: ReturnType<typeof makeMockClient>;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    redis = makeMockRedis();
-    bot = makeMockBot();
-    apiClient = makeMockClient();
-  });
-
-  it('upload_ingest without restaurant shows helpful error', async () => {
-    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(
-      JSON.stringify({ pendingPhotoFileId: 'file-id' }),
-    );
-
-    await handleCallbackQuery(makeQuery('upload_ingest'), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
-
-    const messages = (bot.sendMessage.mock.calls as Array<[number, string, unknown]>).map(([, t]) => t.toLowerCase());
-    expect(messages.some((t) => t.includes('restaurante'))).toBe(true);
-    expect(apiClient.uploadImage).not.toHaveBeenCalled();
-  });
-});
-
-// ==========================================================================
-// upload_menu/upload_dish work without restaurant
-// ==========================================================================
-
-describe('F053 — upload_menu/upload_dish work without selectedRestaurant', () => {
+describe('F055 — stale nonce rejected in callback handler', () => {
   let redis: Redis;
   let bot: ReturnType<typeof makeMockBot>;
   let apiClient: ReturnType<typeof makeMockClient>;
@@ -237,9 +196,10 @@ describe('F053 — upload_menu/upload_dish work without selectedRestaurant', () 
     vi.unstubAllGlobals();
   });
 
-  it('upload_menu succeeds without selectedRestaurant', async () => {
+  it('matching nonce → processes normally', async () => {
+    const nonce = 'abc12345';
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(
-      JSON.stringify({ pendingPhotoFileId: 'file-id' }),
+      JSON.stringify({ pendingPhotoFileId: 'file-id', pendingPhotoNonce: nonce }),
     );
     apiClient.analyzeMenu.mockResolvedValue({
       mode: 'auto',
@@ -248,24 +208,101 @@ describe('F053 — upload_menu/upload_dish work without selectedRestaurant', () 
       partial: false,
     });
 
-    await handleCallbackQuery(makeQuery('upload_menu'), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
+    await handleCallbackQuery(makeQuery(`upload_menu:${nonce}`), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
 
     expect(apiClient.analyzeMenu).toHaveBeenCalled();
   });
 
-  it('upload_dish succeeds without selectedRestaurant', async () => {
+  it('wrong nonce → shows stale-button error, does NOT call API', async () => {
+    const storedNonce = 'abc12345';
+    const staleNonce = 'old99999';
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(
-      JSON.stringify({ pendingPhotoFileId: 'file-id' }),
+      JSON.stringify({ pendingPhotoFileId: 'file-id', pendingPhotoNonce: storedNonce }),
     );
+
+    await handleCallbackQuery(makeQuery(`upload_menu:${staleNonce}`), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
+
+    expect(apiClient.analyzeMenu).not.toHaveBeenCalled();
+    const messages = (bot.sendMessage.mock.calls as Array<[number, string, unknown]>).map(([, t]) => t.toLowerCase());
+    expect(messages.some((t) => t.includes('foto') || t.includes('expirado') || t.includes('válid'))).toBe(true);
+  });
+
+  it('stale nonce on upload_dish → same rejection', async () => {
+    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(
+      JSON.stringify({ pendingPhotoFileId: 'file-id', pendingPhotoNonce: 'current' }),
+    );
+
+    await handleCallbackQuery(makeQuery('upload_dish:stale'), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
+
+    expect(apiClient.analyzeMenu).not.toHaveBeenCalled();
+  });
+
+  it('stale nonce on upload_ingest → same rejection', async () => {
+    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(
+      JSON.stringify({
+        pendingPhotoFileId: 'file-id',
+        pendingPhotoNonce: 'current',
+        selectedRestaurant: { id: 'r1', name: 'Test' },
+      }),
+    );
+
+    await handleCallbackQuery(makeQuery('upload_ingest:stale'), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
+
+    expect(apiClient.uploadImage).not.toHaveBeenCalled();
+  });
+});
+
+// ==========================================================================
+// S6 — Unknown callback_data logging
+// ==========================================================================
+
+describe('F055 — unknown callback_data logged at warn level', () => {
+  let redis: Redis;
+  let bot: ReturnType<typeof makeMockBot>;
+  let apiClient: ReturnType<typeof makeMockClient>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    redis = makeMockRedis();
+    bot = makeMockBot();
+    apiClient = makeMockClient();
+  });
+
+  it('unknown callback_data triggers logger.warn', async () => {
+    const warnSpy = vi.spyOn(logger, 'warn');
+
+    await handleCallbackQuery(makeQuery('unknown_action'), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: CHAT_ID, data: 'unknown_action' }),
+      expect.stringContaining('Unknown callback_data'),
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  it('known callback_data does NOT trigger unknown-callback warn', async () => {
+    const warnSpy = vi.spyOn(logger, 'warn');
+    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(
+      JSON.stringify({ pendingPhotoFileId: 'file-id', pendingPhotoNonce: 'abc123' }),
+    );
+
+    const fetchMock = vi.fn().mockResolvedValue(makeFetchOkWithBuffer(JPEG_BUFFER));
+    vi.stubGlobal('fetch', fetchMock);
+
     apiClient.analyzeMenu.mockResolvedValue({
-      mode: 'identify',
-      dishCount: 1,
-      dishes: [{ dishName: 'Pizza', estimate: null }],
-      partial: false,
+      mode: 'auto', dishCount: 0, dishes: [], partial: false,
     });
 
-    await handleCallbackQuery(makeQuery('upload_dish'), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
+    await handleCallbackQuery(makeQuery('upload_menu:abc123'), bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG);
 
-    expect(apiClient.analyzeMenu).toHaveBeenCalled();
+    // Should NOT have the "Unknown callback_data" warn
+    const unknownCalls = warnSpy.mock.calls.filter(
+      (call) => typeof call[1] === 'string' && call[1].includes('Unknown callback_data'),
+    );
+    expect(unknownCalls).toHaveLength(0);
+
+    warnSpy.mockRestore();
+    vi.unstubAllGlobals();
   });
 });
