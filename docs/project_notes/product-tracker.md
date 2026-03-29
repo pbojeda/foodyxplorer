@@ -126,7 +126,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F059 | Legal/GDPR Compliance Bundle | frontend | in-progress | 2/6 | Standard. 4 fixes: legal placeholders (C1), cookie consent withdrawal (C2), inaccurate disclosures (C3), privacy link in form (I9). From landing audit 2026-03-29 (Claude+Gemini+Codex) |
+| F059 | Legal/GDPR Compliance Bundle | frontend | in-progress | 5/6 | Standard. 4 fixes: legal placeholders (C1), cookie consent withdrawal (C2), inaccurate disclosures (C3), privacy link in form (I9). From landing audit 2026-03-29 (Claude+Gemini+Codex) |
 | F060 | GA4 Analytics Integration Fix | frontend | pending | — | High. Fix dataLayer.push→gtag, queue+replay pre-consent events. Requires GA4 Measurement ID from user. From landing audit I1 |
 | F061 | Landing Copy Accuracy | frontend | pending | — | High. FAQ "10 cadenas"→dynamic, fabricated testimonial, A/B comment mismatch, urgency claim. From landing audit I3+I4+I7+S6 |
 | F062 | Landing Assets & Hero Image Refresh | frontend | pending | — | Medium. Delete 9 unused images, review/replace hero image. From landing audit I5 |
