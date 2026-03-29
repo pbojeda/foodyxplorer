@@ -252,3 +252,19 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Solution**: Add `¿¡` stripping at the top of `extractFoodQuery`, before prefix matching: `const cleaned = text.replace(/^[¿¡]+/, '').replace(/[?!]+$/, '').trim();`
 - **Prevention**: When adding punctuation normalization to one NL path, check all NL paths for consistency.
 - **Feature**: F028 (NL handler) | **Found by**: Gemini CLI manual audit | **Severity**: Medium (user input with `¿` silently degrades instead of failing)
+
+### 2026-03-29 — BUG-C1: Rate limit checked AFTER file download in upload_menu/upload_dish
+
+- **Issue**: In `callbackQuery.ts`, the `upload_menu` and `upload_dish` handlers downloaded the full file from Telegram into a memory buffer BEFORE checking the per-user rate limit. A rate-limited user spamming the inline keyboard could force repeated downloads, wasting bandwidth and memory.
+- **Root Cause**: Original F034 spec assumed download was cheap and ordered the checks as "download → rate limit → API call". In practice, download is the most expensive step.
+- **Solution**: Moved `isRateLimited()` check BEFORE `downloadTelegramFile()` in both handlers. Rate-limited users now incur zero server cost.
+- **Prevention**: Rate limit checks should always be the FIRST guard after auth/state validation — before any I/O operations.
+- **Feature**: F034 (Menu Analysis) | **Found by**: Gemini CLI comprehensive audit | **Severity**: Critical (DDoS vector) | **Fixed in**: F051
+
+### 2026-03-29 — BUG-I11: /receta rate limit counts failed API requests
+
+- **Issue**: In `receta.ts`, the rate limit counter was incremented BEFORE the API call. If the API returned an error (500, timeout, network), the user lost a rate limit slot without getting a useful result.
+- **Root Cause**: Rate limit increment was placed at the start of the function, before the try/catch block for the API call.
+- **Solution**: Added `decrementRateLimit()` helper that calls `redis.decr()` on server/network errors (5xx, TIMEOUT, NETWORK_ERROR). 4xx errors (user input) and 429 (legitimate throttle) keep the counter. Decrement failures are silently swallowed (fail-open).
+- **Prevention**: Consider the full lifecycle of rate-limit counters: increment early for abuse prevention, but refund on infrastructure failures.
+- **Feature**: F041 (Bot Recipe Calculator) | **Found by**: Claude Opus 4.6 comprehensive audit | **Severity**: Important | **Fixed in**: F051

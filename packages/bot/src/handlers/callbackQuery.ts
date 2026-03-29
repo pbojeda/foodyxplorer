@@ -413,6 +413,13 @@ export async function handleCallbackQuery(
       return;
     }
 
+    // Per-user rate limit check (BEFORE download to avoid bandwidth waste)
+    const limited = await isRateLimited(redis, chatId);
+    if (limited) {
+      await bot.sendMessage(chatId, formatRateLimitMessage(), { parse_mode: 'MarkdownV2' });
+      return;
+    }
+
     // Download the file from Telegram
     let fileBuffer: Buffer;
     try {
@@ -430,13 +437,6 @@ export async function handleCallbackQuery(
     // Detect MIME from magic bytes
     const detected = detectMimeType(fileBuffer);
     const { mimeType, filename } = detected ?? { mimeType: 'image/jpeg', filename: 'photo.jpg' };
-
-    // Per-user rate limit check (AFTER download, BEFORE API call per spec)
-    const limited = await isRateLimited(redis, chatId);
-    if (limited) {
-      await bot.sendMessage(chatId, formatRateLimitMessage(), { parse_mode: 'MarkdownV2' });
-      return;
-    }
 
     // Inform user that processing has started
     await bot.sendMessage(chatId, 'Analizando menú…');
@@ -482,6 +482,13 @@ export async function handleCallbackQuery(
       return;
     }
 
+    // Per-user rate limit check (BEFORE download to avoid bandwidth waste)
+    const limited = await isRateLimited(redis, chatId);
+    if (limited) {
+      await bot.sendMessage(chatId, formatRateLimitMessage(), { parse_mode: 'MarkdownV2' });
+      return;
+    }
+
     // Download the file from Telegram
     let fileBuffer: Buffer;
     try {
@@ -499,13 +506,6 @@ export async function handleCallbackQuery(
     // Detect MIME from magic bytes
     const detected = detectMimeType(fileBuffer);
     const { mimeType, filename } = detected ?? { mimeType: 'image/jpeg', filename: 'photo.jpg' };
-
-    // Per-user rate limit check (AFTER download, BEFORE API call per spec)
-    const limited = await isRateLimited(redis, chatId);
-    if (limited) {
-      await bot.sendMessage(chatId, formatRateLimitMessage(), { parse_mode: 'MarkdownV2' });
-      return;
-    }
 
     // Inform user that processing has started
     await bot.sendMessage(chatId, 'Identificando plato…');
