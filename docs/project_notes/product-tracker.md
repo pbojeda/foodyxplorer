@@ -107,6 +107,13 @@
 | F040 | Landing Page FAQ Section + Schema | frontend | done | 6/6 | Standard. FAQ accordion with structured data (FAQPage schema). Deferred from F039. Depends on F045 |
 | F048 | Landing — Performance & Accessibility | frontend | pending | — | Standard. SearchSimulator keyboard nav (WAI-ARIA combobox), replace framer-motion with CSS, security headers, prefers-reduced-motion. Depends on F047 |
 
+## Features — Quality & Documentation
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F049 | Bot User Manual Overhaul | docs | pending | — | Standard. Fix 2 critical doc errors (context fallback lie, TTL refresh lie), 8 important gaps (undocumented features, incorrect claims), 6 suggestions. From cross-model audit (Claude + Gemini + Codex) |
+| F050 | Bot NL Punctuation Fix + Help Update | bot | pending | — | Simple. Fix BUG-AUDIT-01 (`¿` not stripped in extractFoodQuery). Update /start help text to include /comparar, /contexto, /restaurante |
+
 ---
 
 ## Completion Log

@@ -236,3 +236,11 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Solution**: Normalize email to lowercase before persisting: `email: body.email.toLowerCase()` in the route handler. Alternatively, create a functional unique index: `CREATE UNIQUE INDEX ON waitlist_submissions (lower(email))` and change the constraint. Also add `.toLowerCase()` or `.transform(v => v.toLowerCase())` to the Zod schema.
 - **Prevention**: Always normalize email addresses before persistence. Add an edge-case test for case-variant duplicates at both schema and DB levels.
 - **Feature**: F046 | **Found by**: QA edge-case tests | **Severity**: Low (duplicate registrations with different casing; no data loss, but inflates subscriber count)
+
+### 2026-03-29 — BUG-AUDIT-01: `¿` not stripped in NL single-dish path (extractFoodQuery)
+
+- **Issue**: `¿cuántas calorías tiene un big mac?` is not parsed correctly. The prefix patterns in `extractFoodQuery` use `^` anchors but `¿` is not stripped before matching, so `¿cuántas...` doesn't match `^cu[aá]ntas...`. The text passes through unstripped and is sent literally to the API. Comparisons (`extractComparisonQuery`) and context detection (`detectContextSet`) DO strip `¿¡` correctly.
+- **Root Cause**: `extractFoodQuery` in `naturalLanguage.ts` was implemented before the `¿` stripping pattern was established in F043 (`comparisonParser.ts:227`) and F037 (`contextDetector.ts:20`). The pattern was never backported.
+- **Solution**: Add `¿¡` stripping at the top of `extractFoodQuery`, before prefix matching: `const cleaned = text.replace(/^[¿¡]+/, '').replace(/[?!]+$/, '').trim();`
+- **Prevention**: When adding punctuation normalization to one NL path, check all NL paths for consistency.
+- **Feature**: F028 (NL handler) | **Found by**: Gemini CLI manual audit | **Severity**: Medium (user input with `¿` silently degrades instead of failing)
