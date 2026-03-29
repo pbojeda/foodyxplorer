@@ -67,7 +67,12 @@ function isServerOrNetworkError(err: ApiError): boolean {
 async function decrementRateLimit(redis: Redis, chatId: number): Promise<void> {
   const key = `${RATE_LIMIT_KEY_PREFIX}${chatId}`;
   try {
-    await redis.decr(key);
+    // Only decrement if the key still exists — avoids creating a negative counter
+    // if the TTL expired between the initial incr and the API failure.
+    const exists = await redis.exists(key);
+    if (exists) {
+      await redis.decr(key);
+    }
   } catch {
     logger.warn({ chatId }, '/receta rate-limit decrement failed (Redis error) — ignoring');
   }

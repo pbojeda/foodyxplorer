@@ -24,6 +24,7 @@ function makeMockRedis() {
     incr: vi.fn().mockResolvedValue(1),
     expire: vi.fn().mockResolvedValue(1),
     decr: vi.fn().mockResolvedValue(0),
+    exists: vi.fn().mockResolvedValue(1),
   } as unknown as Redis;
 }
 
@@ -314,6 +315,20 @@ describe('F051 I11 — /receta rate limit not consumed on API failure', () => {
     await handleReceta('200g pollo', CHAT_ID, mock as unknown as ApiClient, redis);
 
     expect(redis.incr).toHaveBeenCalledOnce();
+    expect(redis.decr).not.toHaveBeenCalled();
+  });
+
+  it('expired key (TTL elapsed): does NOT decrement to avoid negative counter', async () => {
+    mock.calculateRecipe.mockRejectedValue(
+      new ApiError(500, 'INTERNAL_ERROR', 'Server error'),
+    );
+    // Key expired between incr and API failure
+    (redis.exists as ReturnType<typeof vi.fn>).mockResolvedValue(0);
+
+    await handleReceta('200g pollo', CHAT_ID, mock as unknown as ApiClient, redis);
+
+    expect(redis.incr).toHaveBeenCalledOnce();
+    // exists returned 0 → decr should NOT be called
     expect(redis.decr).not.toHaveBeenCalled();
   });
 
