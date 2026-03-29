@@ -9,6 +9,7 @@ import type { Redis } from 'ioredis';
 import type { ApiClient } from '../apiClient.js';
 import { ApiError } from '../apiClient.js';
 import { formatEstimate } from '../formatters/estimateFormatter.js';
+import { escapeMarkdown } from '../formatters/markdownUtils.js';
 import { handleApiError } from '../commands/errorMessages.js';
 import { extractPortionModifier } from '../lib/portionModifier.js';
 import { extractComparisonQuery } from '../lib/comparisonParser.js';
@@ -189,6 +190,7 @@ export async function handleNaturalLanguage(
   // getState is fail-open (returns null on Redis error).
   const botState = await getState(redis, chatId);
   const fallbackChainSlug = botState?.chainContext?.chainSlug;
+  const fallbackChainName = botState?.chainContext?.chainName;
 
   // Step 1 — Comparison detection
   const comparison = extractComparisonQuery(trimmed);
@@ -217,9 +219,19 @@ export async function handleNaturalLanguage(
     estimateParams.portionMultiplier = portionMultiplier;
   }
 
+  // Track whether fallback context was injected (no explicit slug in query)
+  const usedFallbackContext = !extracted.chainSlug && !!fallbackChainSlug;
+
   try {
     const data = await apiClient.estimate(estimateParams);
-    return formatEstimate(data);
+    let result = formatEstimate(data);
+
+    // Append context indicator when chain was injected from implicit context (F054)
+    if (usedFallbackContext && fallbackChainName) {
+      result += `\n_Contexto activo: ${escapeMarkdown(fallbackChainName)}_`;
+    }
+
+    return result;
   } catch (err) {
     if (err instanceof ApiError) {
       logger.warn({ err, ...extracted }, 'NL handler API error');

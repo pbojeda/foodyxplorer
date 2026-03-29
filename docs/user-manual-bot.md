@@ -354,7 +354,7 @@ Bot:     *Big Mac*
 
 ### Expiracion automatica
 
-El contexto expira automaticamente tras **2 horas** desde el ultimo cambio de contexto (establecer o borrar). Las consultas normales (`/estimar`, lenguaje natural, etc.) **no reinician** el temporizador.
+El contexto expira automaticamente tras **2 horas desde la ultima interaccion con el bot**. Cualquier accion que modifique el estado de la conversacion (establecer/borrar contexto, buscar restaurantes, enviar fotos, etc.) reinicia el temporizador. En la practica, el contexto se mantiene activo mientras usas el bot.
 
 ### Notas
 
@@ -504,7 +504,7 @@ API: conectada ✅
 | Texto libre (NL) | 500 caracteres | Por mensaje |
 | Texto de receta | 2000 caracteres | Por mensaje |
 | Tamano de archivo | 10 MB | Por archivo |
-| Contexto conversacional | 2 horas | Desde ultimo set/clear |
+| Contexto conversacional | 2 horas | Desde ultima interaccion |
 
 Nota: si Redis no esta disponible, los limites de tasa se desactivan (fail-open) y las peticiones se procesan igualmente.
 
