@@ -89,10 +89,10 @@ export async function handleRestaurante(
       return;
     }
 
-    // Build searchResults map: { [uuid]: name }
-    const searchResults: Record<string, string> = {};
+    // Build searchResults map: { [uuid]: { name, chainSlug? } }
+    const searchResults: Record<string, { name: string; chainSlug?: string }> = {};
     for (const item of items) {
-      searchResults[item.id] = item.name;
+      searchResults[item.id] = { name: item.name, chainSlug: item.chainSlug };
     }
 
     // Persist search context so callbacks can recover names
