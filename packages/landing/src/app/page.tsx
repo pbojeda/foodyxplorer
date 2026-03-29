@@ -9,12 +9,13 @@ import { ForWhoSection } from '@/components/sections/ForWhoSection';
 import { ComparisonSection } from '@/components/sections/ComparisonSection';
 import { RestaurantsSection } from '@/components/sections/RestaurantsSection';
 import { WaitlistCTASection } from '@/components/sections/WaitlistCTASection';
+import { FAQSection } from '@/components/sections/FAQSection';
 import { Footer } from '@/components/sections/Footer';
 import { CookieBanner } from '@/components/analytics/CookieBanner';
 import { ScrollTracker } from '@/components/analytics/ScrollTracker';
 import { SectionObserver } from '@/components/analytics/SectionObserver';
 import { resolveVariant, VARIANT_COOKIE_NAME } from '@/lib/ab-testing';
-import { generateWebSiteSchema, generateSoftwareApplicationSchema } from '@/lib/seo';
+import { generateWebSiteSchema, generateSoftwareApplicationSchema, generateFAQPageSchema } from '@/lib/seo';
 import { getDictionary } from '@/lib/i18n';
 import { VisualDivider } from '@/components/VisualDivider';
 import type { Variant, Palette } from '@/types';
@@ -98,6 +99,12 @@ function VariantALayout({ dict, variant }: { dict: Dictionary; variant: Variant 
         <RestaurantsSection dict={dict.restaurants} />
       </SectionObserver>
 
+      {dict.faq.items.length > 0 && (
+        <SectionObserver sectionId="faq" variant={variant}>
+          <FAQSection dict={dict.faq} />
+        </SectionObserver>
+      )}
+
       <SectionObserver sectionId="waitlist-cta" variant={variant}>
         <WaitlistCTASection dict={dict.waitlistCta} variant={variant} />
       </SectionObserver>
@@ -145,6 +152,12 @@ function VariantCLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
         <ComparisonSection dict={dict.comparison} />
       </SectionObserver>
 
+      {dict.faq.items.length > 0 && (
+        <SectionObserver sectionId="faq" variant={variant}>
+          <FAQSection dict={dict.faq} />
+        </SectionObserver>
+      )}
+
       <SectionObserver sectionId="waitlist-cta" variant={variant}>
         <WaitlistCTASection dict={dict.waitlistCta} variant={variant} />
       </SectionObserver>
@@ -188,6 +201,12 @@ function VariantFLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
         <EmotionalBlock dict={dict.emotionalBlock} />
       </SectionObserver>
 
+      {dict.faq.items.length > 0 && (
+        <SectionObserver sectionId="faq" variant={variant}>
+          <FAQSection dict={dict.faq} />
+        </SectionObserver>
+      )}
+
       <SectionObserver sectionId="waitlist-cta" variant={variant}>
         <WaitlistCTASection dict={dict.waitlistCta} variant={variant} />
       </SectionObserver>
@@ -222,6 +241,8 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
 
   const websiteSchema = generateWebSiteSchema();
   const softwareSchema = generateSoftwareApplicationSchema();
+  const faqSchema =
+    dict.faq.items.length > 0 ? generateFAQPageSchema(dict.faq.items) : null;
 
   return (
     <>
@@ -241,6 +262,12 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(softwareSchema) }}
       />
+      {faqSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(faqSchema) }}
+        />
+      )}
 
       {/* Sticky site header */}
       <SiteHeader />

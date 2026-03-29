@@ -8,13 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-28
+**Last Updated:** 2026-03-29
 
-**Active Feature:** No active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F046 completed and merged to develop (PR #40, squash). F037 also merged (PR #39).
+**Active Feature:** F040 — Landing Page FAQ Section + Schema
+**Step:** 4/6 (Finalize)
+**Branch:** feature/F040-faq-section-schema
+**Complexity:** Standard
+**Context:** Frontend-only. FAQ accordion with FAQPage JSON-LD. Native `<details>`/`<summary>`, dictionary-driven, all 3 variants.
 
 ---
 
@@ -104,7 +104,7 @@
 | F045 | Landing — Critical Bug Fixes | frontend | done | 6/6 | Standard. 9 fixes from audit: legal pages, og-image, canonical, anchors, variant D removed, CTA gating, animation typo, hydration warning, SearchAction. PR #38, 335 tests |
 | F046 | Landing — Waitlist Persistence + Anti-Spam | fullstack | done | 6/6 | Standard. POST /waitlist + GET /admin/waitlist, Prisma migration, honeypot + rate limiting, landing form → Fastify API. PR #40, SHA e0c83e8 |
 | F047 | Landing — Conversion Optimization | frontend | pending | — | Standard. GA4 initialization, mobile hamburger menu, social proof, benefit-oriented CTAs, phone field UX. Depends on F046 |
-| F040 | Landing Page FAQ Section + Schema | frontend | pending | — | Standard. FAQ accordion with structured data (FAQPage schema). Deferred from F039. Depends on F045 |
+| F040 | Landing Page FAQ Section + Schema | frontend | in-progress | 4/6 | Standard. FAQ accordion with structured data (FAQPage schema). Deferred from F039. Depends on F045 |
 | F048 | Landing — Performance & Accessibility | frontend | pending | — | Standard. SearchSimulator keyboard nav (WAI-ARIA combobox), replace framer-motion with CSS, security headers, prefers-reduced-motion. Depends on F047 |
 
 ---
