@@ -119,8 +119,8 @@
 | F054 | Context State Isolation & NL Footer Consistency | bot | pending | — | Bug. I3: shared Redis key TTL refreshed by unrelated writes. I4: NL handler missing "Contexto activo" footer. From audit I3+I4 (Codex) |
 | F055 | Inline Keyboard Stale-Button Mitigation + Callback Logging | bot | pending | — | Bug (low). Stale-button race with multiple photos/searches + unknown callback_data not logged. From audit I7+S6 (Codex, Claude) |
 | F056 | MIME Detection Fallback Safety | bot | pending | — | Bug (low). Unknown magic bytes default to image/jpeg instead of showing error. From audit S7 (Claude, Gemini) |
-| F057 | Manual Corrections Batch | docs | pending | — | Docs. 5 fixes: /cadenas pagination claim, error table sync, plural modifiers, "half", NL length error. From audit I5+I6+S1+S2+S3. Depends on F053, F054 |
-| F058 | Strategic Plan Archival & Rate-Limit Decision Documentation | docs | pending | — | Docs. Mark plan as historical, document dual rate-limit strategy (ADR-013), portion multiplier split. From audit I8+I9+I10+S9 |
+| F057 | Manual Corrections Batch | docs | done | 5/5 | Simple. 5 corrections to user-manual-bot.md: /cadenas truncation (I5), error table sync (I6), plurals (S1), half verified (S2), NL error (S3). Section 10/8 deferred to F053/F054. SHA aa212bc |
+| F058 | Strategic Plan Archival & Rate-Limit Decision Documentation | docs | done | 5/5 | Simple. Plan marked historical, verification items confirmed, ADR-013 + ADR-014 added. SHA aa212bc |
 
 ## Features — Landing Pre-Launch Audit
 
@@ -187,6 +187,10 @@
 | 2026-03-29 | F050 — Bot NL Punctuation Fix + Help Update | d243c1e (squash merge to develop, PR #43) | Simple bugfix. BUG-AUDIT-01: strip ¿¡?! in extractFoodQuery. /start help updated with /comparar, /contexto, /restaurante. 11 new tests, 1066 total. 6 files changed |
 | 2026-03-29 | F047 — Landing Conversion Optimization | a52546d (squash merge to develop, PR #42) | Standard fullstack (API + landing). 8 conversion items: GA4 init (dataLayer bootstrap), MobileMenu Client Component (hamburger, ARIA, Escape/outside click), phone auto-prepend +34, WaitlistSuccessBanner (useSearchParams + Suspense), forms reduced to 2 per variant, social proof counter (GET /waitlist/count, 5min cache), benefit-oriented CTA copy (Spanish), WCAG AA contrast fix. Spec reviewed by Gemini+Codex (2C+8I). Plan reviewed by Gemini+Codex (7I). Code review: APPROVED (3I noted). QA: 1 bug fixed (BUG-F047-01 Footer form), 29 edge-case tests. 446 landing tests (45 suites) + 4 API. 34 files changed |
 | 2026-03-28 | F046 — Waitlist Persistence + Anti-Spam | e0c83e8 (squash merge to develop, PR #40) | Standard fullstack (API + landing + shared). POST /waitlist (public, honeypot, 5/15min rate limit, email lowercase, P2002→409 idempotent, form-urlencoded 303). GET /admin/waitlist (admin auth, paginated, sort). Prisma migration waitlist_submissions. Landing form → Fastify API, honeypot field, UTM params, 409-as-success. Deleted Next.js route. Zod schemas in shared. Production validator: READY. Code review: APPROVED (3I fixed: max-length, phone validation, source input). QA: 3 bugs (BUG-F046-01 critical fixed, BUG-F046-03 low fixed, BUG-F046-02 medium noted), 94 edge-case tests. API 2449, Landing 332, Shared 339. 31 files changed |
+
+| 2026-03-29 | F051 — Bot Rate-Limit Ordering & Failed-Request Handling | 714efb6 (squash merge to develop, PR #46) | Simple bug. C1: isRateLimited() moved before downloadTelegramFile(). I11: decrement /receta counter on server/network errors, exists guard for TTL expiry. 13 new tests, 1079 total. 6 files changed |
+| 2026-03-29 | F057 — Manual Corrections Batch | aa212bc (worktree commit) | Simple docs. 5 corrections to user-manual-bot.md: /cadenas truncation (I5), error table sync (I6), plurals (S1), half verified (S2), NL error (S3). Section 10/8 deferred to F053/F054 |
+| 2026-03-29 | F058 — Strategic Plan Archival & Rate-Limit Decision Documentation | aa212bc (worktree commit) | Simple docs. Plan marked historical, verification confirmed, ADR-013 (dual rate-limit) + ADR-014 (portion multiplier split) added to decisions.md |
 
 ---
 
