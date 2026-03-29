@@ -206,8 +206,12 @@ export const en: Dictionary = {
     eyebrow: 'Who is starting today',
     headline: 'Who is starting today',
   },
+  siteHeader: {
+    cta: 'Try for free',
+    mobileCta: 'Try',
+  },
   waitlistCta: {
-    headline: 'Be the first to try it',
+    headline: 'Discover exactly what you eat at your favourite restaurant',
     subtitle:
       'nutriXplorer is in development. Join the waitlist and be among the first to access it when we launch.',
     urgency: 'Limited spots for early access',
