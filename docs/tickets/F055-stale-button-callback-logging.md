@@ -1,7 +1,7 @@
 # F055: Inline Keyboard Stale-Button Mitigation + Callback Logging
 
 **Feature:** F055 | **Type:** Bug | **Priority:** Low
-**Status:** Ready for Merge | **Branch:** `feature/F055-stale-button-callback-logging`
+**Status:** Done | **Branch:** (merged to develop, deleted)
 **Created:** 2026-03-29 | **Dependencies:** None
 **Audit Source:** `docs/research/comprehensive-audit-2026-03-29.md` — Findings I7, S6
 
@@ -88,7 +88,7 @@ N/A — Simple task.
 - [x] Step 3: TDD implementation (9 tests, RED→GREEN, 6 existing updated)
 - [x] Step 4: Quality gates pass (1106 tests, tsc clean)
 - [x] Step 5: PR created (#51), review
-- [ ] Step 6: Ticket updated, branch deleted
+- [x] Step 6: Ticket updated, branch deleted
 
 ---
 
@@ -98,6 +98,7 @@ N/A — Simple task.
 |------|--------|-------|
 | 2026-03-29 | Ticket created | From comprehensive audit findings I7 (Codex) + S6 (Claude, Codex) |
 | 2026-03-29 | Implementation | I7: nonce (8 hex chars) in callback_data, validated in callbackQuery handler. Stale buttons → "Esta acción ya no es válida". Restaurant search: accepted risk. S6: logger.warn for unknown callback_data. 9 new tests, 6 updated, 1106 total |
+| 2026-03-29 | Squash merged to develop | SHA c086e6e, PR #51. Branch deleted |
 
 ---
 
