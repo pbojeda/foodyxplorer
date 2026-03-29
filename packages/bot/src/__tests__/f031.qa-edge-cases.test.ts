@@ -197,7 +197,7 @@ describe('QA-B2: handleDocument — mime_type is undefined', () => {
 // ---------------------------------------------------------------------------
 
 describe('QA-B3: handlePhoto — Redis getState throws (fail-open)', () => {
-  it('treats failed getState as null state → sends "Primero selecciona" message', async () => {
+  it('treats failed getState as null state → shows analyze/identify keyboard (F053)', async () => {
     const redis = makeMockRedis();
     const bot = makeMockBot();
     const apiClient = makeMockClient();
@@ -216,10 +216,12 @@ describe('QA-B3: handlePhoto — Redis getState throws (fail-open)', () => {
 
     await handlePhoto(msg, bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG_ALLOWED);
 
-    // getState fail-open → state is null → no selectedRestaurant → "Primero selecciona"
+    // getState fail-open → state is null → no restaurant → keyboard without upload_ingest (F053)
     expect(bot.sendMessage).toHaveBeenCalledOnce();
-    const [, text] = bot.sendMessage.mock.calls[0] as [number, string, unknown];
-    expect(text.toLowerCase()).toContain('restaurante');
+    const [, , options] = bot.sendMessage.mock.calls[0] as [number, string, { reply_markup?: { inline_keyboard: Array<Array<{ callback_data: string }>> } }];
+    const callbacks = (options.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.callback_data);
+    expect(callbacks).toContain('upload_menu');
+    expect(callbacks).not.toContain('upload_ingest');
   });
 });
 

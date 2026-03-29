@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-29
 
-**Active Feature:** No active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F052 completed and merged to develop (a317aa0, PR #47).
+**Active Feature:** F053 — Decouple Menu Analysis from Restaurant Selection
+**Step:** 5/6 (Review)
+**Branch:** feature/F053-decouple-menu-analysis
+**Complexity:** Simple
+**Context:** Bug fix from audit I2. handlePhoto() blocks analyze/identify behind selectedRestaurant guard unnecessarily.
 
 ---
 
@@ -115,7 +115,7 @@
 | F050 | Bot NL Punctuation Fix + Help Update | bot | done | 6/6 | Simple. BUG-AUDIT-01 fix (¿ stripping in extractFoodQuery) + /start help update. PR #43, SHA d243c1e. 11 tests, 1066 total |
 | F051 | Bot Rate-Limit Ordering & Failed-Request Handling | bot | done | 6/6 | Bug. C1: move isRateLimited() before downloadTelegramFile(). I11: don't count failed API requests against /receta rate limit. From audit C1 (Gemini), I11 (Claude) |
 | F052 | Restaurant Selection chainSlug Propagation | bot | done | 6/6 | Bug. chainSlug lost when selecting restaurant via inline keyboard — searchResults only stores name. From audit I1 (Codex) |
-| F053 | Decouple Menu Analysis from Restaurant Selection | bot | pending | — | Bug. handlePhoto() blocks all photo flows behind selectedRestaurant; analyze/identify don't need it. Plan says F034 independent. From audit I2 (Codex) |
+| F053 | Decouple Menu Analysis from Restaurant Selection | bot | in-progress | 5/6 | Bug. handlePhoto() blocks all photo flows behind selectedRestaurant; analyze/identify don't need it. Plan says F034 independent. From audit I2 (Codex) |
 | F054 | Context State Isolation & NL Footer Consistency | bot | pending | — | Bug. I3: shared Redis key TTL refreshed by unrelated writes. I4: NL handler missing "Contexto activo" footer. From audit I3+I4 (Codex) |
 | F055 | Inline Keyboard Stale-Button Mitigation + Callback Logging | bot | pending | — | Bug (low). Stale-button race with multiple photos/searches + unknown callback_data not logged. From audit I7+S6 (Codex, Claude) |
 | F056 | MIME Detection Fallback Safety | bot | pending | — | Bug (low). Unknown magic bytes default to image/jpeg instead of showing error. From audit S7 (Claude, Gemini) |
