@@ -10,12 +10,11 @@
 
 **Last Updated:** 2026-03-29
 
-**Active Feature:** F047 — Landing Conversion Optimization
-**Step:** 5/6 (Review)
-**Branch:** feature/F047-landing-conversion-optimization
-**Complexity:** Standard
-**Context:** Fullstack (API + landing). PR #42. Code review approved, QA complete (1 bug fixed). 8 conversion optimizations. Ready for merge.
->>>>>>> origin/develop
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F047 completed and merged to develop (PR #42, squash).
 
 ---
 
@@ -104,7 +103,7 @@
 | F044 | Landing Page Overhaul — v5 design, 4 A/B variants, SearchSimulator | frontend | done | 6/6 | Standard. Glass-card aesthetic, 8 images, 4 variants (A/C/D/F), Mediterranean palette, PostSimulatorCTA. 286 tests. SHA 013935d |
 | F045 | Landing — Critical Bug Fixes | frontend | done | 6/6 | Standard. 9 fixes from audit: legal pages, og-image, canonical, anchors, variant D removed, CTA gating, animation typo, hydration warning, SearchAction. PR #38, 335 tests |
 | F046 | Landing — Waitlist Persistence + Anti-Spam | fullstack | done | 6/6 | Standard. POST /waitlist + GET /admin/waitlist, Prisma migration, honeypot + rate limiting, landing form → Fastify API. PR #40, SHA e0c83e8 |
-| F047 | Landing — Conversion Optimization | fullstack | in-progress | 5/6 | Standard. GA4 init, mobile menu, phone +34, success banner, social proof counter, CTA copy, contrast fix. GET /waitlist/count. PR #42 |
+| F047 | Landing — Conversion Optimization | fullstack | done | 6/6 | Standard. 8 items: GA4 init, mobile menu, phone +34, success banner, forms reduced, social proof counter, CTA copy, contrast. GET /waitlist/count. PR #42, SHA a52546d |
 | F040 | Landing Page FAQ Section + Schema | frontend | done | 6/6 | Standard. FAQ accordion with structured data (FAQPage schema). Deferred from F039. Depends on F045 |
 | F048 | Landing — Performance & Accessibility | frontend | pending | — | Standard. SearchSimulator keyboard nav (WAI-ARIA combobox), replace framer-motion with CSS, security headers, prefers-reduced-motion. Depends on F047 |
 
@@ -165,6 +164,7 @@
 | 2026-03-28 | F037 — Conversational Context Manager | d6d32df (squash merge to develop, PR #39) | Standard bot-only. /contexto command (view/clear/set) + NL detection ("estoy en mcdonalds") + auto-inject chainSlug in /estimar, /comparar, NL handler. 4-tier fuzzy chain resolution (exact slug > exact name > prefix > bidirectional substring). BotStateChainContext in Redis, setStateStrict, real Redis TTL. Spec reviewed by Gemini+Codex (10 issues). Plan reviewed by Gemini+Codex (9 issues). Production validator: READY (0 issues). Code review: APPROVED (3I fixed). QA: 2 bugs fixed (BUG-F037-01 BORRAR case, BUG-F037-02 newline detector), 69 edge-case tests. 162 F037 tests (9 files). 30 files changed |
 | 2026-03-29 | F040 — Landing Page FAQ Section + Schema | a93faba (squash merge to develop, PR #41) | Standard frontend. FAQ accordion with native `<details>`/`<summary>`, FAQPage JSON-LD, 6 items es/en, placed before WaitlistCTA in all 3 variants. Spec reviewed by Gemini+Codex (5I+2S). Plan reviewed by Gemini+Codex (1C+4I+2S). Production validator: 1C fixed (ui-components.md). Code review: APPROVED (1I fixed). QA: VERIFIED (26 edge-case tests, 0 bugs). 374 tests (40 suites). 14 files changed |
 | 2026-03-29 | F050 — Bot NL Punctuation Fix + Help Update | d243c1e (squash merge to develop, PR #43) | Simple bugfix. BUG-AUDIT-01: strip ¿¡?! in extractFoodQuery. /start help updated with /comparar, /contexto, /restaurante. 11 new tests, 1066 total. 6 files changed |
+| 2026-03-29 | F047 — Landing Conversion Optimization | a52546d (squash merge to develop, PR #42) | Standard fullstack (API + landing). 8 conversion items: GA4 init (dataLayer bootstrap), MobileMenu Client Component (hamburger, ARIA, Escape/outside click), phone auto-prepend +34, WaitlistSuccessBanner (useSearchParams + Suspense), forms reduced to 2 per variant, social proof counter (GET /waitlist/count, 5min cache), benefit-oriented CTA copy (Spanish), WCAG AA contrast fix. Spec reviewed by Gemini+Codex (2C+8I). Plan reviewed by Gemini+Codex (7I). Code review: APPROVED (3I noted). QA: 1 bug fixed (BUG-F047-01 Footer form), 29 edge-case tests. 446 landing tests (45 suites) + 4 API. 34 files changed |
 | 2026-03-28 | F046 — Waitlist Persistence + Anti-Spam | e0c83e8 (squash merge to develop, PR #40) | Standard fullstack (API + landing + shared). POST /waitlist (public, honeypot, 5/15min rate limit, email lowercase, P2002→409 idempotent, form-urlencoded 303). GET /admin/waitlist (admin auth, paginated, sort). Prisma migration waitlist_submissions. Landing form → Fastify API, honeypot field, UTM params, 409-as-success. Deleted Next.js route. Zod schemas in shared. Production validator: READY. Code review: APPROVED (3I fixed: max-length, phone validation, source input). QA: 3 bugs (BUG-F046-01 critical fixed, BUG-F046-03 low fixed, BUG-F046-02 medium noted), 94 edge-case tests. API 2449, Landing 332, Shared 339. 31 files changed |
 
 ---
