@@ -42,10 +42,16 @@ export function CookieBanner({ variant }: CookieBannerProps) {
   if (consent !== null) {
     return loadGA && GA_ID.length > 0 ? (
       <Script
+        id="ga4-script"
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
         strategy="afterInteractive"
         onLoad={() => {
-          window.gtag?.('config', GA_ID);
+          window.dataLayer = window.dataLayer || [];
+          window.gtag = function (...args: unknown[]) {
+            window.dataLayer.push(args);
+          };
+          window.gtag('js', new Date());
+          window.gtag('config', GA_ID);
         }}
       />
     ) : null;
