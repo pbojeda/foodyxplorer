@@ -76,9 +76,15 @@ describe('F048 — SearchSimulator ARIA combobox', () => {
     expect(screen.getByRole('combobox')).toBeInTheDocument();
   });
 
-  it('input has aria-controls pointing to the listbox id', () => {
+  it('input has aria-controls pointing to the listbox id when expanded', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     render(<SearchSimulator />);
     const input = screen.getByRole('combobox');
+    // Initially not expanded — aria-controls absent
+    expect(input).not.toHaveAttribute('aria-controls');
+    // Type to open dropdown
+    await user.clear(input);
+    await user.type(input, 'pulpo');
     expect(input).toHaveAttribute('aria-controls', 'search-suggestions-listbox');
   });
 

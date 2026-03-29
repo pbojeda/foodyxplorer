@@ -80,7 +80,7 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
         e.preventDefault();
         if (!isOpen) {
           setShowDropdown(true);
-          setActiveIndex(0);
+          if (suggestions.length > 0) setActiveIndex(0);
         } else {
           setActiveIndex((prev) =>
             prev < suggestions.length - 1 ? prev + 1 : prev
@@ -112,15 +112,15 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
         break;
       }
       case 'Home': {
-        e.preventDefault();
         if (isOpen) {
+          e.preventDefault();
           setActiveIndex(0);
         }
         break;
       }
       case 'End': {
-        e.preventDefault();
         if (isOpen) {
+          e.preventDefault();
           setActiveIndex(suggestions.length - 1);
         }
         break;
@@ -130,8 +130,8 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
 
   const noResult = query.trim().length > 0 && !hasMatch && state === 'idle';
 
-  /** aria-expanded is true when dropdown is open OR when no-match UI is showing */
-  const isExpanded = (showDropdown && suggestions.length > 0) || noResult;
+  /** aria-expanded is true when dropdown is open OR when no-match UI is showing (and not dismissed) */
+  const isExpanded = (showDropdown && suggestions.length > 0) || (noResult && showDropdown);
 
   return (
     <div className="card-surface overflow-hidden p-4 sm:p-6">
@@ -162,7 +162,7 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
                   type="text"
                   role="combobox"
                   aria-expanded={isExpanded}
-                  aria-controls="search-suggestions-listbox"
+                  aria-controls={isExpanded ? 'search-suggestions-listbox' : undefined}
                   aria-activedescendant={
                     activeIndex >= 0 ? `search-option-${activeIndex}` : undefined
                   }
@@ -197,25 +197,25 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
                 className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft"
               >
                 {suggestions.map((dish, index) => (
-                  <li key={dish.query} id={`search-option-${index}`}>
-                    <button
-                      role="option"
-                      aria-selected={activeDish?.query === dish.query}
-                      onMouseDown={() => selectDish(dish)}
-                      className={`w-full px-4 py-3 text-left text-sm text-slate-700 hover:bg-mist ${
-                        index === activeIndex ? 'bg-mist' : ''
-                      }`}
-                    >
-                      <span className="font-medium">{dish.dish}</span>
-                      <span className="ml-2 text-xs text-slate-400">{dish.level}</span>
-                    </button>
+                  <li
+                    key={dish.query}
+                    id={`search-option-${index}`}
+                    role="option"
+                    aria-selected={activeDish?.query === dish.query}
+                    onMouseDown={() => selectDish(dish)}
+                    className={`w-full cursor-pointer px-4 py-3 text-left text-sm text-slate-700 hover:bg-mist ${
+                      index === activeIndex ? 'bg-mist' : ''
+                    }`}
+                  >
+                    <span className="font-medium">{dish.dish}</span>
+                    <span className="ml-2 text-xs text-slate-400">{dish.level}</span>
                   </li>
                 ))}
               </ul>
             )}
 
             {/* No result — improved UX with query-interpolated message and suggestion pills */}
-            {noResult && (
+            {noResult && showDropdown && (
               <div className="animate-fade-in mt-2">
                 <p className="text-sm text-slate-500">
                   No tenemos datos sobre &lsquo;{query.trim()}&rsquo; todavía. Prueba con uno de estos platos:
