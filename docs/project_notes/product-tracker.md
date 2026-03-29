@@ -11,7 +11,7 @@
 **Last Updated:** 2026-03-29
 
 **Active Feature:** F050 — Bot NL Punctuation Fix + Help Update
-**Step:** 4/6 (Finalize)
+**Step:** 5/6 (Review)
 **Branch:** feature/F050-nl-punctuation-fix
 **Complexity:** Simple
 **Context:** BUG-AUDIT-01: `¿` not stripped in extractFoodQuery. Also update /start help text.
@@ -112,7 +112,7 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F049 | Bot User Manual Overhaul | docs | pending | — | Standard. Fix 2 critical doc errors (context fallback lie, TTL refresh lie), 8 important gaps (undocumented features, incorrect claims), 6 suggestions. From cross-model audit (Claude + Gemini + Codex) |
-| F050 | Bot NL Punctuation Fix + Help Update | bot | in-progress | 4/6 | Simple. Fix BUG-AUDIT-01 (`¿` not stripped in extractFoodQuery). Update /start help text to include /comparar, /contexto, /restaurante |
+| F050 | Bot NL Punctuation Fix + Help Update | bot | in-progress | 5/6 | Simple. Fix BUG-AUDIT-01 (`¿` not stripped in extractFoodQuery). Update /start help text to include /comparar, /contexto, /restaurante |
 
 ---
 
