@@ -1,5 +1,7 @@
 import { cookies } from 'next/headers';
+import { Suspense } from 'react';
 import { SiteHeader } from '@/components/SiteHeader';
+import { WaitlistSuccessBanner } from '@/components/features/WaitlistSuccessBanner';
 import { HeroSection } from '@/components/sections/HeroSection';
 import { ProductDemo } from '@/components/ProductDemo';
 import { HowItWorksSection } from '@/components/sections/HowItWorksSection';
@@ -244,6 +246,11 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
 
       {/* Sticky site header */}
       <SiteHeader />
+
+      {/* No-JS waitlist success banner — useSearchParams requires Suspense to preserve SSG */}
+      <Suspense fallback={null}>
+        <WaitlistSuccessBanner />
+      </Suspense>
 
       {/* Variant-specific layout */}
       {getVariantLayout(variant, dict)}
