@@ -466,9 +466,17 @@ export async function handleCallbackQuery(
       return;
     }
 
-    // Detect MIME from magic bytes
+    // Detect MIME from magic bytes (F056: reject unknown formats instead of defaulting to JPEG)
     const detected = detectMimeType(fileBuffer);
-    const { mimeType, filename } = detected ?? { mimeType: 'image/jpeg', filename: 'photo.jpg' };
+    if (!detected) {
+      await bot.sendMessage(
+        chatId,
+        escapeMarkdown('Formato de imagen no soportado. Envía una foto JPEG, PNG o WebP.'),
+        { parse_mode: 'MarkdownV2' },
+      );
+      return;
+    }
+    const { mimeType, filename } = detected;
 
     // Inform user that processing has started
     await bot.sendMessage(chatId, 'Analizando menú…');
@@ -546,9 +554,17 @@ export async function handleCallbackQuery(
       return;
     }
 
-    // Detect MIME from magic bytes
+    // Detect MIME from magic bytes (F056: reject unknown formats instead of defaulting to JPEG)
     const detected = detectMimeType(fileBuffer);
-    const { mimeType, filename } = detected ?? { mimeType: 'image/jpeg', filename: 'photo.jpg' };
+    if (!detected) {
+      await bot.sendMessage(
+        chatId,
+        escapeMarkdown('Formato de imagen no soportado. Envía una foto JPEG, PNG o WebP.'),
+        { parse_mode: 'MarkdownV2' },
+      );
+      return;
+    }
+    const { mimeType, filename } = detected;
 
     // Inform user that processing has started
     await bot.sendMessage(chatId, 'Identificando plato…');
