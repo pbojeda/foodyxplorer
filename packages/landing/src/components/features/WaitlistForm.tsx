@@ -37,9 +37,11 @@ interface WaitlistFormProps {
   variant: Variant;
   /** When true, shows the phone field. Default: false. Phone is only shown in the final WaitlistCTA section. */
   showPhone?: boolean;
+  /** Label for the submit button. Default: 'Únete a la waitlist'. */
+  submitLabel?: string;
 }
 
-export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFormProps) {
+export function WaitlistForm({ source, variant, showPhone = false, submitLabel = 'Únete a la waitlist' }: WaitlistFormProps) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [status, setStatus] = useState<FormStatus>('idle');
@@ -83,6 +85,28 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
 
   function handleBlur() {
     setTouched(true);
+  }
+
+  function handlePhoneFocus() {
+    if (phone === '') {
+      setPhone('+34');
+    }
+  }
+
+  function handlePhoneBlur() {
+    setPhoneTouched(true);
+    const trimmed = phone.trim();
+    if (trimmed === '+34') {
+      // Bare prefix with no digits — clear it
+      setPhone('');
+      return;
+    }
+    if (/^\d{9}$/.test(trimmed)) {
+      // 9-digit number without any prefix — prepend +34
+      setPhone('+34' + trimmed);
+      return;
+    }
+    // Otherwise leave unchanged (already has a country code, has digits after +34, etc.)
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -225,7 +249,7 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
             htmlFor={`waitlist-phone-${source}`}
             className="text-sm font-medium text-slate-700"
           >
-            Teléfono <span className="font-normal text-slate-400">(opcional)</span>
+            Teléfono <span className="font-normal text-slate-500">(opcional)</span>
           </label>
           <input
             id={`waitlist-phone-${source}`}
@@ -233,7 +257,8 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
             placeholder="Tu teléfono (opcional)"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            onBlur={() => setPhoneTouched(true)}
+            onFocus={handlePhoneFocus}
+            onBlur={handlePhoneBlur}
             autoComplete="tel"
             disabled={status === 'loading'}
             aria-describedby={`waitlist-phone-help-${source}`}
@@ -244,7 +269,7 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
               {phoneError}
             </p>
           )}
-          <p id={`waitlist-phone-help-${source}`} className="text-xs text-slate-400">
+          <p id={`waitlist-phone-help-${source}`} className="text-xs text-slate-500">
             Formato: +34 612 345 678 (opcional)
           </p>
         </div>
@@ -264,7 +289,7 @@ export function WaitlistForm({ source, variant, showPhone = false }: WaitlistFor
         disabled={status === 'loading'}
         className="w-full"
       >
-        Únete a la waitlist
+        {submitLabel}
       </Button>
 
       <p className="text-center text-xs text-slate-500">

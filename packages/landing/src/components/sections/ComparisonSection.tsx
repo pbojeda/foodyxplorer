@@ -34,7 +34,7 @@ export function ComparisonSection({ dict }: ComparisonSectionProps) {
                 <h3 className="text-lg md:text-xl font-semibold text-slate-900 mb-1">
                   {card.title}
                 </h3>
-                <p className="text-[13px] md:text-sm text-slate-400 font-medium italic">
+                <p className="text-[13px] md:text-sm text-slate-500 font-medium italic">
                   {card.versus}
                 </p>
               </div>
