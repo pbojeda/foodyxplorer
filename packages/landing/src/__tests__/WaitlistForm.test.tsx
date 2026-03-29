@@ -273,3 +273,63 @@ describe('WaitlistForm', () => {
     expect(honeypot).toHaveAttribute('aria-hidden', 'true');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phone auto-prepend (F047 — I6)
+// ---------------------------------------------------------------------------
+
+describe('WaitlistForm — phone auto-prepend', () => {
+  function setupWithPhone() {
+    return render(<WaitlistForm source="cta" variant="a" showPhone={true} />);
+  }
+
+  it('focusing on empty phone input sets value to +34', async () => {
+    setupWithPhone();
+    const phoneInput = screen.getByRole('textbox', { name: /teléfono/i });
+    fireEvent.focus(phoneInput);
+    expect((phoneInput as HTMLInputElement).value).toBe('+34');
+  });
+
+  it('blurring with value exactly +34 clears to empty string', async () => {
+    setupWithPhone();
+    const phoneInput = screen.getByRole('textbox', { name: /teléfono/i });
+    // Focus sets +34
+    fireEvent.focus(phoneInput);
+    expect((phoneInput as HTMLInputElement).value).toBe('+34');
+    // Blur without adding digits
+    fireEvent.blur(phoneInput);
+    expect((phoneInput as HTMLInputElement).value).toBe('');
+  });
+
+  it('blurring with 9-digit number prepends +34', async () => {
+    setupWithPhone();
+    const phoneInput = screen.getByRole('textbox', { name: /teléfono/i });
+    fireEvent.change(phoneInput, { target: { value: '612345678' } });
+    fireEvent.blur(phoneInput);
+    expect((phoneInput as HTMLInputElement).value).toBe('+34612345678');
+  });
+
+  it('blurring with non-+34 country code leaves value unchanged', async () => {
+    setupWithPhone();
+    const phoneInput = screen.getByRole('textbox', { name: /teléfono/i });
+    fireEvent.change(phoneInput, { target: { value: '+1 2125550100' } });
+    fireEvent.blur(phoneInput);
+    expect((phoneInput as HTMLInputElement).value).toBe('+1 2125550100');
+  });
+
+  it('blurring with +34 already present and digits leaves value unchanged', async () => {
+    setupWithPhone();
+    const phoneInput = screen.getByRole('textbox', { name: /teléfono/i });
+    fireEvent.change(phoneInput, { target: { value: '+34 612 345 678' } });
+    fireEvent.blur(phoneInput);
+    expect((phoneInput as HTMLInputElement).value).toBe('+34 612 345 678');
+  });
+
+  it('does not overwrite when user has typed a full number including +34', async () => {
+    setupWithPhone();
+    const phoneInput = screen.getByRole('textbox', { name: /teléfono/i });
+    fireEvent.change(phoneInput, { target: { value: '+34612345678' } });
+    fireEvent.blur(phoneInput);
+    expect((phoneInput as HTMLInputElement).value).toBe('+34612345678');
+  });
+});
