@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { MobileMenu } from '@/components/MobileMenu';
 
 const NAV_LINKS = [
   { label: 'Demo', href: '#demo' },
@@ -6,11 +7,13 @@ const NAV_LINKS = [
   { label: 'Para quién', href: '#para-quien' },
 ];
 
-const WAITLIST_CTA = 'Pedir acceso anticipado';
+const WAITLIST_CTA = 'Probar gratis';
+const MOBILE_CTA_TEXT = 'Probar';
 
 /**
  * Sticky top navigation header.
  * Server Component — no interactivity needed.
+ * MobileMenu is a separate Client Component for the hamburger toggle.
  */
 export function SiteHeader() {
   return (
@@ -45,14 +48,8 @@ export function SiteHeader() {
           </a>
         </div>
 
-        {/* Mobile CTA — simplified label */}
-        <a
-          href="#waitlist"
-          className="rounded-full bg-botanical px-4 py-2 text-sm font-semibold text-white transition hover:scale-[1.02] md:hidden"
-          aria-label="Pedir acceso anticipado"
-        >
-          Acceso
-        </a>
+        {/* Mobile hamburger menu — Client Component */}
+        <MobileMenu navLinks={NAV_LINKS} ctaText={WAITLIST_CTA} mobileCta={MOBILE_CTA_TEXT} />
       </div>
     </header>
   );

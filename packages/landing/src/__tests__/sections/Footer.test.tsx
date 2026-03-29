@@ -38,9 +38,9 @@ describe('Footer', () => {
     expect(screen.getByText(dict.footer.copyright)).toBeInTheDocument();
   });
 
-  it('renders the secondary waitlist form', () => {
+  it('does NOT render a waitlist form (S7: max 2 forms per variant)', () => {
     render(<Footer dict={dict.footer} variant="a" />);
-    expect(screen.getByRole('button', { name: /únete/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /únete/i })).not.toBeInTheDocument();
   });
 
   it('renders a GitHub link', () => {

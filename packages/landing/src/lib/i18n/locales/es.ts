@@ -7,7 +7,7 @@ export const es = {
       'Disfruta de comer fuera con más contexto y menos improvisación. Calorías, macros y nivel de confianza visible antes de decidir.',
     subtitleB:
       'Información nutricional de restaurantes españoles con trazabilidad real. Calorías, macros y confianza en cada plato.',
-    cta: 'Quiero probarlo',
+    cta: 'Quiero saber qué como',
     microcopy: 'Sin spam. Sin compromisos. Avisamos cuando lancemos.',
     trustPills: ['Datos verificados', 'Confianza visible', 'Hecho en España'],
   },
@@ -204,6 +204,10 @@ export const es = {
     eyebrow: 'Para quién empieza hoy',
     headline: 'Para quién empieza hoy',
   },
+  siteHeader: {
+    cta: 'Probar gratis',
+    mobileCta: 'Probar',
+  },
   faq: {
     eyebrow: 'Preguntas frecuentes',
     headline: 'Lo que necesitas saber',
@@ -241,7 +245,7 @@ export const es = {
     ],
   },
   waitlistCta: {
-    headline: 'Sé el primero en probarlo',
+    headline: 'Descubre exactamente qué comes en tu restaurante favorito',
     subtitle:
       'nutriXplorer está en fase de desarrollo. Únete a la lista de espera y sé de los primeros en acceder cuando lancemos.',
     urgency: 'Plazas limitadas para el acceso anticipado',

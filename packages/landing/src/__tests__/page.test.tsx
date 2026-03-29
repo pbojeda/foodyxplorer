@@ -67,6 +67,10 @@ jest.mock('@/components/analytics/ScrollTracker', () => ({
   ScrollTracker: () => null,
 }));
 
+jest.mock('@/components/features/WaitlistSuccessBanner', () => ({
+  WaitlistSuccessBanner: () => null,
+}));
+
 jest.mock('@/components/analytics/SectionObserver', () => ({
   SectionObserver: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>

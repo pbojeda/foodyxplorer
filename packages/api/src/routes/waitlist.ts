@@ -11,6 +11,7 @@ import {
   CreateWaitlistSubmissionSchema,
   AdminWaitlistQuerySchema,
 } from '@foodxplorer/shared';
+import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 
 // ---------------------------------------------------------------------------
 // Plugin options
@@ -108,6 +109,35 @@ const waitlistRoutesPlugin: FastifyPluginAsync<WaitlistPluginOptions> = async (
         }
         throw err;
       }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // GET /waitlist/count — public waitlist count (cached 5 min)
+  // -------------------------------------------------------------------------
+
+  app.get(
+    '/waitlist/count',
+    {
+      schema: {
+        tags: ['Waitlist'],
+        summary: 'Public waitlist count',
+        description: 'Returns total number of waitlist submissions. Cached for 5 minutes.',
+      },
+    },
+    async (request, reply) => {
+      const key = buildKey('waitlist', 'count');
+
+      const cached = await cacheGet<number>(key, request.log);
+      if (cached !== null) {
+        reply.header('Cache-Control', 'public, max-age=300');
+        return reply.send({ success: true, data: { count: cached } });
+      }
+
+      const count = await prisma.waitlistSubmission.count();
+      await cacheSet(key, count, request.log, { ttl: 300 });
+      reply.header('Cache-Control', 'public, max-age=300');
+      return reply.send({ success: true, data: { count } });
     },
   );
 

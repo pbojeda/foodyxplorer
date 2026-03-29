@@ -19,6 +19,9 @@ import { render, screen } from '@testing-library/react';
 // ---------------------------------------------------------------------------
 // All component mocks (required for page.tsx to render in jsdom)
 // ---------------------------------------------------------------------------
+jest.mock('next/navigation', () => ({
+  useSearchParams: jest.fn(() => new URLSearchParams()),
+}));
 jest.mock('@/components/SiteHeader', () => ({
   SiteHeader: () => <header role="banner">Site Header</header>,
 }));
