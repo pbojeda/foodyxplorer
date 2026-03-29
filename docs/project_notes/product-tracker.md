@@ -11,7 +11,7 @@
 **Last Updated:** 2026-03-29
 
 **Active Feature:** F054 — Context State Isolation & NL Footer Consistency
-**Step:** 4/6 (Finalize)
+**Step:** 5/6 (Review)
 **Branch:** `feature/F054-context-state-nl-footer`
 **Complexity:** Simple
 **Context:** I3: update manual TTL description (Option B). I4: add "Contexto activo" footer to NL handler.
@@ -116,7 +116,7 @@
 | F051 | Bot Rate-Limit Ordering & Failed-Request Handling | bot | done | 6/6 | Bug. C1: move isRateLimited() before downloadTelegramFile(). I11: don't count failed API requests against /receta rate limit. From audit C1 (Gemini), I11 (Claude) |
 | F052 | Restaurant Selection chainSlug Propagation | bot | done | 6/6 | Bug. chainSlug lost when selecting restaurant via inline keyboard — searchResults only stores name. From audit I1 (Codex) |
 | F053 | Decouple Menu Analysis from Restaurant Selection | bot | done | 6/6 | Bug. handlePhoto() blocks all photo flows behind selectedRestaurant; analyze/identify don't need it. Plan says F034 independent. From audit I2 (Codex) |
-| F054 | Context State Isolation & NL Footer Consistency | bot | in-progress | 4/6 | Bug. I3: shared Redis key TTL refreshed by unrelated writes. I4: NL handler missing "Contexto activo" footer. From audit I3+I4 (Codex) |
+| F054 | Context State Isolation & NL Footer Consistency | bot | in-progress | 5/6 | Bug. I3: shared Redis key TTL refreshed by unrelated writes. I4: NL handler missing "Contexto activo" footer. From audit I3+I4 (Codex) |
 | F055 | Inline Keyboard Stale-Button Mitigation + Callback Logging | bot | pending | — | Bug (low). Stale-button race with multiple photos/searches + unknown callback_data not logged. From audit I7+S6 (Codex, Claude) |
 | F056 | MIME Detection Fallback Safety | bot | pending | — | Bug (low). Unknown magic bytes default to image/jpeg instead of showing error. From audit S7 (Claude, Gemini) |
 | F057 | Manual Corrections Batch | docs | done | 5/5 | Simple. 5 corrections to user-manual-bot.md: /cadenas truncation (I5), error table sync (I6), plurals (S1), half verified (S2), NL error (S3). Section 10/8 deferred to F053/F054. SHA aa212bc |

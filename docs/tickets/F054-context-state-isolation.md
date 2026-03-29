@@ -1,7 +1,7 @@
 # F054: Context State Isolation & NL Footer Consistency
 
 **Feature:** F054 | **Type:** Bug | **Priority:** Medium
-**Status:** In Progress | **Branch:** `feature/F054-context-state-nl-footer`
+**Status:** Ready for Merge | **Branch:** `feature/F054-context-state-nl-footer`
 **Created:** 2026-03-29 | **Dependencies:** None
 **Audit Source:** `docs/research/comprehensive-audit-2026-03-29.md` — Findings I3, I4
 
@@ -91,7 +91,7 @@ N/A — Simple task.
 - [x] Step 1: Branch created, ticket updated, tracker updated
 - [x] Step 3: TDD implementation (4 tests, RED→GREEN)
 - [x] Step 4: Quality gates pass (1097 tests, tsc clean)
-- [ ] Step 5: PR created, review
+- [x] Step 5: PR created (#49), review
 - [ ] Step 6: Ticket updated, branch deleted
 
 ---
@@ -111,13 +111,13 @@ N/A — Simple task.
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | |
-| 1. Mark all items | [ ] | |
-| 2. Verify product tracker | [ ] | |
-| 3. Update key_facts.md | [ ] | |
-| 4. Update decisions.md | [ ] | |
-| 5. Commit documentation | [ ] | |
-| 6. Verify clean working tree | [ ] | |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Plan (N/A), AC, DoD, Workflow, Log, Evidence |
+| 1. Mark all items | [x] | AC: 9/9 (I3: 3/3, I4: 6/6), DoD: 5/5, Workflow: 4/5 (Step 6 pending) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
+| 3. Update key_facts.md | [x] | N/A — no new endpoints or modules |
+| 4. Update decisions.md | [x] | N/A — no ADR needed |
+| 5. Commit documentation | [x] | Included in docs commit |
+| 6. Verify clean working tree | [x] | Clean after commit (untracked files are pre-existing tickets, not F054) |
 
 ---
 
