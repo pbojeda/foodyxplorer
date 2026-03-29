@@ -48,5 +48,6 @@ export type SectionId =
   | 'emotional'
   | 'comparison'
   | 'restaurants'
+  | 'faq'
   | 'waitlist-cta'
   | 'footer';

@@ -539,6 +539,21 @@ Minimal card section showing 3 restaurant types with confidence level notes. Use
 |------|------|----------|-------------|
 | dict | `Dictionary['restaurants']` | Yes | i18n copy |
 
+#### FAQSection
+**Type:** Feature | **Client:** No (Server Component)
+**File:** `src/components/sections/FAQSection.tsx`
+
+Accordion section with 6 FAQ items using native `<details>`/`<summary>` elements. All details share `name="faq"` for exclusive toggling (one open at a time). Returns null if items array is empty. No JavaScript required — progressive enhancement.
+
+**Props:**
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| dict | `Dictionary['faq']` | Yes | Accordion data: eyebrow, headline, items (6 Q&A pairs) |
+
+**Structured Data:** `generateFAQPageSchema()` in `lib/seo.ts` produces FAQPage JSON-LD from the same dictionary items. Conditionally rendered in `page.tsx` when items exist.
+
+**Analytics:** Wrapped by `SectionObserver` for `section_view` event tracking (conditionally, only when items exist).
+
 ### Updated Section Components (F044)
 
 | Component | Change |
@@ -563,6 +578,7 @@ TrustEngineSection
 ForWhoSection (includes AudienceGrid)
 ComparisonSection
 RestaurantsSection
+FAQSection (conditional — only if faq.items.length > 0)
 WaitlistCTASection
 Footer
 ```
