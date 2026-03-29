@@ -1,7 +1,7 @@
 # F051: Bot Rate-Limit Ordering & Failed-Request Handling
 
 **Feature:** F051 | **Type:** Bug | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F051-bot-rate-limit-ordering
+**Status:** Ready for Merge | **Branch:** feature/F051-bot-rate-limit-ordering
 **Created:** 2026-03-29 | **Dependencies:** None
 **Audit Source:** `docs/research/comprehensive-audit-2026-03-29.md` — Findings C1, I11
 
@@ -79,7 +79,7 @@ N/A — Simple task.
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 3: TDD implementation (12 tests, RED→GREEN)
 - [x] Step 4: Quality gates pass (1078 tests, tsc clean)
-- [ ] Step 5: PR created, review
+- [x] Step 5: PR created (#46), code review approved, merge checklist filled
 - [ ] Step 6: Ticket updated, branch deleted
 
 ---
