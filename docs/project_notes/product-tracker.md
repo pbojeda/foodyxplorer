@@ -105,7 +105,7 @@
 | F046 | Landing — Waitlist Persistence + Anti-Spam | fullstack | done | 6/6 | Standard. POST /waitlist + GET /admin/waitlist, Prisma migration, honeypot + rate limiting, landing form → Fastify API. PR #40, SHA e0c83e8 |
 | F047 | Landing — Conversion Optimization | fullstack | done | 6/6 | Standard. 8 items: GA4 init, mobile menu, phone +34, success banner, forms reduced, social proof counter, CTA copy, contrast. GET /waitlist/count. PR #42, SHA a52546d |
 | F040 | Landing Page FAQ Section + Schema | frontend | done | 6/6 | Standard. FAQ accordion with structured data (FAQPage schema). Deferred from F039. Depends on F045 |
-| F048 | Landing — Performance & Accessibility | frontend | pending | — | Standard. SearchSimulator keyboard nav (WAI-ARIA combobox), replace framer-motion with CSS, security headers, prefers-reduced-motion. Depends on F047 |
+| F048 | Landing — Performance & Accessibility | frontend | in-progress | 5/6 | Standard. ARIA combobox, security headers, ChatGPT card, no-match UX, reduced-motion, localStorage. PR #45 |
 
 ## Features — Quality & Documentation
 
