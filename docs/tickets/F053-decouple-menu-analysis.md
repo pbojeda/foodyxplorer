@@ -1,7 +1,7 @@
 # F053: Decouple Menu Analysis from Restaurant Selection
 
 **Feature:** F053 | **Type:** Bug | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F053-decouple-menu-analysis
+**Status:** Done | **Branch:** (merged to develop, deleted)
 **Created:** 2026-03-29 | **Dependencies:** None
 **Audit Source:** `docs/research/comprehensive-audit-2026-03-29.md` — Finding I2
 
@@ -82,7 +82,7 @@ N/A — Simple task.
 - [x] Step 3: TDD implementation (8 tests, RED→GREEN, 3 existing updated)
 - [x] Step 4: Quality gates pass (1093 tests, tsc clean)
 - [x] Step 5: PR created, merge checklist filled
-- [ ] Step 6: Ticket updated, branch deleted
+- [x] Step 6: Ticket updated, branch deleted
 
 ---
 
@@ -93,6 +93,7 @@ N/A — Simple task.
 | 2026-03-29 | Ticket created | From comprehensive audit finding I2 (Codex), verified against plan |
 | 2026-03-29 | Implementation | Removed selectedRestaurant guard from handlePhoto(). Adaptive keyboard: 2 buttons (analyze/identify) without restaurant, 3 with. 3 existing tests updated. 1093 total passing |
 | 2026-03-29 | Design decision | Implemented Option B (adaptive keyboard) instead of recommended Option A (always 3 buttons + error). Option B provides better UX by hiding unavailable actions rather than showing an error |
+| 2026-03-29 | Squash merged to develop | SHA 700dbc5, PR #48. Branch deleted |
 
 ---
 
