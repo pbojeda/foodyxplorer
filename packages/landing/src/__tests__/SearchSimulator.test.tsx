@@ -51,7 +51,7 @@ describe('SearchSimulator', () => {
   it('shows loading state after clicking Ver resultado', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     render(<SearchSimulator />);
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('combobox');
     await user.clear(input);
     await user.type(input, 'big mac');
     const button = screen.getByRole('button', { name: /ver resultado/i });
@@ -109,13 +109,13 @@ describe('SearchSimulator', () => {
     });
   });
 
-  it('shows "no encontrado" message for unrecognized query', async () => {
+  it('shows improved no-match message for unrecognized query', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     render(<SearchSimulator />);
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('combobox');
     await user.clear(input);
     await user.type(input, 'platillo marciano xyz123');
-    expect(screen.getByText(/no encontrado/i)).toBeInTheDocument();
+    expect(screen.getByText(/todavía/i)).toBeInTheDocument();
   });
 
   it('shows macros grid after dish selection', async () => {

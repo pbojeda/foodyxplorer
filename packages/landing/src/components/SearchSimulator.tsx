@@ -18,7 +18,9 @@ type SimulatorState = 'idle' | 'loading' | 'result';
  * - Quick-select pills for each pre-loaded dish
  * - 850ms loading animation before showing result
  * - Result card: calories, macros grid (2x2), confidence badge, allergen guardrail
- * - "No encontrado" message with suggestion pills for unknown queries
+ * - Improved no-match UX: query-interpolated message + 4 suggestion pills
+ * - ARIA combobox pattern: role, aria-expanded, aria-controls, aria-activedescendant
+ * - Keyboard navigation: ArrowDown/Up/Enter/Escape/Home/End
  *
  * Prepared to be connected to real /estimate API in a future iteration.
  */
@@ -32,6 +34,7 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
   const [state, setState] = useState<SimulatorState>('result');
   const [activeDish, setActiveDish] = useState<Dish>(DISHES[1]!); // pulpo a feira default
   const [showDropdown, setShowDropdown] = useState(false);
+  const [activeIndex, setActiveIndex] = useState<number>(-1);
 
   /** Filter dishes whose query includes the current input (case-insensitive) */
   const suggestions = useMemo(() => {
@@ -46,6 +49,7 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
   function selectDish(dish: Dish) {
     setQuery(dish.query);
     setShowDropdown(false);
+    setActiveIndex(-1);
     setState('loading');
     onInteract?.();
     setTimeout(() => {
@@ -64,10 +68,70 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
   function handleInputChange(value: string) {
     setQuery(value);
     setShowDropdown(true);
+    setActiveIndex(-1);
     setState('idle');
   }
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    const isOpen = showDropdown && suggestions.length > 0;
+
+    switch (e.key) {
+      case 'ArrowDown': {
+        e.preventDefault();
+        if (!isOpen) {
+          setShowDropdown(true);
+          setActiveIndex(0);
+        } else {
+          setActiveIndex((prev) =>
+            prev < suggestions.length - 1 ? prev + 1 : prev
+          );
+        }
+        break;
+      }
+      case 'ArrowUp': {
+        e.preventDefault();
+        if (isOpen) {
+          setActiveIndex((prev) => (prev > 0 ? prev - 1 : -1));
+        }
+        break;
+      }
+      case 'Enter': {
+        e.preventDefault();
+        if (isOpen && activeIndex >= 0) {
+          const dish = suggestions[activeIndex];
+          if (dish) selectDish(dish);
+        } else {
+          handleRun();
+        }
+        break;
+      }
+      case 'Escape': {
+        e.preventDefault();
+        setShowDropdown(false);
+        setActiveIndex(-1);
+        break;
+      }
+      case 'Home': {
+        e.preventDefault();
+        if (isOpen) {
+          setActiveIndex(0);
+        }
+        break;
+      }
+      case 'End': {
+        e.preventDefault();
+        if (isOpen) {
+          setActiveIndex(suggestions.length - 1);
+        }
+        break;
+      }
+    }
+  }
+
   const noResult = query.trim().length > 0 && !hasMatch && state === 'idle';
+
+  /** aria-expanded is true when dropdown is open OR when no-match UI is showing */
+  const isExpanded = (showDropdown && suggestions.length > 0) || noResult;
 
   return (
     <div className="card-surface overflow-hidden p-4 sm:p-6">
@@ -96,10 +160,17 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
                 />
                 <input
                   type="text"
+                  role="combobox"
+                  aria-expanded={isExpanded}
+                  aria-controls="search-suggestions-listbox"
+                  aria-activedescendant={
+                    activeIndex >= 0 ? `search-option-${activeIndex}` : undefined
+                  }
                   value={query}
                   onChange={(e) => handleInputChange(e.target.value)}
                   onFocus={() => setShowDropdown(true)}
                   onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+                  onKeyDown={handleKeyDown}
                   placeholder="Ej. Pulpo a feira"
                   aria-label="Buscar plato"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-11 py-4 text-base outline-none transition focus:border-botanical focus:ring-4 focus:ring-green-100"
@@ -120,17 +191,20 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
             {/* Autocomplete dropdown */}
             {showDropdown && suggestions.length > 0 && (
               <ul
+                id="search-suggestions-listbox"
                 role="listbox"
                 aria-label="Sugerencias"
                 className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft"
               >
-                {suggestions.map((dish) => (
-                  <li key={dish.query}>
+                {suggestions.map((dish, index) => (
+                  <li key={dish.query} id={`search-option-${index}`}>
                     <button
                       role="option"
                       aria-selected={activeDish?.query === dish.query}
                       onMouseDown={() => selectDish(dish)}
-                      className="w-full px-4 py-3 text-left text-sm text-slate-700 hover:bg-mist"
+                      className={`w-full px-4 py-3 text-left text-sm text-slate-700 hover:bg-mist ${
+                        index === activeIndex ? 'bg-mist' : ''
+                      }`}
                     >
                       <span className="font-medium">{dish.dish}</span>
                       <span className="ml-2 text-xs text-slate-400">{dish.level}</span>
@@ -140,31 +214,47 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
               </ul>
             )}
 
-            {/* No result */}
+            {/* No result — improved UX with query-interpolated message and suggestion pills */}
             {noResult && (
-              <p className="mt-2 text-sm text-slate-500">
-                No encontrado. Prueba con uno de los ejemplos.
-              </p>
+              <div className="animate-fade-in mt-2">
+                <p className="text-sm text-slate-500">
+                  No tenemos datos sobre &lsquo;{query.trim()}&rsquo; todavía. Prueba con uno de estos platos:
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                  {DISHES.slice(0, 4).map((dish) => (
+                    <button
+                      key={dish.query}
+                      onClick={() => selectDish(dish)}
+                      aria-label={dish.dish}
+                      className="rounded-full border px-3 py-1.5 transition border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                    >
+                      {dish.query}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
 
-          {/* Quick-select pills */}
-          <div className="mt-4 flex flex-wrap gap-2 text-sm">
-            {DISHES.map((dish) => (
-              <button
-                key={dish.query}
-                onClick={() => selectDish(dish)}
-                aria-label={dish.dish}
-                className={`rounded-full border px-3 py-1.5 transition ${
-                  activeDish?.query === dish.query && state === 'result'
-                    ? 'border-botanical bg-mist text-botanical'
-                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                {dish.query}
-              </button>
-            ))}
-          </div>
+          {/* Quick-select pills — hidden during no-match state to avoid duplicate pills */}
+          {!noResult && (
+            <div className="mt-4 flex flex-wrap gap-2 text-sm">
+              {DISHES.map((dish) => (
+                <button
+                  key={dish.query}
+                  onClick={() => selectDish(dish)}
+                  aria-label={dish.dish}
+                  className={`rounded-full border px-3 py-1.5 transition ${
+                    activeDish?.query === dish.query && state === 'result'
+                      ? 'border-botanical bg-mist text-botanical'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  {dish.query}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right: result card */}
