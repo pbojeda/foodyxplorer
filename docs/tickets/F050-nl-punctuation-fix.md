@@ -1,7 +1,7 @@
 # F050: Bot NL Punctuation Fix + Help Update
 
 **Feature:** F050 | **Type:** Bot-Bugfix | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/F050-nl-punctuation-fix
+**Status:** Ready for Merge | **Branch:** feature/F050-nl-punctuation-fix
 **Created:** 2026-03-29 | **Dependencies:** None
 
 ---
@@ -70,7 +70,7 @@ N/A — Simple task.
 | 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
 | 3. Update key_facts.md | [x] | N/A — no new endpoints or modules |
 | 4. Update decisions.md | [x] | N/A — no ADR needed |
-| 5. Commit documentation | [x] | Commit: (pending docs commit) |
+| 5. Commit documentation | [x] | Commit: 9b4d94d |
 | 6. Verify clean working tree | [x] | `git status`: clean after docs commit |
 
 ---
