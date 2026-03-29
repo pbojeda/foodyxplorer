@@ -338,7 +338,7 @@ _Reduced motion (item 5):_
 - [x] Step 4: Quality gates pass (511 tests, TS clean, build OK)
 - [x] Step 5: `code-review-specialist` — Approved (3 ARIA issues fixed)
 - [x] Step 5: `qa-engineer` — 26 edge-case tests, ARIA dangling ref fixed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -362,7 +362,7 @@ _Reduced motion (item 5):_
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | Sections verified: Spec, Plan, AC, DoD, Workflow, Log, Evidence |
-| 1. Mark all items | [x] | AC: 12/12, DoD: 6/6, Workflow: 7/8 (Step 6 pending) |
+| 1. Mark all items | [x] | AC: 12/12, DoD: 6/6, Workflow: 8/8 |
 | 2. Verify product tracker | [x] | Features table updated in docs commit |
 | 3. Update key_facts.md | [x] | N/A — no new endpoints, models, or schemas |
 | 4. Update decisions.md | [x] | N/A |
