@@ -258,8 +258,8 @@ _page.test.tsx additions_
 - [x] Step 2: `frontend-planner` executed, plan approved
 - [x] Step 3: `frontend-developer` executed with TDD
 - [x] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard/Complex)
+- [x] Step 5: `code-review-specialist` executed
+- [x] Step 5: `qa-engineer` executed (Standard/Complex)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -273,6 +273,8 @@ _page.test.tsx additions_
 | 2026-03-29 | Plan reviewed by Gemini + Codex GPT-5.4 | 1 CRITICAL + 4 IMPORTANT + 2 SUGGESTION. All addressed: `<dl>` replaced with `<div>` (invalid HTML), `<details name>` TS augmentation noted, SectionObserver guard at page level, stronger page tests (order + JSON-LD type + empty state), redundant Step 6 removed |
 | 2026-03-29 | Implementation complete (TDD) | 17 new tests (10 component + 3 seo + 4 page integration). 347 total passing. tsc clean, lint clean |
 | 2026-03-29 | Production validator | 1 CRITICAL fixed: FAQSection added to ui-components.md |
+| 2026-03-29 | Code review | APPROVED. 1 IMPORTANT fixed (empty-state integration test). 3 suggestions noted |
+| 2026-03-29 | QA edge-case tests | 26 tests added (2 files), all passing. 374 total |
 
 ---
 
@@ -282,13 +284,13 @@ _page.test.tsx additions_
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Plan, AC, DoD, Workflow, Log, Evidence |
+| 1. Mark all items | [x] | AC: 15/15, DoD: 7/7, Workflow: 6/8 (Steps 0-5 done, Step 6 pending) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
+| 3. Update key_facts.md | [x] | N/A — no new endpoints, models, or shared utilities |
+| 4. Update decisions.md | [x] | N/A — no ADR needed |
+| 5. Commit documentation | [x] | Commit: 175b28f |
+| 6. Verify clean working tree | [x] | `git status`: clean |
 
 ---
 
