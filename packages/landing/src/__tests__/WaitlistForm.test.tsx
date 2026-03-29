@@ -275,6 +275,27 @@ describe('WaitlistForm', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Privacy notice (F059 I9)
+// ---------------------------------------------------------------------------
+describe('WaitlistForm — privacy notice (F059 I9)', () => {
+  it('renders a link to /privacidad', () => {
+    render(<WaitlistForm source="hero" variant="a" />);
+    const privacyLink = screen.getByRole('link', { name: /política de privacidad/i });
+    expect(privacyLink).toHaveAttribute('href', '/privacidad');
+  });
+
+  it('renders controller name "Pablo Eduardo Ojeda Vasco"', () => {
+    render(<WaitlistForm source="hero" variant="a" />);
+    expect(screen.getByText(/Pablo Eduardo Ojeda Vasco/)).toBeInTheDocument();
+  });
+
+  it('renders text containing "Finalidad"', () => {
+    render(<WaitlistForm source="hero" variant="a" />);
+    expect(screen.getByText(/Finalidad/)).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phone auto-prepend (F047 — I6)
 // ---------------------------------------------------------------------------
 

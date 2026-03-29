@@ -493,8 +493,21 @@ Landing App (landing/)
 **Props:** `variant: 'a' | 'b'` — used to write the A/B cookie after consent is granted
 
 On accept: stores `nx-cookie-consent=accepted` in localStorage, writes A/B cookie via `document.cookie`, loads GA4 script dynamically.
-On reject: stores `nx-cookie-consent=rejected`. No GA4, no A/B cookie.
+On reject: stores `nx-cookie-consent=rejected`, calls `deleteGaCookies()` to immediately expire all `_ga*` cookies. No GA4, no A/B cookie.
+Exports `CONSENT_KEY = 'nx-cookie-consent'` for use by `CookieSettingsLink`.
 Vercel Analytics is cookieless and runs unconditionally.
+
+#### CookieSettingsLink (Client)
+**File:** `src/components/analytics/CookieSettingsLink.tsx`
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| label | string | Yes | — | Button text (i18n value from `dict.footer.cookieSettings`) |
+| className | string | No | — | Additional Tailwind classes |
+
+Renders a `<button>` that: (1) removes `nx-cookie-consent` from localStorage via `safeRemoveItem`, (2) calls `deleteGaCookies()` to immediately expire GA cookies, (3) calls `window.location.reload()` to re-show the CookieBanner.
+Handles localStorage unavailability silently — reload still fires.
+Used by: `Footer.tsx` (in legal nav), `privacidad/page.tsx`, `aviso-legal/page.tsx`, `cookies/page.tsx` (standalone footers).
 
 #### HeroSection (Client)
 **Props:** `variant: 'a' | 'b'`

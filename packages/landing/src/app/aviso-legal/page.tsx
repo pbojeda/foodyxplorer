@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
+import { CookieSettingsLink } from '@/components/analytics/CookieSettingsLink';
 
 export const metadata: Metadata = {
   title: 'Aviso legal | nutriXplorer',
@@ -28,9 +29,9 @@ export default function AvisoLegalPage() {
                 Titular del sitio web
               </h2>
               <ul className="space-y-1 text-slate-600 list-none">
-                <li><strong>Nombre / Razón social:</strong> [NOMBRE/RAZÓN SOCIAL]</li>
-                <li><strong>NIF/CIF:</strong> [NIF/CIF]</li>
-                <li><strong>Domicilio:</strong> [DIRECCIÓN]</li>
+                <li><strong>Nombre / Razón social:</strong> Pablo Eduardo Ojeda Vasco</li>
+                <li><strong>NIF/CIF:</strong> 12387725V</li>
+                <li><strong>Domicilio:</strong> Calle Luis Morote 41, Playa de Melenara, Las Palmas, 35214</li>
                 <li>
                   <strong>Correo electrónico:</strong>{' '}
                   <a href="mailto:hola@nutrixplorer.com" className="text-green-700 underline">
@@ -127,6 +128,11 @@ export default function AvisoLegalPage() {
         <Link href="/" className="text-sm text-slate-500 hover:text-slate-700 transition-colors">
           ← Volver al inicio
         </Link>
+        {' · '}
+        <CookieSettingsLink
+          label="Gestionar cookies"
+          className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+        />
       </footer>
     </>
   );

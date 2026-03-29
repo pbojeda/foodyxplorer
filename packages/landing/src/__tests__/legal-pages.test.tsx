@@ -12,6 +12,13 @@ jest.mock('@/components/SiteHeader', () => ({
   SiteHeader: () => <header role="banner">Site Header</header>,
 }));
 
+// Mock CookieSettingsLink to keep pages as Server Component rendering tests
+jest.mock('../components/analytics/CookieSettingsLink', () => ({
+  CookieSettingsLink: ({ label }: { label: string }) => (
+    <button type="button">{label}</button>
+  ),
+}));
+
 // Mock next/link
 jest.mock('next/link', () => {
   return function MockLink({
@@ -159,5 +166,83 @@ describe('AvisoLegalPage (/aviso-legal)', () => {
   it('renders SiteHeader', () => {
     render(React.createElement(AvisoLegalPage));
     expect(screen.getByRole('banner')).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F059 C1: Real personal data in legal pages
+// ---------------------------------------------------------------------------
+describe('F059 C1 — PrivacidadPage contains real personal data', () => {
+  it('contains "Pablo Eduardo Ojeda Vasco"', () => {
+    render(React.createElement(PrivacidadPage));
+    expect(screen.getByText(/Pablo Eduardo Ojeda Vasco/)).toBeInTheDocument();
+  });
+
+  it('contains NIF "12387725V"', () => {
+    render(React.createElement(PrivacidadPage));
+    expect(screen.getByText(/12387725V/)).toBeInTheDocument();
+  });
+
+  it('contains address "Calle Luis Morote 41"', () => {
+    render(React.createElement(PrivacidadPage));
+    expect(screen.getByText(/Calle Luis Morote 41/)).toBeInTheDocument();
+  });
+
+  it('contains contact email "privacidad@nutrixplorer.com"', () => {
+    render(React.createElement(PrivacidadPage));
+    const emails = screen.getAllByText(/privacidad@nutrixplorer\.com/i);
+    expect(emails.length).toBeGreaterThan(0);
+  });
+
+  it('does NOT contain any "[" placeholder marker', () => {
+    const { container } = render(React.createElement(PrivacidadPage));
+    expect(container.textContent).not.toMatch(/\[/);
+  });
+});
+
+describe('F059 C1 — AvisoLegalPage contains real personal data', () => {
+  it('contains "Pablo Eduardo Ojeda Vasco"', () => {
+    render(React.createElement(AvisoLegalPage));
+    expect(screen.getByText(/Pablo Eduardo Ojeda Vasco/)).toBeInTheDocument();
+  });
+
+  it('contains NIF "12387725V"', () => {
+    render(React.createElement(AvisoLegalPage));
+    expect(screen.getByText(/12387725V/)).toBeInTheDocument();
+  });
+
+  it('contains address "Calle Luis Morote 41"', () => {
+    render(React.createElement(AvisoLegalPage));
+    expect(screen.getByText(/Calle Luis Morote 41/)).toBeInTheDocument();
+  });
+
+  it('contains contact email "hola@nutrixplorer.com"', () => {
+    render(React.createElement(AvisoLegalPage));
+    expect(screen.getByText(/hola@nutrixplorer\.com/i)).toBeInTheDocument();
+  });
+
+  it('does NOT contain any "[" placeholder marker', () => {
+    const { container } = render(React.createElement(AvisoLegalPage));
+    expect(container.textContent).not.toMatch(/\[/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F059 C2: "Gestionar cookies" button in all legal page standalone footers
+// ---------------------------------------------------------------------------
+describe('F059 C2 — Legal page standalone footers render "Gestionar cookies"', () => {
+  it('PrivacidadPage standalone footer renders "Gestionar cookies"', () => {
+    render(React.createElement(PrivacidadPage));
+    expect(screen.getByRole('button', { name: 'Gestionar cookies' })).toBeInTheDocument();
+  });
+
+  it('AvisoLegalPage standalone footer renders "Gestionar cookies"', () => {
+    render(React.createElement(AvisoLegalPage));
+    expect(screen.getByRole('button', { name: 'Gestionar cookies' })).toBeInTheDocument();
+  });
+
+  it('CookiesPage standalone footer renders "Gestionar cookies"', () => {
+    render(React.createElement(CookiesPage));
+    expect(screen.getByRole('button', { name: 'Gestionar cookies' })).toBeInTheDocument();
   });
 });

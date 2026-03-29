@@ -6,6 +6,13 @@ import { getDictionary } from '@/lib/i18n';
 // Mock fetch for WaitlistForm
 global.fetch = jest.fn();
 
+// Mock CookieSettingsLink — Footer is a Server Component, keep test pure
+jest.mock('../../components/analytics/CookieSettingsLink', () => ({
+  CookieSettingsLink: ({ label }: { label: string }) => (
+    <button type="button">{label}</button>
+  ),
+}));
+
 const dict = getDictionary('es');
 
 describe('Footer', () => {
@@ -52,5 +59,10 @@ describe('Footer', () => {
   it('renders as footer landmark', () => {
     const { container } = render(<Footer dict={dict.footer} variant="a" />);
     expect(container.querySelector('footer')).toBeInTheDocument();
+  });
+
+  it('renders "Gestionar cookies" link (F059 C2)', () => {
+    render(<Footer dict={dict.footer} variant="a" />);
+    expect(screen.getByRole('button', { name: dict.footer.cookieSettings })).toBeInTheDocument();
   });
 });
