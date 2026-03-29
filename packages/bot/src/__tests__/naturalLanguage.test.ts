@@ -185,6 +185,44 @@ describe('extractFoodQuery', () => {
 });
 
 // ---------------------------------------------------------------------------
+// extractFoodQuery — Spanish punctuation (BUG-AUDIT-01 / F050)
+// ---------------------------------------------------------------------------
+
+describe('extractFoodQuery — ¿¡ and ?! punctuation stripping (F050)', () => {
+  it('strips leading ¿ before prefix matching', () => {
+    expect(extractFoodQuery('¿cuántas calorías tiene un big mac?')).toEqual({ query: 'big mac' });
+  });
+
+  it('strips leading ¡ before prefix matching', () => {
+    expect(extractFoodQuery('¡cuántas calorías tiene un big mac!')).toEqual({ query: 'big mac' });
+  });
+
+  it('strips leading ¿¡ combined', () => {
+    expect(extractFoodQuery('¿¡cuántas calorías tiene una hamburguesa?!')).toEqual({ query: 'hamburguesa' });
+  });
+
+  it('strips trailing ? from plain dish name', () => {
+    expect(extractFoodQuery('big mac?')).toEqual({ query: 'big mac' });
+  });
+
+  it('strips trailing ! from plain dish name', () => {
+    expect(extractFoodQuery('big mac!')).toEqual({ query: 'big mac' });
+  });
+
+  it('handles ¿qué lleva un whopper?', () => {
+    expect(extractFoodQuery('¿qué lleva un whopper?')).toEqual({ query: 'whopper' });
+  });
+
+  it('handles ¿información nutricional del big mac?', () => {
+    expect(extractFoodQuery('¿información nutricional del big mac?')).toEqual({ query: 'big mac' });
+  });
+
+  it('preserves chain slug with punctuation stripping', () => {
+    expect(extractFoodQuery('¿calorías de un big mac en mcdonalds-es?')).toEqual({ query: 'big mac', chainSlug: 'mcdonalds-es' });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // handleNaturalLanguage
 // ---------------------------------------------------------------------------
 

@@ -63,7 +63,9 @@ const ARTICLE_PATTERN = /^(?:un[ao]?|el|la[s]?|los|del|al)\s+/i;
  * Pure function — no side effects, no I/O.
  */
 export function extractFoodQuery(text: string): { query: string; chainSlug?: string } {
-  const originalTrimmed = text.trim();
+  // Strip leading ¿¡ and trailing ?! — consistent with extractComparisonQuery
+  // and detectContextSet (BUG-AUDIT-01 / F050).
+  const originalTrimmed = text.replace(/^[¿¡]+/, '').replace(/[?!]+$/, '').trim();
 
   // Step 1 — Chain slug extraction (identical to parseEstimarArgs in estimar.ts)
   const separator = ' en ';

@@ -190,6 +190,18 @@ describe('handleStart', () => {
     expect(handleStart()).toContain('/receta');
   });
 
+  it('contains /comparar (F050)', () => {
+    expect(handleStart()).toContain('/comparar');
+  });
+
+  it('contains /contexto (F050)', () => {
+    expect(handleStart()).toContain('/contexto');
+  });
+
+  it('contains /restaurante (F050)', () => {
+    expect(handleStart()).toContain('/restaurante');
+  });
+
   it('contains at least one MarkdownV2 bold marker', () => {
     expect(handleStart()).toContain('*');
   });
