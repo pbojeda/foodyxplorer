@@ -3,10 +3,27 @@ import { render, screen } from '@testing-library/react';
 import { WaitlistCTASection } from '@/components/sections/WaitlistCTASection';
 import { getDictionary } from '@/lib/i18n';
 
-// Mock fetch
-global.fetch = jest.fn();
+jest.mock('@/lib/analytics', () => ({
+  trackEvent: jest.fn(),
+  getUtmParams: jest.fn(() => ({})),
+}));
+
+// Mock fetch — return graceful degradation response by default (counter hidden)
+const mockFetch = jest.fn().mockResolvedValue({
+  ok: true,
+  json: async () => ({ success: true, data: { count: 0 } }),
+});
+global.fetch = mockFetch;
 
 const dict = getDictionary('es');
+
+beforeEach(() => {
+  mockFetch.mockClear();
+  mockFetch.mockResolvedValue({
+    ok: true,
+    json: async () => ({ success: true, data: { count: 0 } }),
+  });
+});
 
 describe('WaitlistCTASection', () => {
   it('renders the headline', () => {
