@@ -18,7 +18,7 @@ describe('CookieSettingsLink', () => {
 
     reloadMock = jest.fn();
     Object.defineProperty(window, 'location', {
-      value: { reload: reloadMock },
+      value: { reload: reloadMock, hostname: 'nutrixplorer.com' },
       writable: true,
     });
 
