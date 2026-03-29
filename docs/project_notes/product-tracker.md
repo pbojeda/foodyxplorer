@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-29
 
-**Active Feature:** F048 — Landing Performance & Accessibility
-**Step:** 6/6
-**Branch:** feature/F048-landing-performance-a11y
-**Complexity:** Standard
-**Context:** F048 ready for merge. 6 items: ARIA combobox, security headers, ChatGPT card, no-match UX, reduced-motion, localStorage. 511 tests (47 suites).
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F048 completed and merged to develop (PR #45, squash). All Marketing & Growth features done (F039-F048).
 
 ---
 
@@ -163,6 +163,7 @@
 | 2026-03-28 | F045 — Landing Critical Bug Fixes | squash merge to develop, PR #38 | Standard frontend. 9 fixes from cross-model audit: 3 legal pages (GDPR/LSSI), og-image (1200x630), canonical URL, anchor IDs (#waitlist, #demo), variant D removed (ADR-012), PostSimulatorCTA gated by interaction, animation typo, suppressHydrationWarning, SearchAction removed. Production validator: 1C fixed (variant D in API). Code review: APPROVED (1M: accidental file deletion restored). QA: VERIFIED (22 edge-case tests, 0 bugs). 335 tests (38 suites). 30 files changed |
 | 2026-03-28 | F037 — Conversational Context Manager | d6d32df (squash merge to develop, PR #39) | Standard bot-only. /contexto command (view/clear/set) + NL detection ("estoy en mcdonalds") + auto-inject chainSlug in /estimar, /comparar, NL handler. 4-tier fuzzy chain resolution (exact slug > exact name > prefix > bidirectional substring). BotStateChainContext in Redis, setStateStrict, real Redis TTL. Spec reviewed by Gemini+Codex (10 issues). Plan reviewed by Gemini+Codex (9 issues). Production validator: READY (0 issues). Code review: APPROVED (3I fixed). QA: 2 bugs fixed (BUG-F037-01 BORRAR case, BUG-F037-02 newline detector), 69 edge-case tests. 162 F037 tests (9 files). 30 files changed |
 | 2026-03-29 | F040 — Landing Page FAQ Section + Schema | a93faba (squash merge to develop, PR #41) | Standard frontend. FAQ accordion with native `<details>`/`<summary>`, FAQPage JSON-LD, 6 items es/en, placed before WaitlistCTA in all 3 variants. Spec reviewed by Gemini+Codex (5I+2S). Plan reviewed by Gemini+Codex (1C+4I+2S). Production validator: 1C fixed (ui-components.md). Code review: APPROVED (1I fixed). QA: VERIFIED (26 edge-case tests, 0 bugs). 374 tests (40 suites). 14 files changed |
+| 2026-03-29 | F048 — Landing Performance & Accessibility | b4a9d1a (squash merge to develop, PR #45) | Standard frontend. 6 P2 items: WAI-ARIA combobox (keyboard nav, aria-expanded/controls/activedescendant), security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy), ChatGPT 4th comparison card (es+en), no-match UX (query interpolation + suggestion pills), prefers-reduced-motion (CSS + MotionConfig), localStorage try/catch. Spec reviewed by Gemini+Codex (1C+6I). Plan reviewed by Gemini+Codex (5I). Code review: APPROVED (3 ARIA fixes). QA: VERIFIED (26 edge-case tests). 511 tests (47 suites). 15 files changed. **All Marketing & Growth features complete (F039-F048)** |
 | 2026-03-29 | F049 — Bot User Manual Overhaul | aaebacf (squash merge to develop, PR #44) | Standard docs-only. 16 findings from cross-model audit (Claude+Gemini+Codex): 2 critical factual errors, 8 important gaps, 6 suggestions. Verified by Gemini+Codex (16/16 FIXED + 3 new issues fixed). 3 files changed |
 | 2026-03-29 | F050 — Bot NL Punctuation Fix + Help Update | d243c1e (squash merge to develop, PR #43) | Simple bugfix. BUG-AUDIT-01: strip ¿¡?! in extractFoodQuery. /start help updated with /comparar, /contexto, /restaurante. 11 new tests, 1066 total. 6 files changed |
 | 2026-03-29 | F047 — Landing Conversion Optimization | a52546d (squash merge to develop, PR #42) | Standard fullstack (API + landing). 8 conversion items: GA4 init (dataLayer bootstrap), MobileMenu Client Component (hamburger, ARIA, Escape/outside click), phone auto-prepend +34, WaitlistSuccessBanner (useSearchParams + Suspense), forms reduced to 2 per variant, social proof counter (GET /waitlist/count, 5min cache), benefit-oriented CTA copy (Spanish), WCAG AA contrast fix. Spec reviewed by Gemini+Codex (2C+8I). Plan reviewed by Gemini+Codex (7I). Code review: APPROVED (3I noted). QA: 1 bug fixed (BUG-F047-01 Footer form), 29 edge-case tests. 446 landing tests (45 suites) + 4 API. 34 files changed |
