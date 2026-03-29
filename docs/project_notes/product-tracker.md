@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-28
 
-**Active Feature:** No active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F046 completed and merged to develop (PR #40, squash). F037 also merged (PR #39).
+**Active Feature:** F047 — Landing Conversion Optimization
+**Step:** 5/6 (Review)
+**Branch:** feature/F047-landing-conversion-optimization
+**Complexity:** Standard
+**Context:** Fullstack (API + landing). PR #42. Code review approved, QA complete (1 bug fixed). 8 conversion optimizations. Ready for merge.
 
 ---
 

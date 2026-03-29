@@ -197,6 +197,14 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Prevention**: Subcommand routing on freeform text args should always normalize case before comparing. Add test coverage for uppercase/mixed-case subcommand variants.
 - **Feature**: F037 | **Found by**: qa-engineer | **Severity**: Low (UX confusing but no data loss)
 
+### 2026-03-29 — BUG-F047-01: Footer WaitlistForm violates S7 max 2 forms per variant
+
+- **Issue**: Footer.tsx line 110 rendered a `<WaitlistForm source="footer" variant={variant} />`, making 3 WaitlistForm instances per variant page (hero + WaitlistCTASection + Footer). The audit requirement S7 specifies max 2 forms to avoid conversion fatigue.
+- **Root Cause**: The Footer form was added during F044 overhaul and not removed during F047 "reduce forms to 2" implementation. The spec explicitly stated "The Footer component does NOT contain a WaitlistForm" but the developer did not audit Footer.tsx.
+- **Solution**: Fixed in F047 — removed WaitlistForm import and the "Acceso anticipado" column from Footer.tsx. Updated Footer test to assert no form button.
+- **Prevention**: When reducing form instances, audit ALL components that import WaitlistForm, not just variant layouts in page.tsx.
+- **Feature**: F047 | **Found by**: qa-engineer | **Severity**: Medium
+
 ### 2026-03-28 — BUG-F037-02: `detectContextSet` captures embedded newlines in chain identifier
 
 - **Issue**: Input `"estoy en\nmcdonalds"` (newline-separated, possible from copy-paste or multiline Telegram message via the `/s` regex in `bot.ts`) returns `"mcdonalds"` instead of null. The `\s+` in `CONTEXT_SET_REGEX` matches newlines, so the newline is consumed as part of the `\s+` between "en" and the capture. The capture group `[^,¿?!.]{1,50}` then captures everything after the newline.
