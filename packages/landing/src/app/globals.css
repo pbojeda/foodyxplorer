@@ -47,6 +47,7 @@
     .animate-badge-pulse,
     .animate-fade-in {
       animation: none;
+      transition: none !important;
     }
   }
 }

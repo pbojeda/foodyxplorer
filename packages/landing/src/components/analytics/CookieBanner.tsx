@@ -8,6 +8,22 @@ import { VARIANT_COOKIE_NAME, VARIANT_COOKIE_MAX_AGE } from '@/lib/ab-testing';
 const CONSENT_KEY = 'nx-cookie-consent';
 const GA_ID = process.env['NEXT_PUBLIC_GA_MEASUREMENT_ID'] ?? '';
 
+function safeGetItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* silent fail — Safari private mode or storage full */
+  }
+}
+
 type ConsentStatus = 'accepted' | 'rejected' | null;
 
 interface CookieBannerProps {
@@ -19,7 +35,7 @@ export function CookieBanner({ variant }: CookieBannerProps) {
   const [loadGA, setLoadGA] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(CONSENT_KEY) as ConsentStatus | null;
+    const stored = safeGetItem(CONSENT_KEY) as ConsentStatus | null;
     if (stored === 'accepted' || stored === 'rejected') {
       setConsent(stored);
       if (stored === 'accepted') setLoadGA(true);
@@ -27,14 +43,14 @@ export function CookieBanner({ variant }: CookieBannerProps) {
   }, []);
 
   function handleAccept() {
-    localStorage.setItem(CONSENT_KEY, 'accepted');
+    safeSetItem(CONSENT_KEY, 'accepted');
     document.cookie = `${VARIANT_COOKIE_NAME}=${variant}; max-age=${VARIANT_COOKIE_MAX_AGE}; path=/; samesite=lax`;
     setConsent('accepted');
     setLoadGA(true);
   }
 
   function handleReject() {
-    localStorage.setItem(CONSENT_KEY, 'rejected');
+    safeSetItem(CONSENT_KEY, 'rejected');
     setConsent('rejected');
   }
 
