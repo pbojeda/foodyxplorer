@@ -1,7 +1,7 @@
 # F052: Restaurant Selection chainSlug Propagation
 
 **Feature:** F052 | **Type:** Bug | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F052-restaurant-chainslug-fix
+**Status:** Done | **Branch:** (merged to develop, deleted)
 **Created:** 2026-03-29 | **Dependencies:** None
 **Audit Source:** `docs/research/comprehensive-audit-2026-03-29.md` — Finding I1
 
@@ -71,7 +71,7 @@ N/A — Simple task.
 - [x] Step 3: TDD implementation (6 tests, RED→GREEN)
 - [x] Step 4: Quality gates pass (1085 tests, tsc clean)
 - [x] Step 5: PR created, merge checklist filled
-- [ ] Step 6: Ticket updated, branch deleted
+- [x] Step 6: Ticket updated, branch deleted
 
 ---
 
@@ -81,6 +81,7 @@ N/A — Simple task.
 |------|--------|-------|
 | 2026-03-29 | Ticket created | From comprehensive audit finding I1 (Codex), verified in code |
 | 2026-03-29 | Implementation | TDD: 6 tests. searchResults enriched with chainSlug, sel: + create_rest propagate, backward compat for old string format. 1 existing test updated. 1085 total passing |
+| 2026-03-29 | Squash merged to develop | SHA a317aa0, PR #47. Branch deleted |
 
 ---
 

@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-29
 
-**Active Feature:** F052 — Restaurant Selection chainSlug Propagation
-**Step:** 5/6 (Review)
-**Branch:** feature/F052-restaurant-chainslug-fix
-**Complexity:** Simple
-**Context:** Bug fix from audit I1. searchResults drops chainSlug when storing restaurant names.
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F052 completed and merged to develop (a317aa0, PR #47).
 
 ---
 
@@ -114,7 +114,7 @@
 | F049 | Bot User Manual Overhaul | docs | done | 6/6 | Standard. Fix 2 critical doc errors (context fallback lie, TTL refresh lie), 8 important gaps (undocumented features, incorrect claims), 6 suggestions. From cross-model audit (Claude + Gemini + Codex) |
 | F050 | Bot NL Punctuation Fix + Help Update | bot | done | 6/6 | Simple. BUG-AUDIT-01 fix (¿ stripping in extractFoodQuery) + /start help update. PR #43, SHA d243c1e. 11 tests, 1066 total |
 | F051 | Bot Rate-Limit Ordering & Failed-Request Handling | bot | done | 6/6 | Bug. C1: move isRateLimited() before downloadTelegramFile(). I11: don't count failed API requests against /receta rate limit. From audit C1 (Gemini), I11 (Claude) |
-| F052 | Restaurant Selection chainSlug Propagation | bot | in-progress | 5/6 | Bug. chainSlug lost when selecting restaurant via inline keyboard — searchResults only stores name. From audit I1 (Codex) |
+| F052 | Restaurant Selection chainSlug Propagation | bot | done | 6/6 | Bug. chainSlug lost when selecting restaurant via inline keyboard — searchResults only stores name. From audit I1 (Codex) |
 | F053 | Decouple Menu Analysis from Restaurant Selection | bot | pending | — | Bug. handlePhoto() blocks all photo flows behind selectedRestaurant; analyze/identify don't need it. Plan says F034 independent. From audit I2 (Codex) |
 | F054 | Context State Isolation & NL Footer Consistency | bot | pending | — | Bug. I3: shared Redis key TTL refreshed by unrelated writes. I4: NL handler missing "Contexto activo" footer. From audit I3+I4 (Codex) |
 | F055 | Inline Keyboard Stale-Button Mitigation + Callback Logging | bot | pending | — | Bug (low). Stale-button race with multiple photos/searches + unknown callback_data not logged. From audit I7+S6 (Codex, Claude) |
@@ -191,6 +191,7 @@
 | 2026-03-29 | F051 — Bot Rate-Limit Ordering & Failed-Request Handling | 714efb6 (squash merge to develop, PR #46) | Simple bug. C1: isRateLimited() moved before downloadTelegramFile(). I11: decrement /receta counter on server/network errors, exists guard for TTL expiry. 13 new tests, 1079 total. 6 files changed |
 | 2026-03-29 | F057 — Manual Corrections Batch | aa212bc (worktree commit) | Simple docs. 5 corrections to user-manual-bot.md: /cadenas truncation (I5), error table sync (I6), plurals (S1), half verified (S2), NL error (S3). Section 10/8 deferred to F053/F054 |
 | 2026-03-29 | F058 — Strategic Plan Archival & Rate-Limit Decision Documentation | aa212bc (worktree commit) | Simple docs. Plan marked historical, verification confirmed, ADR-013 (dual rate-limit) + ADR-014 (portion multiplier split) added to decisions.md |
+| 2026-03-29 | F052 — Restaurant Selection chainSlug Propagation | a317aa0 (squash merge to develop, PR #47) | Simple bug. searchResults enriched with chainSlug, sel: + create_rest propagate, backward compat. 6 new tests, 1085 total. 7 files changed |
 
 ---
 
