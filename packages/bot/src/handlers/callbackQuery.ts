@@ -326,13 +326,24 @@ export async function handleCallbackQuery(
   // upload_ingest — upload pending photo to the ingest catalog (F031)
   // -------------------------------------------------------------------------
 
-  if (data === 'upload_ingest') {
+  if (data.startsWith('upload_ingest:') || data === 'upload_ingest') {
     await safeAnswerCallback(bot, query.id);
 
     // End-to-end ALLOWED_CHAT_IDS guard — prevents bypass via stale keyboard
     if (!config.ALLOWED_CHAT_IDS.includes(chatId)) return;
 
     const state = await getState(redis, chatId);
+
+    // Validate nonce (F055) — reject stale buttons
+    const callbackNonce = data.includes(':') ? data.split(':')[1] : undefined;
+    if (callbackNonce && state?.pendingPhotoNonce && callbackNonce !== state.pendingPhotoNonce) {
+      await bot.sendMessage(
+        chatId,
+        escapeMarkdown('Esta acción ya no es válida. Envía la foto de nuevo.'),
+        { parse_mode: 'MarkdownV2' },
+      );
+      return;
+    }
 
     if (!state?.selectedRestaurant) {
       await bot.sendMessage(
@@ -406,13 +417,24 @@ export async function handleCallbackQuery(
   // upload_menu — analyze menu from photo (F034)
   // -------------------------------------------------------------------------
 
-  if (data === 'upload_menu') {
+  if (data.startsWith('upload_menu:') || data === 'upload_menu') {
     await safeAnswerCallback(bot, query.id);
 
     // End-to-end ALLOWED_CHAT_IDS guard
     if (!config.ALLOWED_CHAT_IDS.includes(chatId)) return;
 
     const state = await getState(redis, chatId);
+
+    // Validate nonce (F055)
+    const callbackNonce = data.includes(':') ? data.split(':')[1] : undefined;
+    if (callbackNonce && state?.pendingPhotoNonce && callbackNonce !== state.pendingPhotoNonce) {
+      await bot.sendMessage(
+        chatId,
+        escapeMarkdown('Esta acción ya no es válida. Envía la foto de nuevo.'),
+        { parse_mode: 'MarkdownV2' },
+      );
+      return;
+    }
 
     if (!state?.pendingPhotoFileId) {
       await bot.sendMessage(
@@ -475,13 +497,24 @@ export async function handleCallbackQuery(
   // upload_dish — identify dish from photo (F034)
   // -------------------------------------------------------------------------
 
-  if (data === 'upload_dish') {
+  if (data.startsWith('upload_dish:') || data === 'upload_dish') {
     await safeAnswerCallback(bot, query.id);
 
     // End-to-end ALLOWED_CHAT_IDS guard
     if (!config.ALLOWED_CHAT_IDS.includes(chatId)) return;
 
     const state = await getState(redis, chatId);
+
+    // Validate nonce (F055)
+    const callbackNonce = data.includes(':') ? data.split(':')[1] : undefined;
+    if (callbackNonce && state?.pendingPhotoNonce && callbackNonce !== state.pendingPhotoNonce) {
+      await bot.sendMessage(
+        chatId,
+        escapeMarkdown('Esta acción ya no es válida. Envía la foto de nuevo.'),
+        { parse_mode: 'MarkdownV2' },
+      );
+      return;
+    }
 
     if (!state?.pendingPhotoFileId) {
       await bot.sendMessage(
@@ -541,8 +574,9 @@ export async function handleCallbackQuery(
   }
 
   // -------------------------------------------------------------------------
-  // Unknown callback_data — silently dismiss spinner
+  // Unknown callback_data — log and dismiss spinner (F055/S6)
   // -------------------------------------------------------------------------
 
+  logger.warn({ chatId, data }, 'Unknown callback_data received');
   await safeAnswerCallback(bot, query.id);
 }

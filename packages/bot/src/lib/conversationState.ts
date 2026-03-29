@@ -69,6 +69,8 @@ export interface BotState {
   searchResults?: Record<string, string | SearchResultEntry>;
   pendingSearch?: string;
   pendingPhotoFileId?: string;
+  /** Nonce generated when photo keyboard is shown. Used to detect stale buttons (F055). */
+  pendingPhotoNonce?: string;
   chainContext?: BotStateChainContext;
 }
 

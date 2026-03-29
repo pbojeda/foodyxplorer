@@ -10,6 +10,7 @@
 // The Telegram bot token NEVER leaves this process. Files are downloaded to
 // an in-process Buffer and forwarded to the API as multipart.
 
+import crypto from 'node:crypto';
 import type TelegramBot from 'node-telegram-bot-api';
 import type { Redis } from 'ioredis';
 import { ApiError } from '../apiClient.js';
@@ -132,19 +133,25 @@ export async function handlePhoto(
     return;
   }
 
-  // Store the fileId in Redis state — callback handler retrieves it
-  await setState(redis, msg.chat.id, { ...state, pendingPhotoFileId: photo.file_id });
+  // Generate a nonce to bind this keyboard to this specific photo (F055).
+  // Prevents stale-button race: if user sends Photo B before pressing Photo A's button,
+  // Photo A's keyboard will have a mismatched nonce and be rejected.
+  const nonce = crypto.randomBytes(4).toString('hex'); // 8 hex chars
+
+  // Store the fileId and nonce in Redis state — callback handler retrieves and validates them
+  await setState(redis, msg.chat.id, { ...state, pendingPhotoFileId: photo.file_id, pendingPhotoNonce: nonce });
 
   // Build inline keyboard: always show analyze/identify; only show upload if restaurant is selected.
   // upload_ingest requires a restaurant (the callback handler checks independently),
   // but analyze/identify are independent of restaurant context (F053).
+  // Nonce is appended to each callback_data (F055).
   const hasRestaurant = !!state?.selectedRestaurant;
   const keyboard: Array<Array<{ text: string; callback_data: string }>> = [];
   if (hasRestaurant) {
-    keyboard.push([{ text: '📖 Subir al catálogo', callback_data: 'upload_ingest' }]);
+    keyboard.push([{ text: '📖 Subir al catálogo', callback_data: `upload_ingest:${nonce}` }]);
   }
-  keyboard.push([{ text: '🧮 Analizar menú', callback_data: 'upload_menu' }]);
-  keyboard.push([{ text: '🍽️ Identificar plato', callback_data: 'upload_dish' }]);
+  keyboard.push([{ text: '🧮 Analizar menú', callback_data: `upload_menu:${nonce}` }]);
+  keyboard.push([{ text: '🍽️ Identificar plato', callback_data: `upload_dish:${nonce}` }]);
 
   // Send inline keyboard for intent selection
   await bot.sendMessage(

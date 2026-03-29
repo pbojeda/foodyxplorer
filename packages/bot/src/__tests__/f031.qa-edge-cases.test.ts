@@ -220,8 +220,8 @@ describe('QA-B3: handlePhoto — Redis getState throws (fail-open)', () => {
     expect(bot.sendMessage).toHaveBeenCalledOnce();
     const [, , options] = bot.sendMessage.mock.calls[0] as [number, string, { reply_markup?: { inline_keyboard: Array<Array<{ callback_data: string }>> } }];
     const callbacks = (options.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.callback_data);
-    expect(callbacks).toContain('upload_menu');
-    expect(callbacks).not.toContain('upload_ingest');
+    expect(callbacks.some((c) => c.startsWith('upload_menu:'))).toBe(true);
+    expect(callbacks.some((c) => c.startsWith('upload_ingest:'))).toBe(false);
   });
 });
 
