@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-30
 
-**Active Feature:** F060 — GA4 Analytics Integration Fix
+**Active Feature:** F061 — Landing Copy Accuracy
 **Step:** 5/6 (Review)
-**Branch:** feature/F060-ga4-analytics-integration
+**Branch:** feature/F061-landing-copy-accuracy
 **Complexity:** Standard
-**Context:** GA4 integration fix from landing audit I1. GA ID: G-X46WMF1NM5. Working in worktree `../foodXPlorer-F060`. Queue+replay approach. Spec self-reviewed, pending cross-model review.
+**Context:** 4 copy fixes from landing audit (I3+I4+I7+S6). Working in worktree `../foodXPlorer-F061`. Spec self-reviewed, pending cross-model review + plan.
 
 ---
 
