@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-30
 
-**Active Feature:** F066 — E2E Smoke Tests
-**Step:** 5/6 (Review)
-**Branch:** feature/f066-e2e-smoke-tests
-**Complexity:** Standard
-**Context:** 10 E2E smoke tests with real HTTP server. vitest.config.e2e.ts + smoke.e2e.test.ts. Code review + QA approved. PR #57.
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F066 completed (d0e63f3, PR #57). Validation epic: F065 done, F066 done, F067 pending.
 
 ---
 
@@ -138,7 +138,7 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F065 | McDonald's Chain Slug Migration | backend | done | 6/6 | Simple. Rename `mcdonalds` → `mcdonalds-es` / `mcdonalds-pt`. PR #56, SHA 380a982. Applied to dev+prod |
-| F066 | E2E Smoke Tests | backend | in-progress | 5/6 | Standard. 10 E2E smoke tests, real HTTP server. PR #57. From validation phase 3 |
+| F066 | E2E Smoke Tests | backend | done | 6/6 | Standard. 10 E2E smoke tests, real HTTP server. PR #57, SHA d0e63f3. Code review + QA approved |
 | F067 | Data Quality Cleanup | backend | pending | — | Low. BK leading slashes, FTS ranking tuning. From validation phase 2 |
 
 ---
@@ -205,6 +205,7 @@
 | 2026-03-29 | F055 — Inline Keyboard Stale-Button Mitigation + Callback Logging | c086e6e (squash merge to develop, PR #51) | Simple bug. Nonce in callback_data, stale-button rejection, unknown callback logging. 9 new tests, 6 updated, 1106 total. 9 files changed |
 | 2026-03-30 | F056 — MIME Detection Fallback Safety | fd5a793 (squash merge to develop, PR #52) | Simple bug. Reject unknown MIME instead of JPEG fallback. 3 new tests, 1109 total. 4 files changed |
 | 2026-03-30 | F065 — McDonald's Chain Slug Migration | 380a982 (squash merge to develop, PR #56) | Simple data fix. Rename `mcdonalds` → `mcdonalds-es`/`mcdonalds-pt`. Prisma migration + seed update. Applied to dev+prod Supabase |
+| 2026-03-30 | F066 — E2E Smoke Tests | d0e63f3 (squash merge to develop, PR #57) | Standard. 10 E2E smoke tests with real HTTP server (port 0). vitest.config.e2e.ts, NODE_ENV=development. Code review + QA approved |
 
 ---
 
