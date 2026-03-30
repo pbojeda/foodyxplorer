@@ -22,6 +22,7 @@ export default defineConfig({
   },
   test: {
     fileParallelism: false,
+    exclude: ['src/__tests__/e2e/**', 'node_modules/**'],
     env: {
       NODE_ENV: 'test',
       DATABASE_URL:
