@@ -11,13 +11,11 @@ function isValidVariant(value: string | undefined): value is Variant {
 
 /**
  * Pure function — no side effects.
- * Priority: URL searchParam > cookie > random 50/50
- * The optional `random` param enables deterministic testing.
+ * Priority: URL searchParam > cookie > default 'a'
  */
 export function resolveVariant(
   searchParamVariant: string | undefined,
-  cookieVariant: string | undefined,
-  random: () => number = Math.random
+  cookieVariant: string | undefined
 ): Variant {
   if (isValidVariant(searchParamVariant)) {
     return searchParamVariant;

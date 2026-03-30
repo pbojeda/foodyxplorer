@@ -132,7 +132,7 @@ export const es = {
   emotionalBlock: {
     headline: 'Volver a disfrutar de comer fuera',
     quote: '"Por fin puedo salir a comer con mi familia sin el miedo constante a los alérgenos."',
-    quoteAuthor: 'Usuario beta, Madrid',
+    quoteAuthor: 'Experiencia que buscamos ofrecer',
     scenarios: [
       {
         scene: 'Mirar la carta',
@@ -233,7 +233,7 @@ export const es = {
       {
         question: '¿Qué restaurantes están disponibles?',
         answer:
-          "Actualmente cubrimos 10 cadenas españolas con datos oficiales (McDonald's, Burger King, KFC, Telepizza, Subway, Domino's, Pans & Company y más). Estamos expandiendo la cobertura a restaurantes locales y nuevas cadenas cada semana.",
+          "Actualmente cubrimos las principales cadenas españolas con datos oficiales: McDonald's, Burger King, KFC, Telepizza, Subway, Domino's y Pans & Company, entre otras. Estamos ampliando la cobertura continuamente.",
       },
       {
         question: '¿Es gratis?',
@@ -256,7 +256,7 @@ export const es = {
     headline: 'Descubre exactamente qué comes en tu restaurante favorito',
     subtitle:
       'nutriXplorer está en fase de desarrollo. Únete a la lista de espera y sé de los primeros en acceder cuando lancemos.',
-    urgency: 'Plazas limitadas para el acceso anticipado',
+    urgency: 'Apúntate para acceder antes que nadie cuando lancemos',
     trustNote: 'Sin spam. Sin compromisos. Solo te avisamos cuando lancemos.',
   },
   footer: {
