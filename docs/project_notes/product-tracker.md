@@ -11,7 +11,7 @@
 **Last Updated:** 2026-03-30
 
 **Active Feature:** F065 — McDonald's Chain Slug Migration
-**Step:** 4/6 (Finalize)
+**Step:** 5/6 (Review)
 **Branch:** feature/f065-mcdonalds-slug-migration
 **Complexity:** Simple
 **Context:** Data integrity fix: rename `mcdonalds` slug → `mcdonalds-es` / `mcdonalds-pt`. From comprehensive validation audit. Prisma migration + seed update + cache invalidation.

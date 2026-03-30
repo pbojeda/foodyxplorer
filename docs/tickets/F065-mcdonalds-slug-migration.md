@@ -51,7 +51,7 @@ N/A — Simple task.
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 3: Implementation (migration + seeds)
 - [x] Step 4: Quality gates pass (0 regressions)
-- [ ] Step 5: PR + merge checklist
+- [x] Step 5: PR #56 created, merge checklist completed
 - [ ] Step 6: Ticket updated, branch deleted
 
 ---
@@ -64,6 +64,7 @@ N/A — Simple task.
 | 2026-03-30 | Step 1: Setup | Branch `feature/f065-mcdonalds-slug-migration`, complexity Simple |
 | 2026-03-30 | Step 3: Implement | Migration SQL (restaurants only), seed.ts updated |
 | 2026-03-30 | Step 4: Finalize | 0 regressions. Applied to 4 DBs (test, dev-local, Supabase dev, Supabase prod). Verified via API |
+| 2026-03-30 | Step 5: Review | PR #56 created. Merge checklist completed |
 
 ---
 
@@ -71,13 +72,13 @@ N/A — Simple task.
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | |
-| 1. Mark all items | [ ] | |
-| 2. Verify product tracker | [ ] | |
-| 3. Update key_facts.md | [ ] | |
-| 4. Update decisions.md | [ ] | |
-| 5. Commit documentation | [ ] | |
-| 6. Verify clean working tree | [ ] | |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan (N/A), AC, DoD, Workflow, Completion Log, Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 6/7 (build pre-existing), DoD: 4/5 (build pre-existing), Workflow: 4/5 |
+| 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: in-progress 5/6 |
+| 3. Update key_facts.md | [x] | N/A — no new models, endpoints, or utilities |
+| 4. Update decisions.md | [x] | N/A — no ADR needed for data migration |
+| 5. Commit documentation | [x] | Pending this commit |
+| 6. Verify clean working tree | [x] | Only pre-existing untracked files (F061-F064, audit reports) |
 
 ---
 
