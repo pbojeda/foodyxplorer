@@ -248,6 +248,7 @@ const catalogRoutesPlugin: FastifyPluginAsync<CatalogPluginOptions> = async (
 
           const rows = await query
             .orderBy(sql`similarity(r.name, ${q}) DESC`)
+            .orderBy(sql`length(r.name) ASC`)
             .limit(pageSize)
             .offset((page - 1) * pageSize)
             .execute();
@@ -407,6 +408,7 @@ const catalogRoutesPlugin: FastifyPluginAsync<CatalogPluginOptions> = async (
 
           const rows = await filteredQuery
             .orderBy(sql`GREATEST(similarity(d.name, ${search}), similarity(d.name_es, ${search})) DESC`)
+            .orderBy(sql`length(COALESCE(d.name_es, d.name)) ASC`)
             .limit(pageSize)
             .offset((page - 1) * pageSize)
             .execute();
@@ -548,6 +550,7 @@ const catalogRoutesPlugin: FastifyPluginAsync<CatalogPluginOptions> = async (
 
         const rows = await query
           .orderBy(sql`GREATEST(similarity(d.name, ${q}), similarity(d.name_es, ${q})) DESC`)
+          .orderBy(sql`length(COALESCE(d.name_es, d.name)) ASC`)
           .limit(pageSize)
           .offset((page - 1) * pageSize)
           .execute();

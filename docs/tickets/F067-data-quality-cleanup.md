@@ -1,8 +1,9 @@
 # F067: Data Quality Cleanup
 
 **Feature:** F067 | **Type:** Bug (data quality) | **Priority:** Low
-**Status:** Backlog | **Branch:** —
+**Status:** In Progress | **Branch:** feature/f067-data-quality-cleanup
 **Created:** 2026-03-30 | **Dependencies:** F065 (slug migration)
+**Complexity:** Simple
 **Audit Source:** Comprehensive Validation Phase 2 — API real testing, Gemini 2.5 Pro review
 
 ---
@@ -11,57 +12,72 @@
 
 ### Description
 
-Two data quality issues discovered during comprehensive API validation testing against the dev environment (885 dishes, 14 chains).
+Two data quality issues from the comprehensive validation audit:
 
-### D3 — Leading slashes in Burger King dish names
+**D3 — Leading slashes in BK dish names:** Some names start with `/ ` from PDF parsing. Fix: Prisma migration to clean existing data + sanitization in scraper pipeline.
 
-Some BK dish names have leading slashes from the PDF scraping pipeline:
-
-```
-/ Brownie & Ice Cream
-/ Whopper® Gluten Free
-/ Wings Snack Box
-```
-
-**Root cause:** The Burger King PDF preprocessor (`chainTextPreprocessor`) doesn't strip leading `/` characters. These likely come from PDF line breaks or table separators that the parser interprets as part of the dish name.
-
-**Impact:** Cosmetic — affects display in bot responses and search results. Could also affect FTS ranking since the `/` adds noise to the indexed text.
-
-**Fix:**
-1. Add a sanitization step in the BK preprocessor or the generic normalization pipeline to strip leading non-alphanumeric characters from dish names.
-2. Run a one-time UPDATE to clean existing data:
-   ```sql
-   UPDATE dishes SET name = LTRIM(name, '/ '), name_es = LTRIM(name_es, '/ ')
-   WHERE name LIKE '/%' OR name_es LIKE '/%';
-   ```
-
-### D2 — FTS ranking prefers longer matches over exact matches
-
-Searching for "whopper" returns "Whopper® Spicy Vegetal" (longer name) before "Whopper®" (exact match).
-
-**Root cause:** PostgreSQL `ts_rank` doesn't penalize longer strings. Both match the search term equally, and the longer name may rank higher due to document structure.
-
-**Impact:** Medium UX — users searching for a common dish get a variant instead of the base version.
-
-**Possible fixes (evaluate trade-offs):**
-1. Combine `ts_rank` with `length(name)` penalty: `ORDER BY ts_rank(...) - (length(name) * 0.001) DESC`
-2. Use `ts_rank_cd` (cover density) which favors terms appearing closer together
-3. Add a secondary sort: `ORDER BY ts_rank(...) DESC, length(name) ASC`
-4. Use pg_trgm `similarity()` as a tiebreaker for equal ts_rank scores
-
-Option 3 is simplest and lowest risk.
-
-### Acceptance Criteria
-
-- [ ] No dish names start with `/` or other non-alphanumeric characters
-- [ ] Searching "whopper" returns "Whopper®" before "Whopper® Spicy Vegetal"
-- [ ] Scraper pipeline prevents future leading-slash names
+**D2 — FTS/similarity ranking prefers longer names:** "whopper" returns "Whopper® Spicy Vegetal" before "Whopper®". Fix: Add `length(name) ASC` as secondary sort in similarity queries and `ORDER BY length(name) ASC` in FTS LIMIT 1 queries.
 
 ---
 
-## Test Plan
+## Implementation Plan
 
-- [ ] Query `SELECT name FROM dishes WHERE name LIKE '/%'` returns 0 rows
-- [ ] `/dishes/search?q=whopper` returns "Whopper®" as first result
-- [ ] `/estimate?query=whopper&chainSlug=burger-king-es` returns plain Whopper®
-- [ ] Existing tests pass
+N/A — Simple task.
+
+---
+
+## Acceptance Criteria
+
+- [ ] No dish names start with `/` in the database
+- [ ] `/dishes/search?q=whopper` returns "Whopper®" before "Whopper® Spicy Vegetal"
+- [ ] `/estimate?query=whopper&chainSlug=burger-king-es` returns plain "Whopper®"
+- [ ] Scraper normalization strips leading non-alphanumeric chars
+- [ ] All tests pass (0 regressions)
+- [ ] Build succeeds
+
+---
+
+## Definition of Done
+
+- [ ] Migration applied
+- [ ] Scraper pipeline updated
+- [ ] Estimation engine FTS queries prefer shorter matches
+- [ ] No linting errors
+- [ ] All tests pass
+
+---
+
+## Workflow Checklist
+
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [ ] Step 3: Implementation
+- [ ] Step 4: Quality gates pass
+- [ ] Step 5: PR + merge checklist
+- [ ] Step 6: Ticket updated, branch deleted
+
+---
+
+## Completion Log
+
+| Date | Action | Notes |
+|------|--------|-------|
+| 2026-03-30 | Ticket created | From validation audit D2 + D3 |
+| 2026-03-30 | Step 1: Setup | Branch `feature/f067-data-quality-cleanup`, Simple |
+
+---
+
+## Merge Checklist Evidence
+
+| Action | Done | Evidence |
+|--------|:----:|----------|
+| 0. Validate ticket structure | [ ] | |
+| 1. Mark all items | [ ] | |
+| 2. Verify product tracker | [ ] | |
+| 3. Update key_facts.md | [ ] | |
+| 4. Update decisions.md | [ ] | |
+| 5. Commit documentation | [ ] | |
+| 6. Verify clean working tree | [ ] | |
+
+---
+
+*Ticket created: 2026-03-30*

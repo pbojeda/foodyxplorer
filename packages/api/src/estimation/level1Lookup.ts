@@ -144,6 +144,7 @@ async function ftsDishMatch(
       OR to_tsvector('english', d.name) @@ plainto_tsquery('english', ${normalizedQuery})
     )
     ${scopeClause}
+    ORDER BY length(COALESCE(d.name_es, d.name)) ASC
     LIMIT 1
   `.execute(db);
 
