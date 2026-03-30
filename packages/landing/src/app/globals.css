@@ -52,26 +52,6 @@
   }
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
-}
-
-@keyframes badge-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.03);
-  }
-}
-
 @layer components {
   .card-surface {
     @apply rounded-[32px] border border-white/70 bg-white/90 shadow-soft backdrop-blur;

@@ -296,6 +296,64 @@ describe('WaitlistForm — privacy notice (F059 I9)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// F064 — C2 honeypot uncontrolled
+// ---------------------------------------------------------------------------
+
+describe('F064 — WaitlistForm honeypot uncontrolled', () => {
+  beforeEach(() => {
+    mockTrackEvent.mockClear();
+    mockFetch.mockClear();
+    mockGetUtmParams.mockReturnValue({});
+  });
+
+  it('honeypot input does NOT have readOnly attribute', () => {
+    setup();
+    const honeypot = document.querySelector('input[name="honeypot"]') as HTMLInputElement;
+    expect(honeypot).toBeInTheDocument();
+    expect(honeypot).not.toHaveAttribute('readOnly');
+  });
+
+  it('honeypot input can be changed (uncontrolled — value updates)', async () => {
+    const user = userEvent.setup();
+    setup();
+    const honeypot = document.querySelector('input[name="honeypot"]') as HTMLInputElement;
+    expect(honeypot).toBeInTheDocument();
+    // Since it is uncontrolled and outside the viewport we use fireEvent directly
+    fireEvent.change(honeypot, { target: { value: 'bot-fill' } });
+    expect(honeypot.value).toBe('bot-fill');
+  });
+
+  it('POST body honeypot value is empty string when form is submitted normally', async () => {
+    successResponse();
+    setup();
+    await userEvent.type(screen.getByRole('textbox', { name: /email/i }), 'test@example.com');
+    fireEvent.click(screen.getByRole('button', { name: /únete/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/apuntado/i)).toBeInTheDocument();
+    });
+    const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(fetchOptions.body as string) as Record<string, unknown>;
+    expect(body.honeypot).toBe('');
+  });
+
+  it('POST body honeypot value reflects a filled honeypot (reads from form, not hardcoded)', async () => {
+    successResponse();
+    setup();
+    // Fill the honeypot as a bot would
+    const honeypot = document.querySelector('input[name="honeypot"]') as HTMLInputElement;
+    fireEvent.change(honeypot, { target: { value: 'i-am-a-bot' } });
+    await userEvent.type(screen.getByRole('textbox', { name: /email/i }), 'test@example.com');
+    fireEvent.click(screen.getByRole('button', { name: /únete/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/apuntado/i)).toBeInTheDocument();
+    });
+    const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(fetchOptions.body as string) as Record<string, unknown>;
+    expect(body.honeypot).toBe('i-am-a-bot');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phone auto-prepend (F047 — I6)
 // ---------------------------------------------------------------------------
 

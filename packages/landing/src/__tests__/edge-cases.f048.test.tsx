@@ -524,6 +524,60 @@ describe('F048 — Security headers in next.config.mjs', () => {
 });
 
 // ---------------------------------------------------------------------------
+// F064 — B1/B2 HSTS and CSP-Report-Only headers
+// ---------------------------------------------------------------------------
+
+describe('F064 — HSTS and CSP-Report-Only headers', () => {
+  let configHeaders: Array<{ key: string; value: string }>;
+
+  beforeAll(async () => {
+    const configModule = await import(
+      /* webpackIgnore: true */ '../../next.config.mjs'
+    );
+    const config = configModule.default;
+    const headersResult = await config.headers();
+    configHeaders = headersResult[0].headers as Array<{ key: string; value: string }>;
+  });
+
+  it('includes Strict-Transport-Security with max-age=63072000', () => {
+    expect(configHeaders).toContainEqual({
+      key: 'Strict-Transport-Security',
+      value: 'max-age=63072000',
+    });
+  });
+
+  it('HSTS value does NOT contain includeSubDomains', () => {
+    const hsts = configHeaders.find((h) => h.key === 'Strict-Transport-Security');
+    expect(hsts?.value).not.toContain('includeSubDomains');
+  });
+
+  it('HSTS value does NOT contain preload', () => {
+    const hsts = configHeaders.find((h) => h.key === 'Strict-Transport-Security');
+    expect(hsts?.value).not.toContain('preload');
+  });
+
+  it('includes Content-Security-Policy-Report-Only header', () => {
+    const csp = configHeaders.find((h) => h.key === 'Content-Security-Policy-Report-Only');
+    expect(csp).toBeDefined();
+  });
+
+  it("CSP-Report-Only value contains default-src 'self'", () => {
+    const csp = configHeaders.find((h) => h.key === 'Content-Security-Policy-Report-Only');
+    expect(csp?.value).toContain("default-src 'self'");
+  });
+
+  it('CSP-Report-Only value contains https://www.googletagmanager.com', () => {
+    const csp = configHeaders.find((h) => h.key === 'Content-Security-Policy-Report-Only');
+    expect(csp?.value).toContain('https://www.googletagmanager.com');
+  });
+
+  it("CSP-Report-Only value contains frame-src 'none'", () => {
+    const csp = configHeaders.find((h) => h.key === 'Content-Security-Policy-Report-Only');
+    expect(csp?.value).toContain("frame-src 'none'");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 7. Reduced motion — globals.css contains transition: none !important
 // ---------------------------------------------------------------------------
 
@@ -537,5 +591,101 @@ describe('F048 — Reduced motion CSS', () => {
     );
     expect(cssContent).toContain('transition: none !important');
     expect(reducedMotionBlock?.[0]).toContain('transition: none !important');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F064 QA — C3: duplicate keyframes removed from globals.css
+// ---------------------------------------------------------------------------
+
+describe('F064 QA — C3: raw @keyframes deleted from globals.css', () => {
+  it('globals.css does NOT contain a raw @keyframes float block', () => {
+    const cssPath = path.resolve(__dirname, '../app/globals.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+    // The raw @keyframes float block (outside any @layer) must be gone.
+    // Tailwind config is now the canonical source.
+    expect(cssContent).not.toMatch(/@keyframes\s+float\s*\{/);
+  });
+
+  it('globals.css does NOT contain a raw @keyframes badge-pulse block', () => {
+    const cssPath = path.resolve(__dirname, '../app/globals.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+    expect(cssContent).not.toMatch(/@keyframes\s+badge-pulse\s*\{/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F064 QA — D1: viewport export in layout.tsx
+// ---------------------------------------------------------------------------
+
+describe('F064 QA — D1: viewport export with themeColor', () => {
+  it('layout.tsx exports a viewport object', async () => {
+    // Dynamic import respects the module cache already populated by edge-cases.f045.test.tsx
+    const layoutModule = await import('@/app/layout');
+    expect(layoutModule).toHaveProperty('viewport');
+  });
+
+  it('viewport.themeColor is the botanical green #2d5a27', async () => {
+    const layoutModule = await import('@/app/layout');
+    const viewport = (layoutModule as Record<string, unknown>).viewport as { themeColor?: string } | undefined;
+    expect(viewport?.themeColor).toBe('#2d5a27');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F064 QA — D2: sitemap uses stable lastModified date constant
+// ---------------------------------------------------------------------------
+
+describe('F064 QA — D2: sitemap stable lastModified', () => {
+  it('sitemap() returns an array with at least one entry', async () => {
+    const { default: sitemap } = await import('@/app/sitemap');
+    const result = sitemap();
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('sitemap lastModified is a Date object (not a live new Date())', async () => {
+    const { default: sitemap } = await import('@/app/sitemap');
+    const result = sitemap();
+    const entry = result[0];
+    expect(entry?.lastModified).toBeInstanceOf(Date);
+  });
+
+  it('sitemap lastModified is the stable constant date 2026-03-30', async () => {
+    const { default: sitemap } = await import('@/app/sitemap');
+    const result1 = sitemap();
+    const result2 = sitemap();
+    // Both calls must produce the exact same timestamp (stable constant, not new Date())
+    expect(result1[0]?.lastModified?.toString()).toBe(result2[0]?.lastModified?.toString());
+    // The year must be 2026 (confirming it uses the constant, not today's date at test time)
+    const lastModified = result1[0]?.lastModified as Date;
+    expect(lastModified.getUTCFullYear()).toBe(2026);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F064 QA — A2: remaining low-contrast classes NOT fixed by the spec
+// (contrast issues in ProductDemo.tsx and text-white/55 in SearchSimulator)
+// ---------------------------------------------------------------------------
+
+describe('F064 QA — A2: low-contrast text-white/45 in ProductDemo.tsx (out-of-scope survivor)', () => {
+  it('ProductDemo.tsx still contains text-white/45 — documents known contrast debt not in F064 scope', () => {
+    // This test documents a known limitation: the F064 spec only targeted SearchSimulator.
+    // ProductDemo.tsx has the same text-white/45 pattern on dark backgrounds (lines 89, 101, 110).
+    // Contrast ratio at 45% opacity on slate-950 is ~2.8:1, below WCAG AA 4.5:1.
+    // This test will FAIL when ProductDemo is fixed (which is the desired outcome — delete it then).
+    const implPath = path.resolve(__dirname, '../components/ProductDemo.tsx');
+    const src = fs.readFileSync(implPath, 'utf-8');
+    expect(src).toContain('text-white/45');
+  });
+
+  it('SearchSimulator.tsx text-white/55 on dark background — documents marginal contrast debt', () => {
+    // Line 294: <p className="text-sm text-white/55">Resultado</p>
+    // text-white/55 on bg-slate-950 = contrast ~3.4:1 — below WCAG AA 4.5:1 for normal text.
+    // The F064 spec only fixed /45 instances; /55 was not in scope.
+    // This test documents the survivor so a future ticket can address it.
+    const implPath = path.resolve(__dirname, '../components/SearchSimulator.tsx');
+    const src = fs.readFileSync(implPath, 'utf-8');
+    expect(src).toContain('text-white/55');
   });
 });

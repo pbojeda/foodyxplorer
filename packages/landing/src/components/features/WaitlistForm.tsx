@@ -128,6 +128,7 @@ export function WaitlistForm({ source, variant, showPhone = false, submitLabel =
     setErrorMessage(null);
 
     const utmParams = getUtmParams();
+    const honeypotValue = (e.currentTarget.elements.namedItem('honeypot') as HTMLInputElement | null)?.value ?? '';
 
     // Fire CTA analytics
     if (source === 'hero') {
@@ -151,7 +152,7 @@ export function WaitlistForm({ source, variant, showPhone = false, submitLabel =
       const response = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/waitlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, ...(phone.trim() ? { phone: phone.trim() } : {}), variant, source, ...utmParams, honeypot: '' }),
+        body: JSON.stringify({ email, ...(phone.trim() ? { phone: phone.trim() } : {}), variant, source, ...utmParams, honeypot: honeypotValue }),
       });
 
       if (response.ok || response.status === 409) {
@@ -224,8 +225,7 @@ export function WaitlistForm({ source, variant, showPhone = false, submitLabel =
         tabIndex={-1}
         aria-hidden="true"
         autoComplete="off"
-        value=""
-        readOnly
+        defaultValue=""
         style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0, overflow: 'hidden' }}
       />
 
