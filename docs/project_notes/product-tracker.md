@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-30
 
-**Active Feature:** F061 — Landing Copy Accuracy
+**Active Feature:** F063 — Nav, A/B Cookie & Variant Fixes
 **Step:** 5/6 (Review)
-**Branch:** feature/F061-landing-copy-accuracy
+**Branch:** feature/F063-nav-ab-cookie-fixes
 **Complexity:** Standard
-**Context:** 4 copy fixes from landing audit (I3+I4+I7+S6). Working in worktree `../foodXPlorer-F061`. Spec self-reviewed, pending cross-model review + plan.
+**Context:** Nav "Para quién"→"FAQ", cookie on mount + Secure flag. Working in worktree `../foodXPlorer-F063`.
 
 ---
 
