@@ -241,8 +241,9 @@ export function normalizeDish(
   raw: RawDishData,
   meta: { sourceId: string; restaurantId: string },
 ): Partial<NormalizedDishData> {
-  // Normalize name: trim and collapse multiple spaces
-  const name = raw.name.trim().replace(/\s+/g, ' ');
+  // Normalize name: strip leading non-alphanumeric chars (e.g. "/ " from PDF artifacts),
+  // then trim and collapse multiple spaces
+  const name = raw.name.replace(/^[^a-zA-Z0-9\u00C0-\u024F]+/, '').trim().replace(/\s+/g, ' ');
 
   // Normalize externalId: trim and truncate to 100 chars
   let externalId: string | undefined;
