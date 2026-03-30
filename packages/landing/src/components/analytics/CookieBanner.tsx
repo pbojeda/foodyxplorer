@@ -5,6 +5,7 @@ import Script from 'next/script';
 import type { Variant } from '@/types';
 import { VARIANT_COOKIE_NAME, VARIANT_COOKIE_MAX_AGE } from '@/lib/ab-testing';
 import { deleteGaCookies } from '@/lib/deleteGaCookies';
+import { drainEventQueue, clearEventQueue } from '@/lib/analytics';
 
 export const CONSENT_KEY = 'nx-cookie-consent';
 const GA_ID = process.env['NEXT_PUBLIC_GA_MEASUREMENT_ID'] ?? '';
@@ -53,6 +54,7 @@ export function CookieBanner({ variant }: CookieBannerProps) {
   function handleReject() {
     safeSetItem(CONSENT_KEY, 'rejected');
     deleteGaCookies();
+    clearEventQueue();
     setConsent('rejected');
   }
 
@@ -70,6 +72,7 @@ export function CookieBanner({ variant }: CookieBannerProps) {
           };
           window.gtag('js', new Date());
           window.gtag('config', GA_ID);
+          drainEventQueue();
         }}
       />
     ) : null;

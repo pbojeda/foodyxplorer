@@ -5,6 +5,11 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CookieBanner } from '@/components/analytics/CookieBanner';
 
+jest.mock('../lib/analytics', () => ({
+  drainEventQueue: jest.fn(),
+  clearEventQueue: jest.fn(),
+}));
+
 // Mock next/script — calls onLoad immediately so we can test GA4 initialization
 jest.mock('next/script', () => {
   return function MockScript({ onLoad, id }: { onLoad?: () => void; id?: string }) {
@@ -124,6 +129,43 @@ describe('CookieBanner — deletes GA cookies on reject (F059 C2)', () => {
 
     const gaDeletion = cookieWrites.find((w) => w.startsWith('_ga=') && w.includes('max-age=0'));
     expect(gaDeletion).toBeDefined();
+  });
+});
+
+import { drainEventQueue, clearEventQueue } from '../lib/analytics';
+
+describe('CookieBanner — queue integration (F060)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('calls drainEventQueue once when "Aceptar" is clicked', () => {
+    render(<CookieBanner variant="a" />);
+    fireEvent.click(screen.getByRole('button', { name: /aceptar/i }));
+    expect(drainEventQueue).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls clearEventQueue once when "Rechazar" is clicked', () => {
+    render(<CookieBanner variant="a" />);
+    fireEvent.click(screen.getByRole('button', { name: /rechazar/i }));
+    expect(clearEventQueue).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call drainEventQueue when "Rechazar" is clicked', () => {
+    render(<CookieBanner variant="a" />);
+    fireEvent.click(screen.getByRole('button', { name: /rechazar/i }));
+    expect(drainEventQueue).not.toHaveBeenCalled();
+  });
+
+  it('does not call clearEventQueue when "Aceptar" is clicked', () => {
+    render(<CookieBanner variant="a" />);
+    fireEvent.click(screen.getByRole('button', { name: /aceptar/i }));
+    expect(clearEventQueue).not.toHaveBeenCalled();
   });
 });
 
