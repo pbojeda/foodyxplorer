@@ -11,7 +11,7 @@
 **Last Updated:** 2026-03-30
 
 **Active Feature:** F066 — E2E Smoke Tests
-**Step:** 3/6 (Implement)
+**Step:** 5/6 (Review)
 **Branch:** feature/f066-e2e-smoke-tests
 **Complexity:** Standard
 **Context:** Data integrity fix: rename `mcdonalds` slug → `mcdonalds-es` / `mcdonalds-pt`. From comprehensive validation audit. Prisma migration + seed update + cache invalidation.
@@ -138,7 +138,7 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F065 | McDonald's Chain Slug Migration | backend | done | 6/6 | Simple. Rename `mcdonalds` → `mcdonalds-es` / `mcdonalds-pt`. PR #56, SHA 380a982. Applied to dev+prod |
-| F066 | E2E Smoke Tests | backend | in-progress | 1/6 | Standard. Minimal E2E test suite with real HTTP server. From validation phase 3 |
+| F066 | E2E Smoke Tests | backend | in-progress | 5/6 | Standard. 10 E2E smoke tests, real HTTP server. PR #57. From validation phase 3 |
 | F067 | Data Quality Cleanup | backend | pending | — | Low. BK leading slashes, FTS ranking tuning. From validation phase 2 |
 
 ---

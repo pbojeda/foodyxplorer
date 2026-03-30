@@ -24,6 +24,7 @@ interface ApiResponse {
 
 describe('E2E Smoke Tests', () => {
   beforeAll(async () => {
+    if (!ADMIN_API_KEY) throw new Error('ADMIN_API_KEY not set in E2E env — check vitest.config.e2e.ts');
     app = await buildApp();
     await app.listen({ port: 0 });
     const { port } = app.server.address() as AddressInfo;
@@ -31,7 +32,7 @@ describe('E2E Smoke Tests', () => {
   }, 15_000);
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
   });
 
   // --- Test 1: Server starts ---
@@ -125,6 +126,7 @@ describe('E2E Smoke Tests', () => {
       },
     });
 
+    expect(res.status).toBeLessThan(400);
     expect(res.headers.get('access-control-allow-origin')).not.toBeNull();
   });
 
@@ -132,7 +134,8 @@ describe('E2E Smoke Tests', () => {
   it('GET /estimate includes rate limit headers', async () => {
     const res = await fetch(`${baseUrl}/estimate?query=test`);
 
-    expect(res.headers.get('x-ratelimit-limit')).not.toBeNull();
+    const limit = Number(res.headers.get('x-ratelimit-limit'));
+    expect(limit).toBeGreaterThan(0);
     expect(res.headers.get('x-ratelimit-remaining')).not.toBeNull();
   });
 });
