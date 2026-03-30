@@ -66,9 +66,10 @@ export function CookieBanner({ variant }: CookieBannerProps) {
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
         strategy="afterInteractive"
         onLoad={() => {
-          window.dataLayer = window.dataLayer || [];
+          const win = window as Window & { dataLayer?: unknown[] };
+          win.dataLayer = win.dataLayer || [];
           window.gtag = function (...args: unknown[]) {
-            window.dataLayer.push(args);
+            win.dataLayer!.push(args);
           };
           window.gtag('js', new Date());
           window.gtag('config', GA_ID);

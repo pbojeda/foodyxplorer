@@ -11,7 +11,7 @@ declare global {
 export function trackEvent(payload: AnalyticsEventPayload): void {
   if (typeof window === 'undefined') return;
 
-  if (!process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID) {
+  if (!process.env['NEXT_PUBLIC_GA_MEASUREMENT_ID']) {
     console.debug('[Analytics]', payload);
     return;
   }
