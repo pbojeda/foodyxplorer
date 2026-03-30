@@ -42,11 +42,15 @@ export function CookieBanner({ variant }: CookieBannerProps) {
       setConsent(stored);
       if (stored === 'accepted') setLoadGA(true);
     }
+    if (!document.cookie.includes(VARIANT_COOKIE_NAME)) {
+      document.cookie = `${VARIANT_COOKIE_NAME}=${variant}; max-age=${VARIANT_COOKIE_MAX_AGE}; path=/; samesite=lax; secure`;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- variant is resolved server-side and stable after mount
   }, []);
 
   function handleAccept() {
     safeSetItem(CONSENT_KEY, 'accepted');
-    document.cookie = `${VARIANT_COOKIE_NAME}=${variant}; max-age=${VARIANT_COOKIE_MAX_AGE}; path=/; samesite=lax`;
+    document.cookie = `${VARIANT_COOKIE_NAME}=${variant}; max-age=${VARIANT_COOKIE_MAX_AGE}; path=/; samesite=lax; secure`;
     setConsent('accepted');
     setLoadGA(true);
   }

@@ -29,7 +29,19 @@ describe('SiteHeader', () => {
     // Use getAllByRole since desktop + mobile menu both render the nav links
     expect(screen.getAllByRole('link', { name: /demo/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /cómo funciona/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: /para quién/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /faq/i }).length).toBeGreaterThan(0);
+  });
+
+  it('renders a link with text "FAQ" and href="#faq"', () => {
+    render(<SiteHeader />);
+    const links = screen.getAllByRole('link', { name: /^faq$/i });
+    expect(links.length).toBeGreaterThan(0);
+    links.forEach((link) => expect(link).toHaveAttribute('href', '#faq'));
+  });
+
+  it('does NOT render text "Para quién"', () => {
+    render(<SiteHeader />);
+    expect(screen.queryByText('Para quién')).not.toBeInTheDocument();
   });
 
   it('renders the waitlist CTA with updated copy "Probar gratis"', () => {
