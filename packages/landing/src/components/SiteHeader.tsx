@@ -4,7 +4,7 @@ import { MobileMenu } from '@/components/MobileMenu';
 const NAV_LINKS = [
   { label: 'Demo', href: '#demo' },
   { label: 'Cómo funciona', href: '#como-funciona' },
-  { label: 'Para quién', href: '#para-quien' },
+  { label: 'FAQ', href: '#faq' },
 ];
 
 const WAITLIST_CTA = 'Probar gratis';
