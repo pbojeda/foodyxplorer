@@ -241,6 +241,7 @@ async function ftsFoodMatch(
     JOIN data_sources ds ON ds.id = rfn.source_id
     WHERE to_tsvector('spanish', f.name_es) @@ plainto_tsquery('spanish', ${normalizedQuery})
        OR to_tsvector('english', f.name) @@ plainto_tsquery('english', ${normalizedQuery})
+    ORDER BY length(COALESCE(f.name_es, f.name)) ASC
     LIMIT 1
   `.execute(db);
 

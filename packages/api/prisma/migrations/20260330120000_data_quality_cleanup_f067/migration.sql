@@ -4,8 +4,8 @@
 -- Examples: "/ Brownie & Ice Cream", "/ Whopper® Gluten Free"
 
 UPDATE dishes
-SET name = LTRIM(name, '/ '),
-    name_es = LTRIM(name_es, '/ ')
+SET name = regexp_replace(name, '^/\s*', ''),
+    name_es = regexp_replace(name_es, '^/\s*', '')
 WHERE name LIKE '/%' OR name_es LIKE '/%';
 
 -- ROLLBACK (manual):
