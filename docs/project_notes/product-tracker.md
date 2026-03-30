@@ -10,10 +10,10 @@
 
 **Last Updated:** 2026-03-30
 
-**Active Feature:** F065 — McDonald's Chain Slug Migration
-**Step:** 5/6 (Review)
-**Branch:** feature/f065-mcdonalds-slug-migration
-**Complexity:** Simple
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
 **Context:** Data integrity fix: rename `mcdonalds` slug → `mcdonalds-es` / `mcdonalds-pt`. From comprehensive validation audit. Prisma migration + seed update + cache invalidation.
 
 ---
@@ -137,7 +137,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F065 | McDonald's Chain Slug Migration | backend | in-progress | 5/6 | Simple. Rename `mcdonalds` → `mcdonalds-es` / `mcdonalds-pt`. PR #56. From validation audit |
+| F065 | McDonald's Chain Slug Migration | backend | done | 6/6 | Simple. Rename `mcdonalds` → `mcdonalds-es` / `mcdonalds-pt`. PR #56, SHA 380a982. Applied to dev+prod |
 | F066 | E2E Smoke Tests | backend | pending | — | Low. Minimal E2E test suite with real HTTP server. From validation phase 3 |
 | F067 | Data Quality Cleanup | backend | pending | — | Low. BK leading slashes, FTS ranking tuning. From validation phase 2 |
 
@@ -204,6 +204,7 @@
 | 2026-03-29 | F054 — Context State Isolation & NL Footer Consistency | fb9d63b (squash merge to develop, PR #49) | Simple bug. I3: manual TTL description fix (Option B). I4: NL handler "Contexto activo" footer. 4 new tests, 1097 total. 3 files changed |
 | 2026-03-29 | F055 — Inline Keyboard Stale-Button Mitigation + Callback Logging | c086e6e (squash merge to develop, PR #51) | Simple bug. Nonce in callback_data, stale-button rejection, unknown callback logging. 9 new tests, 6 updated, 1106 total. 9 files changed |
 | 2026-03-30 | F056 — MIME Detection Fallback Safety | fd5a793 (squash merge to develop, PR #52) | Simple bug. Reject unknown MIME instead of JPEG fallback. 3 new tests, 1109 total. 4 files changed |
+| 2026-03-30 | F065 — McDonald's Chain Slug Migration | 380a982 (squash merge to develop, PR #56) | Simple data fix. Rename `mcdonalds` → `mcdonalds-es`/`mcdonalds-pt`. Prisma migration + seed update. Applied to dev+prod Supabase |
 
 ---
 
