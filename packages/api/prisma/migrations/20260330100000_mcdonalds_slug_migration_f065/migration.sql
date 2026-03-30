@@ -17,3 +17,7 @@ BEGIN
     RAISE EXCEPTION 'Migration incomplete: mcdonalds slug still exists in restaurants';
   END IF;
 END $$;
+
+-- ROLLBACK (manual):
+-- UPDATE restaurants SET chain_slug = 'mcdonalds' WHERE chain_slug = 'mcdonalds-es' AND country_code = 'ES';
+-- UPDATE restaurants SET chain_slug = 'mcdonalds' WHERE chain_slug = 'mcdonalds-pt' AND country_code = 'PT';

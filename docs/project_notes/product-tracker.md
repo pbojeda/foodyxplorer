@@ -137,7 +137,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F065 | McDonald's Chain Slug Migration | backend | in-progress | 1/6 | Simple. Rename `mcdonalds` → `mcdonalds-es` / `mcdonalds-pt`. From validation audit |
+| F065 | McDonald's Chain Slug Migration | backend | in-progress | 5/6 | Simple. Rename `mcdonalds` → `mcdonalds-es` / `mcdonalds-pt`. PR #56. From validation audit |
 | F066 | E2E Smoke Tests | backend | pending | — | Low. Minimal E2E test suite with real HTTP server. From validation phase 3 |
 | F067 | Data Quality Cleanup | backend | pending | — | Low. BK leading slashes, FTS ranking tuning. From validation phase 2 |
 
