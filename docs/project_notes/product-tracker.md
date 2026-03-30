@@ -11,7 +11,7 @@
 **Last Updated:** 2026-03-30
 
 **Active Feature:** F067 — Data Quality Cleanup
-**Step:** 3/6 (Implement)
+**Step:** 5/6 (Review)
 **Branch:** feature/f067-data-quality-cleanup
 **Complexity:** Simple
 **Context:** D3: clean BK leading slashes. D2: FTS/similarity prefer shorter names. From validation audit.
@@ -139,7 +139,7 @@
 |----|---------|------|--------|------|-------|
 | F065 | McDonald's Chain Slug Migration | backend | done | 6/6 | Simple. Rename `mcdonalds` → `mcdonalds-es` / `mcdonalds-pt`. PR #56, SHA 380a982. Applied to dev+prod |
 | F066 | E2E Smoke Tests | backend | done | 6/6 | Standard. 10 E2E smoke tests, real HTTP server. PR #57, SHA d0e63f3. Code review + QA approved |
-| F067 | Data Quality Cleanup | backend | in-progress | 3/6 | Simple. BK leading slashes, FTS ranking tuning. From validation phase 2 |
+| F067 | Data Quality Cleanup | backend | in-progress | 5/6 | Simple. BK leading slashes, FTS ranking tuning. PR #59. From validation phase 2 |
 
 ---
 
