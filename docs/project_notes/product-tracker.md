@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-30
 
-**Active Feature:** F060 — GA4 Analytics Integration Fix
-**Step:** 5/6 (Review)
-**Branch:** feature/F060-ga4-analytics-integration
-**Complexity:** Standard
-**Context:** GA4 integration fix from landing audit I1. GA ID: G-X46WMF1NM5. Working in worktree `../foodXPlorer-F060`. Queue+replay approach. Spec self-reviewed, pending cross-model review.
+**Active Feature:** F065 — McDonald's Chain Slug Migration
+**Step:** 4/6 (Finalize)
+**Branch:** feature/f065-mcdonalds-slug-migration
+**Complexity:** Simple
+**Context:** Data integrity fix: rename `mcdonalds` slug → `mcdonalds-es` / `mcdonalds-pt`. From comprehensive validation audit. Prisma migration + seed update + cache invalidation.
 
 ---
 
@@ -128,10 +128,18 @@
 |----|---------|------|--------|------|-------|
 | F059 | Legal/GDPR Compliance Bundle | frontend | done | 6/6 | Standard. Legal placeholders, cookie consent withdrawal, FAQ disclosure fix, privacy link in form. PR #50, SHA 4f9617f. 552 tests (41 new). Code review: APPROVED. QA: VERIFIED |
 | F060 | GA4 Analytics Integration Fix | frontend | done | 6/6 | Standard. dataLayer.push→gtag, queue+replay+consent gate. GA ID: G-X46WMF1NM5. PR #53, SHA 1d635fd. 592 tests (40 new). Code review: APPROVED WITH NOTES. QA: VERIFIED |
-| F061 | Landing Copy Accuracy | frontend | pending | — | High. FAQ "10 cadenas"→dynamic, fabricated testimonial, A/B comment mismatch, urgency claim. From landing audit I3+I4+I7+S6 |
+| F061 | Landing Copy Accuracy | frontend | done | 6/6 | Standard. FAQ enabled chains only, testimonial, urgency, A/B comment. PR #54, SHA ef81906. 605 tests (13 new). Code review: APPROVED. QA: VERIFIED |
 | F062 | Landing Assets & Hero Image Refresh | frontend | pending | — | Medium. Delete 9 unused images, review/replace hero image. From landing audit I5 |
 | F063 | Nav, A/B Cookie & Variant Fixes | frontend | pending | — | Medium. "Para quien" nav broken on C/F, nx-variant cookie consent-gated, Secure flag. From landing audit I2+I6+S3 |
 | F064 | Accessibility & Code Cleanup | frontend | pending | — | Low. aria-selected fix, contrast, mobile menu a11y, HSTS, CSP, dead code, keyframes, themeColor, sitemap. From landing audit I8+S1-S11 |
+
+## Features — Validation & Data Quality
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F065 | McDonald's Chain Slug Migration | backend | in-progress | 1/6 | Simple. Rename `mcdonalds` → `mcdonalds-es` / `mcdonalds-pt`. From validation audit |
+| F066 | E2E Smoke Tests | backend | pending | — | Low. Minimal E2E test suite with real HTTP server. From validation phase 3 |
+| F067 | Data Quality Cleanup | backend | pending | — | Low. BK leading slashes, FTS ranking tuning. From validation phase 2 |
 
 ---
 
