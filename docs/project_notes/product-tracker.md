@@ -8,13 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-29
+**Last Updated:** 2026-03-30
 
-**Active Feature:** F056 — MIME Detection Fallback Safety
-**Step:** 5/6 (Review)
-**Branch:** `feature/F056-mime-detection-fallback`
-**Complexity:** Simple
-**Context:** S7: when detectMimeType returns null, return error instead of defaulting to JPEG.
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F056 completed (fd5a793, PR #52). Epic Quality (F049-F056) fully closed. Next: Landing Audit (F059-F064).
 
 ---
 
@@ -118,7 +118,7 @@
 | F053 | Decouple Menu Analysis from Restaurant Selection | bot | done | 6/6 | Bug. handlePhoto() blocks all photo flows behind selectedRestaurant; analyze/identify don't need it. Plan says F034 independent. From audit I2 (Codex) |
 | F054 | Context State Isolation & NL Footer Consistency | bot | done | 6/6 | Bug. I3: shared Redis key TTL refreshed by unrelated writes. I4: NL handler missing "Contexto activo" footer. From audit I3+I4 (Codex) |
 | F055 | Inline Keyboard Stale-Button Mitigation + Callback Logging | bot | done | 6/6 | Bug (low). Stale-button race with multiple photos/searches + unknown callback_data not logged. From audit I7+S6 (Codex, Claude) |
-| F056 | MIME Detection Fallback Safety | bot | in-progress | 5/6 | Bug (low). Unknown magic bytes default to image/jpeg instead of showing error. From audit S7 (Claude, Gemini) |
+| F056 | MIME Detection Fallback Safety | bot | done | 6/6 | Bug (low). Unknown magic bytes default to image/jpeg instead of showing error. From audit S7 (Claude, Gemini) |
 | F057 | Manual Corrections Batch | docs | done | 5/5 | Simple. 5 corrections to user-manual-bot.md: /cadenas truncation (I5), error table sync (I6), plurals (S1), half verified (S2), NL error (S3). Section 10/8 deferred to F053/F054. SHA aa212bc |
 | F058 | Strategic Plan Archival & Rate-Limit Decision Documentation | docs | done | 5/5 | Simple. Plan marked historical, verification items confirmed, ADR-013 + ADR-014 added. SHA aa212bc |
 
@@ -195,6 +195,7 @@
 | 2026-03-29 | F053 — Decouple Menu Analysis from Restaurant Selection | 700dbc5 (squash merge to develop, PR #48) | Simple bug. Removed selectedRestaurant guard from handlePhoto(). Adaptive keyboard (Option B). 8 new tests, 3 updated, 1093 total. 6 files changed |
 | 2026-03-29 | F054 — Context State Isolation & NL Footer Consistency | fb9d63b (squash merge to develop, PR #49) | Simple bug. I3: manual TTL description fix (Option B). I4: NL handler "Contexto activo" footer. 4 new tests, 1097 total. 3 files changed |
 | 2026-03-29 | F055 — Inline Keyboard Stale-Button Mitigation + Callback Logging | c086e6e (squash merge to develop, PR #51) | Simple bug. Nonce in callback_data, stale-button rejection, unknown callback logging. 9 new tests, 6 updated, 1106 total. 9 files changed |
+| 2026-03-30 | F056 — MIME Detection Fallback Safety | fd5a793 (squash merge to develop, PR #52) | Simple bug. Reject unknown MIME instead of JPEG fallback. 3 new tests, 1109 total. 4 files changed |
 
 ---
 

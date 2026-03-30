@@ -1,7 +1,7 @@
 # F056: MIME Detection Fallback Safety
 
 **Feature:** F056 | **Type:** Bug | **Priority:** Low
-**Status:** Ready for Merge | **Branch:** `feature/F056-mime-detection-fallback`
+**Status:** Done | **Branch:** (merged to develop, deleted)
 **Created:** 2026-03-29 | **Dependencies:** None
 **Audit Source:** `docs/research/comprehensive-audit-2026-03-29.md` — Finding S7
 
@@ -69,7 +69,7 @@ N/A — Simple task.
 - [x] Step 3: TDD implementation (3 tests, RED→GREEN)
 - [x] Step 4: Quality gates pass (1109 tests, tsc clean)
 - [x] Step 5: PR created, review
-- [ ] Step 6: Ticket updated, branch deleted
+- [x] Step 6: Ticket updated, branch deleted
 
 ---
 
@@ -79,6 +79,7 @@ N/A — Simple task.
 |------|--------|-------|
 | 2026-03-29 | Ticket created | From comprehensive audit finding S7 (Claude, Gemini) |
 | 2026-03-29 | Implementation | Replaced JPEG fallback with user-friendly error in upload_menu and upload_dish. 3 new tests, 1109 total passing |
+| 2026-03-30 | Squash merged to develop | SHA fd5a793, PR #52. Branch deleted |
 
 ---
 
