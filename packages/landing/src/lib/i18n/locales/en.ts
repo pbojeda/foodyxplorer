@@ -235,7 +235,7 @@ export const en: Dictionary = {
       {
         question: 'Which restaurants are available?',
         answer:
-          "We currently cover the main Spanish chains with official data: McDonald's, Burger King, KFC, Telepizza, Subway, Domino's, and Pans & Company, among others. We are continuously expanding coverage.",
+          "We currently cover the main Spanish chains with official data: McDonald's, Burger King, KFC, Telepizza, Domino's, Five Guys, Popeyes, Papa John's, and more. We are continuously expanding coverage.",
       },
       {
         question: 'Is it free?',

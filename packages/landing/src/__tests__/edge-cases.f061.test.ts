@@ -36,9 +36,9 @@ describe('F061 — FAQ restaurants answer', () => {
     expect(answer).toMatch(/^Actualmente cubrimos las principales cadenas/);
   });
 
-  it('ES answer contains "entre otras"', () => {
+  it('ES answer contains "y más"', () => {
     const answer = getFaqAnswer(es, 'restaurantes');
-    expect(answer).toContain('entre otras');
+    expect(answer).toContain('y más');
   });
 
   it('ES answer does NOT contain "10 cadenas"', () => {
@@ -51,9 +51,9 @@ describe('F061 — FAQ restaurants answer', () => {
     expect(answer).toMatch(/^We currently cover the main Spanish chains/);
   });
 
-  it('EN answer contains "among others"', () => {
+  it('EN answer contains "and more"', () => {
     const answer = getFaqAnswer(en, 'restaurants');
-    expect(answer).toContain('among others');
+    expect(answer).toContain('and more');
   });
 
   it('EN answer does NOT contain "10 chains"', () => {

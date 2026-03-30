@@ -233,7 +233,7 @@ export const es = {
       {
         question: '¿Qué restaurantes están disponibles?',
         answer:
-          "Actualmente cubrimos las principales cadenas españolas con datos oficiales: McDonald's, Burger King, KFC, Telepizza, Subway, Domino's y Pans & Company, entre otras. Estamos ampliando la cobertura continuamente.",
+          "Actualmente cubrimos las principales cadenas españolas con datos oficiales: McDonald's, Burger King, KFC, Telepizza, Domino's, Five Guys, Popeyes, Papa John's y más. Estamos ampliando la cobertura continuamente.",
       },
       {
         question: '¿Es gratis?',

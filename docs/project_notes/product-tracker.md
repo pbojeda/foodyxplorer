@@ -128,7 +128,7 @@
 |----|---------|------|--------|------|-------|
 | F059 | Legal/GDPR Compliance Bundle | frontend | in-progress | 5/6 | Standard. 4 fixes: legal placeholders (C1), cookie consent withdrawal (C2), inaccurate disclosures (C3), privacy link in form (I9). From landing audit 2026-03-29 (Claude+Gemini+Codex) |
 | F060 | GA4 Analytics Integration Fix | frontend | in-progress | 5/6 | Standard. Fix dataLayer.push→gtag, queue+replay pre-consent events. GA ID: G-X46WMF1NM5. From landing audit I1 |
-| F061 | Landing Copy Accuracy | frontend | pending | — | High. FAQ "10 cadenas"→dynamic, fabricated testimonial, A/B comment mismatch, urgency claim. From landing audit I3+I4+I7+S6 |
+| F061 | Landing Copy Accuracy | frontend | in-progress | 5/6 | Standard. FAQ chains (only enabled), testimonial, A/B comment, urgency. From landing audit I3+I4+I7+S6 |
 | F062 | Landing Assets & Hero Image Refresh | frontend | pending | — | Medium. Delete 9 unused images, review/replace hero image. From landing audit I5 |
 | F063 | Nav, A/B Cookie & Variant Fixes | frontend | pending | — | Medium. "Para quien" nav broken on C/F, nx-variant cookie consent-gated, Secure flag. From landing audit I2+I6+S3 |
 | F064 | Accessibility & Code Cleanup | frontend | pending | — | Low. aria-selected fix, contrast, mobile menu a11y, HSTS, CSP, dead code, keyframes, themeColor, sitemap. From landing audit I8+S1-S11 |
