@@ -23,7 +23,7 @@ jest.mock('next/link', () => {
 const NAV_LINKS = [
   { label: 'Demo', href: '#demo' },
   { label: 'Cómo funciona', href: '#como-funciona' },
-  { label: 'Para quién', href: '#para-quien' },
+  { label: 'FAQ', href: '#faq' },
 ];
 
 function setup() {

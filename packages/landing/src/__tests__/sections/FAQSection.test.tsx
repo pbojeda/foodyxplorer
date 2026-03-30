@@ -82,6 +82,12 @@ describe('FAQSection', () => {
     expect(section).toHaveAttribute('aria-labelledby', 'faq-heading');
     expect(container.querySelector('#faq-heading')).not.toBeNull();
   });
+
+  it('section element has id="faq"', () => {
+    const { container } = render(<FAQSection dict={dict.faq} />);
+    const section = container.querySelector('section');
+    expect(section).toHaveAttribute('id', 'faq');
+  });
 });
 
 describe('FAQSection — data safety answer (F059 C3)', () => {

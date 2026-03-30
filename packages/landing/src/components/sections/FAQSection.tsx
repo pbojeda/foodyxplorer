@@ -9,6 +9,7 @@ export function FAQSection({ dict }: FAQSectionProps) {
 
   return (
     <section
+      id="faq"
       aria-labelledby="faq-heading"
       data-section="faq"
       className="bg-paper py-16 md:py-20"

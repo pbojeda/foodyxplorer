@@ -81,10 +81,13 @@ describe('CookieBanner', () => {
     expect(localStorage.getItem(CONSENT_KEY)).toBe('rejected');
   });
 
-  it('does not write A/B cookie on reject click', () => {
+  it('does not write A/B cookie on reject click (variant cookie is written on mount, not on reject)', () => {
+    // Reset cookieWritten after render so we only see writes triggered by the reject action
     render(<CookieBanner variant="a" />);
+    cookieWritten = null; // clear the mount write
     fireEvent.click(screen.getByRole('button', { name: /rechazar/i }));
 
+    // Reject click should not trigger a new variant cookie write
     expect(cookieWritten).toBeNull();
   });
 
@@ -129,6 +132,48 @@ describe('CookieBanner — deletes GA cookies on reject (F059 C2)', () => {
 
     const gaDeletion = cookieWrites.find((w) => w.startsWith('_ga=') && w.includes('max-age=0'));
     expect(gaDeletion).toBeDefined();
+  });
+});
+
+describe('CookieBanner — nx-variant cookie on mount (F063)', () => {
+  const cookieWrites: string[] = [];
+
+  beforeEach(() => {
+    localStorage.clear();
+    cookieWrites.length = 0;
+
+    const cookieDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
+    jest.spyOn(document, 'cookie', 'set').mockImplementation((val: string) => {
+      cookieWrites.push(val);
+      cookieDescriptor?.set?.call(document, val);
+    });
+    // No prior nx-variant cookie
+    jest.spyOn(document, 'cookie', 'get').mockReturnValue('');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('sets nx-variant cookie on mount before any consent choice', () => {
+    render(<CookieBanner variant="a" />);
+    const variantWrite = cookieWrites.find((w) => w.startsWith(`${VARIANT_COOKIE}=`));
+    expect(variantWrite).toBeDefined();
+  });
+
+  it('mount cookie string includes "secure"', () => {
+    render(<CookieBanner variant="a" />);
+    const variantWrite = cookieWrites.find((w) => w.startsWith(`${VARIANT_COOKIE}=`));
+    expect(variantWrite).toContain('secure');
+  });
+
+  it('handleAccept cookie also includes "secure"', () => {
+    render(<CookieBanner variant="c" />);
+    cookieWrites.length = 0; // clear mount write
+    fireEvent.click(screen.getByRole('button', { name: /aceptar/i }));
+    const variantWrite = cookieWrites.find((w) => w.startsWith(`${VARIANT_COOKIE}=`));
+    expect(variantWrite).toBeDefined();
+    expect(variantWrite).toContain('secure');
   });
 });
 
