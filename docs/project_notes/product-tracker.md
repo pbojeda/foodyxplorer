@@ -14,7 +14,7 @@
 **Step:** 5/6 (Review)
 **Branch:** feature/f066-e2e-smoke-tests
 **Complexity:** Standard
-**Context:** Data integrity fix: rename `mcdonalds` slug → `mcdonalds-es` / `mcdonalds-pt`. From comprehensive validation audit. Prisma migration + seed update + cache invalidation.
+**Context:** 10 E2E smoke tests with real HTTP server. vitest.config.e2e.ts + smoke.e2e.test.ts. Code review + QA approved. PR #57.
 
 ---
 
