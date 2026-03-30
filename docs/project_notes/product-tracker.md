@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-30
 
-**Active Feature:** F064 — Accessibility & Code Cleanup Bundle
-**Step:** 5/6 (Review)
-**Branch:** feature/F064-accessibility-code-cleanup
-**Complexity:** Standard
-**Context:** 10 fixes from landing audit. PR #58 merged to develop. Pending Step 6 (cleanup).
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F064 completed (ff25635, PR #58). Landing audit: F059-F061+F063+F064 done. F062 pending (hero image).
 
 ---
 
@@ -131,7 +131,7 @@
 | F061 | Landing Copy Accuracy | frontend | done | 6/6 | Standard. FAQ enabled chains only, testimonial, urgency, A/B comment. PR #54, SHA ef81906. 605 tests (13 new). Code review: APPROVED. QA: VERIFIED |
 | F062 | Landing Assets & Hero Image Refresh | frontend | pending | — | Medium. Delete 9 unused images, review/replace hero image. From landing audit I5 |
 | F063 | Nav, A/B Cookie & Variant Fixes | frontend | done | 6/6 | Standard. Nav FAQ link, variant cookie on mount, Secure flag. PR #55, SHA dcb04b9. 625 tests (20 new). Code review: APPROVED. QA: VERIFIED |
-| F064 | Accessibility & Code Cleanup | frontend | in-progress | 5/6 | Standard. 10 fixes: aria-selected, contrast, MobileMenu a11y, HSTS, CSP, dead code, honeypot, keyframes, themeColor, sitemap. PR #58. From landing audit |
+| F064 | Accessibility & Code Cleanup | frontend | done | 6/6 | Standard. 10 fixes: aria-selected, contrast, MobileMenu a11y, HSTS, CSP, dead code, honeypot, keyframes, themeColor, sitemap. PR #58, SHA ff25635. 659 tests (35 new). Code review: APPROVED. QA: VERIFIED |
 
 ## Features — Validation & Data Quality
 
@@ -206,6 +206,7 @@
 | 2026-03-30 | F056 — MIME Detection Fallback Safety | fd5a793 (squash merge to develop, PR #52) | Simple bug. Reject unknown MIME instead of JPEG fallback. 3 new tests, 1109 total. 4 files changed |
 | 2026-03-30 | F063 — Nav, A/B Cookie & Variant Fixes | dcb04b9 (squash merge to develop, PR #55) | Standard frontend. Nav FAQ link (#para-quien→#faq), variant cookie on mount (ePrivacy Art.5.3), Secure flag on all cookie writes. 625 tests (20 new). Code review: APPROVED. QA: VERIFIED |
 | 2026-03-30 | F065 — McDonald's Chain Slug Migration | 380a982 (squash merge to develop, PR #56) | Simple data fix. Rename `mcdonalds` → `mcdonalds-es`/`mcdonalds-pt`. Prisma migration + seed update. Applied to dev+prod Supabase |
+| 2026-03-30 | F064 — Accessibility & Code Cleanup | ff25635 (squash merge to develop, PR #58) | Standard frontend. 10 fixes: aria-selected, contrast (WCAG AA), MobileMenu a11y, HSTS, CSP-Report-Only, dead code, honeypot, keyframes, themeColor, sitemap. 659 tests (35 new). Code review: APPROVED (1 fix). QA: VERIFIED (10 edge-case tests, 0 bugs) |
 | 2026-03-30 | F066 — E2E Smoke Tests | d0e63f3 (squash merge to develop, PR #57) | Standard. 10 E2E smoke tests with real HTTP server (port 0). vitest.config.e2e.ts, NODE_ENV=development. Code review + QA approved |
 
 ---
