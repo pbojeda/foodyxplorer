@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-30
 
-**Active Feature:** No active work
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F066 completed (d0e63f3, PR #57). Validation epic: F065 done, F066 done, F067 pending.
+**Active Feature:** F064 — Accessibility & Code Cleanup Bundle
+**Step:** 5/6 (Review)
+**Branch:** feature/F064-accessibility-code-cleanup
+**Complexity:** Standard
+**Context:** 10 fixes from landing audit. PR #58 merged to develop. Pending Step 6 (cleanup).
 
 ---
 
@@ -130,8 +130,8 @@
 | F060 | GA4 Analytics Integration Fix | frontend | done | 6/6 | Standard. dataLayer.push→gtag, queue+replay+consent gate. GA ID: G-X46WMF1NM5. PR #53, SHA 1d635fd. 592 tests (40 new). Code review: APPROVED WITH NOTES. QA: VERIFIED |
 | F061 | Landing Copy Accuracy | frontend | done | 6/6 | Standard. FAQ enabled chains only, testimonial, urgency, A/B comment. PR #54, SHA ef81906. 605 tests (13 new). Code review: APPROVED. QA: VERIFIED |
 | F062 | Landing Assets & Hero Image Refresh | frontend | pending | — | Medium. Delete 9 unused images, review/replace hero image. From landing audit I5 |
-| F063 | Nav, A/B Cookie & Variant Fixes | frontend | in-progress | 5/6 | Standard. Nav FAQ link, variant cookie on mount, Secure flag. PR #55. From landing audit I2+I6+S3 |
-| F064 | Accessibility & Code Cleanup | frontend | pending | — | Low. aria-selected fix, contrast, mobile menu a11y, HSTS, CSP, dead code, keyframes, themeColor, sitemap. From landing audit I8+S1-S11 |
+| F063 | Nav, A/B Cookie & Variant Fixes | frontend | done | 6/6 | Standard. Nav FAQ link, variant cookie on mount, Secure flag. PR #55, SHA dcb04b9. 625 tests (20 new). Code review: APPROVED. QA: VERIFIED |
+| F064 | Accessibility & Code Cleanup | frontend | in-progress | 5/6 | Standard. 10 fixes: aria-selected, contrast, MobileMenu a11y, HSTS, CSP, dead code, honeypot, keyframes, themeColor, sitemap. PR #58. From landing audit |
 
 ## Features — Validation & Data Quality
 
@@ -204,6 +204,7 @@
 | 2026-03-29 | F054 — Context State Isolation & NL Footer Consistency | fb9d63b (squash merge to develop, PR #49) | Simple bug. I3: manual TTL description fix (Option B). I4: NL handler "Contexto activo" footer. 4 new tests, 1097 total. 3 files changed |
 | 2026-03-29 | F055 — Inline Keyboard Stale-Button Mitigation + Callback Logging | c086e6e (squash merge to develop, PR #51) | Simple bug. Nonce in callback_data, stale-button rejection, unknown callback logging. 9 new tests, 6 updated, 1106 total. 9 files changed |
 | 2026-03-30 | F056 — MIME Detection Fallback Safety | fd5a793 (squash merge to develop, PR #52) | Simple bug. Reject unknown MIME instead of JPEG fallback. 3 new tests, 1109 total. 4 files changed |
+| 2026-03-30 | F063 — Nav, A/B Cookie & Variant Fixes | dcb04b9 (squash merge to develop, PR #55) | Standard frontend. Nav FAQ link (#para-quien→#faq), variant cookie on mount (ePrivacy Art.5.3), Secure flag on all cookie writes. 625 tests (20 new). Code review: APPROVED. QA: VERIFIED |
 | 2026-03-30 | F065 — McDonald's Chain Slug Migration | 380a982 (squash merge to develop, PR #56) | Simple data fix. Rename `mcdonalds` → `mcdonalds-es`/`mcdonalds-pt`. Prisma migration + seed update. Applied to dev+prod Supabase |
 | 2026-03-30 | F066 — E2E Smoke Tests | d0e63f3 (squash merge to develop, PR #57) | Standard. 10 E2E smoke tests with real HTTP server (port 0). vitest.config.e2e.ts, NODE_ENV=development. Code review + QA approved |
 

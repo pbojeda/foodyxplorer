@@ -201,14 +201,14 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
                     key={dish.query}
                     id={`search-option-${index}`}
                     role="option"
-                    aria-selected={activeDish?.query === dish.query}
+                    aria-selected={activeIndex === index}
                     onMouseDown={() => selectDish(dish)}
                     className={`w-full cursor-pointer px-4 py-3 text-left text-sm text-slate-700 hover:bg-mist ${
                       index === activeIndex ? 'bg-mist' : ''
                     }`}
                   >
                     <span className="font-medium">{dish.dish}</span>
-                    <span className="ml-2 text-xs text-slate-400">{dish.level}</span>
+                    <span className="ml-2 text-xs text-slate-500">{dish.level}</span>
                   </li>
                 ))}
               </ul>
@@ -309,7 +309,7 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
                       key={String(label)}
                       className="rounded-2xl border border-white/10 bg-white/5 p-4"
                     >
-                      <div className="text-xs uppercase tracking-[0.2em] text-white/45">
+                      <div className="text-xs uppercase tracking-[0.2em] text-white/70">
                         {label}
                       </div>
                       <div className="mt-2 text-xl font-semibold">{value}</div>
@@ -317,7 +317,7 @@ export function SearchSimulator({ onInteract }: SearchSimulatorProps = {}) {
                   ))}
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-xs uppercase tracking-[0.18em] text-white/45">
+                  <div className="text-xs uppercase tracking-[0.18em] text-white/70">
                     Guardrail de seguridad
                   </div>
                   <div className="mt-2 flex items-start gap-2 text-sm text-amber-200">

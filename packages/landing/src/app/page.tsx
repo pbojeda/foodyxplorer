@@ -32,26 +32,6 @@ interface LandingPageProps {
 }
 
 // ---------------------------------------------------------------------------
-// Shared section wrappers
-// ---------------------------------------------------------------------------
-
-function ProductDemoSection({ dict }: { dict: Dictionary }) {
-  return (
-    <SectionObserver sectionId="product-demo" variant={'a' as Variant}>
-      <section
-        aria-label={dict.productDemo.headline}
-        data-section="product-demo"
-        className="bg-paper py-12 lg:py-16"
-      >
-        <div className="section-shell">
-          <ProductDemo />
-        </div>
-      </section>
-    </SectionObserver>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Variant A layout — "Improved Baseline"
 // ---------------------------------------------------------------------------
 function VariantALayout({ dict, variant }: { dict: Dictionary; variant: Variant }) {

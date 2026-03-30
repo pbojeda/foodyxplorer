@@ -209,10 +209,13 @@ describe('WaitlistForm — progressive enhancement DOM structure', () => {
     expect(style).not.toContain('display:none');
   });
 
-  it('honeypot input is readonly (value cannot be changed programmatically)', () => {
+  it('honeypot input is uncontrolled (no readOnly — bots can fill it, server checks it)', () => {
     render(<WaitlistForm source="hero" variant="a" />);
     const honeypot = document.querySelector('input[name="honeypot"]') as HTMLInputElement | null;
-    expect(honeypot).toHaveAttribute('readOnly');
+    // F064: changed from readOnly+value="" to defaultValue="" (uncontrolled) so bots can fill it
+    expect(honeypot).not.toHaveAttribute('readOnly');
+    // Initial value is empty (from defaultValue="")
+    expect((honeypot as HTMLInputElement).value).toBe('');
   });
 });
 
