@@ -11,7 +11,7 @@
 **Last Updated:** 2026-03-30
 
 **Active Feature:** F064 — Accessibility & Code Cleanup Bundle
-**Step:** 3/6 (Implement)
+**Step:** 5/6 (Review)
 **Branch:** feature/F064-accessibility-code-cleanup
 **Complexity:** Standard
 **Context:** 10 fixes from landing audit: aria-selected, contrast, MobileMenu a11y, HSTS, CSP, dead code, honeypot, duplicate keyframes, themeColor, sitemap date. Worktree: `../foodXPlorer-F064`
@@ -131,7 +131,7 @@
 | F061 | Landing Copy Accuracy | frontend | done | 6/6 | Standard. FAQ enabled chains only, testimonial, urgency, A/B comment. PR #54, SHA ef81906. 605 tests (13 new). Code review: APPROVED. QA: VERIFIED |
 | F062 | Landing Assets & Hero Image Refresh | frontend | pending | — | Medium. Delete 9 unused images, review/replace hero image. From landing audit I5 |
 | F063 | Nav, A/B Cookie & Variant Fixes | frontend | done | 6/6 | Standard. Nav FAQ link, variant cookie on mount, Secure flag. PR #55, SHA dcb04b9. 625 tests (20 new). Code review: APPROVED. QA: VERIFIED |
-| F064 | Accessibility & Code Cleanup | frontend | in-progress | 3/6 | Standard. 10 fixes: aria-selected, contrast, MobileMenu a11y, HSTS, CSP, dead code, honeypot, keyframes, themeColor, sitemap. From landing audit |
+| F064 | Accessibility & Code Cleanup | frontend | in-progress | 5/6 | Standard. 10 fixes: aria-selected, contrast, MobileMenu a11y, HSTS, CSP, dead code, honeypot, keyframes, themeColor, sitemap. PR #58. From landing audit |
 
 ## Features — Validation & Data Quality
 
