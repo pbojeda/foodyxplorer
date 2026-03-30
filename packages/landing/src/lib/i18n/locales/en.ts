@@ -134,7 +134,7 @@ export const en: Dictionary = {
   emotionalBlock: {
     headline: 'What would eating out with more calm feel like?',
     quote: '"Finally, I can go out to eat with my family without constant fear of allergens."',
-    quoteAuthor: 'Beta user, Madrid',
+    quoteAuthor: 'The experience we aim to deliver',
     scenarios: [
       {
         scene: 'Reading the menu',
@@ -235,7 +235,7 @@ export const en: Dictionary = {
       {
         question: 'Which restaurants are available?',
         answer:
-          "We currently cover 10 Spanish chains with official data (McDonald's, Burger King, KFC, Telepizza, Subway, Domino's, Pans & Company, and more). We are expanding coverage to local restaurants and new chains every week.",
+          "We currently cover the main Spanish chains with official data: McDonald's, Burger King, KFC, Telepizza, Domino's, Five Guys, Popeyes, Papa John's, and more. We are continuously expanding coverage.",
       },
       {
         question: 'Is it free?',
@@ -258,7 +258,7 @@ export const en: Dictionary = {
     headline: 'Discover exactly what you eat at your favourite restaurant',
     subtitle:
       'nutriXplorer is in development. Join the waitlist and be among the first to access it when we launch.',
-    urgency: 'Limited spots for early access',
+    urgency: 'Sign up to get early access when we launch',
     trustNote: 'No spam. No commitments. We only notify you when we launch.',
   },
   footer: {
