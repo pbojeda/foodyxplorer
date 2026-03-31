@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-03-30
 
-**Active Feature:** F067 — Data Quality Cleanup
-**Step:** 5/6 (Review)
-**Branch:** feature/f067-data-quality-cleanup
-**Complexity:** Simple
-**Context:** D3: clean BK leading slashes. D2: FTS/similarity prefer shorter names. From validation audit.
+**Active Feature:** No active work
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** Validation epic complete. F065 done (PR #56), F066 done (PR #57), F067 done (PR #59).
 
 ---
 
@@ -139,7 +139,7 @@
 |----|---------|------|--------|------|-------|
 | F065 | McDonald's Chain Slug Migration | backend | done | 6/6 | Simple. Rename `mcdonalds` → `mcdonalds-es` / `mcdonalds-pt`. PR #56, SHA 380a982. Applied to dev+prod |
 | F066 | E2E Smoke Tests | backend | done | 6/6 | Standard. 10 E2E smoke tests, real HTTP server. PR #57, SHA d0e63f3. Code review + QA approved |
-| F067 | Data Quality Cleanup | backend | in-progress | 5/6 | Simple. BK leading slashes, FTS ranking tuning. PR #59. From validation phase 2 |
+| F067 | Data Quality Cleanup | backend | done | 6/6 | Simple. BK leading slashes, FTS ranking tuning. PR #59, SHA 6513e09. Applied to dev+prod |
 
 ---
 
@@ -208,6 +208,7 @@
 | 2026-03-30 | F065 — McDonald's Chain Slug Migration | 380a982 (squash merge to develop, PR #56) | Simple data fix. Rename `mcdonalds` → `mcdonalds-es`/`mcdonalds-pt`. Prisma migration + seed update. Applied to dev+prod Supabase |
 | 2026-03-30 | F064 — Accessibility & Code Cleanup | ff25635 (squash merge to develop, PR #58) | Standard frontend. 10 fixes: aria-selected, contrast (WCAG AA), MobileMenu a11y, HSTS, CSP-Report-Only, dead code, honeypot, keyframes, themeColor, sitemap. 659 tests (35 new). Code review: APPROVED (1 fix). QA: VERIFIED (10 edge-case tests, 0 bugs) |
 | 2026-03-30 | F066 — E2E Smoke Tests | d0e63f3 (squash merge to develop, PR #57) | Standard. 10 E2E smoke tests with real HTTP server (port 0). vitest.config.e2e.ts, NODE_ENV=development. Code review + QA approved |
+| 2026-03-31 | F067 — Data Quality Cleanup | 6513e09 (squash merge to develop, PR #59) | Simple. Clean BK leading slashes (regexp_replace), FTS/similarity length tiebreaker in catalog + level1Lookup. Applied to dev+prod |
 
 ---
 
