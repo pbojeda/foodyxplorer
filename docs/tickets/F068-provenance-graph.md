@@ -1,7 +1,7 @@
 # F068: Provenance Graph — DataSource priority_tier + BEDCA-first Resolution
 
 **Feature:** F068 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F068-provenance-graph
+**Status:** Done | **Branch:** feature/F068-provenance-graph
 **Created:** 2026-04-02 | **Dependencies:** None
 
 ---
@@ -204,6 +204,7 @@ N/A — backend only.
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-02 | Ticket created | Step 0+1 combined, spec derived from ADR-015 + product evolution analysis |
+| 2026-04-02 | Cross-model reviews skipped | Spec (Step 0) and Plan (Step 2): skipped /review-spec and /review-plan. ADR-015 was already reviewed by 3 models across 4 iterations; user granted extended autonomy for this feature |
 | 2026-04-02 | Implementation complete | 0ab331f — feat(data): add priority_tier + brand detection. 16 files, 926 insertions |
 | 2026-04-02 | Validator fixes | d53e1d2 — parsePriorityTier NaN guard, remove dead code, fix comment |
 | 2026-04-02 | PR created | #60 → develop. Code review + QA executing |
