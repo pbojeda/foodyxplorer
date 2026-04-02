@@ -7,8 +7,8 @@
 
 ALTER TABLE "data_sources" ADD COLUMN "priority_tier" INTEGER;
 
--- Backfill existing sources
-UPDATE "data_sources" SET "priority_tier" = 0 WHERE "type" = 'scraped';
-UPDATE "data_sources" SET "priority_tier" = 2 WHERE "name" ILIKE '%USDA%';
-UPDATE "data_sources" SET "priority_tier" = 3 WHERE "type" = 'estimated';
+-- Backfill existing sources (each UPDATE guards with IS NULL to avoid overwrites)
+UPDATE "data_sources" SET "priority_tier" = 0 WHERE "type" = 'scraped' AND "priority_tier" IS NULL;
+UPDATE "data_sources" SET "priority_tier" = 2 WHERE "name" ILIKE '%USDA%' AND "priority_tier" IS NULL;
+UPDATE "data_sources" SET "priority_tier" = 3 WHERE "type" = 'estimated' AND "priority_tier" IS NULL;
 UPDATE "data_sources" SET "priority_tier" = 2 WHERE "type" = 'official' AND "priority_tier" IS NULL;

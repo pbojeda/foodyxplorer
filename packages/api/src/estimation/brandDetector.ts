@@ -88,7 +88,7 @@ export function detectExplicitBrand(
 function matchesAsWord(text: string, brand: string): boolean {
   // Escape regex special characters in brand
   const escaped = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp(`(?:^|\\s|\\b)${escaped}(?:\\s|$|\\b)`, 'i');
+  const regex = new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`, 'i');
   return regex.test(text);
 }
 

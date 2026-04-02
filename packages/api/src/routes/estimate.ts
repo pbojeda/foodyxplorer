@@ -133,6 +133,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       const normalizedQuery = query.replace(/\s+/g, ' ').trim().toLowerCase();
 
       // Unified cache key: fxp:estimate:<query>:<chainSlug>:<restaurantId>:<portionMultiplier>
+      // Brand detection is deterministic from query text + chainSlugs (loaded at init), so not in key.
       const cacheKey = buildKey(
         'estimate',
         `${normalizedQuery}:${chainSlug ?? ''}:${restaurantId ?? ''}:${effectiveMultiplier}`,
