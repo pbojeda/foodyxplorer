@@ -94,8 +94,8 @@ function matchesAsWord(text: string, brand: string): boolean {
 
 /**
  * Convert a chain slug to searchable variants.
- * "mcdonalds-es" → ["mcdonalds-es", "mcdonalds", "mcdonald's"]
- * "burger-king-es" → ["burger-king-es", "burger king", "burger-king"]
+ * "mcdonalds-es" → ["mcdonalds-es", "mcdonalds"]
+ * "burger-king-es" → ["burger-king-es", "burger-king", "burger king"]
  */
 function chainSlugToVariants(slug: string): string[] {
   const variants = [slug];

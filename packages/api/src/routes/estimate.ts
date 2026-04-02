@@ -85,8 +85,8 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
   let chainSlugs: string[] = [];
   try {
     chainSlugs = await loadChainSlugs(db);
-  } catch {
-    // Non-critical — brand detection will treat all queries as generic
+  } catch (err) {
+    app.log.warn({ err }, 'F068: Failed to load chain slugs, brand detection disabled');
   }
 
   app.get(
