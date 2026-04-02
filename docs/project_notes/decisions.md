@@ -429,3 +429,90 @@ Three approaches were evaluated in `docs/research/i18n-solution-proposal-2026-03
 - (+) Waitlist data co-located with product data (same DB, same API)
 - (-) Requires new API endpoint + schema migration for waitlist table
 - (-) Mediterranean palette investment may be underutilized (only for specific campaigns)
+
+### ADR-015: Provenance Graph — Data Source Hierarchy & BEDCA-First Resolution (2026-04-02)
+
+**Context:** The product needs to handle nutritional data from multiple sources: BEDCA (Spanish government lab data, ~431 foods with 55 nutrients), USDA (514 foods, already imported), Open Food Facts (11K+ Hacendado/Mercadona products), chain restaurant PDFs (14 chains, ~885 dishes), and engine-estimated data (L2 ingredient calculation, L4 LLM decomposition). When a user queries "tortilla de patatas", multiple sources may return results. Need a deterministic, no-ambiguity resolution strategy.
+
+BEDCA evaluation (2026-04-02) revealed: only ~431 foods with actual data (of 969 entries), very few prepared dishes (~85 cooked items, mostly individual ingredients), commercial license pending (email sent to bedca.adm@gmail.com). OFF evaluation: 11K+ Hacendado products available immediately under ODbL license. Full analysis in `docs/research/product-evolution-analysis-2026-03-31.md`.
+
+**Decision:**
+
+1. **DataSource priority_tier field.** New integer column on `data_sources` table:
+   - **Tier 0:** Brand/restaurant official data (chain PDFs, supermarket packaging via OFF)
+   - **Tier 1:** National reference (BEDCA lab data)
+   - **Tier 2:** International reference (USDA)
+   - **Tier 3:** Estimated (engine L2-L4, LLM-bootstrapped recipes, community corrections)
+
+2. **BEDCA-first resolution for generic queries.** When user asks "tortilla de patatas" without specifying a brand:
+   - BEDCA result wins (Tier 1 > Tier 3 estimated). No user disambiguation. No asking "which one do you mean?"
+   - If not in BEDCA → LLM-bootstrapped canonical recipe (Tier 3, calculated from ingredients)
+   - If not in canonical recipes → OFF prepared food as fallback with clear attribution: "Valores de referencia: Tortilla de Patatas Hacendado (plato preparado industrial)"
+   - If nothing → continue L1→L2→L3→L4 cascade as today
+
+3. **Branded queries bypass BEDCA.** NLP must extract `has_explicit_brand: boolean`. If user says "tortilla hacendado", "de mercadona", or any explicit brand → route directly to Tier 0 branded data (OFF/chain). BEDCA is never returned for branded queries.
+
+4. **BEDCA ≠ OFF for "same dish".** "Tortilla de patatas" in BEDCA (lab-measured average of generic preparation) and "Tortilla de Patatas Hacendado" (industrial product with specific formulation) are different entities. They must be stored as separate records with different `source_id` and `priority_tier` values. Never merge them.
+
+5. **OFF ingestion in Phase B.** Ingest 11K+ Hacendado products early (F080) to maximize user value. Use as Tier 0 for branded queries and Tier 3 fallback for generic queries when BEDCA + canonical recipes don't match. ODbL attribution required in all responses.
+
+**Reviewed by:** Claude Opus 4.6 (synthesis), Gemini 2.5 Pro (R1-R4), Codex GPT-5.4 (R1-R4)
+
+**Consequences:**
+- (+) Deterministic resolution — no user disambiguation needed, reduced conversation turns
+- (+) BEDCA lab data prioritized for generic queries — highest accuracy for Spanish food
+- (+) OFF provides immediate coverage for 11K+ branded products
+- (+) Clear attribution prevents confusing industrial data with homemade/bar food
+- (+) `priority_tier` field is simple, extensible (new sources just pick a tier)
+- (-) BEDCA commercial license is a blocker for production — must work around until authorized
+- (-) OFF data quality is heterogeneous (user-contributed) — needs validation for critical products
+
+### ADR-016: Anonymous Identity — actor_id Pattern for Auth-Free Product (2026-04-02)
+
+**Context:** The founder decided the product should be open without authentication barriers to maximize user adoption. However, features like favorites, tracking, meal logging, and analytics require stable user identity. The product has two channels: Telegram bot (identifies by chat_id) and web assistant /hablar (no login). Future auth (Google Identity Platform) planned for Phase D. Need a pattern that works without auth today but enables seamless migration to authenticated accounts later without data loss.
+
+Analysis in `docs/research/product-evolution-analysis-2026-03-31.md` Section 17, Foundation 2. Cross-model reviewed (Codex R3: "The right decision is not 'no auth'. It's 'no visible friction, but internal identity from day 1'").
+
+**Decision:**
+
+1. **New `actors` table.** Stable identity from day 1:
+   ```
+   actors {
+     id: UUID (PK)
+     type: enum('anonymous_web', 'telegram', 'authenticated')
+     external_id: String (deviceId for web, chat_id for Telegram, user_id for auth)
+     locale: String? (detected from user input)
+     created_at: DateTime
+     last_seen_at: DateTime
+   }
+   ```
+
+2. **Web identity:** Generate UUID v4 on first visit, store in `localStorage` + signed HTTP-only cookie. Send as `X-Actor-Id` header on all API requests. Server creates `actors` row on first seen.
+
+3. **Telegram identity:** Use `chat_id` as `external_id` with `type: 'telegram'`. Already persistent by Telegram's design.
+
+4. **All user-linked data references actor_id**, not a hypothetical user_id. Tables: query_log (already has apiKeyId, add actor_id), favorites (new), meal_log (new), corrections (new).
+
+5. **Auth migration flow (Phase D, F107):** When user authenticates via Google Identity Platform:
+   - Create `users` row with Google profile data
+   - Run `ATTACH actor → user`: update actor type to 'authenticated', link to user_id
+   - All historical data (favorites, logs, tracking) preserved — they reference actor_id, not user_id
+   - Multi-device: new device creates new actor_id, links to same user_id on auth
+
+6. **Rate limiting per actor_id** for anonymous users. Mandatory from Phase A0:
+   - 50 queries/day per actor (anonymous)
+   - 20 L4 (LLM) calls/day per actor
+   - 10 photo analyses/day per actor
+   - Fail-closed on Redis failure for anonymous actors (deny if can't verify limit)
+
+**Reviewed by:** Claude Opus 4.6, Codex GPT-5.4 (R3), Gemini 2.5 Pro (R3)
+
+**Consequences:**
+- (+) Zero friction for users — no sign-up required to use the product
+- (+) Stable identity enables favorites, tracking, analytics from day 1
+- (+) Seamless auth migration — no data loss when user upgrades to account
+- (+) Bot and web share same identity model — enables cross-channel analytics
+- (+) Rate limiting protects against abuse (denial-of-wallet attack on OpenAI APIs)
+- (-) localStorage/cookie can be cleared → user loses identity (mitigated by auth upgrade)
+- (-) Multi-device sync impossible without auth (acceptable tradeoff)
+- (-) Slightly more complex middleware than no-identity approach
