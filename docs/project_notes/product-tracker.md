@@ -11,7 +11,7 @@
 **Last Updated:** 2026-04-02
 
 **Active Feature:** F068 — Provenance Graph: DataSource priority_tier + BEDCA-first Resolution
-**Step:** 3/6 (Implement)
+**Step:** 5/6 (Review)
 **Branch:** feature/F068-provenance-graph
 **Complexity:** Standard
 **Context:** Phase 2 first feature. Add priority_tier to data_sources, brand detection in NLP, priority-ordered L1 resolution. ADR-015 defines all rules. Spec complete, ticket generated.
@@ -158,7 +158,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F068 | Provenance Graph: DataSource priority_tier + BEDCA-first resolution | backend | in-progress | 3/6 | Standard. Add priority_tier to DataSource. Resolution: BEDCA > supermarket > USDA > estimated. `has_explicit_brand` flag. See product-evolution-analysis Sec 17 Foundation 1 |
+| F068 | Provenance Graph: DataSource priority_tier + BEDCA-first resolution | backend | in-progress | 5/6 | Standard. Add priority_tier to DataSource. Resolution: BEDCA > supermarket > USDA > estimated. `has_explicit_brand` flag. See product-evolution-analysis Sec 17 Foundation 1 |
 | F069 | Anonymous Identity: actor table + middleware | backend | pending | — | Standard. Actor table (anonymous_web / telegram / authenticated). Middleware for X-Actor-Id header. Cookie/UUID for web, chat_id for Telegram. Mergeable on future auth. See product-evolution-analysis Sec 17 Foundation 2 |
 | F070 | Conversation Core: extract bot NL logic → shared API service | backend | pending | — | Standard. Refactor bot NL handler into shared ConversationCore service in packages/api. Intent resolution, entity extraction, context management. Both bot and future web assistant use same core. See product-evolution-analysis Sec 17 Foundation 3 |
 
