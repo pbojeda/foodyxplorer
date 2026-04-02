@@ -34,6 +34,7 @@ const BASE_ENTRY: QueryLogEntry = {
   cacheHit:      false,
   responseTimeMs: 42,
   apiKeyId:      'fd000000-0029-4000-a000-000000000002',
+  actorId:       null,
   source:        'api',
 };
 
@@ -60,6 +61,7 @@ describe('writeQueryLog', () => {
         cacheHit:      false,
         responseTimeMs: 42,
         apiKeyId:      'fd000000-0029-4000-a000-000000000002',
+        actorId:       null,
         source:        'api',
       },
     });
@@ -74,6 +76,7 @@ describe('writeQueryLog', () => {
       cacheHit:       false,
       responseTimeMs: 10,
       apiKeyId:       null,
+      actorId:        null,
       source:         'api',
     };
 
@@ -88,6 +91,7 @@ describe('writeQueryLog', () => {
         cacheHit:       false,
         responseTimeMs: 10,
         apiKeyId:       null,
+        actorId:        null,
         source:         'api',
       },
     });
