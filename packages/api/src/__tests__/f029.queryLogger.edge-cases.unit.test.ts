@@ -38,6 +38,7 @@ describe('writeQueryLog — edge cases', () => {
       cacheHit: true,
       responseTimeMs: 0,
       apiKeyId: null,
+      actorId: null,
       source: 'api',
     };
 
@@ -63,6 +64,7 @@ describe('writeQueryLog — edge cases', () => {
       cacheHit: false,
       responseTimeMs: 5,
       apiKeyId: null,
+      actorId: null,
       source: 'api',
     }, mockLog);
 
@@ -90,6 +92,7 @@ describe('writeQueryLog — edge cases', () => {
       cacheHit: false,
       responseTimeMs: 10,
       apiKeyId: null,
+      actorId: null,
       source: 'api',
     }, mockLog);
 
@@ -110,6 +113,7 @@ describe('writeQueryLog — edge cases', () => {
       cacheHit: false,
       responseTimeMs: 3,
       apiKeyId: null,
+      actorId: null,
       source: 'bot',
     }, mockLog)).resolves.toBeUndefined();
 
@@ -120,9 +124,9 @@ describe('writeQueryLog — edge cases', () => {
   it('[SPEC] successful write never calls warn — regardless of nullable fields', async () => {
     const entries: QueryLogEntry[] = [
       // All non-null
-      { queryText: 'big mac', chainSlug: 'mc', restaurantId: 'uuid', levelHit: 'l1', cacheHit: true, responseTimeMs: 50, apiKeyId: 'key-uuid', source: 'bot' },
+      { queryText: 'big mac', chainSlug: 'mc', restaurantId: 'uuid', levelHit: 'l1', cacheHit: true, responseTimeMs: 50, apiKeyId: 'key-uuid', actorId: null, source: 'bot' },
       // All nullable fields as null
-      { queryText: 'x', chainSlug: null, restaurantId: null, levelHit: null, cacheHit: false, responseTimeMs: 1, apiKeyId: null, source: 'api' },
+      { queryText: 'x', chainSlug: null, restaurantId: null, levelHit: null, cacheHit: false, responseTimeMs: 1, apiKeyId: null, actorId: null, source: 'api' },
     ];
 
     for (const entry of entries) {

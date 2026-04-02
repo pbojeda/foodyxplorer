@@ -14,10 +14,19 @@ import type {
   NutrientReferenceBasis,
   DishAvailability,
   ApiKeyTier,
+  ActorType,
   QueryLogLevelHit,
   QueryLogSource,
 } from "./kysely-enums";
 
+export type Actor = {
+  id: string;
+  type: ActorType;
+  external_id: string;
+  locale: string | null;
+  created_at: Generated<Timestamp>;
+  last_seen_at: Generated<Timestamp>;
+};
 export type ApiKey = {
   id: string;
   key_hash: string;
@@ -173,6 +182,7 @@ export type QueryLog = {
   cache_hit: boolean;
   response_time_ms: number;
   api_key_id: string | null;
+  actor_id: string | null;
   source: Generated<QueryLogSource>;
   queried_at: Generated<Timestamp>;
 };
@@ -241,6 +251,7 @@ export type WaitlistSubmission = {
   created_at: Generated<Timestamp>;
 };
 export type DB = {
+  actors: Actor;
   api_keys: ApiKey;
   cooking_methods: CookingMethod;
   data_sources: DataSource;

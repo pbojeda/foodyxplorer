@@ -91,6 +91,14 @@ enum ApiKeyTier {
   @@map("api_key_tier")
 }
 
+enum ActorType {
+  anonymous_web
+  telegram
+  authenticated
+
+  @@map("actor_type")
+}
+
 enum QueryLogLevelHit {
   l1
   l2
@@ -446,6 +454,22 @@ model ApiKey {
 }
 
 // ---------------------------------------------------------------------------
+// F069 — Actors (Anonymous Identity)
+// ---------------------------------------------------------------------------
+
+model Actor {
+  id         String    @id @default(uuid()) @db.Uuid
+  type       ActorType
+  externalId String    @map("external_id") @db.VarChar(255)
+  locale     String?   @db.VarChar(10)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz
+
+  @@unique([type, externalId])
+  @@map("actors")
+}
+
+// ---------------------------------------------------------------------------
 // F029 — Query Logs
 // ---------------------------------------------------------------------------
 
@@ -458,6 +482,7 @@ model QueryLog {
   cacheHit       Boolean           @map("cache_hit")
   responseTimeMs Int               @map("response_time_ms")
   apiKeyId       String?           @map("api_key_id") @db.Uuid
+  actorId        String?           @map("actor_id") @db.Uuid
   source         QueryLogSource    @default(api)
   queriedAt      DateTime          @default(now()) @map("queried_at") @db.Timestamptz
 
