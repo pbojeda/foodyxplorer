@@ -227,7 +227,7 @@ N/A — backend only.
 | 3. Update key_facts.md | [x] | Updated: migration list (17), actorResolver + actorRateLimit modules |
 | 4. Update decisions.md | [x] | ADR-016 already existed (written pre-F069) |
 | 5. Commit documentation | [x] | Commit: 3631f7e (includes tracker + key_facts updates) |
-| 6. Verify clean working tree | [ ] | Pending final commit |
+| 6. Verify clean working tree | [x] | `git status`: clean after commit 836854a |
 
 ---
 
