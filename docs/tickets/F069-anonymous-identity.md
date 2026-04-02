@@ -166,7 +166,7 @@ N/A — backend only.
 - [x] Missing/invalid X-Actor-Id → auto-create + return in response header
 - [x] Bot requests create telegram-type actors
 - [x] `request.actorId` available on all non-health requests
-- [x] Per-actor daily rate limits enforced (50 queries, 10 photos)
+- [x] Per-actor daily rate limits enforced (50 queries, 10 photos). L4 bucket (20/day) deferred — requires engine router integration
 - [x] Rate limit fail-closed for anonymous, fail-open for API key auth
 - [x] `actor_id` logged in query_logs
 - [x] last_seen_at updated on each request (via upsert)
@@ -211,6 +211,7 @@ N/A — backend only.
 | 2026-04-02 | Implementation complete | 584a2c0 — actors table, middleware, rate limits, query logger. 12 files, 632 insertions |
 | 2026-04-02 | Validator fixes | 3631f7e — return reply.send() in rate limit hook (H3), skip /docs routes (L1) |
 | 2026-04-02 | PR created | #61 → develop. Code review + QA executing |
+| 2026-04-02 | QA fixes | Retry-After header on fail-closed 429. F029 test fixtures (856bd77). L4 bucket deferred (engine router integration needed) |
 
 ---
 

@@ -88,6 +88,7 @@ export async function registerActorRateLimit(
       // Fail-closed for anonymous (ADR-016)
       return reply
         .code(429)
+        .header('Retry-After', '60')
         .send({
           success: false,
           error: {
