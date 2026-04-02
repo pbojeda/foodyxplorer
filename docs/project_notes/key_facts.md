@@ -69,9 +69,38 @@ Quick reference for project configuration, infrastructure details, and important
 
 - **Landing (Production)**: https://nutrixplorer.com
 - **Landing variants**: ?variant=a|c|f (content), ?palette=botanical|med (colors). Variant D removed in F045. See ADR-012
-- **API Production**: TBD
-- **API Staging**: TBD
+- **API Production**: https://api.nutrixplorer.com (Render, main branch)
+- **API Staging**: https://api-dev.nutrixplorer.com (Render, develop branch)
 - **API Docs**: http://localhost:3001/docs (OpenAPI/Swagger)
+
+## Phase 2 — Product Evolution
+
+- **Analysis document**: `docs/research/product-evolution-analysis-2026-03-31.md` (4 iterations, 3 models)
+- **New epics**: E006 (Foundations), E007 (Spanish Food), E008 (Conversational + Voice), E009 (Personalization), E010 (Scale)
+- **Features**: F068-F109 (42 features across 5 phases: A0→A1→B→C→D)
+- **Spec creation rule**: ALL specs for F068+ MUST reference the product evolution analysis document
+
+### Data Sources (Phase 2)
+
+| Source | Foods/Products | Nutrients | License | Status | Priority Tier |
+|--------|---------------|-----------|---------|--------|---------------|
+| **USDA SR Legacy** | 514 foods | 14 per food | Public domain | Imported (F006) | Tier 2 |
+| **BEDCA** | ~431 with data | 55 per food | Pending authorization | Email sent 2026-04-02 | Tier 1 |
+| **Open Food Facts** | 11K+ Hacendado | Full packaging | ODbL (attribution) | Available | Tier 0 (branded) |
+| **Chain PDFs** | ~885 dishes (14 chains) | 14 per dish | Official/scraped | Imported | Tier 0 (chain) |
+| **LLM-bootstrapped** | ~300 canonical dishes | Calculated from ingredients | Own | Planned (F073) | Tier 3 |
+
+### Key ADRs (Phase 2)
+
+- **ADR-015**: Provenance Graph — DataSource priority_tier, BEDCA-first resolution, no user disambiguation
+- **ADR-016**: Anonymous Identity — actor_id pattern, auth-free product, mergeable on future auth
+
+### Architecture Decisions (Phase 2)
+
+- **Conversation Core**: Shared API service for bot + web assistant. Extracted from bot NL handler (F070).
+- **Voice**: Async first (Whisper in bot, F075). Realtime voice in Phase C (F094-F097). Browser-side STT/TTS (Web Speech API) under investigation as zero-cost alternative.
+- **Auth**: No auth barriers. actor_id from day 1 (ADR-016). Google Identity Platform in Phase D (F107).
+- **i18n**: ADR-010 (Enfoque A: name + name_es). Evolution to dish_translations when 3rd language needed.
 
 ## Reusable Components
 
