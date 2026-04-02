@@ -3,7 +3,7 @@
 // All plugins are registered here. server.ts is the only file that calls
 // server.listen(). Tests import buildApp() directly and use .inject().
 //
-// Plugin registration order: swagger → cors → authMiddleware → rateLimit → multipart → errorHandler → routes
+// Plugin registration order: swagger → cors → authMiddleware → actorResolver → rateLimit → actorRateLimit → multipart → errorHandler → routes
 
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
@@ -22,7 +22,9 @@ import { redis as defaultRedis } from './lib/redis.js';
 import { registerSwagger } from './plugins/swagger.js';
 import { registerCors } from './plugins/cors.js';
 import { registerAuthMiddleware } from './plugins/auth.js';
+import { registerActorResolver } from './plugins/actorResolver.js';
 import { registerRateLimit } from './plugins/rateLimit.js';
+import { registerActorRateLimit } from './plugins/actorRateLimit.js';
 import { registerErrorHandler } from './errors/errorHandler.js';
 import { healthRoutes } from './routes/health.js';
 import { ingestPdfRoutes } from './routes/ingest/pdf.js';
@@ -94,7 +96,9 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await registerSwagger(app, cfg);
   await registerCors(app, cfg);
   await registerAuthMiddleware(app, { prisma: prismaClient, config: cfg });
+  await registerActorResolver(app, { prisma: prismaClient });
   await registerRateLimit(app, cfg);
+  await registerActorRateLimit(app, { redis: redisClient });
   // Register formbody before multipart (application/x-www-form-urlencoded support for /waitlist)
   await app.register(fastifyFormbody);
   // Register multipart before route plugins (file upload support)

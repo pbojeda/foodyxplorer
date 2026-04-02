@@ -158,6 +158,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
             cacheHit,
             responseTimeMs,
             apiKeyId:      request.apiKeyContext?.keyId ?? null,
+            actorId:       request.actorId ?? null,
             source,
           },
           request.log,
