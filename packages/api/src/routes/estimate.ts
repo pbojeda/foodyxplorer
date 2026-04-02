@@ -24,6 +24,7 @@ import {
 import type { DB } from '../generated/kysely-types.js';
 import { runEstimationCascade } from '../estimation/engineRouter.js';
 import { level4Lookup } from '../estimation/level4Lookup.js';
+import { detectExplicitBrand, loadChainSlugs } from '../estimation/brandDetector.js';
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 import { config } from '../config.js';
 import { writeQueryLog } from '../lib/queryLogger.js';
@@ -80,6 +81,14 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
 ) => {
   const { db, prisma } = opts;
 
+  // F068: Load chain slugs once at plugin init for brand detection
+  let chainSlugs: string[] = [];
+  try {
+    chainSlugs = await loadChainSlugs(db);
+  } catch (err) {
+    app.log.warn({ err }, 'F068: Failed to load chain slugs, brand detection disabled');
+  }
+
   app.get(
     '/estimate',
     {
@@ -124,6 +133,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       const normalizedQuery = query.replace(/\s+/g, ' ').trim().toLowerCase();
 
       // Unified cache key: fxp:estimate:<query>:<chainSlug>:<restaurantId>:<portionMultiplier>
+      // Brand detection is deterministic from query text + chainSlugs (loaded at init), so not in key.
       const cacheKey = buildKey(
         'estimate',
         `${normalizedQuery}:${chainSlug ?? ''}:${restaurantId ?? ''}:${effectiveMultiplier}`,
@@ -174,6 +184,9 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         return reply.send({ success: true, data: cached });
       }
 
+      // --- F068: Brand detection ---
+      const { hasExplicitBrand } = detectExplicitBrand(query, chainSlugs);
+
       // --- Estimation cascade (L1→L2→L3→L4) ---
       const routerResult = await runEstimationCascade({
         db,
@@ -183,6 +196,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         openAiApiKey: config.OPENAI_API_KEY,
         level4Lookup,
         logger: request.log,
+        hasExplicitBrand,
       });
 
       cacheHit = false;

@@ -27,6 +27,8 @@ import type {
 export interface Level1LookupOptions {
   chainSlug?: string;
   restaurantId?: string;
+  /** F068: When true, L1 attempts Tier 0 (branded) match first before normal cascade. */
+  hasExplicitBrand?: boolean;
 }
 
 /**
@@ -117,6 +119,7 @@ export interface DishQueryRow {
   source_name: string;
   source_type: string;
   source_url: string | null;
+  source_priority_tier: string | null;
 }
 
 /**
@@ -148,6 +151,7 @@ export interface FoodQueryRow {
   source_name: string;
   source_type: string;
   source_url: string | null;
+  source_priority_tier: string | null;
 }
 
 /**
@@ -215,16 +219,27 @@ export function parseDecimal(value: string | null | undefined): number {
   return isNaN(parsed) ? 0 : parsed;
 }
 
+/**
+ * Parse a priority_tier integer from PostgreSQL. Returns null if absent or unparseable.
+ * Unlike parseDecimal (which defaults to 0), tier 0 is a valid value, so null is the fallback.
+ */
+function parsePriorityTier(value: string | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = parseInt(value, 10);
+  return isNaN(parsed) ? null : parsed;
+}
+
 // ---------------------------------------------------------------------------
 // Mapping functions
 // ---------------------------------------------------------------------------
 
-function mapSource(row: { source_id: string; source_name: string; source_type: string; source_url: string | null }): EstimateSource {
+function mapSource(row: { source_id: string; source_name: string; source_type: string; source_url: string | null; source_priority_tier?: string | null }): EstimateSource {
   return {
     id: row.source_id,
     name: row.source_name,
     type: row.source_type as EstimateSource['type'],
     url: row.source_url,
+    priorityTier: parsePriorityTier(row.source_priority_tier),
   };
 }
 
@@ -360,6 +375,7 @@ export function mapLevel2RowToResult(row: IngredientNutrientRow): {
       name: 'Computed from ingredients',
       type: 'estimated',
       url: null,
+      priorityTier: 3,
     },
     similarityDistance: null,
   };

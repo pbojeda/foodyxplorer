@@ -198,7 +198,8 @@ async function fetchFoodNutrients(
       ds.id         AS source_id,
       ds.name       AS source_name,
       ds.type::text AS source_type,
-      ds.url        AS source_url
+      ds.url        AS source_url,
+      ds.priority_tier::text AS source_priority_tier
     FROM foods f
     JOIN ranked_fn rfn ON rfn.food_id = f.id AND rfn.rn = 1
     JOIN data_sources ds ON ds.id = rfn.source_id
@@ -268,7 +269,8 @@ async function fetchFoodByName(
       ds.id         AS source_id,
       ds.name       AS source_name,
       ds.type::text AS source_type,
-      ds.url        AS source_url
+      ds.url        AS source_url,
+      ds.priority_tier::text AS source_priority_tier
     FROM foods f
     JOIN ranked_fn rfn ON rfn.food_id = f.id AND rfn.rn = 1
     JOIN data_sources ds ON ds.id = rfn.source_id
@@ -310,7 +312,8 @@ async function fetchFoodByName(
       ds.id         AS source_id,
       ds.name       AS source_name,
       ds.type::text AS source_type,
-      ds.url        AS source_url
+      ds.url        AS source_url,
+      ds.priority_tier::text AS source_priority_tier
     FROM foods f
     JOIN ranked_fn rfn ON rfn.food_id = f.id AND rfn.rn = 1
     JOIN data_sources ds ON ds.id = rfn.source_id
@@ -388,6 +391,7 @@ async function runStrategyA(
       name: LLM_SOURCE_NAME,
       type: 'estimated',
       url: null,
+      priorityTier: 3,
     },
   };
 
@@ -587,6 +591,7 @@ async function runStrategyB(
       name: LLM_SOURCE_NAME,
       type: 'estimated',
       url: null,
+      priorityTier: 3,
     },
     similarityDistance: null,
   };

@@ -112,13 +112,14 @@ enum QueryLogSource {
 // ---------------------------------------------------------------------------
 
 model DataSource {
-  id          String         @id @default(uuid()) @db.Uuid
-  name        String         @db.VarChar(255)
-  type        DataSourceType
-  url         String?        @db.Text
-  lastUpdated DateTime?      @map("last_updated")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
+  id           String         @id @default(uuid()) @db.Uuid
+  name         String         @db.VarChar(255)
+  type         DataSourceType
+  url          String?        @db.Text
+  priorityTier Int?           @map("priority_tier")
+  lastUpdated  DateTime?      @map("last_updated")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
 
   foods            Food[]
   foodNutrients    FoodNutrient[]

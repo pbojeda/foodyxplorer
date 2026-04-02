@@ -140,7 +140,8 @@ async function fetchDishNutrients(
       ds.id         AS source_id,
       ds.name       AS source_name,
       ds.type::text AS source_type,
-      ds.url        AS source_url
+      ds.url        AS source_url,
+      ds.priority_tier::text AS source_priority_tier
     FROM dishes d
     JOIN restaurants r ON r.id = d.restaurant_id
     JOIN ranked_dn rdn ON rdn.dish_id = d.id AND rdn.rn = 1
@@ -189,7 +190,8 @@ async function fetchFoodNutrients(
       ds.id         AS source_id,
       ds.name       AS source_name,
       ds.type::text AS source_type,
-      ds.url        AS source_url
+      ds.url        AS source_url,
+      ds.priority_tier::text AS source_priority_tier
     FROM foods f
     JOIN ranked_fn rfn ON rfn.food_id = f.id AND rfn.rn = 1
     JOIN data_sources ds ON ds.id = rfn.source_id
