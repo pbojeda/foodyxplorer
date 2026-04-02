@@ -8,13 +8,16 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-03-29
+**Last Updated:** 2026-04-02
 
-**Active Feature:** No active work
+**Active Feature:** No active work — roadmap planning complete, ready for F068
 **Step:** —
 **Branch:** —
 **Complexity:** —
-**Context:** F048 completed and merged to develop (PR #45, squash). All Marketing & Growth features done (F039-F048).
+**Context:** Phase 1 complete (F001-F067). Product Evolution Analysis completed (4 iterations, 3 models). New Phase 2 roadmap defined with 42 features (F068-F109) across 5 phases (A0→A1→B→C→D). BEDCA evaluation done (limited prepared dishes, license pending). OFF evaluation done (11K+ Hacendado products). Next: start Phase A0 with F068 (Provenance Graph).
+
+> **CRITICAL: Spec Creation Rule**
+> Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
 
 ---
 
@@ -112,7 +115,118 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F049 | Bot User Manual Overhaul | docs | done | 6/6 | Standard. Fix 2 critical doc errors (context fallback lie, TTL refresh lie), 8 important gaps (undocumented features, incorrect claims), 6 suggestions. From cross-model audit (Claude + Gemini + Codex) |
-| F050 | Bot NL Punctuation Fix + Help Update | bot | done | 6/6 | Simple. BUG-AUDIT-01 fix (¿ stripping in extractFoodQuery) + /start help update. PR #43, SHA d243c1e. 11 tests, 1066 total | Simple. Fix BUG-AUDIT-01 (`¿` not stripped in extractFoodQuery). Update /start help text to include /comparar, /contexto, /restaurante |
+| F050 | Bot NL Punctuation Fix + Help Update | bot | done | 6/6 | Simple. BUG-AUDIT-01 fix (¿ stripping in extractFoodQuery) + /start help update. PR #43, SHA d243c1e. 11 tests, 1066 total |
+| F051 | Bot Rate-Limit Ordering & Failed-Request Handling | bot | done | 6/6 | Bug. C1: move isRateLimited() before downloadTelegramFile(). I11: don't count failed API requests against /receta rate limit. From audit C1 (Gemini), I11 (Claude) |
+| F052 | Restaurant Selection chainSlug Propagation | bot | done | 6/6 | Bug. chainSlug lost when selecting restaurant via inline keyboard — searchResults only stores name. From audit I1 (Codex) |
+| F053 | Decouple Menu Analysis from Restaurant Selection | bot | done | 6/6 | Bug. handlePhoto() blocks all photo flows behind selectedRestaurant; analyze/identify don't need it. Plan says F034 independent. From audit I2 (Codex) |
+| F054 | Context State Isolation & NL Footer Consistency | bot | done | 6/6 | Bug. I3: shared Redis key TTL refreshed by unrelated writes. I4: NL handler missing "Contexto activo" footer. From audit I3+I4 (Codex) |
+| F055 | Inline Keyboard Stale-Button Mitigation + Callback Logging | bot | done | 6/6 | Bug (low). Stale-button race with multiple photos/searches + unknown callback_data not logged. From audit I7+S6 (Codex, Claude) |
+| F056 | MIME Detection Fallback Safety | bot | done | 6/6 | Bug (low). Unknown magic bytes default to image/jpeg instead of showing error. From audit S7 (Claude, Gemini) |
+| F057 | Manual Corrections Batch | docs | done | 5/5 | Simple. 5 corrections to user-manual-bot.md: /cadenas truncation (I5), error table sync (I6), plurals (S1), half verified (S2), NL error (S3). Section 10/8 deferred to F053/F054. SHA aa212bc |
+| F058 | Strategic Plan Archival & Rate-Limit Decision Documentation | docs | done | 5/5 | Simple. Plan marked historical, verification items confirmed, ADR-013 + ADR-014 added. SHA aa212bc |
+
+## Features — Landing Pre-Launch Audit
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F059 | Legal/GDPR Compliance Bundle | frontend | done | 6/6 | Standard. Legal placeholders, cookie consent withdrawal, FAQ disclosure fix, privacy link in form. PR #50, SHA 4f9617f. 552 tests (41 new). Code review: APPROVED. QA: VERIFIED |
+| F060 | GA4 Analytics Integration Fix | frontend | done | 6/6 | Standard. dataLayer.push→gtag, queue+replay+consent gate. GA ID: G-X46WMF1NM5. PR #53, SHA 1d635fd. 592 tests (40 new). Code review: APPROVED WITH NOTES. QA: VERIFIED |
+| F061 | Landing Copy Accuracy | frontend | done | 6/6 | Standard. FAQ enabled chains only, testimonial, urgency, A/B comment. PR #54, SHA ef81906. 605 tests (13 new). Code review: APPROVED. QA: VERIFIED |
+| F062 | Landing Assets & Hero Image Refresh | frontend | pending | — | Medium. Delete 9 unused images, review/replace hero image. From landing audit I5 |
+| F063 | Nav, A/B Cookie & Variant Fixes | frontend | done | 6/6 | Standard. Nav FAQ link, variant cookie on mount, Secure flag. PR #55, SHA dcb04b9. 625 tests (20 new). Code review: APPROVED. QA: VERIFIED |
+| F064 | Accessibility & Code Cleanup | frontend | done | 6/6 | Standard. 10 fixes: aria-selected, contrast, MobileMenu a11y, HSTS, CSP, dead code, honeypot, keyframes, themeColor, sitemap. PR #58, SHA ff25635. 659 tests (35 new). Code review: APPROVED. QA: VERIFIED |
+
+## Features — Validation & Data Quality
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F065 | McDonald's Chain Slug Migration | backend | done | 6/6 | Simple. Rename `mcdonalds` → `mcdonalds-es` / `mcdonalds-pt`. PR #56, SHA 380a982. Applied to dev+prod |
+| F066 | E2E Smoke Tests | backend | done | 6/6 | Standard. 10 E2E smoke tests, real HTTP server. PR #57, SHA d0e63f3. Code review + QA approved |
+| F067 | Data Quality Cleanup | backend | done | 6/6 | Simple. BK leading slashes, FTS ranking tuning. PR #59, SHA 6513e09. Applied to dev+prod |
+
+## Epics — Phase 2 (Product Evolution)
+
+| Epic | Name | Status | Features | Dependencies |
+|------|------|--------|----------|--------------|
+| E006 | Structural Foundations | pending | F068-F070 | Phase 1 complete |
+| E007 | Spanish Food Coverage | pending | F071-F079 | E006 complete |
+| E008 | Conversational Assistant & Voice | pending | F080-F089, F090-F097 | E006 + E007 partial |
+| E009 | Personalization & Tracking | pending | F098-F099, user profiles | E008 partial |
+| E010 | Scale & Monetization | pending | F100-F109 | E008 complete |
+
+## Features — E006 Structural Foundations (Phase A0)
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F068 | Provenance Graph: DataSource priority_tier + BEDCA-first resolution | backend | pending | — | Standard. Add priority_tier to DataSource. Resolution: BEDCA > supermarket > USDA > estimated. `has_explicit_brand` flag. See product-evolution-analysis Sec 17 Foundation 1 |
+| F069 | Anonymous Identity: actor table + middleware | backend | pending | — | Standard. Actor table (anonymous_web / telegram / authenticated). Middleware for X-Actor-Id header. Cookie/UUID for web, chat_id for Telegram. Mergeable on future auth. See product-evolution-analysis Sec 17 Foundation 2 |
+| F070 | Conversation Core: extract bot NL logic → shared API service | backend | pending | — | Standard. Refactor bot NL handler into shared ConversationCore service in packages/api. Intent resolution, entity extraction, context management. Both bot and future web assistant use same core. See product-evolution-analysis Sec 17 Foundation 3 |
+
+## Features — E007 Spanish Food Coverage (Phase A1)
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F071 | BEDCA Food Database Import | backend | pending | — | Standard. Scrape BEDCA XML API (procquery.php). ~431 foods with nutrients, bilingual names. Seed script. PENDING: AESAN commercial license (email sent). Can proceed with parsing, defer production use. See product-evolution-analysis Sec 5 |
+| F072 | Cooking Profiles + Yield Factors | backend | pending | — | Standard. CookingProfile table. 50 high-impact foods. Yield factors for grains/legumes/meat/fish. Default assumptions (grains=cooked, meat=raw). See product-evolution-analysis Sec 6 |
+| F073 | Spanish Canonical Dishes (BEDCA-first + LLM long tail) | backend | pending | — | Standard. ~300 dishes. BEDCA data where available + LLM recipe generation for rest. Calculate via /calculate/recipe (L2). Virtual restaurant `cocina-espanola`. Human review top 50. See product-evolution-analysis Sec 5 |
+| F074 | L4 Cooking State Extraction | backend | pending | — | Simple. Enhance L4 decomposition prompt to extract cooking state per ingredient. Connect to CookingProfile yield factors |
+| F075 | Audio Input (Whisper → ConversationCore, bot) | bot | pending | — | Standard. Telegram voice messages → Whisper API transcription → ConversationCore. Async (push-to-talk). See product-evolution-analysis Sec 6 |
+| F076 | "Modo Menú del Día" (/menu command) | bot | pending | — | Simple. Input: "primero + segundo + postre + bebida". Parse, estimate each, sum total. Uses ConversationCore |
+| F077 | Alcohol Nutrient Support | backend | pending | — | Simple. Add alcohol field to calculation pipeline. 7 kcal/g. BEDCA includes alcohol data for beverages |
+| F078 | Regional Aliases + "Modo España Real" | backend | pending | — | Simple. Aliases table for regional vocabulary: caña=cerveza, pintxo=tapa, media ración=0.5x, bocata=bocadillo, etc. |
+| F079 | Demand-Driven Dish Expansion Pipeline | backend | pending | — | Simple. Monitor /estimate queries returning null. Track frequency in QueryLog. Monthly batch: add top 20 missed queries |
+
+## Features — E008 Conversational Assistant & Voice (Phase B + C)
+
+> **Phase B: Value features that work WITHOUT auth**
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F080 | OFF Prepared Foods Ingestion | backend | pending | — | Standard. Ingest Open Food Facts Hacendado/Mercadona products (~11K). Priority as Tier 0 for branded, Tier 3 fallback for generic queries. ODbL attribution. See product-evolution-analysis Sec 4 |
+| F081 | "Health-Hacker" Chain Suggestions | bot | pending | — | Simple. "Pide sin queso ni salsa: -120 kcal". Modification-based suggestions for chain dishes |
+| F082 | Nutritional Substitutions | backend | pending | — | Simple. "Si cambias patatas fritas por ensalada, ahorras 200 kcal". Compare alternatives for dish components |
+| F083 | Allergen Cross-Reference | backend | pending | — | Simple. Ingredient-level allergen detection from L2 data + OFF ingredient lists |
+| F084 | Estimation with Uncertainty Ranges | backend | pending | — | Simple. Show "320-420 kcal" instead of single number. Based on confidence level + portion variability |
+| F085 | Portion Sizing Matrix (Spanish portions) | backend | pending | — | Simple. Standard portions: "un plato de"=250-300g, "una ración"=200-250g, "media ración"=100-125g, "una tapa"=50-80g, "un pintxo"=30-60g, etc. |
+| F086 | Reverse Search ("¿qué como con X kcal?") | backend | pending | — | Standard. Filter chain menu by calorie/protein constraints. "Estoy en BK, me quedan 600 kcal, necesito 30g proteína" |
+| F087 | "El Tupper" Meal Prep | backend | pending | — | Simple. Divide recipe by N portions. /receta 2kg lentejas... dividir en 5 tuppers |
+| F088 | Community Inline Corrections | bot | pending | — | Standard. "Cálculo incorrecto" inline button. User proposes adjustment. Stored for review. Feeds demand pipeline |
+| F089 | "Modo Tapeo" (shared portions) | bot | pending | — | Simple. Multiple tapas → per-tapa + total ÷ N people |
+
+> **Phase C: Conversational Web Assistant + Realtime Voice**
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F090 | Web Assistant: Shell + Text Mode (/hablar) | frontend | pending | — | Standard. Next.js route /hablar. ConversationCore integration. Text input → JSON response → NutritionCard UI. See conversational-mode-briefing.md + development-plan.md in foodXPlorerResources |
+| F091 | Web Assistant: Async Voice (STT → Core → TTS) | frontend | pending | — | Standard. Whisper transcription → ConversationCore → TTS response. Push-to-talk UX. Async, not realtime |
+| F092 | Web Assistant: Plate Photo Upload | frontend | pending | — | Standard. Photo → existing /analyze/menu pipeline → results in UI. Reuses existing Vision API infrastructure |
+| F093 | Web Assistant: Landing Integration + Analytics | frontend | pending | — | Simple. CTA from landing → /hablar. Analytics events. Visual coherence with landing design system |
+| F094 | Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud | research | pending | — | Research. Compare: Web Speech API (free), Whisper.cpp/Transformers.js (browser), Deepgram (cloud), OpenAI Realtime (cloud). Decide architecture for F095-F097. See product-evolution-analysis "OPEN INVESTIGATION" section |
+| F095 | Realtime Voice: Implement Chosen Architecture | frontend | pending | — | Standard. Based on F094 spike results. WebSocket/WebRTC server if needed. STT streaming + VAD |
+| F096 | Realtime Voice: Pause Detection + Barge-In + Filler | frontend | pending | — | Standard. End-of-speech detection, interruption handling, filler audio for L4 delays ("Déjame calcular...") |
+| F097 | Realtime Voice: Frontend States + Mobile QA | frontend | pending | — | Standard. Listening/Processing/Speaking/Results states. Mobile-first QA. Accessibility fallbacks |
+
+## Features — E009 Personalization & Tracking (Phase C continued)
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F098 | Premium Tier (Feature Gates) | fullstack | pending | — | Standard. Rate limits for free tier (50 queries/day). Premium features: unlimited, photo analysis, voice, tracking |
+| F099 | User Profiles: Goals, BMR, Daily Targets | fullstack | pending | — | Standard. Requires auth (actor_id upgrade). Weight, height, age, activity level → BMR. Goal: lose/maintain/gain. Daily calorie/protein targets |
+
+## Features — E010 Scale & Monetization (Phase D)
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| F100 | Open Food Facts Full Integration (Barcodes) | fullstack | pending | — | Standard. Barcode photo → extraction → OFF query. For packaged products tracking |
+| F101 | Barcode Extraction from Photos | backend | pending | — | Simple. Photo → barcode reading library → OFF lookup |
+| F102 | API B2B Tiers + Documentation | backend | pending | — | Standard. Free (100/mo) → Starter (€49, 5K/mo) → Business (€199, 50K/mo). OpenAPI docs |
+| F103 | Weekly Summary + Charts | frontend | pending | — | Standard. In-bot + web. Calorie/macro trends. Requires tracking (F099) |
+| F104 | "Índice Saciedad vs Precio" Viral Content | frontend | pending | — | Simple. Data journalism: "Los 10 platos que dan más proteína por euro". Landing page content |
+| F105 | Landing Coverage Showcase | frontend | pending | — | Simple. Show actual coverage numbers on landing. Chains + dishes + common Spanish foods |
+| F106 | Google Maps Restaurant Discovery | fullstack | pending | — | Complex. Premium. Legal review required (ToS). See product-evolution-analysis Sec 7 |
+| F107 | Auth Upgrade: Google Identity Platform | fullstack | pending | — | Standard. Actor merge flow. Multi-provider. See product-evolution-analysis Appendix B |
+| F108 | PWA Shell | frontend | pending | — | Standard. If /hablar validates, create installable PWA. Offline basic tracking |
+| F109 | Apple Health / Google Fit Export | fullstack | pending | — | Standard. Export daily totals to health apps. Requires tracking (F099) |
 
 ## Features — Marketing & Growth
 
@@ -175,6 +289,20 @@
 | 2026-03-29 | F050 — Bot NL Punctuation Fix + Help Update | d243c1e (squash merge to develop, PR #43) | Simple bugfix. BUG-AUDIT-01: strip ¿¡?! in extractFoodQuery. /start help updated with /comparar, /contexto, /restaurante. 11 new tests, 1066 total. 6 files changed |
 | 2026-03-29 | F047 — Landing Conversion Optimization | a52546d (squash merge to develop, PR #42) | Standard fullstack (API + landing). 8 conversion items: GA4 init (dataLayer bootstrap), MobileMenu Client Component (hamburger, ARIA, Escape/outside click), phone auto-prepend +34, WaitlistSuccessBanner (useSearchParams + Suspense), forms reduced to 2 per variant, social proof counter (GET /waitlist/count, 5min cache), benefit-oriented CTA copy (Spanish), WCAG AA contrast fix. Spec reviewed by Gemini+Codex (2C+8I). Plan reviewed by Gemini+Codex (7I). Code review: APPROVED (3I noted). QA: 1 bug fixed (BUG-F047-01 Footer form), 29 edge-case tests. 446 landing tests (45 suites) + 4 API. 34 files changed |
 | 2026-03-28 | F046 — Waitlist Persistence + Anti-Spam | e0c83e8 (squash merge to develop, PR #40) | Standard fullstack (API + landing + shared). POST /waitlist (public, honeypot, 5/15min rate limit, email lowercase, P2002→409 idempotent, form-urlencoded 303). GET /admin/waitlist (admin auth, paginated, sort). Prisma migration waitlist_submissions. Landing form → Fastify API, honeypot field, UTM params, 409-as-success. Deleted Next.js route. Zod schemas in shared. Production validator: READY. Code review: APPROVED (3I fixed: max-length, phone validation, source input). QA: 3 bugs (BUG-F046-01 critical fixed, BUG-F046-03 low fixed, BUG-F046-02 medium noted), 94 edge-case tests. API 2449, Landing 332, Shared 339. 31 files changed |
+
+| 2026-03-29 | F051 — Bot Rate-Limit Ordering & Failed-Request Handling | 714efb6 (squash merge to develop, PR #46) | Simple bug. C1: isRateLimited() moved before downloadTelegramFile(). I11: decrement /receta counter on server/network errors, exists guard for TTL expiry. 13 new tests, 1079 total. 6 files changed |
+| 2026-03-29 | F057 — Manual Corrections Batch | aa212bc (worktree commit) | Simple docs. 5 corrections to user-manual-bot.md: /cadenas truncation (I5), error table sync (I6), plurals (S1), half verified (S2), NL error (S3). Section 10/8 deferred to F053/F054 |
+| 2026-03-29 | F058 — Strategic Plan Archival & Rate-Limit Decision Documentation | aa212bc (worktree commit) | Simple docs. Plan marked historical, verification confirmed, ADR-013 (dual rate-limit) + ADR-014 (portion multiplier split) added to decisions.md |
+| 2026-03-29 | F052 — Restaurant Selection chainSlug Propagation | a317aa0 (squash merge to develop, PR #47) | Simple bug. searchResults enriched with chainSlug, sel: + create_rest propagate, backward compat. 6 new tests, 1085 total. 7 files changed |
+| 2026-03-29 | F053 — Decouple Menu Analysis from Restaurant Selection | 700dbc5 (squash merge to develop, PR #48) | Simple bug. Removed selectedRestaurant guard from handlePhoto(). Adaptive keyboard (Option B). 8 new tests, 3 updated, 1093 total. 6 files changed |
+| 2026-03-29 | F054 — Context State Isolation & NL Footer Consistency | fb9d63b (squash merge to develop, PR #49) | Simple bug. I3: manual TTL description fix (Option B). I4: NL handler "Contexto activo" footer. 4 new tests, 1097 total. 3 files changed |
+| 2026-03-29 | F055 — Inline Keyboard Stale-Button Mitigation + Callback Logging | c086e6e (squash merge to develop, PR #51) | Simple bug. Nonce in callback_data, stale-button rejection, unknown callback logging. 9 new tests, 6 updated, 1106 total. 9 files changed |
+| 2026-03-30 | F056 — MIME Detection Fallback Safety | fd5a793 (squash merge to develop, PR #52) | Simple bug. Reject unknown MIME instead of JPEG fallback. 3 new tests, 1109 total. 4 files changed |
+| 2026-03-30 | F063 — Nav, A/B Cookie & Variant Fixes | dcb04b9 (squash merge to develop, PR #55) | Standard frontend. Nav FAQ link (#para-quien→#faq), variant cookie on mount (ePrivacy Art.5.3), Secure flag on all cookie writes. 625 tests (20 new). Code review: APPROVED. QA: VERIFIED |
+| 2026-03-30 | F065 — McDonald's Chain Slug Migration | 380a982 (squash merge to develop, PR #56) | Simple data fix. Rename `mcdonalds` → `mcdonalds-es`/`mcdonalds-pt`. Prisma migration + seed update. Applied to dev+prod Supabase |
+| 2026-03-30 | F064 — Accessibility & Code Cleanup | ff25635 (squash merge to develop, PR #58) | Standard frontend. 10 fixes: aria-selected, contrast (WCAG AA), MobileMenu a11y, HSTS, CSP-Report-Only, dead code, honeypot, keyframes, themeColor, sitemap. 659 tests (35 new). Code review: APPROVED (1 fix). QA: VERIFIED (10 edge-case tests, 0 bugs) |
+| 2026-03-30 | F066 — E2E Smoke Tests | d0e63f3 (squash merge to develop, PR #57) | Standard. 10 E2E smoke tests with real HTTP server (port 0). vitest.config.e2e.ts, NODE_ENV=development. Code review + QA approved |
+| 2026-03-31 | F067 — Data Quality Cleanup | 6513e09 (squash merge to develop, PR #59) | Simple. Clean BK leading slashes (regexp_replace), FTS/similarity length tiebreaker in catalog + level1Lookup. Applied to dev+prod |
 
 ---
 

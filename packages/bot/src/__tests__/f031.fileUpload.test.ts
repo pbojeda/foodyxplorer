@@ -166,26 +166,31 @@ describe('handlePhoto', () => {
     expect(bot.sendMessage).not.toHaveBeenCalled();
   });
 
-  it('sends "Primero selecciona" message when no restaurant is selected (state null)', async () => {
+  it('shows inline keyboard (analyze/identify only) when no restaurant is selected (F053)', async () => {
     const msg = makePhotoMsg(ALLOWED_CHAT_ID);
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
     await handlePhoto(msg, bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG_ALLOWED);
 
     expect(bot.sendMessage).toHaveBeenCalledOnce();
-    const [, text] = bot.sendMessage.mock.calls[0] as [number, string, unknown];
-    expect(text.toLowerCase()).toContain('restaurante');
+    const [, , options] = bot.sendMessage.mock.calls[0] as [number, string, { reply_markup?: { inline_keyboard: Array<Array<{ callback_data: string }>> } }];
+    const callbacks = (options.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.callback_data);
+    expect(callbacks.some((c) => c.startsWith('upload_menu:'))).toBe(true);
+    expect(callbacks.some((c) => c.startsWith('upload_dish:'))).toBe(true);
+    expect(callbacks.some((c) => c.startsWith('upload_ingest:'))).toBe(false);
   });
 
-  it('sends "Primero selecciona" message when state has no selectedRestaurant field', async () => {
+  it('shows inline keyboard (analyze/identify only) when state has no selectedRestaurant (F053)', async () => {
     const msg = makePhotoMsg(ALLOWED_CHAT_ID);
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(JSON.stringify({ pendingSearch: 'something' }));
 
     await handlePhoto(msg, bot as never, apiClient as unknown as ApiClient, redis, TEST_CONFIG_ALLOWED);
 
     expect(bot.sendMessage).toHaveBeenCalledOnce();
-    const [, text] = bot.sendMessage.mock.calls[0] as [number, string, unknown];
-    expect(text.toLowerCase()).toContain('restaurante');
+    const [, , options] = bot.sendMessage.mock.calls[0] as [number, string, { reply_markup?: { inline_keyboard: Array<Array<{ callback_data: string }>> } }];
+    const callbacks = (options.reply_markup?.inline_keyboard ?? []).flat().map((b) => b.callback_data);
+    expect(callbacks.some((c) => c.startsWith('upload_menu:'))).toBe(true);
+    expect(callbacks.some((c) => c.startsWith('upload_ingest:'))).toBe(false);
   });
 
   it('sends "El archivo supera el límite" message when file_size > 10MB', async () => {
@@ -238,9 +243,9 @@ describe('handlePhoto', () => {
     const [, , opts] = bot.sendMessage.mock.calls[0] as [number, string, TelegramBot.SendMessageOptions];
     const keyboard = (opts?.reply_markup as { inline_keyboard: TelegramBot.InlineKeyboardButton[][] })?.inline_keyboard;
     const allCallbackData = keyboard?.flat().map((btn) => btn.callback_data);
-    expect(allCallbackData).toContain('upload_ingest');
-    expect(allCallbackData).toContain('upload_menu');
-    expect(allCallbackData).toContain('upload_dish');
+    expect(allCallbackData?.some((c) => c?.startsWith('upload_ingest:'))).toBe(true);
+    expect(allCallbackData?.some((c) => c?.startsWith('upload_menu:'))).toBe(true);
+    expect(allCallbackData?.some((c) => c?.startsWith('upload_dish:'))).toBe(true);
   });
 
   it('setState preserves existing state fields alongside pendingPhotoFileId', async () => {

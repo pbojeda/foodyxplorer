@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import Link from 'next/link';
 import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -127,6 +128,7 @@ export function WaitlistForm({ source, variant, showPhone = false, submitLabel =
     setErrorMessage(null);
 
     const utmParams = getUtmParams();
+    const honeypotValue = (e.currentTarget.elements.namedItem('honeypot') as HTMLInputElement | null)?.value ?? '';
 
     // Fire CTA analytics
     if (source === 'hero') {
@@ -150,7 +152,7 @@ export function WaitlistForm({ source, variant, showPhone = false, submitLabel =
       const response = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/waitlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, ...(phone.trim() ? { phone: phone.trim() } : {}), variant, source, ...utmParams, honeypot: '' }),
+        body: JSON.stringify({ email, ...(phone.trim() ? { phone: phone.trim() } : {}), variant, source, ...utmParams, honeypot: honeypotValue }),
       });
 
       if (response.ok || response.status === 409) {
@@ -223,8 +225,7 @@ export function WaitlistForm({ source, variant, showPhone = false, submitLabel =
         tabIndex={-1}
         aria-hidden="true"
         autoComplete="off"
-        value=""
-        readOnly
+        defaultValue=""
         style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0, overflow: 'hidden' }}
       />
 
@@ -294,6 +295,14 @@ export function WaitlistForm({ source, variant, showPhone = false, submitLabel =
 
       <p className="text-center text-xs text-slate-500">
         Sin spam. Solo lanzamiento y acceso temprano.
+      </p>
+
+      <p className="text-center text-xs text-slate-500">
+        Al unirte, aceptas nuestra{' '}
+        <Link href="/privacidad" className="underline underline-offset-2 hover:text-slate-700">
+          Política de Privacidad
+        </Link>
+        . Responsable: Pablo Eduardo Ojeda Vasco. Finalidad: gestionar tu acceso anticipado.
       </p>
 
       <div aria-live="polite" aria-atomic="true" className="sr-only">

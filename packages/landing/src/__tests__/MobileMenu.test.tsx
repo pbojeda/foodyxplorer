@@ -23,7 +23,7 @@ jest.mock('next/link', () => {
 const NAV_LINKS = [
   { label: 'Demo', href: '#demo' },
   { label: 'Cómo funciona', href: '#como-funciona' },
-  { label: 'Para quién', href: '#para-quien' },
+  { label: 'FAQ', href: '#faq' },
 ];
 
 function setup() {
@@ -126,5 +126,69 @@ describe('MobileMenu', () => {
     NAV_LINKS.forEach(({ label }) => {
       expect(screen.getByText(label)).toBeInTheDocument();
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F064 — A3 dynamic aria-label and focus management
+// ---------------------------------------------------------------------------
+
+describe('F064 — MobileMenu dynamic aria-label and focus management', () => {
+  it('hamburger button label is "Abrir menú" when menu is closed', () => {
+    setup();
+    expect(screen.getByRole('button', { name: 'Abrir menú' })).toBeInTheDocument();
+  });
+
+  it('hamburger button label changes to "Cerrar menú" after opening', async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    expect(screen.getByRole('button', { name: 'Cerrar menú' })).toBeInTheDocument();
+  });
+
+  it('hamburger button label reverts to "Abrir menú" after closing via Escape', async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('button', { name: 'Abrir menú' })).toBeInTheDocument();
+  });
+
+  it('pressing Escape returns focus to the hamburger button', async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    await user.keyboard('{Escape}');
+    const btn = screen.getByRole('button', { name: 'Abrir menú' });
+    expect(document.activeElement).toBe(btn);
+  });
+
+  it('pressing Escape when menu is already closed does NOT move focus to the hamburger button', async () => {
+    const user = userEvent.setup();
+    setup();
+    // Menu starts closed — press Escape without opening
+    await user.keyboard('{Escape}');
+    const btn = screen.getByRole('button', { name: 'Abrir menú' });
+    expect(document.activeElement).not.toBe(btn);
+  });
+
+  it('clicking outside the menu does NOT return focus to the hamburger button', async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    // Click outside
+    await user.click(document.body);
+    // Menu is closed, but focus should NOT be on the hamburger button
+    const btn = screen.queryByRole('button', { name: 'Abrir menú' });
+    expect(document.activeElement).not.toBe(btn);
+  });
+
+  it('clicking a nav link does NOT return focus to the hamburger button', async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    await user.click(screen.getByText('Demo'));
+    const btn = screen.queryByRole('button', { name: 'Abrir menú' });
+    expect(document.activeElement).not.toBe(btn);
   });
 });

@@ -10,6 +10,7 @@
 // The Telegram bot token NEVER leaves this process. Files are downloaded to
 // an in-process Buffer and forwarded to the API as multipart.
 
+import crypto from 'node:crypto';
 import type TelegramBot from 'node-telegram-bot-api';
 import type { Redis } from 'ioredis';
 import { ApiError } from '../apiClient.js';
@@ -114,16 +115,6 @@ export async function handlePhoto(
 
   const state = await getState(redis, msg.chat.id);
 
-  // Guard: a restaurant must be selected
-  if (!state?.selectedRestaurant) {
-    await bot.sendMessage(
-      msg.chat.id,
-      escapeMarkdown('Primero selecciona un restaurante con /restaurante <nombre>.'),
-      { parse_mode: 'MarkdownV2' },
-    );
-    return;
-  }
-
   // Select the highest-resolution photo (last in array — Telegram sorts ascending)
   // Non-null assertion: msg.photo is guaranteed non-undefined here (guarded above)
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -142,8 +133,25 @@ export async function handlePhoto(
     return;
   }
 
-  // Store the fileId in Redis state — callback handler retrieves it
-  await setState(redis, msg.chat.id, { ...state, pendingPhotoFileId: photo.file_id });
+  // Generate a nonce to bind this keyboard to this specific photo (F055).
+  // Prevents stale-button race: if user sends Photo B before pressing Photo A's button,
+  // Photo A's keyboard will have a mismatched nonce and be rejected.
+  const nonce = crypto.randomBytes(4).toString('hex'); // 8 hex chars
+
+  // Store the fileId and nonce in Redis state — callback handler retrieves and validates them
+  await setState(redis, msg.chat.id, { ...state, pendingPhotoFileId: photo.file_id, pendingPhotoNonce: nonce });
+
+  // Build inline keyboard: always show analyze/identify; only show upload if restaurant is selected.
+  // upload_ingest requires a restaurant (the callback handler checks independently),
+  // but analyze/identify are independent of restaurant context (F053).
+  // Nonce is appended to each callback_data (F055).
+  const hasRestaurant = !!state?.selectedRestaurant;
+  const keyboard: Array<Array<{ text: string; callback_data: string }>> = [];
+  if (hasRestaurant) {
+    keyboard.push([{ text: '📖 Subir al catálogo', callback_data: `upload_ingest:${nonce}` }]);
+  }
+  keyboard.push([{ text: '🧮 Analizar menú', callback_data: `upload_menu:${nonce}` }]);
+  keyboard.push([{ text: '🍽️ Identificar plato', callback_data: `upload_dish:${nonce}` }]);
 
   // Send inline keyboard for intent selection
   await bot.sendMessage(
@@ -151,13 +159,7 @@ export async function handlePhoto(
     '¿Qué quieres hacer con esta foto?',
     {
       parse_mode: 'MarkdownV2',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '📖 Subir al catálogo', callback_data: 'upload_ingest' }],
-          [{ text: '🧮 Analizar menú', callback_data: 'upload_menu' }],
-          [{ text: '🍽️ Identificar plato', callback_data: 'upload_dish' }],
-        ],
-      },
+      reply_markup: { inline_keyboard: keyboard },
     },
   );
 }

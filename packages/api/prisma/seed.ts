@@ -409,13 +409,13 @@ async function main(): Promise<void> {
   // Restaurants
   // ---------------------------------------------------------------------------
   const restaurantMcDonaldsES = await prisma.restaurant.upsert({
-    where: { chainSlug_countryCode: { chainSlug: 'mcdonalds', countryCode: 'ES' } },
+    where: { chainSlug_countryCode: { chainSlug: 'mcdonalds-es', countryCode: 'ES' } },
     update: {},
     create: {
       id: '00000000-0000-0000-0006-000000000001',
       name: "McDonald's Spain",
       nameEs: "McDonald's España",
-      chainSlug: 'mcdonalds',
+      chainSlug: 'mcdonalds-es',
       countryCode: 'ES',
       website: 'https://www.mcdonalds.es',
       isActive: true,
@@ -423,13 +423,13 @@ async function main(): Promise<void> {
   });
 
   await prisma.restaurant.upsert({
-    where: { chainSlug_countryCode: { chainSlug: 'mcdonalds', countryCode: 'PT' } },
+    where: { chainSlug_countryCode: { chainSlug: 'mcdonalds-pt', countryCode: 'PT' } },
     update: {},
     create: {
       id: '00000000-0000-0000-0006-000000000002',
       name: "McDonald's Portugal",
       nameEs: "McDonald's Portugal",
-      chainSlug: 'mcdonalds',
+      chainSlug: 'mcdonalds-pt',
       countryCode: 'PT',
       website: 'https://www.mcdonalds.pt',
       isActive: true,

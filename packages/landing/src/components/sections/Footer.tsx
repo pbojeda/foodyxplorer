@@ -1,5 +1,6 @@
 import type { Dictionary } from '@/lib/i18n';
 import type { Variant } from '@/types';
+import { CookieSettingsLink } from '@/components/analytics/CookieSettingsLink';
 
 interface FooterProps {
   dict: Dictionary['footer'];
@@ -93,6 +94,12 @@ export function Footer({ dict, variant }: FooterProps) {
                   >
                     {dict.links.legal}
                   </a>
+                </li>
+                <li>
+                  <CookieSettingsLink
+                    label={dict.cookieSettings}
+                    className="text-sm text-slate-400 hover:text-white transition-colors duration-200 underline-offset-4 hover:underline"
+                  />
                 </li>
               </ul>
             </nav>

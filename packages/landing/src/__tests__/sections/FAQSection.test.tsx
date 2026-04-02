@@ -82,4 +82,28 @@ describe('FAQSection', () => {
     expect(section).toHaveAttribute('aria-labelledby', 'faq-heading');
     expect(container.querySelector('#faq-heading')).not.toBeNull();
   });
+
+  it('section element has id="faq"', () => {
+    const { container } = render(<FAQSection dict={dict.faq} />);
+    const section = container.querySelector('section');
+    expect(section).toHaveAttribute('id', 'faq');
+  });
+});
+
+describe('FAQSection — data safety answer (F059 C3)', () => {
+  it('FAQ answer for data safety contains "lista de espera"', () => {
+    const dataSafetyItem = dict.faq.items.find((item) =>
+      item.question.includes('datos están seguros')
+    );
+    expect(dataSafetyItem).toBeDefined();
+    expect(dataSafetyItem!.answer).toContain('lista de espera');
+  });
+
+  it('FAQ answer for data safety does NOT contain "No almacenamos datos personales"', () => {
+    const dataSafetyItem = dict.faq.items.find((item) =>
+      item.question.includes('datos están seguros')
+    );
+    expect(dataSafetyItem).toBeDefined();
+    expect(dataSafetyItem!.answer).not.toContain('No almacenamos datos personales');
+  });
 });

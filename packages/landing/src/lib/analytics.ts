@@ -2,7 +2,8 @@ import type { AnalyticsEventPayload } from '@/types';
 
 declare global {
   interface Window {
-    dataLayer: unknown[];
+    __nxEventQueue?: AnalyticsEventPayload[];
+    __nxConsentDenied?: boolean;
     gtag?: (...args: unknown[]) => void;
   }
 }
@@ -10,11 +11,47 @@ declare global {
 export function trackEvent(payload: AnalyticsEventPayload): void {
   if (typeof window === 'undefined') return;
 
-  if (window.dataLayer) {
-    window.dataLayer.push(payload);
-  } else if (process.env.NODE_ENV === 'development') {
+  if (!process.env['NEXT_PUBLIC_GA_MEASUREMENT_ID']) {
     console.debug('[Analytics]', payload);
+    return;
   }
+
+  if (window.__nxConsentDenied === true) {
+    return;
+  }
+
+  if (window.gtag) {
+    const { event: eventName, ...params } = payload;
+    window.gtag('event', eventName, params);
+    return;
+  }
+
+  window.__nxEventQueue = window.__nxEventQueue ?? [];
+  window.__nxEventQueue.push(payload);
+  if (window.__nxEventQueue.length > 50) {
+    window.__nxEventQueue.shift();
+  }
+}
+
+export function drainEventQueue(): void {
+  if (typeof window === 'undefined') return;
+  if (!window.__nxEventQueue || window.__nxEventQueue.length === 0) return;
+
+  const pending = [...window.__nxEventQueue];
+  window.__nxEventQueue = [];
+
+  if (!window.gtag) return;
+
+  for (const item of pending) {
+    const { event: eventName, ...params } = item;
+    window.gtag('event', eventName, params);
+  }
+}
+
+export function clearEventQueue(): void {
+  if (typeof window === 'undefined') return;
+  window.__nxEventQueue = [];
+  window.__nxConsentDenied = true;
 }
 
 export function getUtmParams(): Pick<

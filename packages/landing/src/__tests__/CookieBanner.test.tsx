@@ -5,6 +5,11 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CookieBanner } from '@/components/analytics/CookieBanner';
 
+jest.mock('../lib/analytics', () => ({
+  drainEventQueue: jest.fn(),
+  clearEventQueue: jest.fn(),
+}));
+
 // Mock next/script — calls onLoad immediately so we can test GA4 initialization
 jest.mock('next/script', () => {
   return function MockScript({ onLoad, id }: { onLoad?: () => void; id?: string }) {
@@ -76,10 +81,13 @@ describe('CookieBanner', () => {
     expect(localStorage.getItem(CONSENT_KEY)).toBe('rejected');
   });
 
-  it('does not write A/B cookie on reject click', () => {
+  it('does not write A/B cookie on reject click (variant cookie is written on mount, not on reject)', () => {
+    // Reset cookieWritten after render so we only see writes triggered by the reject action
     render(<CookieBanner variant="a" />);
+    cookieWritten = null; // clear the mount write
     fireEvent.click(screen.getByRole('button', { name: /rechazar/i }));
 
+    // Reject click should not trigger a new variant cookie write
     expect(cookieWritten).toBeNull();
   });
 
@@ -93,6 +101,116 @@ describe('CookieBanner', () => {
     render(<CookieBanner variant="a" />);
     fireEvent.click(screen.getByRole('button', { name: /rechazar/i }));
     expect(screen.queryByRole('region', { name: /cookie/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('CookieBanner — deletes GA cookies on reject (F059 C2)', () => {
+  let cookieSetSpy: jest.SpyInstance;
+  const cookieWrites: string[] = [];
+
+  beforeEach(() => {
+    localStorage.clear();
+    cookieWrites.length = 0;
+
+    const cookieDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
+    cookieSetSpy = jest.spyOn(document, 'cookie', 'set').mockImplementation((val: string) => {
+      cookieWrites.push(val);
+      cookieDescriptor?.set?.call(document, val);
+    });
+  });
+
+  afterEach(() => {
+    cookieSetSpy.mockRestore();
+  });
+
+  it('calls document.cookie setter with _ga expiry string on reject', () => {
+    // Seed a _ga cookie in document.cookie getter (simulated via string)
+    jest.spyOn(document, 'cookie', 'get').mockReturnValue('_ga=GA1.2.123456789.1234567890; nx-variant=a');
+
+    render(<CookieBanner variant="a" />);
+    fireEvent.click(screen.getByRole('button', { name: /rechazar/i }));
+
+    const gaDeletion = cookieWrites.find((w) => w.startsWith('_ga=') && w.includes('max-age=0'));
+    expect(gaDeletion).toBeDefined();
+  });
+});
+
+describe('CookieBanner — nx-variant cookie on mount (F063)', () => {
+  const cookieWrites: string[] = [];
+
+  beforeEach(() => {
+    localStorage.clear();
+    cookieWrites.length = 0;
+
+    const cookieDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
+    jest.spyOn(document, 'cookie', 'set').mockImplementation((val: string) => {
+      cookieWrites.push(val);
+      cookieDescriptor?.set?.call(document, val);
+    });
+    // No prior nx-variant cookie
+    jest.spyOn(document, 'cookie', 'get').mockReturnValue('');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('sets nx-variant cookie on mount before any consent choice', () => {
+    render(<CookieBanner variant="a" />);
+    const variantWrite = cookieWrites.find((w) => w.startsWith(`${VARIANT_COOKIE}=`));
+    expect(variantWrite).toBeDefined();
+  });
+
+  it('mount cookie string includes "secure"', () => {
+    render(<CookieBanner variant="a" />);
+    const variantWrite = cookieWrites.find((w) => w.startsWith(`${VARIANT_COOKIE}=`));
+    expect(variantWrite).toContain('secure');
+  });
+
+  it('handleAccept cookie also includes "secure"', () => {
+    render(<CookieBanner variant="c" />);
+    cookieWrites.length = 0; // clear mount write
+    fireEvent.click(screen.getByRole('button', { name: /aceptar/i }));
+    const variantWrite = cookieWrites.find((w) => w.startsWith(`${VARIANT_COOKIE}=`));
+    expect(variantWrite).toBeDefined();
+    expect(variantWrite).toContain('secure');
+  });
+});
+
+import { drainEventQueue, clearEventQueue } from '../lib/analytics';
+
+describe('CookieBanner — queue integration (F060)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('calls drainEventQueue once when "Aceptar" is clicked', () => {
+    render(<CookieBanner variant="a" />);
+    fireEvent.click(screen.getByRole('button', { name: /aceptar/i }));
+    expect(drainEventQueue).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls clearEventQueue once when "Rechazar" is clicked', () => {
+    render(<CookieBanner variant="a" />);
+    fireEvent.click(screen.getByRole('button', { name: /rechazar/i }));
+    expect(clearEventQueue).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call drainEventQueue when "Rechazar" is clicked', () => {
+    render(<CookieBanner variant="a" />);
+    fireEvent.click(screen.getByRole('button', { name: /rechazar/i }));
+    expect(drainEventQueue).not.toHaveBeenCalled();
+  });
+
+  it('does not call clearEventQueue when "Aceptar" is clicked', () => {
+    render(<CookieBanner variant="a" />);
+    fireEvent.click(screen.getByRole('button', { name: /aceptar/i }));
+    expect(clearEventQueue).not.toHaveBeenCalled();
   });
 });
 

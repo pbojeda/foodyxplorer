@@ -1,7 +1,7 @@
 # Manual de Usuario — foodXPlorer Bot (Telegram)
 
 > Guia completa de todas las funcionalidades del bot de Telegram de foodXPlorer.
-> Ultima actualizacion: 2026-03-29 (incluye F050 — NL punctuation fix, F049 — Manual overhaul)
+> Ultima actualizacion: 2026-03-30 (incluye F053 — desacople foto/restaurante, F054 — NL context footer, F055 — nonce stale-button, F056 — MIME detection)
 
 ---
 
@@ -268,7 +268,7 @@ Puedes escribir en espanol sin usar `/` y el bot intentara entender tu consulta.
 - El bot acepta acentos o no (`calorias` = `calorías`), mayusculas o minusculas.
 - Signos `¿` y `?` se manejan correctamente: `¿que tiene mas calorias, big mac o whopper?` funciona.
 - Limite de **500 caracteres** para mensajes de texto libre.
-- Si el texto es muy largo: "Por favor, se mas especifico. Escribe el nombre del plato directamente."
+- Si el texto es muy largo: "Por favor, se mas especifico. Escribe el nombre del plato directamente, por ejemplo: big mac."
 
 ---
 
@@ -284,7 +284,7 @@ Anade una palabra de tamano al nombre del plato para ajustar las cantidades. Fun
 | `doble` / `racion doble` | x2.0 | `doble whopper` |
 | `triple` | x3.0 | `triple hamburguesa` |
 
-> **Nota:** Tambien se aceptan plurales: `dobles`, `grandes`, `triples`, `minis`, `raciones dobles`, `medias raciones`.
+> **Nota:** Tambien se aceptan plurales: `dobles`, `grandes`, `triples`, `minis`, `pequenos`, `pequenas`, `raciones dobles`, `medias raciones`.
 
 ### Ejemplos combinados
 
@@ -354,7 +354,7 @@ Bot:     *Big Mac*
 
 ### Expiracion automatica
 
-El contexto expira automaticamente tras **2 horas** desde el ultimo cambio de contexto (establecer o borrar). Las consultas normales (`/estimar`, lenguaje natural, etc.) **no reinician** el temporizador.
+El contexto expira automaticamente tras **2 horas desde la ultima interaccion con el bot**. Cualquier accion que modifique el estado de la conversacion (establecer/borrar contexto, buscar restaurantes, enviar fotos, etc.) reinicia el temporizador. En la practica, el contexto se mantiene activo mientras usas el bot.
 
 ### Notas
 
@@ -374,7 +374,7 @@ El contexto expira automaticamente tras **2 horas** desde el ultimo cambio de co
 /cadenas
 ```
 
-Muestra todas las cadenas de restaurantes activas con nombre, slug, pais y numero de platos. Si hay muchas cadenas, la lista se trunca con un indicador "Mostrando X de Y".
+Muestra todas las cadenas de restaurantes activas con nombre, slug, pais y numero de platos. Si hay muchas cadenas y el mensaje supera el limite de Telegram, la lista se trunca con el indicador "Lista recortada".
 
 ### Listar restaurantes
 
@@ -426,7 +426,8 @@ Envia una **foto** al bot y aparecera un menu con tres opciones:
 
 ### Requisitos
 
-- Debes tener un **restaurante seleccionado** (usa `/restaurante <nombre>` primero).
+- **📖 Subir al catalogo** requiere un **restaurante seleccionado** (usa `/restaurante <nombre>` primero). Si no hay restaurante, este boton no aparece.
+- **🧮 Analizar menu** e **🍽️ Identificar plato** funcionan sin necesidad de seleccionar un restaurante.
 - Tu chat debe estar en la lista de chats permitidos (`ALLOWED_CHAT_IDS`).
 - Tamano maximo: **10 MB**.
 
@@ -504,7 +505,7 @@ API: conectada ✅
 | Texto libre (NL) | 500 caracteres | Por mensaje |
 | Texto de receta | 2000 caracteres | Por mensaje |
 | Tamano de archivo | 10 MB | Por archivo |
-| Contexto conversacional | 2 horas | Desde ultimo set/clear |
+| Contexto conversacional | 2 horas | Desde ultima interaccion |
 
 Nota: si Redis no esta disponible, los limites de tasa se desactivan (fail-open) y las peticiones se procesan igualmente.
 
@@ -531,22 +532,28 @@ Nota: si Redis no esta disponible, los limites de tasa se desactivan (fail-open)
 | Sin argumentos | "Uso: /receta `<ingredientes>`" |
 | Texto demasiado largo | "La receta es demasiado larga. El limite es de 2000 caracteres." |
 | Limite por hora | "Has alcanzado el limite de recetas por hora. Intentalo mas tarde." |
-| Ingredientes no resueltos | "No se pudo resolver ningun ingrediente de la receta." |
+| Ingredientes no resueltos | "No se pudo resolver ningun ingrediente. Intenta con nombres mas concretos." |
 | LLM no entiende la lista | "No entendi la lista de ingredientes. Intenta con el formato: 200g pollo, 100g arroz." |
 
 ### Errores de fotos y analisis
 
 | Situacion | Mensaje |
 |-----------|---------|
-| Sin restaurante seleccionado | "No hay restaurante seleccionado. Usa /restaurante `<nombre>` de nuevo." |
-| Analisis de menu fallido | "No se pudieron identificar platos en el menu." |
-| Imagen invalida | "Imagen no valida o no soportada." |
+| Sin restaurante seleccionado (foto) | "No hay restaurante seleccionado. Usa /restaurante `<nombre>` de nuevo." |
+| Sin restaurante seleccionado (documento) | "Primero selecciona un restaurante con /restaurante `<nombre>`." |
+| Restaurante ya existe | "El restaurante ya existe en la base de datos." |
+| Estado expirado al seleccionar | "No se pudo recuperar el restaurante. Intenta la busqueda de nuevo." |
+| Analisis de menu fallido | "No se pudieron identificar platos en la imagen. Prueba con una foto mas clara del menu." |
+| Imagen invalida | "El archivo no es una imagen o formato valido. Envia una foto JPEG, PNG, WebP o un PDF." |
 | OCR fallido | "No se pudo extraer texto de la imagen. Asegurate de que el texto del menu sea legible." |
 | Identificacion fallida | "No se pudo identificar el plato." |
-| Limite por hora | "Has alcanzado el limite de analisis por hora." |
-| Foto expirada | "No se pudo descargar el archivo. Intentalo de nuevo." |
+| Limite por hora | "Has alcanzado el limite de analisis de menu (5 por hora). Intentalo de nuevo mas tarde." |
+| Foto expirada | "La foto ha expirado. Envia la foto de nuevo." |
+| Accion expirada (boton antiguo) | "Esta accion ya no es valida. Envia la foto de nuevo." |
+| Formato no soportado | "Formato de imagen no soportado. Envia una foto JPEG, PNG o WebP." |
 | Archivo demasiado grande | "El archivo supera el limite de 10 MB." |
-| Vision API no disponible | "El servicio de analisis de imagenes no esta disponible." |
+| Vision API no disponible | "El servicio de analisis de imagenes no esta disponible en este momento. Intentalo mas tarde." |
+| Error de descarga | "Error al descargar el archivo. Intentalo de nuevo." |
 
 ### Errores de contexto
 

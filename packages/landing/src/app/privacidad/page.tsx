@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
+import { CookieSettingsLink } from '@/components/analytics/CookieSettingsLink';
 
 export const metadata: Metadata = {
   title: 'Política de privacidad | nutriXplorer',
@@ -31,9 +32,9 @@ export default function PrivacidadPage() {
                 personales es:
               </p>
               <ul className="mt-3 space-y-1 text-slate-600 list-none">
-                <li><strong>Nombre / Razón social:</strong> [NOMBRE COMPLETO]</li>
-                <li><strong>NIF/CIF:</strong> [NIF/CIF]</li>
-                <li><strong>Dirección:</strong> [DIRECCIÓN]</li>
+                <li><strong>Nombre / Razón social:</strong> Pablo Eduardo Ojeda Vasco</li>
+                <li><strong>NIF/CIF:</strong> 12387725V</li>
+                <li><strong>Dirección:</strong> Calle Luis Morote 41, Playa de Melenara, Las Palmas, 35214</li>
                 <li>
                   <strong>Correo electrónico:</strong>{' '}
                   <a href="mailto:privacidad@nutrixplorer.com" className="text-green-700 underline">
@@ -175,6 +176,11 @@ export default function PrivacidadPage() {
         <Link href="/" className="text-sm text-slate-500 hover:text-slate-700 transition-colors">
           ← Volver al inicio
         </Link>
+        {' · '}
+        <CookieSettingsLink
+          label="Gestionar cookies"
+          className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+        />
       </footer>
     </>
   );

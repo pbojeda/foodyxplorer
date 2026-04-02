@@ -36,12 +36,25 @@ export interface BotStateChainContext {
 }
 
 /**
+ * Enriched search result entry stored per restaurant UUID.
+ * Stores name + optional chainSlug so the `sel:{uuid}` callback can
+ * propagate chainSlug into selectedRestaurant without an extra API call.
+ *
+ * Backward compat: old-format entries may be plain strings (name only).
+ * Consumers must handle both shapes during the 2h TTL transition.
+ */
+export interface SearchResultEntry {
+  name: string;
+  chainSlug?: string;
+}
+
+/**
  * The full state persisted for a chat session.
  *
  * - `selectedRestaurant`: The restaurant currently in context for the chat.
  * - `searchResults`:      The last inline-keyboard search results, keyed by
- *                         UUID. Used by the `sel:{uuid}` callback handler to
- *                         recover the name without an extra API call.
+ *                         UUID. Each entry is a SearchResultEntry (or a plain
+ *                         string for backward compat with pre-F052 state).
  * - `pendingSearch`:      The last search term typed by the user, preserved
  *                         so the `create_rest` callback can create the
  *                         restaurant with the correct name.
@@ -53,9 +66,11 @@ export interface BotStateChainContext {
  */
 export interface BotState {
   selectedRestaurant?: BotStateRestaurant;
-  searchResults?: Record<string, string>;  // { [uuid]: name }
+  searchResults?: Record<string, string | SearchResultEntry>;
   pendingSearch?: string;
   pendingPhotoFileId?: string;
+  /** Nonce generated when photo keyboard is shown. Used to detect stale buttons (F055). */
+  pendingPhotoNonce?: string;
   chainContext?: BotStateChainContext;
 }
 

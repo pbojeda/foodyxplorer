@@ -27,6 +27,7 @@ interface MobileMenuProps {
 export function MobileMenu({ navLinks, ctaText: _ctaText, mobileCta }: MobileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const PANEL_ID = 'mobile-menu-panel';
 
   const close = useCallback(() => setIsOpen(false), []);
@@ -42,23 +43,25 @@ export function MobileMenu({ navLinks, ctaText: _ctaText, mobileCta }: MobileMen
     return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [close]);
 
-  // Close on Escape key
+  // Close on Escape key — return focus to hamburger button only when closing
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && isOpen) {
+        buttonRef.current?.focus();
         close();
       }
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [close]);
+  }, [close, isOpen]);
 
   return (
     <div ref={containerRef} className="md:hidden">
       {/* Hamburger button */}
       <button
+        ref={buttonRef}
         type="button"
-        aria-label="Abrir menú"
+        aria-label={isOpen ? 'Cerrar menú' : 'Abrir menú'}
         aria-expanded={isOpen}
         aria-controls={PANEL_ID}
         onClick={() => setIsOpen((prev) => !prev)}

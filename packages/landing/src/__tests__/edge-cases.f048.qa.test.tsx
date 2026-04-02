@@ -388,21 +388,21 @@ describe('F048 QA — Security headers source pattern', () => {
     expect(headersConfig[0]?.source).toBe('/(.*)');
   });
 
-  it('exactly 4 security headers are configured (no CSP, no HSTS — per spec)', () => {
+  it('at least 4 security headers are configured', () => {
     const headers = headersConfig[0]?.headers ?? [];
-    expect(headers).toHaveLength(4);
+    expect(headers.length).toBeGreaterThanOrEqual(4);
   });
 
-  it('does not include a Content-Security-Policy header (deferred per spec)', () => {
+  it('does not include a Content-Security-Policy (enforcement) header — only Report-Only is used', () => {
     const headers = headersConfig[0]?.headers ?? [];
     const csp = headers.find((h) => h.key === 'Content-Security-Policy');
     expect(csp).toBeUndefined();
   });
 
-  it('does not include a Strict-Transport-Security header (handled at infra level)', () => {
+  it('includes a Strict-Transport-Security header (added in F064)', () => {
     const headers = headersConfig[0]?.headers ?? [];
     const hsts = headers.find((h) => h.key === 'Strict-Transport-Security');
-    expect(hsts).toBeUndefined();
+    expect(hsts).toBeDefined();
   });
 });
 

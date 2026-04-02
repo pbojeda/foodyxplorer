@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import Script from 'next/script';
 import type { Variant } from '@/types';
 import { VARIANT_COOKIE_NAME, VARIANT_COOKIE_MAX_AGE } from '@/lib/ab-testing';
+import { deleteGaCookies } from '@/lib/deleteGaCookies';
+import { drainEventQueue, clearEventQueue } from '@/lib/analytics';
 
-const CONSENT_KEY = 'nx-cookie-consent';
+export const CONSENT_KEY = 'nx-cookie-consent';
 const GA_ID = process.env['NEXT_PUBLIC_GA_MEASUREMENT_ID'] ?? '';
 
 function safeGetItem(key: string): string | null {
@@ -40,17 +42,23 @@ export function CookieBanner({ variant }: CookieBannerProps) {
       setConsent(stored);
       if (stored === 'accepted') setLoadGA(true);
     }
+    if (!document.cookie.includes(VARIANT_COOKIE_NAME)) {
+      document.cookie = `${VARIANT_COOKIE_NAME}=${variant}; max-age=${VARIANT_COOKIE_MAX_AGE}; path=/; samesite=lax; secure`;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- variant is resolved server-side and stable after mount
   }, []);
 
   function handleAccept() {
     safeSetItem(CONSENT_KEY, 'accepted');
-    document.cookie = `${VARIANT_COOKIE_NAME}=${variant}; max-age=${VARIANT_COOKIE_MAX_AGE}; path=/; samesite=lax`;
+    document.cookie = `${VARIANT_COOKIE_NAME}=${variant}; max-age=${VARIANT_COOKIE_MAX_AGE}; path=/; samesite=lax; secure`;
     setConsent('accepted');
     setLoadGA(true);
   }
 
   function handleReject() {
     safeSetItem(CONSENT_KEY, 'rejected');
+    deleteGaCookies();
+    clearEventQueue();
     setConsent('rejected');
   }
 
@@ -62,12 +70,14 @@ export function CookieBanner({ variant }: CookieBannerProps) {
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
         strategy="afterInteractive"
         onLoad={() => {
-          window.dataLayer = window.dataLayer || [];
+          const win = window as Window & { dataLayer?: unknown[] };
+          win.dataLayer = win.dataLayer || [];
           window.gtag = function (...args: unknown[]) {
-            window.dataLayer.push(args);
+            win.dataLayer!.push(args);
           };
           window.gtag('js', new Date());
           window.gtag('config', GA_ID);
+          drainEventQueue();
         }}
       />
     ) : null;

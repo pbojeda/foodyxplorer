@@ -134,7 +134,7 @@ export const en: Dictionary = {
   emotionalBlock: {
     headline: 'What would eating out with more calm feel like?',
     quote: '"Finally, I can go out to eat with my family without constant fear of allergens."',
-    quoteAuthor: 'Beta user, Madrid',
+    quoteAuthor: 'The experience we aim to deliver',
     scenarios: [
       {
         scene: 'Reading the menu',
@@ -235,7 +235,7 @@ export const en: Dictionary = {
       {
         question: 'Which restaurants are available?',
         answer:
-          "We currently cover 10 Spanish chains with official data (McDonald's, Burger King, KFC, Telepizza, Subway, Domino's, Pans & Company, and more). We are expanding coverage to local restaurants and new chains every week.",
+          "We currently cover the main Spanish chains with official data: McDonald's, Burger King, KFC, Telepizza, Domino's, Five Guys, Popeyes, Papa John's, and more. We are continuously expanding coverage.",
       },
       {
         question: 'Is it free?',
@@ -245,7 +245,7 @@ export const en: Dictionary = {
       {
         question: 'Is my data safe?',
         answer:
-          'We do not store personal data or track users. Bot queries are anonymous. We comply with GDPR and our privacy policy is available on the website.',
+          'We only store your email and phone (optional) when you join the waitlist. Analytics (Google Analytics 4) only runs if you accept cookies. Telegram bot queries will be anonymous. We comply with GDPR — see our privacy policy for full details.',
       },
       {
         question: 'How can I get access?',
@@ -258,7 +258,7 @@ export const en: Dictionary = {
     headline: 'Discover exactly what you eat at your favourite restaurant',
     subtitle:
       'nutriXplorer is in development. Join the waitlist and be among the first to access it when we launch.',
-    urgency: 'Limited spots for early access',
+    urgency: 'Sign up to get early access when we launch',
     trustNote: 'No spam. No commitments. We only notify you when we launch.',
   },
   footer: {
@@ -268,6 +268,7 @@ export const en: Dictionary = {
       cookies: 'Cookie policy',
       legal: 'Legal notice',
     },
+    cookieSettings: 'Manage cookies',
     madeIn: 'Made in Spain',
     copyright: '© 2026 nutriXplorer. All rights reserved.',
   },
