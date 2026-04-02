@@ -6377,6 +6377,18 @@ components:
           nullable: true
           description: Source URL if available; null for USDA seed data.
           example: "https://www.mcdonalds.es/.../nutritional.pdf"
+        priorityTier:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 3
+          description: |
+            Data source priority tier (ADR-015, F068). Lower = higher priority.
+            Tier 0: Brand/restaurant official (chain PDFs, supermarket packaging).
+            Tier 1: National reference (BEDCA lab data).
+            Tier 2: International reference (USDA).
+            Tier 3: Estimated (engine L2-L4, LLM-bootstrapped, community).
+          example: 0
 
     EstimateResult:
       type: object

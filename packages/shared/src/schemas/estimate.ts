@@ -58,6 +58,7 @@ export const EstimateSourceSchema = z.object({
   name: z.string(),
   type: DataSourceTypeSchema,
   url: z.string().nullable(),
+  priorityTier: z.number().int().min(0).max(3).nullable().optional(),
 });
 
 export type EstimateSource = z.infer<typeof EstimateSourceSchema>;

@@ -24,6 +24,7 @@ import {
 import type { DB } from '../generated/kysely-types.js';
 import { runEstimationCascade } from '../estimation/engineRouter.js';
 import { level4Lookup } from '../estimation/level4Lookup.js';
+import { detectExplicitBrand, loadChainSlugs } from '../estimation/brandDetector.js';
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 import { config } from '../config.js';
 import { writeQueryLog } from '../lib/queryLogger.js';
@@ -79,6 +80,14 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
   opts,
 ) => {
   const { db, prisma } = opts;
+
+  // F068: Load chain slugs once at plugin init for brand detection
+  let chainSlugs: string[] = [];
+  try {
+    chainSlugs = await loadChainSlugs(db);
+  } catch {
+    // Non-critical — brand detection will treat all queries as generic
+  }
 
   app.get(
     '/estimate',
@@ -174,6 +183,9 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         return reply.send({ success: true, data: cached });
       }
 
+      // --- F068: Brand detection ---
+      const { hasExplicitBrand } = detectExplicitBrand(query, chainSlugs);
+
       // --- Estimation cascade (L1→L2→L3→L4) ---
       const routerResult = await runEstimationCascade({
         db,
@@ -183,6 +195,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         openAiApiKey: config.OPENAI_API_KEY,
         level4Lookup,
         logger: request.log,
+        hasExplicitBrand,
       });
 
       cacheHit = false;

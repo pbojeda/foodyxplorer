@@ -50,6 +50,8 @@ export interface EngineRouterOptions {
   level4Lookup?: Level4LookupFn;
   /** Optional logger forwarded to L4 for token usage logging. */
   logger?: { info: (obj: Record<string, unknown>, msg?: string) => void; warn: (obj: Record<string, unknown>, msg?: string) => void; debug: (obj: Record<string, unknown>, msg?: string) => void };
+  /** F068: When true, L1 attempts Tier 0 (branded) match first before normal cascade. */
+  hasExplicitBrand?: boolean;
 }
 
 export type EngineRouterResult = {
@@ -75,7 +77,7 @@ export type EngineRouterResult = {
 export async function runEstimationCascade(
   opts: EngineRouterOptions,
 ): Promise<EngineRouterResult> {
-  const { db, query, chainSlug, restaurantId, openAiApiKey, level4Lookup, logger } = opts;
+  const { db, query, chainSlug, restaurantId, openAiApiKey, level4Lookup, logger, hasExplicitBrand } = opts;
 
   // Normalize for DB lookups. Raw query is echoed in data.query.
   const normalizedQuery = query.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -83,7 +85,7 @@ export async function runEstimationCascade(
   // --- Level 1 lookup ---
   let lookupResult1;
   try {
-    lookupResult1 = await level1Lookup(db, normalizedQuery, { chainSlug, restaurantId });
+    lookupResult1 = await level1Lookup(db, normalizedQuery, { chainSlug, restaurantId, hasExplicitBrand });
   } catch (err) {
     throw Object.assign(
       new Error('Database query failed'),

@@ -27,6 +27,8 @@ import type {
 export interface Level1LookupOptions {
   chainSlug?: string;
   restaurantId?: string;
+  /** F068: When true, L1 attempts Tier 0 (branded) match first before normal cascade. */
+  hasExplicitBrand?: boolean;
 }
 
 /**
@@ -117,6 +119,7 @@ export interface DishQueryRow {
   source_name: string;
   source_type: string;
   source_url: string | null;
+  source_priority_tier: string | null;
 }
 
 /**
@@ -148,6 +151,7 @@ export interface FoodQueryRow {
   source_name: string;
   source_type: string;
   source_url: string | null;
+  source_priority_tier: string | null;
 }
 
 /**
@@ -219,12 +223,15 @@ export function parseDecimal(value: string | null | undefined): number {
 // Mapping functions
 // ---------------------------------------------------------------------------
 
-function mapSource(row: { source_id: string; source_name: string; source_type: string; source_url: string | null }): EstimateSource {
+function mapSource(row: { source_id: string; source_name: string; source_type: string; source_url: string | null; source_priority_tier?: string | null }): EstimateSource {
   return {
     id: row.source_id,
     name: row.source_name,
     type: row.source_type as EstimateSource['type'],
     url: row.source_url,
+    priorityTier: row.source_priority_tier !== undefined && row.source_priority_tier !== null
+      ? parseInt(row.source_priority_tier, 10)
+      : null,
   };
 }
 
@@ -360,6 +367,7 @@ export function mapLevel2RowToResult(row: IngredientNutrientRow): {
       name: 'Computed from ingredients',
       type: 'estimated',
       url: null,
+      priorityTier: 3,
     },
     similarityDistance: null,
   };

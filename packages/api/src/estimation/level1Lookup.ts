@@ -9,7 +9,12 @@
 // Each strategy uses a CTE to de-duplicate nutrient rows (most recent wins).
 // Returns the first successful result as Level1Result, or null if all miss.
 //
-// See: ADR-001 (confidence strategy), ADR-000 (Kysely for complex queries)
+// F068: Results ordered by data_sources.priority_tier ASC NULLS LAST (ADR-015).
+// When hasExplicitBrand=true, first attempt filters to Tier 0 only; falls through
+// to unfiltered cascade if no Tier 0 match found.
+//
+// See: ADR-001 (confidence strategy), ADR-000 (Kysely for complex queries),
+//      ADR-015 (provenance graph, priority tier)
 
 import { sql } from 'kysely';
 import type { Kysely } from 'kysely';
@@ -33,6 +38,7 @@ async function exactDishMatch(
   db: Kysely<DB>,
   normalizedQuery: string,
   options: Level1LookupOptions,
+  tierFilter?: number,
 ): Promise<DishQueryRow | undefined> {
   const { restaurantId, chainSlug } = options;
 
@@ -41,6 +47,10 @@ async function exactDishMatch(
     : chainSlug !== undefined
       ? sql`AND r.chain_slug = ${chainSlug}`
       : sql``;
+
+  const tierClause = tierFilter !== undefined
+    ? sql`AND ds.priority_tier = ${tierFilter}`
+    : sql``;
 
   const result = await sql<DishQueryRow>`
     WITH ranked_dn AS (
@@ -73,13 +83,16 @@ async function exactDishMatch(
       ds.id         AS source_id,
       ds.name       AS source_name,
       ds.type::text AS source_type,
-      ds.url        AS source_url
+      ds.url        AS source_url,
+      ds.priority_tier::text AS source_priority_tier
     FROM dishes d
     JOIN restaurants r ON r.id = d.restaurant_id
     JOIN ranked_dn rdn ON rdn.dish_id = d.id AND rdn.rn = 1
     JOIN data_sources ds ON ds.id = rdn.source_id
     WHERE LOWER(d.name) = LOWER(${normalizedQuery})
     ${scopeClause}
+    ${tierClause}
+    ORDER BY ds.priority_tier ASC NULLS LAST
     LIMIT 1
   `.execute(db);
 
@@ -94,6 +107,7 @@ async function ftsDishMatch(
   db: Kysely<DB>,
   normalizedQuery: string,
   options: Level1LookupOptions,
+  tierFilter?: number,
 ): Promise<DishQueryRow | undefined> {
   const { restaurantId, chainSlug } = options;
 
@@ -102,6 +116,10 @@ async function ftsDishMatch(
     : chainSlug !== undefined
       ? sql`AND r.chain_slug = ${chainSlug}`
       : sql``;
+
+  const tierClause = tierFilter !== undefined
+    ? sql`AND ds.priority_tier = ${tierFilter}`
+    : sql``;
 
   const result = await sql<DishQueryRow>`
     WITH ranked_dn AS (
@@ -134,7 +152,8 @@ async function ftsDishMatch(
       ds.id         AS source_id,
       ds.name       AS source_name,
       ds.type::text AS source_type,
-      ds.url        AS source_url
+      ds.url        AS source_url,
+      ds.priority_tier::text AS source_priority_tier
     FROM dishes d
     JOIN restaurants r ON r.id = d.restaurant_id
     JOIN ranked_dn rdn ON rdn.dish_id = d.id AND rdn.rn = 1
@@ -144,7 +163,8 @@ async function ftsDishMatch(
       OR to_tsvector('english', d.name) @@ plainto_tsquery('english', ${normalizedQuery})
     )
     ${scopeClause}
-    ORDER BY length(COALESCE(d.name_es, d.name)) ASC
+    ${tierClause}
+    ORDER BY ds.priority_tier ASC NULLS LAST, length(COALESCE(d.name_es, d.name)) ASC
     LIMIT 1
   `.execute(db);
 
@@ -158,7 +178,12 @@ async function ftsDishMatch(
 async function exactFoodMatch(
   db: Kysely<DB>,
   normalizedQuery: string,
+  tierFilter?: number,
 ): Promise<FoodQueryRow | undefined> {
+  const tierClause = tierFilter !== undefined
+    ? sql`AND ds.priority_tier = ${tierFilter}`
+    : sql``;
+
   const result = await sql<FoodQueryRow>`
     WITH ranked_fn AS (
       SELECT fn.*,
@@ -187,12 +212,15 @@ async function exactFoodMatch(
       ds.id         AS source_id,
       ds.name       AS source_name,
       ds.type::text AS source_type,
-      ds.url        AS source_url
+      ds.url        AS source_url,
+      ds.priority_tier::text AS source_priority_tier
     FROM foods f
     JOIN ranked_fn rfn ON rfn.food_id = f.id AND rfn.rn = 1
     JOIN data_sources ds ON ds.id = rfn.source_id
-    WHERE LOWER(f.name_es) = LOWER(${normalizedQuery})
-       OR LOWER(f.name) = LOWER(${normalizedQuery})
+    WHERE (LOWER(f.name_es) = LOWER(${normalizedQuery})
+       OR LOWER(f.name) = LOWER(${normalizedQuery}))
+    ${tierClause}
+    ORDER BY ds.priority_tier ASC NULLS LAST
     LIMIT 1
   `.execute(db);
 
@@ -206,7 +234,12 @@ async function exactFoodMatch(
 async function ftsFoodMatch(
   db: Kysely<DB>,
   normalizedQuery: string,
+  tierFilter?: number,
 ): Promise<FoodQueryRow | undefined> {
+  const tierClause = tierFilter !== undefined
+    ? sql`AND ds.priority_tier = ${tierFilter}`
+    : sql``;
+
   const result = await sql<FoodQueryRow>`
     WITH ranked_fn AS (
       SELECT fn.*,
@@ -235,17 +268,59 @@ async function ftsFoodMatch(
       ds.id         AS source_id,
       ds.name       AS source_name,
       ds.type::text AS source_type,
-      ds.url        AS source_url
+      ds.url        AS source_url,
+      ds.priority_tier::text AS source_priority_tier
     FROM foods f
     JOIN ranked_fn rfn ON rfn.food_id = f.id AND rfn.rn = 1
     JOIN data_sources ds ON ds.id = rfn.source_id
-    WHERE to_tsvector('spanish', f.name_es) @@ plainto_tsquery('spanish', ${normalizedQuery})
-       OR to_tsvector('english', f.name) @@ plainto_tsquery('english', ${normalizedQuery})
-    ORDER BY length(COALESCE(f.name_es, f.name)) ASC
+    WHERE (to_tsvector('spanish', f.name_es) @@ plainto_tsquery('spanish', ${normalizedQuery})
+       OR to_tsvector('english', f.name) @@ plainto_tsquery('english', ${normalizedQuery}))
+    ${tierClause}
+    ORDER BY ds.priority_tier ASC NULLS LAST, length(COALESCE(f.name_es, f.name)) ASC
     LIMIT 1
   `.execute(db);
 
   return result.rows[0];
+}
+
+// ---------------------------------------------------------------------------
+// Internal cascade runner
+// ---------------------------------------------------------------------------
+
+/**
+ * Run the 4-strategy cascade with optional tier filtering.
+ */
+async function runCascade(
+  db: Kysely<DB>,
+  normalizedQuery: string,
+  options: Level1LookupOptions,
+  tierFilter?: number,
+): Promise<Level1Result | null> {
+  // Strategy 1: exact dish
+  const exactDishRow = await exactDishMatch(db, normalizedQuery, options, tierFilter);
+  if (exactDishRow !== undefined) {
+    return { matchType: 'exact_dish', result: mapDishRowToResult(exactDishRow) };
+  }
+
+  // Strategy 2: FTS dish
+  const ftsDishRow = await ftsDishMatch(db, normalizedQuery, options, tierFilter);
+  if (ftsDishRow !== undefined) {
+    return { matchType: 'fts_dish', result: mapDishRowToResult(ftsDishRow) };
+  }
+
+  // Strategy 3: exact food (no chain scope)
+  const exactFoodRow = await exactFoodMatch(db, normalizedQuery, tierFilter);
+  if (exactFoodRow !== undefined) {
+    return { matchType: 'exact_food', result: mapFoodRowToResult(exactFoodRow) };
+  }
+
+  // Strategy 4: FTS food (no chain scope)
+  const ftsFoodRow = await ftsFoodMatch(db, normalizedQuery, tierFilter);
+  if (ftsFoodRow !== undefined) {
+    return { matchType: 'fts_food', result: mapFoodRowToResult(ftsFoodRow) };
+  }
+
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -256,11 +331,16 @@ async function ftsFoodMatch(
  * Execute the Level 1 official data lookup cascade.
  *
  * Tries 4 strategies in order; returns the first match or null if all miss.
+ * Results are ordered by priority_tier ASC NULLS LAST (ADR-015, F068).
+ *
+ * When hasExplicitBrand=true (F068): first pass filters to Tier 0 only.
+ * If no Tier 0 match → falls through to normal (unfiltered) cascade.
+ *
  * Throws with code='DB_UNAVAILABLE' on database errors.
  *
  * @param db     - Kysely DB instance
  * @param query  - Raw query string (will be normalized internally)
- * @param options - Optional chain/restaurant scoping
+ * @param options - Optional chain/restaurant scoping + brand flag
  */
 export async function level1Lookup(
   db: Kysely<DB>,
@@ -270,31 +350,17 @@ export async function level1Lookup(
   const normalizedQuery = normalizeQuery(query);
 
   try {
-    // Strategy 1: exact dish
-    const exactDishRow = await exactDishMatch(db, normalizedQuery, options);
-    if (exactDishRow !== undefined) {
-      return { matchType: 'exact_dish', result: mapDishRowToResult(exactDishRow) };
+    // F068: Branded query → try Tier 0 first
+    if (options.hasExplicitBrand === true) {
+      const tier0Result = await runCascade(db, normalizedQuery, options, 0);
+      if (tier0Result !== null) {
+        return tier0Result;
+      }
+      // Fall through to unfiltered cascade
     }
 
-    // Strategy 2: FTS dish
-    const ftsDishRow = await ftsDishMatch(db, normalizedQuery, options);
-    if (ftsDishRow !== undefined) {
-      return { matchType: 'fts_dish', result: mapDishRowToResult(ftsDishRow) };
-    }
-
-    // Strategy 3: exact food (no chain scope)
-    const exactFoodRow = await exactFoodMatch(db, normalizedQuery);
-    if (exactFoodRow !== undefined) {
-      return { matchType: 'exact_food', result: mapFoodRowToResult(exactFoodRow) };
-    }
-
-    // Strategy 4: FTS food (no chain scope)
-    const ftsFoodRow = await ftsFoodMatch(db, normalizedQuery);
-    if (ftsFoodRow !== undefined) {
-      return { matchType: 'fts_food', result: mapFoodRowToResult(ftsFoodRow) };
-    }
-
-    return null;
+    // Normal cascade (ordered by priority_tier)
+    return await runCascade(db, normalizedQuery, options);
   } catch (err) {
     throw Object.assign(
       new Error('Database query failed'),

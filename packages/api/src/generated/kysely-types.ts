@@ -44,6 +44,7 @@ export type DataSource = {
   name: string;
   type: DataSourceType;
   url: string | null;
+  priority_tier: number | null;
   last_updated: Timestamp | null;
   created_at: Generated<Timestamp>;
   updated_at: Timestamp;
