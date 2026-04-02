@@ -4595,6 +4595,21 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
 components:
+  parameters:
+    XActorId:
+      name: X-Actor-Id
+      in: header
+      required: false
+      description: |
+        Anonymous identity header (F069, ADR-016). Web clients send a UUID v4
+        (persisted in localStorage). Telegram bot sends "telegram:<chat_id>".
+        If missing or invalid, the server auto-creates a new anonymous actor and
+        returns the assigned UUID in the X-Actor-Id response header.
+        Used for per-actor rate limiting and analytics.
+      schema:
+        type: string
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
   schemas:
     # -------------------------------------------------------------------------
     # Ingestion
