@@ -207,6 +207,8 @@ N/A — backend only.
 | 2026-04-02 | Implementation complete | 0ab331f — feat(data): add priority_tier + brand detection. 16 files, 926 insertions |
 | 2026-04-02 | Validator fixes | d53e1d2 — parsePriorityTier NaN guard, remove dead code, fix comment |
 | 2026-04-02 | PR created | #60 → develop. Code review + QA executing |
+| 2026-04-02 | Review findings | Accepted: H1 (cache key comment), H2 (regex simplify), M1 (migration IS NULL guards). No critical/high blockers. QA: 14/14 AC pass, 1 low-risk edge case noted |
+| 2026-04-02 | Review fixes | e5878e7 — IS NULL guards, regex simplify, cache key comment |
 
 ---
 
@@ -219,10 +221,10 @@ N/A — backend only.
 | 0. Validate ticket structure | [x] | Sections verified: Spec, Plan, AC, DoD, Workflow, Log, Evidence |
 | 1. Mark all items | [x] | AC: 14/14, DoD: 7/7, Workflow: 7/8 (Step 6 pending) |
 | 2. Verify product tracker | [x] | Active Session: step 5/6 (Review), Features table: 5/6 |
-| 3. Update key_facts.md | [ ] | Pending — need to add priority_tier info |
+| 3. Update key_facts.md | [x] | Updated: migration list (16), brandDetector module added |
 | 4. Update decisions.md | [x] | ADR-015 already existed (written pre-F068) |
-| 5. Commit documentation | [ ] | Pending — after review findings |
-| 6. Verify clean working tree | [ ] | Pending |
+| 5. Commit documentation | [x] | Commits: 9260c93 (docs update), e5878e7 (review fixes) |
+| 6. Verify clean working tree | [x] | `git status`: clean after final commit |
 
 ---
 
