@@ -11,7 +11,7 @@
 **Last Updated:** 2026-04-02
 
 **Active Feature:** F069 — Anonymous Identity: Actor Table + Middleware
-**Step:** 3/6 (Implement)
+**Step:** 5/6 (Review)
 **Branch:** feature/F069-anonymous-identity
 **Complexity:** Standard
 **Context:** Phase A0 foundation #2. actors table (anonymous_web/telegram/authenticated), X-Actor-Id middleware, per-actor rate limiting, query_log actor_id. ADR-016 defines all rules.
@@ -159,7 +159,7 @@
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F068 | Provenance Graph: DataSource priority_tier + BEDCA-first resolution | backend | done | 6/6 | Standard. Add priority_tier to DataSource. Resolution: BEDCA > supermarket > USDA > estimated. `has_explicit_brand` flag. See product-evolution-analysis Sec 17 Foundation 1 |
-| F069 | Anonymous Identity: actor table + middleware | backend | in-progress | 3/6 | Standard. Actor table (anonymous_web / telegram / authenticated). Middleware for X-Actor-Id header. Cookie/UUID for web, chat_id for Telegram. Mergeable on future auth. See product-evolution-analysis Sec 17 Foundation 2 |
+| F069 | Anonymous Identity: actor table + middleware | backend | in-progress | 5/6 | Standard. Actor table (anonymous_web / telegram / authenticated). Middleware for X-Actor-Id header. Cookie/UUID for web, chat_id for Telegram. Mergeable on future auth. See product-evolution-analysis Sec 17 Foundation 2 |
 | F070 | Conversation Core: extract bot NL logic → shared API service | backend | pending | — | Standard. Refactor bot NL handler into shared ConversationCore service in packages/api. Intent resolution, entity extraction, context management. Both bot and future web assistant use same core. See product-evolution-analysis Sec 17 Foundation 3 |
 
 ## Features — E007 Spanish Food Coverage (Phase A1)

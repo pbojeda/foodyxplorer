@@ -68,7 +68,7 @@ export async function registerActorRateLimit(
       }
 
       if (current > limit) {
-        void reply
+        return reply
           .code(429)
           .header('Retry-After', '3600')
           .send({
@@ -78,7 +78,6 @@ export async function registerActorRateLimit(
               message: `Daily ${bucket} limit exceeded (${limit}/day). Try again tomorrow.`,
             },
           });
-        return;
       }
     } catch {
       // Redis failure
@@ -87,7 +86,7 @@ export async function registerActorRateLimit(
         return;
       }
       // Fail-closed for anonymous (ADR-016)
-      void reply
+      return reply
         .code(429)
         .send({
           success: false,

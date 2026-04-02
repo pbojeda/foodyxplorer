@@ -49,8 +49,8 @@ export async function registerActorResolver(
   app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     const url = request.routeOptions.url;
 
-    // /health — always exempt
-    if (url === '/health') return;
+    // Infrastructure routes — exempt from actor resolution
+    if (url === '/health' || url === '/docs' || url === '/docs/json') return;
 
     const rawHeader = request.headers['x-actor-id'];
     const headerValue = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
@@ -136,11 +136,11 @@ async function createAnonymousActor(
       },
       select: { id: true },
     });
-    void reply.header('X-Actor-Id', externalId);
+    reply.header('X-Actor-Id', externalId);
     return actor.id;
   } catch (err) {
     request.log.warn?.({ err }, 'F069: anonymous actor creation failed');
-    void reply.header('X-Actor-Id', externalId);
+    reply.header('X-Actor-Id', externalId);
     return externalId; // Fallback: use external ID as transient actor ID
   }
 }
