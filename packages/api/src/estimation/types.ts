@@ -219,6 +219,16 @@ export function parseDecimal(value: string | null | undefined): number {
   return isNaN(parsed) ? 0 : parsed;
 }
 
+/**
+ * Parse a priority_tier integer from PostgreSQL. Returns null if absent or unparseable.
+ * Unlike parseDecimal (which defaults to 0), tier 0 is a valid value, so null is the fallback.
+ */
+function parsePriorityTier(value: string | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = parseInt(value, 10);
+  return isNaN(parsed) ? null : parsed;
+}
+
 // ---------------------------------------------------------------------------
 // Mapping functions
 // ---------------------------------------------------------------------------
@@ -229,9 +239,7 @@ function mapSource(row: { source_id: string; source_name: string; source_type: s
     name: row.source_name,
     type: row.source_type as EstimateSource['type'],
     url: row.source_url,
-    priorityTier: row.source_priority_tier !== undefined && row.source_priority_tier !== null
-      ? parseInt(row.source_priority_tier, 10)
-      : null,
+    priorityTier: parsePriorityTier(row.source_priority_tier),
   };
 }
 

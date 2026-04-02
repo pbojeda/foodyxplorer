@@ -3,7 +3,8 @@
 // Extracts `hasExplicitBrand` flag from user queries to route branded queries
 // (e.g., "tortilla hacendado") to Tier 0 data sources (ADR-015).
 //
-// Pure function — no DB access. Known chain slugs are passed in.
+// detectExplicitBrand() is a pure function — known chain slugs are passed in.
+// loadChainSlugs() is a DB utility called once at plugin init.
 
 import type { Kysely } from 'kysely';
 import type { DB } from '../generated/kysely-types.js';
@@ -69,19 +70,6 @@ export function detectExplicitBrand(
     for (const variant of variants) {
       if (matchesAsWord(normalized, variant)) {
         return { hasExplicitBrand: true, detectedBrand: slug };
-      }
-    }
-  }
-
-  // Check common pattern: "de [brand]" at end of query
-  const dePattern = /\bde\s+(\S+)$/;
-  const deMatch = normalized.match(dePattern);
-  if (deMatch) {
-    const candidate = deMatch[1]!;
-    // Only match if the candidate is a known brand
-    for (const brand of SUPERMARKET_BRANDS) {
-      if (candidate === brand) {
-        return { hasExplicitBrand: true, detectedBrand: brand };
       }
     }
   }
