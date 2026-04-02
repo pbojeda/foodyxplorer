@@ -65,6 +65,7 @@ function makeMockClient(): MockApiClient {
     uploadPdf: vi.fn(),
     analyzeMenu: vi.fn(),
     calculateRecipe: vi.fn(),
+    processMessage: vi.fn(),
   };
 }
 

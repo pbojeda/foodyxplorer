@@ -16,15 +16,13 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import type { ApiClient } from '../apiClient.js';
-import type { ChainListItem, EstimateData } from '@foodxplorer/shared';
+import type { ChainListItem, EstimateData, ConversationMessageData } from '@foodxplorer/shared';
 import type { Redis } from 'ioredis';
-import { ApiError } from '../apiClient.js';
 import { detectContextSet } from '../lib/contextDetector.js';
 import { resolveChain } from '../lib/chainResolver.js';
 import {
   formatContextConfirmation,
   formatContextView,
-  formatContextCleared,
 } from '../formatters/contextFormatter.js';
 import type { BotStateChainContext } from '../lib/conversationState.js';
 import { handleContexto } from '../commands/contexto.js';
@@ -162,6 +160,7 @@ function makeMockClient(chains: ChainListItem[] = [CHAIN_MCDONALDS, CHAIN_BURGER
     uploadPdf: vi.fn(),
     analyzeMenu: vi.fn(),
     calculateRecipe: vi.fn(),
+    processMessage: vi.fn(),
   };
 }
 
@@ -645,107 +644,145 @@ describe('handleContexto — edge cases', () => {
 // 6. NL handler — edge cases
 // ===========================================================================
 
+// After F070: handleNaturalLanguage calls apiClient.processMessage() with the raw text.
+// Context detection, chain resolution, and comparison parsing are now server-side.
+// The bot simply passes the raw text and formats the structured response.
 describe('handleNaturalLanguage — edge cases', () => {
-  // Edge case 46: "estoy en" (no chain text) → detectContextSet returns null → falls through to food query
+  // Edge case 46: "estoy en" → server returns estimation intent (no chain matched)
   it('"estoy en" with nothing after → falls through to food query (no chain detection)', async () => {
     const redis = makeMockRedis(null);
     const client = makeMockClient([]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    client.processMessage.mockResolvedValue(messageData);
     await handleNaturalLanguage('estoy en', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    // detectContextSet("estoy en") → null → goes straight to Step 1/2
+    expect(client.processMessage).toHaveBeenCalledWith('estoy en', CHAT_ID, undefined);
     expect(client.listChains).not.toHaveBeenCalled();
-    expect(client.estimate).toHaveBeenCalled();
+    expect(client.estimate).not.toHaveBeenCalled();
   });
 
-  // Edge case 47: "estoy en " (trailing space) → detectContextSet returns null → falls through
+  // Edge case 47: "estoy en " (trailing space) → server returns estimation intent
   it('"estoy en " (trailing space) → falls through to food query', async () => {
     const redis = makeMockRedis(null);
     const client = makeMockClient([]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    client.processMessage.mockResolvedValue(messageData);
     await handleNaturalLanguage('estoy en ', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
+    expect(client.processMessage).toHaveBeenCalledWith('estoy en ', CHAT_ID, undefined);
     expect(client.listChains).not.toHaveBeenCalled();
-    expect(client.estimate).toHaveBeenCalled();
+    expect(client.estimate).not.toHaveBeenCalled();
   });
 
-  // Edge case 48: "Estoy En McDonalds" (mixed case) → Step 0 detects it, chain found → confirmation
+  // Edge case 48: "Estoy En McDonalds" (mixed case) → server detects context set
   it('"Estoy En McDonalds" (mixed case) → context set (case-insensitive detection)', async () => {
     const redis = makeMockRedis(null);
     const client = makeMockClient([CHAIN_MCDONALDS]);
+    const messageData: ConversationMessageData = {
+      intent: 'context_set',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      contextSet: { chainSlug: 'mcdonalds-es', chainName: "McDonald's" },
+      activeContext: { chainSlug: 'mcdonalds-es', chainName: "McDonald's" },
+    };
+    client.processMessage.mockResolvedValue(messageData);
     const result = await handleNaturalLanguage('Estoy En McDonalds', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
     expect(result).toContain('Contexto establecido');
     expect(client.estimate).not.toHaveBeenCalled();
   });
 
-  // Edge case 49: "estoy en 🍔" → detectContextSet returns "🍔",
-  // resolveChain gets "🍔" → normalized length 2 → null → silent fall-through → food query
+  // Edge case 49: "estoy en 🍔" → server falls through to estimation (emoji chain not found)
   it('"estoy en 🍔" → chain not found (emoji), falls through to food query silently', async () => {
     const redis = makeMockRedis(null);
     const client = makeMockClient([CHAIN_MCDONALDS]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    client.processMessage.mockResolvedValue(messageData);
     const result = await handleNaturalLanguage('estoy en 🍔', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
     // Should NOT return error message about chains
     expect(result).not.toContain('No encontré ninguna cadena');
-    // Should fall through to food query
-    expect(client.estimate).toHaveBeenCalled();
+    expect(client.processMessage).toHaveBeenCalledOnce();
   });
 
-  // Edge case 50: NL with active context + explicit chain override — explicit chain wins, context NOT changed
-  it('active context + NL query with explicit "en burger-king-es" → explicit slug used, context unchanged', async () => {
+  // Edge case 50: NL with active context + explicit chain override — processMessage receives raw text + legacy context
+  it('active context + NL query with explicit "en burger-king-es" → processMessage called with raw text and legacyContext', async () => {
     const state = JSON.stringify({ chainContext: { chainSlug: 'mcdonalds-es', chainName: 'McDonalds' } });
     const redis = makeMockRedis(state);
     const client = makeMockClient([]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_WITH_RESULT,
+      activeContext: null,
+    };
+    client.processMessage.mockResolvedValue(messageData);
     await handleNaturalLanguage('big mac en burger-king-es', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    // The explicit slug from the query wins
-    expect(client.estimate).toHaveBeenCalledWith({ query: 'big mac', chainSlug: 'burger-king-es' });
-    // Redis should NOT be written (context not changed)
-    expect(redis.set).not.toHaveBeenCalled();
+    // The bot passes the raw text and legacy context — server resolves the winner
+    expect(client.processMessage).toHaveBeenCalledWith(
+      'big mac en burger-king-es', CHAT_ID, { chainSlug: 'mcdonalds-es', chainName: 'McDonalds' },
+    );
+    expect(client.estimate).not.toHaveBeenCalled();
   });
 
-  // Edge case 51: listChains is slow/times out during Step 0
-  // Simulated as: listChains rejects with a generic Error (not ApiError) → should rethrow
+  // Edge case 51: processMessage rejects with non-ApiError → error propagates
   it('listChains throws non-ApiError during Step 0 → error propagates (not swallowed)', async () => {
     const redis = makeMockRedis(null);
     const client = makeMockClient([]);
-    client.listChains.mockRejectedValue(new Error('connection timeout'));
-    // handleNaturalLanguage delegates to handleContextSet which rethrows non-ApiErrors
+    client.processMessage.mockRejectedValue(new Error('connection timeout'));
     await expect(
       handleNaturalLanguage('estoy en mcdonalds', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient),
     ).rejects.toThrow('connection timeout');
   });
 
-  // Edge case 52: NL comparison with explicit chain — handleNaturalLanguage uses extractComparisonQuery
-  // which requires a Spanish comparison PREFIX (e.g., "compara", "qué engorda más").
-  // Plain "big mac en mcdonalds-es vs whopper" has NO prefix → extractComparisonQuery returns null.
-  // It falls to Step 2 (single-dish) instead. This is by design — NL comparisons need a prefix.
-  // The /comparar command handles prefix-free "A vs B" syntax directly.
+  // Edge case 52: NL comparison with explicit chain — server returns estimation or comparison intent.
+  // The bot sends the raw text; server decides the intent.
   it('NL plain "big mac en mcdonalds-es vs whopper" — no comparison prefix → treated as single-dish query (not comparison)', async () => {
     const state = JSON.stringify({ chainContext: { chainSlug: 'burger-king-es', chainName: 'Burger King' } });
     const redis = makeMockRedis(state);
     const client = makeMockClient([]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_WITH_RESULT,
+      activeContext: { chainSlug: 'burger-king-es', chainName: 'Burger King' },
+    };
+    client.processMessage.mockResolvedValue(messageData);
     await handleNaturalLanguage('big mac en mcdonalds-es vs whopper', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    // Falls through to Step 2 single-dish — only one estimate call
-    expect(client.estimate).toHaveBeenCalledTimes(1);
+    expect(client.processMessage).toHaveBeenCalledOnce();
+    expect(client.estimate).not.toHaveBeenCalled();
   });
 
-  // Edge case 52b: NL comparison WITH prefix + explicit chain on one side + context
-  // "compara big mac en mcdonalds-es con whopper" with BK context → dishA explicit, dishB uses context
+  // Edge case 52b: NL comparison WITH prefix + context → processMessage receives raw text
   it('NL comparison WITH prefix "compara big mac en mcdonalds-es con whopper" + BK context → explicit wins for A, context for B', async () => {
     const state = JSON.stringify({ chainContext: { chainSlug: 'burger-king-es', chainName: 'Burger King' } });
     const redis = makeMockRedis(state);
     const client = makeMockClient([]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    const messageData: ConversationMessageData = {
+      intent: 'comparison',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      comparison: { dishA: ESTIMATE_DATA_WITH_RESULT, dishB: ESTIMATE_DATA_WITH_RESULT },
+      activeContext: { chainSlug: 'burger-king-es', chainName: 'Burger King' },
+    };
+    client.processMessage.mockResolvedValue(messageData);
     await handleNaturalLanguage('compara big mac en mcdonalds-es con whopper', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    // extractComparisonQuery finds "compara" prefix → splits on "con"
-    // dishA = "big mac en mcdonalds-es", dishB = "whopper"
-    expect(client.estimate).toHaveBeenCalledTimes(2);
-    const callA = (client.estimate.mock.calls[0] as [{ query: string; chainSlug?: string }])[0];
-    const callB = (client.estimate.mock.calls[1] as [{ query: string; chainSlug?: string }])[0];
-    // dishA has explicit mcdonalds-es
-    expect(callA.chainSlug).toBe('mcdonalds-es');
-    // dishB has no explicit slug → context fallback
-    expect(callB.chainSlug).toBe('burger-king-es');
+    // Bot sends raw text + legacy context. Server handles the routing.
+    expect(client.processMessage).toHaveBeenCalledWith(
+      'compara big mac en mcdonalds-es con whopper',
+      CHAT_ID,
+      { chainSlug: 'burger-king-es', chainName: 'Burger King' },
+    );
+    expect(client.estimate).not.toHaveBeenCalled();
   });
 
   // Edge case 53: state with chainContext but no other fields — clear should leave empty state
@@ -979,29 +1016,42 @@ describe('spec compliance — acceptance criteria gap checks', () => {
     expect(Object.prototype.hasOwnProperty.call(callArgs, 'chainSlug')).toBe(false);
   });
 
-  // AC#17: NL "estoy en casa" → silent fall-through, NO error shown to user
+  // AC#17: NL "estoy en casa" → server returns estimation intent (no chain found)
   it('AC#17: NL "estoy en casa" → detectContextSet matches, resolveChain returns null → silent fall-through to food estimate', async () => {
     const redis = makeMockRedis(null);
     const client = makeMockClient([]); // no chains
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    client.processMessage.mockResolvedValue(messageData);
     const result = await handleNaturalLanguage('estoy en casa', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
     // MUST NOT show error about chains
     expect(result).not.toContain('No encontré ninguna cadena');
     expect(result).not.toContain('No pude comprobar');
-    // MUST fall through to food estimate (even if result is null)
-    expect(client.estimate).toHaveBeenCalled();
+    // Bot calls processMessage, server handles the routing
+    expect(client.processMessage).toHaveBeenCalledOnce();
+    expect(client.estimate).not.toHaveBeenCalled();
   });
 
   // AC#18: NL "estoy en mcdonalds, cuántas calorías tiene el big mac" → comma blocks regex → food query
   it('AC#18: comma after chain name → regex blocked → processed as food query', async () => {
     const redis = makeMockRedis(null);
     const client = makeMockClient([CHAIN_MCDONALDS]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    client.processMessage.mockResolvedValue(messageData);
     await handleNaturalLanguage('estoy en mcdonalds, cuántas calorías tiene el big mac', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    // detectContextSet returns null (comma blocks) → no chain resolution
+    // Bot calls processMessage with raw text — server handles detection
+    expect(client.processMessage).toHaveBeenCalledOnce();
     expect(client.listChains).not.toHaveBeenCalled();
-    // Falls through to food estimate
-    expect(client.estimate).toHaveBeenCalled();
+    expect(client.estimate).not.toHaveBeenCalled();
   });
 
   // AC#20: /estimar with implicit context → response includes "_Contexto activo: <chainName>_"

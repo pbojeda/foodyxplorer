@@ -1,0 +1,234 @@
+// ConversationCore — main pipeline for POST /conversation/message (F070, Step 7)
+//
+// processMessage() implements the 5-step NL pipeline:
+//   0. Load context (always first)
+//   1. Length guard (> 500 chars → text_too_long)
+//   2. Context-set detection
+//   3. Comparison detection
+//   4. Single-dish estimation
+//
+// All dependencies are passed via ConversationRequest (full DI, no module-level singletons).
+
+import type { ConversationMessageData } from '@foodxplorer/shared';
+import type { ConversationRequest, ConversationContext } from './types.js';
+import { getContext, setContext } from './contextManager.js';
+import { resolveChain } from './chainResolver.js';
+import { estimate } from './estimationOrchestrator.js';
+import {
+  detectContextSet,
+  extractComparisonQuery,
+  extractPortionModifier,
+  extractFoodQuery,
+  parseDishExpression,
+} from './entityExtractor.js';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const MAX_TEXT_LENGTH = 500;
+
+// ---------------------------------------------------------------------------
+// processMessage
+// ---------------------------------------------------------------------------
+
+/**
+ * Main entry point for natural language conversation processing.
+ *
+ * Returns a ConversationMessageData with `intent` and structured fields.
+ * Never returns formatted text — callers (bot adapter, web adapter) format.
+ */
+export async function processMessage(
+  req: ConversationRequest,
+): Promise<ConversationMessageData> {
+  const {
+    text,
+    actorId,
+    db,
+    redis,
+    openAiApiKey,
+    level4Lookup,
+    chainSlugs,
+    chains,
+    logger,
+    legacyChainSlug,
+    legacyChainName,
+  } = req;
+
+  // -------------------------------------------------------------------------
+  // Step 0 — Load context (always first, fail-open)
+  // -------------------------------------------------------------------------
+
+  let rawContext: ConversationContext | null = null;
+  try {
+    rawContext = await getContext(actorId, redis);
+  } catch {
+    // Fail-open: Redis errors → treat as no context
+    rawContext = null;
+  }
+
+  // Merge conv:ctx with legacy context (conv:ctx takes priority)
+  const effectiveContext: ConversationContext | null =
+    rawContext ??
+    (legacyChainSlug && legacyChainName
+      ? { chainSlug: legacyChainSlug, chainName: legacyChainName }
+      : null);
+
+  // Build activeContext for response echoing
+  const activeContext: ConversationMessageData['activeContext'] =
+    effectiveContext?.chainSlug && effectiveContext?.chainName
+      ? { chainSlug: effectiveContext.chainSlug, chainName: effectiveContext.chainName }
+      : null;
+
+  // -------------------------------------------------------------------------
+  // Step 1 — Length guard
+  // -------------------------------------------------------------------------
+
+  const trimmed = text.trim();
+
+  if (trimmed.length > MAX_TEXT_LENGTH) {
+    return {
+      intent: 'text_too_long',
+      actorId,
+      activeContext,
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 2 — Context-set detection
+  // -------------------------------------------------------------------------
+
+  const chainIdentifier = detectContextSet(trimmed);
+
+  if (chainIdentifier !== null) {
+    const resolved = resolveChain(chainIdentifier, chains);
+
+    if (resolved === 'ambiguous') {
+      return {
+        intent: 'context_set',
+        actorId,
+        ambiguous: true as const,
+        activeContext,
+      };
+    }
+
+    if (resolved !== null) {
+      // Successfully resolved — write to Redis and return
+      await setContext(actorId, { chainSlug: resolved.chainSlug, chainName: resolved.chainName }, redis);
+      return {
+        intent: 'context_set',
+        actorId,
+        contextSet: { chainSlug: resolved.chainSlug, chainName: resolved.chainName },
+        activeContext: { chainSlug: resolved.chainSlug, chainName: resolved.chainName },
+      };
+    }
+
+    // resolved === null → fall through silently to comparison/estimation
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 3 — Comparison detection
+  // -------------------------------------------------------------------------
+
+  const comparison = extractComparisonQuery(trimmed);
+
+  if (comparison !== null) {
+    const { dishA: dishAText, dishB: dishBText, nutrientFocus } = comparison;
+
+    const parsedA = parseDishExpression(dishAText);
+    const parsedB = parseDishExpression(dishBText);
+
+    // Inject context fallback for each side if no explicit slug
+    const chainSlugA = parsedA.chainSlug ?? effectiveContext?.chainSlug;
+    const chainSlugB = parsedB.chainSlug ?? effectiveContext?.chainSlug;
+
+    const [resultA, resultB] = await Promise.allSettled([
+      estimate({
+        query: parsedA.query,
+        chainSlug: chainSlugA,
+        portionMultiplier: parsedA.portionMultiplier,
+        db,
+        redis,
+        openAiApiKey,
+        level4Lookup,
+        chainSlugs,
+        logger,
+      }),
+      estimate({
+        query: parsedB.query,
+        chainSlug: chainSlugB,
+        portionMultiplier: parsedB.portionMultiplier,
+        db,
+        redis,
+        openAiApiKey,
+        level4Lookup,
+        chainSlugs,
+        logger,
+      }),
+    ]);
+
+    // Both sides DB error → propagate
+    if (resultA.status === 'rejected' && resultB.status === 'rejected') {
+      throw resultA.reason instanceof Error ? resultA.reason : new Error(String(resultA.reason));
+    }
+
+    // Build null-result EstimateData for rejected sides
+    const nullEstimateData = (query: string) => ({
+      query,
+      chainSlug: null,
+      level1Hit: false,
+      level2Hit: false,
+      level3Hit: false,
+      level4Hit: false,
+      matchType: null as null,
+      result: null,
+      cachedAt: null,
+      portionMultiplier: 1,
+    });
+
+    const dishA =
+      resultA.status === 'fulfilled' ? resultA.value : nullEstimateData(parsedA.query);
+    const dishB =
+      resultB.status === 'fulfilled' ? resultB.value : nullEstimateData(parsedB.query);
+
+    return {
+      intent: 'comparison',
+      actorId,
+      comparison: {
+        dishA,
+        dishB,
+        nutrientFocus,
+      },
+      activeContext,
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 4 — Single-dish estimation
+  // -------------------------------------------------------------------------
+
+  const { cleanQuery, portionMultiplier } = extractPortionModifier(trimmed);
+  const { query: extractedQuery, chainSlug: explicitSlug } = extractFoodQuery(cleanQuery);
+
+  // Inject context fallback only when query has no explicit chainSlug
+  const effectiveChainSlug = explicitSlug ?? effectiveContext?.chainSlug;
+
+  const estimationResult = await estimate({
+    query: extractedQuery,
+    chainSlug: effectiveChainSlug,
+    portionMultiplier,
+    db,
+    redis,
+    openAiApiKey,
+    level4Lookup,
+    chainSlugs,
+    logger,
+  });
+
+  return {
+    intent: 'estimation',
+    actorId,
+    estimation: estimationResult,
+    activeContext,
+  };
+}

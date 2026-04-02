@@ -7,7 +7,7 @@
 // The ApiClient interface is designed for dependency injection — tests inject
 // a mock implementation, no real HTTP is made during unit tests.
 
-import type { DishListItem, RestaurantListItem, ChainListItem, EstimateData, PaginationMeta, Restaurant, CreateRestaurantBody, MenuAnalysisData, RecipeCalculateData } from '@foodxplorer/shared';
+import type { DishListItem, RestaurantListItem, ChainListItem, EstimateData, PaginationMeta, Restaurant, CreateRestaurantBody, MenuAnalysisData, RecipeCalculateData, ConversationMessageData } from '@foodxplorer/shared';
 import type { BotConfig } from './config.js';
 
 // ---------------------------------------------------------------------------
@@ -105,6 +105,17 @@ export interface ApiClient {
    * can take up to ~10s; the default 10s REQUEST_TIMEOUT_MS is too short.
    */
   calculateRecipe(text: string): Promise<RecipeCalculateData>;
+  /**
+   * Process a natural language message via the Conversation Core (F070).
+   * POSTs to POST /conversation/message with { text, chainSlug?, chainName? }.
+   * Bot already sends X-Actor-Id (telegram:<chatId>) and X-API-Key headers.
+   * Returns ConversationMessageData (structured, never formatted text).
+   */
+  processMessage(
+    text: string,
+    chatId: number,
+    legacyChainContext?: { chainSlug: string; chainName: string },
+  ): Promise<ConversationMessageData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -417,6 +428,63 @@ export function createApiClient(config: BotConfig): ApiClient {
       // RECIPE_TIMEOUT_MS (30s) overrides the default 10s — LLM parsing + multi-ingredient
       // resolution can take up to ~10s per ingredient before returning.
       return postJson<RecipeCalculateData>('/calculate/recipe', { mode: 'free-form', text }, undefined, RECIPE_TIMEOUT_MS);
+    },
+
+    async processMessage(text, chatId, legacyChainContext) {
+      const url = new URL('/conversation/message', baseUrl + '/');
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+      const body: { text: string; chainSlug?: string; chainName?: string } = { text };
+      if (legacyChainContext) {
+        body.chainSlug = legacyChainContext.chainSlug;
+        body.chainName = legacyChainContext.chainName;
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+        'X-FXP-Source': 'bot',
+        'X-Actor-Id': `telegram:${chatId}`,
+      };
+
+      try {
+        const response = await fetch(url.toString(), {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timer);
+
+        if (!response.ok) {
+          let code = 'API_ERROR';
+          let message = `HTTP ${response.status}`;
+          try {
+            const errBody = await response.json() as { success: boolean; error?: { code?: string; message?: string } };
+            if (errBody.error?.code) code = errBody.error.code;
+            if (errBody.error?.message) message = errBody.error.message;
+          } catch {
+            // ignore parse error — use defaults
+          }
+          throw new ApiError(response.status, code, message);
+        }
+
+        const envelope = await response.json() as { success: boolean; data: ConversationMessageData };
+        return envelope.data;
+      } catch (err) {
+        clearTimeout(timer);
+
+        if (err instanceof ApiError) throw err;
+
+        if (err instanceof Error && err.name === 'AbortError') {
+          throw new ApiError(408, 'TIMEOUT', 'Request timed out');
+        }
+
+        throw new ApiError(0, 'NETWORK_ERROR', err instanceof Error ? err.message : 'Network error');
+      }
     },
   };
 }

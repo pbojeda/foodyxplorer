@@ -29,6 +29,7 @@ const DAILY_LIMITS: Record<string, number> = {
 /** Routes → bucket mapping */
 const ROUTE_BUCKET_MAP: Record<string, string> = {
   '/estimate': 'queries',
+  '/conversation/message': 'queries',
   '/analyze/menu': 'photos',
 };
 

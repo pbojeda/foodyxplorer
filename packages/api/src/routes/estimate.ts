@@ -19,7 +19,6 @@ import {
   type EstimateQuery,
   type EstimateData,
   type EstimateResult,
-  type EstimateNutrients,
 } from '@foodxplorer/shared';
 import type { DB } from '../generated/kysely-types.js';
 import { runEstimationCascade } from '../estimation/engineRouter.js';
@@ -28,6 +27,7 @@ import { detectExplicitBrand, loadChainSlugs } from '../estimation/brandDetector
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 import { config } from '../config.js';
 import { writeQueryLog } from '../lib/queryLogger.js';
+import { applyPortionMultiplier } from '../estimation/portionUtils.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -39,28 +39,6 @@ const LEVEL_MAP: Record<1 | 2 | 3 | 4, 'l1' | 'l2' | 'l3' | 'l4'> = {
   3: 'l3',
   4: 'l4',
 };
-
-const NUMERIC_NUTRIENT_KEYS: ReadonlyArray<keyof Omit<EstimateNutrients, 'referenceBasis'>> = [
-  'calories', 'proteins', 'carbohydrates', 'sugars', 'fats', 'saturatedFats',
-  'fiber', 'salt', 'sodium', 'transFats', 'cholesterol', 'potassium',
-  'monounsaturatedFats', 'polyunsaturatedFats',
-];
-
-function applyPortionMultiplier(result: EstimateResult, multiplier: number): EstimateResult {
-  const scaledNutrients = { ...result.nutrients };
-  for (const key of NUMERIC_NUTRIENT_KEYS) {
-    scaledNutrients[key] = Math.round(scaledNutrients[key] * multiplier * 100) / 100;
-  }
-  scaledNutrients.referenceBasis = 'per_serving';
-
-  return {
-    ...result,
-    portionGrams: result.portionGrams !== null
-      ? Math.round(result.portionGrams * multiplier * 10) / 10
-      : null,
-    nutrients: scaledNutrients,
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Plugin options
