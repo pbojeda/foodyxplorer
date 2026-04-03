@@ -14,8 +14,9 @@ Implement the task following the Implementation Plan in the ticket. Use strict T
 1. Read ticket (including Spec and Implementation Plan)
 2. Read `ai-specs/specs/frontend-standards.mdc`
 3. Read `docs/specs/ui-components.md` for current UI component specs
-4. Read `docs/specs/api-spec.yaml` for API endpoints to consume
-5. Read `docs/project_notes/key_facts.md` and `bugs.md`
+4. Read `docs/specs/design-guidelines.md` if it exists — follow visual direction, colors, spacing, and animation patterns
+5. Read `docs/specs/api-spec.yaml` for API endpoints to consume
+6. Read `docs/project_notes/key_facts.md` and `bugs.md`
 
 ## Documentation Updates (MANDATORY — in real time)
 

@@ -20,8 +20,9 @@ Implement the frontend task following the **Implementation Plan** in the ticket.
 1. Read the ticket file (including the Spec and Implementation Plan)
 2. Read `ai-specs/specs/frontend-standards.mdc` for coding standards
 3. Read `docs/specs/ui-components.md` for current UI component specs
-4. Read `docs/specs/api-spec.yaml` for API endpoints to consume
-5. Read `docs/project_notes/key_facts.md` for project context
+4. Read `docs/specs/design-guidelines.md` if it exists — follow visual direction, colors, spacing, and animation patterns
+5. Read `docs/specs/api-spec.yaml` for API endpoints to consume
+6. Read `docs/project_notes/key_facts.md` for project context
 6. Read `docs/project_notes/bugs.md` for known issues to avoid
 
 ## TDD Cycle

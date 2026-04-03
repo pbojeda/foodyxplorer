@@ -2,6 +2,7 @@
 
 **Feature:** [ID] | **Type:** [Backend/Frontend/Fullstack]-[Feature/Bugfix/Refactor] | **Priority:** [High/Medium/Low]
 **Status:** In Progress | **Branch:** feature/[FEATURE-ID]-[short-description]
+<!-- Valid Status values: In Progress | Ready for Merge | Done -->
 **Created:** [YYYY-MM-DD] | **Dependencies:** [List or "None"]
 
 ---
