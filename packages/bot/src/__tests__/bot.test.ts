@@ -20,7 +20,7 @@ vi.mock('node-telegram-bot-api', () => {
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { ApiClient } from '../apiClient.js';
-import type { EstimateData } from '@foodxplorer/shared';
+import type { EstimateData, ConversationMessageData } from '@foodxplorer/shared';
 import { buildBot } from '../bot.js';
 import type { BotConfig } from '../config.js';
 import type TelegramBot from 'node-telegram-bot-api';
@@ -79,6 +79,7 @@ function makeMockClient(): { [K in keyof ApiClient]: ReturnType<typeof vi.fn> } 
     uploadPdf: vi.fn(),
     analyzeMenu: vi.fn(),
     calculateRecipe: vi.fn(),
+    processMessage: vi.fn(),
   };
 }
 
@@ -284,8 +285,14 @@ describe('buildBot', () => {
     expect(mockBot.sendMessage).not.toHaveBeenCalled();
   });
 
-  it('routes plain text to NL handler — calls estimate and sendMessage', async () => {
-    mockClient.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+  it('routes plain text to NL handler — calls processMessage and sendMessage', async () => {
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000001',
+      estimation: ESTIMATE_DATA_WITH_RESULT,
+      activeContext: null,
+    };
+    mockClient.processMessage.mockResolvedValue(messageData);
     mockBot.sendMessage.mockResolvedValue({});
 
     const onCalls = mockBot.on.mock.calls as Array<[string, (msg: TelegramBot.Message) => void]>;
@@ -296,7 +303,7 @@ describe('buildBot', () => {
     // wrapHandler fires a floating promise — drain the microtask queue
     await new Promise<void>((resolve) => setImmediate(resolve));
 
-    expect(mockClient.estimate).toHaveBeenCalledOnce();
+    expect(mockClient.processMessage).toHaveBeenCalledOnce();
     expect(mockBot.sendMessage).toHaveBeenCalledOnce();
   });
 

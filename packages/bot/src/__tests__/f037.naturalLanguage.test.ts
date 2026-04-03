@@ -1,10 +1,18 @@
 // F037 — handleNaturalLanguage with chain context injection and detection
+//
+// After F070 refactor: handleNaturalLanguage calls apiClient.processMessage().
+// Context-set detection, chain resolution, and context injection now happen
+// server-side in ConversationCore. The bot reads the intent from the response.
+//
+// These tests verify that:
+// - The raw text is passed to processMessage unchanged
+// - The legacy chainContext from bot:state Redis is forwarded to processMessage
+// - The response intent drives the returned message format
 
 import { describe, it, expect, vi } from 'vitest';
 import type { ApiClient } from '../apiClient.js';
-import type { EstimateData, ChainListItem } from '@foodxplorer/shared';
+import type { EstimateData, ConversationMessageData } from '@foodxplorer/shared';
 import type { Redis } from 'ioredis';
-import { ApiError } from '../apiClient.js';
 import { handleNaturalLanguage } from '../handlers/naturalLanguage.js';
 
 // ---------------------------------------------------------------------------
@@ -56,24 +64,6 @@ const ESTIMATE_DATA_WITH_RESULT: EstimateData = {
   },
 };
 
-const CHAIN_MCDONALDS: ChainListItem = {
-  chainSlug: 'mcdonalds-es',
-  name: "McDonald's",
-  nameEs: 'McDonalds',
-  countryCode: 'ES',
-  dishCount: 150,
-  isActive: true,
-};
-
-const CHAIN_BURGER_KING: ChainListItem = {
-  chainSlug: 'burger-king-es',
-  name: 'Burger King',
-  nameEs: 'Burger King',
-  countryCode: 'ES',
-  dishCount: 100,
-  isActive: true,
-};
-
 // ---------------------------------------------------------------------------
 // Mock helpers
 // ---------------------------------------------------------------------------
@@ -82,13 +72,13 @@ type MockApiClient = {
   [K in keyof ApiClient]: ReturnType<typeof vi.fn>;
 };
 
-function makeMockClient(chains: ChainListItem[] = []): MockApiClient {
+function makeMockClient(): MockApiClient {
   return {
     searchDishes: vi.fn(),
     estimate: vi.fn(),
     listRestaurants: vi.fn(),
     listRestaurantDishes: vi.fn(),
-    listChains: vi.fn().mockResolvedValue(chains),
+    listChains: vi.fn(),
     healthCheck: vi.fn(),
     searchRestaurants: vi.fn(),
     createRestaurant: vi.fn(),
@@ -96,6 +86,7 @@ function makeMockClient(chains: ChainListItem[] = []): MockApiClient {
     uploadPdf: vi.fn(),
     analyzeMenu: vi.fn(),
     calculateRecipe: vi.fn(),
+    processMessage: vi.fn(),
   };
 }
 
@@ -113,142 +104,181 @@ function makeMockRedis(storedJson: string | null = null): {
   };
 }
 
+function makeEstimationResponse(
+  estimation: EstimateData,
+  activeContext: ConversationMessageData['activeContext'] = null,
+): ConversationMessageData {
+  return {
+    intent: 'estimation',
+    actorId: 'fd000000-0001-4000-a000-000000000099',
+    estimation,
+    activeContext,
+  };
+}
+
 const CHAT_ID = 0;
 
 // ---------------------------------------------------------------------------
-// Step 0 — Context-set detection
+// Step 0 — Context-set detection (now server-side)
 // ---------------------------------------------------------------------------
 
 describe('handleNaturalLanguage — F037 context-set detection (Step 0)', () => {
-  it('"estoy en mcdonalds-es" → resolves chain, sets context, returns confirmation', async () => {
+  it('"estoy en mcdonalds-es" → processMessage returns context_set, returns confirmation', async () => {
     const redis = makeMockRedis(null);
-    const client = makeMockClient([CHAIN_MCDONALDS]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    const client = makeMockClient();
+    const messageData: ConversationMessageData = {
+      intent: 'context_set',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      contextSet: { chainSlug: 'mcdonalds-es', chainName: "McDonald's" },
+      activeContext: { chainSlug: 'mcdonalds-es', chainName: "McDonald's" },
+    };
+    client.processMessage.mockResolvedValue(messageData);
 
     const result = await handleNaturalLanguage('estoy en mcdonalds-es', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
     expect(result).toContain('Contexto establecido');
     expect(client.estimate).not.toHaveBeenCalled();
+    expect(client.processMessage).toHaveBeenCalledWith('estoy en mcdonalds-es', CHAT_ID, undefined);
   });
 
-  it('"estoy en mcdonalds" → resolves to mcdonalds-es (prefix match), sets context', async () => {
+  it('"estoy en mcdonalds" → processMessage returns context_set (prefix match done server-side)', async () => {
     const redis = makeMockRedis(null);
-    const client = makeMockClient([CHAIN_MCDONALDS]);
+    const client = makeMockClient();
+    const messageData: ConversationMessageData = {
+      intent: 'context_set',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      contextSet: { chainSlug: 'mcdonalds-es', chainName: "McDonald's" },
+      activeContext: { chainSlug: 'mcdonalds-es', chainName: "McDonald's" },
+    };
+    client.processMessage.mockResolvedValue(messageData);
 
     const result = await handleNaturalLanguage('estoy en mcdonalds', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
     expect(result).toContain('Contexto establecido');
-    expect(redis.set).toHaveBeenCalled();
+    expect(client.processMessage).toHaveBeenCalledWith('estoy en mcdonalds', CHAT_ID, undefined);
   });
 
-  it('"estoy en mcdonalds" → saves chainContext to Redis', async () => {
+  it('"estoy en mcdonalds" → processMessage called (bot does not write Redis directly)', async () => {
     const redis = makeMockRedis(null);
-    const client = makeMockClient([CHAIN_MCDONALDS]);
+    const client = makeMockClient();
+    const messageData: ConversationMessageData = {
+      intent: 'context_set',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      contextSet: { chainSlug: 'mcdonalds-es', chainName: "McDonald's" },
+      activeContext: { chainSlug: 'mcdonalds-es', chainName: "McDonald's" },
+    };
+    client.processMessage.mockResolvedValue(messageData);
 
     await handleNaturalLanguage('estoy en mcdonalds', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    expect(redis.set).toHaveBeenCalled();
-    const setCall = redis.set.mock.calls[0] as [string, string, string, number];
-    const saved = JSON.parse(setCall[1]) as { chainContext?: { chainSlug: string } };
-    expect(saved.chainContext?.chainSlug).toBe('mcdonalds-es');
+    // The bot calls processMessage, not listChains+Redis directly
+    expect(client.processMessage).toHaveBeenCalledOnce();
+    expect(client.listChains).not.toHaveBeenCalled();
   });
 
-  it('"estoy en xyz" (no chain found) → null → falls through to single-dish path', async () => {
+  it('"estoy en xyz" (no chain found) → estimation intent (server falls through)', async () => {
     const redis = makeMockRedis(null);
-    const client = makeMockClient([]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    const client = makeMockClient();
+    const messageData: ConversationMessageData = makeEstimationResponse(ESTIMATE_DATA_NULL);
+    client.processMessage.mockResolvedValue(messageData);
 
-    // "estoy en xyz" — no chain resolved → falls through silently to single-dish
     const result = await handleNaturalLanguage('estoy en xyz', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    // Should call estimate (single-dish path) — NOT show confirmation
     expect(result).not.toContain('Contexto establecido');
-    expect(client.estimate).toHaveBeenCalled();
+    expect(client.processMessage).toHaveBeenCalledOnce();
   });
 
-  it('"estoy en burger" → ambiguous → returns ambiguity message directly', async () => {
-    const anotherBurger: ChainListItem = {
-      chainSlug: 'burger-another-es',
-      name: 'Burger Another',
-      nameEs: null,
-      countryCode: 'ES',
-      dishCount: 10,
-      isActive: true,
-    };
+  it('"estoy en burger" → context_set ambiguous → returns ambiguity message', async () => {
     const redis = makeMockRedis(null);
-    const client = makeMockClient([CHAIN_BURGER_KING, anotherBurger]);
+    const client = makeMockClient();
+    const messageData: ConversationMessageData = {
+      intent: 'context_set',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      ambiguous: true,
+      activeContext: null,
+    };
+    client.processMessage.mockResolvedValue(messageData);
 
     const result = await handleNaturalLanguage('estoy en burger', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    expect(result).toContain('Encontré varias cadenas');
+    expect(result).toContain('varias cadenas');
     expect(client.estimate).not.toHaveBeenCalled();
   });
 
-  it('ApiError from listChains in Step 0 → falls through silently (null return → continue)', async () => {
+  it('processMessage error propagates (no swallowing)', async () => {
     const redis = makeMockRedis(null);
-    const client = makeMockClient([]);
-    client.listChains.mockRejectedValue(new ApiError(503, 'SERVICE_UNAVAILABLE', 'down'));
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    const client = makeMockClient();
+    client.processMessage.mockRejectedValue(new Error('service down'));
 
-    // ApiError in context-set → return null → fall through to single-dish
-    const result = await handleNaturalLanguage('estoy en mcdonalds', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    // Falls through to single-dish: estimate called with "estoy en mcdonalds"
-    expect(client.estimate).toHaveBeenCalled();
-    expect(result).not.toContain('Contexto establecido');
+    await expect(
+      handleNaturalLanguage('estoy en mcdonalds', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient),
+    ).rejects.toThrow('service down');
   });
 });
 
 // ---------------------------------------------------------------------------
-// Steps 1 & 2 — Context injection into existing paths
+// Steps 1 & 2 — Context injection (now server-side via processMessage)
 // ---------------------------------------------------------------------------
 
 describe('handleNaturalLanguage — F037 context injection (Steps 1 & 2)', () => {
-  it('active chain context → injected into single-dish estimate call', async () => {
+  it('legacy bot:state chainContext is forwarded to processMessage', async () => {
     const state = JSON.stringify({ chainContext: { chainSlug: 'mcdonalds-es', chainName: 'McDonalds' } });
     const redis = makeMockRedis(state);
-    const client = makeMockClient([]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    const client = makeMockClient();
+    const messageData = makeEstimationResponse(ESTIMATE_DATA_WITH_RESULT, { chainSlug: 'mcdonalds-es', chainName: 'McDonalds' });
+    client.processMessage.mockResolvedValue(messageData);
 
     await handleNaturalLanguage('big mac', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    expect(client.estimate).toHaveBeenCalledWith({ query: 'big mac', chainSlug: 'mcdonalds-es' });
+    expect(client.processMessage).toHaveBeenCalledWith(
+      'big mac', CHAT_ID, { chainSlug: 'mcdonalds-es', chainName: 'McDonalds' },
+    );
   });
 
-  it('explicit chainSlug in query overrides context', async () => {
+  it('explicit chainSlug in query text → processMessage called with raw text, server resolves', async () => {
     const state = JSON.stringify({ chainContext: { chainSlug: 'mcdonalds-es', chainName: 'McDonalds' } });
     const redis = makeMockRedis(state);
-    const client = makeMockClient([]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    const client = makeMockClient();
+    const messageData = makeEstimationResponse(ESTIMATE_DATA_NULL);
+    client.processMessage.mockResolvedValue(messageData);
 
     await handleNaturalLanguage('big mac en burger-king-es', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    expect(client.estimate).toHaveBeenCalledWith({ query: 'big mac', chainSlug: 'burger-king-es' });
+    expect(client.processMessage).toHaveBeenCalledWith(
+      'big mac en burger-king-es', CHAT_ID, { chainSlug: 'mcdonalds-es', chainName: 'McDonalds' },
+    );
   });
 
-  it('active chain context → injected into comparison path', async () => {
+  it('active chain context → processMessage called with legacyChainContext', async () => {
     const state = JSON.stringify({ chainContext: { chainSlug: 'mcdonalds-es', chainName: 'McDonalds' } });
     const redis = makeMockRedis(state);
-    const client = makeMockClient([]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_WITH_RESULT);
+    const client = makeMockClient();
+    const messageData: ConversationMessageData = {
+      intent: 'comparison',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      comparison: { dishA: ESTIMATE_DATA_WITH_RESULT, dishB: ESTIMATE_DATA_WITH_RESULT },
+      activeContext: { chainSlug: 'mcdonalds-es', chainName: 'McDonalds' },
+    };
+    client.processMessage.mockResolvedValue(messageData);
 
     await handleNaturalLanguage('compara big mac con whopper', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    expect(client.estimate).toHaveBeenCalledTimes(2);
-    const callsA = client.estimate.mock.calls[0] as [{ query: string; chainSlug?: string }];
-    expect(callsA[0].chainSlug).toBe('mcdonalds-es');
+    expect(client.processMessage).toHaveBeenCalledWith(
+      'compara big mac con whopper', CHAT_ID, { chainSlug: 'mcdonalds-es', chainName: 'McDonalds' },
+    );
   });
 
-  it('no context → no chainSlug injected', async () => {
+  it('no context → processMessage called with undefined legacyChainContext', async () => {
     const redis = makeMockRedis(null);
-    const client = makeMockClient([]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    const client = makeMockClient();
+    const messageData = makeEstimationResponse(ESTIMATE_DATA_NULL);
+    client.processMessage.mockResolvedValue(messageData);
 
     await handleNaturalLanguage('big mac', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
-    const args = (client.estimate.mock.calls[0] as [Record<string, unknown>])[0];
-    expect(Object.prototype.hasOwnProperty.call(args, 'chainSlug')).toBe(false);
+    expect(client.processMessage).toHaveBeenCalledWith('big mac', CHAT_ID, undefined);
   });
 
-  it('Redis fails → fail-open (no chainSlug injected)', async () => {
+  it('Redis fails → fail-open (processMessage called with undefined legacyChainContext)', async () => {
     const redis = makeMockRedis(null);
     redis.get.mockRejectedValue(new Error('redis down'));
-    const client = makeMockClient([]);
-    client.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+    const client = makeMockClient();
+    const messageData = makeEstimationResponse(ESTIMATE_DATA_NULL);
+    client.processMessage.mockResolvedValue(messageData);
 
     const result = await handleNaturalLanguage('big mac', CHAT_ID, redis as unknown as Redis, client as unknown as ApiClient);
     expect(typeof result).toBe('string');
-    const args = (client.estimate.mock.calls[0] as [Record<string, unknown>])[0];
-    expect(Object.prototype.hasOwnProperty.call(args, 'chainSlug')).toBe(false);
+    expect(client.processMessage).toHaveBeenCalledWith('big mac', CHAT_ID, undefined);
   });
 });

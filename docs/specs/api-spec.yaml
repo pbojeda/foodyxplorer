@@ -12,7 +12,7 @@ info:
     **Validation:**
     - Request bodies and query params are validated via `fastify-type-provider-zod`.
     - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
-  version: 0.5.0
+  version: 0.6.0
   contact:
     name: foodXPlorer
   license:
@@ -85,6 +85,16 @@ tags:
       Additional rate limit: 10 analyses per hour per key (beyond the standard tier limit).
       ADR-001 applies: the Vision API is used ONLY to identify dish names; all nutrient
       calculation goes through runEstimationCascade.
+  - name: Conversation
+    description: |
+      Shared Conversation Core endpoints (F070). Accept plain-text natural language input
+      from any client (Telegram bot adapter, future web adapter), resolve intent (context-set,
+      comparison, estimation), perform entity extraction and estimation, manage per-actor
+      conversational context in Redis, and return structured JSON.
+      The Telegram bot is a thin adapter over this service. Returns structured data — never
+      formatted text. Formatting is the responsibility of each adapter.
+      Per-actor rate limit applies (F069 — 50 queries/day per actor).
+      Anonymous access via X-Actor-Id header (F069 actor middleware).
 
 paths:
   /ingest/pdf:
@@ -4594,6 +4604,311 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  # ---------------------------------------------------------------------------
+  # Conversation Core (F070)
+  # ---------------------------------------------------------------------------
+
+  /conversation/message:
+    post:
+      tags: [Conversation]
+      operationId: processConversationMessage
+      summary: Process a natural language message and return structured intent + data
+      description: |
+        Accepts plain-text natural language input from any adapter (Telegram bot, future
+        web client). Detects intent, extracts entities, resolves chain context, runs the
+        estimation cascade, and returns a structured JSON response. Never returns formatted
+        text — formatting is the adapter's responsibility ("backend calcula, frontend explica").
+
+        **Intent resolution pipeline (in priority order):**
+        1. Length guard: text > 500 chars → `error` intent with code `TEXT_TOO_LONG`.
+        2. Context-set detection: "estoy en <chain>" → chain resolution via DB, write
+           `conv:ctx:{actorId}` to Redis (TTL 2h), return `context_set` intent.
+        3. Comparison detection: "big mac vs whopper" pattern → two parallel estimation
+           cascade calls, return `comparison` intent with both EstimateData objects.
+        4. Single-dish estimation: extract query + portion modifier, apply fallback chain
+           context from Redis, run estimation cascade, return `estimation` intent.
+
+        **Context management:** Conversational context (active chain) is stored in Redis
+        under key `conv:ctx:{actorId}` (TTL 7200s). Fail-open: Redis errors are treated as
+        absent context. Context is shared across channels for the same actor (bot + web
+        continuity). The `activeContext` field in the response always echoes the current
+        context (null if none) so adapters can display it without a separate lookup.
+
+        **Actor identification:** Uses the `X-Actor-Id` header resolved by the F069
+        actor middleware (`request.actorId`). Anonymous actors are auto-created. Per-actor
+        daily rate limit applies (50 queries/day, 429 when exceeded).
+
+        **Estimation:** Internally calls `runEstimationCascade` (F023) + `detectExplicitBrand`
+        (F068) + Redis cache (same key scheme as GET /estimate: `fxp:estimate:<query>:<chainSlug>:<restaurantId>:<multiplier>`).
+        Query logging (query_logs) is recorded fire-and-forget after the response is sent.
+
+        **ADR-001 compliance:** No LLM is used to calculate nutritional values. The LLM
+        is only invoked at Level 4 to identify/match food entities (same as GET /estimate).
+      parameters:
+        - $ref: '#/components/parameters/XActorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationMessageBody'
+            examples:
+              estimationSimple:
+                summary: Simple single-dish query
+                value:
+                  text: "big mac"
+              estimationWithContext:
+                summary: Dish query with implicit active context
+                value:
+                  text: "cuántas calorías tiene el big mac"
+              contextSet:
+                summary: Set chain context
+                value:
+                  text: "estoy en mcdonalds"
+              comparison:
+                summary: Comparison query
+                value:
+                  text: "qué tiene más proteínas, big mac o whopper"
+      responses:
+        '200':
+          description: |
+            Message processed successfully. The `intent` field identifies the response
+            type; only the corresponding data field is populated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/ConversationMessageResponse'
+              examples:
+                estimation:
+                  summary: intent=estimation — single dish resolved
+                  value:
+                    success: true
+                    data:
+                      intent: estimation
+                      actorId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      estimation:
+                        query: "big mac"
+                        chainSlug: "mcdonalds-es"
+                        portionMultiplier: 1.0
+                        level1Hit: true
+                        level2Hit: false
+                        level3Hit: false
+                        level4Hit: false
+                        matchType: "exact_dish"
+                        result:
+                          entityType: "dish"
+                          entityId: "uuid-of-dish"
+                          name: "Big Mac"
+                          nameEs: "Big Mac"
+                          restaurantId: "uuid-of-restaurant"
+                          chainSlug: "mcdonalds-es"
+                          portionGrams: 200
+                          nutrients:
+                            calories: 550
+                            proteins: 25
+                            carbohydrates: 46
+                            sugars: 9
+                            fats: 28
+                            saturatedFats: 10
+                            fiber: 3
+                            salt: 2.2
+                            sodium: 880
+                            transFats: 0.5
+                            cholesterol: 80
+                            potassium: 0
+                            monounsaturatedFats: 0
+                            polyunsaturatedFats: 0
+                            referenceBasis: "per_serving"
+                          confidenceLevel: "high"
+                          estimationMethod: "official"
+                          source:
+                            id: "00000000-0000-0000-0000-000000000001"
+                            name: "McDonald's Spain Official PDF"
+                            type: "official_pdf"
+                            url: null
+                          similarityDistance: null
+                        cachedAt: null
+                      activeContext:
+                        chainSlug: "mcdonalds-es"
+                        chainName: "McDonald's"
+                contextSet:
+                  summary: intent=context_set — chain context written to Redis
+                  value:
+                    success: true
+                    data:
+                      intent: context_set
+                      actorId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      contextSet:
+                        chainSlug: "mcdonalds-es"
+                        chainName: "McDonald's"
+                      activeContext:
+                        chainSlug: "mcdonalds-es"
+                        chainName: "McDonald's"
+                contextSetAmbiguous:
+                  summary: intent=context_set — ambiguous chain name
+                  value:
+                    success: true
+                    data:
+                      intent: context_set
+                      actorId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      ambiguous: true
+                      activeContext: null
+                comparison:
+                  summary: intent=comparison — two dishes compared
+                  value:
+                    success: true
+                    data:
+                      intent: comparison
+                      actorId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      comparison:
+                        dishA:
+                          query: "big mac"
+                          chainSlug: null
+                          portionMultiplier: 1.0
+                          level1Hit: true
+                          level2Hit: false
+                          level3Hit: false
+                          level4Hit: false
+                          matchType: "exact_dish"
+                          result:
+                            entityType: "dish"
+                            entityId: "uuid-of-dish-a"
+                            name: "Big Mac"
+                            nameEs: "Big Mac"
+                            restaurantId: "uuid-of-restaurant"
+                            chainSlug: "mcdonalds-es"
+                            portionGrams: 200
+                            nutrients:
+                              calories: 550
+                              proteins: 25
+                              carbohydrates: 46
+                              sugars: 9
+                              fats: 28
+                              saturatedFats: 10
+                              fiber: 3
+                              salt: 2.2
+                              sodium: 880
+                              transFats: 0.5
+                              cholesterol: 80
+                              potassium: 0
+                              monounsaturatedFats: 0
+                              polyunsaturatedFats: 0
+                              referenceBasis: "per_serving"
+                            confidenceLevel: "high"
+                            estimationMethod: "official"
+                            source:
+                              id: "00000000-0000-0000-0000-000000000001"
+                              name: "McDonald's Spain Official PDF"
+                              type: "official_pdf"
+                              url: null
+                            similarityDistance: null
+                          cachedAt: null
+                        dishB:
+                          query: "whopper"
+                          chainSlug: null
+                          portionMultiplier: 1.0
+                          level1Hit: true
+                          level2Hit: false
+                          level3Hit: false
+                          level4Hit: false
+                          matchType: "exact_dish"
+                          result:
+                            entityType: "dish"
+                            entityId: "uuid-of-dish-b"
+                            name: "Whopper"
+                            nameEs: "Whopper"
+                            restaurantId: "uuid-of-restaurant-bk"
+                            chainSlug: "burger-king-es"
+                            portionGrams: 270
+                            nutrients:
+                              calories: 660
+                              proteins: 28
+                              carbohydrates: 49
+                              sugars: 10
+                              fats: 40
+                              saturatedFats: 13
+                              fiber: 3
+                              salt: 1.9
+                              sodium: 760
+                              transFats: 1.0
+                              cholesterol: 90
+                              potassium: 0
+                              monounsaturatedFats: 0
+                              polyunsaturatedFats: 0
+                              referenceBasis: "per_serving"
+                            confidenceLevel: "high"
+                            estimationMethod: "official"
+                            source:
+                              id: "00000000-0000-0000-0000-000000000002"
+                              name: "Burger King Spain Official PDF"
+                              type: "official_pdf"
+                              url: null
+                            similarityDistance: null
+                          cachedAt: null
+                        nutrientFocus: "calorías"
+                      activeContext: null
+                error:
+                  summary: intent=error — text too long
+                  value:
+                    success: true
+                    data:
+                      intent: error
+                      actorId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      errorCode: "TEXT_TOO_LONG"
+                      activeContext: null
+        '400':
+          description: |
+            Validation error. Sub-cases:
+            - `text` is missing, empty, or not a string.
+            - `actorId` is resolved from middleware but is missing (middleware misconfigured).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingText:
+                  summary: text field missing
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["text"]
+                          message: "Required"
+                          code: "invalid_type"
+        '429':
+          description: Per-actor daily rate limit exceeded (F069).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Daily query limit exceeded. Try again tomorrow."
+                  code: "ACTOR_RATE_LIMIT_EXCEEDED"
+        '500':
+          description: Database or unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                dbError:
+                  value:
+                    success: false
+                    error:
+                      message: "Database query failed during estimation lookup"
+                      code: "DB_UNAVAILABLE"
+
 components:
   parameters:
     XActorId:
@@ -4611,6 +4926,144 @@ components:
         example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
   schemas:
+    # -------------------------------------------------------------------------
+    # Conversation Core (F070)
+    # -------------------------------------------------------------------------
+
+    ConversationMessageBody:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: |
+            Plain-text natural language input from the user. Spanish is the primary
+            language. Maximum 500 characters (same guard as the bot NL handler).
+          example: "cuántas calorías tiene el big mac en mcdonalds-es"
+
+    ConversationIntent:
+      type: string
+      enum:
+        - context_set
+        - comparison
+        - estimation
+        - error
+      description: |
+        Resolved intent of the user's message:
+        - `context_set`: message was recognised as "estoy en <chain>" — context written to Redis.
+        - `comparison`:  message was recognised as a two-dish comparison query.
+        - `estimation`:  message was resolved as a single-dish nutritional query.
+        - `error`:       input was rejected before estimation (e.g. text too long).
+
+    ConversationContext:
+      type: object
+      description: Active chain context for this actor, stored in Redis.
+      required:
+        - chainSlug
+        - chainName
+      properties:
+        chainSlug:
+          type: string
+          description: Chain slug set via "estoy en <chain>" or /contexto command.
+          example: "mcdonalds-es"
+        chainName:
+          type: string
+          description: Human-readable chain name.
+          example: "McDonald's"
+
+    ConversationComparisonData:
+      type: object
+      description: Payload for a comparison intent — two EstimateData objects.
+      required:
+        - dishA
+        - dishB
+      properties:
+        dishA:
+          $ref: '#/components/schemas/EstimateData'
+          description: |
+            Estimation result for the first dish. `result` may be null if the cascade
+            produced a total miss (no match at any level).
+        dishB:
+          $ref: '#/components/schemas/EstimateData'
+          description: |
+            Estimation result for the second dish. `result` may be null if the cascade
+            produced a total miss.
+        nutrientFocus:
+          type: string
+          nullable: true
+          description: |
+            The nutrient the user asked to compare (e.g. "calorías", "proteínas").
+            Null when no specific nutrient focus was detected in the query.
+          example: "calorías"
+
+    ConversationMessageResponse:
+      type: object
+      description: |
+        Structured response from ConversationCore.processMessage(). The `intent` field
+        identifies which data field is populated. Only one of `contextSet`, `estimation`,
+        or `comparison` is present per response. `activeContext` is always present (null
+        if no context is active for this actor).
+      required:
+        - intent
+        - actorId
+        - activeContext
+      properties:
+        intent:
+          $ref: '#/components/schemas/ConversationIntent'
+        actorId:
+          type: string
+          format: uuid
+          description: The actor UUID resolved from X-Actor-Id header (F069).
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        contextSet:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/ConversationContext'
+          description: |
+            Present and non-null when intent is `context_set` and the chain was
+            unambiguously resolved. Null when ambiguous or when intent is not `context_set`.
+        ambiguous:
+          type: boolean
+          nullable: true
+          description: |
+            Present and true when intent is `context_set` but the chain identifier
+            matched multiple chains. `contextSet` is null and no Redis write is made.
+            Absent (not just false) when not applicable.
+          example: true
+        estimation:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/EstimateData'
+          description: |
+            Present when intent is `estimation`. Contains the full estimation cascade
+            result (same shape as GET /estimate response data). Null for other intents.
+        comparison:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/ConversationComparisonData'
+          description: |
+            Present when intent is `comparison`. Contains two EstimateData objects.
+            Null for other intents.
+        activeContext:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/ConversationContext'
+          description: |
+            The chain context currently active for this actor after processing this message.
+            Non-null if the actor has set a chain context (either in this request via
+            context_set, or in a prior request). Null if no context is active.
+            Adapters should use this field to display context indicators to the user.
+        errorCode:
+          type: string
+          nullable: true
+          description: |
+            Present when intent is `error`. Identifies the rejection reason.
+            - `TEXT_TOO_LONG`: text exceeded 500 characters.
+          example: "TEXT_TOO_LONG"
+
     # -------------------------------------------------------------------------
     # Ingestion
     # -------------------------------------------------------------------------
