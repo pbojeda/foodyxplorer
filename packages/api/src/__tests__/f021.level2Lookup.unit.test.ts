@@ -189,6 +189,7 @@ describe('level2Lookup', () => {
     expect(result.result.source).toEqual({
       id: DISH_SOURCE_ID,
       name: 'Computed from ingredients',
+      priorityTier: 3,
       type: 'estimated',
       url: null,
     });

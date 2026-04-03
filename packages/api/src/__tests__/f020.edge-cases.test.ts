@@ -265,6 +265,8 @@ vi.mock('../lib/redis.js', () => ({
   redis: {
     get: mockRedisGet,
     set: mockRedisSet,
+    incr: vi.fn().mockResolvedValue(1),
+    expire: vi.fn().mockResolvedValue(1),
   },
 }));
 
@@ -529,7 +531,7 @@ describe('Section C — Route edge cases', () => {
       expect(mockLevel1Lookup).toHaveBeenCalledWith(
         expect.anything(),
         'test',
-        { chainSlug: 'test-chain', restaurantId: 'fd000000-0001-4000-a000-000000000002' },
+        expect.objectContaining({ chainSlug: 'test-chain', restaurantId: 'fd000000-0001-4000-a000-000000000002' }),
       );
     });
   });

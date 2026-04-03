@@ -81,6 +81,8 @@ vi.mock('../lib/redis.js', () => ({
   redis: {
     get: vi.fn(),
     set: vi.fn(),
+    incr: vi.fn().mockResolvedValue(1),
+    expire: vi.fn().mockResolvedValue(1),
   },
 }));
 

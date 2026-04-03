@@ -293,6 +293,8 @@ const { mockRedisForEdgeCases, edgeStore } = vi.hoisted(() => {
     del: vi.fn(),
     scan: vi.fn(),
     pipeline: vi.fn(),
+    incr: vi.fn().mockResolvedValue(1),
+    expire: vi.fn().mockResolvedValue(1),
   };
   return { mockRedisForEdgeCases, edgeStore };
 });

@@ -82,6 +82,8 @@ vi.mock('../lib/redis.js', () => ({
   redis: {
     get: mockRedisGet,
     set: mockRedisSet,
+    incr: vi.fn().mockResolvedValue(1),
+    expire: vi.fn().mockResolvedValue(1),
   } as unknown as Redis,
 }));
 
@@ -120,6 +122,8 @@ import { buildApp } from '../app.js';
 // ---------------------------------------------------------------------------
 
 const HAPPY_PATH_RESULTS = [
+  // 0: consumed by conversationRoutes.loadChainData() during buildApp plugin init
+  [],
   // 1: scalar
   [{ total_queries: 100, cache_hit_rate: '0.7500', avg_response_time_ms: '42.5' }],
   // 2: by level
@@ -147,6 +151,8 @@ const HAPPY_PATH_RESULTS = [
 ];
 
 const EMPTY_TABLE_RESULTS = [
+  // 0: consumed by conversationRoutes.loadChainData() during buildApp plugin init
+  [],
   [{ total_queries: 0, cache_hit_rate: null, avg_response_time_ms: null }],
   [],
   [],

@@ -164,6 +164,7 @@ describe('level1Lookup', () => {
     expect(result?.result.source).toEqual({
       id: 'fd000000-0001-4000-a000-000000000003',
       name: "McDonald's Spain Official PDF",
+      priorityTier: null,
       type: 'official',
       url: 'https://www.mcdonalds.es/nutritional.pdf',
     });
