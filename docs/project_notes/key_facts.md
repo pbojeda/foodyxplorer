@@ -237,3 +237,15 @@ Quick reference for project configuration, infrastructure details, and important
 - **Slug utility**: `packages/api/src/utils/slugify.ts` — `generateIndependentSlug(name)` → `independent-<slug>-<uuid-8>`. Fallback to 'unnamed' for empty slug body. 8 hex chars from randomUUID (4 billion combinations)
 - **Recipe command (F041)**: `src/commands/receta.ts` — `handleReceta(args, chatId, apiClient, redis)`. Input guards: empty→usage hint, >2000 chars→length error. Rate limit: 5/hr per chatId via Redis `fxp:receta:hourly:<chatId>`, fail-open. Error mapping: RECIPE_UNRESOLVABLE, FREE_FORM_PARSE_FAILED → Spanish messages. Calls `apiClient.calculateRecipe(text)` → `formatRecipeResult(data)`. `src/formatters/recipeFormatter.ts` — totals (4 mandatory + 3 optional nutrients), per-ingredient bullets with portionMultiplier display, smart truncation (ingredient list only, header+footer preserved ≤4000 chars), confidence footer. `apiClient.ts` — `calculateRecipe(text)` via `postJson` with `RECIPE_TIMEOUT_MS=30s` (LLM parsing + multi-ingredient resolution). `postJson` has optional `timeout` 4th param (backward-compatible)
 - **Tests**: 621 tests across 25 files. F041 additions: f041-apiClient×14, f041-recipeFormatter×40, f041-receta×21, f041-qa-edge-cases×26. ApiClient: `calculateRecipe` via `postJson` (RECIPE_TIMEOUT_MS=30s)
+
+
+## BEDCA Data Source (F071)
+
+- **BEDCA DataSource UUID**: `00000000-0000-0000-0000-000000000003`
+- **BEDCA priority_tier**: 1 (national reference, per ADR-015)
+- **Seed function**: `seedPhaseBedca()` in `packages/api/src/scripts/seedPhaseBedca.ts`
+- **Snapshot**: `packages/api/prisma/seed-data/bedca/bedca-snapshot-full.json` (20 foods initially; full 431 after AESAN authorization)
+- **Nutrient index**: `packages/api/prisma/seed-data/bedca/bedca-nutrient-index.json`
+- **Feature flag**: `BEDCA_IMPORT_ENABLED=true` required in non-test environments
+- **Salt formula**: sodium_g * 2.5 (EU Regulation 1169/2011 — NOT 2.54)
+- **CLI**: `npm run bedca:import -w @foodxplorer/api` | `npm run bedca:snapshot -w @foodxplorer/api`

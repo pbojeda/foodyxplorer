@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-04-03
 
-**Active Feature:** No active work — F070 complete, ready for Phase A1
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F070 (Conversation Core) merged to develop via PR #62 (squash). ConversationCore service in packages/api/src/conversation/. POST /conversation/message endpoint. Bot refactored to thin adapter. 129 F070 tests. Phase A0 complete (F068+F069+F070). Next: Phase A1 — F071 (BEDCA import).
+**Active Feature:** F071 — BEDCA Food Database Import
+**Step:** 3/6 (Implement)
+**Branch:** feature/F071-bedca-food-database-import
+**Complexity:** Standard
+**Context:** Phase A1 first feature. BEDCA is Spain's national food composition database (~431 foods, 55 nutrients, bilingual). Tier 1 priority (national reference). Spec + Plan complete (Gemini cross-model review done, 4 issues fixed). Implementation in progress (TDD). No schema migration needed — F068 already has priority_tier. Key: feature flag BEDCA_IMPORT_ENABLED, salt=sodium*2.5 (EU law), nutrient IDs from actual BEDCA API not sequential 1-14, parser must JOIN food+food_value and group in memory.
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -166,7 +166,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F071 | BEDCA Food Database Import | backend | pending | — | Standard. Scrape BEDCA XML API (procquery.php). ~431 foods with nutrients, bilingual names. Seed script. PENDING: AESAN commercial license (email sent). Can proceed with parsing, defer production use. See product-evolution-analysis Sec 5 |
+| F071 | BEDCA Food Database Import | backend | in-progress | 3/6 | Standard. XML API + static snapshot. ~20 foods initial (full 431 post-AESAN auth). Tier 1 DataSource UUID 00000000-0000-0000-0000-000000000003. Feature flag BEDCA_IMPORT_ENABLED. See product-evolution-analysis Sec 5 |
 | F072 | Cooking Profiles + Yield Factors | backend | pending | — | Standard. CookingProfile table. 50 high-impact foods. Yield factors for grains/legumes/meat/fish. Default assumptions (grains=cooked, meat=raw). See product-evolution-analysis Sec 6 |
 | F073 | Spanish Canonical Dishes (BEDCA-first + LLM long tail) | backend | pending | — | Standard. ~300 dishes. BEDCA data where available + LLM recipe generation for rest. Calculate via /calculate/recipe (L2). Virtual restaurant `cocina-espanola`. Human review top 50. See product-evolution-analysis Sec 5 |
 | F074 | L4 Cooking State Extraction | backend | pending | — | Simple. Enhance L4 decomposition prompt to extract cooking state per ingredient. Connect to CookingProfile yield factors |
