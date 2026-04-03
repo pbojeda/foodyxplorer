@@ -1,14 +1,8 @@
-// Vitest configuration for @foodxplorer/api
+// Vitest configuration for integration tests that require a live PostgreSQL database.
 //
-// Tests are run sequentially (fileParallelism: false) because the integration
-// tests share a single PostgreSQL test database. Running test files in parallel
-// causes race conditions: the afterAll teardown in one file can truncate data
-// created by the beforeAll in another file.
+// Run with: npx vitest run -c vitest.integration.config.ts
 //
-// env: Provides baseline environment variables needed at module-load time.
-// config.ts parses process.env when imported; these defaults ensure that
-// importing config.ts (via app.ts) does not exit in the test environment.
-// Integration tests that need different URLs override them in the test file.
+// Requires DATABASE_URL_TEST pointing to a migrated test database.
 
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
@@ -22,15 +16,13 @@ export default defineConfig({
   },
   test: {
     fileParallelism: false,
-    exclude: [
-      'dist/**',
-      'src/__tests__/e2e/**',
+    include: [
       'src/__tests__/migration.*.test.ts',
       'src/__tests__/*.integration.test.ts',
-      'src/__tests__/routes/ingest/**',
+      'src/__tests__/routes/ingest/**/*.test.ts',
       'src/__tests__/routes/quality.test.ts',
-      'node_modules/**',
     ],
+    exclude: ['node_modules/**'],
     env: {
       NODE_ENV: 'test',
       DATABASE_URL:

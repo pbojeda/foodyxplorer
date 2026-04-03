@@ -515,6 +515,7 @@ describe('level4Lookup', () => {
     expect(result?.result.source).toEqual({
       id: LLM_SOURCE_ID,
       name: 'LLM-assisted identification',
+      priorityTier: 3,
       type: 'estimated',
       url: null,
     });
