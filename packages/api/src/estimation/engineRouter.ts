@@ -12,11 +12,13 @@
 // - levelHit is internal debug metadata; not serialized in the HTTP response.
 
 import type { Kysely } from 'kysely';
+import type { PrismaClient } from '@prisma/client';
 import type { DB } from '../generated/kysely-types.js';
-import type { EstimateData, EstimateMatchType, EstimateResult } from '@foodxplorer/shared';
+import type { EstimateData, EstimateMatchType, EstimateResult, YieldAdjustment } from '@foodxplorer/shared';
 import { level1Lookup } from './level1Lookup.js';
 import { level2Lookup } from './level2Lookup.js';
 import { level3Lookup } from './level3Lookup.js';
+import { resolveAndApplyYield } from './applyYield.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -26,6 +28,7 @@ import { level3Lookup } from './level3Lookup.js';
  * Signature for F024 LLM Integration Layer injection.
  * F023 defines the signature; F024 implements and injects it.
  * logger is optional for backward compatibility — F023 tests omit it.
+ * F072: rawFoodGroup added to return type for yield correction threading.
  */
 export type Level4LookupFn = (
   db: Kysely<DB>,
@@ -36,7 +39,7 @@ export type Level4LookupFn = (
     openAiApiKey?: string;
     logger?: { info: (obj: Record<string, unknown>, msg?: string) => void; warn: (obj: Record<string, unknown>, msg?: string) => void; debug: (obj: Record<string, unknown>, msg?: string) => void };
   },
-) => Promise<{ matchType: EstimateMatchType; result: EstimateResult } | null>;
+) => Promise<{ matchType: EstimateMatchType; result: EstimateResult; rawFoodGroup?: string | null } | null>;
 
 export interface EngineRouterOptions {
   db: Kysely<DB>;
@@ -52,6 +55,12 @@ export interface EngineRouterOptions {
   logger?: { info: (obj: Record<string, unknown>, msg?: string) => void; warn: (obj: Record<string, unknown>, msg?: string) => void; debug: (obj: Record<string, unknown>, msg?: string) => void };
   /** F068: When true, L1 attempts Tier 0 (branded) match first before normal cascade. */
   hasExplicitBrand?: boolean;
+  /** F072: Prisma client for cooking_profiles lookup (yield correction). */
+  prisma?: PrismaClient;
+  /** F072: Caller-declared cooking state ('raw' | 'cooked' | 'as_served'). */
+  cookingState?: string;
+  /** F072: Optional cooking method for profile lookup. */
+  cookingMethod?: string;
 }
 
 export type EngineRouterResult = {
@@ -77,10 +86,37 @@ export type EngineRouterResult = {
 export async function runEstimationCascade(
   opts: EngineRouterOptions,
 ): Promise<EngineRouterResult> {
-  const { db, query, chainSlug, restaurantId, openAiApiKey, level4Lookup, logger, hasExplicitBrand } = opts;
+  const { db, query, chainSlug, restaurantId, openAiApiKey, level4Lookup, logger, hasExplicitBrand, prisma, cookingState, cookingMethod } = opts;
 
   // Normalize for DB lookups. Raw query is echoed in data.query.
   const normalizedQuery = query.replace(/\s+/g, ' ').trim().toLowerCase();
+
+  // ---------------------------------------------------------------------------
+  // Helper: apply yield correction after a successful cascade hit.
+  // Only called when result is non-null. Gracefully skips when prisma absent.
+  // ---------------------------------------------------------------------------
+  async function applyYield(
+    result: EstimateResult,
+    rawFoodGroup: string | null | undefined,
+  ): Promise<{ result: EstimateResult; yieldAdjustment: YieldAdjustment | null }> {
+    if (prisma === undefined) {
+      return { result, yieldAdjustment: null };
+    }
+
+    const { result: corrected, yieldAdjustment } = await resolveAndApplyYield({
+      result,
+      foodName: result.name,
+      rawFoodGroup: rawFoodGroup ?? null,
+      cookingState,
+      cookingMethod,
+      prisma,
+      logger: logger !== undefined
+        ? { warn: (msg) => logger.warn({}, msg), error: (msg) => logger.error({}, msg) }
+        : { warn: () => {}, error: () => {} },
+    });
+
+    return { result: corrected, yieldAdjustment };
+  }
 
   // --- Level 1 lookup ---
   let lookupResult1;
@@ -94,6 +130,7 @@ export async function runEstimationCascade(
   }
 
   if (lookupResult1 !== null) {
+    const { result: yieldResult, yieldAdjustment } = await applyYield(lookupResult1.result, lookupResult1.rawFoodGroup);
     return {
       levelHit: 1,
       data: {
@@ -104,8 +141,9 @@ export async function runEstimationCascade(
         level3Hit: false,
         level4Hit: false,
         matchType: lookupResult1.matchType,
-        result: lookupResult1.result,
+        result: yieldResult,
         cachedAt: null,
+        yieldAdjustment,
       },
     };
   }
@@ -122,6 +160,8 @@ export async function runEstimationCascade(
   }
 
   if (lookupResult2 !== null) {
+    // L2 always resolves to dishes (entityType='dish') — rawFoodGroup = null
+    const { result: yieldResult, yieldAdjustment } = await applyYield(lookupResult2.result, null);
     return {
       levelHit: 2,
       data: {
@@ -132,8 +172,9 @@ export async function runEstimationCascade(
         level3Hit: false,
         level4Hit: false,
         matchType: lookupResult2.matchType,
-        result: lookupResult2.result,
+        result: yieldResult,
         cachedAt: null,
+        yieldAdjustment,
       },
     };
   }
@@ -154,6 +195,7 @@ export async function runEstimationCascade(
   }
 
   if (lookupResult3 !== null) {
+    const { result: yieldResult, yieldAdjustment } = await applyYield(lookupResult3.result, lookupResult3.rawFoodGroup);
     return {
       levelHit: 3,
       data: {
@@ -164,8 +206,9 @@ export async function runEstimationCascade(
         level3Hit: true,
         level4Hit: false,
         matchType: lookupResult3.matchType,
-        result: lookupResult3.result,
+        result: yieldResult,
         cachedAt: null,
+        yieldAdjustment,
       },
     };
   }
@@ -188,6 +231,7 @@ export async function runEstimationCascade(
     }
 
     if (lookupResult4 !== null) {
+      const { result: yieldResult, yieldAdjustment } = await applyYield(lookupResult4.result, lookupResult4.rawFoodGroup);
       return {
         levelHit: 4,
         data: {
@@ -198,8 +242,9 @@ export async function runEstimationCascade(
           level3Hit: false,
           level4Hit: true,
           matchType: lookupResult4.matchType,
-          result: lookupResult4.result,
+          result: yieldResult,
           cachedAt: null,
+          yieldAdjustment,
         },
       };
     }
@@ -218,6 +263,7 @@ export async function runEstimationCascade(
       matchType: null,
       result: null,
       cachedAt: null,
+      yieldAdjustment: null,
     },
   };
 }

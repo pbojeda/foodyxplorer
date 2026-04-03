@@ -162,9 +162,10 @@ describe('Section C — Route integration edge cases (F021)', () => {
     });
 
     expect(capturedKeys).toHaveLength(1);
-    // Normalized query "big mac" + chainSlug + restaurantId + portionMultiplier (default 1)
+    // F072: cache key format: fxp:estimate:<query>:<chainSlug>:<restaurantId>:<portionMultiplier>:<cookingState>:<cookingMethod>
+    // (empty strings for absent cookingState/cookingMethod)
     expect(capturedKeys[0]).toBe(
-      'fxp:estimate:big mac:mcdonalds-es:fd000000-0021-4000-a000-000000000002:1',
+      'fxp:estimate:big mac:mcdonalds-es:fd000000-0021-4000-a000-000000000002:1::',
     );
   });
 
@@ -178,7 +179,7 @@ describe('Section C — Route integration edge cases (F021)', () => {
     const app = await buildApp();
     await app.inject({ method: 'GET', url: '/estimate?query=pollo' });
 
-    expect(capturedKeys[0]).toBe('fxp:estimate:pollo:::1');
+    expect(capturedKeys[0]).toBe('fxp:estimate:pollo:::1::');
   });
 
   it('[FINDING-F021-08] cache key with only chainSlug — restaurantId segment is empty string', async () => {
@@ -191,7 +192,7 @@ describe('Section C — Route integration edge cases (F021)', () => {
     const app = await buildApp();
     await app.inject({ method: 'GET', url: '/estimate?query=pollo&chainSlug=burger-king-es' });
 
-    expect(capturedKeys[0]).toBe('fxp:estimate:pollo:burger-king-es::1');
+    expect(capturedKeys[0]).toBe('fxp:estimate:pollo:burger-king-es::1::');
   });
 
   it('[FINDING-F021-08] different queries produce different cache keys (case-insensitive)', async () => {
@@ -206,7 +207,7 @@ describe('Section C — Route integration edge cases (F021)', () => {
     await app.inject({ method: 'GET', url: '/estimate?query=big+mac' });
 
     expect(capturedKeys[0]).toBe(capturedKeys[1]); // Same normalized key
-    expect(capturedKeys[0]).toBe('fxp:estimate:big mac:::1');
+    expect(capturedKeys[0]).toBe('fxp:estimate:big mac:::1::');
   });
 
   // -------------------------------------------------------------------------

@@ -14,6 +14,7 @@ import {
   NutrientReferenceBasisSchema,
 } from './enums.js';
 import { EstimateMatchTypeSchema, EstimateNutrientsSchema } from './estimate.js';
+import { CookingStateSchema, YieldAdjustmentSchema } from './cookingProfile.js';
 
 // ---------------------------------------------------------------------------
 // RecipeIngredientInputSchema
@@ -26,6 +27,10 @@ export const RecipeIngredientInputSchema = z
     name: z.string().min(1).max(255).optional(),
     grams: z.number().positive().max(5000),
     portionMultiplier: z.number().min(0.1).max(5.0).default(1.0),
+    /** F072 — whether the gram weight is pre- or post-cooking */
+    cookingState: CookingStateSchema.optional(),
+    /** F072 — optional cooking method for yield profile lookup */
+    cookingMethod: z.string().min(1).max(100).optional(),
   })
   .refine(
     (data) => {
@@ -92,6 +97,8 @@ export const ResolvedAsSchema = z.object({
   name: z.string(),
   nameEs: z.string().nullable(),
   matchType: EstimateMatchTypeSchema,
+  /** F072 — yield adjustment applied to this ingredient; null when not applicable */
+  yieldAdjustment: YieldAdjustmentSchema.nullable().optional(),
 });
 
 export type ResolvedAs = z.infer<typeof ResolvedAsSchema>;

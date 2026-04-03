@@ -164,6 +164,7 @@ async function callChatCompletion(
 // ---------------------------------------------------------------------------
 // fetchFoodNutrients — copied verbatim from level3Lookup.ts (same SQL, same shape).
 // No sharing — precedent established by L1/L2/L3 (do NOT extract to shared utility).
+// F072: selects f.food_group for yield correction threading.
 // ---------------------------------------------------------------------------
 
 async function fetchFoodNutrients(
@@ -180,6 +181,7 @@ async function fetchFoodNutrients(
       f.id          AS food_id,
       f.name        AS food_name,
       f.name_es     AS food_name_es,
+      f.food_group  AS food_group,
       rfn.calories::text,
       rfn.proteins::text,
       rfn.carbohydrates::text,
@@ -251,6 +253,7 @@ async function fetchFoodByName(
       f.id          AS food_id,
       f.name        AS food_name,
       f.name_es     AS food_name_es,
+      f.food_group  AS food_group,
       rfn.calories::text,
       rfn.proteins::text,
       rfn.carbohydrates::text,
@@ -294,6 +297,7 @@ async function fetchFoodByName(
       f.id          AS food_id,
       f.name        AS food_name,
       f.name_es     AS food_name_es,
+      f.food_group  AS food_group,
       rfn.calories::text,
       rfn.proteins::text,
       rfn.carbohydrates::text,
@@ -396,7 +400,7 @@ async function runStrategyA(
   };
 
   // Step 9: Return
-  return { matchType: 'llm_food_match', result };
+  return { matchType: 'llm_food_match', result, rawFoodGroup: nutrientRow.food_group };
 }
 
 // ---------------------------------------------------------------------------

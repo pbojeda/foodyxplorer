@@ -282,3 +282,10 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 - **Coverage Gap**: `seedPhaseBedca()` has no DI hook for the snapshot file path, making the "missing snapshot file" error path untestable without mocking `fs` at module level. The error produced is a bare Node.js ENOENT with no user-friendly message. Low priority — the file is committed to the repo.
 - **Feature**: F071 | **Assessed by**: QA agent
+
+### 2026-04-03 — BUG-F072-01: isAlreadyCookedFood false positives via substring matching
+
+- **Issue**: `isAlreadyCookedFood` used plain substring matching (`includes()`) on cooking keywords. Names like `"uncooked rice"`, `"unbaked bread"` falsely triggered the guard.
+- **Root Cause**: `lower.includes(keyword)` without word-boundary anchoring.
+- **Solution**: Replaced with word-boundary regex `/\b<keyword>\b/i.test(foodName)`. 4 edge-case tests added.
+- **Feature**: F072 | **Found by**: qa-engineer | **Severity**: Medium | **Fixed in**: F072 (commit 8f4c522)

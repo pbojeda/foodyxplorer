@@ -15,6 +15,7 @@ import {
   NutrientReferenceBasisSchema,
   DataSourceTypeSchema,
 } from './enums.js';
+import { CookingStateSchema, YieldAdjustmentSchema } from './cookingProfile.js';
 
 // ---------------------------------------------------------------------------
 // Query params
@@ -25,6 +26,10 @@ export const EstimateQuerySchema = z.object({
   chainSlug: z.string().regex(/^[a-z0-9-]+$/).max(100).optional(),
   restaurantId: z.string().uuid().optional(),
   portionMultiplier: z.coerce.number().min(0.1).max(5.0).optional(),
+  /** F072 — whether the queried quantity refers to raw or cooked food */
+  cookingState: CookingStateSchema.optional(),
+  /** F072 — optional cooking method (e.g., "boiled", "fried", "grilled") */
+  cookingMethod: z.string().min(1).max(100).optional(),
 });
 
 export type EstimateQuery = z.infer<typeof EstimateQuerySchema>;
@@ -123,6 +128,8 @@ export const EstimateDataSchema = z.object({
   matchType: EstimateMatchTypeSchema.nullable(),
   result: EstimateResultSchema.nullable(),
   cachedAt: z.string().nullable(),
+  /** F072 — yield adjustment details; null when no correction was attempted */
+  yieldAdjustment: YieldAdjustmentSchema.nullable().optional(),
 });
 
 export type EstimateData = z.infer<typeof EstimateDataSchema>;
