@@ -29,7 +29,7 @@ export const EstimateQuerySchema = z.object({
   /** F072 — whether the queried quantity refers to raw or cooked food */
   cookingState: CookingStateSchema.optional(),
   /** F072 — optional cooking method (e.g., "boiled", "fried", "grilled") */
-  cookingMethod: z.string().max(100).optional(),
+  cookingMethod: z.string().min(1).max(100).optional(),
 });
 
 export type EstimateQuery = z.infer<typeof EstimateQuerySchema>;

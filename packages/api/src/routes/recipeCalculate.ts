@@ -342,7 +342,7 @@ async function executeRecipeCalculation(
         cookingState: cookingParams.cookingState,
         cookingMethod: cookingParams.cookingMethod,
         prisma,
-        logger: { warn: (msg) => logger.warn({}, msg), error: (msg) => logger.warn({}, msg) },
+        logger: { warn: (msg) => logger.warn({}, msg), error: (msg) => logger.error({}, msg) },
       });
 
       // Build a corrected nutrientRow for aggregation by cloning and replacing numeric fields.

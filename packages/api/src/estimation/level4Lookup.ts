@@ -400,7 +400,7 @@ async function runStrategyA(
   };
 
   // Step 9: Return
-  return { matchType: 'llm_food_match', result };
+  return { matchType: 'llm_food_match', result, rawFoodGroup: nutrientRow.food_group };
 }
 
 // ---------------------------------------------------------------------------

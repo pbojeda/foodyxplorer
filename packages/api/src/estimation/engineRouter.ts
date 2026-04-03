@@ -111,7 +111,7 @@ export async function runEstimationCascade(
       cookingMethod,
       prisma,
       logger: logger !== undefined
-        ? { warn: (msg) => logger.warn({}, msg), error: (msg) => logger.warn({}, msg) }
+        ? { warn: (msg) => logger.warn({}, msg), error: (msg) => logger.error({}, msg) }
         : { warn: () => {}, error: () => {} },
     });
 

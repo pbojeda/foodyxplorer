@@ -30,7 +30,7 @@ export const RecipeIngredientInputSchema = z
     /** F072 — whether the gram weight is pre- or post-cooking */
     cookingState: CookingStateSchema.optional(),
     /** F072 — optional cooking method for yield profile lookup */
-    cookingMethod: z.string().max(100).optional(),
+    cookingMethod: z.string().min(1).max(100).optional(),
   })
   .refine(
     (data) => {
