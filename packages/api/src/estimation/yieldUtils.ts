@@ -149,20 +149,20 @@ export function getDefaultCookingState(
 // Both Spanish (BEDCA) and English (USDA) keywords are included.
 // ---------------------------------------------------------------------------
 
-const COOKING_KEYWORDS: ReadonlyArray<string> = [
-  // Spanish (BEDCA)
-  'hervido',   // boiled
-  'cocido',    // cooked/stewed
-  'frito',     // fried
-  'asado',     // roasted/grilled
-  'al horno',  // baked (multi-word — checked as substring)
+const COOKING_KEYWORD_PATTERNS: ReadonlyArray<RegExp> = [
+  // Spanish (BEDCA) — word-boundary matching to avoid "uncooked" false positives
+  /\bhervido\b/i,    // boiled
+  /\bcocido\b/i,     // cooked/stewed
+  /\bfrito\b/i,      // fried
+  /\basado\b/i,      // roasted/grilled
+  /\bal horno\b/i,   // baked (multi-word phrase)
   // English (USDA)
-  'boiled',
-  'cooked',
-  'fried',
-  'grilled',
-  'baked',
-  'steamed',
+  /\bboiled\b/i,
+  /\bcooked\b/i,
+  /\bfried\b/i,
+  /\bgrilled\b/i,
+  /\bbaked\b/i,
+  /\bsteamed\b/i,
 ];
 
 // ---------------------------------------------------------------------------
@@ -170,13 +170,13 @@ const COOKING_KEYWORDS: ReadonlyArray<string> = [
 //
 // Returns true if the food name contains cooking keywords indicating that the
 // DB nutrients are already stored for the cooked state (e.g., "Arroz hervido").
-// Case-insensitive. Used to prevent double-applying yield correction.
+// Uses word-boundary regex to avoid false positives on negated forms like
+// "uncooked", "unbaked", "precooked" (BUG-F072-01 fix).
 // ---------------------------------------------------------------------------
 
 export function isAlreadyCookedFood(foodName: string): boolean {
   if (!foodName) return false;
-  const lower = foodName.toLowerCase();
-  return COOKING_KEYWORDS.some((keyword) => lower.includes(keyword));
+  return COOKING_KEYWORD_PATTERNS.some((pattern) => pattern.test(foodName));
 }
 
 // ---------------------------------------------------------------------------
