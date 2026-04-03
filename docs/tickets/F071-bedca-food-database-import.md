@@ -1,7 +1,7 @@
 # F071: BEDCA Food Database Import
 
 **Feature:** F071 | **Type:** Backend-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F071-bedca-food-database-import
+**Status:** Done | **Branch:** feature/F071-bedca-food-database-import (merged PR #63, deleted)
 **Created:** 2026-04-03 | **Dependencies:** F068 (priority_tier on DataSource)
 
 ---
@@ -479,7 +479,7 @@ docs/project_notes/key_facts.md      # BEDCA DataSource UUID, seed Phase 7 detai
 - [x] Step 4: Quality gates pass — production-code-validator: 0 issues
 - [x] Step 5: Code review — approve with minor changes (4 Important, all fixed)
 - [x] Step 5: QA review — 1 bug found + fixed, 1 spec deviation fixed, 24 edge-case tests added
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted. PR #63 squash-merged to develop
 
 ---
 
