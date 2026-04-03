@@ -144,8 +144,9 @@ export async function handleNaturalLanguage(
 
       let result = formatEstimate(data.estimation);
 
-      // Append context indicator when chain context is active (F054 behavior preserved)
-      if (data.activeContext) {
+      // Append context indicator ONLY when chainSlug was injected from context,
+      // not when the user typed an explicit slug (F054 behavior preserved).
+      if (data.usedContextFallback && data.activeContext) {
         result += `\n_Contexto activo: ${escapeMarkdown(data.activeContext.chainName)}_`;
       }
 

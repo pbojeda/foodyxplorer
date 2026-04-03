@@ -7,7 +7,6 @@
 // route handler's responsibility.
 
 import type { Kysely } from 'kysely';
-import type { Redis } from 'ioredis';
 import type { Logger } from './types.js';
 import type { EstimateData } from '@foodxplorer/shared';
 import type { DB } from '../generated/kysely-types.js';
@@ -27,7 +26,6 @@ export interface EstimateParams {
   restaurantId?: string;
   portionMultiplier?: number;
   db: Kysely<DB>;
-  redis: Redis;
   openAiApiKey?: string;
   level4Lookup?: Level4LookupFn;
   chainSlugs: string[];

@@ -80,6 +80,11 @@ export const ConversationMessageDataSchema = z.object({
       chainName: z.string(),
     })
     .nullable(),
+
+  // True when chainSlug was injected from context (not explicit in query).
+  // Bot adapter uses this to conditionally show "Contexto activo: X" footer.
+  // Only meaningful for estimation/comparison intents; absent otherwise.
+  usedContextFallback: z.boolean().optional(),
 });
 
 export type ConversationMessageData = z.infer<typeof ConversationMessageDataSchema>;

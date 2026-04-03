@@ -148,7 +148,6 @@ export async function processMessage(
         chainSlug: chainSlugA,
         portionMultiplier: parsedA.portionMultiplier,
         db,
-        redis,
         openAiApiKey,
         level4Lookup,
         chainSlugs,
@@ -159,7 +158,6 @@ export async function processMessage(
         chainSlug: chainSlugB,
         portionMultiplier: parsedB.portionMultiplier,
         db,
-        redis,
         openAiApiKey,
         level4Lookup,
         chainSlugs,
@@ -218,17 +216,20 @@ export async function processMessage(
     chainSlug: effectiveChainSlug,
     portionMultiplier,
     db,
-    redis,
     openAiApiKey,
     level4Lookup,
     chainSlugs,
     logger,
   });
 
+  // Track whether context was injected (no explicit slug in query)
+  const usedContextFallback = !explicitSlug && !!effectiveContext?.chainSlug;
+
   return {
     intent: 'estimation',
     actorId,
     estimation: estimationResult,
     activeContext,
+    usedContextFallback,
   };
 }

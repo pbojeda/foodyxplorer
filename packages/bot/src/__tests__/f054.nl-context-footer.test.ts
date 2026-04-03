@@ -96,13 +96,14 @@ const CHAT_ID = 0;
 // ==========================================================================
 
 describe('F054 — NL handler appends "Contexto activo" footer', () => {
-  it('appends footer when API returns activeContext', async () => {
+  it('appends footer when API returns activeContext with usedContextFallback', async () => {
     const client = makeMockClient();
     const messageData: ConversationMessageData = {
       intent: 'estimation',
       actorId: 'fd000000-0001-4000-a000-000000000099',
       estimation: ESTIMATE_DATA_WITH_RESULT,
       activeContext: { chainSlug: 'mcdonalds-es', chainName: "McDonald's Spain" },
+      usedContextFallback: true,
     };
     client.processMessage.mockResolvedValue(messageData);
     const redis = makeMockRedis(null);
@@ -156,6 +157,7 @@ describe('F054 — NL handler appends "Contexto activo" footer', () => {
       actorId: 'fd000000-0001-4000-a000-000000000099',
       estimation: ESTIMATE_DATA_WITH_RESULT,
       activeContext: { chainSlug: 'mcdonalds-es', chainName: "McDonald's Spain" },
+      usedContextFallback: true,
     };
     client.processMessage.mockResolvedValue(messageData);
 

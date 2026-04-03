@@ -148,6 +148,7 @@ describe('handleNaturalLanguage (F070 refactor)', () => {
       actorId: ACTOR_UUID,
       estimation: ESTIMATE_DATA_L1,
       activeContext: { chainSlug: 'mcdonalds-es', chainName: "McDonald's" },
+      usedContextFallback: true,
     };
 
     const apiClient = makeApiClient(vi.fn().mockResolvedValue(messageData));
