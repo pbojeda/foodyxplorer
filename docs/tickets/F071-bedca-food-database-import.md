@@ -475,7 +475,7 @@ docs/project_notes/key_facts.md      # BEDCA DataSource UUID, seed Phase 7 detai
 - [x] Step 0: Spec written (self-reviewed + Gemini cross-model review: 3 issues fixed)
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: Implementation plan written (self-reviewed)
-- [ ] Step 3: Implementation with TDD
+- [x] Step 3: Implementation with TDD
 - [ ] Step 4: Quality gates pass
 - [ ] Step 5: Code review
 - [ ] Step 5: QA review
@@ -490,6 +490,7 @@ docs/project_notes/key_facts.md      # BEDCA DataSource UUID, seed Phase 7 detai
 | 2026-04-03 | Ticket created | Standard complexity, branch feature/F071-bedca-food-database-import |
 | 2026-04-03 | Spec + Plan self-review | Verified edge cases, feature flag, snapshot approach, nutrient mappings |
 | 2026-04-03 | Gemini spec review | 1 CRITICAL + 2 IMPORTANT + 2 SUGGESTIONs. Fixed: salt multiplier 2.54→2.5 (EU law), MappedNutrients null handling, nameSourceLocale='es', API format clarified (always XML), nutrient IDs use actual BEDCA codes not sequential 1-14 |
+| 2026-04-03 | TDD implementation complete | 55 tests (50 unit + 5 integration no-op without DB). Commits: db8658d (data layer), 2450f1b (seed/scripts), 1fd9c07 (tests+docs). Lint clean. Build clean (F071 files). |
 
 ---
 
