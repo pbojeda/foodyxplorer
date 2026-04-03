@@ -10,11 +10,11 @@
 
 **Last Updated:** 2026-04-03
 
-**Active Feature:** No active work — F070 complete, ready for Phase A1
-**Step:** —
-**Branch:** —
-**Complexity:** —
-**Context:** F070 (Conversation Core) merged to develop via PR #62 (squash). ConversationCore service in packages/api/src/conversation/. POST /conversation/message endpoint. Bot refactored to thin adapter. 129 F070 tests. Phase A0 complete (F068+F069+F070). Next: Phase A1 — F071 (BEDCA import).
+**Active Feature:** F072 — Cooking Profiles + Yield Factors
+**Step:** 3/6 (Implement)
+**Branch:** feature/F072-cooking-profiles-yield-factors
+**Complexity:** Standard
+**Context:** CookingProfile table + yield factor service. ~50 seed entries. Integration with /estimate and /calculate/recipe. Spec reviewed by Gemini+Codex (9 issues fixed). Ticket: docs/tickets/F072-cooking-profiles-yield-factors.md
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -166,8 +166,8 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F071 | BEDCA Food Database Import | backend | pending | — | Standard. Scrape BEDCA XML API (procquery.php). ~431 foods with nutrients, bilingual names. Seed script. PENDING: AESAN commercial license (email sent). Can proceed with parsing, defer production use. See product-evolution-analysis Sec 5 |
-| F072 | Cooking Profiles + Yield Factors | backend | pending | — | Standard. CookingProfile table. 50 high-impact foods. Yield factors for grains/legumes/meat/fish. Default assumptions (grains=cooked, meat=raw). See product-evolution-analysis Sec 6 |
+| F071 | BEDCA Food Database Import | backend | done | 6/6 | PR #63. 74 tests. BEDCA Tier 1, 20 foods (placeholder IDs), feature flag BEDCA_IMPORT_ENABLED |
+| F072 | Cooking Profiles + Yield Factors | backend | in-progress | 3/6 | Standard. CookingProfile table. 50 high-impact foods. Yield factors for grains/legumes/meat/fish. Default assumptions (grains=cooked, meat=raw). See product-evolution-analysis Sec 6 |
 | F073 | Spanish Canonical Dishes (BEDCA-first + LLM long tail) | backend | pending | — | Standard. ~300 dishes. BEDCA data where available + LLM recipe generation for rest. Calculate via /calculate/recipe (L2). Virtual restaurant `cocina-espanola`. Human review top 50. See product-evolution-analysis Sec 5 |
 | F074 | L4 Cooking State Extraction | backend | pending | — | Simple. Enhance L4 decomposition prompt to extract cooking state per ingredient. Connect to CookingProfile yield factors |
 | F075 | Audio Input (Whisper → ConversationCore, bot) | bot | pending | — | Standard. Telegram voice messages → Whisper API transcription → ConversationCore. Async (push-to-talk). See product-evolution-analysis Sec 6 |

@@ -12,7 +12,7 @@ info:
     **Validation:**
     - Request bodies and query params are validated via `fastify-type-provider-zod`.
     - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
-  version: 0.6.0
+  version: 0.7.0
   contact:
     name: foodXPlorer
   license:
@@ -95,6 +95,16 @@ tags:
       formatted text. Formatting is the responsibility of each adapter.
       Per-actor rate limit applies (F069 — 50 queries/day per actor).
       Anonymous access via X-Actor-Id header (F069 actor middleware).
+  - name: Cooking
+    description: |
+      Cooking profiles and yield factor data (F072). The `cooking_profiles` table stores
+      yield factors (cooked_weight / raw_weight) and fat absorption values for ~50
+      high-impact food/method combinations. These are used by the estimation engine and
+      recipe calculator to correct caloric values when users report cooked weights for
+      foods stored as raw-weight per-100g in the DB.
+      No public read endpoints are defined for F072 — the profiles are an internal data
+      layer consumed by GET /estimate and POST /calculate/recipe. Admin seed/introspection
+      endpoints may be added in a future ticket.
 
 paths:
   /ingest/pdf:
@@ -2058,6 +2068,33 @@ paths:
             minimum: 0.1
             maximum: 5.0
             example: 1.5
+        - name: cookingState
+          in: query
+          required: false
+          description: |
+            Declares whether the queried quantity refers to raw (pre-cooking) or cooked
+            (post-cooking) food weight (F072). Only applied when the resolved entity is
+            a generic `Food` (not a restaurant dish — dishes are always `as_served`).
+
+            - `raw`: reported weight is pre-cooking. DB nutrients (per-100g USDA/BEDCA)
+              apply directly without yield correction.
+            - `cooked`: reported weight is post-cooking. Engine derives corrected raw weight
+              as `reportedGrams / yieldFactor` before applying nutrient lookup.
+            - `as_served`: no yield correction — treat reported weight as final serving.
+
+            When omitted, default assumptions apply based on the resolved food's `foodGroup`:
+            - `grains`, `legumes`, `pasta` → `cooked`
+            - `meat`, `fish` → `raw`
+            - `vegetables` → `raw`
+            - composite / unknown → `as_served`
+
+            Not applicable when the match is a restaurant dish (matchType contains "dish").
+            The response's `yieldAdjustment` block documents whether correction was applied.
+
+            **Cache key:** the effective `cookingState` value is included as a segment in the
+            Redis cache key, so corrections for different states are cached independently.
+          schema:
+            $ref: '#/components/schemas/CookingState'
       responses:
         '200':
           description: |
@@ -2675,6 +2712,14 @@ paths:
                             minimum: 0.1
                             maximum: 5.0
                             default: 1.0
+                          cookingState:
+                            $ref: '#/components/schemas/CookingState'
+                            description: |
+                              Declares whether this ingredient's gram weight is pre-cooking
+                              (raw) or post-cooking (cooked) (F072). When omitted, default
+                              assumptions fire based on the resolved food's food group.
+                              Not applicable in free-form mode — defaults apply to all
+                              resolved ingredients (F074 will extract state from text).
                         required: [grams]
                 - type: object
                   required: [mode, text]
@@ -2747,6 +2792,12 @@ paths:
                                   nullable: true
                                 matchType:
                                   type: string
+                                yieldAdjustment:
+                                  $ref: '#/components/schemas/YieldAdjustment'
+                                  description: |
+                                    Documents whether/how yield correction was applied for
+                                    this ingredient (F072). Always present when the ingredient
+                                    is resolved. Null when ingredient is unresolved.
                             nutrients:
                               $ref: "#/components/schemas/RecipeNutrients"
                               nullable: true
@@ -7621,6 +7672,173 @@ components:
           enum: [true]
         data:
           $ref: '#/components/schemas/AnalyticsData'
+
+    # -------------------------------------------------------------------------
+    # F072 — Cooking Profiles + Yield Factors
+    # -------------------------------------------------------------------------
+
+    CookingState:
+      type: string
+      enum: [raw, cooked, as_served]
+      description: |
+        Declares whether a reported gram weight refers to the food before cooking
+        (raw), after cooking (cooked), or as a final serving where no yield conversion
+        is meaningful (as_served).
+
+        - `raw`: weight is pre-cooking. DB nutrients (per-100g USDA/BEDCA raw-weight)
+          apply directly.
+        - `cooked`: weight is post-cooking. Engine corrects to raw equivalent:
+          `rawGrams = reportedGrams / yieldFactor` before applying nutrients.
+        - `as_served`: no yield correction — treat as final serving weight.
+
+        Default assumptions when omitted (by food group):
+        - grains, legumes, pasta → cooked
+        - meat, fish → raw
+        - vegetables → raw
+        - composite / unknown → as_served
+      example: cooked
+
+    YieldAdjustment:
+      type: object
+      description: |
+        Documents whether and how yield-factor correction was applied for a resolved
+        food entity (F072). Present in GET /estimate response and per-ingredient in
+        POST /calculate/recipe response. Always present when the entity is resolved;
+        null when unresolved.
+      required:
+        - applied
+        - reason
+      properties:
+        applied:
+          type: boolean
+          description: |
+            True when a yield factor was found AND applied (cookingState was cooked
+            or raw with a profile match). False in all other cases.
+          example: true
+        reason:
+          type: string
+          enum:
+            - cooked_state_applied
+            - raw_state_no_correction_needed
+            - as_served_no_correction
+            - dish_always_as_served
+            - no_profile_found
+            - nutrients_not_per_100g
+            - default_assumption_applied
+          description: |
+            Machine-readable explanation of the yield decision:
+            - `cooked_state_applied`: cookingState=cooked, profile found, correction applied.
+            - `raw_state_no_correction_needed`: cookingState=raw, no correction needed.
+            - `as_served_no_correction`: cookingState=as_served, correction skipped.
+            - `dish_always_as_served`: matched entity is a restaurant dish; correction skipped.
+            - `no_profile_found`: no cooking_profiles row matched the food group + method.
+            - `nutrients_not_per_100g`: nutrients are not stored per_100g; cannot correct.
+            - `default_assumption_applied`: cookingState was omitted; default fired and
+              `effectiveCookingState` shows what was assumed.
+          example: cooked_state_applied
+        effectiveCookingState:
+          $ref: '#/components/schemas/CookingState'
+          description: |
+            The cooking state actually used (after default-assumption logic). Useful
+            when `cookingState` was omitted and a default fired.
+          nullable: true
+          example: cooked
+        yieldFactor:
+          type: number
+          format: float
+          nullable: true
+          description: |
+            The yield factor used (cooked_weight / raw_weight). Non-null when
+            `applied = true`. Null otherwise.
+          example: 2.8
+        fatAbsorptionApplied:
+          type: number
+          format: float
+          nullable: true
+          description: |
+            Grams of fat absorbed per 100g raw food that were added to the nutrient
+            totals. Only non-null when cookingMethod is "fried" AND a fatAbsorption
+            value was present in the cooking profile.
+          example: 14.0
+        cookingMethod:
+          type: string
+          nullable: true
+          description: |
+            The cooking method matched in the cooking_profiles table. Null when no
+            profile was found or correction was not applied.
+          example: boiled
+
+    CookingProfile:
+      type: object
+      description: |
+        A row from the cooking_profiles table. Stores the yield factor (cooked_weight /
+        raw_weight) and optional fat absorption value for a food group + food name +
+        cooking method combination. ~50 entries seeded from USDA retention factors.
+      required:
+        - id
+        - foodGroup
+        - cookingMethod
+        - yieldFactor
+        - source
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "aaaaaaaa-0000-0000-0000-000000000001"
+        foodGroup:
+          type: string
+          description: |
+            Matches Food.foodGroup values (e.g. "grains", "legumes", "meat", "fish",
+            "vegetables", "pasta"). Used as the primary lookup key.
+          example: "grains"
+        foodName:
+          type: string
+          nullable: true
+          description: |
+            Optional specific food override (e.g. "rice", "chicken breast"). When present,
+            this profile takes precedence over the group-level default profile for the same
+            foodGroup + cookingMethod.
+          example: "rice"
+        cookingMethod:
+          type: string
+          description: |
+            Cooking method slug (e.g. "boiled", "fried", "grilled", "baked", "steamed",
+            "raw"). Plain VARCHAR — not a FK to the cooking_methods table (F002 model).
+          example: "boiled"
+        yieldFactor:
+          type: number
+          format: float
+          description: |
+            cooked_weight / raw_weight.
+            - > 1.0: food absorbs water (grains, legumes, pasta).
+            - < 1.0: food loses moisture (meat, fish, some vegetables).
+          minimum: 0.01
+          maximum: 10.0
+          example: 2.8
+        fatAbsorption:
+          type: number
+          format: float
+          nullable: true
+          description: |
+            Grams of fat absorbed per 100g raw food during frying. Only non-null for
+            fried entries (e.g. potatoes: 14.0, beef: 4.5). Applied in addition to
+            yield correction.
+          example: 14.0
+        source:
+          type: string
+          description: |
+            Attribution string for the yield factor value.
+          example: "USDA retention factors"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-04-03T00:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-04-03T00:00:00.000Z"
 
   securitySchemes:
     ApiKeyAuth:
