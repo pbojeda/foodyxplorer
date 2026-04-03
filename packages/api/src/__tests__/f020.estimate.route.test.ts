@@ -502,7 +502,8 @@ describe('GET /estimate', () => {
 
       expect(mockRedisGet).toHaveBeenCalledTimes(1);
       const cacheKey = mockRedisGet.mock.calls[0]![0] as string;
-      expect(cacheKey).toMatch(/:1\.5$/);
+      // F072: cache key now includes cookingState and cookingMethod segments (empty when absent)
+      expect(cacheKey).toMatch(/:1\.5::/);
     });
 
     it('cache key uses ":1" when multiplier absent', async () => {
@@ -516,7 +517,8 @@ describe('GET /estimate', () => {
 
       expect(mockRedisGet).toHaveBeenCalledTimes(1);
       const cacheKey = mockRedisGet.mock.calls[0]![0] as string;
-      expect(cacheKey).toMatch(/:1$/);
+      // F072: cache key now includes cookingState and cookingMethod segments (empty when absent)
+      expect(cacheKey).toMatch(/:1::/);
     });
 
     it('response with portionMultiplier=1.5 validates against EstimateResponseSchema', async () => {

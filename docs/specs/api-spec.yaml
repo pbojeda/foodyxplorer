@@ -7703,70 +7703,80 @@ components:
       description: |
         Documents whether and how yield-factor correction was applied for a resolved
         food entity (F072). Present in GET /estimate response and per-ingredient in
-        POST /calculate/recipe response. Always present when the entity is resolved;
-        null when unresolved.
+        POST /calculate/recipe response. Null when the entity was not resolved.
       required:
         - applied
+        - cookingState
+        - cookingStateSource
+        - fatAbsorptionApplied
         - reason
       properties:
         applied:
           type: boolean
           description: |
             True when a yield factor was found AND applied (cookingState was cooked
-            or raw with a profile match). False in all other cases.
+            and a matching profile was found). False in all other cases.
           example: true
-        reason:
-          type: string
-          enum:
-            - cooked_state_applied
-            - raw_state_no_correction_needed
-            - as_served_no_correction
-            - dish_always_as_served
-            - no_profile_found
-            - nutrients_not_per_100g
-            - default_assumption_applied
-          description: |
-            Machine-readable explanation of the yield decision:
-            - `cooked_state_applied`: cookingState=cooked, profile found, correction applied.
-            - `raw_state_no_correction_needed`: cookingState=raw, no correction needed.
-            - `as_served_no_correction`: cookingState=as_served, correction skipped.
-            - `dish_always_as_served`: matched entity is a restaurant dish; correction skipped.
-            - `no_profile_found`: no cooking_profiles row matched the food group + method.
-            - `nutrients_not_per_100g`: nutrients are not stored per_100g; cannot correct.
-            - `default_assumption_applied`: cookingState was omitted; default fired and
-              `effectiveCookingState` shows what was assumed.
-          example: cooked_state_applied
-        effectiveCookingState:
+        cookingState:
           $ref: '#/components/schemas/CookingState'
           description: |
-            The cooking state actually used (after default-assumption logic). Useful
-            when `cookingState` was omitted and a default fired.
-          nullable: true
+            The effective cooking state used (explicit from caller or resolved from
+            default assumption based on food group).
           example: cooked
+        cookingStateSource:
+          type: string
+          enum: [explicit, default_assumption, none]
+          description: |
+            How the cooking state was determined:
+            - `explicit`: caller provided cookingState in the request.
+            - `default_assumption`: cookingState was omitted; default fired based on food group.
+            - `none`: entity is a dish (always as_served) or no food group info.
+          example: default_assumption
+        cookingMethod:
+          type: string
+          nullable: true
+          description: |
+            The cooking method used for profile lookup. Null when correction was not applied
+            or no profile was found.
+          example: boiled
         yieldFactor:
           type: number
           format: float
           nullable: true
           description: |
-            The yield factor used (cooked_weight / raw_weight). Non-null when
+            The yield factor applied (cooked_weight / raw_weight). Non-null when
             `applied = true`. Null otherwise.
           example: 2.8
         fatAbsorptionApplied:
-          type: number
-          format: float
-          nullable: true
+          type: boolean
           description: |
-            Grams of fat absorbed per 100g raw food that were added to the nutrient
-            totals. Only non-null when cookingMethod is "fried" AND a fatAbsorption
-            value was present in the cooking profile.
-          example: 14.0
-        cookingMethod:
+            True when fat absorption was added to fats and calories. Only applies when
+            cookingMethod is "fried" AND the profile has a fatAbsorption value.
+          example: false
+        reason:
           type: string
-          nullable: true
+          enum:
+            - cooked_state_applied
+            - raw_state_no_correction
+            - as_served_passthrough
+            - no_profile_found
+            - dish_always_as_served
+            - nutrients_not_per_100g
+            - db_food_already_cooked
+            - cannot_reverse_cooked_to_raw
+            - invalid_yield_factor
           description: |
-            The cooking method matched in the cooking_profiles table. Null when no
-            profile was found or correction was not applied.
-          example: boiled
+            Machine-readable explanation of the yield decision:
+            - `cooked_state_applied`: cookingState=cooked, profile found, correction applied.
+            - `raw_state_no_correction`: cookingState=raw, nutrients already in raw basis.
+            - `as_served_passthrough`: cookingState=as_served, no conversion needed.
+            - `no_profile_found`: no cooking_profiles row matched food group + method.
+            - `dish_always_as_served`: matched entity is a restaurant dish; always as_served.
+            - `nutrients_not_per_100g`: nutrients stored per_serving, cannot apply yield.
+            - `db_food_already_cooked`: food name contains cooking keywords (e.g. "hervido").
+            - `cannot_reverse_cooked_to_raw`: user requested raw but DB food is cooked.
+            - `invalid_yield_factor`: yieldFactor <= 0 in DB (data error).
+          example: cooked_state_applied
 
     CookingProfile:
       type: object

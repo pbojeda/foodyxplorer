@@ -172,6 +172,7 @@ async function fetchFoodNutrients(
       f.id          AS food_id,
       f.name        AS food_name,
       f.name_es     AS food_name_es,
+      f.food_group  AS food_group,
       rfn.calories::text,
       rfn.proteins::text,
       rfn.carbohydrates::text,
@@ -280,6 +281,7 @@ export async function level3Lookup(
             matchType: 'similarity_dish',
             result,
             similarityDistance: distance,
+            rawFoodGroup: null,
           };
         }
         // Dish match found but no nutrient row — fall through to food strategy
@@ -303,6 +305,7 @@ export async function level3Lookup(
             matchType: 'similarity_food',
             result,
             similarityDistance: distance,
+            rawFoodGroup: nutrientRow.food_group,
           };
         }
       }

@@ -559,48 +559,48 @@ Follow this sequence to keep each step independently testable and to avoid merge
 
 ## Acceptance Criteria
 
-- [ ] Prisma migration creates `cooking_profiles` table with correct columns, indexes, and unique constraint
-- [ ] Seed script populates ~50 cooking profiles; running twice produces no duplicates
-- [ ] `getCookingProfile(foodGroup, foodName?, cookingMethod?)` returns most-specific matching profile or `null`
-- [ ] `applyYieldFactor(nutrients, yieldFactor, fatAbsorption?)` correctly scales all nutrient columns
-- [ ] `POST /calculate/recipe` structured mode: `cookingState` per ingredient triggers yield correction
-- [ ] `POST /calculate/recipe` response includes `yieldAdjustment` block per resolved ingredient
-- [ ] `GET /estimate` accepts optional `cookingState` query param; correction applied for food results
-- [ ] Default assumptions fire correctly by food group when `cookingState` is omitted
-- [ ] Fat absorption added to `fats` only (not `saturatedFats`) + calories recalculated (+fat×9)
-- [ ] `normalizeFoodGroup()` maps USDA/BEDCA raw food groups to canonical cooking groups
-- [ ] Already-cooked BEDCA foods detected by name keywords → yield skipped
-- [ ] `cookingMethod` accepted as optional param on both endpoints; defaults per food group
-- [ ] All 11 edge cases from spec handled with correct `yieldAdjustment.reason` values
-- [ ] Unit tests for `getCookingProfile` (exact match, group fallback, no match)
-- [ ] Unit tests for `applyYieldFactor` (scale-down, scale-up, fat absorption + calorie recalc, as_served)
-- [ ] Unit tests for `normalizeFoodGroup` mapping
-- [ ] Unit tests for already-cooked food detection
-- [ ] Unit tests for default cooking method per food group
-- [ ] All tests pass
-- [ ] Build succeeds
-- [ ] Specs updated (`api-spec.yaml` + shared Zod schemas)
+- [x] Prisma migration creates `cooking_profiles` table with correct columns, indexes, and unique constraint
+- [x] Seed script populates 60 cooking profiles; running twice produces no duplicates
+- [x] `getCookingProfile(foodGroup, foodName?, cookingMethod?)` returns most-specific matching profile or `null`
+- [x] `applyYieldFactor(nutrients, yieldFactor, fatAbsorption?)` correctly scales all nutrient columns
+- [x] `POST /calculate/recipe` structured mode: `cookingState` per ingredient triggers yield correction
+- [x] `POST /calculate/recipe` response includes `yieldAdjustment` block per resolved ingredient
+- [x] `GET /estimate` accepts optional `cookingState` query param; correction applied for food results
+- [x] Default assumptions fire correctly by food group when `cookingState` is omitted
+- [x] Fat absorption added to `fats` only (not `saturatedFats`) + calories recalculated (+fat×9)
+- [x] `normalizeFoodGroup()` maps USDA/BEDCA raw food groups to canonical cooking groups
+- [x] Already-cooked BEDCA foods detected by name keywords → yield skipped
+- [x] `cookingMethod` accepted as optional param on both endpoints; defaults per food group
+- [x] All 11 edge cases from spec handled with correct `yieldAdjustment.reason` values
+- [x] Unit tests for `getCookingProfile` (exact match, group fallback, no match) — 7 tests
+- [x] Unit tests for `applyYieldFactor` (scale-down, scale-up, fat absorption + calorie recalc, as_served) — 73 tests
+- [x] Unit tests for `normalizeFoodGroup` mapping — included in yieldUtils
+- [x] Unit tests for already-cooked food detection — included in yieldUtils
+- [x] Unit tests for default cooking method per food group — included in yieldUtils
+- [x] All 4055 tests pass (shared 412, API 2308, bot 1103, scraper 232)
+- [x] Build succeeds
+- [x] Specs updated (`api-spec.yaml` + shared Zod schemas)
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] E2E tests updated (if applicable)
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation
+- [x] All acceptance criteria met
+- [x] Unit tests written and passing (163 new F072 tests)
+- [x] E2E tests updated (if applicable) — N/A
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
+- [x] Specs reflect final implementation
 
 ---
 
 ## Workflow Checklist
 
 - [x] Step 0: `spec-creator` executed, specs updated
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: `backend-planner` executed, plan approved
-- [ ] Step 3: `backend-developer` executed with TDD
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 2: `backend-planner` executed, plan approved
+- [x] Step 3: `backend-developer` executed with TDD
 - [ ] Step 4: `production-code-validator` executed, quality gates pass
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed (Standard/Complex)

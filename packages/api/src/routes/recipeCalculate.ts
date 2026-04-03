@@ -28,6 +28,7 @@ import {
   type RecipeCalculateBody,
   type RecipeCalculateData,
   type ResolvedIngredient,
+  type YieldAdjustment,
 } from '@foodxplorer/shared';
 import type { DB } from '../generated/kysely-types.js';
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
@@ -40,6 +41,7 @@ import {
 } from '../calculation/resolveIngredient.js';
 import { aggregateNutrients } from '../calculation/aggregateNutrients.js';
 import { parseRecipeFreeForm } from '../calculation/parseRecipeFreeForm.js';
+import { resolveAndApplyYield } from '../estimation/applyYield.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -74,16 +76,23 @@ interface IngredientForCache {
   name?: string;
   grams: number;
   portionMultiplier: number;
+  /** F072 — optional cooking state for cache key differentiation */
+  cookingState?: string;
+  /** F072 — optional cooking method for cache key differentiation */
+  cookingMethod?: string;
 }
 
 function canonicalizeStructured(ingredients: IngredientForCache[]): string {
-  // Normalize: ensure portionMultiplier is present, then sort by (foodId ?? name), grams, portionMultiplier
+  // Normalize: include cookingState and cookingMethod in cache key so yield-corrected
+  // results are cached separately from uncorrected ones.
   const normalized = ingredients
     .map((i) => ({
       foodId: i.foodId ?? null,
       name: i.name ?? null,
       grams: i.grams,
       portionMultiplier: i.portionMultiplier,
+      cookingState: i.cookingState ?? null,
+      cookingMethod: i.cookingMethod ?? null,
     }))
     .sort((a, b) => {
       const keyA = (a.foodId ?? a.name ?? '');
@@ -108,7 +117,7 @@ const recipeCalculateRoutesPlugin: FastifyPluginAsync<RecipeCalculatePluginOptio
   app,
   opts,
 ) => {
-  const { db } = opts;
+  const { db, prisma } = opts;
 
   app.post(
     '/calculate/recipe',
@@ -134,7 +143,16 @@ const recipeCalculateRoutesPlugin: FastifyPluginAsync<RecipeCalculatePluginOptio
       // Build cache key
       let cacheKey: string;
       if (body.mode === 'structured') {
-        cacheKey = buildCacheKey('structured', canonicalizeStructured(body.ingredients));
+        // F072: include cookingState/cookingMethod so yield-corrected results cache separately
+        const ingredientsForCache: IngredientForCache[] = body.ingredients.map((i) => ({
+          foodId: i.foodId,
+          name: i.name,
+          grams: i.grams,
+          portionMultiplier: i.portionMultiplier,
+          cookingState: i.cookingState,
+          cookingMethod: i.cookingMethod,
+        }));
+        cacheKey = buildCacheKey('structured', canonicalizeStructured(ingredientsForCache));
       } else {
         cacheKey = buildCacheKey('free-form', canonicalizeFreeForm(body.text));
       }
@@ -151,7 +169,7 @@ const recipeCalculateRoutesPlugin: FastifyPluginAsync<RecipeCalculatePluginOptio
 
       try {
         const result = await Promise.race([
-          executeRecipeCalculation(db, body, controller.signal, request.log),
+          executeRecipeCalculation(db, prisma, body, controller.signal, request.log),
           new Promise<never>((_, reject) =>
             controller.signal.addEventListener('abort', () =>
               reject(Object.assign(new Error('Recipe calculation timed out'), { code: 'PROCESSING_TIMEOUT' }))
@@ -183,6 +201,7 @@ const recipeCalculateRoutesPlugin: FastifyPluginAsync<RecipeCalculatePluginOptio
 
 async function executeRecipeCalculation(
   db: Kysely<DB>,
+  prisma: PrismaClient,
   body: RecipeCalculateBody,
   signal: AbortSignal,
   logger: { info: (obj: Record<string, unknown>, msg?: string) => void; warn: (obj: Record<string, unknown>, msg?: string) => void; debug: (obj: Record<string, unknown>, msg?: string) => void },
@@ -192,6 +211,8 @@ async function executeRecipeCalculation(
   // Step 0: For free-form mode — parse text with LLM first
   let parsedIngredients: Array<{ name: string; grams: number; portionMultiplier: number }> | undefined;
   let ingredientInputs: IngredientInput[];
+  // F072: per-ingredient cooking params (structured mode only)
+  let ingredientCookingParams: Array<{ cookingState?: string; cookingMethod?: string }> = [];
 
   if (body.mode === 'free-form') {
     const parsed = await parseRecipeFreeForm(body.text, openAiApiKey, logger, signal);
@@ -207,12 +228,19 @@ async function executeRecipeCalculation(
       grams: p.grams,
       portionMultiplier: p.portionMultiplier,
     }));
+    // Free-form: no per-ingredient cooking state (F074 will handle this)
+    ingredientCookingParams = parsed.map(() => ({}));
   } else {
     ingredientInputs = body.ingredients.map((i) => ({
       foodId: i.foodId,
       name: i.name,
       grams: i.grams,
       portionMultiplier: i.portionMultiplier,
+    }));
+    // F072: extract per-ingredient cooking params from structured body
+    ingredientCookingParams = body.ingredients.map((i) => ({
+      cookingState: i.cookingState,
+      cookingMethod: i.cookingMethod,
     }));
   }
 
@@ -244,12 +272,18 @@ async function executeRecipeCalculation(
     finalResults[idx] = l3l4Result;
   }
 
-  // Build per-ingredient display and collect resolved for aggregation
+  // Build per-ingredient display and collect resolved for aggregation.
+  // F072: Apply yield correction per resolved ingredient.
   type AggInput = { grams: number; portionMultiplier: number; nutrientRow: ResolvedResult['nutrientRow'] };
   const resolvedAgg: Array<AggInput & { index: number }> = [];
 
-  const displayIngredients: ResolvedIngredient[] = finalResults.map((res, i) => {
+  const displayIngredients: ResolvedIngredient[] = [];
+
+  for (let i = 0; i < finalResults.length; i++) {
+    const res = finalResults[i];
     const input = ingredientInputs[i] ?? { grams: 0, portionMultiplier: 1.0 };
+    const cookingParams = ingredientCookingParams[i] ?? {};
+
     const displayInput = {
       foodId: input.foodId ?? null,
       name: input.name ?? null,
@@ -257,15 +291,88 @@ async function executeRecipeCalculation(
       portionMultiplier: input.portionMultiplier,
     };
 
-    if (res.resolved) {
+    if (res && res.resolved) {
+      // F072: Build EstimateResult-like object for resolveAndApplyYield.
+      // We use the nutrientRow to construct nutrients for yield correction.
+      const foodName = res.name;
+      const rawFoodGroup = res.nutrientRow.food_group ?? null;
+
+      // Convert FoodQueryRow nutrients to EstimateResult format for resolveAndApplyYield
+      const estimateResult = {
+        entityType: 'food' as const,
+        entityId: res.entityId,
+        name: res.name,
+        nameEs: res.nameEs,
+        restaurantId: null,
+        chainSlug: null,
+        portionGrams: null,
+        nutrients: {
+          calories: parseFloat(res.nutrientRow.calories) || 0,
+          proteins: parseFloat(res.nutrientRow.proteins) || 0,
+          carbohydrates: parseFloat(res.nutrientRow.carbohydrates) || 0,
+          sugars: parseFloat(res.nutrientRow.sugars) || 0,
+          fats: parseFloat(res.nutrientRow.fats) || 0,
+          saturatedFats: parseFloat(res.nutrientRow.saturated_fats) || 0,
+          fiber: parseFloat(res.nutrientRow.fiber) || 0,
+          salt: parseFloat(res.nutrientRow.salt) || 0,
+          sodium: parseFloat(res.nutrientRow.sodium) || 0,
+          transFats: parseFloat(res.nutrientRow.trans_fats) || 0,
+          cholesterol: parseFloat(res.nutrientRow.cholesterol) || 0,
+          potassium: parseFloat(res.nutrientRow.potassium) || 0,
+          monounsaturatedFats: parseFloat(res.nutrientRow.monounsaturated_fats) || 0,
+          polyunsaturatedFats: parseFloat(res.nutrientRow.polyunsaturated_fats) || 0,
+          referenceBasis: res.nutrientRow.reference_basis as 'per_100g' | 'per_serving',
+        },
+        confidenceLevel: 'high' as const,
+        estimationMethod: 'official' as const,
+        source: {
+          id: res.nutrientRow.source_id,
+          name: res.nutrientRow.source_name,
+          type: res.nutrientRow.source_type as 'official' | 'scraped' | 'estimated' | 'user',
+          url: res.nutrientRow.source_url,
+        },
+        similarityDistance: null,
+      };
+
+      // Apply yield correction
+      const { result: correctedResult, yieldAdjustment } = await resolveAndApplyYield({
+        result: estimateResult,
+        foodName,
+        rawFoodGroup,
+        cookingState: cookingParams.cookingState,
+        cookingMethod: cookingParams.cookingMethod,
+        prisma,
+        logger: { warn: (msg) => logger.warn({}, msg), error: (msg) => logger.warn({}, msg) },
+      });
+
+      // Build a corrected nutrientRow for aggregation by cloning and replacing numeric fields.
+      // aggregateNutrients reads string fields from nutrientRow — convert corrected numbers back.
+      const correctedNutrientRow = {
+        ...res.nutrientRow,
+        calories: String(correctedResult.nutrients.calories),
+        proteins: String(correctedResult.nutrients.proteins),
+        carbohydrates: String(correctedResult.nutrients.carbohydrates),
+        sugars: String(correctedResult.nutrients.sugars),
+        fats: String(correctedResult.nutrients.fats),
+        saturated_fats: String(correctedResult.nutrients.saturatedFats),
+        fiber: String(correctedResult.nutrients.fiber),
+        salt: String(correctedResult.nutrients.salt),
+        sodium: String(correctedResult.nutrients.sodium),
+        trans_fats: String(correctedResult.nutrients.transFats),
+        cholesterol: String(correctedResult.nutrients.cholesterol),
+        potassium: String(correctedResult.nutrients.potassium),
+        monounsaturated_fats: String(correctedResult.nutrients.monounsaturatedFats),
+        polyunsaturated_fats: String(correctedResult.nutrients.polyunsaturatedFats),
+      };
+
       resolvedAgg.push({
         index: i,
         grams: input.grams,
         portionMultiplier: input.portionMultiplier,
-        nutrientRow: res.nutrientRow,
+        nutrientRow: correctedNutrientRow,
       });
 
-      return {
+      displayIngredients.push({
         input: displayInput,
         resolved: true,
         resolvedAs: {
@@ -273,18 +380,19 @@ async function executeRecipeCalculation(
           name: res.name,
           nameEs: res.nameEs,
           matchType: res.matchType,
+          yieldAdjustment: yieldAdjustment as YieldAdjustment | null,
         },
         nutrients: null, // filled in after aggregation
-      };
+      });
+    } else {
+      displayIngredients.push({
+        input: displayInput,
+        resolved: false,
+        resolvedAs: null,
+        nutrients: null,
+      });
     }
-
-    return {
-      input: displayInput,
-      resolved: false,
-      resolvedAs: null,
-      nutrients: null,
-    };
-  });
+  }
 
   // Handle zero resolution
   if (resolvedAgg.length === 0) {

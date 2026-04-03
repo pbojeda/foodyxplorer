@@ -510,3 +510,24 @@ model WaitlistSubmission {
 
   @@map("waitlist_submissions")
 }
+
+// ---------------------------------------------------------------------------
+// F072 — Cooking Profiles + Yield Factors
+// ---------------------------------------------------------------------------
+
+model CookingProfile {
+  id            String   @id @default(uuid()) @db.Uuid
+  foodGroup     String   @map("food_group") @db.VarChar(100)
+  foodName      String   @default("*") @map("food_name") @db.VarChar(255)
+  cookingMethod String   @map("cooking_method") @db.VarChar(100)
+  yieldFactor   Decimal  @map("yield_factor") @db.Decimal(6, 4)
+  fatAbsorption Decimal? @map("fat_absorption") @db.Decimal(6, 2)
+  source        String   @db.VarChar(255)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([foodGroup, foodName, cookingMethod])
+  @@index([foodGroup])
+  @@index([foodName])
+  @@map("cooking_profiles")
+}

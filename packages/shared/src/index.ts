@@ -23,3 +23,4 @@ export * from './schemas/analytics';
 export * from './schemas/analysis';
 export * from './schemas/waitlist';
 export * from './schemas/conversation';
+export * from './schemas/cookingProfile';

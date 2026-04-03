@@ -91,7 +91,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
     async (request, reply) => {
       const startMs = performance.now();
 
-      const { query, chainSlug, restaurantId, portionMultiplier } =
+      const { query, chainSlug, restaurantId, portionMultiplier, cookingState, cookingMethod } =
         request.query as EstimateQuery;
 
       const effectiveMultiplier = portionMultiplier ?? 1;
@@ -110,11 +110,13 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       // Normalize for cache key only. Router normalizes internally for DB lookups.
       const normalizedQuery = query.replace(/\s+/g, ' ').trim().toLowerCase();
 
-      // Unified cache key: fxp:estimate:<query>:<chainSlug>:<restaurantId>:<portionMultiplier>
+      // Unified cache key:
+      // fxp:estimate:<query>:<chainSlug>:<restaurantId>:<portionMultiplier>:<cookingState>:<cookingMethod>
+      // Empty strings for absent params maintain consistent key format (backward compatible).
       // Brand detection is deterministic from query text + chainSlugs (loaded at init), so not in key.
       const cacheKey = buildKey(
         'estimate',
-        `${normalizedQuery}:${chainSlug ?? ''}:${restaurantId ?? ''}:${effectiveMultiplier}`,
+        `${normalizedQuery}:${chainSlug ?? ''}:${restaurantId ?? ''}:${effectiveMultiplier}:${cookingState ?? ''}:${cookingMethod ?? ''}`,
       );
 
       // Log entry variables — set in both code paths before reply.send()
@@ -176,6 +178,9 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         level4Lookup,
         logger: request.log,
         hasExplicitBrand,
+        prisma,
+        cookingState,
+        cookingMethod,
       });
 
       cacheHit = false;

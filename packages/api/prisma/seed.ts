@@ -618,6 +618,13 @@ async function main(): Promise<void> {
   await seedPhase8(prisma);
   console.log('Phase 8 seeding complete.');
 
+  // ---------------------------------------------------------------------------
+  // Phase 9 — Cooking Profiles (F072)
+  // ---------------------------------------------------------------------------
+  console.log('Starting Phase 9 seed: Cooking profiles (yield factors)...');
+  await seedCookingProfiles(prisma);
+  console.log('Phase 9 seeding complete.');
+
   console.log('Seeding complete.');
 }
 
@@ -1212,6 +1219,140 @@ export async function seedPhase8(client: PrismaClient): Promise<void> {
     },
   });
   console.log('Phase 8: Telegram Upload DataSource upserted.');
+}
+
+// ---------------------------------------------------------------------------
+// Phase 9: Cooking Profiles (F072) — ~50 entries from USDA retention factors
+// UUID namespace: e000 — 00000000-0000-0000-e000-XXXXXXXXXXXX
+// ---------------------------------------------------------------------------
+
+/**
+ * Seed ~50 cooking profiles with deterministic UUIDs in the e000 namespace.
+ * Uses upsert with composite unique key (foodGroup_foodName_cookingMethod).
+ * Idempotent: running twice produces no duplicates.
+ */
+export async function seedCookingProfiles(client: PrismaClient): Promise<void> {
+  const SOURCE = 'USDA retention factors';
+
+  interface ProfileEntry {
+    id: string;
+    foodGroup: string;
+    foodName: string;
+    cookingMethod: string;
+    yieldFactor: number;
+    fatAbsorption: number | null;
+  }
+
+  const profiles: ProfileEntry[] = [
+    // ----- GRAINS -----
+    // Specific foods
+    { id: '00000000-0000-0000-e000-000000000001', foodGroup: 'grains', foodName: 'rice',        cookingMethod: 'boiled',  yieldFactor: 2.80, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000002', foodGroup: 'grains', foodName: 'rice',        cookingMethod: 'steamed', yieldFactor: 2.70, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000003', foodGroup: 'grains', foodName: 'oats',        cookingMethod: 'boiled',  yieldFactor: 2.40, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000004', foodGroup: 'grains', foodName: 'quinoa',      cookingMethod: 'boiled',  yieldFactor: 2.70, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000005', foodGroup: 'grains', foodName: 'barley',      cookingMethod: 'boiled',  yieldFactor: 2.50, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000006', foodGroup: 'grains', foodName: 'couscous',    cookingMethod: 'boiled',  yieldFactor: 2.30, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000007', foodGroup: 'grains', foodName: 'polenta',     cookingMethod: 'boiled',  yieldFactor: 3.00, fatAbsorption: null },
+    // Group wildcard defaults
+    { id: '00000000-0000-0000-e000-000000000008', foodGroup: 'grains', foodName: '*',           cookingMethod: 'boiled',  yieldFactor: 2.50, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000009', foodGroup: 'grains', foodName: '*',           cookingMethod: 'steamed', yieldFactor: 2.40, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000010', foodGroup: 'grains', foodName: '*',           cookingMethod: 'pressure_cooked', yieldFactor: 2.60, fatAbsorption: null },
+
+    // ----- PASTA -----
+    { id: '00000000-0000-0000-e000-000000000011', foodGroup: 'pasta',  foodName: 'spaghetti',   cookingMethod: 'boiled',  yieldFactor: 2.20, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000012', foodGroup: 'pasta',  foodName: 'penne',       cookingMethod: 'boiled',  yieldFactor: 2.15, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000013', foodGroup: 'pasta',  foodName: 'macaroni',    cookingMethod: 'boiled',  yieldFactor: 2.20, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000014', foodGroup: 'pasta',  foodName: 'fusilli',     cookingMethod: 'boiled',  yieldFactor: 2.18, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000015', foodGroup: 'pasta',  foodName: 'lasagna',     cookingMethod: 'boiled',  yieldFactor: 2.10, fatAbsorption: null },
+    // Group wildcard default
+    { id: '00000000-0000-0000-e000-000000000016', foodGroup: 'pasta',  foodName: '*',           cookingMethod: 'boiled',  yieldFactor: 2.10, fatAbsorption: null },
+
+    // ----- LEGUMES -----
+    { id: '00000000-0000-0000-e000-000000000017', foodGroup: 'legumes', foodName: 'lentils',      cookingMethod: 'boiled',  yieldFactor: 3.00, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000018', foodGroup: 'legumes', foodName: 'chickpeas',    cookingMethod: 'boiled',  yieldFactor: 2.40, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000019', foodGroup: 'legumes', foodName: 'black beans',  cookingMethod: 'boiled',  yieldFactor: 2.60, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000020', foodGroup: 'legumes', foodName: 'kidney beans', cookingMethod: 'boiled',  yieldFactor: 2.50, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000021', foodGroup: 'legumes', foodName: 'soybeans',     cookingMethod: 'boiled',  yieldFactor: 2.20, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000022', foodGroup: 'legumes', foodName: 'peas',         cookingMethod: 'boiled',  yieldFactor: 1.50, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000023', foodGroup: 'legumes', foodName: 'split peas',   cookingMethod: 'boiled',  yieldFactor: 2.40, fatAbsorption: null },
+    // Group wildcard default
+    { id: '00000000-0000-0000-e000-000000000024', foodGroup: 'legumes', foodName: '*',            cookingMethod: 'boiled',  yieldFactor: 2.50, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000025', foodGroup: 'legumes', foodName: '*',            cookingMethod: 'pressure_cooked', yieldFactor: 2.70, fatAbsorption: null },
+
+    // ----- MEAT -----
+    { id: '00000000-0000-0000-e000-000000000026', foodGroup: 'meat', foodName: 'chicken breast', cookingMethod: 'grilled', yieldFactor: 0.85, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000027', foodGroup: 'meat', foodName: 'chicken breast', cookingMethod: 'baked',   yieldFactor: 0.87, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000028', foodGroup: 'meat', foodName: 'chicken breast', cookingMethod: 'boiled',  yieldFactor: 0.82, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000029', foodGroup: 'meat', foodName: 'beef',           cookingMethod: 'grilled', yieldFactor: 0.75, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000030', foodGroup: 'meat', foodName: 'beef',           cookingMethod: 'fried',   yieldFactor: 0.78, fatAbsorption: 4.50 },
+    { id: '00000000-0000-0000-e000-000000000031', foodGroup: 'meat', foodName: 'beef',           cookingMethod: 'baked',   yieldFactor: 0.73, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000032', foodGroup: 'meat', foodName: 'pork',           cookingMethod: 'grilled', yieldFactor: 0.72, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000033', foodGroup: 'meat', foodName: 'pork',           cookingMethod: 'baked',   yieldFactor: 0.75, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000034', foodGroup: 'meat', foodName: 'lamb',           cookingMethod: 'grilled', yieldFactor: 0.70, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000035', foodGroup: 'meat', foodName: 'turkey',         cookingMethod: 'roasted', yieldFactor: 0.80, fatAbsorption: null },
+    // Group wildcard defaults
+    { id: '00000000-0000-0000-e000-000000000036', foodGroup: 'meat', foodName: '*',              cookingMethod: 'grilled', yieldFactor: 0.78, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000037', foodGroup: 'meat', foodName: '*',              cookingMethod: 'baked',   yieldFactor: 0.80, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000038', foodGroup: 'meat', foodName: '*',              cookingMethod: 'boiled',  yieldFactor: 0.75, fatAbsorption: null },
+
+    // ----- FISH -----
+    { id: '00000000-0000-0000-e000-000000000039', foodGroup: 'fish', foodName: 'salmon',   cookingMethod: 'grilled', yieldFactor: 0.80, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000040', foodGroup: 'fish', foodName: 'salmon',   cookingMethod: 'baked',   yieldFactor: 0.82, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000041', foodGroup: 'fish', foodName: 'cod',      cookingMethod: 'baked',   yieldFactor: 0.82, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000042', foodGroup: 'fish', foodName: 'cod',      cookingMethod: 'boiled',  yieldFactor: 0.85, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000043', foodGroup: 'fish', foodName: 'tuna',     cookingMethod: 'grilled', yieldFactor: 0.75, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000044', foodGroup: 'fish', foodName: 'shrimp',   cookingMethod: 'boiled',  yieldFactor: 0.78, fatAbsorption: null },
+    // Group wildcard defaults
+    { id: '00000000-0000-0000-e000-000000000045', foodGroup: 'fish', foodName: '*',        cookingMethod: 'grilled', yieldFactor: 0.82, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000046', foodGroup: 'fish', foodName: '*',        cookingMethod: 'baked',   yieldFactor: 0.84, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000047', foodGroup: 'fish', foodName: '*',        cookingMethod: 'boiled',  yieldFactor: 0.85, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000048', foodGroup: 'fish', foodName: '*',        cookingMethod: 'steamed', yieldFactor: 0.85, fatAbsorption: null },
+
+    // ----- VEGETABLES -----
+    { id: '00000000-0000-0000-e000-000000000049', foodGroup: 'vegetables', foodName: 'potato',   cookingMethod: 'boiled',  yieldFactor: 0.90, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000050', foodGroup: 'vegetables', foodName: 'potato',   cookingMethod: 'fried',   yieldFactor: 0.62, fatAbsorption: 14.00 },
+    { id: '00000000-0000-0000-e000-000000000051', foodGroup: 'vegetables', foodName: 'potato',   cookingMethod: 'baked',   yieldFactor: 0.80, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000052', foodGroup: 'vegetables', foodName: 'broccoli', cookingMethod: 'boiled',  yieldFactor: 0.91, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000053', foodGroup: 'vegetables', foodName: 'broccoli', cookingMethod: 'steamed', yieldFactor: 0.94, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000054', foodGroup: 'vegetables', foodName: 'spinach',  cookingMethod: 'boiled',  yieldFactor: 0.89, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000055', foodGroup: 'vegetables', foodName: 'carrot',   cookingMethod: 'boiled',  yieldFactor: 0.93, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000056', foodGroup: 'vegetables', foodName: 'zucchini', cookingMethod: 'boiled',  yieldFactor: 0.94, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000057', foodGroup: 'vegetables', foodName: 'tomato',   cookingMethod: 'boiled',  yieldFactor: 0.95, fatAbsorption: null },
+    // Group wildcard defaults
+    { id: '00000000-0000-0000-e000-000000000058', foodGroup: 'vegetables', foodName: '*',        cookingMethod: 'boiled',  yieldFactor: 0.92, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000059', foodGroup: 'vegetables', foodName: '*',        cookingMethod: 'steamed', yieldFactor: 0.94, fatAbsorption: null },
+    { id: '00000000-0000-0000-e000-000000000060', foodGroup: 'vegetables', foodName: '*',        cookingMethod: 'roasted', yieldFactor: 0.85, fatAbsorption: null },
+  ];
+
+  let upserted = 0;
+  for (const p of profiles) {
+    await client.cookingProfile.upsert({
+      where: {
+        foodGroup_foodName_cookingMethod: {
+          foodGroup: p.foodGroup,
+          foodName: p.foodName,
+          cookingMethod: p.cookingMethod,
+        },
+      },
+      update: {
+        yieldFactor: p.yieldFactor,
+        fatAbsorption: p.fatAbsorption,
+        source: SOURCE,
+      },
+      create: {
+        id: p.id,
+        foodGroup: p.foodGroup,
+        foodName: p.foodName,
+        cookingMethod: p.cookingMethod,
+        yieldFactor: p.yieldFactor,
+        fatAbsorption: p.fatAbsorption,
+        source: SOURCE,
+      },
+    });
+    upserted++;
+  }
+
+  console.log(`Phase 9: ${upserted} cooking profiles upserted.`);
 }
 
 main()
