@@ -268,3 +268,17 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Solution**: Added `decrementRateLimit()` helper that calls `redis.decr()` on server/network errors (5xx, TIMEOUT, NETWORK_ERROR). 4xx errors (user input) and 429 (legitimate throttle) keep the counter. Decrement failures are silently swallowed (fail-open).
 - **Prevention**: Consider the full lifecycle of rate-limit counters: increment early for abuse prevention, but refund on infrastructure failures.
 - **Feature**: F041 (Bot Recipe Calculator) | **Found by**: Claude Opus 4.6 comprehensive audit | **Severity**: Important | **Fixed in**: F051
+
+### 2026-04-03 — BUG-F071-01: parseNutrientValue passes Infinity through as a valid number
+
+- **Issue**: `parseBedcaFoods()` in `bedcaParser.ts` returns `Infinity` (JavaScript's positive infinity) as a valid nutrient value when the XML source contains the literal string `"Infinity"`. The value is then stored as-is in `BedcaNutrientValue.value` and passed downstream to the mapper and DB seed. `Infinity` is not a valid nutrition value and would likely fail PostgreSQL insertion (Prisma converts Infinity to a non-finite float, which violates DB numeric columns).
+- **Root Cause**: The internal `parseNutrientValue()` function guards against non-numeric strings using `isNaN(num)`, but `isNaN(Infinity) === false` — JavaScript considers `Infinity` a valid number. The function does not check `Number.isFinite()`.
+- **Solution**: In `parseNutrientValue()` in `packages/api/src/ingest/bedca/bedcaParser.ts`, change the guard from `isNaN(num) ? null : num` to `!Number.isFinite(num) ? null : num`. This converts both `NaN` and `Infinity`/`-Infinity` to null, which is the correct representation for unmeasured or invalid nutrient values.
+- **Prevention**: When parsing user-supplied or API-supplied numeric strings into domain types, always validate with `Number.isFinite()` rather than `!isNaN()`. `isNaN()` allows Infinity, which is rarely a valid business value. Add `Number.isFinite()` assertions to all nutrient parsers.
+- **Reproduction**: `parseBedcaFoods('<food_database><row><food_id>1</food_id>...<value>Infinity</value></row></food_database>')` — the returned food's nutrient has `value === Infinity`.
+- **Feature**: F071 | **Found by**: QA agent | **Severity**: Medium | **Fixed in**: F071 (commit 21bc8d6)
+
+### 2026-04-03 — F071 QA NOTES — Coverage gap (low priority)
+
+- **Coverage Gap**: `seedPhaseBedca()` has no DI hook for the snapshot file path, making the "missing snapshot file" error path untestable without mocking `fs` at module level. The error produced is a bare Node.js ENOENT with no user-friendly message. Low priority — the file is committed to the repo.
+- **Feature**: F071 | **Assessed by**: QA agent

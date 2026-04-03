@@ -11,10 +11,10 @@
 **Last Updated:** 2026-04-03
 
 **Active Feature:** F071 — BEDCA Food Database Import
-**Step:** 4/6 (Quality Gates)
+**Step:** 5/6 (Review)
 **Branch:** feature/F071-bedca-food-database-import
 **Complexity:** Standard
-**Context:** Step 3 complete. 55 tests passing (50 unit + 5 integration no-ops without DB). 3 commits: db8658d (data layer), 2450f1b (seed/scripts), 1fd9c07 (tests+docs). F071 lint clean. Build clean (F071 files). Feature flag BEDCA_IMPORT_ENABLED, salt=sodium*2.5 (EU law), tier 1 DataSource UUID 00000000-0000-0000-0000-000000000003.
+**Context:** Step 5 — review complete. 74 tests (55 dev + 24 QA edge-case, all passing). Production-code-validator: 0 issues. Code-review: approve with minor changes (all fixed). QA: 1 bug found + fixed (BUG-F071-01 Infinity), 1 spec deviation fixed, 24 edge-case tests added. Awaiting merge approval.
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -166,7 +166,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F071 | BEDCA Food Database Import | backend | in-progress | 4/6 | Standard. XML API + static snapshot. ~20 foods initial (full 431 post-AESAN auth). Tier 1 DataSource UUID 00000000-0000-0000-0000-000000000003. Feature flag BEDCA_IMPORT_ENABLED. See product-evolution-analysis Sec 5 |
+| F071 | BEDCA Food Database Import | backend | in-progress | 5/6 | Standard. 74 tests. Production validator + code review + QA complete. Awaiting merge approval |
 | F072 | Cooking Profiles + Yield Factors | backend | pending | — | Standard. CookingProfile table. 50 high-impact foods. Yield factors for grains/legumes/meat/fish. Default assumptions (grains=cooked, meat=raw). See product-evolution-analysis Sec 6 |
 | F073 | Spanish Canonical Dishes (BEDCA-first + LLM long tail) | backend | pending | — | Standard. ~300 dishes. BEDCA data where available + LLM recipe generation for rest. Calculate via /calculate/recipe (L2). Virtual restaurant `cocina-espanola`. Human review top 50. See product-evolution-analysis Sec 5 |
 | F074 | L4 Cooking State Extraction | backend | pending | — | Simple. Enhance L4 decomposition prompt to extract cooking state per ingredient. Connect to CookingProfile yield factors |
