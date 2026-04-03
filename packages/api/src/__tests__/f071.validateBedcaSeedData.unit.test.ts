@@ -14,7 +14,7 @@
  * - Entry with no core nutrients skipped (warning, not error)
  */
 import { describe, it, expect } from 'vitest';
-import { validateBedcaSeedData } from '../../prisma/seed-data/bedca/validateBedcaSeedData.js';
+import { validateBedcaSeedData } from '../ingest/bedca/bedcaValidator.js';
 import type { BedcaFoodWithNutrients } from '../ingest/bedca/types.js';
 
 // ---------------------------------------------------------------------------

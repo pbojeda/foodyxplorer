@@ -16,7 +16,7 @@
  * Typical runtime: 2-5 minutes depending on API latency.
  */
 
-import { writeFileSync, readFileSync } from 'fs';
+import { writeFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 import {
   fetchBedcaFoodsXml,
@@ -62,10 +62,8 @@ async function runBedcaSnapshot(): Promise<void> {
     resolve(process.cwd(), '../prisma/seed-data/bedca'),
   ];
   const seedDataDir =
-    seedDataCandidates.find((p) => {
-      try { readFileSync(resolve(p, 'bedca-snapshot-full.json')); return true; } catch { return false; }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- seedDataCandidates array is always non-empty
-    }) ?? seedDataCandidates[0]!;
+    seedDataCandidates.find((p) => existsSync(resolve(p, 'bedca-snapshot-full.json'))) ?? seedDataCandidates[0]!;
 
   const snapshotPath = resolve(seedDataDir, 'bedca-snapshot-full.json');
   writeFileSync(snapshotPath, JSON.stringify(foods, null, 2), 'utf-8');
@@ -78,7 +76,10 @@ async function runBedcaSnapshot(): Promise<void> {
   console.log('[bedca-snapshot] Snapshot generation complete. Commit both files to the repo.');
 }
 
-runBedcaSnapshot().catch((err) => {
-  console.error('[bedca-snapshot] Fatal error:', err);
-  process.exit(1);
-});
+const isDirectExecution = !process.argv[1] || process.argv[1].endsWith('bedca-snapshot.ts') || process.argv[1].endsWith('bedca-snapshot.js');
+if (isDirectExecution) {
+  runBedcaSnapshot().catch((err) => {
+    console.error('[bedca-snapshot] Fatal error:', err);
+    process.exit(1);
+  });
+}

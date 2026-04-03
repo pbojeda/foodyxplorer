@@ -16,7 +16,7 @@
  *   This prevents accidental production use before AESAN authorization.
  */
 
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { PrismaClient } from '@prisma/client';
 import { seedPhaseBedca } from './seedPhaseBedca.js';
@@ -46,11 +46,11 @@ export async function runBedcaImport(
   }
 
   if (opts.source === 'live') {
-    console.log(
-      '[bedca-import] Live source requested. This requires BEDCA API access.\n' +
-      'Use bedca:snapshot script to generate a fresh snapshot, then re-run with --source snapshot.',
+    console.error(
+      '[bedca-import] Live source is not yet supported.\n' +
+      'Use bedca:snapshot script to generate a fresh snapshot first, then re-run with --source snapshot.',
     );
-    // For now, live source falls through to snapshot (snapshot generation is separate)
+    process.exit(1);
   }
 
   if (opts.dryRun) {
@@ -62,10 +62,8 @@ export async function runBedcaImport(
       resolve(process.cwd(), '../prisma/seed-data/bedca/bedca-snapshot-full.json'),
     ];
     const snapshotPath =
-      candidates.find((p) => {
-        try { readFileSync(p); return true; } catch { return false; }
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- candidates array is always non-empty
-      }) ?? candidates[0]!;
+      candidates.find((p) => existsSync(p)) ?? candidates[0]!;
 
     const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf-8')) as Array<{
       foodId: number;
@@ -117,20 +115,23 @@ export async function runBedcaImport(
 }
 
 // ---------------------------------------------------------------------------
-// CLI entry point
+// CLI entry point — only runs when executed directly, not when imported
 // ---------------------------------------------------------------------------
-const args = process.argv.slice(2);
-const opts: BedcaImportOptions = {
-  dryRun: args.includes('--dry-run'),
-  source: args.includes('--source') && args[args.indexOf('--source') + 1] === 'live'
-    ? 'live'
-    : 'snapshot',
-  batchSize: args.includes('--batch-size')
-    ? Number(args[args.indexOf('--batch-size') + 1]) || 50
-    : 50,
-};
+const isDirectExecution = !process.argv[1] || process.argv[1].endsWith('bedca-import.ts') || process.argv[1].endsWith('bedca-import.js');
+if (isDirectExecution) {
+  const args = process.argv.slice(2);
+  const opts: BedcaImportOptions = {
+    dryRun: args.includes('--dry-run'),
+    source: args.includes('--source') && args[args.indexOf('--source') + 1] === 'live'
+      ? 'live'
+      : 'snapshot',
+    batchSize: args.includes('--batch-size')
+      ? Number(args[args.indexOf('--batch-size') + 1]) || 50
+      : 50,
+  };
 
-runBedcaImport(opts).catch((err) => {
-  console.error('[bedca-import] Fatal error:', err);
-  process.exit(1);
-});
+  runBedcaImport(opts).catch((err) => {
+    console.error('[bedca-import] Fatal error:', err);
+    process.exit(1);
+  });
+}

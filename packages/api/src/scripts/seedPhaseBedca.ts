@@ -13,7 +13,7 @@
  * Idempotent: uses upsert on @@unique([externalId, sourceId]).
  */
 
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import type { PrismaClient } from '@prisma/client';
 import type {
@@ -53,11 +53,8 @@ function getSnapshotPath(filename: string): string {
   ];
 
   for (const candidate of candidates) {
-    try {
-      readFileSync(candidate, 'utf-8');
+    if (existsSync(candidate)) {
       return candidate;
-    } catch {
-      // try next
     }
   }
 

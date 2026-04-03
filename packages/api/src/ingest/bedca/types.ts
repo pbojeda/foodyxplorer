@@ -99,9 +99,3 @@ export interface BedcaValidationResult {
   errors: string[];
 }
 
-/** Options for the BEDCA import CLI script. */
-export interface BedcaImportOptions {
-  dryRun: boolean;
-  source: 'snapshot' | 'live';
-  batchSize: number;
-}
