@@ -1,7 +1,7 @@
 # F070: Conversation Core — Shared NL Service in packages/api
 
 **Feature:** F070 | **Type:** Backend-Refactor | **Priority:** High
-**Status:** Spec | **Branch:** feature/F070-conversation-core
+**Status:** Done | **Branch:** feature/F070-conversation-core
 **Created:** 2026-04-02 | **Dependencies:** F069 (actors), F023 (engine router), F043 (comparison)
 
 ---
