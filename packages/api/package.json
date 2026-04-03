@@ -21,7 +21,10 @@
     "quality:report": "tsx src/scripts/quality-monitor.ts",
     "embeddings:generate": "tsx src/scripts/embeddings-generate.ts",
     "translate:dish-names": "tsx src/scripts/translate-dish-names.ts",
-    "translate:dish-names:dry-run": "tsx src/scripts/translate-dish-names.ts --dry-run"
+    "translate:dish-names:dry-run": "tsx src/scripts/translate-dish-names.ts --dry-run",
+    "bedca:import": "tsx src/scripts/bedca-import.ts",
+    "bedca:import:dry-run": "tsx src/scripts/bedca-import.ts --dry-run",
+    "bedca:snapshot": "tsx src/scripts/bedca-snapshot.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",
@@ -34,6 +37,7 @@
     "@foodxplorer/shared": "*",
     "@prisma/client": "^6.4.1",
     "crawlee": "^3.0.0",
+    "fast-xml-parser": "^5.5.10",
     "fastify": "^5.2.1",
     "fastify-plugin": "^5.1.0",
     "fastify-type-provider-zod": "^4.0.2",

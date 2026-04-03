@@ -12,6 +12,7 @@ import {
 } from './seed-data/validateSeedData.js';
 import type { UsdaSrLegacyFoodEntry, NameEsMap } from './seed-data/types.js';
 import { CHAIN_SEED_IDS } from '../src/config/chains/chain-seed-ids.js';
+import { seedPhaseBedca } from '../src/scripts/seedPhaseBedca.js';
 
 const prisma = new PrismaClient({
   datasources: {
@@ -617,6 +618,15 @@ async function main(): Promise<void> {
   console.log('Starting Phase 8 seed: Telegram Upload DataSource...');
   await seedPhase8(prisma);
   console.log('Phase 8 seeding complete.');
+
+  // ---------------------------------------------------------------------------
+  // BEDCA — Spanish food database (F071)
+  // Tier 1 national reference (priority_tier=1). Requires BEDCA_IMPORT_ENABLED=true
+  // in non-test environments (AESAN authorization pending).
+  // ---------------------------------------------------------------------------
+  console.log('Starting BEDCA seed: Spanish food composition database...');
+  await seedPhaseBedca(prisma);
+  console.log('BEDCA seed complete.');
 
   console.log('Seeding complete.');
 }
