@@ -268,3 +268,13 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Solution**: Added `decrementRateLimit()` helper that calls `redis.decr()` on server/network errors (5xx, TIMEOUT, NETWORK_ERROR). 4xx errors (user input) and 429 (legitimate throttle) keep the counter. Decrement failures are silently swallowed (fail-open).
 - **Prevention**: Consider the full lifecycle of rate-limit counters: increment early for abuse prevention, but refund on infrastructure failures.
 - **Feature**: F041 (Bot Recipe Calculator) | **Found by**: Claude Opus 4.6 comprehensive audit | **Severity**: Important | **Fixed in**: F051
+
+### 2026-04-03 — BUG-F072-01: isAlreadyCookedFood false positives via substring matching
+
+- **Issue**: `isAlreadyCookedFood` uses plain substring matching on cooking keywords. Food names like `"uncooked rice"`, `"unbaked bread"`, `"precooked chicken"`, and `"unfried food"` all return `true` because the keyword `"cooked"` / `"baked"` / `"fried"` is a substring of the prefix-negation form. This causes `resolveAndApplyYield` to skip yield correction and emit `cannot_reverse_cooked_to_raw` (for raw state) or `db_food_already_cooked` (for cooked state) on raw foods whose names happen to contain negation-prefixed cooking words.
+- **Root Cause**: The implementation checks `lower.includes(keyword)` without word-boundary anchoring. The spec describes the intent as detecting "cooked items" (e.g., "Arroz hervido", "Chicken, cooked") — i.e., foods whose names confirm they are already cooked — but does not anticipate negation prefixes.
+- **Affected inputs**: `"uncooked rice"` → contains `"cooked"`, `"unbaked bread"` → contains `"baked"`, `"precooked chicken"` → contains `"cooked"`, `"unfried food"` → contains `"fried"`.
+- **Impact**: Moderate. Raw USDA/BEDCA foods with "un-" or "pre-" prefixes in the food name would have yield correction skipped and a misleading `cannot_reverse_cooked_to_raw` reason returned. This would produce wrong calorie estimates for those specific foods.
+- **Solution (recommended)**: Replace plain `includes(keyword)` with a word-boundary regex check: `/\b{keyword}\b/i.test(foodName)`. This prevents matching inside prefixed words while keeping the existing Spanish multi-word keyword `"al horno"` working correctly (already a phrase).
+- **Prevention**: When matching natural-language keywords, prefer word-boundary matching over plain substring matching. Add tests for negation-prefixed food names (`"uncooked"`, `"unbaked"`, `"precooked"`) alongside the existing false-positive tests.
+- **Feature**: F072 | **Found by**: qa-engineer | **Severity**: Medium | **Status**: Open (fix deferred to developer)
