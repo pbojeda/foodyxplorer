@@ -269,12 +269,23 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Prevention**: Consider the full lifecycle of rate-limit counters: increment early for abuse prevention, but refund on infrastructure failures.
 - **Feature**: F041 (Bot Recipe Calculator) | **Found by**: Claude Opus 4.6 comprehensive audit | **Severity**: Important | **Fixed in**: F051
 
+### 2026-04-03 — BUG-F071-01: parseNutrientValue passes Infinity through as a valid number
+
+- **Issue**: `parseBedcaFoods()` in `bedcaParser.ts` returns `Infinity` (JavaScript's positive infinity) as a valid nutrient value when the XML source contains the literal string `"Infinity"`. The value is then stored as-is in `BedcaNutrientValue.value` and passed downstream to the mapper and DB seed. `Infinity` is not a valid nutrition value and would likely fail PostgreSQL insertion (Prisma converts Infinity to a non-finite float, which violates DB numeric columns).
+- **Root Cause**: The internal `parseNutrientValue()` function guards against non-numeric strings using `isNaN(num)`, but `isNaN(Infinity) === false` — JavaScript considers `Infinity` a valid number. The function does not check `Number.isFinite()`.
+- **Solution**: In `parseNutrientValue()` in `packages/api/src/ingest/bedca/bedcaParser.ts`, change the guard from `isNaN(num) ? null : num` to `!Number.isFinite(num) ? null : num`. This converts both `NaN` and `Infinity`/`-Infinity` to null, which is the correct representation for unmeasured or invalid nutrient values.
+- **Prevention**: When parsing user-supplied or API-supplied numeric strings into domain types, always validate with `Number.isFinite()` rather than `!isNaN()`. `isNaN()` allows Infinity, which is rarely a valid business value. Add `Number.isFinite()` assertions to all nutrient parsers.
+- **Reproduction**: `parseBedcaFoods('<food_database><row><food_id>1</food_id>...<value>Infinity</value></row></food_database>')` — the returned food's nutrient has `value === Infinity`.
+- **Feature**: F071 | **Found by**: QA agent | **Severity**: Medium | **Fixed in**: F071 (commit 21bc8d6)
+
+### 2026-04-03 — F071 QA NOTES — Coverage gap (low priority)
+
+- **Coverage Gap**: `seedPhaseBedca()` has no DI hook for the snapshot file path, making the "missing snapshot file" error path untestable without mocking `fs` at module level. The error produced is a bare Node.js ENOENT with no user-friendly message. Low priority — the file is committed to the repo.
+- **Feature**: F071 | **Assessed by**: QA agent
+
 ### 2026-04-03 — BUG-F072-01: isAlreadyCookedFood false positives via substring matching
 
-- **Issue**: `isAlreadyCookedFood` uses plain substring matching on cooking keywords. Food names like `"uncooked rice"`, `"unbaked bread"`, `"precooked chicken"`, and `"unfried food"` all return `true` because the keyword `"cooked"` / `"baked"` / `"fried"` is a substring of the prefix-negation form. This causes `resolveAndApplyYield` to skip yield correction and emit `cannot_reverse_cooked_to_raw` (for raw state) or `db_food_already_cooked` (for cooked state) on raw foods whose names happen to contain negation-prefixed cooking words.
-- **Root Cause**: The implementation checks `lower.includes(keyword)` without word-boundary anchoring. The spec describes the intent as detecting "cooked items" (e.g., "Arroz hervido", "Chicken, cooked") — i.e., foods whose names confirm they are already cooked — but does not anticipate negation prefixes.
-- **Affected inputs**: `"uncooked rice"` → contains `"cooked"`, `"unbaked bread"` → contains `"baked"`, `"precooked chicken"` → contains `"cooked"`, `"unfried food"` → contains `"fried"`.
-- **Impact**: Moderate. Raw USDA/BEDCA foods with "un-" or "pre-" prefixes in the food name would have yield correction skipped and a misleading `cannot_reverse_cooked_to_raw` reason returned. This would produce wrong calorie estimates for those specific foods.
-- **Solution (recommended)**: Replace plain `includes(keyword)` with a word-boundary regex check: `/\b{keyword}\b/i.test(foodName)`. This prevents matching inside prefixed words while keeping the existing Spanish multi-word keyword `"al horno"` working correctly (already a phrase).
-- **Prevention**: When matching natural-language keywords, prefer word-boundary matching over plain substring matching. Add tests for negation-prefixed food names (`"uncooked"`, `"unbaked"`, `"precooked"`) alongside the existing false-positive tests.
-- **Feature**: F072 | **Found by**: qa-engineer | **Severity**: Medium | **Status**: Open (fix deferred to developer)
+- **Issue**: `isAlreadyCookedFood` used plain substring matching (`includes()`) on cooking keywords. Names like `"uncooked rice"`, `"unbaked bread"` falsely triggered the guard.
+- **Root Cause**: `lower.includes(keyword)` without word-boundary anchoring.
+- **Solution**: Replaced with word-boundary regex `/\b<keyword>\b/i.test(foodName)`. 4 edge-case tests added.
+- **Feature**: F072 | **Found by**: qa-engineer | **Severity**: Medium | **Fixed in**: F072 (commit 8f4c522)
