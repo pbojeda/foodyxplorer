@@ -8,13 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-02
+**Last Updated:** 2026-04-03
 
-**Active Feature:** F070 — Conversation Core
-**Step:** 5/6 (Review)
-**Branch:** feature/F070-conversation-core
-**Complexity:** Standard
-**Context:** All quality gates passed. code-review-specialist: 2I fixed (usedContextFallback, dead redis param). production-code-validator: READY FOR PRODUCTION. qa-engineer: VERIFIED + 19 edge case tests. 129 total F070 tests. PR ready. Awaiting MERGE APPROVAL (L2 mandatory).
+**Active Feature:** No active work — F070 complete, ready for Phase A1
+**Step:** —
+**Branch:** —
+**Complexity:** —
+**Context:** F070 (Conversation Core) merged to develop via PR #62 (squash). ConversationCore service in packages/api/src/conversation/. POST /conversation/message endpoint. Bot refactored to thin adapter. 129 F070 tests. Phase A0 complete (F068+F069+F070). Next: Phase A1 — F071 (BEDCA import).
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -160,7 +160,7 @@
 |----|---------|------|--------|------|-------|
 | F068 | Provenance Graph: DataSource priority_tier + BEDCA-first resolution | backend | done | 6/6 | Standard. Add priority_tier to DataSource. Resolution: BEDCA > supermarket > USDA > estimated. `has_explicit_brand` flag. See product-evolution-analysis Sec 17 Foundation 1 |
 | F069 | Anonymous Identity: actor table + middleware | backend | done | 6/6 | Standard. Actor table (anonymous_web / telegram / authenticated). Middleware for X-Actor-Id header. Cookie/UUID for web, chat_id for Telegram. Mergeable on future auth. See product-evolution-analysis Sec 17 Foundation 2 |
-| F070 | Conversation Core: extract bot NL logic → shared API service | backend | in-progress | 5/6 | Standard. All gates passed. Code review: 2I fixed. Prod validator: READY. QA: VERIFIED + 19 edge tests. 129 F070 tests total. Awaiting merge approval. |
+| F070 | Conversation Core: extract bot NL logic → shared API service | backend | done | 6/6 | Standard. PR #62. 129 tests. ConversationCore pipeline, POST /conversation/message, bot thin adapter. Phase A0 complete. |
 
 ## Features — E007 Spanish Food Coverage (Phase A1)
 
