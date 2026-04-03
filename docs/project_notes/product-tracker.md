@@ -8,13 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-02
+**Last Updated:** 2026-04-03
 
-**Active Feature:** No active work — roadmap planning complete, ready for F068
+**Active Feature:** No active work — F070 complete, ready for Phase A1
 **Step:** —
 **Branch:** —
 **Complexity:** —
-**Context:** Phase 1 complete (F001-F067). Product Evolution Analysis completed (4 iterations, 3 models). New Phase 2 roadmap defined with 42 features (F068-F109) across 5 phases (A0→A1→B→C→D). BEDCA evaluation done (limited prepared dishes, license pending). OFF evaluation done (11K+ Hacendado products). Next: start Phase A0 with F068 (Provenance Graph).
+**Context:** F070 (Conversation Core) merged to develop via PR #62 (squash). ConversationCore service in packages/api/src/conversation/. POST /conversation/message endpoint. Bot refactored to thin adapter. 129 F070 tests. Phase A0 complete (F068+F069+F070). Next: Phase A1 — F071 (BEDCA import).
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -148,7 +148,7 @@
 
 | Epic | Name | Status | Features | Dependencies |
 |------|------|--------|----------|--------------|
-| E006 | Structural Foundations | pending | F068-F070 | Phase 1 complete |
+| E006 | Structural Foundations | in-progress | F068-F070 | Phase 1 complete |
 | E007 | Spanish Food Coverage | pending | F071-F079 | E006 complete |
 | E008 | Conversational Assistant & Voice | pending | F080-F089, F090-F097 | E006 + E007 partial |
 | E009 | Personalization & Tracking | pending | F098-F099, user profiles | E008 partial |
@@ -158,9 +158,9 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F068 | Provenance Graph: DataSource priority_tier + BEDCA-first resolution | backend | pending | — | Standard. Add priority_tier to DataSource. Resolution: BEDCA > supermarket > USDA > estimated. `has_explicit_brand` flag. See product-evolution-analysis Sec 17 Foundation 1 |
-| F069 | Anonymous Identity: actor table + middleware | backend | pending | — | Standard. Actor table (anonymous_web / telegram / authenticated). Middleware for X-Actor-Id header. Cookie/UUID for web, chat_id for Telegram. Mergeable on future auth. See product-evolution-analysis Sec 17 Foundation 2 |
-| F070 | Conversation Core: extract bot NL logic → shared API service | backend | pending | — | Standard. Refactor bot NL handler into shared ConversationCore service in packages/api. Intent resolution, entity extraction, context management. Both bot and future web assistant use same core. See product-evolution-analysis Sec 17 Foundation 3 |
+| F068 | Provenance Graph: DataSource priority_tier + BEDCA-first resolution | backend | done | 6/6 | Standard. Add priority_tier to DataSource. Resolution: BEDCA > supermarket > USDA > estimated. `has_explicit_brand` flag. See product-evolution-analysis Sec 17 Foundation 1 |
+| F069 | Anonymous Identity: actor table + middleware | backend | done | 6/6 | Standard. Actor table (anonymous_web / telegram / authenticated). Middleware for X-Actor-Id header. Cookie/UUID for web, chat_id for Telegram. Mergeable on future auth. See product-evolution-analysis Sec 17 Foundation 2 |
+| F070 | Conversation Core: extract bot NL logic → shared API service | backend | done | 6/6 | Standard. PR #62. 129 tests. ConversationCore pipeline, POST /conversation/message, bot thin adapter. Phase A0 complete. |
 
 ## Features — E007 Spanish Food Coverage (Phase A1)
 

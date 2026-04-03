@@ -24,8 +24,9 @@ Generate a detailed **Implementation Plan** and write it into the ticket's `## I
 2. Read `docs/project_notes/key_facts.md` for existing reusable components
 3. Read the ticket file passed as input (including the `## Spec` section)
 4. Read `docs/specs/ui-components.md` for current UI component specs
-5. Read `docs/specs/api-spec.yaml` for API endpoints to consume
-6. Explore existing components, utilities, services, stores, and pages
+5. Read `docs/specs/design-guidelines.md` if it exists — respect visual direction, colors, spacing, and animation patterns
+6. Read `docs/specs/api-spec.yaml` for API endpoints to consume
+7. Explore existing components, utilities, services, stores, and pages
 
 **Reuse over recreate.** Only propose new components when existing ones don't fit.
 

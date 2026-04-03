@@ -31,6 +31,8 @@ vi.mock('../lib/redis.js', () => ({
   redis: {
     get: mockRedisGet,
     set: mockRedisSet,
+    incr: vi.fn().mockResolvedValue(1),
+    expire: vi.fn().mockResolvedValue(1),
   } as unknown as Redis,
 }));
 

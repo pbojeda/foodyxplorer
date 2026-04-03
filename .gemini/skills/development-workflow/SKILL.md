@@ -50,6 +50,7 @@ Read the **Autonomy Level** from `GEMINI.md`.
 - **Auto** = proceed without asking; log in product tracker → "Auto-Approved Decisions" table
 - **Required** = ask user explicitly; do NOT continue without approval
 - **Quality gates always run** regardless of level (tests, lint, build, validators)
+- **Steps are strictly sequential.** Do NOT start a later step before the current checkpoint is approved — even when the checkpoint is Auto (auto-approval still happens in order, not in parallel). In particular, do NOT generate the Implementation Plan (Step 2) while Spec Approval (Step 0) is still pending. Reason: if the spec review finds issues, any plan built on the flawed spec must be discarded and redone — parallelizing wastes work and risks shipping a plan that doesn't match the final spec.
 
 ---
 
@@ -72,6 +73,7 @@ Ask user to classify complexity before starting. See `references/complexity-guid
 3. Write spec summary into the ticket's `## Spec` section
 4. **Spec Self-Review:** Re-read the spec critically. Are requirements complete? Edge cases covered? API contract well-defined? Acceptance criteria testable? Does the spec conflict with existing architecture (`key_facts.md`, `decisions.md`)? Update the spec with any fixes found before proceeding.
 5. **Cross-Model Spec Review:** Run `/review-spec`. If at least one external CLI is available (`claude`, `codex`), this provides independent validation from other models. If no external CLIs are detected, skip this step (the self-review above is sufficient).
+6. **Design Review (optional):** If this feature includes UI changes, mention to the user: "This feature has UI changes. Want to invoke `ui-ux-designer` for design notes?" If yes, follow the `ui-ux-designer` agent instructions in `.gemini/agents/`. If `docs/specs/design-guidelines.md` does not exist yet, suggest creating it first.
 
 **→ CHECKPOINT: Spec Approval** — Update tracker (Active Session + Features table): step `0/6 (Spec)`
 
@@ -170,7 +172,7 @@ Update tracker (Active Session + Features table): step `4/6 (Finalize)`. Mark ti
 
 ## Step 6: Complete
 
-1. **Update ticket with final state:** correct test count in acceptance criteria, mark all checkboxes, update Completion Log with all commits and key events
+1. **Update ticket with final state:** update Status to `Done`, correct test count in acceptance criteria, mark all checkboxes, update Completion Log with all commits and key events
 2. Delete feature branch (local + remote)
 3. Update product tracker: Features table status → `done`, add to Completion Log, clear Active Session → "No active work"
 4. Record any bugs found during the feature in `bugs.md`, decisions in `decisions.md`
@@ -187,6 +189,7 @@ Update tracker (Active Session + Features table): step `4/6 (Finalize)`. Mark ti
 | `production-code-validator` | 4 | Pre-commit validation |
 | `code-review-specialist` | 5 | Pre-merge review |
 | `qa-engineer` | 5 | Edge cases, spec verification (Std/Cplx) |
+| `ui-ux-designer` | 0 (optional) | Design guidelines, feature design notes |
 | `database-architect` | Any | Schema, migrations, queries |
 
 Agent instructions are in `.gemini/agents/`. Read the relevant agent file when entering its step.

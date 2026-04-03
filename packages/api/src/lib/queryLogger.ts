@@ -29,6 +29,7 @@ export interface QueryLogEntry {
   cacheHit:       boolean;
   responseTimeMs: number;
   apiKeyId:       string | null;
+  actorId:        string | null;
   source:         'api' | 'bot';
 }
 

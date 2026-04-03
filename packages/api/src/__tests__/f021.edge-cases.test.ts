@@ -502,6 +502,7 @@ describe('Section D — Schema validation edge cases for L2 fields', () => {
     const data = {
       query: 'Pollo Especial',
       chainSlug: null,
+      portionMultiplier: 1,
       level1Hit: false,
       level2Hit: true,
       level3Hit: false,
@@ -518,6 +519,7 @@ describe('Section D — Schema validation edge cases for L2 fields', () => {
     const data = {
       query: 'hamburguesa doble',
       chainSlug: null,
+      portionMultiplier: 1,
       level1Hit: false,
       level2Hit: true,
       level3Hit: false,
@@ -536,6 +538,7 @@ describe('Section D — Schema validation edge cases for L2 fields', () => {
     const data = {
       query: 'Pollo',
       chainSlug: null,
+      portionMultiplier: 1,
       level1Hit: false,
       level2Hit: true,
       level3Hit: false,
@@ -579,6 +582,7 @@ describe('Section D — Schema validation edge cases for L2 fields', () => {
     const data = {
       query: 'Big Mac',
       chainSlug: 'mcdonalds-es',
+      portionMultiplier: 1,
       level1Hit: true,
       level2Hit: false,
       level3Hit: false,

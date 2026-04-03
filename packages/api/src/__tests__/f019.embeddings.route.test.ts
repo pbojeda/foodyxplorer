@@ -26,7 +26,7 @@ vi.mock('../lib/prisma.js', () => ({
 }));
 
 vi.mock('../lib/redis.js', () => ({
-  redis: {} as Redis,
+  redis: { incr: vi.fn().mockResolvedValue(1), expire: vi.fn().mockResolvedValue(1) } as unknown as Redis,
 }));
 
 import { buildApp } from '../app.js';

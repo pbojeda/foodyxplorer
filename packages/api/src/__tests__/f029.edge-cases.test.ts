@@ -97,6 +97,8 @@ vi.mock('../lib/redis.js', () => ({
   redis: {
     get: mockRedisGet,
     set: mockRedisSet,
+    incr: vi.fn().mockResolvedValue(1),
+    expire: vi.fn().mockResolvedValue(1),
   } as unknown as Redis,
 }));
 
@@ -127,6 +129,8 @@ import { buildApp } from '../app.js';
 // ---------------------------------------------------------------------------
 
 const INVARIANT_RESULTS = [
+  // index 0: consumed by conversationRoutes.loadChainData() during buildApp plugin init
+  [],
   // scalar: 100 total
   [{ total_queries: 100, cache_hit_rate: '0.7500', avg_response_time_ms: '42.5' }],
   // by level: l1=50, l2=20, l3=15, l4=5, miss=10 → sum=100 ✓
@@ -147,6 +151,8 @@ const INVARIANT_RESULTS = [
 
 // Results that deliberately violate invariants (simulates DB bug)
 const INVARIANT_BROKEN_RESULTS = [
+  // index 0: consumed by conversationRoutes.loadChainData() during buildApp plugin init
+  [],
   // scalar: 100 total
   [{ total_queries: 100, cache_hit_rate: '0.7500', avg_response_time_ms: '42.5' }],
   // by level: l1=50, l2=20 → sum=70 ≠ 100 (missing 30 rows — simulates DB inconsistency)
@@ -161,6 +167,8 @@ const INVARIANT_BROKEN_RESULTS = [
 ];
 
 const EMPTY_RESULTS = [
+  // index 0: consumed by conversationRoutes.loadChainData() during buildApp plugin init
+  [],
   [{ total_queries: 0, cache_hit_rate: null, avg_response_time_ms: null }],
   [],
   [],
@@ -170,6 +178,8 @@ const EMPTY_RESULTS = [
 
 // Results where avg_response_time_ms is a non-numeric string (DB anomaly)
 const NAN_AVG_RESULTS = [
+  // index 0: consumed by conversationRoutes.loadChainData() during buildApp plugin init
+  [],
   [{ total_queries: 5, cache_hit_rate: '0.6000', avg_response_time_ms: 'NaN' }],
   [{ level_hit: 'l1', count: 5 }],
   [],
@@ -179,6 +189,8 @@ const NAN_AVG_RESULTS = [
 
 // Results where cache_hit_rate is outside [0,1] (DB/bug anomaly)
 const HIGH_CACHE_RATE_RESULTS = [
+  // index 0: consumed by conversationRoutes.loadChainData() during buildApp plugin init
+  [],
   [{ total_queries: 5, cache_hit_rate: '1.5000', avg_response_time_ms: '30' }],
   [{ level_hit: 'l1', count: 5 }],
   [],

@@ -125,6 +125,7 @@ function makeMockClient(): MockApiClient {
     uploadPdf: vi.fn(),
     analyzeMenu: vi.fn(),
     calculateRecipe: vi.fn(),
+    processMessage: vi.fn(),
   };
 }
 
@@ -153,20 +154,38 @@ describe('F043 BUG-1: leading ¿ (inverted question mark) blocks comparison dete
     expect(result).not.toBeNull();
   });
 
-  // NL handler integration — comparison should fire instead of single-dish path
-  it('handleNaturalLanguage calls estimate TWICE for "¿qué tiene más calorías, big mac o whopper"', async () => {
+  // NL handler integration — comparison should fire instead of single-dish path.
+  // After F070 refactor: handleNaturalLanguage calls apiClient.processMessage() with the raw text.
+  // The server-side ConversationCore handles ¿ stripping and comparison detection.
+  it('handleNaturalLanguage calls processMessage for "¿qué tiene más calorías, big mac o whopper"', async () => {
     const mock = makeMockClient();
-    mock.estimate.mockResolvedValue(DATA_A);
-    // BUG: currently falls through to single-dish path → estimate called once
+    const messageData = {
+      intent: 'comparison' as const,
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      comparison: { dishA: DATA_A, dishB: DATA_A },
+      activeContext: null,
+    };
+    mock.processMessage.mockResolvedValue(messageData);
     await handleNaturalLanguage('¿qué tiene más calorías, big mac o whopper', 0, makeMockRedis(), mock as unknown as ApiClient);
-    expect(mock.estimate).toHaveBeenCalledTimes(2);
+    expect(mock.processMessage).toHaveBeenCalledOnce();
+    expect(mock.processMessage).toHaveBeenCalledWith(
+      '¿qué tiene más calorías, big mac o whopper', 0, undefined,
+    );
+    expect(mock.estimate).not.toHaveBeenCalled();
   });
 
-  it('handleNaturalLanguage calls estimate TWICE for "¿qué es más sano, la ensalada o el bollo?"', async () => {
+  it('handleNaturalLanguage calls processMessage for "¿qué es más sano, la ensalada o el bollo?"', async () => {
     const mock = makeMockClient();
-    mock.estimate.mockResolvedValue(DATA_A);
+    const messageData = {
+      intent: 'comparison' as const,
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      comparison: { dishA: DATA_A, dishB: DATA_A },
+      activeContext: null,
+    };
+    mock.processMessage.mockResolvedValue(messageData);
     await handleNaturalLanguage('¿qué es más sano, la ensalada o el bollo?', 0, makeMockRedis(), mock as unknown as ApiClient);
-    expect(mock.estimate).toHaveBeenCalledTimes(2);
+    expect(mock.processMessage).toHaveBeenCalledOnce();
+    expect(mock.estimate).not.toHaveBeenCalled();
   });
 
   // Without ¿ — should work (baseline to confirm bug is in ¿ handling specifically)

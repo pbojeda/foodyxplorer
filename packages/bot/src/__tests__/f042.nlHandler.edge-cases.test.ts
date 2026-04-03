@@ -1,16 +1,17 @@
-// F042 QA Edge Cases — handleNaturalLanguage portionModifier integration
+// F042 QA Edge Cases — handleNaturalLanguage after F070 refactor
 //
-// Focuses on scenarios not covered by the existing portionModifier integration
-// tests in naturalLanguage.test.ts:
-//  - Modifier-only input (no food name after extraction)
-//  - Modifier at START of query
-//  - Prefix query stripping AFTER modifier stripping (full pipeline)
-//  - apiClient not called with portionMultiplier when fallback returns 1.0
+// After F070: handleNaturalLanguage calls apiClient.processMessage(text, chatId, legacyChainContext).
+// Portion modifier parsing, prefix stripping, and chain slug extraction now happen
+// server-side (ConversationCore). The bot sends the raw text and the server decides.
+//
+// These tests verify:
+// - processMessage is called with the raw text (no client-side transformation)
+// - The returned ConversationMessageData is formatted correctly
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ApiClient } from '../apiClient.js';
 import type { Redis } from 'ioredis';
-import type { EstimateData } from '@foodxplorer/shared';
+import type { EstimateData, ConversationMessageData } from '@foodxplorer/shared';
 import { handleNaturalLanguage } from '../handlers/naturalLanguage.js';
 
 function makeMockRedis() {
@@ -39,6 +40,38 @@ const ESTIMATE_DATA_NULL: EstimateData = {
   cachedAt: null,
 };
 
+const ESTIMATE_DATA_WITH_RESULT: EstimateData = {
+  query: 'big mac',
+  chainSlug: null,
+  portionMultiplier: 1.5,
+  level1Hit: true,
+  level2Hit: false,
+  level3Hit: false,
+  level4Hit: false,
+  matchType: 'exact_dish',
+  cachedAt: null,
+  result: {
+    entityType: 'dish',
+    entityId: 'fd000000-0001-4000-a000-000000000001',
+    name: 'Big Mac',
+    nameEs: 'Big Mac',
+    restaurantId: 'fd000000-0002-4000-a000-000000000001',
+    chainSlug: 'mcdonalds-es',
+    portionGrams: 200,
+    confidenceLevel: 'high',
+    estimationMethod: 'official',
+    similarityDistance: null,
+    source: { id: 'fd000000-0004-4000-a000-000000000001', name: 'src', type: 'official', url: null },
+    nutrients: {
+      calories: 563, proteins: 26.5, carbohydrates: 45, sugars: 0,
+      fats: 30, saturatedFats: 0, fiber: 0, salt: 0, sodium: 0,
+      transFats: 0, cholesterol: 0, potassium: 0,
+      monounsaturatedFats: 0, polyunsaturatedFats: 0,
+      referenceBasis: 'per_serving',
+    },
+  },
+};
+
 // ---------------------------------------------------------------------------
 // MockApiClient
 // ---------------------------------------------------------------------------
@@ -59,6 +92,7 @@ function makeMockClient(): MockApiClient {
     uploadPdf: vi.fn(),
     analyzeMenu: vi.fn(),
     calculateRecipe: vi.fn(),
+    processMessage: vi.fn(),
   };
 }
 
@@ -66,101 +100,140 @@ function makeMockClient(): MockApiClient {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('handleNaturalLanguage — F042 portionModifier edge cases', () => {
+describe('handleNaturalLanguage — F042 portionModifier edge cases (F070 refactor)', () => {
   let mock: MockApiClient;
 
   beforeEach(() => {
     mock = makeMockClient();
   });
 
-  it('"grande" (modifier-only) → fallback keeps "grande" as query, portionMultiplier absent', async () => {
-    // extractPortionModifier('grande') returns cleanQuery:'grande', multiplier:1.0 (empty-after-strip fallback)
-    // portionMultiplier=1.0 → NOT passed to apiClient per spec
-    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
-    await handleNaturalLanguage('grande', 0, makeMockRedis(), mock as unknown as ApiClient);
+  it('raw text is passed to processMessage unchanged — no client-side modifier extraction', async () => {
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    mock.processMessage.mockResolvedValue(messageData);
 
-    const args = mock.estimate.mock.calls[0]![0] as Record<string, unknown>;
-    expect(args['query']).toBe('grande');
-    expect(Object.prototype.hasOwnProperty.call(args, 'portionMultiplier')).toBe(false);
-  });
-
-  it('"grande big mac" → modifier at start → cleanQuery: "big mac", portionMultiplier: 1.5', async () => {
-    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
     await handleNaturalLanguage('grande big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
 
-    expect(mock.estimate).toHaveBeenCalledWith({
-      query: 'big mac',
-      portionMultiplier: 1.5,
-    });
+    expect(mock.processMessage).toHaveBeenCalledWith('grande big mac', 0, undefined);
+    expect(mock.estimate).not.toHaveBeenCalled();
   });
 
-  it('"triple sandwich de pollo" → modifier at start → cleanQuery: "sandwich de pollo", portionMultiplier: 3.0', async () => {
-    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+  it('"grande" input → processMessage called with raw text, no estimation call', async () => {
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    mock.processMessage.mockResolvedValue(messageData);
+
+    await handleNaturalLanguage('grande', 0, makeMockRedis(), mock as unknown as ApiClient);
+
+    expect(mock.processMessage).toHaveBeenCalledOnce();
+    expect(mock.processMessage).toHaveBeenCalledWith('grande', 0, undefined);
+    expect(mock.estimate).not.toHaveBeenCalled();
+  });
+
+  it('"triple sandwich de pollo" → processMessage called with raw text', async () => {
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    mock.processMessage.mockResolvedValue(messageData);
+
     await handleNaturalLanguage('triple sandwich de pollo', 0, makeMockRedis(), mock as unknown as ApiClient);
 
-    expect(mock.estimate).toHaveBeenCalledWith({
-      query: 'sandwich de pollo',
-      portionMultiplier: 3.0,
-    });
+    expect(mock.processMessage).toHaveBeenCalledWith('triple sandwich de pollo', 0, undefined);
   });
 
-  it('"calorías de una tortilla doble" → modifier stripped first, then prefix → query: "tortilla", portionMultiplier: 2.0', async () => {
-    // Pipeline: extractPortionModifier('calorías de una tortilla doble')
-    //   → cleanQuery: 'calorías de una tortilla', portionMultiplier: 2.0
-    // Then extractFoodQuery('calorías de una tortilla')
-    //   → query: 'tortilla'
-    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+  it('"calorías de una tortilla doble" → processMessage called with raw text', async () => {
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    mock.processMessage.mockResolvedValue(messageData);
+
     await handleNaturalLanguage('calorías de una tortilla doble', 0, makeMockRedis(), mock as unknown as ApiClient);
 
-    expect(mock.estimate).toHaveBeenCalledWith({
-      query: 'tortilla',
-      portionMultiplier: 2.0,
-    });
+    expect(mock.processMessage).toHaveBeenCalledWith('calorías de una tortilla doble', 0, undefined);
   });
 
-  it('"media ración de pollo en mcdonalds-es" → modifier + chain slug both handled', async () => {
-    // extractPortionModifier strips 'media ración' → cleanQuery: 'de pollo en mcdonalds-es', mult: 0.5
-    // extractFoodQuery('de pollo en mcdonalds-es'):
-    //   Splits on ' en mcdonalds-es' → query candidate: 'de pollo', chainSlug: 'mcdonalds-es'
-    //   NOTE: bare 'de' is NOT in the ARTICLE_PATTERN (only del, un, una, el, la etc.)
-    //   so the query remains 'de pollo', not 'pollo'.
-    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+  it('"media ración de pollo en mcdonalds-es" → processMessage called with raw text', async () => {
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    mock.processMessage.mockResolvedValue(messageData);
+
     await handleNaturalLanguage('media ración de pollo en mcdonalds-es', 0, makeMockRedis(), mock as unknown as ApiClient);
 
-    expect(mock.estimate).toHaveBeenCalledWith({
-      query: 'de pollo',
-      chainSlug: 'mcdonalds-es',
-      portionMultiplier: 0.5,
-    });
+    expect(mock.processMessage).toHaveBeenCalledWith('media ración de pollo en mcdonalds-es', 0, undefined);
   });
 
-  it('"pizza mini" → portionMultiplier: 0.7 sent to apiClient', async () => {
-    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+  it('"pizza mini" → processMessage called with raw text', async () => {
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    mock.processMessage.mockResolvedValue(messageData);
+
     await handleNaturalLanguage('pizza mini', 0, makeMockRedis(), mock as unknown as ApiClient);
 
-    expect(mock.estimate).toHaveBeenCalledWith({
-      query: 'pizza',
-      portionMultiplier: 0.7,
-    });
+    expect(mock.processMessage).toHaveBeenCalledWith('pizza mini', 0, undefined);
   });
 
-  it('"half burger" → portionMultiplier: 0.5 sent to apiClient', async () => {
-    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+  it('"half burger" → processMessage called with raw text', async () => {
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    mock.processMessage.mockResolvedValue(messageData);
+
     await handleNaturalLanguage('half burger', 0, makeMockRedis(), mock as unknown as ApiClient);
 
-    expect(mock.estimate).toHaveBeenCalledWith({
-      query: 'burger',
-      portionMultiplier: 0.5,
-    });
+    expect(mock.processMessage).toHaveBeenCalledWith('half burger', 0, undefined);
   });
 
-  it('"pizza medias" (standalone medias) → portionMultiplier: 0.5, cleanQuery: "pizza"', async () => {
-    mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
+  it('"pizza medias" → processMessage called with raw text', async () => {
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_NULL,
+      activeContext: null,
+    };
+    mock.processMessage.mockResolvedValue(messageData);
+
     await handleNaturalLanguage('pizza medias', 0, makeMockRedis(), mock as unknown as ApiClient);
 
-    expect(mock.estimate).toHaveBeenCalledWith({
-      query: 'pizza',
-      portionMultiplier: 0.5,
-    });
+    expect(mock.processMessage).toHaveBeenCalledWith('pizza medias', 0, undefined);
+  });
+
+  it('estimation with portionMultiplier result → formatEstimate shows result', async () => {
+    const messageData: ConversationMessageData = {
+      intent: 'estimation',
+      actorId: 'fd000000-0001-4000-a000-000000000099',
+      estimation: ESTIMATE_DATA_WITH_RESULT,
+      activeContext: null,
+    };
+    mock.processMessage.mockResolvedValue(messageData);
+
+    const result = await handleNaturalLanguage('grande big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
+
+    expect(typeof result).toBe('string');
+    expect(result).toContain('Big Mac');
   });
 });

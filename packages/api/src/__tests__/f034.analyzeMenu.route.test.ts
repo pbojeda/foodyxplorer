@@ -337,7 +337,10 @@ describe('POST /analyze/menu', () => {
   // ---------------------------------------------------------------------------
 
   it('returns 429 RATE_LIMIT_EXCEEDED when hourly counter exceeds 10', async () => {
-    mockRedisIncr.mockResolvedValue(11); // Counter over limit
+    // actorRateLimit (photos bucket, limit=10) fires first via onRequest hook.
+    // Return a safe value (5) for actorRateLimit so it passes, then return 11
+    // for the route-level per-key hourly counter so it triggers RATE_LIMIT_EXCEEDED.
+    mockRedisIncr.mockResolvedValueOnce(5).mockResolvedValue(11);
     const { body, headers } = buildFormData(makeJpegBuffer());
     const response = await app.inject({
       method: 'POST',
@@ -353,8 +356,10 @@ describe('POST /analyze/menu', () => {
   it('skips hourly rate limit check for bot key', async () => {
     mockConfig.BOT_KEY_ID = BOT_KEY_ID;
     mockApikeyFindUnique.mockResolvedValue(makeApiKeyRow(BOT_KEY_ID));
-    // Counter would be over limit but should be skipped for bot
-    mockRedisIncr.mockResolvedValue(999);
+    // actorRateLimit fires first — return a safe value (5) so it passes.
+    // The second value (11) would exceed the route-level hourly limit, but bot
+    // key is exempt from the route-level check, so the request should succeed.
+    mockRedisIncr.mockResolvedValueOnce(5).mockResolvedValue(11);
 
     const { body, headers } = buildFormData(makeJpegBuffer());
     const response = await app.inject({

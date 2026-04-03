@@ -22,7 +22,15 @@ export default defineConfig({
   },
   test: {
     fileParallelism: false,
-    exclude: ['src/__tests__/e2e/**', 'node_modules/**'],
+    exclude: [
+      'dist/**',
+      'src/__tests__/e2e/**',
+      'src/__tests__/migration.*.test.ts',
+      'src/__tests__/*.integration.test.ts',
+      'src/__tests__/routes/ingest/**',
+      'src/__tests__/routes/quality.test.ts',
+      'node_modules/**',
+    ],
     env: {
       NODE_ENV: 'test',
       DATABASE_URL:

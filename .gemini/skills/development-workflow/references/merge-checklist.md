@@ -13,15 +13,16 @@ Verify it contains ALL required sections: **Acceptance Criteria**, **Definition 
 
 **Simple (lite ticket):** Verify same sections exist. Spec and Implementation Plan may be minimal (one-liner / N/A).
 
-## Action 1: Mark all items
+## Action 1: Mark all items and update Status
 
-In the ticket file, mark ALL items `[x]` in:
+In the ticket file:
 
-- **Workflow Checklist** — all steps that apply to this complexity tier (Simple: 1, 3, 4, 5. Standard: 0–5. Complex: 0–5)
-- **Acceptance Criteria** — every item
-- **Definition of Done** — every item
-
-Add missing **Completion Log** entries: one row per step with date, action, and notes.
+1. Update the **Status** field in the ticket header from `In Progress` to `Ready for Merge`
+2. Mark ALL items `[x]` in:
+   - **Workflow Checklist** — all steps that apply to this complexity tier (Simple: 1, 3, 4, 5. Standard: 0–5. Complex: 0–5)
+   - **Acceptance Criteria** — every item
+   - **Definition of Done** — every item
+3. Add missing **Completion Log** entries: one row per step with date, action, and notes.
 
 ## Action 2: Verify product tracker
 

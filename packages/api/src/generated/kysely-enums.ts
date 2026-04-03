@@ -52,6 +52,12 @@ export const ApiKeyTier = {
   pro: "pro",
 } as const;
 export type ApiKeyTier = (typeof ApiKeyTier)[keyof typeof ApiKeyTier];
+export const ActorType = {
+  anonymous_web: "anonymous_web",
+  telegram: "telegram",
+  authenticated: "authenticated",
+} as const;
+export type ActorType = (typeof ActorType)[keyof typeof ActorType];
 export const QueryLogLevelHit = {
   l1: "l1",
   l2: "l2",

@@ -1,24 +1,22 @@
-// Natural language handler for the Telegram bot.
+// Natural language handler for the Telegram bot (F070 refactor).
 //
-// extractFoodQuery: pure function — parses Spanish plain-text messages into
-//   { query, chainSlug? } for the estimate API.
-// handleNaturalLanguage: async handler — calls apiClient.estimate and returns
-//   a MarkdownV2-formatted response string.
+// handleNaturalLanguage: thin adapter that calls apiClient.processMessage()
+//   and switches on data.intent to format the Telegram-specific response.
+//
+// extractFoodQuery: pure function retained for backward compatibility with
+//   other callers. NOT used by handleNaturalLanguage after F070.
+//
+// The Telegram-specific formatters (estimateFormatter, comparisonFormatter,
+// contextFormatter) are NOT changed — they format the structured data returned
+// by the API into MarkdownV2 strings.
 
 import type { Redis } from 'ioredis';
 import type { ApiClient } from '../apiClient.js';
-import { ApiError } from '../apiClient.js';
 import { formatEstimate } from '../formatters/estimateFormatter.js';
+import { formatComparison } from '../formatters/comparisonFormatter.js';
 import { escapeMarkdown } from '../formatters/markdownUtils.js';
-import { handleApiError } from '../commands/errorMessages.js';
-import { extractPortionModifier } from '../lib/portionModifier.js';
-import { extractComparisonQuery } from '../lib/comparisonParser.js';
-import { runComparison } from '../lib/comparisonRunner.js';
-import { getState, setState } from '../lib/conversationState.js';
-import { detectContextSet } from '../lib/contextDetector.js';
-import { resolveChain } from '../lib/chainResolver.js';
 import { formatContextConfirmation } from '../formatters/contextFormatter.js';
-import { logger } from '../logger.js';
+import { getState } from '../lib/conversationState.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -56,12 +54,15 @@ const PREFIX_PATTERNS: readonly RegExp[] = [
 const ARTICLE_PATTERN = /^(?:un[ao]?|el|la[s]?|los|del|al)\s+/i;
 
 // ---------------------------------------------------------------------------
-// extractFoodQuery
+// extractFoodQuery (retained for backward compatibility)
 // ---------------------------------------------------------------------------
 
 /**
  * Parse raw Spanish text into a query and optional chain slug.
  * Pure function — no side effects, no I/O.
+ *
+ * NOTE: This function is NOT used by handleNaturalLanguage after F070.
+ * It is retained here for backward compatibility with other callers.
  */
 export function extractFoodQuery(text: string): { query: string; chainSlug?: string } {
   // Strip leading ¿¡ and trailing ?! — consistent with extractComparisonQuery
@@ -102,53 +103,6 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
 }
 
 // ---------------------------------------------------------------------------
-// handleNaturalLanguage — internal helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Internal helper for Step 0: attempt to set chain context.
- * Returns:
- * - string   — message to return to user (confirmation or ambiguity)
- * - null     — silent fall-through (not detected, no chain found, or ApiError)
- */
-async function handleContextSet(
-  chainIdentifier: string,
-  chatId: number,
-  redis: Redis,
-  apiClient: ApiClient,
-): Promise<string | null> {
-  let resolved;
-  try {
-    resolved = await resolveChain(chainIdentifier, apiClient);
-  } catch (err) {
-    if (err instanceof ApiError) {
-      // Silent fall-through on API errors in NL context detection
-      return null;
-    }
-    throw err;
-  }
-
-  if (resolved === null) {
-    // No chain found — fall through silently so the message can be treated as dish query
-    return null;
-  }
-
-  if (resolved === 'ambiguous') {
-    return 'Encontré varias cadenas con ese nombre\\. Por favor, usa el slug exacto \\(por ejemplo: mcdonalds\\-es\\)\\. Usa /cadenas para ver los slugs\\.';
-  }
-
-  // Write chain context to state
-  const state = (await getState(redis, chatId)) ?? {};
-  state.chainContext = {
-    chainSlug: resolved.chainSlug,
-    chainName: resolved.chainName,
-  };
-  await setState(redis, chatId, state);
-
-  return formatContextConfirmation(resolved.chainName, resolved.chainSlug);
-}
-
-// ---------------------------------------------------------------------------
 // handleNaturalLanguage
 // ---------------------------------------------------------------------------
 
@@ -159,11 +113,12 @@ const TOO_LONG_MESSAGE =
   'Por favor, sé más específico\\. Escribe el nombre del plato directamente, por ejemplo: _big mac_';
 
 /**
- * Handle a plain-text natural language message.
+ * Handle a plain-text natural language message (F070 refactor).
+ * Calls apiClient.processMessage() and formats the structured response.
  * Returns a MarkdownV2-formatted string for Telegram.
  *
- * Only catches ApiError — unknown errors are rethrown so wrapHandler in
- * bot.ts can log them and reply with the generic "error inesperado" message.
+ * Unknown errors are rethrown so wrapHandler in bot.ts can log them and
+ * reply with the generic "error inesperado" message.
  */
 export async function handleNaturalLanguage(
   text: string,
@@ -171,72 +126,66 @@ export async function handleNaturalLanguage(
   redis: Redis,
   apiClient: ApiClient,
 ): Promise<string> {
-  const trimmed = text.trim();
-
-  if (trimmed.length > MAX_NL_TEXT_LENGTH) {
-    return TOO_LONG_MESSAGE;
-  }
-
-  // Step 0 — Context-set detection
-  const chainIdentifier = detectContextSet(trimmed);
-
-  if (chainIdentifier !== null) {
-    const result = await handleContextSet(chainIdentifier, chatId, redis, apiClient);
-    if (result !== null) return result;
-    // null → silent fall-through to Steps 1 & 2
-  }
-
-  // ALWAYS load state for Steps 1 & 2 (even when Step 0 fired and fell through).
+  // Read legacy bot:state chainContext (for backward compat while /contexto
+  // command still writes to bot:state rather than conv:ctx).
   // getState is fail-open (returns null on Redis error).
   const botState = await getState(redis, chatId);
-  const fallbackChainSlug = botState?.chainContext?.chainSlug;
-  const fallbackChainName = botState?.chainContext?.chainName;
+  const legacyChainContext = botState?.chainContext;
 
-  // Step 1 — Comparison detection
-  const comparison = extractComparisonQuery(trimmed);
-  if (comparison !== null) {
-    return runComparison(
-      comparison.dishA,
-      comparison.dishB,
-      comparison.nutrientFocus,
-      apiClient,
-      fallbackChainSlug,
-    );
-  }
+  // Call ConversationCore via HTTP
+  const data = await apiClient.processMessage(text, chatId, legacyChainContext);
 
-  // Step 2 — Single-dish path
-  const { cleanQuery, portionMultiplier } = extractPortionModifier(trimmed);
-  const extracted = extractFoodQuery(cleanQuery);
+  // Format based on intent
+  switch (data.intent) {
+    case 'estimation': {
+      if (!data.estimation) {
+        return 'No se encontraron datos nutricionales para esta consulta\\.';
+      }
 
-  const estimateParams: Parameters<ApiClient['estimate']>[0] = { ...extracted };
+      let result = formatEstimate(data.estimation);
 
-  // Inject fallback chain slug when no explicit slug is present
-  if (!estimateParams.chainSlug && fallbackChainSlug) {
-    estimateParams.chainSlug = fallbackChainSlug;
-  }
+      // Append context indicator ONLY when chainSlug was injected from context,
+      // not when the user typed an explicit slug (F054 behavior preserved).
+      if (data.usedContextFallback && data.activeContext) {
+        result += `\n_Contexto activo: ${escapeMarkdown(data.activeContext.chainName)}_`;
+      }
 
-  if (portionMultiplier !== 1.0) {
-    estimateParams.portionMultiplier = portionMultiplier;
-  }
-
-  // Track whether fallback context was injected (no explicit slug in query)
-  const usedFallbackContext = !extracted.chainSlug && !!fallbackChainSlug;
-
-  try {
-    const data = await apiClient.estimate(estimateParams);
-    let result = formatEstimate(data);
-
-    // Append context indicator when chain was injected from implicit context (F054)
-    if (usedFallbackContext && fallbackChainName) {
-      result += `\n_Contexto activo: ${escapeMarkdown(fallbackChainName)}_`;
+      return result;
     }
 
-    return result;
-  } catch (err) {
-    if (err instanceof ApiError) {
-      logger.warn({ err, ...extracted }, 'NL handler API error');
-      return handleApiError(err);
+    case 'comparison': {
+      if (!data.comparison) {
+        return 'No se encontraron datos de comparación\\.';
+      }
+
+      return formatComparison(
+        data.comparison.dishA,
+        data.comparison.dishB,
+        data.comparison.nutrientFocus as Parameters<typeof formatComparison>[2],
+        {},
+      );
     }
-    throw err;
+
+    case 'context_set': {
+      if (data.ambiguous) {
+        return 'Encontré varias cadenas con ese nombre\\. Por favor, usa el slug exacto \\(por ejemplo: mcdonalds\\-es\\)\\. Usa /cadenas para ver los slugs\\.';
+      }
+
+      if (data.contextSet) {
+        return formatContextConfirmation(data.contextSet.chainName, data.contextSet.chainSlug);
+      }
+
+      // Should not reach here
+      return 'Contexto procesado\\.';
+    }
+
+    case 'text_too_long':
+      return TOO_LONG_MESSAGE;
+
+    default: {
+      // Exhaustive check — TypeScript ensures all intents are handled
+      const _exhaustive: never = data.intent;
+      return `Intent desconocido: ${_exhaustive}`;
+    }
   }
 }
