@@ -139,5 +139,5 @@ export function parseBedcaNutrientIndex(xml: string): BedcaNutrientInfo[] {
 function parseNutrientValue(raw: unknown): number | null {
   if (raw === '' || raw === null || raw === undefined) return null;
   const num = Number(raw);
-  return isNaN(num) ? null : num;
+  return Number.isFinite(num) ? num : null;
 }

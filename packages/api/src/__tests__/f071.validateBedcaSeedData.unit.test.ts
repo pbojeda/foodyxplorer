@@ -141,7 +141,7 @@ describe('validateBedcaSeedData', () => {
     expect(result.errors.some((e) => e.toLowerCase().includes('name'))).toBe(true);
   });
 
-  it('rejects entries where all core nutrients (calories, proteins, carbs, fats) are null', () => {
+  it('warns (non-blocking) when all core nutrients (calories, proteins, carbs, fats) are null', () => {
     const entries = [
       makeFood(1, {
         nutrients: [
@@ -154,9 +154,9 @@ describe('validateBedcaSeedData', () => {
     ];
     const result = validateBedcaSeedData(entries);
 
-    // An entry with no core nutrient data should fail
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.toLowerCase().includes('core') || e.toLowerCase().includes('null') || e.toLowerCase().includes('nutrient'))).toBe(true);
+    // Per spec: entries with no core nutrient data are warned, not rejected
+    expect(result.valid).toBe(true);
+    expect(result.errors.some((e) => e.startsWith('[WARN]') && e.includes('core nutrients'))).toBe(true);
   });
 
   it('accepts valid snapshot data (all 20 foods)', async () => {

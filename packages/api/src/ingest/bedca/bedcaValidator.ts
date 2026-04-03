@@ -84,7 +84,7 @@ export function validateBedcaSeedData(
 
     if (allCoreNull) {
       errors.push(
-        `${prefix}: all core nutrients (calories, proteins, carbs, fats) are null — entry has no usable data`,
+        `[WARN] ${prefix}: all core nutrients (calories, proteins, carbs, fats) are null — entry has no usable data`,
       );
     }
   }

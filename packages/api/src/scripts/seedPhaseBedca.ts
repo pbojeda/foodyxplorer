@@ -159,6 +159,7 @@ export async function seedPhaseBedca(client: PrismaClient): Promise<void> {
           },
         },
         update: {
+          name: nameEn,
           nameEs,
           foodGroup: entry.foodGroupEn || entry.foodGroupEs || null,
         },

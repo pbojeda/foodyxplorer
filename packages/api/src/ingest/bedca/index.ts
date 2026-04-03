@@ -6,3 +6,4 @@ export * from './types.js';
 export * from './bedcaParser.js';
 export * from './bedcaNutrientMapper.js';
 export * from './bedcaClient.js';
+export * from './bedcaValidator.js';
