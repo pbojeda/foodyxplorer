@@ -17,6 +17,7 @@ import type {
   ActorType,
   QueryLogLevelHit,
   QueryLogSource,
+  MissedQueryStatus,
 } from "./kysely-enums";
 
 export type Actor = {
@@ -186,6 +187,16 @@ export type FoodNutrient = {
   created_at: Generated<Timestamp>;
   updated_at: Timestamp;
 };
+export type MissedQueryTracking = {
+  id: string;
+  query_text: string;
+  hit_count: number;
+  status: Generated<MissedQueryStatus>;
+  resolved_dish_id: string | null;
+  notes: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Timestamp;
+};
 export type QueryLog = {
   id: string;
   query_text: string;
@@ -277,6 +288,7 @@ export type DB = {
   dishes: Dish;
   food_nutrients: FoodNutrient;
   foods: Food;
+  missed_query_tracking: MissedQueryTracking;
   query_logs: QueryLog;
   recipe_ingredients: RecipeIngredient;
   recipes: Recipe;

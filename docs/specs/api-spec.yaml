@@ -2967,6 +2967,221 @@ paths:
                   message: "Database query failed during analytics aggregation"
                   code: "DB_UNAVAILABLE"
 
+  /analytics/missed-queries:
+    get:
+      summary: Top missed queries
+      description: |
+        Surfaces the most frequently missed queries (estimation cascade returning null
+        across all 4 levels). Aggregates query_logs WHERE level_hit IS NULL, grouped by
+        normalized query_text. LEFT JOINs missed_query_tracking for disposition status.
+        Filters short queries (< 3 chars). Admin-only (F079).
+      operationId: getMissedQueries
+      tags:
+        - Analytics
+      security:
+        - AdminKeyAuth: []
+      parameters:
+        - name: timeRange
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [24h, 7d, 30d, all]
+            default: 30d
+          description: Time window for aggregation.
+        - name: topN
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Maximum number of missed queries to return.
+        - name: minCount
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 2
+          description: Minimum hit count threshold to include a query.
+      responses:
+        '200':
+          description: Top missed queries with tracking status.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      missedQueries:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            queryText:
+                              type: string
+                              example: gazpacho andaluz
+                            count:
+                              type: integer
+                              example: 15
+                            trackingId:
+                              type: string
+                              format: uuid
+                              nullable: true
+                            trackingStatus:
+                              type: string
+                              enum: [pending, resolved, ignored]
+                              nullable: true
+                      totalMissCount:
+                        type: integer
+                        example: 250
+                      timeRange:
+                        type: string
+                        example: 30d
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Database unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /analytics/missed-queries/track:
+    post:
+      summary: Batch track missed queries
+      description: |
+        Creates tracking entries for missed queries (upsert on query_text).
+        Used by the monthly expansion batch process. Admin-only (F079).
+      operationId: batchTrackMissedQueries
+      tags:
+        - Analytics
+      security:
+        - AdminKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [queries]
+              properties:
+                queries:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [queryText, hitCount]
+                    properties:
+                      queryText:
+                        type: string
+                        minLength: 3
+                        maxLength: 255
+                      hitCount:
+                        type: integer
+                        minimum: 1
+      responses:
+        '200':
+          description: Tracking entries created/updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      tracked:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MissedQueryTracking'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /analytics/missed-queries/{id}/status:
+    post:
+      summary: Update missed query tracking status
+      description: |
+        Updates the status of a tracked missed query (pending -> resolved/ignored).
+        Optionally links to the dish that was added. Admin-only (F079).
+      operationId: updateMissedQueryStatus
+      tags:
+        - Analytics
+      security:
+        - AdminKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Tracking entry UUID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [pending, resolved, ignored]
+                resolvedDishId:
+                  type: string
+                  format: uuid
+                notes:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Status updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/MissedQueryTracking'
+        '404':
+          description: Tracking entry not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /restaurants:
     get:
       summary: List restaurants
@@ -8000,6 +8215,40 @@ components:
           enum: [true]
         data:
           $ref: '#/components/schemas/AnalyticsData'
+
+    # -------------------------------------------------------------------------
+    # F079 — Missed Query Tracking
+    # -------------------------------------------------------------------------
+
+    MissedQueryTracking:
+      type: object
+      required: [id, queryText, hitCount, status, resolvedDishId, notes, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        queryText:
+          type: string
+          example: gazpacho andaluz
+        hitCount:
+          type: integer
+          example: 15
+        status:
+          type: string
+          enum: [pending, resolved, ignored]
+        resolvedDishId:
+          type: string
+          format: uuid
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
     # -------------------------------------------------------------------------
     # F072 — Cooking Profiles + Yield Factors

@@ -10,7 +10,12 @@
 
 **Last Updated:** 2026-04-04
 
-No active work. F078 complete (squash merged to develop 2026-04-04). Phase A1 continues.
+**Feature:** F079 — Demand-Driven Dish Expansion Pipeline
+**Ticket:** `docs/tickets/F079-demand-driven-expansion.md`
+**Branch:** `feature/F079-demand-driven-expansion`
+**Complexity:** Simple (1→3→4→5→6)
+**Step:** 5/6 (Review)
+**Context:** Last feature in Phase A1. Surfaces top missed queries from query_logs (levelHit IS NULL), tracks disposition in new missed_query_tracking table. Admin endpoints for viewing gaps and updating status.
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -170,7 +175,7 @@ No active work. F078 complete (squash merged to develop 2026-04-04). Phase A1 co
 | F076 | "Modo Menú del Día" (/menu command) | backend | done | 6/6 | Standard. Multi-dish meal estimation. New menu_estimation intent + /menu bot command + NL detection. PR #68. 72 new tests. BUG-F076-01 + BUG-F076-02 fixed. |
 | F077 | Alcohol Nutrient Support | backend | done | 6/6 | Simple. Add alcohol field to calculation pipeline. 7 kcal/g. PR #69. +19 tests |
 | F078 | Regional Aliases + "Modo España Real" | backend | done | 6/6 | Simple. Alias SQL matching + name_es exact + serving-format prefix stripping. PR #70. +22 tests |
-| F079 | Demand-Driven Dish Expansion Pipeline | backend | pending | — | Simple. Monitor /estimate queries returning null. Track frequency in QueryLog. Monthly batch: add top 20 missed queries |
+| F079 | Demand-Driven Dish Expansion Pipeline | backend | in-progress | 5/6 | Simple. Monitor /estimate queries returning null. Track frequency in QueryLog. Monthly batch: add top 20 missed queries |
 
 ## Features — E008 Conversational Assistant & Voice (Phase B + C)
 
