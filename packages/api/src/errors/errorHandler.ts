@@ -339,6 +339,34 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // EMPTY_TRANSCRIPTION — Whisper returned empty/whitespace or hallucination text (F075)
+  if (asAny['code'] === 'EMPTY_TRANSCRIPTION') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'EMPTY_TRANSCRIPTION',
+        },
+      },
+    };
+  }
+
+  // TRANSCRIPTION_FAILED — Whisper API error after retry (F075)
+  if (asAny['code'] === 'TRANSCRIPTION_FAILED') {
+    return {
+      statusCode: 422,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'TRANSCRIPTION_FAILED',
+        },
+      },
+    };
+  }
+
   // RECIPE_UNRESOLVABLE — zero ingredients resolved in POST /calculate/recipe (F035)
   if (asAny['code'] === 'RECIPE_UNRESOLVABLE') {
     return {

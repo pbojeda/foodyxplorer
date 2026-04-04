@@ -4960,6 +4960,185 @@ paths:
                       message: "Database query failed during estimation lookup"
                       code: "DB_UNAVAILABLE"
 
+  /conversation/audio:
+    post:
+      tags: [Conversation]
+      operationId: conversationAudio
+      summary: Transcribe a voice message and process via ConversationCore
+      description: |
+        Accepts a multipart/form-data audio file (OGG, MP3, MP4, WAV, WebM).
+        Transcribes via OpenAI Whisper (`whisper-1`, `language: es`, `temperature: 0`),
+        applies a hallucination filter for known bad Whisper outputs, then delegates
+        to the Conversation Core pipeline (`processMessage()`).
+
+        Returns the same `ConversationMessageData` envelope as `POST /conversation/message`.
+        On transcription failure or empty result, returns a 422 error with a specific code.
+
+        **Architecture decision (F075):** Transcription runs in the API (not the bot)
+        to keep the bot as a thin adapter. The same endpoint can be reused by the
+        future web assistant (Phase C, F093) without duplicating Whisper logic.
+
+        **Rate limiting:** Shares the `queries` bucket with `GET /estimate` and
+        `POST /conversation/message` — 50/day per actor. A voice message counts as 1 query.
+
+        **Query logging:** Fire-and-forget, same pattern as `/conversation/message`.
+        The transcribed text (not the filename) is logged as `queryText`.
+        Whisper latency is logged via application logger (`audioTranscriptionMs`) —
+        not stored in the `query_logs` table (no schema changes).
+      parameters:
+        - $ref: '#/components/parameters/XActorId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+                - duration
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: |
+                    Audio file. Accepted MIME types: audio/ogg, audio/mpeg, audio/mp4,
+                    audio/wav, audio/webm. Max 10 MB (handled by @fastify/multipart).
+                duration:
+                  type: number
+                  description: |
+                    Audio duration in seconds. Required — comes from Telegram's
+                    `msg.voice.duration` field (or client-side measurement).
+                    Must be a number ≤ 120. Exceeding 120 returns 400 VALIDATION_ERROR.
+                  maximum: 120
+                chainSlug:
+                  type: string
+                  description: Legacy chain context slug (optional, same as /conversation/message).
+                  example: "mcdonalds-es"
+                chainName:
+                  type: string
+                  description: Legacy chain context name (optional, same as /conversation/message).
+                  example: "McDonald's"
+            examples:
+              voiceOgg:
+                summary: Telegram voice note (OGG/Opus)
+                value:
+                  audio: "<binary OGG file>"
+                  duration: 8
+      responses:
+        '200':
+          description: |
+            Audio transcribed and processed successfully. Returns the same
+            ConversationMessageData envelope as POST /conversation/message.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/ConversationMessageResponse'
+              example:
+                success: true
+                data:
+                  intent: estimation
+                  actorId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  estimation:
+                    query: "dos pinchos de tortilla y una caña"
+                    chainSlug: null
+                    portionMultiplier: 1.0
+                    level1Hit: false
+                    level2Hit: false
+                    level3Hit: true
+                    level4Hit: false
+                    matchType: "embedding_dish"
+                    result: null
+                    cachedAt: null
+                  activeContext: null
+        '400':
+          description: |
+            Validation error. Sub-cases:
+            - `audio` file part is missing from the multipart body.
+            - MIME type is not one of: audio/ogg, audio/mpeg, audio/mp4, audio/wav, audio/webm.
+            - `duration` field is missing or not a number.
+            - `duration` exceeds 120 seconds.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingAudio:
+                  summary: audio file part missing
+                  value:
+                    success: false
+                    error:
+                      message: "Missing audio file part in multipart request"
+                      code: "VALIDATION_ERROR"
+                unsupportedMime:
+                  summary: unsupported MIME type
+                  value:
+                    success: false
+                    error:
+                      message: "Unsupported audio MIME type: application/pdf"
+                      code: "VALIDATION_ERROR"
+                durationTooLong:
+                  summary: duration > 120
+                  value:
+                    success: false
+                    error:
+                      message: "Audio duration exceeds maximum of 120 seconds"
+                      code: "VALIDATION_ERROR"
+        '413':
+          description: Audio file exceeds 10 MB limit (handled by @fastify/multipart).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "request file too large, please check multipart config"
+                  code: "PAYLOAD_TOO_LARGE"
+        '422':
+          description: |
+            Transcription failed. Two error codes:
+            - `EMPTY_TRANSCRIPTION`: Whisper returned empty/whitespace text or a known
+              hallucination string (background noise, silence).
+            - `TRANSCRIPTION_FAILED`: Whisper API returned an error after retry
+              (or OPENAI_API_KEY not configured).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyTranscription:
+                  summary: Whisper returned empty or hallucinated text
+                  value:
+                    success: false
+                    error:
+                      message: "Audio transcription returned empty text"
+                      code: "EMPTY_TRANSCRIPTION"
+                transcriptionFailed:
+                  summary: Whisper API error after retry
+                  value:
+                    success: false
+                    error:
+                      message: "Audio transcription failed"
+                      code: "TRANSCRIPTION_FAILED"
+        '429':
+          description: Per-actor daily rate limit exceeded (shares 'queries' bucket with GET /estimate).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Daily queries limit exceeded (50/day). Try again tomorrow."
+                  code: "ACTOR_RATE_LIMIT_EXCEEDED"
+
 components:
   parameters:
     XActorId:
