@@ -1,7 +1,7 @@
 # F078: Regional Aliases + "Modo España Real"
 
 **Feature:** F078 | **Type:** Backend-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F078-regional-aliases
+**Status:** Done | **Branch:** feature/F078-regional-aliases (deleted)
 **Created:** 2026-04-04 | **Dependencies:** F073 (Spanish Canonical Dishes) ✅
 
 ---
@@ -64,7 +64,7 @@ N/A — Simple task.
 - [x] Step 3: TDD implementation
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -76,6 +76,8 @@ N/A — Simple task.
 | 2026-04-04 | Implement | 3 SQL files + entityExtractor. 22 new tests. All pass (shared 434, API 2634, bot 1143). Lint clean, build success. |
 | 2026-04-04 | Finalize | Production validator: READY (0 critical, 0 issues) |
 | 2026-04-04 | Review | PR #70. Code review: 0 critical, 1 important (L4 missing aliases — out of scope, logged as tech debt #15). 4 suggestions (defensive LOWER on @> — added comment instead). Approved. |
+| 2026-04-04 | Audit fix | 2 aliases with uppercase fixed: "mollete de Antequera" → lowercase, "torrezno de Soria" → lowercase |
+| 2026-04-04 | Complete | Squash merged to develop (19728bf). Branch deleted. |
 
 ---
 

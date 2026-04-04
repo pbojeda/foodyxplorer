@@ -10,12 +10,7 @@
 
 **Last Updated:** 2026-04-04
 
-**Feature:** F078 — Regional Aliases + "Modo España Real"
-**Ticket:** `docs/tickets/F078-regional-aliases.md`
-**Branch:** `feature/F078-regional-aliases`
-**Complexity:** Simple (1→3→4→5→6)
-**Step:** 5/6 (Review)
-**Context:** Enable existing aliases column (GIN-indexed, 250+ aliases populated) in L1/L2 SQL queries. Add name_es exact matching. Strip Spanish serving-format prefixes.
+No active work. F078 complete (squash merged to develop 2026-04-04). Phase A1 continues.
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -174,7 +169,7 @@
 | F075 | Audio Input (Whisper → ConversationCore, bot) | backend+bot | done | 6/6 | Standard. Telegram voice → Whisper → ConversationCore. PR #67. 71 new tests. BUG-F075-01 fixed. |
 | F076 | "Modo Menú del Día" (/menu command) | backend | done | 6/6 | Standard. Multi-dish meal estimation. New menu_estimation intent + /menu bot command + NL detection. PR #68. 72 new tests. BUG-F076-01 + BUG-F076-02 fixed. |
 | F077 | Alcohol Nutrient Support | backend | done | 6/6 | Simple. Add alcohol field to calculation pipeline. 7 kcal/g. PR #69. +19 tests |
-| F078 | Regional Aliases + "Modo España Real" | backend | in-progress | 5/6 | Simple. Enable alias SQL matching + name_es exact + serving-format prefix stripping |
+| F078 | Regional Aliases + "Modo España Real" | backend | done | 6/6 | Simple. Alias SQL matching + name_es exact + serving-format prefix stripping. PR #70. +22 tests |
 | F079 | Demand-Driven Dish Expansion Pipeline | backend | pending | — | Simple. Monitor /estimate queries returning null. Track frequency in QueryLog. Monthly batch: add top 20 missed queries |
 
 ## Features — E008 Conversational Assistant & Voice (Phase B + C)
