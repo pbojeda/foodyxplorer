@@ -5280,7 +5280,7 @@ components:
 
     MenuEstimationTotals:
       type: object
-      description: Aggregated nutrients across all matched menu items (F076). All 14 nutrient fields.
+      description: Aggregated nutrients across all matched menu items (F076). All 15 nutrient fields.
       properties:
         calories:
           type: number

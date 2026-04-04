@@ -62,7 +62,7 @@ export interface BedcaNutrientInfo {
  * - All values are per 100g of the food
  * - Sodium, potassium, cholesterol: converted from mg → g at mapping time
  * - Salt: derived from sodium using EU Regulation 1169/2011: salt = sodium * 2.5
- * - Extended nutrients (alcohol, vitamins, minerals) are in extra
+ * - Extended nutrients (vitamins, minerals) are in extra
  */
 export interface MappedNutrients {
   calories: number;
