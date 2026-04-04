@@ -169,7 +169,7 @@
 |----|---------|------|--------|------|-------|
 | F071 | BEDCA Food Database Import | backend | done | 6/6 | PR #63. 74 tests. BEDCA Tier 1, 20 foods (placeholder IDs), feature flag BEDCA_IMPORT_ENABLED |
 | F072 | Cooking Profiles + Yield Factors | backend | done | 6/6 | Standard. PR #64. CookingProfile table (60 entries). Yield factors + applyYield orchestrator. GET /estimate + POST /calculate/recipe integration. 194 new tests. BUG-F072-01 found+fixed |
-| F073 | Spanish Canonical Dishes (BEDCA-first + LLM long tail) | backend | in-progress | 2/6 | Standard. ≥250 dishes. Virtual restaurant `cocina-espanola`. 2 DataSources (BEDCA Tier 1 + recipes Tier 3). Spec+Plan reviewed by Gemini+Codex |
+| F073 | Spanish Canonical Dishes (BEDCA-first + LLM long tail) | backend | in-progress | 5/6 | Standard. 250 dishes. Virtual restaurant `cocina-espanola`. 2 DataSources. PR #65. 69 tests. Code review: APPROVED. QA: 6 bugs fixed. |
 | F074 | L4 Cooking State Extraction | backend | pending | — | Simple. Enhance L4 decomposition prompt to extract cooking state per ingredient. Connect to CookingProfile yield factors |
 | F075 | Audio Input (Whisper → ConversationCore, bot) | bot | pending | — | Standard. Telegram voice messages → Whisper API transcription → ConversationCore. Async (push-to-talk). See product-evolution-analysis Sec 6 |
 | F076 | "Modo Menú del Día" (/menu command) | bot | pending | — | Simple. Input: "primero + segundo + postre + bebida". Parse, estimate each, sum total. Uses ConversationCore |
