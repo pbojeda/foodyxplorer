@@ -98,7 +98,7 @@ Quick reference for project configuration, infrastructure details, and important
 ### Architecture Decisions (Phase 2)
 
 - **Conversation Core**: Shared API service for bot + web assistant. Extracted from bot NL handler (F070).
-- **Voice**: Async first (Whisper in bot, F075). Realtime voice in Phase C (F094-F097). Browser-side STT/TTS (Web Speech API) under investigation as zero-cost alternative.
+- **Voice (F075)**: `POST /conversation/audio` — multipart OGG → Whisper transcription → ConversationCore. `callWhisperTranscription` in `openaiClient.ts`. Hallucination filter (8 strings). Bot `handleVoice` handler with duration/size guards. `VOICE_TIMEOUT_MS=30s`. Realtime voice deferred to Phase C (F093-F097).
 - **Auth**: No auth barriers. actor_id from day 1 (ADR-016). Google Identity Platform in Phase D (F107).
 - **i18n**: ADR-010 (Enfoque A: name + name_es). Evolution to dish_translations when 3rd language needed.
 

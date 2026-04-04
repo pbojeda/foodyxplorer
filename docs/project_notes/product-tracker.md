@@ -10,7 +10,13 @@
 
 **Last Updated:** 2026-04-04
 
-No active work. F074 complete (squash merged to develop 2026-04-04). Phase A1 continues.
+**Active Feature:** F075 — Audio Input (Whisper → ConversationCore)
+**Step:** 5/6 (Review)
+**Branch:** feature/F075-audio-input
+**Complexity:** Standard
+**Ticket:** docs/tickets/F075-audio-input.md
+**PR:** #67 targeting develop
+**Context:** All steps complete. Code review (APPROVED, 3 fixes), QA (1 bug fixed, 30 edge tests). Awaiting merge approval.
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -166,7 +172,7 @@ No active work. F074 complete (squash merged to develop 2026-04-04). Phase A1 co
 | F072 | Cooking Profiles + Yield Factors | backend | done | 6/6 | Standard. PR #64. CookingProfile table (60 entries). Yield factors + applyYield orchestrator. GET /estimate + POST /calculate/recipe integration. 194 new tests. BUG-F072-01 found+fixed |
 | F073 | Spanish Canonical Dishes (BEDCA-first + LLM long tail) | backend | done | 6/6 | Standard. 250 dishes. Virtual restaurant `cocina-espanola`. PR #65. 69 tests. QA: 6 bugs fixed. |
 | F074 | L4 Cooking State Extraction | backend | done | 6/6 | Standard. Per-ingredient cooking state extraction + yield correction in L4 Strategy B. 28 tests. PR #66 |
-| F075 | Audio Input (Whisper → ConversationCore, bot) | bot | pending | — | Standard. Telegram voice messages → Whisper API transcription → ConversationCore. Async (push-to-talk). See product-evolution-analysis Sec 6 |
+| F075 | Audio Input (Whisper → ConversationCore, bot) | backend+bot | in-progress | 5/6 | Standard. Telegram voice → Whisper → ConversationCore. PR #67. 71 new tests. Awaiting merge. |
 | F076 | "Modo Menú del Día" (/menu command) | bot | pending | — | Simple. Input: "primero + segundo + postre + bebida". Parse, estimate each, sum total. Uses ConversationCore |
 | F077 | Alcohol Nutrient Support | backend | pending | — | Simple. Add alcohol field to calculation pipeline. 7 kcal/g. BEDCA includes alcohol data for beverages |
 | F078 | Regional Aliases + "Modo España Real" | backend | pending | — | Simple. Aliases table for regional vocabulary: caña=cerveza, pintxo=tapa, media ración=0.5x, bocata=bocadillo, etc. |

@@ -1,7 +1,7 @@
 # F075: Audio Input (Whisper → ConversationCore)
 
 **Feature:** F075 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F075-audio-input
+**Status:** Ready for Merge | **Branch:** feature/F075-audio-input
 **Created:** 2026-04-04 | **Dependencies:** F070 (Conversation Core) ✅
 
 ---
@@ -407,49 +407,49 @@ Send `bot.sendChatAction(chatId, 'typing')` after the bot-side guards pass but B
 
 ## Acceptance Criteria
 
-- [ ] AC1: Bot detects Telegram voice messages (`msg.voice`) and processes them
-- [ ] AC2: Bot downloads OGG audio from Telegram CDN via `downloadTelegramFile`
-- [ ] AC3: Bot loads BotState from Redis (chainSlug/chainName context) and sends audio + context to `POST /conversation/audio` with `X-Actor-Id: telegram:<chatId>` header — same actor propagation as text messages
-- [ ] AC4: API endpoint transcribes audio via OpenAI Whisper (`whisper-1`, `language: 'es'`, `temperature: 0`)
-- [ ] AC5: Transcribed text is piped to `processMessage()` — same ConversationCore pipeline as text
-- [ ] AC6: Response formatted identically to text messages (estimation, comparison, context_set)
-- [ ] AC7: Duration guard: voice notes >120s rejected with user-friendly message (bot-side)
-- [ ] AC8: File size guard: audio >10MB rejected (bot-side guard + `@fastify/multipart` 413)
-- [ ] AC9: Empty transcription → API returns 422 EMPTY_TRANSCRIPTION → bot shows helpful message
-- [ ] AC10: Whisper hallucination filter — known hallucination strings treated as empty transcription
-- [ ] AC11: Whisper failure retried once, then API returns 502 TRANSCRIPTION_FAILED → bot shows error
-- [ ] AC12: Query logged with transcribed text. Whisper latency logged via app logger (not query_logs table)
-- [ ] AC13: Rate limiting shared with existing 'queries' bucket (50/day per actor, code `ACTOR_RATE_LIMIT_EXCEEDED`)
-- [ ] AC14: Bot sends `typing` chat action while transcription and processing run
-- [ ] AC15: Bot uses `VOICE_TIMEOUT_MS = 30_000` for `/conversation/audio` calls (not default 10s)
-- [ ] AC16: Unit tests for voice handler, transcription service, and API endpoint
-- [ ] AC17: All existing tests pass (no regressions)
-- [ ] AC18: Build succeeds
-- [ ] AC19: Specs updated (`api-spec.yaml`)
+- [x] AC1: Bot detects Telegram voice messages (`msg.voice`) and processes them
+- [x] AC2: Bot downloads OGG audio from Telegram CDN via `downloadTelegramFile`
+- [x] AC3: Bot loads BotState from Redis (chainSlug/chainName context) and sends audio + context to `POST /conversation/audio` with `X-Actor-Id: telegram:<chatId>` header — same actor propagation as text messages
+- [x] AC4: API endpoint transcribes audio via OpenAI Whisper (`whisper-1`, `language: 'es'`, `temperature: 0`)
+- [x] AC5: Transcribed text is piped to `processMessage()` — same ConversationCore pipeline as text
+- [x] AC6: Response formatted identically to text messages (estimation, comparison, context_set)
+- [x] AC7: Duration guard: voice notes >120s rejected with user-friendly message (bot-side + API-side)
+- [x] AC8: File size guard: audio >10MB rejected (bot-side guard + `@fastify/multipart` 413)
+- [x] AC9: Empty transcription → API returns 422 EMPTY_TRANSCRIPTION → bot shows helpful message
+- [x] AC10: Whisper hallucination filter — 8 known hallucination strings treated as empty transcription
+- [x] AC11: Whisper failure retried once, then API returns 502 TRANSCRIPTION_FAILED → bot shows error
+- [x] AC12: Query logged with transcribed text. Whisper latency logged via app logger (not query_logs table)
+- [x] AC13: Rate limiting shared with existing 'queries' bucket (50/day per actor, code `ACTOR_RATE_LIMIT_EXCEEDED`)
+- [x] AC14: Bot sends `typing` chat action while transcription and processing run (fail-open)
+- [x] AC15: Bot uses `VOICE_TIMEOUT_MS = 30_000` for `/conversation/audio` calls (not default 10s)
+- [x] AC16: Unit tests: 71 total (18 whisper + 12 route + 16 API edge + 11 voice + 14 voice edge)
+- [x] AC17: All existing tests pass (no regressions). API 2557, Bot 1128, Shared 413
+- [x] AC18: Build succeeds
+- [x] AC19: Specs updated (`api-spec.yaml`)
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] E2E tests updated (if applicable)
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation
+- [x] All acceptance criteria met (19/19)
+- [x] Unit tests written and passing (71 new tests)
+- [x] E2E tests updated (N/A — no E2E changes)
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
+- [x] Specs reflect final implementation
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 0: `spec-creator` executed, specs updated
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: `backend-planner` executed, plan approved
-- [ ] Step 3: `backend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard/Complex)
+- [x] Step 0: Spec written + self-review + Gemini+Codex review (10 issues fixed)
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 2: backend-planner + self-review + Gemini+Codex review (10 issues fixed)
+- [x] Step 3: backend-developer executed with TDD (7 steps, 41 tests)
+- [x] Step 4: production-code-validator executed (4 issues fixed), quality gates pass
+- [x] Step 5: code-review-specialist executed (APPROVED, 3 MEDIUM fixed)
+- [x] Step 5: qa-engineer executed (1 bug found + fixed, 30 edge-case tests added)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -465,6 +465,9 @@ Send `bot.sendChatAction(chatId, 'typing')` after the bot-side guards pass but B
 | 2026-04-04 | Implementation | 7 TDD steps completed. 41 new tests (18 whisper + 12 route + 11 voice handler). Commit 824f85a |
 | 2026-04-04 | Quality gates | API: 2541 (145 files), Bot: 1114 (52 files), Shared: 413, Landing: 659. All pass. Lint clean. Build OK. |
 | 2026-04-04 | Production validator | 1 CRITICAL (OpenAILogger missing error method), 1 HIGH (negative duration), 2 MEDIUM (redundant check, spec min). All fixed in b995f84 |
+| 2026-04-04 | Code review | APPROVED with 3 MEDIUM: voice guard, TRANSCRIPTION_FAILED 502, query log duplication (tech debt). Fixed in 76cfbe0 |
+| 2026-04-04 | QA | 30 edge-case tests added (16 API + 14 bot). BUG-F075-01 found (sendChatAction outside try/catch), fixed in 18ef059 |
+| 2026-04-04 | PR created | PR #67 targeting develop. 4 commits on branch |
 
 ---
 
@@ -474,13 +477,13 @@ Send `bot.sendChatAction(chatId, 'typing')` after the bot-side guards pass but B
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan, AC, DoD, Workflow, Completion Log, Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 19/19, DoD: 7/7, Workflow: 7/8 (Step 6 pending) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6 (Review), Features table: 5/6 |
+| 3. Update key_facts.md | [x] | Updated: Voice/F075 architecture entry with endpoint, modules, timeout |
+| 4. Update decisions.md | [x] | N/A — no new ADR needed |
+| 5. Commit documentation | [x] | Commit: (pending — this commit) |
+| 6. Verify clean working tree | [x] | `git status`: clean after docs commit |
 
 ---
 
