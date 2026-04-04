@@ -1,7 +1,7 @@
 # F073: Spanish Canonical Dishes (BEDCA-First + LLM Long Tail)
 
 **Feature:** F073 | **Type:** Backend-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F073-spanish-canonical-dishes
+**Status:** Done | **Branch:** feature/F073-spanish-canonical-dishes (deleted)
 **Created:** 2026-04-04 | **Dependencies:** F071 (BEDCA Import), F072 (Cooking Profiles)
 
 ---
