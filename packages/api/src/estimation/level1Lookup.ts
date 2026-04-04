@@ -93,7 +93,7 @@ async function exactDishMatch(
     WHERE (
       LOWER(d.name) = LOWER(${normalizedQuery})
       OR LOWER(d.name_es) = LOWER(${normalizedQuery})
-      OR d.aliases @> ARRAY[${normalizedQuery}]
+      OR d.aliases @> ARRAY[${normalizedQuery}]  -- F078: GIN-indexed, aliases stored lowercase
     )
     ${scopeClause}
     ${tierClause}
