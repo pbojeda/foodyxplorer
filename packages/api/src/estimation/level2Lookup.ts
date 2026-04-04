@@ -87,12 +87,17 @@ async function exactIngredientDishMatch(
       SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.cholesterol  * di.gram_weight / 100 ELSE 0 END)::text AS cholesterol,
       SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.potassium    * di.gram_weight / 100 ELSE 0 END)::text AS potassium,
       SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.monounsaturated_fats * di.gram_weight / 100 ELSE 0 END)::text AS monounsaturated_fats,
-      SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.polyunsaturated_fats * di.gram_weight / 100 ELSE 0 END)::text AS polyunsaturated_fats
+      SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.polyunsaturated_fats * di.gram_weight / 100 ELSE 0 END)::text AS polyunsaturated_fats,
+      SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.alcohol * di.gram_weight / 100 ELSE 0 END)::text AS alcohol
     FROM dishes d
     JOIN restaurants r ON r.id = d.restaurant_id
     JOIN dish_ingredients di ON di.dish_id = d.id
     LEFT JOIN ranked_fn rfn ON rfn.food_id = di.ingredient_food_id AND rfn.rn = 1
-    WHERE LOWER(d.name) = LOWER(${normalizedQuery})
+    WHERE (
+      LOWER(d.name) = LOWER(${normalizedQuery})
+      OR LOWER(d.name_es) = LOWER(${normalizedQuery})
+      OR d.aliases @> ARRAY[${normalizedQuery}]
+    )
     ${scopeClause}
     GROUP BY d.id, d.name, d.name_es, d.restaurant_id, r.chain_slug, d.portion_grams, d.source_id
     HAVING COUNT(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN 1 END) > 0
@@ -143,7 +148,8 @@ async function ftsIngredientDishMatch(
       SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.cholesterol  * di.gram_weight / 100 ELSE 0 END)::text AS cholesterol,
       SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.potassium    * di.gram_weight / 100 ELSE 0 END)::text AS potassium,
       SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.monounsaturated_fats * di.gram_weight / 100 ELSE 0 END)::text AS monounsaturated_fats,
-      SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.polyunsaturated_fats * di.gram_weight / 100 ELSE 0 END)::text AS polyunsaturated_fats
+      SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.polyunsaturated_fats * di.gram_weight / 100 ELSE 0 END)::text AS polyunsaturated_fats,
+      SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.alcohol * di.gram_weight / 100 ELSE 0 END)::text AS alcohol
     FROM dishes d
     JOIN restaurants r ON r.id = d.restaurant_id
     JOIN dish_ingredients di ON di.dish_id = d.id

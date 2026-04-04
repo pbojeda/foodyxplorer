@@ -44,6 +44,7 @@ function makeMockClient(): { [K in keyof ApiClient]: ReturnType<typeof vi.fn> } 
     analyzeMenu: vi.fn(),
     calculateRecipe: vi.fn(),
     processMessage: vi.fn(),
+    sendAudio: vi.fn(),
   };
 }
 

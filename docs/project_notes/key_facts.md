@@ -88,7 +88,7 @@ Quick reference for project configuration, infrastructure details, and important
 | **BEDCA** | ~431 with data | 55 per food | Pending authorization | Email sent 2026-04-02 | Tier 1 |
 | **Open Food Facts** | 11K+ Hacendado | Full packaging | ODbL (attribution) | Available | Tier 0 (branded) |
 | **Chain PDFs** | ~885 dishes (14 chains) | 14 per dish | Official/scraped | Imported | Tier 0 (chain) |
-| **LLM-bootstrapped** | ~300 canonical dishes | Calculated from ingredients | Own | Planned (F073) | Tier 3 |
+| **Cocina Española** | 250 dishes (46 BEDCA + 204 recipe) | 9 per dish (per_serving) | Own | Imported (F073) | Tier 1 (BEDCA) / Tier 3 (recipe) |
 
 ### Key ADRs (Phase 2)
 
@@ -98,7 +98,11 @@ Quick reference for project configuration, infrastructure details, and important
 ### Architecture Decisions (Phase 2)
 
 - **Conversation Core**: Shared API service for bot + web assistant. Extracted from bot NL handler (F070).
-- **Voice**: Async first (Whisper in bot, F075). Realtime voice in Phase C (F094-F097). Browser-side STT/TTS (Web Speech API) under investigation as zero-cost alternative.
+- **Voice (F075)**: `POST /conversation/audio` — multipart OGG → Whisper transcription → ConversationCore. `callWhisperTranscription` in `openaiClient.ts`. Hallucination filter (8 strings). Bot `handleVoice` handler with duration/size guards. `VOICE_TIMEOUT_MS=30s`. Realtime voice deferred to Phase C (F093-F097).
+- **Menú del Día (F076)**: `menu_estimation` intent in ConversationCore (Step 3.5). `detectMenuQuery()` in `menuDetector.ts` — accent-insensitive, comma-split, noise filter, max 8 items. Bot `/menu` command. Parallel estimation via Promise.allSettled, aggregated totals (15 nutrients).
+- **Alcohol (F077)**: `alcohol Decimal(8,2) DEFAULT 0` in food_nutrients + dish_nutrients. 15 standard nutrient fields + referenceBasis. BEDCA ALC tagname maps to standard `alcohol` field. Bot shows 🍺 when > 0. Migration: `alcohol_nutrient_f077`.
+- **Regional Aliases (F078)**: L1/L2 exact match queries now search `d.aliases @> ARRAY[query]` + `d.name_es` exact. 250+ dish aliases resolve. Serving-format prefixes stripped: tapa(s)/pincho(s)/pintxo(s)/ración(es) de. No migration (GIN indexes already exist).
+- **Demand-Driven Expansion (F079)**: `missed_query_tracking` table tracks disposition (pending/resolved/ignored) of queries that miss all cascade levels. 3 admin endpoints: GET /analytics/missed-queries (top missed queries by frequency), POST /analytics/missed-queries/track (batch create tracking), POST /analytics/missed-queries/:id/status (update status). 21st Prisma migration.
 - **Auth**: No auth barriers. actor_id from day 1 (ADR-016). Google Identity Platform in Phase D (F107).
 - **i18n**: ADR-010 (Enfoque A: name + name_es). Evolution to dish_translations when 3rd language needed.
 
@@ -177,8 +181,10 @@ Quick reference for project configuration, infrastructure details, and important
 - **Waitlist schemas (F046)**: `packages/shared/src/schemas/waitlist.ts` — 3 Zod schemas: `CreateWaitlistSubmissionSchema` (email max 320, phone format regex, variant a|c|f, source enum, UTM max 500, honeypot optional), `AdminWaitlistQuerySchema` (limit 1-200 default 50, offset >=0, sort enum), `WaitlistSubmissionSchema` (full record)
 - **Waitlist migration (F046)**: `packages/api/prisma/migrations/20260328160000_waitlist_submissions_f046/` — `waitlist_submissions` table: UUID PK, email UNIQUE + regex CHECK, variant CHECK (a|c|f), phone nullable, UTM fields, ip_address, created_at DESC index
 - **Conversation route (F070)**: `packages/api/src/routes/conversation.ts` — `POST /conversation/message` Fastify plugin. Body: `ConversationMessageBodySchema` (text trim/min1/max2000, optional chainSlug/chainName for legacy context). Returns `{ success: true, data: ConversationMessageData }` with intent: context_set/comparison/estimation/text_too_long. Domain 500-char guard (not Zod). ConversationCore pipeline: load context → length guard → context-set → comparison → estimation. Context in Redis `conv:ctx:{actorId}` (7200s TTL, fail-open). ChainResolver in-memory (loaded at init). EstimationOrchestrator calls `runEstimationCascade()` directly. `usedContextFallback` flag for adapter footer. Rate limit shares `queries` bucket (50/day). Query logging: estimation=1, comparison=2, context_set=1, text_too_long=1
-- **Conversation schemas (F070)**: `packages/shared/src/schemas/conversation.ts` — 4 Zod schemas: `ConversationMessageBodySchema`, `ConversationIntentSchema` (4 intents), `ConversationMessageDataSchema` (intent + actorId + optional contextSet/ambiguous/estimation/comparison + nullable activeContext + optional usedContextFallback), `ConversationMessageResponseSchema` (success envelope)
+- **Conversation schemas (F070+F076)**: `packages/shared/src/schemas/conversation.ts` — 4 Zod schemas: `ConversationMessageBodySchema`, `ConversationIntentSchema` (5 intents: context_set, comparison, menu_estimation, estimation, text_too_long), `ConversationMessageDataSchema` (intent + actorId + optional contextSet/ambiguous/estimation/comparison/menuEstimation + nullable activeContext + optional usedContextFallback), `ConversationMessageResponseSchema` (success envelope). Menu schemas in `menuEstimation.ts`: `MenuEstimationTotalsSchema`, `MenuEstimationItemSchema`, `MenuEstimationDataSchema`.
 - **Conversation module (F070)**: `packages/api/src/conversation/` — 6 files: `types.ts` (ConversationRequest, ConversationContext, ChainRow, ResolvedChain), `entityExtractor.ts` (6 pure functions copied from bot), `chainResolver.ts` (resolveChain pure in-memory + loadChainData DB), `contextManager.ts` (getContext/setContext raw Redis), `estimationOrchestrator.ts` (cache → brand detect → cascade → portion multiply), `conversationCore.ts` (processMessage 5-step pipeline)
+- **Cooking profiles (F072)**: `packages/api/src/estimation/yieldUtils.ts` (5 pure functions: normalizeFoodGroup, getDefaultCookingMethod, getDefaultCookingState, isAlreadyCookedFood, applyYieldFactor), `cookingProfileService.ts` (getCookingProfile DB lookup), `applyYield.ts` (resolveAndApplyYield orchestrator, 9 reason codes). `cooking_profiles` table: 60 entries, `@@unique([foodGroup, foodName, cookingMethod])`, sentinel `'*'` for group defaults. `GET /estimate` + `POST /calculate/recipe` accept optional `cookingState`/`cookingMethod` params
+- **Cooking profile schemas (F072)**: `packages/shared/src/schemas/cookingProfile.ts` — CookingStateSchema, CookingStateSourceSchema, YieldAdjustmentReasonSchema, YieldAdjustmentSchema, CookingProfileSchema
 - **CORS**: `packages/api/src/plugins/cors.ts` — disabled in test, localhost origins in dev, `CORS_ORIGINS` env var in prod
 
 ### Shared (packages/shared)
@@ -237,3 +243,15 @@ Quick reference for project configuration, infrastructure details, and important
 - **Slug utility**: `packages/api/src/utils/slugify.ts` — `generateIndependentSlug(name)` → `independent-<slug>-<uuid-8>`. Fallback to 'unnamed' for empty slug body. 8 hex chars from randomUUID (4 billion combinations)
 - **Recipe command (F041)**: `src/commands/receta.ts` — `handleReceta(args, chatId, apiClient, redis)`. Input guards: empty→usage hint, >2000 chars→length error. Rate limit: 5/hr per chatId via Redis `fxp:receta:hourly:<chatId>`, fail-open. Error mapping: RECIPE_UNRESOLVABLE, FREE_FORM_PARSE_FAILED → Spanish messages. Calls `apiClient.calculateRecipe(text)` → `formatRecipeResult(data)`. `src/formatters/recipeFormatter.ts` — totals (4 mandatory + 3 optional nutrients), per-ingredient bullets with portionMultiplier display, smart truncation (ingredient list only, header+footer preserved ≤4000 chars), confidence footer. `apiClient.ts` — `calculateRecipe(text)` via `postJson` with `RECIPE_TIMEOUT_MS=30s` (LLM parsing + multi-ingredient resolution). `postJson` has optional `timeout` 4th param (backward-compatible)
 - **Tests**: 621 tests across 25 files. F041 additions: f041-apiClient×14, f041-recipeFormatter×40, f041-receta×21, f041-qa-edge-cases×26. ApiClient: `calculateRecipe` via `postJson` (RECIPE_TIMEOUT_MS=30s)
+
+
+## BEDCA Data Source (F071)
+
+- **BEDCA DataSource UUID**: `00000000-0000-0000-0000-000000000003`
+- **BEDCA priority_tier**: 1 (national reference, per ADR-015)
+- **Seed function**: `seedPhaseBedca()` in `packages/api/src/scripts/seedPhaseBedca.ts`
+- **Snapshot**: `packages/api/prisma/seed-data/bedca/bedca-snapshot-full.json` (20 foods initially; full 431 after AESAN authorization)
+- **Nutrient index**: `packages/api/prisma/seed-data/bedca/bedca-nutrient-index.json`
+- **Feature flag**: `BEDCA_IMPORT_ENABLED=true` required in non-test environments
+- **Salt formula**: sodium_g * 2.5 (EU Regulation 1169/2011 — NOT 2.54)
+- **CLI**: `npm run bedca:import -w @foodxplorer/api` | `npm run bedca:snapshot -w @foodxplorer/api`

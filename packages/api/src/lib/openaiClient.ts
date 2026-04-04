@@ -1,11 +1,14 @@
 // Shared OpenAI client utilities — extracted from level4Lookup.ts (F035).
 //
 // Exports:
-//   getOpenAIClient(apiKey)         — cached OpenAI client factory
-//   isRetryableError(error)         — true for 429 or 5xx status codes
-//   sleep(ms)                       — Promise.resolve after ms milliseconds
-//   callChatCompletion(...)         — wraps OpenAI chat with 2-attempt retry
-//   callOpenAIEmbeddingsOnce(...)   — single text embedding via OpenAI (for recipe resolveIngredient)
+//   getOpenAIClient(apiKey)              — cached OpenAI client factory
+//   isRetryableError(error)              — true for 429 or 5xx status codes
+//   sleep(ms)                            — Promise.resolve after ms milliseconds
+//   callChatCompletion(...)              — wraps OpenAI chat with 2-attempt retry
+//   callWhisperTranscription(...)        — wraps OpenAI Whisper with 2-attempt retry (F075)
+//   isWhisperHallucination(text)         — detects known Whisper hallucination strings (F075)
+//   WHISPER_HALLUCINATIONS               — ReadonlySet of known bad Whisper outputs (F075)
+//   callOpenAIEmbeddingsOnce(...)        — single text embedding via OpenAI (for recipe resolveIngredient)
 //
 // Both resolveIngredient.ts (L4-A) and parseRecipeFreeForm.ts import from here.
 // level4Lookup.ts imports from here too (replaces its local copy).
@@ -28,6 +31,7 @@ const RETRY_BACKOFF_MS = 1_000;
 export type OpenAILogger = {
   info: (obj: Record<string, unknown>, msg?: string) => void;
   warn: (obj: Record<string, unknown>, msg?: string) => void;
+  error: (obj: Record<string, unknown>, msg?: string) => void;
   debug: (obj: Record<string, unknown>, msg?: string) => void;
 };
 
@@ -213,6 +217,97 @@ export async function callVisionCompletion(
 
   // Exhausted retries
   logger?.warn({ error: lastError }, 'OpenAI vision call failed');
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// WHISPER_HALLUCINATIONS — known Whisper bad outputs (F075)
+//
+// Whisper may hallucinate these strings for silence or background noise.
+// All values are lowercase with trailing punctuation stripped for matching.
+// ---------------------------------------------------------------------------
+
+export const WHISPER_HALLUCINATIONS: ReadonlySet<string> = new Set([
+  'subtítulos por la comunidad de amara.org',
+  'subtítulos realizados por la comunidad de amara.org',
+  'gracias por ver el vídeo',
+  'suscríbete al canal',
+  'música de fondo',
+  'gracias por ver',
+  'thanks for watching',
+  'thank you for watching',
+]);
+
+// ---------------------------------------------------------------------------
+// isWhisperHallucination — true if text matches a known hallucination string
+//
+// Normalizes: trim + lowercase + strip trailing [.,!?]+
+// Empty string returns false — handled separately by EMPTY_TRANSCRIPTION.
+// ---------------------------------------------------------------------------
+
+export function isWhisperHallucination(text: string): boolean {
+  if (text === '') return false;
+  const normalized = text.trim().toLowerCase().replace(/[.,!?]+$/, '');
+  return WHISPER_HALLUCINATIONS.has(normalized);
+}
+
+// ---------------------------------------------------------------------------
+// callWhisperTranscription — wraps OpenAI Whisper with 2-attempt retry (F075)
+//
+// Returns the transcription text string or null on failure.
+// Catches ALL OpenAI errors internally — never propagates them.
+// Logs audioTranscriptionMs via logger?.info after success.
+// Logs errors via logger?.warn after exhausting retries.
+// Returns null immediately if apiKey is falsy.
+// ---------------------------------------------------------------------------
+
+export async function callWhisperTranscription(
+  apiKey: string | undefined,
+  audioBuffer: Buffer,
+  mimeType: string,
+  logger?: OpenAILogger,
+): Promise<string | null> {
+  if (!apiKey) {
+    logger?.warn({}, 'Whisper: no API key configured');
+    return null;
+  }
+
+  const client = getOpenAIClient(apiKey);
+  const file = new File([new Uint8Array(audioBuffer)], 'audio.ogg', { type: mimeType });
+  const startMs = performance.now();
+
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await client.audio.transcriptions.create({
+        model: 'whisper-1',
+        file,
+        language: 'es',
+        temperature: 0,
+      });
+
+      logger?.info(
+        { audioTranscriptionMs: Math.round(performance.now() - startMs) },
+        'Whisper transcription complete',
+      );
+
+      return response.text;
+    } catch (error) {
+      if (!isRetryableError(error)) {
+        logger?.warn({ error }, 'Whisper transcription failed');
+        return null;
+      }
+
+      lastError = error;
+
+      if (attempt < MAX_RETRIES - 1) {
+        await sleep(RETRY_BACKOFF_MS);
+      }
+    }
+  }
+
+  logger?.warn({ error: lastError }, 'Whisper transcription failed');
   return null;
 }
 

@@ -25,6 +25,7 @@ export const NUMERIC_NUTRIENT_KEYS: ReadonlyArray<keyof Omit<EstimateNutrients, 
     'potassium',
     'monounsaturatedFats',
     'polyunsaturatedFats',
+    'alcohol',
   ];
 
 // ---------------------------------------------------------------------------

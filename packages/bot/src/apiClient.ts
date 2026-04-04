@@ -116,6 +116,21 @@ export interface ApiClient {
     chatId: number,
     legacyChainContext?: { chainSlug: string; chainName: string },
   ): Promise<ConversationMessageData>;
+  /**
+   * Transcribe and process a voice message via POST /conversation/audio (F075).
+   * Sends multipart/form-data with audio file + duration + optional chain context.
+   * Uses VOICE_TIMEOUT_MS (30s) — Whisper + ConversationCore can exceed 10s default.
+   * Returns ConversationMessageData (same shape as processMessage).
+   * Throws ApiError on non-2xx (EMPTY_TRANSCRIPTION, TRANSCRIPTION_FAILED, TIMEOUT, etc.).
+   */
+  sendAudio(params: {
+    audioBuffer: Buffer;
+    filename: string;
+    mimeType: string;
+    duration: number;
+    chatId: number;
+    legacyChainContext?: { chainSlug: string; chainName: string };
+  }): Promise<ConversationMessageData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +156,7 @@ export class ApiError extends Error {
 const REQUEST_TIMEOUT_MS = 10_000;
 export const UPLOAD_TIMEOUT_MS = 90_000;
 export const RECIPE_TIMEOUT_MS = 30_000;
+export const VOICE_TIMEOUT_MS = 30_000;
 
 export function createApiClient(config: BotConfig): ApiClient {
   const baseUrl = config.API_BASE_URL.replace(/\/$/, '');
@@ -428,6 +444,65 @@ export function createApiClient(config: BotConfig): ApiClient {
       // RECIPE_TIMEOUT_MS (30s) overrides the default 10s — LLM parsing + multi-ingredient
       // resolution can take up to ~10s per ingredient before returning.
       return postJson<RecipeCalculateData>('/calculate/recipe', { mode: 'free-form', text }, undefined, RECIPE_TIMEOUT_MS);
+    },
+
+    async sendAudio({ audioBuffer, filename, mimeType, duration, chatId, legacyChainContext }) {
+      const url = new URL('/conversation/audio', baseUrl + '/');
+
+      const form = new FormData();
+      form.append('audio', new Blob([new Uint8Array(audioBuffer)], { type: mimeType }), filename);
+      form.append('duration', String(duration));
+      if (legacyChainContext) {
+        form.append('chainSlug', legacyChainContext.chainSlug);
+        form.append('chainName', legacyChainContext.chainName);
+      }
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), VOICE_TIMEOUT_MS);
+
+      const headers: Record<string, string> = {
+        'X-API-Key': apiKey,
+        'X-FXP-Source': 'bot',
+        'X-Actor-Id': `telegram:${chatId}`,
+        // NOTE: Content-Type intentionally omitted — fetch sets it automatically with boundary
+      };
+
+      try {
+        const response = await fetch(url.toString(), {
+          method: 'POST',
+          headers,
+          body: form,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timer);
+
+        if (!response.ok) {
+          let code = 'API_ERROR';
+          let message = `HTTP ${response.status}`;
+          try {
+            const errBody = await response.json() as { success: boolean; error?: { code?: string; message?: string } };
+            if (errBody.error?.code) code = errBody.error.code;
+            if (errBody.error?.message) message = errBody.error.message;
+          } catch {
+            // ignore parse error — use defaults
+          }
+          throw new ApiError(response.status, code, message);
+        }
+
+        const envelope = await response.json() as { success: boolean; data: ConversationMessageData };
+        return envelope.data;
+      } catch (err) {
+        clearTimeout(timer);
+
+        if (err instanceof ApiError) throw err;
+
+        if (err instanceof Error && err.name === 'AbortError') {
+          throw new ApiError(408, 'TIMEOUT', 'Request timed out');
+        }
+
+        throw new ApiError(0, 'NETWORK_ERROR', err instanceof Error ? err.message : 'Network error');
+      }
     },
 
     async processMessage(text, chatId, legacyChainContext) {

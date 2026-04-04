@@ -39,6 +39,7 @@ function makeMockClient(): MockApiClient {
     analyzeMenu: vi.fn(),
     calculateRecipe: vi.fn(),
     processMessage: vi.fn(),
+    sendAudio: vi.fn(),
   };
 }
 
@@ -62,6 +63,7 @@ const RECIPE_RESULT: RecipeCalculateData = {
     potassium: null,
     monounsaturatedFats: null,
     polyunsaturatedFats: null,
+    alcohol: null,
     referenceBasis: 'per_serving',
   },
   ingredients: [
@@ -84,6 +86,7 @@ const RECIPE_RESULT: RecipeCalculateData = {
         potassium: null,
         monounsaturatedFats: null,
         polyunsaturatedFats: null,
+    alcohol: null,
         referenceBasis: 'per_serving',
       },
     },
@@ -106,6 +109,7 @@ const RECIPE_RESULT: RecipeCalculateData = {
         potassium: null,
         monounsaturatedFats: null,
         polyunsaturatedFats: null,
+    alcohol: null,
         referenceBasis: 'per_serving',
       },
     },

@@ -17,6 +17,7 @@ import type {
   ActorType,
   QueryLogLevelHit,
   QueryLogSource,
+  MissedQueryStatus,
 } from "./kysely-enums";
 
 export type Actor = {
@@ -45,6 +46,17 @@ export type CookingMethod = {
   name_es: string;
   slug: string;
   description: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Timestamp;
+};
+export type CookingProfile = {
+  id: string;
+  food_group: string;
+  food_name: Generated<string>;
+  cooking_method: string;
+  yield_factor: string;
+  fat_absorption: string | null;
+  source: string;
   created_at: Generated<Timestamp>;
   updated_at: Timestamp;
 };
@@ -127,6 +139,7 @@ export type DishNutrient = {
   potassium: Generated<string>;
   monounsaturated_fats: Generated<string>;
   polyunsaturated_fats: Generated<string>;
+  alcohol: Generated<string>;
   estimation_method: EstimationMethod;
   source_id: string;
   confidence_level: ConfidenceLevel;
@@ -168,8 +181,19 @@ export type FoodNutrient = {
   potassium: Generated<string>;
   monounsaturated_fats: Generated<string>;
   polyunsaturated_fats: Generated<string>;
+  alcohol: Generated<string>;
   source_id: string;
   confidence_level: ConfidenceLevel;
+  created_at: Generated<Timestamp>;
+  updated_at: Timestamp;
+};
+export type MissedQueryTracking = {
+  id: string;
+  query_text: string;
+  hit_count: number;
+  status: Generated<MissedQueryStatus>;
+  resolved_dish_id: string | null;
+  notes: string | null;
   created_at: Generated<Timestamp>;
   updated_at: Timestamp;
 };
@@ -254,6 +278,7 @@ export type DB = {
   actors: Actor;
   api_keys: ApiKey;
   cooking_methods: CookingMethod;
+  cooking_profiles: CookingProfile;
   data_sources: DataSource;
   dish_categories: DishCategory;
   dish_cooking_methods: DishCookingMethod;
@@ -263,6 +288,7 @@ export type DB = {
   dishes: Dish;
   food_nutrients: FoodNutrient;
   foods: Food;
+  missed_query_tracking: MissedQueryTracking;
   query_logs: QueryLog;
   recipe_ingredients: RecipeIngredient;
   recipes: Recipe;

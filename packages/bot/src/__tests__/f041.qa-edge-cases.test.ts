@@ -56,6 +56,7 @@ function makeMockClient(): MockApiClient {
     analyzeMenu: vi.fn(),
     calculateRecipe: vi.fn(),
     processMessage: vi.fn(),
+    sendAudio: vi.fn(),
   };
 }
 
@@ -75,6 +76,7 @@ function makeNutrients(overrides: Record<string, number | null> = {}) {
     potassium: null,
     monounsaturatedFats: null,
     polyunsaturatedFats: null,
+    alcohol: null,
     referenceBasis: 'per_serving' as const,
     ...overrides,
   };

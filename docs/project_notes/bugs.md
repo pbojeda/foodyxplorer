@@ -268,3 +268,114 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Solution**: Added `decrementRateLimit()` helper that calls `redis.decr()` on server/network errors (5xx, TIMEOUT, NETWORK_ERROR). 4xx errors (user input) and 429 (legitimate throttle) keep the counter. Decrement failures are silently swallowed (fail-open).
 - **Prevention**: Consider the full lifecycle of rate-limit counters: increment early for abuse prevention, but refund on infrastructure failures.
 - **Feature**: F041 (Bot Recipe Calculator) | **Found by**: Claude Opus 4.6 comprehensive audit | **Severity**: Important | **Fixed in**: F051
+
+### 2026-04-03 — BUG-F071-01: parseNutrientValue passes Infinity through as a valid number
+
+- **Issue**: `parseBedcaFoods()` in `bedcaParser.ts` returns `Infinity` (JavaScript's positive infinity) as a valid nutrient value when the XML source contains the literal string `"Infinity"`. The value is then stored as-is in `BedcaNutrientValue.value` and passed downstream to the mapper and DB seed. `Infinity` is not a valid nutrition value and would likely fail PostgreSQL insertion (Prisma converts Infinity to a non-finite float, which violates DB numeric columns).
+- **Root Cause**: The internal `parseNutrientValue()` function guards against non-numeric strings using `isNaN(num)`, but `isNaN(Infinity) === false` — JavaScript considers `Infinity` a valid number. The function does not check `Number.isFinite()`.
+- **Solution**: In `parseNutrientValue()` in `packages/api/src/ingest/bedca/bedcaParser.ts`, change the guard from `isNaN(num) ? null : num` to `!Number.isFinite(num) ? null : num`. This converts both `NaN` and `Infinity`/`-Infinity` to null, which is the correct representation for unmeasured or invalid nutrient values.
+- **Prevention**: When parsing user-supplied or API-supplied numeric strings into domain types, always validate with `Number.isFinite()` rather than `!isNaN()`. `isNaN()` allows Infinity, which is rarely a valid business value. Add `Number.isFinite()` assertions to all nutrient parsers.
+- **Reproduction**: `parseBedcaFoods('<food_database><row><food_id>1</food_id>...<value>Infinity</value></row></food_database>')` — the returned food's nutrient has `value === Infinity`.
+- **Feature**: F071 | **Found by**: QA agent | **Severity**: Medium | **Fixed in**: F071 (commit 21bc8d6)
+
+### 2026-04-03 — F071 QA NOTES — Coverage gap (low priority)
+
+- **Coverage Gap**: `seedPhaseBedca()` has no DI hook for the snapshot file path, making the "missing snapshot file" error path untestable without mocking `fs` at module level. The error produced is a bare Node.js ENOENT with no user-friendly message. Low priority — the file is committed to the repo.
+- **Feature**: F071 | **Assessed by**: QA agent
+
+### 2026-04-03 — BUG-F072-01: isAlreadyCookedFood false positives via substring matching
+
+- **Issue**: `isAlreadyCookedFood` used plain substring matching (`includes()`) on cooking keywords. Names like `"uncooked rice"`, `"unbaked bread"` falsely triggered the guard.
+- **Root Cause**: `lower.includes(keyword)` without word-boundary anchoring.
+- **Solution**: Replaced with word-boundary regex `/\b<keyword>\b/i.test(foodName)`. 4 edge-case tests added.
+- **Feature**: F072 | **Found by**: qa-engineer | **Severity**: Medium | **Fixed in**: F072 (commit 8f4c522)
+
+---
+
+### 2026-04-03 — BUG-F073-01: DishNutrient upsert update block missing estimationMethod, confidenceLevel, sourceId
+
+- **Issue**: `seedPhaseSpanishDishes.ts` upserts DishNutrient records using `where: { id: entry.nutrientId }`. The `update` block contains only the 9 macro fields (calories, proteins, …, sodium). Fields `estimationMethod`, `confidenceLevel`, and `sourceId` are absent from `update`. On re-seed, if a dish's provenance is upgraded from `recipe` (Tier 3) to `bedca` (Tier 1), the DishNutrient row keeps the stale `estimationMethod='ingredients'`, `confidenceLevel='medium'`, and `sourceId` pointing to the recipes DataSource.
+- **Root Cause**: Developer wrote the `create` block with all required fields but omitted the same provenance fields from the `update` block. The spec's "Gotcha — DishNutrient required fields" warned about `estimationMethod` and `confidenceLevel` in the create block but implicitly assumed update parity.
+- **Solution**: Add `estimationMethod: entry.estimationMethod`, `confidenceLevel: entry.confidenceLevel`, and `sourceId` (computed from `entry.source`) to the `update` block of the `dishNutrient.upsert` call in `seedPhaseSpanishDishes.ts`.
+- **Prevention**: When writing Prisma upserts with idempotency guarantees, always audit that `update` and `create` carry the same semantically-required fields. If a field must be correct after re-seed, it must appear in both blocks. Code review checklist should include "do update and create blocks cover all non-immutable fields?".
+- **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Major | **Exposed by**: `f073.seedPhaseSpanishDishes.edge-cases.test.ts` (5 tests)
+
+### 2026-04-03 — BUG-F073-02: Dish upsert update block missing sourceId
+
+- **Issue**: `seedPhaseSpanishDishes.ts` upserts Dish records. The `update` block contains `name`, `nameEs`, `aliases`, `portionGrams`, `confidenceLevel`, `estimationMethod` but not `sourceId`. If a dish's provenance source changes between seed versions (e.g., an LLM-estimated recipe dish gets BEDCA data), re-seeding leaves `Dish.sourceId` pointing to the old DataSource. This breaks the provenance chain at the Dish level while DishNutrient (once BUG-F073-01 is fixed) would be correct.
+- **Root Cause**: `sourceId` was not included in the Dish `update` block. The create block correctly computes `sourceId` from `entry.source`, but the update path was not kept in sync.
+- **Solution**: Add `sourceId` (computed from `entry.source` using the same `bedca ? BEDCA_SOURCE_UUID : COCINA_ESPANOLA_RECIPES_SOURCE_UUID` conditional) to the `update` block of the `dish.upsert` call.
+- **Prevention**: Same as BUG-F073-01 — update/create parity audit.
+- **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Major | **Exposed by**: `f073.seedPhaseSpanishDishes.edge-cases.test.ts` (1 test)
+
+### 2026-04-03 — BUG-F073-03: validateSpanishDishes does not validate dishId or nutrientId presence/format
+
+- **Issue**: `validateSpanishDishes()` checks uniqueness of `dishId` and `nutrientId` via Set membership, but only after accessing `entry.dishId` and `entry.nutrientId` without a null/empty guard. A JSON entry with `dishId: null` or `dishId: ""` passes validation (`null` is added to the Set, treated as unique). When the seed then calls `prisma.dish.upsert({ where: { id: null } })`, Prisma throws a runtime FK/constraint error instead of a descriptive validation error.
+- **Root Cause**: The uniqueness check loop assumes fields are non-null strings. No explicit guard for null, undefined, or empty-string dishId/nutrientId was added.
+- **Solution**: Add checks in the per-entry loop: `if (!entry.dishId || entry.dishId.trim().length === 0)` → blocking error. Same for `nutrientId`. Optionally add UUID format regex validation.
+- **Prevention**: When iterating over FK fields, always add a null/empty guard before the Set-membership check.
+- **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Major | **Exposed by**: `f073.validateSpanishDishes.edge-cases.test.ts` (4 tests)
+
+### 2026-04-03 — BUG-F073-04: validateSpanishDishes does not cross-check source vs estimationMethod/confidenceLevel
+
+- **Issue**: The spec mandates that `source='bedca'` implies `estimationMethod='official'` and `confidenceLevel='high'`, and `source='recipe'` implies `estimationMethod='ingredients'` and `confidenceLevel='medium'`. The validator checks each field independently but never cross-validates them. A JSON entry with `source='bedca'` and `estimationMethod='ingredients'` passes validation and seeds incorrect provenance metadata into the database.
+- **Root Cause**: The validator was written as independent per-field checks. The cross-field invariant was documented in the spec but not translated into a validation rule.
+- **Solution**: Add cross-check rules in the per-entry loop: if `entry.source === 'bedca'` and `entry.estimationMethod !== 'official'` → blocking error; if `entry.source === 'bedca'` and `entry.confidenceLevel !== 'high'` → blocking error; mirror for `'recipe'`.
+- **Prevention**: Spec-derived cross-field invariants ("X implies Y") must be explicitly listed in the validator, not left implicit. During code review, audit whether all spec-stated implications are enforced.
+- **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Major | **Exposed by**: `f073.validateSpanishDishes.edge-cases.test.ts` (4 tests)
+
+### 2026-04-03 — BUG-F073-05: validateSpanishDishes does not validate aliases is an array
+
+- **Issue**: `validateSpanishDishes()` iterates over `entry.aliases` via the Set-membership path but never checks whether `aliases` is actually an array. A JSON entry with `aliases: "tortilla española"` (string) passes validation. At seed time, Prisma receives a string for a `String[]` column; behavior depends on the ORM/driver (may silently store it or throw a confusing error).
+- **Root Cause**: The validator omits a `Array.isArray(entry.aliases)` guard. TypeScript types would catch this at compile time for authored code, but the JSON file is cast with `as SpanishDishesFile` and never validated at the type level at runtime.
+- **Solution**: Add `if (!Array.isArray(entry.aliases))` check → blocking error in the per-entry validation loop.
+- **Prevention**: Fields that are arrays in TypeScript but come from external JSON must always be validated with `Array.isArray()` at runtime, not trusted from the TypeScript cast.
+- **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Minor | **Exposed by**: `f073.validateSpanishDishes.edge-cases.test.ts` (2 tests)
+
+### 2026-04-04 — BUG-F074-01: engineRouter.ts logger adapter calls logger.error() — method absent from Logger type
+
+- **Issue**: The `applyYield` helper in `runEstimationCascade` builds a logger adapter for `resolveAndApplyYield`. The adapter at line 130 called `logger.error({}, msg)`, but `EngineRouterOptions.logger` was typed as `{ info, warn, debug }` — no `error` method. TypeScript reported `TS2339: Property 'error' does not exist`. At runtime, if `logger.error` was called (when `resolveAndApplyYield` hit an error code path), it would throw `TypeError: logger.error is not a function`.
+- **Root Cause**: The `applyYield.ts` logger interface requires `{ warn, error }` but the `EngineRouterOptions.logger` type was not updated to include `error`. The adapter pattern tried to map the outer logger onto the inner interface but the outer type lacked the method.
+- **Solution**: Added `error: (obj: Record<string, unknown>, msg?: string) => void` to the `EngineRouterOptions.logger` type and properly routed it in the adapter. Fixed in commit `f73c4f4`.
+- **Prevention**: When building logger adapters between mismatched interfaces, verify at compile time that all required target methods exist on the source type. Add a `tsc --noEmit` step to CI to catch these type errors before tests.
+- **Feature**: F074 | **Found by**: qa-engineer | **Severity**: High (runtime crash risk in error code path) | **TypeScript error**: `TS2339` | **Status**: Fixed in `f73c4f4`
+
+### 2026-04-04 — BUG-F074-02: runStrategyA return type missing rawFoodGroup — TypeScript compile error
+
+- **Issue**: `runStrategyA` returned `{ matchType, result, rawFoodGroup: nutrientRow.food_group }` but its declared return type was `{ matchType, result } | null` — no `rawFoodGroup`. TypeScript reported `TS2353: Object literal may only specify known properties, and 'rawFoodGroup' does not exist in type`. At runtime, the field WAS present in the JS object (JS does not strip extra properties), so the engine router's call to `applyYield(lookupResult4.result, lookupResult4.rawFoodGroup)` received the correct value. TypeScript-only error with no runtime impact.
+- **Root Cause**: The `rawFoodGroup` field was added to the Strategy A return value (for yield correction threading, per F072) but was not added to the TypeScript return type declaration of `runStrategyA`.
+- **Solution**: Add `rawFoodGroup?: string | null` to the `runStrategyA` declared return type. (Still open as of the QA session — remains in `tsc --noEmit` output.)
+- **Prevention**: When adding fields to a function's return object, always update the TypeScript return type declaration in the same change. Enable `tsc --noEmit` in CI to catch these immediately.
+- **Feature**: F074 | **Found by**: qa-engineer | **Severity**: Medium (TypeScript compile error; no runtime impact) | **TypeScript error**: `TS2353` | **Status**: Open — needs fix in `runStrategyA` return type
+
+### 2026-04-04 — BUG-F075-01: handleVoice propagates sendChatAction failure — user gets no response
+
+- **Issue**: In `packages/bot/src/handlers/voice.ts`, `await bot.sendChatAction(chatId, 'typing')` is called **outside** any try/catch block (lines 63-64). If Telegram's API returns an error (bot was blocked, chat ID invalid, network issue), the rejection propagates to the `bot.on('voice', ...)` wrapper in `bot.ts`, which only logs the error. The user receives **no response** — not even a generic error message. This is inconsistent with every other handler in the codebase where Telegram API calls are wrapped in try/catch.
+- **Root Cause**: The typing chat action was placed between the bot-side guards (which have their own early-return sendMessage calls inside try blocks) and the file download try/catch, but outside both. No test covered a failing `sendChatAction`.
+- **Solution**: Wrap `sendChatAction` in a fail-open try/catch: `try { await bot.sendChatAction(chatId, 'typing'); } catch { /* ignore — typing indicator is best-effort */ }`. The voice processing should continue regardless. The spec says (Key Patterns section): "Send `bot.sendChatAction(chatId, 'typing')` after the bot-side guards pass but BEFORE the file download and API call" — the fail-open behavior is implied by the design intent.
+- **Prevention**: Bot-side Telegram API calls that are "best-effort" (chat actions, status updates) must always be wrapped in fail-open try/catch. Reserve propagation only for calls that are semantically required (e.g., the final `sendMessage` response — though even that should have a fallback log).
+- **Feature**: F075 | **Found by**: qa-engineer | **Severity**: Medium (UX: silent failure on Telegram API blip) | **Exposed by**: `f075.voice.edge-cases.test.ts` — "BUG: sendChatAction rejects → error propagates" | **Status**: Open
+
+### 2026-04-04 — BUG-F076-01: splitMenuItems splits compound dish names when last item contains " y "
+
+- **Issue**: `detectMenuQuery('menú: sopa, arroz y verduras')` returns `['sopa', 'arroz', 'verduras']` instead of `['sopa', 'arroz y verduras']`. Any Spanish dish whose canonical name contains the conjunction " y " (e.g. "arroz y verduras", "macarrones y atún", "judías y patatas") is silently split into two separate queries when it appears as the last comma-separated item. Each fragment is then estimated independently, producing wrong nutritional totals — a dish estimated as "arroz" + "verduras" separately instead of "arroz y verduras".
+- **Root Cause**: `splitMenuItems` applies `splitOnFinalConjunction` to the **last comma-split item** unconditionally. This heuristic is correct when there are NO commas (voice transcription like "gazpacho y café"), but incorrect when commas are present — in that case, all items are already separated and " y " inside the last item is part of the dish name, not a conjunction between list items.
+- **Solution**: Apply `splitOnFinalConjunction` on the last item ONLY when there are no other commas in the input (i.e., `items.length === 1` path). When `items.length >= 2`, the comma already separated the items — skip conjunction splitting on the last element. The existing tests for the no-comma path (`"menú: gazpacho y ensalada"`) would remain correct; only the comma+conjunction path changes.
+- **Prevention**: The conjunction-split heuristic must be guarded by whether commas were already used as separators. If commas are present, they are the authoritative separator and " y " within an item is part of the dish name. Add regression tests for compound dish names in last position: "arroz y verduras", "macarrones y atún", "bacalao y tomate".
+- **Feature**: F076 | **Found by**: qa-engineer | **Severity**: High (wrong nutritional totals; silent data corruption) | **Exposed by**: `f076.menuDetector.edge-cases.test.ts` — 4 BUG-1 tests | **Status**: Fixed (bdbc698)
+
+### 2026-04-04 — BUG-F076-02: NOISE_REGEX does not filter bare "€" symbol
+
+- **Issue**: `detectMenuQuery('menú: gazpacho, €, pollo')` returns `['gazpacho', '€', 'pollo']` instead of `['gazpacho', 'pollo']`. A bare "€" symbol (without a digit before or after it) is not filtered by the noise regex and is passed to the estimation engine as a dish name query.
+- **Root Cause**: `NOISE_REGEX` has two alternatives: `^\d+(?:[.,]\d+)?\s*(?:€|euros?)?$` (requires leading digit) and `^€\d` (requires digit after €). A lone "€" matches neither: it has no leading digit and no digit after it. This occurs in practice when users copy-paste menu OCR output containing a price written as "€" alone, or when Whisper transcribes a price separator as just the euro symbol.
+- **Solution**: Extend `NOISE_REGEX` to also match `^€$` (exactly the euro symbol alone) or, more generally, `^€\d*$` to cover any standalone currency symbol variant. Alternatively, add `|^€$` to the existing regex: `/^\d+(?:[.,]\d+)?\s*(?:€|euros?)?$|^€\d|^€$/i`.
+- **Prevention**: When defining noise filters for currency symbols, test all variants: with digit before, with digit after, and alone. Document the exact strings that should and should not be filtered in the regex definition comment.
+- **Feature**: F076 | **Found by**: qa-engineer | **Severity**: Minor (bare "€" treated as dish name; estimation engine returns no result for it) | **Exposed by**: `f076.menuDetector.edge-cases.test.ts` — BUG-3 test | **Status**: Fixed (bdbc698)
+
+### 2026-04-03 — BUG-F073-06: validateSpanishDishes throws TypeError on undefined/null input
+
+- **Issue**: Calling `validateSpanishDishes(undefined)` or `validateSpanishDishes(null)` (which happens when `raw.dishes` is missing from the JSON) throws `TypeError: Cannot read properties of undefined (reading 'length')` instead of returning `{ valid: false, errors: [...] }`. The TypeError propagates as an unhandled exception from the seed function, bypassing the error-collection mechanism and producing a cryptic stack trace.
+- **Root Cause**: The function opens with `if (dishes.length < 250)` with no null guard. The `seedPhaseSpanishDishes.ts` caller does `JSON.parse(readFileSync(...)) as SpanishDishesFile` and immediately accesses `raw.dishes` without checking the key exists, then passes it directly to `validateSpanishDishes`. If the JSON has no `dishes` key, `raw.dishes` is `undefined`.
+- **Solution**: Add `if (!Array.isArray(dishes))` guard at the top of `validateSpanishDishes`: push a descriptive error and return `{ valid: false }` immediately. Alternatively, add a guard in `seedPhaseSpanishDishes.ts` before calling the validator.
+- **Prevention**: Public validation functions accepting external data must guard against non-array input at the entry point before accessing any array method. Never trust a TypeScript cast on data loaded from disk.
+- **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Minor | **Exposed by**: `f073.validateSpanishDishes.edge-cases.test.ts` (2 tests)

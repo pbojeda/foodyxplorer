@@ -30,12 +30,14 @@
 import { sql } from 'kysely';
 import type { Kysely } from 'kysely';
 import OpenAI from 'openai';
+import type { PrismaClient } from '@prisma/client';
 import type { DB } from '../generated/kysely-types.js';
 import { config } from '../config.js';
-import type { EstimateMatchType, EstimateResult } from '@foodxplorer/shared';
+import type { EstimateMatchType, EstimateResult, YieldAdjustment } from '@foodxplorer/shared';
 import type { Level4LookupFn } from './engineRouter.js';
 import type { FoodQueryRow } from './types.js';
 import { mapFoodRowToResult, parseDecimal } from './types.js';
+import { resolveAndApplyYield } from './applyYield.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -50,6 +52,24 @@ const MAX_RETRIES = 2;
 const RETRY_BACKOFF_MS = 1_000;
 
 const SYSTEM_MESSAGE = 'You are a food identification assistant. Do not provide nutritional values. Only identify or decompose as instructed.';
+
+// ---------------------------------------------------------------------------
+// F074 — Cooking state / method vocabulary for Strategy B prompt
+// ---------------------------------------------------------------------------
+
+/** Canonical cooking methods accepted by the cooking_profiles DB table. */
+const CANONICAL_COOKING_METHODS = new Set([
+  'boiled',
+  'steamed',
+  'pressure_cooked',
+  'grilled',
+  'baked',
+  'fried',
+  'roasted',
+]);
+
+/** Valid cooking states for per-ingredient yield correction. */
+const VALID_COOKING_STATES = new Set(['raw', 'cooked', 'as_served']);
 
 // ---------------------------------------------------------------------------
 // OpenAI client caching (same pattern as embeddingClient.ts)
@@ -90,6 +110,7 @@ function sleep(ms: number): Promise<void> {
 type Logger = {
   info: (obj: Record<string, unknown>, msg?: string) => void;
   warn: (obj: Record<string, unknown>, msg?: string) => void;
+  error: (obj: Record<string, unknown>, msg?: string) => void;
   debug: (obj: Record<string, unknown>, msg?: string) => void;
 };
 
@@ -164,6 +185,7 @@ async function callChatCompletion(
 // ---------------------------------------------------------------------------
 // fetchFoodNutrients — copied verbatim from level3Lookup.ts (same SQL, same shape).
 // No sharing — precedent established by L1/L2/L3 (do NOT extract to shared utility).
+// F072: selects f.food_group for yield correction threading.
 // ---------------------------------------------------------------------------
 
 async function fetchFoodNutrients(
@@ -180,6 +202,7 @@ async function fetchFoodNutrients(
       f.id          AS food_id,
       f.name        AS food_name,
       f.name_es     AS food_name_es,
+      f.food_group  AS food_group,
       rfn.calories::text,
       rfn.proteins::text,
       rfn.carbohydrates::text,
@@ -194,6 +217,7 @@ async function fetchFoodNutrients(
       rfn.potassium::text,
       rfn.monounsaturated_fats::text,
       rfn.polyunsaturated_fats::text,
+      rfn.alcohol::text,
       rfn.reference_basis::text,
       ds.id         AS source_id,
       ds.name       AS source_name,
@@ -251,6 +275,7 @@ async function fetchFoodByName(
       f.id          AS food_id,
       f.name        AS food_name,
       f.name_es     AS food_name_es,
+      f.food_group  AS food_group,
       rfn.calories::text,
       rfn.proteins::text,
       rfn.carbohydrates::text,
@@ -265,6 +290,7 @@ async function fetchFoodByName(
       rfn.potassium::text,
       rfn.monounsaturated_fats::text,
       rfn.polyunsaturated_fats::text,
+      rfn.alcohol::text,
       rfn.reference_basis::text,
       ds.id         AS source_id,
       ds.name       AS source_name,
@@ -294,6 +320,7 @@ async function fetchFoodByName(
       f.id          AS food_id,
       f.name        AS food_name,
       f.name_es     AS food_name_es,
+      f.food_group  AS food_group,
       rfn.calories::text,
       rfn.proteins::text,
       rfn.carbohydrates::text,
@@ -308,6 +335,7 @@ async function fetchFoodByName(
       rfn.potassium::text,
       rfn.monounsaturated_fats::text,
       rfn.polyunsaturated_fats::text,
+      rfn.alcohol::text,
       rfn.reference_basis::text,
       ds.id         AS source_id,
       ds.name       AS source_name,
@@ -334,7 +362,7 @@ async function runStrategyA(
   query: string,
   apiKey: string,
   logger?: Logger,
-): Promise<{ matchType: EstimateMatchType; result: EstimateResult } | null> {
+): Promise<{ matchType: EstimateMatchType; result: EstimateResult; rawFoodGroup?: string | null } | null> {
   // Step 1: Fetch trigram candidates
   const candidates = await fetchCandidatesByTrigram(db, query);
 
@@ -396,7 +424,7 @@ async function runStrategyA(
   };
 
   // Step 9: Return
-  return { matchType: 'llm_food_match', result };
+  return { matchType: 'llm_food_match', result, rawFoodGroup: nutrientRow.food_group };
 }
 
 // ---------------------------------------------------------------------------
@@ -406,6 +434,14 @@ async function runStrategyA(
 interface IngredientItem {
   name: string;
   grams: number;
+  state?: string;
+  cookingMethod?: string;
+}
+
+interface StrategyBOptions {
+  prisma?: PrismaClient;
+  cookingState?: string;
+  cookingMethod?: string;
 }
 
 async function runStrategyB(
@@ -413,8 +449,16 @@ async function runStrategyB(
   query: string,
   apiKey: string,
   logger?: Logger,
-): Promise<{ matchType: EstimateMatchType; result: EstimateResult } | null> {
-  // Step 1: Build user prompt
+  options?: StrategyBOptions,
+): Promise<{
+  matchType: EstimateMatchType;
+  result: EstimateResult;
+  /** F074: when true, per-ingredient yield has been applied and yieldAdjustment is pre-computed. */
+  perIngredientYieldApplied?: boolean;
+  /** F074: aggregate yield adjustment from per-ingredient correction. */
+  yieldAdjustment?: YieldAdjustment;
+} | null> {
+  // Step 1: Build user prompt (F074: includes state and cookingMethod per ingredient)
   const userMessage =
     `Query: '${query}'\n\n` +
     `Decompose this food query into a list of base ingredients with gram weights.\n` +
@@ -426,10 +470,15 @@ async function runStrategyB(
     `- If the query mentions a portion size (small/medium/large, pequeño/mediano/grande,\n` +
     `  "half plate", "ración pequeña", etc.), include a "portion_multiplier" field:\n` +
     `  0.7 for small, 1.0 for regular/medium, 1.3 for large. Do NOT adjust the gram weights\n` +
-    `  yourself — the multiplier is applied by the system.\n\n` +
+    `  yourself — the multiplier is applied by the system.\n` +
+    `- For each ingredient, if the query indicates a cooking state, add an optional "state" field:\n` +
+    `  one of "raw", "cooked", or "as_served". Omit if unknown.\n` +
+    `- If the query indicates a cooking method for an ingredient, add an optional "cookingMethod" field.\n` +
+    `  Use ONLY these canonical values: boiled, steamed, pressure_cooked, grilled, baked, fried, roasted.\n` +
+    `  Pick the closest match. Omit if unknown or not applicable.\n\n` +
     `Reply with ONLY valid JSON, no other text. Use this format:\n` +
-    `{"ingredients": [{"name": "<ingredient>", "grams": <number>}, ...], "portion_multiplier": <number>}\n` +
-    `Omit "portion_multiplier" if no size modifier is mentioned.`;
+    `{"ingredients": [{"name": "<ingredient>", "grams": <number>, "state": "<state>", "cookingMethod": "<method>"}, ...], "portion_multiplier": <number>}\n` +
+    `Omit "state", "cookingMethod", and "portion_multiplier" when not applicable.`;
 
   const messages: Array<{ role: 'system' | 'user'; content: string }> = [
     { role: 'system', content: SYSTEM_MESSAGE },
@@ -482,6 +531,7 @@ async function runStrategyB(
   }
 
   // Step 4b: Validate each ingredient item
+  // F074: also extract state and cookingMethod with validation
   const validItems: IngredientItem[] = [];
   for (const item of ingredientArray) {
     if (item !== null && typeof item === 'object') {
@@ -489,7 +539,26 @@ async function runStrategyB(
       const name = rec['name'];
       const grams = rec['grams'];
       if (typeof name === 'string' && typeof grams === 'number' && grams > 0) {
-        validItems.push({ name, grams });
+        // Validate cooking state — strip invalid values
+        const rawState = rec['state'];
+        let state: string | undefined;
+        if (typeof rawState === 'string' && VALID_COOKING_STATES.has(rawState)) {
+          state = rawState;
+        }
+
+        // Validate cooking method — strip invalid/unrecognized values
+        const rawCookingMethod = rec['cookingMethod'];
+        let cookingMethod: string | undefined;
+        if (typeof rawCookingMethod === 'string' && CANONICAL_COOKING_METHODS.has(rawCookingMethod)) {
+          cookingMethod = rawCookingMethod;
+        }
+
+        // If cookingMethod is present but state is absent, infer state='cooked'
+        if (cookingMethod !== undefined && state === undefined) {
+          state = 'cooked';
+        }
+
+        validItems.push({ name, grams, state, cookingMethod });
       }
     }
   }
@@ -499,7 +568,7 @@ async function runStrategyB(
   const totalItems = validItems.length;
 
   // Step 5: Resolve each ingredient
-  type ResolvedItem = { row: FoodQueryRow; grams: number };
+  type ResolvedItem = { row: FoodQueryRow; grams: number; item: IngredientItem };
   type UnresolvedItem = { grams: number };
 
   const resolved: ResolvedItem[] = [];
@@ -508,7 +577,7 @@ async function runStrategyB(
   for (const item of validItems) {
     const row = await fetchFoodByName(db, item.name);
     if (row !== undefined) {
-      resolved.push({ row, grams: item.grams });
+      resolved.push({ row, grams: item.grams, item });
     } else {
       unresolved.push({ grams: item.grams });
     }
@@ -517,7 +586,103 @@ async function runStrategyB(
   // Step 7: If 0 resolved → null
   if (resolved.length === 0) return null;
 
+  // ---------------------------------------------------------------------------
+  // F074 Step 5a — Per-ingredient yield correction (only when prisma is present)
+  // ---------------------------------------------------------------------------
+
+  // Build the logger adapter — applyYield needs warn/error but our Logger has info/warn/debug
+  const loggerAdapter = logger !== undefined
+    ? { warn: (msg: string) => logger.warn({}, msg), error: (msg: string) => logger.error({}, msg) }
+    : { warn: () => {}, error: () => {} };
+
+  type IngredientYieldMeta = {
+    /** Corrected per-100g nutrients (or null if not corrected — use row directly) */
+    correctedNutrients: EstimateResult['nutrients'] | null;
+    /** Raw calorie contribution before yield — used to determine dominant ingredient */
+    rawCalorieContribution: number;
+    /** Per-ingredient yield adjustment */
+    yieldAdjustment: YieldAdjustment;
+    /** Externally-computed cookingStateSource (NOT from resolveAndApplyYield) */
+    cookingStateSource: YieldAdjustment['cookingStateSource'];
+  };
+
+  let perIngredientMeta: IngredientYieldMeta[] | null = null;
+
+  if (options?.prisma !== undefined) {
+    const prismaClient = options.prisma;
+    perIngredientMeta = [];
+
+    for (const { row, grams, item } of resolved) {
+      // Step a: Determine effective state/method with precedence
+      let effectiveState: string | undefined;
+      let effectiveMethod: string | undefined;
+      let cookingStateSource: YieldAdjustment['cookingStateSource'];
+
+      if (options.cookingState !== undefined || options.cookingMethod !== undefined) {
+        // Explicit query params override LLM-extracted values (spec: "cookingState or cookingMethod")
+        effectiveState = options.cookingState;
+        effectiveMethod = options.cookingMethod;
+        cookingStateSource = 'explicit';
+      } else if (item.state !== undefined) {
+        // LLM-extracted state (possibly with inferred state from cookingMethod in Step 4b)
+        effectiveState = item.state;
+        effectiveMethod = item.cookingMethod;
+        cookingStateSource = 'llm_extracted';
+      } else if (item.cookingMethod !== undefined) {
+        // Defensive: unreachable given Step 4b inference (sets state='cooked' when method present),
+        // but kept for safety in case parsing logic changes.
+        effectiveState = 'cooked';
+        effectiveMethod = item.cookingMethod;
+        cookingStateSource = 'llm_extracted';
+      } else {
+        // No explicit or LLM-extracted state — use defaults (resolveAndApplyYield will handle)
+        effectiveState = undefined; // let resolveAndApplyYield determine via food group defaults
+        effectiveMethod = undefined;
+        cookingStateSource = 'default_assumption';
+      }
+
+      // Step b/c/d: Build temp EstimateResult for this ingredient (per_100g basis guaranteed)
+      const tempResult: EstimateResult = {
+        ...mapFoodRowToResult(row),
+        name: item.name,  // use ingredient name for isAlreadyCookedFood detection
+      };
+
+      // Step e: Call resolveAndApplyYield — pass undefined for default_assumption path
+      const yieldOpts = {
+        result: tempResult,
+        foodName: item.name,
+        rawFoodGroup: row.food_group,
+        cookingState: effectiveState,
+        cookingMethod: effectiveMethod,
+        prisma: prismaClient,
+        logger: loggerAdapter,
+      };
+
+      const { result: correctedResult, yieldAdjustment } = await resolveAndApplyYield(yieldOpts);
+
+      // Step f: Override cookingStateSource — resolveAndApplyYield always returns 'explicit'
+      // when we pass a state, but our externally-computed source is more accurate.
+      const correctedYieldAdj: YieldAdjustment = {
+        ...yieldAdjustment,
+        cookingStateSource,
+      };
+
+      // Step g: Capture raw calorie contribution (before yield, for dominant ingredient calc)
+      const rawCalorieContribution = parseDecimal(row.calories) * (grams / 100);
+
+      perIngredientMeta.push({
+        correctedNutrients: correctedResult.nutrients,
+        rawCalorieContribution,
+        yieldAdjustment: correctedYieldAdj,
+        cookingStateSource,
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Step 8: Aggregate nutrients: SUM(nutrient_per_100g * grams / 100)
+  // F074: use corrected nutrients when available, otherwise use raw row values
+  // ---------------------------------------------------------------------------
   const aggregatedNutrients = {
     calories: 0,
     proteins: 0,
@@ -533,25 +698,54 @@ async function runStrategyB(
     potassium: 0,
     monounsaturatedFats: 0,
     polyunsaturatedFats: 0,
+    alcohol: 0,
   };
 
-  for (const { row, grams } of resolved) {
+  for (let i = 0; i < resolved.length; i++) {
+    const resolvedItem = resolved[i];
+    if (resolvedItem === undefined) continue;
+    const { row, grams } = resolvedItem;
+
     // ADR-001: Engine calculates. Multiply per_100g value by (grams/100) by portionMultiplier.
     const factor = (grams / 100) * portionMultiplier;
-    aggregatedNutrients.calories += parseDecimal(row.calories) * factor;
-    aggregatedNutrients.proteins += parseDecimal(row.proteins) * factor;
-    aggregatedNutrients.carbohydrates += parseDecimal(row.carbohydrates) * factor;
-    aggregatedNutrients.sugars += parseDecimal(row.sugars) * factor;
-    aggregatedNutrients.fats += parseDecimal(row.fats) * factor;
-    aggregatedNutrients.saturatedFats += parseDecimal(row.saturated_fats) * factor;
-    aggregatedNutrients.fiber += parseDecimal(row.fiber) * factor;
-    aggregatedNutrients.salt += parseDecimal(row.salt) * factor;
-    aggregatedNutrients.sodium += parseDecimal(row.sodium) * factor;
-    aggregatedNutrients.transFats += parseDecimal(row.trans_fats) * factor;
-    aggregatedNutrients.cholesterol += parseDecimal(row.cholesterol) * factor;
-    aggregatedNutrients.potassium += parseDecimal(row.potassium) * factor;
-    aggregatedNutrients.monounsaturatedFats += parseDecimal(row.monounsaturated_fats) * factor;
-    aggregatedNutrients.polyunsaturatedFats += parseDecimal(row.polyunsaturated_fats) * factor;
+    const meta = perIngredientMeta?.[i];
+
+    if (meta !== null && meta !== undefined && meta.correctedNutrients !== null) {
+      // F074: use corrected per-100g nutrients (already parsed numbers — do NOT call parseDecimal)
+      const n = meta.correctedNutrients;
+      aggregatedNutrients.calories += n.calories * factor;
+      aggregatedNutrients.proteins += n.proteins * factor;
+      aggregatedNutrients.carbohydrates += n.carbohydrates * factor;
+      aggregatedNutrients.sugars += n.sugars * factor;
+      aggregatedNutrients.fats += n.fats * factor;
+      aggregatedNutrients.saturatedFats += n.saturatedFats * factor;
+      aggregatedNutrients.fiber += n.fiber * factor;
+      aggregatedNutrients.salt += n.salt * factor;
+      aggregatedNutrients.sodium += n.sodium * factor;
+      aggregatedNutrients.transFats += n.transFats * factor;
+      aggregatedNutrients.cholesterol += n.cholesterol * factor;
+      aggregatedNutrients.potassium += n.potassium * factor;
+      aggregatedNutrients.monounsaturatedFats += n.monounsaturatedFats * factor;
+      aggregatedNutrients.polyunsaturatedFats += n.polyunsaturatedFats * factor;
+      aggregatedNutrients.alcohol += n.alcohol * factor;
+    } else {
+      // No yield correction — use raw row values
+      aggregatedNutrients.calories += parseDecimal(row.calories) * factor;
+      aggregatedNutrients.proteins += parseDecimal(row.proteins) * factor;
+      aggregatedNutrients.carbohydrates += parseDecimal(row.carbohydrates) * factor;
+      aggregatedNutrients.sugars += parseDecimal(row.sugars) * factor;
+      aggregatedNutrients.fats += parseDecimal(row.fats) * factor;
+      aggregatedNutrients.saturatedFats += parseDecimal(row.saturated_fats) * factor;
+      aggregatedNutrients.fiber += parseDecimal(row.fiber) * factor;
+      aggregatedNutrients.salt += parseDecimal(row.salt) * factor;
+      aggregatedNutrients.sodium += parseDecimal(row.sodium) * factor;
+      aggregatedNutrients.transFats += parseDecimal(row.trans_fats) * factor;
+      aggregatedNutrients.cholesterol += parseDecimal(row.cholesterol) * factor;
+      aggregatedNutrients.potassium += parseDecimal(row.potassium) * factor;
+      aggregatedNutrients.monounsaturatedFats += parseDecimal(row.monounsaturated_fats) * factor;
+      aggregatedNutrients.polyunsaturatedFats += parseDecimal(row.polyunsaturated_fats) * factor;
+      aggregatedNutrients.alcohol += parseDecimal(row.alcohol) * factor;
+    }
   }
 
   // Step 9: Find heaviest resolved ingredient
@@ -596,7 +790,62 @@ async function runStrategyB(
     similarityDistance: null,
   };
 
-  // Step 11: Return
+  // ---------------------------------------------------------------------------
+  // F074: Compute aggregate yieldAdjustment when per-ingredient yield was applied
+  // ---------------------------------------------------------------------------
+
+  if (perIngredientMeta !== null && perIngredientMeta.length > 0) {
+    // Determine dominant ingredient (highest raw calorie contribution, before yield)
+    let dominantIdx = 0;
+    let maxCalories = -Infinity;
+    for (let i = 0; i < perIngredientMeta.length; i++) {
+      const meta = perIngredientMeta[i];
+      if (meta !== undefined && meta.rawCalorieContribution > maxCalories) {
+        maxCalories = meta.rawCalorieContribution;
+        dominantIdx = i;
+      }
+    }
+    const dominantMeta = perIngredientMeta[dominantIdx];
+    if (dominantMeta === undefined) {
+      // Defensive — return without perIngredientYieldApplied
+      return { matchType: 'llm_ingredient_decomposition', result };
+    }
+
+    const dominantYield = dominantMeta.yieldAdjustment;
+
+    // cookingStateSource precedence: explicit > llm_extracted > default_assumption
+    let aggregateCookingStateSource: YieldAdjustment['cookingStateSource'] = 'default_assumption';
+    for (const meta of perIngredientMeta) {
+      if (meta.cookingStateSource === 'explicit') {
+        aggregateCookingStateSource = 'explicit';
+        break;
+      }
+      if (meta.cookingStateSource === 'llm_extracted') {
+        aggregateCookingStateSource = 'llm_extracted';
+      }
+    }
+
+    const aggregateYieldAdjustment: YieldAdjustment = {
+      applied: perIngredientMeta.some((m) => m.yieldAdjustment.applied),
+      cookingState: dominantYield.cookingState,
+      cookingStateSource: aggregateCookingStateSource,
+      cookingMethod: dominantYield.cookingMethod,
+      yieldFactor: perIngredientMeta.some((m) => m.yieldAdjustment.applied)
+        ? dominantYield.yieldFactor
+        : null,
+      fatAbsorptionApplied: perIngredientMeta.some((m) => m.yieldAdjustment.fatAbsorptionApplied),
+      reason: 'per_ingredient_yield_applied',
+    };
+
+    return {
+      matchType: 'llm_ingredient_decomposition',
+      result,
+      perIngredientYieldApplied: true,
+      yieldAdjustment: aggregateYieldAdjustment,
+    };
+  }
+
+  // Step 11: Return (no per-ingredient yield — prisma absent or empty resolved)
   return { matchType: 'llm_ingredient_decomposition', result };
 }
 
@@ -616,7 +865,7 @@ async function runStrategyB(
  * DB errors (Kysely sql failures) bubble up as { code: 'DB_UNAVAILABLE' }.
  */
 export const level4Lookup: Level4LookupFn = async (db, query, options) => {
-  const { openAiApiKey, logger } = options;
+  const { openAiApiKey, logger, prisma, cookingState, cookingMethod } = options;
 
   // Guard: both must be set for L4 to be active
   if (!openAiApiKey || !config.OPENAI_CHAT_MODEL) {
@@ -633,7 +882,12 @@ export const level4Lookup: Level4LookupFn = async (db, query, options) => {
     if (stratAResult !== null) return stratAResult;
 
     // Strategy B: LLM decomposition + L1 resolution + L2-style aggregation
-    const stratBResult = await runStrategyB(db, query, openAiApiKey, logger);
+    // F074: pass prisma, cookingState, cookingMethod for per-ingredient yield correction
+    const stratBResult = await runStrategyB(db, query, openAiApiKey, logger, {
+      prisma,
+      cookingState,
+      cookingMethod,
+    });
     if (stratBResult !== null) return stratBResult;
 
     return null;

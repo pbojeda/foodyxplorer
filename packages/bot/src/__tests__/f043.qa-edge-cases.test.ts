@@ -41,7 +41,7 @@ const NUTRIENTS_A = {
   calories: 563, proteins: 26.5, carbohydrates: 45, sugars: 0,
   fats: 30, saturatedFats: 10, fiber: 3, salt: 2.5, sodium: 940,
   transFats: 0, cholesterol: 0, potassium: 0,
-  monounsaturatedFats: 0, polyunsaturatedFats: 0,
+  monounsaturatedFats: 0, polyunsaturatedFats: 0, alcohol: 0,
   referenceBasis: 'per_serving' as const,
 };
 
@@ -49,7 +49,7 @@ const NUTRIENTS_B = {
   calories: 672, proteins: 25, carbohydrates: 56, sugars: 0,
   fats: 35, saturatedFats: 14, fiber: 2, salt: 3, sodium: 860,
   transFats: 0, cholesterol: 0, potassium: 0,
-  monounsaturatedFats: 0, polyunsaturatedFats: 0,
+  monounsaturatedFats: 0, polyunsaturatedFats: 0, alcohol: 0,
   referenceBasis: 'per_serving' as const,
 };
 
@@ -126,6 +126,7 @@ function makeMockClient(): MockApiClient {
     analyzeMenu: vi.fn(),
     calculateRecipe: vi.fn(),
     processMessage: vi.fn(),
+    sendAudio: vi.fn(),
   };
 }
 

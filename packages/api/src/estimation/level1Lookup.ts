@@ -79,6 +79,7 @@ async function exactDishMatch(
       rdn.potassium::text,
       rdn.monounsaturated_fats::text,
       rdn.polyunsaturated_fats::text,
+      rdn.alcohol::text,
       rdn.reference_basis::text,
       ds.id         AS source_id,
       ds.name       AS source_name,
@@ -89,7 +90,11 @@ async function exactDishMatch(
     JOIN restaurants r ON r.id = d.restaurant_id
     JOIN ranked_dn rdn ON rdn.dish_id = d.id AND rdn.rn = 1
     JOIN data_sources ds ON ds.id = rdn.source_id
-    WHERE LOWER(d.name) = LOWER(${normalizedQuery})
+    WHERE (
+      LOWER(d.name) = LOWER(${normalizedQuery})
+      OR LOWER(d.name_es) = LOWER(${normalizedQuery})
+      OR d.aliases @> ARRAY[${normalizedQuery}]  -- F078: GIN-indexed, aliases stored lowercase
+    )
     ${scopeClause}
     ${tierClause}
     ORDER BY ds.priority_tier ASC NULLS LAST
@@ -148,6 +153,7 @@ async function ftsDishMatch(
       rdn.potassium::text,
       rdn.monounsaturated_fats::text,
       rdn.polyunsaturated_fats::text,
+      rdn.alcohol::text,
       rdn.reference_basis::text,
       ds.id         AS source_id,
       ds.name       AS source_name,
@@ -194,6 +200,7 @@ async function exactFoodMatch(
       f.id          AS food_id,
       f.name        AS food_name,
       f.name_es     AS food_name_es,
+      f.food_group  AS food_group,
       rfn.calories::text,
       rfn.proteins::text,
       rfn.carbohydrates::text,
@@ -208,6 +215,7 @@ async function exactFoodMatch(
       rfn.potassium::text,
       rfn.monounsaturated_fats::text,
       rfn.polyunsaturated_fats::text,
+      rfn.alcohol::text,
       rfn.reference_basis::text,
       ds.id         AS source_id,
       ds.name       AS source_name,
@@ -218,7 +226,8 @@ async function exactFoodMatch(
     JOIN ranked_fn rfn ON rfn.food_id = f.id AND rfn.rn = 1
     JOIN data_sources ds ON ds.id = rfn.source_id
     WHERE (LOWER(f.name_es) = LOWER(${normalizedQuery})
-       OR LOWER(f.name) = LOWER(${normalizedQuery}))
+       OR LOWER(f.name) = LOWER(${normalizedQuery})
+       OR f.aliases @> ARRAY[${normalizedQuery}])
     ${tierClause}
     ORDER BY ds.priority_tier ASC NULLS LAST
     LIMIT 1
@@ -250,6 +259,7 @@ async function ftsFoodMatch(
       f.id          AS food_id,
       f.name        AS food_name,
       f.name_es     AS food_name_es,
+      f.food_group  AS food_group,
       rfn.calories::text,
       rfn.proteins::text,
       rfn.carbohydrates::text,
@@ -264,6 +274,7 @@ async function ftsFoodMatch(
       rfn.potassium::text,
       rfn.monounsaturated_fats::text,
       rfn.polyunsaturated_fats::text,
+      rfn.alcohol::text,
       rfn.reference_basis::text,
       ds.id         AS source_id,
       ds.name       AS source_name,
@@ -299,25 +310,25 @@ async function runCascade(
   // Strategy 1: exact dish
   const exactDishRow = await exactDishMatch(db, normalizedQuery, options, tierFilter);
   if (exactDishRow !== undefined) {
-    return { matchType: 'exact_dish', result: mapDishRowToResult(exactDishRow) };
+    return { matchType: 'exact_dish', result: mapDishRowToResult(exactDishRow), rawFoodGroup: null };
   }
 
   // Strategy 2: FTS dish
   const ftsDishRow = await ftsDishMatch(db, normalizedQuery, options, tierFilter);
   if (ftsDishRow !== undefined) {
-    return { matchType: 'fts_dish', result: mapDishRowToResult(ftsDishRow) };
+    return { matchType: 'fts_dish', result: mapDishRowToResult(ftsDishRow), rawFoodGroup: null };
   }
 
   // Strategy 3: exact food (no chain scope)
   const exactFoodRow = await exactFoodMatch(db, normalizedQuery, tierFilter);
   if (exactFoodRow !== undefined) {
-    return { matchType: 'exact_food', result: mapFoodRowToResult(exactFoodRow) };
+    return { matchType: 'exact_food', result: mapFoodRowToResult(exactFoodRow), rawFoodGroup: exactFoodRow.food_group };
   }
 
   // Strategy 4: FTS food (no chain scope)
   const ftsFoodRow = await ftsFoodMatch(db, normalizedQuery, tierFilter);
   if (ftsFoodRow !== undefined) {
-    return { matchType: 'fts_food', result: mapFoodRowToResult(ftsFoodRow) };
+    return { matchType: 'fts_food', result: mapFoodRowToResult(ftsFoodRow), rawFoodGroup: ftsFoodRow.food_group };
   }
 
   return null;

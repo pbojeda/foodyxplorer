@@ -136,6 +136,7 @@ async function fetchDishNutrients(
       rdn.potassium::text,
       rdn.monounsaturated_fats::text,
       rdn.polyunsaturated_fats::text,
+      rdn.alcohol::text,
       rdn.reference_basis::text,
       ds.id         AS source_id,
       ds.name       AS source_name,
@@ -172,6 +173,7 @@ async function fetchFoodNutrients(
       f.id          AS food_id,
       f.name        AS food_name,
       f.name_es     AS food_name_es,
+      f.food_group  AS food_group,
       rfn.calories::text,
       rfn.proteins::text,
       rfn.carbohydrates::text,
@@ -186,6 +188,7 @@ async function fetchFoodNutrients(
       rfn.potassium::text,
       rfn.monounsaturated_fats::text,
       rfn.polyunsaturated_fats::text,
+      rfn.alcohol::text,
       rfn.reference_basis::text,
       ds.id         AS source_id,
       ds.name       AS source_name,
@@ -280,6 +283,7 @@ export async function level3Lookup(
             matchType: 'similarity_dish',
             result,
             similarityDistance: distance,
+            rawFoodGroup: null,
           };
         }
         // Dish match found but no nutrient row — fall through to food strategy
@@ -303,6 +307,7 @@ export async function level3Lookup(
             matchType: 'similarity_food',
             result,
             similarityDistance: distance,
+            rawFoodGroup: nutrientRow.food_group,
           };
         }
       }

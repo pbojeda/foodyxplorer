@@ -30,6 +30,7 @@ const DAILY_LIMITS: Record<string, number> = {
 const ROUTE_BUCKET_MAP: Record<string, string> = {
   '/estimate': 'queries',
   '/conversation/message': 'queries',
+  '/conversation/audio': 'queries',
   '/analyze/menu': 'photos',
 };
 

@@ -402,7 +402,7 @@ const VALID_NUTRIENTS_D = {
   calories: 320, proteins: 28, carbohydrates: 30, sugars: 5,
   fats: 8, saturatedFats: 2, fiber: 4, salt: 1.2, sodium: 480,
   transFats: 0, cholesterol: 60, potassium: 400,
-  monounsaturatedFats: 3, polyunsaturatedFats: 1.5,
+  monounsaturatedFats: 3, polyunsaturatedFats: 1.5, alcohol: 0,
   referenceBasis: 'per_serving' as const,
 };
 

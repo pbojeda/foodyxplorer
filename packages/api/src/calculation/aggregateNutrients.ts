@@ -45,6 +45,7 @@ const NUTRIENT_KEYS = [
   'potassium',
   'monounsaturated_fats',
   'polyunsaturated_fats',
+  'alcohol',
 ] as const;
 
 type NutrientKey = (typeof NUTRIENT_KEYS)[number];
@@ -65,6 +66,7 @@ const KEY_MAP: Record<NutrientKey, keyof Omit<RecipeNutrients, 'referenceBasis'>
   potassium: 'potassium',
   monounsaturated_fats: 'monounsaturatedFats',
   polyunsaturated_fats: 'polyunsaturatedFats',
+  alcohol: 'alcohol',
 };
 
 // ---------------------------------------------------------------------------
@@ -104,6 +106,7 @@ export function aggregateNutrients(
       potassium: 0,
       monounsaturatedFats: 0,
       polyunsaturatedFats: 0,
+      alcohol: 0,
       referenceBasis: 'per_serving',
     };
     return { perIngredient: [], totals: zeroNutrients };
@@ -146,6 +149,7 @@ export function aggregateNutrients(
       potassium: null,
       monounsaturatedFats: null,
       polyunsaturatedFats: null,
+      alcohol: null,
       referenceBasis: 'per_serving',
     };
 
@@ -182,6 +186,7 @@ export function aggregateNutrients(
     potassium: null,
     monounsaturatedFats: null,
     polyunsaturatedFats: null,
+    alcohol: null,
     referenceBasis: 'per_serving',
   };
 

@@ -105,6 +105,7 @@ const BASE_NUTRIENTS = {
   potassium: 0,
   monounsaturatedFats: 0,
   polyunsaturatedFats: 0,
+  alcohol: 0,
   referenceBasis: 'per_serving' as const,
 };
 
@@ -431,8 +432,9 @@ describe('GET /estimate — F042 portionMultiplier edge cases', () => {
     const key10 = mockRedisGet.mock.calls[0]![0] as string;
 
     expect(key15).not.toBe(key10);
-    expect(key15).toMatch(/:1\.5$/);
-    expect(key10).toMatch(/:1$/);
+    // F072: cache key now includes cookingState and cookingMethod segments (empty when absent)
+    expect(key15).toMatch(/:1\.5::/);
+    expect(key10).toMatch(/:1::/);
   });
 
   // -------------------------------------------------------------------------

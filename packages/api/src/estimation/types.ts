@@ -56,6 +56,8 @@ export interface Level3LookupOptions {
 export interface Level1Result {
   matchType: EstimateMatchType;
   result: EstimateResult;
+  /** F072: raw food_group from the resolved FoodQueryRow; null for dish matches. */
+  rawFoodGroup?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -80,6 +82,8 @@ export interface Level3Result {
   result: EstimateResult;
   /** Cosine distance of the winning match in [0.0, 2.0). */
   similarityDistance: number;
+  /** F072: raw food_group from the resolved FoodQueryRow; null for dish matches. */
+  rawFoodGroup?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -113,6 +117,7 @@ export interface DishQueryRow {
   potassium: string;
   monounsaturated_fats: string;
   polyunsaturated_fats: string;
+  alcohol: string;
   reference_basis: string;
   // data_sources columns
   source_id: string;
@@ -130,6 +135,8 @@ export interface FoodQueryRow {
   food_id: string;
   food_name: string;
   food_name_es: string | null;
+  /** F072: raw food_group value from DB (e.g., "Cereal Grains and Pasta"). Null for dish rows. */
+  food_group: string | null;
   // food_nutrients columns
   calories: string;
   proteins: string;
@@ -145,6 +152,7 @@ export interface FoodQueryRow {
   potassium: string;
   monounsaturated_fats: string;
   polyunsaturated_fats: string;
+  alcohol: string;
   reference_basis: string;
   // data_sources columns
   source_id: string;
@@ -189,6 +197,7 @@ export interface IngredientNutrientRow {
   potassium: string;
   monounsaturated_fats: string;
   polyunsaturated_fats: string;
+  alcohol: string;
 }
 
 /** Raw row from the dish similarity search query (distance only — no nutrients). */
@@ -258,6 +267,7 @@ function mapNutrients(row: {
   potassium: string;
   monounsaturated_fats: string;
   polyunsaturated_fats: string;
+  alcohol: string;
   reference_basis: string;
 }): EstimateNutrients {
   return {
@@ -275,6 +285,7 @@ function mapNutrients(row: {
     potassium: parseDecimal(row.potassium),
     monounsaturatedFats: parseDecimal(row.monounsaturated_fats),
     polyunsaturatedFats: parseDecimal(row.polyunsaturated_fats),
+    alcohol: parseDecimal(row.alcohol),
     referenceBasis: row.reference_basis as EstimateNutrients['referenceBasis'],
   };
 }
@@ -366,6 +377,7 @@ export function mapLevel2RowToResult(row: IngredientNutrientRow): {
       potassium: parseDecimal(row.potassium),
       monounsaturatedFats: parseDecimal(row.monounsaturated_fats),
       polyunsaturatedFats: parseDecimal(row.polyunsaturated_fats),
+      alcohol: parseDecimal(row.alcohol),
       referenceBasis: 'per_serving',
     },
     confidenceLevel,

@@ -12,7 +12,7 @@ info:
     **Validation:**
     - Request bodies and query params are validated via `fastify-type-provider-zod`.
     - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
-  version: 0.6.0
+  version: 0.7.0
   contact:
     name: foodXPlorer
   license:
@@ -95,6 +95,16 @@ tags:
       formatted text. Formatting is the responsibility of each adapter.
       Per-actor rate limit applies (F069 — 50 queries/day per actor).
       Anonymous access via X-Actor-Id header (F069 actor middleware).
+  - name: Cooking
+    description: |
+      Cooking profiles and yield factor data (F072). The `cooking_profiles` table stores
+      yield factors (cooked_weight / raw_weight) and fat absorption values for ~50
+      high-impact food/method combinations. These are used by the estimation engine and
+      recipe calculator to correct caloric values when users report cooked weights for
+      foods stored as raw-weight per-100g in the DB.
+      No public read endpoints are defined for F072 — the profiles are an internal data
+      layer consumed by GET /estimate and POST /calculate/recipe. Admin seed/introspection
+      endpoints may be added in a future ticket.
 
 paths:
   /ingest/pdf:
@@ -190,6 +200,7 @@ paths:
                             potassium: 0
                             monounsaturatedFats: 0
                             polyunsaturatedFats: 0
+                            alcohol: 0
                             referenceBasis: "per_serving"
                           confidenceLevel: "medium"
                           estimationMethod: "scraped"
@@ -423,6 +434,7 @@ paths:
                             potassium: 0
                             monounsaturatedFats: 0
                             polyunsaturatedFats: 0
+                            alcohol: 0
                             referenceBasis: "per_serving"
                           confidenceLevel: "medium"
                           estimationMethod: "scraped"
@@ -677,6 +689,7 @@ paths:
                             potassium: 0
                             monounsaturatedFats: 0
                             polyunsaturatedFats: 0
+                            alcohol: 0
                             referenceBasis: "per_serving"
                           confidenceLevel: "medium"
                           estimationMethod: "scraped"
@@ -926,6 +939,7 @@ paths:
                             potassium: 0
                             monounsaturatedFats: 0
                             polyunsaturatedFats: 0
+                            alcohol: 0
                             referenceBasis: "per_serving"
                           confidenceLevel: "medium"
                           estimationMethod: "scraped"
@@ -1222,6 +1236,7 @@ paths:
                             potassium: 0
                             monounsaturatedFats: 0
                             polyunsaturatedFats: 0
+                            alcohol: 0
                             referenceBasis: "per_serving"
                           confidenceLevel: "medium"
                           estimationMethod: "scraped"
@@ -2058,6 +2073,33 @@ paths:
             minimum: 0.1
             maximum: 5.0
             example: 1.5
+        - name: cookingState
+          in: query
+          required: false
+          description: |
+            Declares whether the queried quantity refers to raw (pre-cooking) or cooked
+            (post-cooking) food weight (F072). Only applied when the resolved entity is
+            a generic `Food` (not a restaurant dish — dishes are always `as_served`).
+
+            - `raw`: reported weight is pre-cooking. DB nutrients (per-100g USDA/BEDCA)
+              apply directly without yield correction.
+            - `cooked`: reported weight is post-cooking. Engine derives corrected raw weight
+              as `reportedGrams / yieldFactor` before applying nutrient lookup.
+            - `as_served`: no yield correction — treat reported weight as final serving.
+
+            When omitted, default assumptions apply based on the resolved food's `foodGroup`:
+            - `grains`, `legumes`, `pasta` → `cooked`
+            - `meat`, `fish` → `raw`
+            - `vegetables` → `raw`
+            - composite / unknown → `as_served`
+
+            Not applicable when the match is a restaurant dish (matchType contains "dish").
+            The response's `yieldAdjustment` block documents whether correction was applied.
+
+            **Cache key:** the effective `cookingState` value is included as a segment in the
+            Redis cache key, so corrections for different states are cached independently.
+          schema:
+            $ref: '#/components/schemas/CookingState'
       responses:
         '200':
           description: |
@@ -2114,6 +2156,7 @@ paths:
                           potassium: 0
                           monounsaturatedFats: 0
                           polyunsaturatedFats: 0
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "high"
                         estimationMethod: "official"
@@ -2159,6 +2202,7 @@ paths:
                           potassium: 256
                           monounsaturatedFats: 1.2
                           polyunsaturatedFats: 0.7
+                          alcohol: 0
                           referenceBasis: "per_100g"
                         confidenceLevel: "high"
                         estimationMethod: "official"
@@ -2203,6 +2247,7 @@ paths:
                           potassium: 0
                           monounsaturatedFats: 0
                           polyunsaturatedFats: 0
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "high"
                         estimationMethod: "official"
@@ -2247,6 +2292,7 @@ paths:
                           potassium: 310
                           monounsaturatedFats: 8
                           polyunsaturatedFats: 3
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "medium"
                         estimationMethod: "ingredients"
@@ -2291,6 +2337,7 @@ paths:
                           potassium: 280
                           monounsaturatedFats: 2
                           polyunsaturatedFats: 1
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "low"
                         estimationMethod: "ingredients"
@@ -2335,6 +2382,7 @@ paths:
                           potassium: 350
                           monounsaturatedFats: 8
                           polyunsaturatedFats: 4
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "low"
                         estimationMethod: "extrapolation"
@@ -2380,6 +2428,7 @@ paths:
                           potassium: 256
                           monounsaturatedFats: 1.2
                           polyunsaturatedFats: 0.7
+                          alcohol: 0
                           referenceBasis: "per_100g"
                         confidenceLevel: "low"
                         estimationMethod: "extrapolation"
@@ -2441,6 +2490,7 @@ paths:
                           potassium: 220
                           monounsaturatedFats: 3
                           polyunsaturatedFats: 1
+                          alcohol: 0
                           referenceBasis: "per_100g"
                         confidenceLevel: "medium"
                         estimationMethod: "llm"
@@ -2487,6 +2537,7 @@ paths:
                           potassium: 430
                           monounsaturatedFats: 3
                           polyunsaturatedFats: 2
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "low"
                         estimationMethod: "llm"
@@ -2533,6 +2584,7 @@ paths:
                           potassium: 0
                           monounsaturatedFats: 0
                           polyunsaturatedFats: 0
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "high"
                         estimationMethod: "official"
@@ -2675,6 +2727,14 @@ paths:
                             minimum: 0.1
                             maximum: 5.0
                             default: 1.0
+                          cookingState:
+                            $ref: '#/components/schemas/CookingState'
+                            description: |
+                              Declares whether this ingredient's gram weight is pre-cooking
+                              (raw) or post-cooking (cooked) (F072). When omitted, default
+                              assumptions fire based on the resolved food's food group.
+                              Not applicable in free-form mode — defaults apply to all
+                              resolved ingredients (F074 will extract state from text).
                         required: [grams]
                 - type: object
                   required: [mode, text]
@@ -2747,6 +2807,12 @@ paths:
                                   nullable: true
                                 matchType:
                                   type: string
+                                yieldAdjustment:
+                                  $ref: '#/components/schemas/YieldAdjustment'
+                                  description: |
+                                    Documents whether/how yield correction was applied for
+                                    this ingredient (F072). Always present when the ingredient
+                                    is resolved. Null when ingredient is unresolved.
                             nutrients:
                               $ref: "#/components/schemas/RecipeNutrients"
                               nullable: true
@@ -2900,6 +2966,221 @@ paths:
                 error:
                   message: "Database query failed during analytics aggregation"
                   code: "DB_UNAVAILABLE"
+
+  /analytics/missed-queries:
+    get:
+      summary: Top missed queries
+      description: |
+        Surfaces the most frequently missed queries (estimation cascade returning null
+        across all 4 levels). Aggregates query_logs WHERE level_hit IS NULL, grouped by
+        normalized query_text. LEFT JOINs missed_query_tracking for disposition status.
+        Filters short queries (< 3 chars). Admin-only (F079).
+      operationId: getMissedQueries
+      tags:
+        - Analytics
+      security:
+        - AdminKeyAuth: []
+      parameters:
+        - name: timeRange
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [24h, 7d, 30d, all]
+            default: 30d
+          description: Time window for aggregation.
+        - name: topN
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Maximum number of missed queries to return.
+        - name: minCount
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 2
+          description: Minimum hit count threshold to include a query.
+      responses:
+        '200':
+          description: Top missed queries with tracking status.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      missedQueries:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            queryText:
+                              type: string
+                              example: gazpacho andaluz
+                            count:
+                              type: integer
+                              example: 15
+                            trackingId:
+                              type: string
+                              format: uuid
+                              nullable: true
+                            trackingStatus:
+                              type: string
+                              enum: [pending, resolved, ignored]
+                              nullable: true
+                      totalMissCount:
+                        type: integer
+                        example: 250
+                      timeRange:
+                        type: string
+                        example: 30d
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Database unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /analytics/missed-queries/track:
+    post:
+      summary: Batch track missed queries
+      description: |
+        Creates tracking entries for missed queries (upsert on query_text).
+        Used by the monthly expansion batch process. Admin-only (F079).
+      operationId: batchTrackMissedQueries
+      tags:
+        - Analytics
+      security:
+        - AdminKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [queries]
+              properties:
+                queries:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [queryText, hitCount]
+                    properties:
+                      queryText:
+                        type: string
+                        minLength: 3
+                        maxLength: 255
+                      hitCount:
+                        type: integer
+                        minimum: 1
+      responses:
+        '200':
+          description: Tracking entries created/updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      tracked:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MissedQueryTracking'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /analytics/missed-queries/{id}/status:
+    post:
+      summary: Update missed query tracking status
+      description: |
+        Updates the status of a tracked missed query (pending -> resolved/ignored).
+        Optionally links to the dish that was added. Admin-only (F079).
+      operationId: updateMissedQueryStatus
+      tags:
+        - Analytics
+      security:
+        - AdminKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Tracking entry UUID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [pending, resolved, ignored]
+                resolvedDishId:
+                  type: string
+                  format: uuid
+                notes:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Status updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/MissedQueryTracking'
+        '404':
+          description: Tracking entry not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /restaurants:
     get:
@@ -4104,6 +4385,7 @@ paths:
                         potassium: 440
                         monounsaturatedFats: 2.4
                         polyunsaturatedFats: 1.6
+                        alcohol: 0
                         referenceBasis: per_serving
                       ingredients:
                         - input:
@@ -4132,6 +4414,7 @@ paths:
                             potassium: 440
                             monounsaturatedFats: 2.4
                             polyunsaturatedFats: 1.6
+                            alcohol: 0
                             referenceBasis: per_serving
                         - input:
                             foodId: null
@@ -4387,6 +4670,7 @@ paths:
                                 potassium: 0
                                 monounsaturatedFats: 0
                                 polyunsaturatedFats: 0
+                                alcohol: 0
                                 referenceBasis: per_serving
                               confidenceLevel: high
                               estimationMethod: official
@@ -4431,6 +4715,7 @@ paths:
                                 potassium: 0
                                 monounsaturatedFats: 0
                                 polyunsaturatedFats: 0
+                                alcohol: 0
                                 referenceBasis: per_serving
                               confidenceLevel: low
                               estimationMethod: extrapolation
@@ -4481,6 +4766,7 @@ paths:
                                 potassium: 0
                                 monounsaturatedFats: 0
                                 polyunsaturatedFats: 0
+                                alcohol: 0
                                 referenceBasis: per_serving
                               confidenceLevel: medium
                               estimationMethod: ingredients
@@ -4725,6 +5011,7 @@ paths:
                             potassium: 0
                             monounsaturatedFats: 0
                             polyunsaturatedFats: 0
+                            alcohol: 0
                             referenceBasis: "per_serving"
                           confidenceLevel: "high"
                           estimationMethod: "official"
@@ -4800,6 +5087,7 @@ paths:
                               potassium: 0
                               monounsaturatedFats: 0
                               polyunsaturatedFats: 0
+                              alcohol: 0
                               referenceBasis: "per_serving"
                             confidenceLevel: "high"
                             estimationMethod: "official"
@@ -4842,6 +5130,7 @@ paths:
                               potassium: 0
                               monounsaturatedFats: 0
                               polyunsaturatedFats: 0
+                              alcohol: 0
                               referenceBasis: "per_serving"
                             confidenceLevel: "high"
                             estimationMethod: "official"
@@ -4909,6 +5198,193 @@ paths:
                       message: "Database query failed during estimation lookup"
                       code: "DB_UNAVAILABLE"
 
+  /conversation/audio:
+    post:
+      tags: [Conversation]
+      operationId: conversationAudio
+      summary: Transcribe a voice message and process via ConversationCore
+      description: |
+        Accepts a multipart/form-data audio file (OGG, MP3, MP4, WAV, WebM).
+        Transcribes via OpenAI Whisper (`whisper-1`, `language: es`, `temperature: 0`),
+        applies a hallucination filter for known bad Whisper outputs, then delegates
+        to the Conversation Core pipeline (`processMessage()`).
+
+        Returns the same `ConversationMessageData` envelope as `POST /conversation/message`.
+        On transcription failure or empty result, returns a 422 error with a specific code.
+
+        **Architecture decision (F075):** Transcription runs in the API (not the bot)
+        to keep the bot as a thin adapter. The same endpoint can be reused by the
+        future web assistant (Phase C, F093) without duplicating Whisper logic.
+
+        **Rate limiting:** Shares the `queries` bucket with `GET /estimate` and
+        `POST /conversation/message` — 50/day per actor. A voice message counts as 1 query.
+
+        **Query logging:** Fire-and-forget, same pattern as `/conversation/message`.
+        The transcribed text (not the filename) is logged as `queryText`.
+        Whisper latency is logged via application logger (`audioTranscriptionMs`) —
+        not stored in the `query_logs` table (no schema changes).
+      parameters:
+        - $ref: '#/components/parameters/XActorId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+                - duration
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: |
+                    Audio file. Accepted MIME types: audio/ogg, audio/mpeg, audio/mp4,
+                    audio/wav, audio/webm. Max 10 MB (handled by @fastify/multipart).
+                duration:
+                  type: number
+                  description: |
+                    Audio duration in seconds. Required — comes from Telegram's
+                    `msg.voice.duration` field (or client-side measurement).
+                    Must be a number between 0 and 120. Out-of-range returns 400 VALIDATION_ERROR.
+                  minimum: 0
+                  maximum: 120
+                chainSlug:
+                  type: string
+                  description: Legacy chain context slug (optional, same as /conversation/message).
+                  example: "mcdonalds-es"
+                chainName:
+                  type: string
+                  description: Legacy chain context name (optional, same as /conversation/message).
+                  example: "McDonald's"
+            examples:
+              voiceOgg:
+                summary: Telegram voice note (OGG/Opus)
+                value:
+                  audio: "<binary OGG file>"
+                  duration: 8
+      responses:
+        '200':
+          description: |
+            Audio transcribed and processed successfully. Returns the same
+            ConversationMessageData envelope as POST /conversation/message.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: '#/components/schemas/ConversationMessageResponse'
+              example:
+                success: true
+                data:
+                  intent: estimation
+                  actorId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  estimation:
+                    query: "dos pinchos de tortilla y una caña"
+                    chainSlug: null
+                    portionMultiplier: 1.0
+                    level1Hit: false
+                    level2Hit: false
+                    level3Hit: true
+                    level4Hit: false
+                    matchType: "embedding_dish"
+                    result: null
+                    cachedAt: null
+                  activeContext: null
+        '400':
+          description: |
+            Validation error. Sub-cases:
+            - `audio` file part is missing from the multipart body.
+            - MIME type is not one of: audio/ogg, audio/mpeg, audio/mp4, audio/wav, audio/webm.
+            - `duration` field is missing or not a number.
+            - `duration` exceeds 120 seconds.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingAudio:
+                  summary: audio file part missing
+                  value:
+                    success: false
+                    error:
+                      message: "Missing audio file part in multipart request"
+                      code: "VALIDATION_ERROR"
+                unsupportedMime:
+                  summary: unsupported MIME type
+                  value:
+                    success: false
+                    error:
+                      message: "Unsupported audio MIME type: application/pdf"
+                      code: "VALIDATION_ERROR"
+                durationTooLong:
+                  summary: duration > 120
+                  value:
+                    success: false
+                    error:
+                      message: "Audio duration must be between 0 and 120 seconds"
+                      code: "VALIDATION_ERROR"
+        '413':
+          description: Audio file exceeds 10 MB limit (handled by @fastify/multipart).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "request file too large, please check multipart config"
+                  code: "PAYLOAD_TOO_LARGE"
+        '422':
+          description: |
+            Empty transcription. Whisper returned empty/whitespace text or a known
+            hallucination string (background noise, silence).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyTranscription:
+                  summary: Whisper returned empty or hallucinated text
+                  value:
+                    success: false
+                    error:
+                      message: "Audio transcription returned empty text"
+                      code: "EMPTY_TRANSCRIPTION"
+        '502':
+          description: |
+            Upstream transcription failure. Whisper API returned an error after retry
+            (or OPENAI_API_KEY not configured). The client's audio was valid but the
+            server-side transcription service failed. Retrying may succeed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                transcriptionFailed:
+                  summary: Whisper API error after retry
+                  value:
+                    success: false
+                    error:
+                      message: "Audio transcription failed"
+                      code: "TRANSCRIPTION_FAILED"
+        '429':
+          description: Per-actor daily rate limit exceeded (shares 'queries' bucket with GET /estimate).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Daily queries limit exceeded (50/day). Try again tomorrow."
+                  code: "ACTOR_RATE_LIMIT_EXCEEDED"
+
 components:
   parameters:
     XActorId:
@@ -4949,14 +5425,16 @@ components:
       enum:
         - context_set
         - comparison
+        - menu_estimation
         - estimation
-        - error
+        - text_too_long
       description: |
         Resolved intent of the user's message:
-        - `context_set`: message was recognised as "estoy en <chain>" — context written to Redis.
-        - `comparison`:  message was recognised as a two-dish comparison query.
-        - `estimation`:  message was resolved as a single-dish nutritional query.
-        - `error`:       input was rejected before estimation (e.g. text too long).
+        - `context_set`:      message was recognised as "estoy en <chain>" — context written to Redis.
+        - `comparison`:       message was recognised as a two-dish comparison query.
+        - `menu_estimation`:  message was recognised as a multi-dish "menú del día" query (F076).
+        - `estimation`:       message was resolved as a single-dish nutritional query.
+        - `text_too_long`:    input exceeded 500 characters and was rejected.
 
     ConversationContext:
       type: object
@@ -4999,13 +5477,104 @@ components:
             Null when no specific nutrient focus was detected in the query.
           example: "calorías"
 
+    MenuEstimationItem:
+      type: object
+      description: A single dish in a menu estimation (F076).
+      required:
+        - query
+        - estimation
+      properties:
+        query:
+          type: string
+          description: The dish text as parsed from user input.
+        estimation:
+          $ref: '#/components/schemas/EstimateData'
+          description: |
+            Estimation result for this dish. Always non-null; "not found" is represented
+            by estimation.result === null.
+
+    MenuEstimationTotals:
+      type: object
+      description: Aggregated nutrients across all matched menu items (F076). All 15 nutrient fields.
+      properties:
+        calories:
+          type: number
+          minimum: 0
+        proteins:
+          type: number
+          minimum: 0
+        carbohydrates:
+          type: number
+          minimum: 0
+        sugars:
+          type: number
+          minimum: 0
+        fats:
+          type: number
+          minimum: 0
+        saturatedFats:
+          type: number
+          minimum: 0
+        fiber:
+          type: number
+          minimum: 0
+        salt:
+          type: number
+          minimum: 0
+        sodium:
+          type: number
+          minimum: 0
+        transFats:
+          type: number
+          minimum: 0
+        cholesterol:
+          type: number
+          minimum: 0
+        potassium:
+          type: number
+          minimum: 0
+        monounsaturatedFats:
+          type: number
+          minimum: 0
+        polyunsaturatedFats:
+          type: number
+          minimum: 0
+        alcohol:
+          type: number
+          minimum: 0
+          description: Alcohol in grams (F077). 7 kcal/g. BEDCA tagname ALC.
+
+    MenuEstimationData:
+      type: object
+      description: Full menu estimation response payload (F076).
+      required:
+        - items
+        - totals
+        - itemCount
+        - matchedCount
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuEstimationItem'
+        totals:
+          $ref: '#/components/schemas/MenuEstimationTotals'
+        itemCount:
+          type: integer
+          minimum: 0
+          description: Total items parsed from the menu input.
+        matchedCount:
+          type: integer
+          minimum: 0
+          description: Items that produced a non-null estimation result.
+
     ConversationMessageResponse:
       type: object
       description: |
         Structured response from ConversationCore.processMessage(). The `intent` field
         identifies which data field is populated. Only one of `contextSet`, `estimation`,
-        or `comparison` is present per response. `activeContext` is always present (null
-        if no context is active for this actor).
+        `comparison`, or `menuEstimation` is present per response. `activeContext` is always
+        present (null if no context is active for this actor).
       required:
         - intent
         - actorId
@@ -5047,6 +5616,13 @@ components:
           description: |
             Present when intent is `comparison`. Contains two EstimateData objects.
             Null for other intents.
+        menuEstimation:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/MenuEstimationData'
+          description: |
+            Present when intent is `menu_estimation` (F076). Contains per-item estimation
+            results, aggregated totals, and match count. Null for other intents.
         activeContext:
           nullable: true
           allOf:
@@ -5056,13 +5632,12 @@ components:
             Non-null if the actor has set a chain context (either in this request via
             context_set, or in a prior request). Null if no context is active.
             Adapters should use this field to display context indicators to the user.
-        errorCode:
-          type: string
-          nullable: true
+        usedContextFallback:
+          type: boolean
           description: |
-            Present when intent is `error`. Identifies the rejection reason.
-            - `TEXT_TOO_LONG`: text exceeded 500 characters.
-          example: "TEXT_TOO_LONG"
+            True when chainSlug was injected from active context rather than explicitly
+            provided in the query. Bot adapters use this to show context indicators.
+            Only meaningful for estimation/comparison intents.
 
     # -------------------------------------------------------------------------
     # Ingestion
@@ -5153,6 +5728,7 @@ components:
             - potassium
             - monounsaturatedFats
             - polyunsaturatedFats
+            - alcohol
             - referenceBasis
           properties:
             calories:
@@ -5218,6 +5794,12 @@ components:
               type: number
               minimum: 0
               default: 0
+              example: 0
+            alcohol:
+              type: number
+              minimum: 0
+              default: 0
+              description: Alcohol in grams (F077). 7 kcal/g. BEDCA tagname ALC.
               example: 0
             referenceBasis:
               type: string
@@ -6716,6 +7298,11 @@ components:
           type: number
           minimum: 0
           nullable: true
+        alcohol:
+          type: number
+          minimum: 0
+          nullable: true
+          description: Alcohol in grams (F077). 7 kcal/g. BEDCA tagname ALC.
         referenceBasis:
           type: string
           enum: [per_serving]
@@ -6742,6 +7329,7 @@ components:
         - potassium
         - monounsaturatedFats
         - polyunsaturatedFats
+        - alcohol
         - referenceBasis
       properties:
         calories:
@@ -6806,6 +7394,12 @@ components:
           type: number
           minimum: 0
           default: 0
+          example: 0
+        alcohol:
+          type: number
+          minimum: 0
+          default: 0
+          description: Alcohol in grams (F077). 7 kcal/g. BEDCA tagname ALC.
           example: 0
         referenceBasis:
           type: string
@@ -7621,6 +8215,217 @@ components:
           enum: [true]
         data:
           $ref: '#/components/schemas/AnalyticsData'
+
+    # -------------------------------------------------------------------------
+    # F079 — Missed Query Tracking
+    # -------------------------------------------------------------------------
+
+    MissedQueryTracking:
+      type: object
+      required: [id, queryText, hitCount, status, resolvedDishId, notes, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        queryText:
+          type: string
+          example: gazpacho andaluz
+        hitCount:
+          type: integer
+          example: 15
+        status:
+          type: string
+          enum: [pending, resolved, ignored]
+        resolvedDishId:
+          type: string
+          format: uuid
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # -------------------------------------------------------------------------
+    # F072 — Cooking Profiles + Yield Factors
+    # -------------------------------------------------------------------------
+
+    CookingState:
+      type: string
+      enum: [raw, cooked, as_served]
+      description: |
+        Declares whether a reported gram weight refers to the food before cooking
+        (raw), after cooking (cooked), or as a final serving where no yield conversion
+        is meaningful (as_served).
+
+        - `raw`: weight is pre-cooking. DB nutrients (per-100g USDA/BEDCA raw-weight)
+          apply directly.
+        - `cooked`: weight is post-cooking. Engine corrects to raw equivalent:
+          `rawGrams = reportedGrams / yieldFactor` before applying nutrients.
+        - `as_served`: no yield correction — treat as final serving weight.
+
+        Default assumptions when omitted (by food group):
+        - grains, legumes, pasta → cooked
+        - meat, fish → raw
+        - vegetables → raw
+        - composite / unknown → as_served
+      example: cooked
+
+    YieldAdjustment:
+      type: object
+      description: |
+        Documents whether and how yield-factor correction was applied for a resolved
+        food entity (F072). Present in GET /estimate response and per-ingredient in
+        POST /calculate/recipe response. Null when the entity was not resolved.
+      required:
+        - applied
+        - cookingState
+        - cookingStateSource
+        - fatAbsorptionApplied
+        - reason
+      properties:
+        applied:
+          type: boolean
+          description: |
+            True when a yield factor was found AND applied (cookingState was cooked
+            and a matching profile was found). False in all other cases.
+          example: true
+        cookingState:
+          $ref: '#/components/schemas/CookingState'
+          description: |
+            The effective cooking state used (explicit from caller or resolved from
+            default assumption based on food group).
+          example: cooked
+        cookingStateSource:
+          type: string
+          enum: [explicit, default_assumption, none]
+          description: |
+            How the cooking state was determined:
+            - `explicit`: caller provided cookingState in the request.
+            - `default_assumption`: cookingState was omitted; default fired based on food group.
+            - `none`: entity is a dish (always as_served) or no food group info.
+          example: default_assumption
+        cookingMethod:
+          type: string
+          nullable: true
+          description: |
+            The cooking method used for profile lookup. Null when correction was not applied
+            or no profile was found.
+          example: boiled
+        yieldFactor:
+          type: number
+          format: float
+          nullable: true
+          description: |
+            The yield factor applied (cooked_weight / raw_weight). Non-null when
+            `applied = true`. Null otherwise.
+          example: 2.8
+        fatAbsorptionApplied:
+          type: boolean
+          description: |
+            True when fat absorption was added to fats and calories. Only applies when
+            cookingMethod is "fried" AND the profile has a fatAbsorption value.
+          example: false
+        reason:
+          type: string
+          enum:
+            - cooked_state_applied
+            - raw_state_no_correction
+            - as_served_passthrough
+            - no_profile_found
+            - dish_always_as_served
+            - nutrients_not_per_100g
+            - db_food_already_cooked
+            - cannot_reverse_cooked_to_raw
+            - invalid_yield_factor
+          description: |
+            Machine-readable explanation of the yield decision:
+            - `cooked_state_applied`: cookingState=cooked, profile found, correction applied.
+            - `raw_state_no_correction`: cookingState=raw, nutrients already in raw basis.
+            - `as_served_passthrough`: cookingState=as_served, no conversion needed.
+            - `no_profile_found`: no cooking_profiles row matched food group + method.
+            - `dish_always_as_served`: matched entity is a restaurant dish; always as_served.
+            - `nutrients_not_per_100g`: nutrients stored per_serving, cannot apply yield.
+            - `db_food_already_cooked`: food name contains cooking keywords (e.g. "hervido").
+            - `cannot_reverse_cooked_to_raw`: user requested raw but DB food is cooked.
+            - `invalid_yield_factor`: yieldFactor <= 0 in DB (data error).
+          example: cooked_state_applied
+
+    CookingProfile:
+      type: object
+      description: |
+        A row from the cooking_profiles table. Stores the yield factor (cooked_weight /
+        raw_weight) and optional fat absorption value for a food group + food name +
+        cooking method combination. ~50 entries seeded from USDA retention factors.
+      required:
+        - id
+        - foodGroup
+        - cookingMethod
+        - yieldFactor
+        - source
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "aaaaaaaa-0000-0000-0000-000000000001"
+        foodGroup:
+          type: string
+          description: |
+            Matches Food.foodGroup values (e.g. "grains", "legumes", "meat", "fish",
+            "vegetables", "pasta"). Used as the primary lookup key.
+          example: "grains"
+        foodName:
+          type: string
+          nullable: true
+          description: |
+            Optional specific food override (e.g. "rice", "chicken breast"). When present,
+            this profile takes precedence over the group-level default profile for the same
+            foodGroup + cookingMethod.
+          example: "rice"
+        cookingMethod:
+          type: string
+          description: |
+            Cooking method slug (e.g. "boiled", "fried", "grilled", "baked", "steamed",
+            "raw"). Plain VARCHAR — not a FK to the cooking_methods table (F002 model).
+          example: "boiled"
+        yieldFactor:
+          type: number
+          format: float
+          description: |
+            cooked_weight / raw_weight.
+            - > 1.0: food absorbs water (grains, legumes, pasta).
+            - < 1.0: food loses moisture (meat, fish, some vegetables).
+          minimum: 0.01
+          maximum: 10.0
+          example: 2.8
+        fatAbsorption:
+          type: number
+          format: float
+          nullable: true
+          description: |
+            Grams of fat absorbed per 100g raw food during frying. Only non-null for
+            fried entries (e.g. potatoes: 14.0, beef: 4.5). Applied in addition to
+            yield correction.
+          example: 14.0
+        source:
+          type: string
+          description: |
+            Attribution string for the yield factor value.
+          example: "USDA retention factors"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-04-03T00:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-04-03T00:00:00.000Z"
 
   securitySchemes:
     ApiKeyAuth:

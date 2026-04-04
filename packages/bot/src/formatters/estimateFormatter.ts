@@ -59,6 +59,7 @@ export function formatEstimate(data: EstimateData): string {
   if (n.saturatedFats > 0) lines.push(`🫙 Grasas saturadas: ${formatNutrient(n.saturatedFats, 'g')}`);
   if (n.sodium > 0)       lines.push(`🧂 Sodio: ${formatNutrient(n.sodium, 'mg')}`);
   if (n.salt > 0)         lines.push(`🧂 Sal: ${formatNutrient(n.salt, 'g')}`);
+  if (n.alcohol > 0)      lines.push(`🍺 Alcohol: ${formatNutrient(n.alcohol, 'g')}`);
 
   // Portion grams line at the bottom — only when multiplier is 1.0 (standard portion)
   if (data.portionMultiplier === 1.0 && result.portionGrams !== null) {
