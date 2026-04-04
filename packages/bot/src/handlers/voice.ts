@@ -60,8 +60,8 @@ export async function handleVoice(
     return;
   }
 
-  // Send typing action before download + API call
-  await bot.sendChatAction(chatId, 'typing');
+  // Send typing action before download + API call (best-effort, fail-open)
+  try { await bot.sendChatAction(chatId, 'typing'); } catch { /* best-effort */ }
 
   // Download audio from Telegram CDN
   let audioBuffer: Buffer;
