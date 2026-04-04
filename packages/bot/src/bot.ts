@@ -28,9 +28,10 @@ import { handleNaturalLanguage } from './handlers/naturalLanguage.js';
 import { handleCallbackQuery } from './handlers/callbackQuery.js';
 import { handlePhoto, handleDocument } from './handlers/fileUpload.js';
 import { handleVoice } from './handlers/voice.js';
+import { handleMenu } from './commands/menu.js';
 
 const KNOWN_COMMANDS = new Set([
-  'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info', 'restaurante', 'receta', 'comparar', 'contexto',
+  'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info', 'restaurante', 'receta', 'comparar', 'contexto', 'menu',
 ]);
 
 export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis): TelegramBot {
@@ -154,6 +155,11 @@ export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis):
   bot.onText(
     /^\/comparar(?:@\w+)?(?:\s+(.+))?$/s,
     (msg, match) => wrapHandler(() => handleComparar(match?.[1] ?? '', msg.chat.id, redis, apiClient))(msg),
+  );
+
+  bot.onText(
+    /^\/menu(?:@\w+)?(?:\s+(.+))?$/s,
+    (msg, match) => wrapHandler(() => handleMenu(match?.[1] ?? '', msg.chat.id, redis, apiClient))(msg),
   );
 
   // -------------------------------------------------------------------------

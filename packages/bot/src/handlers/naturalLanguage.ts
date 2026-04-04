@@ -16,6 +16,7 @@ import { formatEstimate } from '../formatters/estimateFormatter.js';
 import { formatComparison } from '../formatters/comparisonFormatter.js';
 import { escapeMarkdown } from '../formatters/markdownUtils.js';
 import { formatContextConfirmation } from '../formatters/contextFormatter.js';
+import { formatMenuEstimate } from '../formatters/menuFormatter.js';
 import { getState } from '../lib/conversationState.js';
 
 // ---------------------------------------------------------------------------
@@ -146,6 +147,20 @@ export async function handleNaturalLanguage(
 
       // Append context indicator ONLY when chainSlug was injected from context,
       // not when the user typed an explicit slug (F054 behavior preserved).
+      if (data.usedContextFallback && data.activeContext) {
+        result += `\n_Contexto activo: ${escapeMarkdown(data.activeContext.chainName)}_`;
+      }
+
+      return result;
+    }
+
+    case 'menu_estimation': {
+      if (!data.menuEstimation) {
+        return escapeMarkdown('No se pudo procesar el menú.');
+      }
+
+      let result = formatMenuEstimate(data.menuEstimation);
+
       if (data.usedContextFallback && data.activeContext) {
         result += `\n_Contexto activo: ${escapeMarkdown(data.activeContext.chainName)}_`;
       }

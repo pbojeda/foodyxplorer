@@ -9,7 +9,7 @@
 //
 // All dependencies are passed via ConversationRequest (full DI, no module-level singletons).
 
-import type { ConversationMessageData } from '@foodxplorer/shared';
+import type { ConversationMessageData, EstimateData, MenuEstimationTotals } from '@foodxplorer/shared';
 import type { ConversationRequest, ConversationContext } from './types.js';
 import { getContext, setContext } from './contextManager.js';
 import { resolveChain } from './chainResolver.js';
@@ -21,6 +21,7 @@ import {
   extractFoodQuery,
   parseDishExpression,
 } from './entityExtractor.js';
+import { detectMenuQuery } from './menuDetector.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -202,6 +203,77 @@ export async function processMessage(
   }
 
   // -------------------------------------------------------------------------
+  // Step 3.5 — Menu estimation (F076)
+  // -------------------------------------------------------------------------
+
+  const menuItems = detectMenuQuery(trimmed);
+
+  if (menuItems !== null) {
+    const menuResults = await Promise.allSettled(
+      menuItems.map((itemText) => {
+        const parsed = parseDishExpression(itemText);
+        const chainSlugForItem = parsed.chainSlug ?? effectiveContext?.chainSlug;
+
+        return estimate({
+          query: parsed.query,
+          chainSlug: chainSlugForItem,
+          portionMultiplier: parsed.portionMultiplier,
+          db,
+          openAiApiKey,
+          level4Lookup,
+          chainSlugs,
+          logger,
+        });
+      }),
+    );
+
+    // Check if ALL items rejected with system errors → propagate
+    const allRejected = menuResults.every((r) => r.status === 'rejected');
+    if (allRejected && menuResults.length > 0) {
+      const firstRejected = menuResults.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+      throw firstRejected.reason instanceof Error
+        ? firstRejected.reason
+        : new Error(String(firstRejected.reason));
+    }
+
+    // Build items array — rejected promises become null-result EstimateData
+    const items = menuItems.map((query, i) => {
+      const result = menuResults[i]!;
+      const estimation: EstimateData = result.status === 'fulfilled'
+        ? result.value
+        : {
+            query,
+            chainSlug: null,
+            level1Hit: false,
+            level2Hit: false,
+            level3Hit: false,
+            level4Hit: false,
+            matchType: null,
+            result: null,
+            cachedAt: null,
+            portionMultiplier: 1,
+          };
+      return { query, estimation };
+    });
+
+    // Aggregate totals from matched items
+    const totals = aggregateMenuTotals(items);
+    const matchedCount = items.filter((item) => item.estimation.result !== null).length;
+
+    return {
+      intent: 'menu_estimation' as const,
+      actorId,
+      menuEstimation: {
+        items,
+        totals,
+        itemCount: items.length,
+        matchedCount,
+      },
+      activeContext,
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // Step 4 — Single-dish estimation
   // -------------------------------------------------------------------------
 
@@ -232,4 +304,43 @@ export async function processMessage(
     activeContext,
     usedContextFallback,
   };
+}
+
+// ---------------------------------------------------------------------------
+// aggregateMenuTotals — sum nutrients from matched menu items (F076)
+// ---------------------------------------------------------------------------
+
+const NUTRIENT_KEYS = [
+  'calories', 'proteins', 'carbohydrates', 'sugars',
+  'fats', 'saturatedFats', 'fiber', 'salt', 'sodium',
+  'transFats', 'cholesterol', 'potassium',
+  'monounsaturatedFats', 'polyunsaturatedFats',
+] as const;
+
+function aggregateMenuTotals(
+  items: Array<{ query: string; estimation: EstimateData }>,
+): MenuEstimationTotals {
+  const totals: MenuEstimationTotals = {
+    calories: 0, proteins: 0, carbohydrates: 0, sugars: 0,
+    fats: 0, saturatedFats: 0, fiber: 0, salt: 0, sodium: 0,
+    transFats: 0, cholesterol: 0, potassium: 0,
+    monounsaturatedFats: 0, polyunsaturatedFats: 0,
+  };
+
+  for (const item of items) {
+    const result = item.estimation.result;
+    if (!result) continue;
+
+    const n = result.nutrients;
+    for (const key of NUTRIENT_KEYS) {
+      totals[key] += n[key];
+    }
+  }
+
+  // Round totals to 2 decimal places
+  for (const key of NUTRIENT_KEYS) {
+    totals[key] = Math.round(totals[key] * 100) / 100;
+  }
+
+  return totals;
 }

@@ -147,8 +147,8 @@ describe('buildBot', () => {
     expect(bot).toBeDefined();
   });
 
-  it('registers onText exactly 12 times (one per command including /restaurante, /receta, /comparar, and /contexto)', () => {
-    expect(mockBot.onText).toHaveBeenCalledTimes(12);
+  it('registers onText exactly 13 times (one per command including /restaurante, /receta, /comparar, /contexto, and /menu)', () => {
+    expect(mockBot.onText).toHaveBeenCalledTimes(13);
   });
 
   it('registers polling_error handler via bot.on', () => {

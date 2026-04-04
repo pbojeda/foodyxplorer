@@ -5187,14 +5187,16 @@ components:
       enum:
         - context_set
         - comparison
+        - menu_estimation
         - estimation
-        - error
+        - text_too_long
       description: |
         Resolved intent of the user's message:
-        - `context_set`: message was recognised as "estoy en <chain>" — context written to Redis.
-        - `comparison`:  message was recognised as a two-dish comparison query.
-        - `estimation`:  message was resolved as a single-dish nutritional query.
-        - `error`:       input was rejected before estimation (e.g. text too long).
+        - `context_set`:      message was recognised as "estoy en <chain>" — context written to Redis.
+        - `comparison`:       message was recognised as a two-dish comparison query.
+        - `menu_estimation`:  message was recognised as a multi-dish "menú del día" query (F076).
+        - `estimation`:       message was resolved as a single-dish nutritional query.
+        - `text_too_long`:    input exceeded 500 characters and was rejected.
 
     ConversationContext:
       type: object
@@ -5237,13 +5239,100 @@ components:
             Null when no specific nutrient focus was detected in the query.
           example: "calorías"
 
+    MenuEstimationItem:
+      type: object
+      description: A single dish in a menu estimation (F076).
+      required:
+        - query
+        - estimation
+      properties:
+        query:
+          type: string
+          description: The dish text as parsed from user input.
+        estimation:
+          $ref: '#/components/schemas/EstimateData'
+          description: |
+            Estimation result for this dish. Always non-null; "not found" is represented
+            by estimation.result === null.
+
+    MenuEstimationTotals:
+      type: object
+      description: Aggregated nutrients across all matched menu items (F076). All 14 nutrient fields.
+      properties:
+        calories:
+          type: number
+          minimum: 0
+        proteins:
+          type: number
+          minimum: 0
+        carbohydrates:
+          type: number
+          minimum: 0
+        sugars:
+          type: number
+          minimum: 0
+        fats:
+          type: number
+          minimum: 0
+        saturatedFats:
+          type: number
+          minimum: 0
+        fiber:
+          type: number
+          minimum: 0
+        salt:
+          type: number
+          minimum: 0
+        sodium:
+          type: number
+          minimum: 0
+        transFats:
+          type: number
+          minimum: 0
+        cholesterol:
+          type: number
+          minimum: 0
+        potassium:
+          type: number
+          minimum: 0
+        monounsaturatedFats:
+          type: number
+          minimum: 0
+        polyunsaturatedFats:
+          type: number
+          minimum: 0
+
+    MenuEstimationData:
+      type: object
+      description: Full menu estimation response payload (F076).
+      required:
+        - items
+        - totals
+        - itemCount
+        - matchedCount
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuEstimationItem'
+        totals:
+          $ref: '#/components/schemas/MenuEstimationTotals'
+        itemCount:
+          type: integer
+          minimum: 0
+          description: Total items parsed from the menu input.
+        matchedCount:
+          type: integer
+          minimum: 0
+          description: Items that produced a non-null estimation result.
+
     ConversationMessageResponse:
       type: object
       description: |
         Structured response from ConversationCore.processMessage(). The `intent` field
         identifies which data field is populated. Only one of `contextSet`, `estimation`,
-        or `comparison` is present per response. `activeContext` is always present (null
-        if no context is active for this actor).
+        `comparison`, or `menuEstimation` is present per response. `activeContext` is always
+        present (null if no context is active for this actor).
       required:
         - intent
         - actorId
@@ -5285,6 +5374,13 @@ components:
           description: |
             Present when intent is `comparison`. Contains two EstimateData objects.
             Null for other intents.
+        menuEstimation:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/MenuEstimationData'
+          description: |
+            Present when intent is `menu_estimation` (F076). Contains per-item estimation
+            results, aggregated totals, and match count. Null for other intents.
         activeContext:
           nullable: true
           allOf:
@@ -5294,13 +5390,12 @@ components:
             Non-null if the actor has set a chain context (either in this request via
             context_set, or in a prior request). Null if no context is active.
             Adapters should use this field to display context indicators to the user.
-        errorCode:
-          type: string
-          nullable: true
+        usedContextFallback:
+          type: boolean
           description: |
-            Present when intent is `error`. Identifies the rejection reason.
-            - `TEXT_TOO_LONG`: text exceeded 500 characters.
-          example: "TEXT_TOO_LONG"
+            True when chainSlug was injected from active context rather than explicitly
+            provided in the query. Bot adapters use this to show context indicators.
+            Only meaningful for estimation/comparison intents.
 
     # -------------------------------------------------------------------------
     # Ingestion

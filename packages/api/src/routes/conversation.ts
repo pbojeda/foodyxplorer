@@ -202,6 +202,24 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
             },
             request.log,
           );
+        } else if (intent === 'menu_estimation' && capturedData.menuEstimation) {
+          const menuItems = capturedData.menuEstimation.items;
+          const queryText = 'menú: ' + menuItems.map((i) => i.query).join(', ');
+          await writeQueryLog(
+            prisma,
+            {
+              queryText: queryText.slice(0, 500),
+              chainSlug: capturedData.activeContext?.chainSlug ?? null,
+              restaurantId: null,
+              levelHit: null,
+              cacheHit: false,
+              responseTimeMs,
+              apiKeyId,
+              actorId: actorIdForLog,
+              source,
+            },
+            request.log,
+          );
         } else if (intent === 'context_set') {
           await writeQueryLog(
             prisma,
@@ -481,6 +499,24 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
               chainSlug: dishB.chainSlug ?? null,
               restaurantId: null,
               levelHit: getLevelHit(dishB),
+              cacheHit: false,
+              responseTimeMs,
+              apiKeyId,
+              actorId: actorIdForLog,
+              source,
+            },
+            request.log,
+          );
+        } else if (intent === 'menu_estimation' && capturedData.menuEstimation) {
+          const menuItems = capturedData.menuEstimation.items;
+          const queryText = 'menú: ' + menuItems.map((i) => i.query).join(', ');
+          await writeQueryLog(
+            prisma,
+            {
+              queryText: queryText.slice(0, 500),
+              chainSlug: capturedData.activeContext?.chainSlug ?? null,
+              restaurantId: null,
+              levelHit: null,
               cacheHit: false,
               responseTimeMs,
               apiKeyId,
