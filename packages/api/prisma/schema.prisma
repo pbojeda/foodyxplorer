@@ -344,10 +344,11 @@ model Dish {
   restaurant     Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
   food           Food?              @relation(fields: [foodId], references: [id], onDelete: SetNull)
   source         DataSource         @relation(fields: [sourceId], references: [id], onDelete: Restrict)
-  nutrients      DishNutrient[]
-  ingredients    DishIngredient[]
-  cookingMethods DishCookingMethod[]
-  categories     DishDishCategory[]
+  nutrients             DishNutrient[]
+  ingredients           DishIngredient[]
+  cookingMethods        DishCookingMethod[]
+  categories            DishDishCategory[]
+  missedQueryTrackings  MissedQueryTracking[]
 
   // Partial indexes (food_id WHERE NOT NULL, FTS, aliases GIN) defined in raw SQL migration only
   @@index([restaurantId])
@@ -496,6 +497,34 @@ model QueryLog {
   @@index([levelHit])
   @@index([source])
   @@map("query_logs")
+}
+
+// ---------------------------------------------------------------------------
+// F079 — Missed Query Tracking (Demand-Driven Expansion Pipeline)
+// ---------------------------------------------------------------------------
+
+enum MissedQueryStatus {
+  pending
+  resolved
+  ignored
+
+  @@map("missed_query_status")
+}
+
+model MissedQueryTracking {
+  id             String             @id @default(uuid()) @db.Uuid
+  queryText      String             @unique @map("query_text") @db.VarChar(255)
+  hitCount       Int                @map("hit_count")
+  status         MissedQueryStatus  @default(pending)
+  resolvedDishId String?            @map("resolved_dish_id") @db.Uuid
+  notes          String?            @db.Text
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  resolvedDish   Dish?              @relation(fields: [resolvedDishId], references: [id])
+
+  @@index([status])
+  @@map("missed_query_tracking")
 }
 
 model WaitlistSubmission {

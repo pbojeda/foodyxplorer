@@ -25,3 +25,4 @@ export * from './schemas/waitlist';
 export * from './schemas/conversation';
 export * from './schemas/cookingProfile';
 export * from './schemas/menuEstimation';
+export * from './schemas/missedQueries';

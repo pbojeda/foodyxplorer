@@ -70,3 +70,9 @@ export const QueryLogSource = {
   bot: "bot",
 } as const;
 export type QueryLogSource = (typeof QueryLogSource)[keyof typeof QueryLogSource];
+export const MissedQueryStatus = {
+  pending: "pending",
+  resolved: "resolved",
+  ignored: "ignored",
+} as const;
+export type MissedQueryStatus = (typeof MissedQueryStatus)[keyof typeof MissedQueryStatus];
