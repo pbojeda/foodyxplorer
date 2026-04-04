@@ -90,7 +90,11 @@ async function exactDishMatch(
     JOIN restaurants r ON r.id = d.restaurant_id
     JOIN ranked_dn rdn ON rdn.dish_id = d.id AND rdn.rn = 1
     JOIN data_sources ds ON ds.id = rdn.source_id
-    WHERE LOWER(d.name) = LOWER(${normalizedQuery})
+    WHERE (
+      LOWER(d.name) = LOWER(${normalizedQuery})
+      OR LOWER(d.name_es) = LOWER(${normalizedQuery})
+      OR d.aliases @> ARRAY[${normalizedQuery}]  -- F078: GIN-indexed, aliases stored lowercase
+    )
     ${scopeClause}
     ${tierClause}
     ORDER BY ds.priority_tier ASC NULLS LAST
@@ -222,7 +226,8 @@ async function exactFoodMatch(
     JOIN ranked_fn rfn ON rfn.food_id = f.id AND rfn.rn = 1
     JOIN data_sources ds ON ds.id = rfn.source_id
     WHERE (LOWER(f.name_es) = LOWER(${normalizedQuery})
-       OR LOWER(f.name) = LOWER(${normalizedQuery}))
+       OR LOWER(f.name) = LOWER(${normalizedQuery})
+       OR f.aliases @> ARRAY[${normalizedQuery}])
     ${tierClause}
     ORDER BY ds.priority_tier ASC NULLS LAST
     LIMIT 1

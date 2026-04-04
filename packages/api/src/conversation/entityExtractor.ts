@@ -246,6 +246,15 @@ export function parseDishExpression(text: string): {
   remainder = remainder.replace(/[?!]+$/, '').trim();
   remainder = remainder.replace(/^(?:un[ao]?|el|la)\s+/i, '');
 
+  // Step 2.5 — F078: Strip serving-format prefixes (tapa de, pincho de, pintxo de, ración de)
+  for (const pattern of SERVING_FORMAT_PATTERNS) {
+    const stripped = remainder.replace(pattern, '');
+    if (stripped !== remainder && stripped.trim().length > 0) {
+      remainder = stripped.trim();
+      break;
+    }
+  }
+
   // Step 3 — Portion modifier extraction
   const { cleanQuery, portionMultiplier } = extractPortionModifier(remainder);
 
@@ -342,6 +351,16 @@ export const PREFIX_PATTERNS: readonly RegExp[] = [
   /^(?:busca[r]?\s+)?(?:la[s]?\s+)?calor[ií]as?\s+(?:de[l]?\s+)?(?:un[ao]?\s+)?/i,
 ];
 
+// F078: Serving-format prefixes — "tapa(s) de", "pincho(s) de", "pintxo(s) de", "ración/racion(es) de".
+// Used in both extractFoodQuery and parseDishExpression. Shared constant to avoid duplication.
+export const SERVING_FORMAT_PATTERNS: readonly RegExp[] = [
+  /^tapas?\s+de\s+/i,
+  /^pintxos?\s+de\s+/i,
+  /^pinchos?\s+de\s+/i,
+  /^raciones\s+de\s+/i,
+  /^raci[oó]n\s+de\s+/i,
+];
+
 // Article/determiner stripping — applied once after prefix step.
 export const ARTICLE_PATTERN = /^(?:un[ao]?|el|la[s]?|los|del|al)\s+/i;
 
@@ -380,6 +399,15 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
 
   // Article/determiner stripping (once, after prefix step)
   remainder = remainder.replace(ARTICLE_PATTERN, '');
+
+  // F078: Serving-format prefix stripping (tapa de, pincho de, pintxo de, ración de)
+  for (const pattern of SERVING_FORMAT_PATTERNS) {
+    const stripped = remainder.replace(pattern, '');
+    if (stripped !== remainder && stripped.trim().length > 0) {
+      remainder = stripped.trim();
+      break;
+    }
+  }
 
   // Step 3 — Fallback: if stripped result is empty, use original trimmed text
   const query = remainder.trim() || originalTrimmed;
