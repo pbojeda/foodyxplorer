@@ -110,6 +110,7 @@ function sleep(ms: number): Promise<void> {
 type Logger = {
   info: (obj: Record<string, unknown>, msg?: string) => void;
   warn: (obj: Record<string, unknown>, msg?: string) => void;
+  error: (obj: Record<string, unknown>, msg?: string) => void;
   debug: (obj: Record<string, unknown>, msg?: string) => void;
 };
 
@@ -588,7 +589,7 @@ async function runStrategyB(
 
   // Build the logger adapter — applyYield needs warn/error but our Logger has info/warn/debug
   const loggerAdapter = logger !== undefined
-    ? { warn: (msg: string) => logger.warn({}, msg), error: (msg: string) => logger.warn({}, msg) }
+    ? { warn: (msg: string) => logger.warn({}, msg), error: (msg: string) => logger.error({}, msg) }
     : { warn: () => {}, error: () => {} };
 
   type IngredientYieldMeta = {
@@ -614,18 +615,19 @@ async function runStrategyB(
       let effectiveMethod: string | undefined;
       let cookingStateSource: YieldAdjustment['cookingStateSource'];
 
-      if (options.cookingState !== undefined) {
-        // Explicit query param overrides LLM-extracted values
+      if (options.cookingState !== undefined || options.cookingMethod !== undefined) {
+        // Explicit query params override LLM-extracted values (spec: "cookingState or cookingMethod")
         effectiveState = options.cookingState;
         effectiveMethod = options.cookingMethod;
         cookingStateSource = 'explicit';
       } else if (item.state !== undefined) {
-        // LLM-extracted state (possibly with inferred state from cookingMethod)
+        // LLM-extracted state (possibly with inferred state from cookingMethod in Step 4b)
         effectiveState = item.state;
         effectiveMethod = item.cookingMethod;
         cookingStateSource = 'llm_extracted';
       } else if (item.cookingMethod !== undefined) {
-        // cookingMethod present but no state — infer 'cooked'
+        // Defensive: unreachable given Step 4b inference (sets state='cooked' when method present),
+        // but kept for safety in case parsing logic changes.
         effectiveState = 'cooked';
         effectiveMethod = item.cookingMethod;
         cookingStateSource = 'llm_extracted';

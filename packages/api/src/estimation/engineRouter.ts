@@ -39,7 +39,7 @@ export type Level4LookupFn = (
     chainSlug?: string;
     restaurantId?: string;
     openAiApiKey?: string;
-    logger?: { info: (obj: Record<string, unknown>, msg?: string) => void; warn: (obj: Record<string, unknown>, msg?: string) => void; debug: (obj: Record<string, unknown>, msg?: string) => void };
+    logger?: { info: (obj: Record<string, unknown>, msg?: string) => void; warn: (obj: Record<string, unknown>, msg?: string) => void; error: (obj: Record<string, unknown>, msg?: string) => void; debug: (obj: Record<string, unknown>, msg?: string) => void };
     /** F074: Prisma client for per-ingredient yield correction inside Strategy B. */
     prisma?: PrismaClient;
     /** F074: Explicit caller-declared cooking state — overrides LLM-extracted values. */
@@ -68,7 +68,7 @@ export interface EngineRouterOptions {
   /** Optional F024 injection point. Undefined = cascade stops after L3. */
   level4Lookup?: Level4LookupFn;
   /** Optional logger forwarded to L4 for token usage logging. */
-  logger?: { info: (obj: Record<string, unknown>, msg?: string) => void; warn: (obj: Record<string, unknown>, msg?: string) => void; debug: (obj: Record<string, unknown>, msg?: string) => void };
+  logger?: { info: (obj: Record<string, unknown>, msg?: string) => void; warn: (obj: Record<string, unknown>, msg?: string) => void; error: (obj: Record<string, unknown>, msg?: string) => void; debug: (obj: Record<string, unknown>, msg?: string) => void };
   /** F068: When true, L1 attempts Tier 0 (branded) match first before normal cascade. */
   hasExplicitBrand?: boolean;
   /** F072: Prisma client for cooking_profiles lookup (yield correction). */
