@@ -24,6 +24,7 @@ export const CookingStateSourceSchema = z.enum([
   'explicit',
   'default_assumption',
   'none',
+  'llm_extracted',
 ]);
 
 export type CookingStateSource = z.infer<typeof CookingStateSourceSchema>;
@@ -42,6 +43,7 @@ export const YieldAdjustmentReasonSchema = z.enum([
   'db_food_already_cooked',      // DB food name indicates already-cooked nutrients
   'cannot_reverse_cooked_to_raw', // user asked raw but DB food is cooked
   'invalid_yield_factor',        // yieldFactor <= 0 in DB (data error)
+  'per_ingredient_yield_applied', // Strategy B: yield applied per-ingredient before aggregation
 ]);
 
 export type YieldAdjustmentReason = z.infer<typeof YieldAdjustmentReasonSchema>;

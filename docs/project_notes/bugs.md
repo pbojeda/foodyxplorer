@@ -332,6 +332,22 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Prevention**: Fields that are arrays in TypeScript but come from external JSON must always be validated with `Array.isArray()` at runtime, not trusted from the TypeScript cast.
 - **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Minor | **Exposed by**: `f073.validateSpanishDishes.edge-cases.test.ts` (2 tests)
 
+### 2026-04-04 — BUG-F074-01: engineRouter.ts logger adapter calls logger.error() — method absent from Logger type
+
+- **Issue**: The `applyYield` helper in `runEstimationCascade` builds a logger adapter for `resolveAndApplyYield`. The adapter at line 130 called `logger.error({}, msg)`, but `EngineRouterOptions.logger` was typed as `{ info, warn, debug }` — no `error` method. TypeScript reported `TS2339: Property 'error' does not exist`. At runtime, if `logger.error` was called (when `resolveAndApplyYield` hit an error code path), it would throw `TypeError: logger.error is not a function`.
+- **Root Cause**: The `applyYield.ts` logger interface requires `{ warn, error }` but the `EngineRouterOptions.logger` type was not updated to include `error`. The adapter pattern tried to map the outer logger onto the inner interface but the outer type lacked the method.
+- **Solution**: Added `error: (obj: Record<string, unknown>, msg?: string) => void` to the `EngineRouterOptions.logger` type and properly routed it in the adapter. Fixed in commit `f73c4f4`.
+- **Prevention**: When building logger adapters between mismatched interfaces, verify at compile time that all required target methods exist on the source type. Add a `tsc --noEmit` step to CI to catch these type errors before tests.
+- **Feature**: F074 | **Found by**: qa-engineer | **Severity**: High (runtime crash risk in error code path) | **TypeScript error**: `TS2339` | **Status**: Fixed in `f73c4f4`
+
+### 2026-04-04 — BUG-F074-02: runStrategyA return type missing rawFoodGroup — TypeScript compile error
+
+- **Issue**: `runStrategyA` returned `{ matchType, result, rawFoodGroup: nutrientRow.food_group }` but its declared return type was `{ matchType, result } | null` — no `rawFoodGroup`. TypeScript reported `TS2353: Object literal may only specify known properties, and 'rawFoodGroup' does not exist in type`. At runtime, the field WAS present in the JS object (JS does not strip extra properties), so the engine router's call to `applyYield(lookupResult4.result, lookupResult4.rawFoodGroup)` received the correct value. TypeScript-only error with no runtime impact.
+- **Root Cause**: The `rawFoodGroup` field was added to the Strategy A return value (for yield correction threading, per F072) but was not added to the TypeScript return type declaration of `runStrategyA`.
+- **Solution**: Add `rawFoodGroup?: string | null` to the `runStrategyA` declared return type. (Still open as of the QA session — remains in `tsc --noEmit` output.)
+- **Prevention**: When adding fields to a function's return object, always update the TypeScript return type declaration in the same change. Enable `tsc --noEmit` in CI to catch these immediately.
+- **Feature**: F074 | **Found by**: qa-engineer | **Severity**: Medium (TypeScript compile error; no runtime impact) | **TypeScript error**: `TS2353` | **Status**: Open — needs fix in `runStrategyA` return type
+
 ### 2026-04-03 — BUG-F073-06: validateSpanishDishes throws TypeError on undefined/null input
 
 - **Issue**: Calling `validateSpanishDishes(undefined)` or `validateSpanishDishes(null)` (which happens when `raw.dishes` is missing from the JSON) throws `TypeError: Cannot read properties of undefined (reading 'length')` instead of returning `{ valid: false, errors: [...] }`. The TypeError propagates as an unhandled exception from the seed function, bypassing the error-collection mechanism and producing a cryptic stack trace.
