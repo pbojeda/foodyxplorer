@@ -22,6 +22,7 @@ import { escapeMarkdown } from '../formatters/markdownUtils.js';
 import { formatEstimate } from '../formatters/estimateFormatter.js';
 import { formatComparison } from '../formatters/comparisonFormatter.js';
 import { formatContextConfirmation } from '../formatters/contextFormatter.js';
+import { formatMenuEstimate } from '../formatters/menuFormatter.js';
 
 // Pre-escaped MarkdownV2 string for the >500-char prompt.
 const TOO_LONG_MESSAGE =
@@ -101,6 +102,20 @@ export async function handleVoice(
         }
 
         responseText = formatEstimate(data.estimation);
+
+        if (data.usedContextFallback && data.activeContext) {
+          responseText += `\n_Contexto activo: ${escapeMarkdown(data.activeContext.chainName)}_`;
+        }
+        break;
+      }
+
+      case 'menu_estimation': {
+        if (!data.menuEstimation) {
+          responseText = escapeMarkdown('No se pudo procesar el menú.');
+          break;
+        }
+
+        responseText = formatMenuEstimate(data.menuEstimation);
 
         if (data.usedContextFallback && data.activeContext) {
           responseText += `\n_Contexto activo: ${escapeMarkdown(data.activeContext.chainName)}_`;

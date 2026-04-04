@@ -7,6 +7,7 @@
 
 import { z } from 'zod';
 import { EstimateDataSchema } from './estimate.js';
+import { MenuEstimationDataSchema } from './menuEstimation.js';
 
 // ---------------------------------------------------------------------------
 // Request body
@@ -31,10 +32,11 @@ export type ConversationMessageBody = z.infer<typeof ConversationMessageBodySche
 // ---------------------------------------------------------------------------
 
 export const ConversationIntentSchema = z.enum([
-  'context_set',   // "estoy en mcdonalds" — context set or ambiguous
-  'comparison',    // "big mac vs whopper" — two estimation results
-  'estimation',    // "big mac" — single estimation result
-  'text_too_long', // text > 500 chars after trim (domain rule, not Zod)
+  'context_set',      // "estoy en mcdonalds" — context set or ambiguous
+  'comparison',       // "big mac vs whopper" — two estimation results
+  'menu_estimation',  // "menú del día: X, Y, Z" — multi-dish meal (F076)
+  'estimation',       // "big mac" — single estimation result
+  'text_too_long',    // text > 500 chars after trim (domain rule, not Zod)
 ]);
 
 export type ConversationIntent = z.infer<typeof ConversationIntentSchema>;
@@ -71,6 +73,9 @@ export const ConversationMessageDataSchema = z.object({
       nutrientFocus: z.string().optional(),
     })
     .optional(),
+
+  // Present when intent = 'menu_estimation' (F076)
+  menuEstimation: MenuEstimationDataSchema.optional(),
 
   // Active chain context echoed in ALL responses (null if none set).
   // Loaded BEFORE intent resolution so even text_too_long echoes context.
