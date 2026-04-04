@@ -113,6 +113,10 @@ describe('CookingStateSourceSchema', () => {
     expect(CookingStateSourceSchema.safeParse('none').success).toBe(true);
   });
 
+  it('accepts "llm_extracted" (F074)', () => {
+    expect(CookingStateSourceSchema.safeParse('llm_extracted').success).toBe(true);
+  });
+
   it('rejects "unknown"', () => {
     expect(CookingStateSourceSchema.safeParse('unknown').success).toBe(false);
   });
@@ -133,9 +137,10 @@ describe('YieldAdjustmentReasonSchema', () => {
     'db_food_already_cooked',
     'cannot_reverse_cooked_to_raw',
     'invalid_yield_factor',
+    'per_ingredient_yield_applied',  // F074
   ];
 
-  it('accepts all 9 valid reason values', () => {
+  it('accepts all 10 valid reason values (including F074 per_ingredient_yield_applied)', () => {
     for (const reason of validReasons) {
       expect(YieldAdjustmentReasonSchema.safeParse(reason).success).toBe(true);
     }

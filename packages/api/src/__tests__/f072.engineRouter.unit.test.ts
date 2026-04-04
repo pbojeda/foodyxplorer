@@ -274,4 +274,43 @@ describe('runEstimationCascade — F072 yield integration', () => {
       }),
     );
   });
+
+  // -------------------------------------------------------------------------
+  // F074 — Test 35: L4 perIngredientYieldApplied path
+  // -------------------------------------------------------------------------
+
+  it('F074 test 35: when L4 returns perIngredientYieldApplied=true with yieldAdjustment, router uses it directly and does NOT call resolveAndApplyYield', async () => {
+    const precomputedYieldAdjustment = {
+      applied: true,
+      cookingState: 'cooked' as const,
+      cookingStateSource: 'llm_extracted' as const,
+      cookingMethod: 'boiled',
+      yieldFactor: 2.8,
+      fatAbsorptionApplied: false,
+      reason: 'per_ingredient_yield_applied' as const,
+    };
+
+    const mockL4Lookup = vi.fn().mockResolvedValueOnce({
+      matchType: 'llm_ingredient_decomposition' as const,
+      result: MOCK_FOOD_RESULT,
+      rawFoodGroup: null,
+      perIngredientYieldApplied: true,
+      yieldAdjustment: precomputedYieldAdjustment,
+    });
+
+    const result = await runEstimationCascade({
+      db: MOCK_DB,
+      query: 'arroz con pollo cocido',
+      prisma: MOCK_PRISMA,
+      level4Lookup: mockL4Lookup,
+    });
+
+    // Router must NOT call resolveAndApplyYield — yield was already applied per-ingredient
+    expect(mockResolveAndApplyYield).not.toHaveBeenCalled();
+
+    // Router must use the pre-computed yieldAdjustment directly
+    expect(result.data.yieldAdjustment).toEqual(precomputedYieldAdjustment);
+    expect(result.data.matchType).toBe('llm_ingredient_decomposition');
+    expect(result.levelHit).toBe(4);
+  });
 });

@@ -29,6 +29,8 @@ import { resolveAndApplyYield } from './applyYield.js';
  * F023 defines the signature; F024 implements and injects it.
  * logger is optional for backward compatibility — F023 tests omit it.
  * F072: rawFoodGroup added to return type for yield correction threading.
+ * F074: perIngredientYieldApplied + yieldAdjustment added for Strategy B per-ingredient yield.
+ *       options extended with prisma, cookingState, cookingMethod for explicit override support.
  */
 export type Level4LookupFn = (
   db: Kysely<DB>,
@@ -38,8 +40,22 @@ export type Level4LookupFn = (
     restaurantId?: string;
     openAiApiKey?: string;
     logger?: { info: (obj: Record<string, unknown>, msg?: string) => void; warn: (obj: Record<string, unknown>, msg?: string) => void; debug: (obj: Record<string, unknown>, msg?: string) => void };
+    /** F074: Prisma client for per-ingredient yield correction inside Strategy B. */
+    prisma?: PrismaClient;
+    /** F074: Explicit caller-declared cooking state — overrides LLM-extracted values. */
+    cookingState?: string;
+    /** F074: Explicit caller-declared cooking method — overrides LLM-extracted values. */
+    cookingMethod?: string;
   },
-) => Promise<{ matchType: EstimateMatchType; result: EstimateResult; rawFoodGroup?: string | null } | null>;
+) => Promise<{
+  matchType: EstimateMatchType;
+  result: EstimateResult;
+  rawFoodGroup?: string | null;
+  /** F074: When true, Strategy B applied per-ingredient yield and yieldAdjustment is pre-computed. */
+  perIngredientYieldApplied?: boolean;
+  /** F074: Pre-computed aggregate yield adjustment from per-ingredient correction. */
+  yieldAdjustment?: YieldAdjustment;
+} | null>;
 
 export interface EngineRouterOptions {
   db: Kysely<DB>;
@@ -222,6 +238,10 @@ export async function runEstimationCascade(
         restaurantId,
         openAiApiKey,
         logger,
+        // F074: pass prisma + explicit params so Strategy B can do per-ingredient yield
+        prisma,
+        cookingState,
+        cookingMethod,
       });
     } catch (err) {
       throw Object.assign(
@@ -231,7 +251,18 @@ export async function runEstimationCascade(
     }
 
     if (lookupResult4 !== null) {
-      const { result: yieldResult, yieldAdjustment } = await applyYield(lookupResult4.result, lookupResult4.rawFoodGroup);
+      // F074: When Strategy B applied per-ingredient yield, use its pre-computed yieldAdjustment
+      // directly instead of calling applyYield() again (which would double-correct nutrients).
+      let yieldResult: EstimateResult;
+      let yieldAdjustment: YieldAdjustment | null;
+
+      if (lookupResult4.perIngredientYieldApplied === true && lookupResult4.yieldAdjustment !== undefined) {
+        yieldResult = lookupResult4.result;
+        yieldAdjustment = lookupResult4.yieldAdjustment;
+      } else {
+        ({ result: yieldResult, yieldAdjustment } = await applyYield(lookupResult4.result, lookupResult4.rawFoodGroup));
+      }
+
       return {
         levelHit: 4,
         data: {
