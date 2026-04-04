@@ -13,6 +13,7 @@ import {
 import type { UsdaSrLegacyFoodEntry, NameEsMap } from './seed-data/types.js';
 import { CHAIN_SEED_IDS } from '../src/config/chains/chain-seed-ids.js';
 import { seedPhaseBedca } from '../src/scripts/seedPhaseBedca.js';
+import { seedPhaseSpanishDishes } from '../src/scripts/seedPhaseSpanishDishes.js';
 
 const prisma = new PrismaClient({
   datasources: {
@@ -627,6 +628,14 @@ async function main(): Promise<void> {
   console.log('Starting BEDCA seed: Spanish food composition database...');
   await seedPhaseBedca(prisma);
   console.log('BEDCA seed complete.');
+
+  // ---------------------------------------------------------------------------
+  // Spanish Canonical Dishes (F073)
+  // Virtual restaurant 'cocina-espanola' with ~250 dishes
+  // ---------------------------------------------------------------------------
+  console.log('Starting Spanish dishes seed: cocina-espanola virtual restaurant...');
+  await seedPhaseSpanishDishes(prisma);
+  console.log('Spanish dishes seed complete.');
 
   // ---------------------------------------------------------------------------
   // Phase 9 — Cooking Profiles (F072)

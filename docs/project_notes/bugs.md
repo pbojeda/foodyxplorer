@@ -289,3 +289,53 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Root Cause**: `lower.includes(keyword)` without word-boundary anchoring.
 - **Solution**: Replaced with word-boundary regex `/\b<keyword>\b/i.test(foodName)`. 4 edge-case tests added.
 - **Feature**: F072 | **Found by**: qa-engineer | **Severity**: Medium | **Fixed in**: F072 (commit 8f4c522)
+
+---
+
+### 2026-04-03 — BUG-F073-01: DishNutrient upsert update block missing estimationMethod, confidenceLevel, sourceId
+
+- **Issue**: `seedPhaseSpanishDishes.ts` upserts DishNutrient records using `where: { id: entry.nutrientId }`. The `update` block contains only the 9 macro fields (calories, proteins, …, sodium). Fields `estimationMethod`, `confidenceLevel`, and `sourceId` are absent from `update`. On re-seed, if a dish's provenance is upgraded from `recipe` (Tier 3) to `bedca` (Tier 1), the DishNutrient row keeps the stale `estimationMethod='ingredients'`, `confidenceLevel='medium'`, and `sourceId` pointing to the recipes DataSource.
+- **Root Cause**: Developer wrote the `create` block with all required fields but omitted the same provenance fields from the `update` block. The spec's "Gotcha — DishNutrient required fields" warned about `estimationMethod` and `confidenceLevel` in the create block but implicitly assumed update parity.
+- **Solution**: Add `estimationMethod: entry.estimationMethod`, `confidenceLevel: entry.confidenceLevel`, and `sourceId` (computed from `entry.source`) to the `update` block of the `dishNutrient.upsert` call in `seedPhaseSpanishDishes.ts`.
+- **Prevention**: When writing Prisma upserts with idempotency guarantees, always audit that `update` and `create` carry the same semantically-required fields. If a field must be correct after re-seed, it must appear in both blocks. Code review checklist should include "do update and create blocks cover all non-immutable fields?".
+- **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Major | **Exposed by**: `f073.seedPhaseSpanishDishes.edge-cases.test.ts` (5 tests)
+
+### 2026-04-03 — BUG-F073-02: Dish upsert update block missing sourceId
+
+- **Issue**: `seedPhaseSpanishDishes.ts` upserts Dish records. The `update` block contains `name`, `nameEs`, `aliases`, `portionGrams`, `confidenceLevel`, `estimationMethod` but not `sourceId`. If a dish's provenance source changes between seed versions (e.g., an LLM-estimated recipe dish gets BEDCA data), re-seeding leaves `Dish.sourceId` pointing to the old DataSource. This breaks the provenance chain at the Dish level while DishNutrient (once BUG-F073-01 is fixed) would be correct.
+- **Root Cause**: `sourceId` was not included in the Dish `update` block. The create block correctly computes `sourceId` from `entry.source`, but the update path was not kept in sync.
+- **Solution**: Add `sourceId` (computed from `entry.source` using the same `bedca ? BEDCA_SOURCE_UUID : COCINA_ESPANOLA_RECIPES_SOURCE_UUID` conditional) to the `update` block of the `dish.upsert` call.
+- **Prevention**: Same as BUG-F073-01 — update/create parity audit.
+- **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Major | **Exposed by**: `f073.seedPhaseSpanishDishes.edge-cases.test.ts` (1 test)
+
+### 2026-04-03 — BUG-F073-03: validateSpanishDishes does not validate dishId or nutrientId presence/format
+
+- **Issue**: `validateSpanishDishes()` checks uniqueness of `dishId` and `nutrientId` via Set membership, but only after accessing `entry.dishId` and `entry.nutrientId` without a null/empty guard. A JSON entry with `dishId: null` or `dishId: ""` passes validation (`null` is added to the Set, treated as unique). When the seed then calls `prisma.dish.upsert({ where: { id: null } })`, Prisma throws a runtime FK/constraint error instead of a descriptive validation error.
+- **Root Cause**: The uniqueness check loop assumes fields are non-null strings. No explicit guard for null, undefined, or empty-string dishId/nutrientId was added.
+- **Solution**: Add checks in the per-entry loop: `if (!entry.dishId || entry.dishId.trim().length === 0)` → blocking error. Same for `nutrientId`. Optionally add UUID format regex validation.
+- **Prevention**: When iterating over FK fields, always add a null/empty guard before the Set-membership check.
+- **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Major | **Exposed by**: `f073.validateSpanishDishes.edge-cases.test.ts` (4 tests)
+
+### 2026-04-03 — BUG-F073-04: validateSpanishDishes does not cross-check source vs estimationMethod/confidenceLevel
+
+- **Issue**: The spec mandates that `source='bedca'` implies `estimationMethod='official'` and `confidenceLevel='high'`, and `source='recipe'` implies `estimationMethod='ingredients'` and `confidenceLevel='medium'`. The validator checks each field independently but never cross-validates them. A JSON entry with `source='bedca'` and `estimationMethod='ingredients'` passes validation and seeds incorrect provenance metadata into the database.
+- **Root Cause**: The validator was written as independent per-field checks. The cross-field invariant was documented in the spec but not translated into a validation rule.
+- **Solution**: Add cross-check rules in the per-entry loop: if `entry.source === 'bedca'` and `entry.estimationMethod !== 'official'` → blocking error; if `entry.source === 'bedca'` and `entry.confidenceLevel !== 'high'` → blocking error; mirror for `'recipe'`.
+- **Prevention**: Spec-derived cross-field invariants ("X implies Y") must be explicitly listed in the validator, not left implicit. During code review, audit whether all spec-stated implications are enforced.
+- **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Major | **Exposed by**: `f073.validateSpanishDishes.edge-cases.test.ts` (4 tests)
+
+### 2026-04-03 — BUG-F073-05: validateSpanishDishes does not validate aliases is an array
+
+- **Issue**: `validateSpanishDishes()` iterates over `entry.aliases` via the Set-membership path but never checks whether `aliases` is actually an array. A JSON entry with `aliases: "tortilla española"` (string) passes validation. At seed time, Prisma receives a string for a `String[]` column; behavior depends on the ORM/driver (may silently store it or throw a confusing error).
+- **Root Cause**: The validator omits a `Array.isArray(entry.aliases)` guard. TypeScript types would catch this at compile time for authored code, but the JSON file is cast with `as SpanishDishesFile` and never validated at the type level at runtime.
+- **Solution**: Add `if (!Array.isArray(entry.aliases))` check → blocking error in the per-entry validation loop.
+- **Prevention**: Fields that are arrays in TypeScript but come from external JSON must always be validated with `Array.isArray()` at runtime, not trusted from the TypeScript cast.
+- **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Minor | **Exposed by**: `f073.validateSpanishDishes.edge-cases.test.ts` (2 tests)
+
+### 2026-04-03 — BUG-F073-06: validateSpanishDishes throws TypeError on undefined/null input
+
+- **Issue**: Calling `validateSpanishDishes(undefined)` or `validateSpanishDishes(null)` (which happens when `raw.dishes` is missing from the JSON) throws `TypeError: Cannot read properties of undefined (reading 'length')` instead of returning `{ valid: false, errors: [...] }`. The TypeError propagates as an unhandled exception from the seed function, bypassing the error-collection mechanism and producing a cryptic stack trace.
+- **Root Cause**: The function opens with `if (dishes.length < 250)` with no null guard. The `seedPhaseSpanishDishes.ts` caller does `JSON.parse(readFileSync(...)) as SpanishDishesFile` and immediately accesses `raw.dishes` without checking the key exists, then passes it directly to `validateSpanishDishes`. If the JSON has no `dishes` key, `raw.dishes` is `undefined`.
+- **Solution**: Add `if (!Array.isArray(dishes))` guard at the top of `validateSpanishDishes`: push a descriptive error and return `{ valid: false }` immediately. Alternatively, add a guard in `seedPhaseSpanishDishes.ts` before calling the validator.
+- **Prevention**: Public validation functions accepting external data must guard against non-array input at the entry point before accessing any array method. Never trust a TypeScript cast on data loaded from disk.
+- **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Minor | **Exposed by**: `f073.validateSpanishDishes.edge-cases.test.ts` (2 tests)
