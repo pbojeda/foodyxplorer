@@ -525,6 +525,8 @@ _Error cases:_
 | 2026-04-04 | Plan reviewed by Gemini (Codex no verdict) | Gemini REVISE: 6 issues. Fixed: non-nullable estimation schema, 2-item "y" split edge case, pipe escaping, confidence summary, expanded noise regex. |
 | 2026-04-04 | Implementation complete | 70 F076 tests (15 schema + 32 detector + 11 aggregation + 6 formatter + 6 command). All pass. |
 | 2026-04-04 | Production validator | 1 CRITICAL (api-spec.yaml not updated) + 1 HIGH (defensive logging) + 2 LOW. CRITICAL fixed. |
+| 2026-04-04 | Code review | APPROVED with 1 fix: usedContextFallback missing for menu_estimation. Fixed. |
+| 2026-04-04 | QA | 2 bugs: BUG-F076-01 HIGH (compound dish name split when commas present), BUG-F076-02 MINOR (bare €). Both fixed. |
 
 ---
 

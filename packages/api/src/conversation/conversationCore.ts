@@ -260,6 +260,12 @@ export async function processMessage(
     const totals = aggregateMenuTotals(items);
     const matchedCount = items.filter((item) => item.estimation.result !== null).length;
 
+    // Context fallback: true if any item had no explicit chain slug but context was injected
+    const menuUsedContextFallback = menuItems.some((itemText) => {
+      const parsed = parseDishExpression(itemText);
+      return !parsed.chainSlug && !!effectiveContext?.chainSlug;
+    });
+
     return {
       intent: 'menu_estimation' as const,
       actorId,
@@ -270,6 +276,7 @@ export async function processMessage(
         matchedCount,
       },
       activeContext,
+      usedContextFallback: menuUsedContextFallback,
     };
   }
 

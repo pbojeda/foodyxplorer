@@ -22,8 +22,8 @@ const MENU_PATTERNS: readonly RegExp[] = [
   /^men[uú][:\s,]+(.+)/is,
 ];
 
-// Noise filter: prices ("12.50€", "€15", "12 euros"), pure digits.
-const NOISE_REGEX = /^\d+(?:[.,]\d+)?\s*(?:€|euros?)?$|^€\d/i;
+// Noise filter: prices ("12.50€", "€15", "12 euros", "€"), pure digits.
+const NOISE_REGEX = /^\d+(?:[.,]\d+)?\s*(?:€|euros?)?$|^€\d|^€$/i;
 
 // ---------------------------------------------------------------------------
 // splitMenuItems — splits a raw item list string into individual dish names
@@ -33,16 +33,10 @@ function splitMenuItems(raw: string): string[] {
   // Step 1: Split by comma (primary separator)
   let items = raw.split(',').map((s) => s.trim()).filter(Boolean);
 
-  // Step 2: Handle final conjunction ` y ` / ` más ` on the last item
-  if (items.length >= 2) {
-    // Only split the LAST item on final conjunction
-    const last = items[items.length - 1]!;
-    const conjSplit = splitOnFinalConjunction(last);
-    if (conjSplit) {
-      items = [...items.slice(0, -1), ...conjSplit];
-    }
-  } else if (items.length === 1) {
-    // Special case: no commas, try splitting on ` y ` / ` más ` to get 2 items
+  // Step 2: Handle conjunction ` y ` / ` más ` ONLY when no commas produced 2+ items.
+  // When commas ARE present, ` y ` inside items is part of dish names (e.g., "arroz y verduras").
+  if (items.length === 1) {
+    // No commas: try splitting on ` y ` / ` más ` to get 2 items
     const conjSplit = splitOnFinalConjunction(items[0]!);
     if (conjSplit) {
       items = conjSplit;

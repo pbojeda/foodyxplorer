@@ -75,28 +75,36 @@ describe('detectMenuQuery — comma splitting', () => {
 // Item splitting — final conjunction ` y ` / ` más `
 // ---------------------------------------------------------------------------
 
-describe('detectMenuQuery — final conjunction splitting', () => {
-  it('"X, Y y Z" → 3 items (` y ` as final conjunction)', () => {
+describe('detectMenuQuery — conjunction handling with commas', () => {
+  it('"X, Y, flan y café" → 3 items (` y ` inside last item preserved when commas present)', () => {
+    // BUG-F076-01 fix: when commas ARE present, ` y ` is part of dish names
     expect(detectMenuQuery('menú: gazpacho, pollo, flan y café')).toEqual([
-      'gazpacho', 'pollo', 'flan', 'café',
+      'gazpacho', 'pollo', 'flan y café',
     ]);
   });
 
-  it('"X, Y más Z" → 3 items (` más ` as final conjunction)', () => {
+  it('"X, pollo más café" → 2 items (` más ` preserved when commas present)', () => {
     expect(detectMenuQuery('menú: gazpacho, pollo más café')).toEqual([
-      'gazpacho', 'pollo', 'café',
+      'gazpacho', 'pollo más café',
     ]);
   });
 
-  it('"jamón y queso, tortilla" → 2 items (` y ` inside non-last item preserved)', () => {
+  it('"jamón y queso, tortilla" → 2 items (compound dish names preserved)', () => {
     expect(detectMenuQuery('menú: jamón y queso, tortilla')).toEqual([
       'jamón y queso', 'tortilla',
     ]);
   });
 
-  it('"arroz y verduras, tortilla y flan" → 3 items (` y ` in middle preserved, last split)', () => {
+  it('"arroz y verduras, tortilla y flan" → 2 items (all compound names preserved)', () => {
     expect(detectMenuQuery('menú: arroz y verduras, tortilla y flan')).toEqual([
-      'arroz y verduras', 'tortilla', 'flan',
+      'arroz y verduras', 'tortilla y flan',
+    ]);
+  });
+
+  it('"sopa, arroz y verduras" → 2 items (compound last item preserved)', () => {
+    // Key regression test for BUG-F076-01
+    expect(detectMenuQuery('menú: sopa, arroz y verduras')).toEqual([
+      'sopa', 'arroz y verduras',
     ]);
   });
 });
@@ -158,6 +166,12 @@ describe('detectMenuQuery — noise filtering', () => {
   it('does NOT filter items with numbers inside dish names', () => {
     expect(detectMenuQuery('menú: 2 huevos fritos, pollo')).toEqual([
       '2 huevos fritos', 'pollo',
+    ]);
+  });
+
+  it('filters bare "€" symbol', () => {
+    expect(detectMenuQuery('menú: gazpacho, €, pollo')).toEqual([
+      'gazpacho', 'pollo',
     ]);
   });
 });
