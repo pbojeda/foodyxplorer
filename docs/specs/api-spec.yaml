@@ -5008,7 +5008,8 @@ paths:
                   description: |
                     Audio duration in seconds. Required — comes from Telegram's
                     `msg.voice.duration` field (or client-side measurement).
-                    Must be a number ≤ 120. Exceeding 120 returns 400 VALIDATION_ERROR.
+                    Must be a number between 0 and 120. Out-of-range returns 400 VALIDATION_ERROR.
+                  minimum: 0
                   maximum: 120
                 chainSlug:
                   type: string
@@ -5088,7 +5089,7 @@ paths:
                   value:
                     success: false
                     error:
-                      message: "Audio duration exceeds maximum of 120 seconds"
+                      message: "Audio duration must be between 0 and 120 seconds"
                       code: "VALIDATION_ERROR"
         '413':
           description: Audio file exceeds 10 MB limit (handled by @fastify/multipart).

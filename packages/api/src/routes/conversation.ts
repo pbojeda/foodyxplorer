@@ -317,17 +317,17 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
         );
       }
       const duration = Number(durationRaw);
-      if (!Number.isFinite(duration) || Number.isNaN(duration)) {
+      if (!Number.isFinite(duration)) {
         throw Object.assign(
           new Error('Invalid duration: must be a number'),
           { code: 'VALIDATION_ERROR' },
         );
       }
 
-      // Step 5: Guard — duration > 120s
-      if (duration > 120) {
+      // Step 5: Guard — duration must be 0-120s
+      if (duration < 0 || duration > 120) {
         throw Object.assign(
-          new Error('Audio duration exceeds maximum of 120 seconds'),
+          new Error('Audio duration must be between 0 and 120 seconds'),
           { code: 'VALIDATION_ERROR' },
         );
       }

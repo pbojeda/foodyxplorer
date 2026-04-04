@@ -31,6 +31,7 @@ const RETRY_BACKOFF_MS = 1_000;
 export type OpenAILogger = {
   info: (obj: Record<string, unknown>, msg?: string) => void;
   warn: (obj: Record<string, unknown>, msg?: string) => void;
+  error: (obj: Record<string, unknown>, msg?: string) => void;
   debug: (obj: Record<string, unknown>, msg?: string) => void;
 };
 
