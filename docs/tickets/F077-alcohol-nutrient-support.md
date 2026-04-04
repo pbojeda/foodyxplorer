@@ -1,7 +1,7 @@
 # F077: Alcohol Nutrient Support
 
 **Feature:** F077 | **Type:** Backend-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F077-alcohol-nutrient-support
+**Status:** Done | **Branch:** feature/F077-alcohol-nutrient-support (deleted)
 **Created:** 2026-04-04 | **Dependencies:** F071 (BEDCA Import) ✅
 
 ---
@@ -82,7 +82,7 @@ N/A — Simple task.
 - [x] Step 3: TDD implementation
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 

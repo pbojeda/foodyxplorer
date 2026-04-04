@@ -10,11 +10,7 @@
 
 **Last Updated:** 2026-04-04
 
-**Active Feature:** F077 — Alcohol Nutrient Support
-**Complexity:** Simple | **Step:** 5/6 (Review)
-**Branch:** `feature/F077-alcohol-nutrient-support`
-**Ticket:** `docs/tickets/F077-alcohol-nutrient-support.md`
-**Context:** Add `alcohol` as standard nutrient field (Decimal 8,2). Promote from BEDCA extra.alcohol_g to first-class field. 7 kcal/g for Spanish tapeo (beer, wine, vermouth).
+No active work. F077 complete (squash merged to develop 2026-04-04). Phase A1 continues.
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -172,7 +168,7 @@
 | F074 | L4 Cooking State Extraction | backend | done | 6/6 | Standard. Per-ingredient cooking state extraction + yield correction in L4 Strategy B. 28 tests. PR #66 |
 | F075 | Audio Input (Whisper → ConversationCore, bot) | backend+bot | done | 6/6 | Standard. Telegram voice → Whisper → ConversationCore. PR #67. 71 new tests. BUG-F075-01 fixed. |
 | F076 | "Modo Menú del Día" (/menu command) | backend | done | 6/6 | Standard. Multi-dish meal estimation. New menu_estimation intent + /menu bot command + NL detection. PR #68. 72 new tests. BUG-F076-01 + BUG-F076-02 fixed. |
-| F077 | Alcohol Nutrient Support | backend | in-progress | 5/6 | Simple. Add alcohol field to calculation pipeline. 7 kcal/g. BEDCA includes alcohol data for beverages |
+| F077 | Alcohol Nutrient Support | backend | done | 6/6 | Simple. Add alcohol field to calculation pipeline. 7 kcal/g. PR #69. +19 tests |
 | F078 | Regional Aliases + "Modo España Real" | backend | pending | — | Simple. Aliases table for regional vocabulary: caña=cerveza, pintxo=tapa, media ración=0.5x, bocata=bocadillo, etc. |
 | F079 | Demand-Driven Dish Expansion Pipeline | backend | pending | — | Simple. Monitor /estimate queries returning null. Track frequency in QueryLog. Monthly batch: add top 20 missed queries |
 
