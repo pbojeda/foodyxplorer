@@ -89,6 +89,7 @@ const mockEstimate: EstimateData = {
       potassium: 400,
       monounsaturatedFats: 11,
       polyunsaturatedFats: 3,
+      alcohol: 0,
       referenceBasis: 'per_serving',
     },
     confidenceLevel: 'high',

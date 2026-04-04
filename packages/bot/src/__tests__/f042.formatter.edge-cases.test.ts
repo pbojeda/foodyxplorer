@@ -47,6 +47,7 @@ const BASE_RESULT: NonNullable<EstimateData['result']> = {
     potassium: 0,
     monounsaturatedFats: 0,
     polyunsaturatedFats: 0,
+    alcohol: 0,
     referenceBasis: 'per_serving',
   },
 };

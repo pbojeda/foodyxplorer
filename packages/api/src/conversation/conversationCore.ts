@@ -321,7 +321,7 @@ const NUTRIENT_KEYS = [
   'calories', 'proteins', 'carbohydrates', 'sugars',
   'fats', 'saturatedFats', 'fiber', 'salt', 'sodium',
   'transFats', 'cholesterol', 'potassium',
-  'monounsaturatedFats', 'polyunsaturatedFats',
+  'monounsaturatedFats', 'polyunsaturatedFats', 'alcohol',
 ] as const;
 
 function aggregateMenuTotals(
@@ -331,7 +331,7 @@ function aggregateMenuTotals(
     calories: 0, proteins: 0, carbohydrates: 0, sugars: 0,
     fats: 0, saturatedFats: 0, fiber: 0, salt: 0, sodium: 0,
     transFats: 0, cholesterol: 0, potassium: 0,
-    monounsaturatedFats: 0, polyunsaturatedFats: 0,
+    monounsaturatedFats: 0, polyunsaturatedFats: 0, alcohol: 0,
   };
 
   for (const item of items) {

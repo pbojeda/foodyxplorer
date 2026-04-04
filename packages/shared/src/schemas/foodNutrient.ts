@@ -20,6 +20,7 @@ export const FoodNutrientSchema = z.object({
   potassium: z.number().nonnegative(),
   monounsaturatedFats: z.number().nonnegative(),
   polyunsaturatedFats: z.number().nonnegative(),
+  alcohol: z.number().nonnegative(),
   sourceId: z.string().uuid(),
   confidenceLevel: ConfidenceLevelSchema,
   createdAt: z.date(),
@@ -38,5 +39,6 @@ export const CreateFoodNutrientSchema = FoodNutrientSchema.omit({
   potassium: z.number().nonnegative().default(0),
   monounsaturatedFats: z.number().nonnegative().default(0),
   polyunsaturatedFats: z.number().nonnegative().default(0),
+  alcohol: z.number().nonnegative().default(0),
 });
 export type CreateFoodNutrient = z.infer<typeof CreateFoodNutrientSchema>;

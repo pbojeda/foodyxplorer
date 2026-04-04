@@ -555,7 +555,7 @@ describe('POST /calculate/recipe', () => {
           calories: 165, proteins: 31, carbohydrates: 0, sugars: 0, fats: 3.6,
           saturatedFats: 1, fiber: 0, salt: 0.1, sodium: 74, transFats: 0,
           cholesterol: 85, potassium: 220, monounsaturatedFats: 1.2,
-          polyunsaturatedFats: 0.8, referenceBasis: 'per_serving',
+          polyunsaturatedFats: 0.8, alcohol: 0, referenceBasis: 'per_serving',
         },
         ingredients: [],
         unresolvedIngredients: [],

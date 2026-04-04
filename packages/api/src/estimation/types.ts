@@ -117,6 +117,7 @@ export interface DishQueryRow {
   potassium: string;
   monounsaturated_fats: string;
   polyunsaturated_fats: string;
+  alcohol: string;
   reference_basis: string;
   // data_sources columns
   source_id: string;
@@ -151,6 +152,7 @@ export interface FoodQueryRow {
   potassium: string;
   monounsaturated_fats: string;
   polyunsaturated_fats: string;
+  alcohol: string;
   reference_basis: string;
   // data_sources columns
   source_id: string;
@@ -195,6 +197,7 @@ export interface IngredientNutrientRow {
   potassium: string;
   monounsaturated_fats: string;
   polyunsaturated_fats: string;
+  alcohol: string;
 }
 
 /** Raw row from the dish similarity search query (distance only — no nutrients). */
@@ -264,6 +267,7 @@ function mapNutrients(row: {
   potassium: string;
   monounsaturated_fats: string;
   polyunsaturated_fats: string;
+  alcohol: string;
   reference_basis: string;
 }): EstimateNutrients {
   return {
@@ -281,6 +285,7 @@ function mapNutrients(row: {
     potassium: parseDecimal(row.potassium),
     monounsaturatedFats: parseDecimal(row.monounsaturated_fats),
     polyunsaturatedFats: parseDecimal(row.polyunsaturated_fats),
+    alcohol: parseDecimal(row.alcohol),
     referenceBasis: row.reference_basis as EstimateNutrients['referenceBasis'],
   };
 }
@@ -372,6 +377,7 @@ export function mapLevel2RowToResult(row: IngredientNutrientRow): {
       potassium: parseDecimal(row.potassium),
       monounsaturatedFats: parseDecimal(row.monounsaturated_fats),
       polyunsaturatedFats: parseDecimal(row.polyunsaturated_fats),
+      alcohol: parseDecimal(row.alcohol),
       referenceBasis: 'per_serving',
     },
     confidenceLevel,

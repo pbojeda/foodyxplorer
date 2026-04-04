@@ -99,7 +99,8 @@ Quick reference for project configuration, infrastructure details, and important
 
 - **Conversation Core**: Shared API service for bot + web assistant. Extracted from bot NL handler (F070).
 - **Voice (F075)**: `POST /conversation/audio` — multipart OGG → Whisper transcription → ConversationCore. `callWhisperTranscription` in `openaiClient.ts`. Hallucination filter (8 strings). Bot `handleVoice` handler with duration/size guards. `VOICE_TIMEOUT_MS=30s`. Realtime voice deferred to Phase C (F093-F097).
-- **Menú del Día (F076)**: `menu_estimation` intent in ConversationCore (Step 3.5). `detectMenuQuery()` in `menuDetector.ts` — accent-insensitive, comma-split, noise filter, max 8 items. Bot `/menu` command. Parallel estimation via Promise.allSettled, aggregated totals (14 nutrients).
+- **Menú del Día (F076)**: `menu_estimation` intent in ConversationCore (Step 3.5). `detectMenuQuery()` in `menuDetector.ts` — accent-insensitive, comma-split, noise filter, max 8 items. Bot `/menu` command. Parallel estimation via Promise.allSettled, aggregated totals (15 nutrients).
+- **Alcohol (F077)**: `alcohol Decimal(8,2) DEFAULT 0` in food_nutrients + dish_nutrients. 15 standard nutrient fields + referenceBasis. BEDCA ALC tagname maps to standard `alcohol` field. Bot shows 🍺 when > 0. Migration: `alcohol_nutrient_f077`.
 - **Auth**: No auth barriers. actor_id from day 1 (ADR-016). Google Identity Platform in Phase D (F107).
 - **i18n**: ADR-010 (Enfoque A: name + name_es). Evolution to dish_translations when 3rd language needed.
 

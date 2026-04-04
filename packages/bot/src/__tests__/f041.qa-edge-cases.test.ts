@@ -76,6 +76,7 @@ function makeNutrients(overrides: Record<string, number | null> = {}) {
     potassium: null,
     monounsaturatedFats: null,
     polyunsaturatedFats: null,
+    alcohol: null,
     referenceBasis: 'per_serving' as const,
     ...overrides,
   };

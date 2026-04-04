@@ -45,6 +45,7 @@ const VALID_NUTRIENTS = {
   potassium: 35.0,
   monounsaturatedFats: 0.1,
   polyunsaturatedFats: 0.1,
+  alcohol: 0,
   referenceBasis: 'per_100g' as const,
 };
 

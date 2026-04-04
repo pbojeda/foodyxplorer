@@ -34,6 +34,7 @@ const BASE_RESULT: EstimateResult = {
     potassium: 300,
     monounsaturatedFats: 10,
     polyunsaturatedFats: 3,
+    alcohol: 0,
     referenceBasis: 'per_serving',
   },
   confidenceLevel: 'high',
@@ -108,8 +109,8 @@ describe('applyPortionMultiplier', () => {
 // ---------------------------------------------------------------------------
 
 describe('NUMERIC_NUTRIENT_KEYS', () => {
-  it('contains all 14 numeric nutrient keys', () => {
-    expect(NUMERIC_NUTRIENT_KEYS).toHaveLength(14);
+  it('contains all 15 numeric nutrient keys', () => {
+    expect(NUMERIC_NUTRIENT_KEYS).toHaveLength(15);
   });
 
   it('does not contain referenceBasis', () => {

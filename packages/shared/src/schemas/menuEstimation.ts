@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { EstimateDataSchema } from './estimate.js';
 
 // ---------------------------------------------------------------------------
-// Totals — aggregated nutrients (all 14, excluding referenceBasis)
+// Totals — aggregated nutrients (all 15, excluding referenceBasis)
 // ---------------------------------------------------------------------------
 
 export const MenuEstimationTotalsSchema = z.object({
@@ -26,6 +26,7 @@ export const MenuEstimationTotalsSchema = z.object({
   potassium: z.number().nonnegative(),
   monounsaturatedFats: z.number().nonnegative(),
   polyunsaturatedFats: z.number().nonnegative(),
+  alcohol: z.number().nonnegative(),
 });
 
 export type MenuEstimationTotals = z.infer<typeof MenuEstimationTotalsSchema>;

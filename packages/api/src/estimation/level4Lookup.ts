@@ -217,6 +217,7 @@ async function fetchFoodNutrients(
       rfn.potassium::text,
       rfn.monounsaturated_fats::text,
       rfn.polyunsaturated_fats::text,
+      rfn.alcohol::text,
       rfn.reference_basis::text,
       ds.id         AS source_id,
       ds.name       AS source_name,
@@ -289,6 +290,7 @@ async function fetchFoodByName(
       rfn.potassium::text,
       rfn.monounsaturated_fats::text,
       rfn.polyunsaturated_fats::text,
+      rfn.alcohol::text,
       rfn.reference_basis::text,
       ds.id         AS source_id,
       ds.name       AS source_name,
@@ -333,6 +335,7 @@ async function fetchFoodByName(
       rfn.potassium::text,
       rfn.monounsaturated_fats::text,
       rfn.polyunsaturated_fats::text,
+      rfn.alcohol::text,
       rfn.reference_basis::text,
       ds.id         AS source_id,
       ds.name       AS source_name,
@@ -695,6 +698,7 @@ async function runStrategyB(
     potassium: 0,
     monounsaturatedFats: 0,
     polyunsaturatedFats: 0,
+    alcohol: 0,
   };
 
   for (let i = 0; i < resolved.length; i++) {
@@ -723,6 +727,7 @@ async function runStrategyB(
       aggregatedNutrients.potassium += n.potassium * factor;
       aggregatedNutrients.monounsaturatedFats += n.monounsaturatedFats * factor;
       aggregatedNutrients.polyunsaturatedFats += n.polyunsaturatedFats * factor;
+      aggregatedNutrients.alcohol += n.alcohol * factor;
     } else {
       // No yield correction — use raw row values
       aggregatedNutrients.calories += parseDecimal(row.calories) * factor;
@@ -739,6 +744,7 @@ async function runStrategyB(
       aggregatedNutrients.potassium += parseDecimal(row.potassium) * factor;
       aggregatedNutrients.monounsaturatedFats += parseDecimal(row.monounsaturated_fats) * factor;
       aggregatedNutrients.polyunsaturatedFats += parseDecimal(row.polyunsaturated_fats) * factor;
+      aggregatedNutrients.alcohol += parseDecimal(row.alcohol) * factor;
     }
   }
 

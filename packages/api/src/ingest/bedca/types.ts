@@ -62,7 +62,7 @@ export interface BedcaNutrientInfo {
  * - All values are per 100g of the food
  * - Sodium, potassium, cholesterol: converted from mg → g at mapping time
  * - Salt: derived from sodium using EU Regulation 1169/2011: salt = sodium * 2.5
- * - Extended nutrients (alcohol, vitamins, minerals) are in extra
+ * - Extended nutrients (vitamins, minerals) are in extra
  */
 export interface MappedNutrients {
   calories: number;
@@ -83,10 +83,11 @@ export interface MappedNutrients {
   potassium: number;
   monounsaturatedFats: number;
   polyunsaturatedFats: number;
+  /** Alcohol in grams per 100g (F077). BEDCA tagname ALC, nutrient ID 221. */
+  alcohol: number;
   /**
    * Extended nutrients and metadata.
    * Structure:
-   * - alcohol_g: number | undefined — alcohol in grams
    * - nutrients: Array<{ nutrientId, tagname, name, unit, value }> — non-standard nutrients
    * - unmeasured: string[] — standard field names that were null in source (stored as 0)
    */

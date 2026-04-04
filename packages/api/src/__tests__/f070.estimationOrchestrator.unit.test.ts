@@ -63,6 +63,7 @@ const BASE_NUTRIENTS = {
   potassium: 320,
   monounsaturatedFats: 12,
   polyunsaturatedFats: 4,
+  alcohol: 0,
   referenceBasis: 'per_serving' as const,
 };
 

@@ -35,7 +35,7 @@ const makeNutrients = (cal: number) => ({
   calories: cal, proteins: 10, carbohydrates: 20, sugars: 5,
   fats: 8, saturatedFats: 3, fiber: 2, salt: 0.5, sodium: 200,
   transFats: 0, cholesterol: 30, potassium: 100,
-  monounsaturatedFats: 3, polyunsaturatedFats: 1,
+  monounsaturatedFats: 3, polyunsaturatedFats: 1, alcohol: 0,
   referenceBasis: 'per_serving' as const,
 });
 
@@ -71,7 +71,7 @@ const MENU_DATA: MenuEstimationData = {
     calories: 470, proteins: 20, carbohydrates: 40, sugars: 10,
     fats: 16, saturatedFats: 6, fiber: 4, salt: 1, sodium: 400,
     transFats: 0, cholesterol: 60, potassium: 200,
-    monounsaturatedFats: 6, polyunsaturatedFats: 2,
+    monounsaturatedFats: 6, polyunsaturatedFats: 2, alcohol: 0,
   },
   itemCount: 2,
   matchedCount: 2,

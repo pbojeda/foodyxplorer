@@ -90,7 +90,7 @@ const BASE_ENTITY = {
     calories: 520, proteins: 28, carbohydrates: 42, sugars: 8,
     fats: 24, saturatedFats: 9, fiber: 3, salt: 2.1, sodium: 840,
     transFats: 0.3, cholesterol: 75, potassium: 300,
-    monounsaturatedFats: 10, polyunsaturatedFats: 3,
+    monounsaturatedFats: 10, polyunsaturatedFats: 3, alcohol: 0,
     referenceBasis: 'per_serving' as const,
   },
   confidenceLevel: 'high' as const,

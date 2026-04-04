@@ -66,6 +66,7 @@ const RECIPE_RESULT = {
     potassium: null,
     monounsaturatedFats: null,
     polyunsaturatedFats: null,
+    alcohol: null,
     referenceBasis: 'per_serving' as const,
   },
   ingredients: [
@@ -88,6 +89,7 @@ const RECIPE_RESULT = {
         potassium: null,
         monounsaturatedFats: null,
         polyunsaturatedFats: null,
+    alcohol: null,
         referenceBasis: 'per_serving' as const,
       },
     },

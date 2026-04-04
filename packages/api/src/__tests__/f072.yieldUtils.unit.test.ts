@@ -32,6 +32,7 @@ const RAW_RICE_NUTRIENTS: EstimateNutrients = {
   potassium: 115.0,
   monounsaturatedFats: 0.2,
   polyunsaturatedFats: 0.2,
+  alcohol: 0,
   referenceBasis: 'per_100g',
 };
 

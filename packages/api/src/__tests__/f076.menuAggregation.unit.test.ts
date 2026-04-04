@@ -57,7 +57,7 @@ const makeNutrients = (cal: number) => ({
   calories: cal, proteins: 10, carbohydrates: 20, sugars: 5,
   fats: 8, saturatedFats: 3, fiber: 2, salt: 0.5, sodium: 200,
   transFats: 0, cholesterol: 30, potassium: 100,
-  monounsaturatedFats: 3, polyunsaturatedFats: 1,
+  monounsaturatedFats: 3, polyunsaturatedFats: 1, alcohol: 0,
   referenceBasis: 'per_serving' as const,
 });
 

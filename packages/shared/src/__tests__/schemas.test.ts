@@ -276,6 +276,7 @@ const validNutrients = {
   potassium: 0,
   monounsaturatedFats: 0,
   polyunsaturatedFats: 0,
+  alcohol: 0,
   sourceId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   confidenceLevel: 'high' as const,
 };
@@ -376,10 +377,11 @@ describe('CreateFoodNutrientSchema', () => {
   });
 
   it('applies default 0 when new nutrient fields are omitted', () => {
-    const { transFats: _tf, cholesterol: _ch, potassium: _po, monounsaturatedFats: _mf, polyunsaturatedFats: _pf, referenceBasis: _ref, ...withoutNewFields } = validNutrients;
+    const { transFats: _tf, cholesterol: _ch, potassium: _po, monounsaturatedFats: _mf, polyunsaturatedFats: _pf, alcohol: _al, referenceBasis: _ref, ...withoutNewFields } = validNutrients;
     const result = CreateFoodNutrientSchema.parse(withoutNewFields);
     expect(result.transFats).toBe(0);
     expect(result.cholesterol).toBe(0);
+    expect(result.alcohol).toBe(0);
     expect(result.referenceBasis).toBe('per_100g');
   });
 });
@@ -967,6 +969,7 @@ const validDishNutrientBase = {
   potassium: 0,
   monounsaturatedFats: 0,
   polyunsaturatedFats: 0,
+  alcohol: 0,
   estimationMethod: 'scraped' as const,
   sourceId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   confidenceLevel: 'medium' as const,
@@ -1006,6 +1009,7 @@ describe('CreateDishNutrientSchema', () => {
       potassium: _po,
       monounsaturatedFats: _mf,
       polyunsaturatedFats: _pf,
+      alcohol: _al,
       referenceBasis: _rb,
       ...withoutExtended
     } = validDishNutrientBase;
@@ -1015,6 +1019,7 @@ describe('CreateDishNutrientSchema', () => {
     expect(result.potassium).toBe(0);
     expect(result.monounsaturatedFats).toBe(0);
     expect(result.polyunsaturatedFats).toBe(0);
+    expect(result.alcohol).toBe(0);
   });
 
   it('fails when transFats is negative', () => {

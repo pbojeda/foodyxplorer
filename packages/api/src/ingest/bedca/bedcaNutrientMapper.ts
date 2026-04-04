@@ -10,8 +10,9 @@
  * - Cholesterol (tagname CHOLE): mg → g (÷1000)
  * - Salt: derived from sodium_g × 2.5 (EU Regulation 1169/2011)
  *
- * Non-standard nutrients (vitamins, minerals beyond potassium, alcohol) are stored
+ * Non-standard nutrients (vitamins, minerals beyond potassium) are stored
  * in the `extra` JSONB field of food_nutrients.
+ * Alcohol (F077) is now a standard column — tagname ALC maps to `alcohol`.
  */
 
 import type {
@@ -20,7 +21,7 @@ import type {
   MappedNutrients,
 } from './types.js';
 
-/** INFOODS tagnames for the 13 standard nutriXplorer columns (excluding salt, which is derived). */
+/** INFOODS tagnames for the 14 standard nutriXplorer columns (excluding salt, which is derived). */
 const STANDARD_FIELD_MAP: Record<string, keyof Omit<MappedNutrients, 'extra' | 'salt'>> = {
   ENERC_KCAL: 'calories',
   PROCNT: 'proteins',
@@ -35,13 +36,11 @@ const STANDARD_FIELD_MAP: Record<string, keyof Omit<MappedNutrients, 'extra' | '
   FATRN: 'transFats',
   CHOLE: 'cholesterol', // mg → g conversion applied
   K: 'potassium',       // mg → g conversion applied
+  ALC: 'alcohol',       // F077: alcohol in grams
 };
 
 /** Tagnames that require mg → g conversion. */
 const MG_TO_G_FIELDS = new Set(['NA', 'CHOLE', 'K']);
-
-/** Tagname for alcohol (stored in extra, not a standard column). */
-const ALCOHOL_TAGNAME = 'ALC';
 
 /**
  * Maps BEDCA nutrient values to the nutriXplorer food_nutrients schema.
@@ -85,6 +84,7 @@ export function mapBedcaNutrientsToSchema(
     potassium: 0,
     monounsaturatedFats: 0,
     polyunsaturatedFats: 0,
+    alcohol: 0,
     extra: {
       nutrients: [] as Array<{
         nutrientId: number;
@@ -135,23 +135,19 @@ export function mapBedcaNutrientsToSchema(
     // Null values for non-standard nutrients are excluded from extra
     if (nutrient.value === null) continue;
 
-    if (info.tagname === ALCOHOL_TAGNAME) {
-      result.extra['alcohol_g'] = nutrient.value;
-    } else {
-      (result.extra['nutrients'] as Array<{
-        nutrientId: number;
-        tagname: string;
-        name: string;
-        unit: string;
-        value: number;
-      }>).push({
-        nutrientId: nutrient.nutrientId,
-        tagname: info.tagname,
-        name: info.name,
-        unit: info.unit,
-        value: nutrient.value,
-      });
-    }
+    (result.extra['nutrients'] as Array<{
+      nutrientId: number;
+      tagname: string;
+      name: string;
+      unit: string;
+      value: number;
+    }>).push({
+      nutrientId: nutrient.nutrientId,
+      tagname: info.tagname,
+      name: info.name,
+      unit: info.unit,
+      value: nutrient.value,
+    });
   }
 
   return result;

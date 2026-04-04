@@ -109,6 +109,7 @@ const ESTIMATE_DATA_WITH_RESULT: EstimateData = {
       potassium: 0,
       monounsaturatedFats: 0,
       polyunsaturatedFats: 0,
+      alcohol: 0,
       referenceBasis: 'per_serving',
     },
   },
