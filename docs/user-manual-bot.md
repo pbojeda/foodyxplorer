@@ -1,7 +1,7 @@
 # Manual de Usuario — foodXPlorer Bot (Telegram)
 
 > Guia completa de todas las funcionalidades del bot de Telegram de foodXPlorer.
-> Ultima actualizacion: 2026-03-30 (incluye F053 — desacople foto/restaurante, F054 — NL context footer, F055 — nonce stale-button, F056 — MIME detection)
+> Ultima actualizacion: 2026-04-04 (incluye F070 Conversation Core, F073 cocina espanola, F075 audio/voz, F076 menu del dia, F077 alcohol, F078 aliases regionales)
 
 ---
 
@@ -22,6 +22,10 @@
 13. [Limites de uso](#13-limites-de-uso)
 14. [Mensajes de error](#14-mensajes-de-error)
 15. [Referencia rapida de comandos](#15-referencia-rapida-de-comandos)
+16. [Mensajes de voz (audio)](#16-mensajes-de-voz-audio)
+17. [Menu del dia (/menu)](#17-menu-del-dia-menu)
+18. [Cocina espanola y aliases regionales](#18-cocina-espanola-y-aliases-regionales)
+19. [Bebidas alcoholicas](#19-bebidas-alcoholicas)
 
 ---
 
@@ -580,7 +584,132 @@ Nota: si Redis no esta disponible, los limites de tasa se desactivan (fail-open)
 | `/platos` | Platos de un restaurante | `/platos <uuid>` |
 | `/restaurante` | Selecciona contexto de restaurante | `/restaurante mcdonalds` |
 | `/contexto` | Ver, establecer o borrar contexto | `/contexto mcdonalds-es` |
+| `/menu` | Estima un menu completo (varios platos) | `/menu ensalada, filete, flan` |
 | `/info` | Estado del bot y la API | `/info` |
+
+---
+
+## 16. Mensajes de voz (audio)
+
+Puedes enviar un **mensaje de voz** en lugar de escribir. El bot lo transcribe automaticamente usando Whisper y lo procesa como texto. Funciona con cualquier tipo de consulta: estimaciones, comparaciones y menus.
+
+### Ejemplos
+
+| Lo que dices | Lo que entiende el bot |
+|-------------|----------------------|
+| "dos pinchos de tortilla" | Estimacion con porcion x2 |
+| "menu: ensalada y un filete" | Estimacion de menu (2 platos) |
+| "que engorda mas, big mac o whopper" | Comparacion de dos platos |
+| "estoy en mcdonalds" | Establece contexto de cadena |
+
+### Limites
+
+- **Duracion maxima:** 30 segundos por mensaje de voz
+- **Limite diario:** 50 mensajes de voz por usuario
+- Si el audio no se puede transcribir, el bot responde con un mensaje de error
+
+### Errores comunes
+
+| Situacion | Mensaje |
+|-----------|---------|
+| Audio demasiado largo | "El mensaje de voz supera los 30 segundos." |
+| Transcripcion vacia | "No se pudo transcribir el audio. Intenta hablar mas claro." |
+| Limite alcanzado | "Has alcanzado el limite de mensajes de voz (50/dia)." |
+| Error de transcripcion | "Error al procesar el audio. Intentalo de nuevo." |
+
+---
+
+## 17. Menu del dia (/menu)
+
+El comando `/menu` permite estimar **varios platos a la vez** como si fuera un menu completo. El bot calcula los nutrientes de cada plato individual y muestra un **total agregado**.
+
+### Como usarlo
+
+```
+/menu ensalada mixta, filete de pollo, flan
+/menu sopa de fideos, merluza a la plancha, fruta del tiempo
+```
+
+Tambien funciona por lenguaje natural (con o sin comando):
+
+```
+menu: ensalada, filete, postre
+menu del dia: gazpacho, paella, flan
+hoy he comido ensalada y un filete de ternera
+```
+
+Y por voz:
+
+```
+[audio] "menu: ensalada mixta, filete de pollo y un flan"
+```
+
+### Formato de salida
+
+El bot muestra:
+1. **Cada plato individual** con sus nutrientes y nivel de confianza
+2. **Totales del menu** — suma de los 15 nutrientes para todo el menu
+3. Si algun plato no se encuentra, muestra un aviso pero sigue con los demas
+
+### Limites
+
+- Maximo 8 platos por menu
+- Los platos se separan por comas o por "y"
+- Cada plato se estima independientemente (misma cascada L1-L4)
+
+---
+
+## 18. Cocina espanola y aliases regionales
+
+El bot reconoce **250 platos canonicos de la cocina espanola** sin necesidad de seleccionar ningun restaurante. Estan disponibles como un restaurante virtual llamado `cocina-espanola`.
+
+### Platos disponibles
+
+Tortilla de patatas, gazpacho andaluz, paella valenciana, croquetas de jamon, fabada asturiana, cocido madrileno, patatas bravas, salmorejo, pimientos de padron, pulpo a la gallega, y muchos mas.
+
+### Aliases regionales
+
+El bot entiende variantes regionales y coloquiales de los nombres:
+
+| Lo que escribes | Lo que encuentra |
+|-----------------|-----------------|
+| bravas | Patatas bravas |
+| bocata de jamon | Bocadillo de jamon serrano |
+| tortilla espanola | Tortilla de patatas |
+| cana | Cerveza (cana) |
+| pincho de tortilla | Tortilla de patatas |
+
+### Formatos de servicio
+
+Los prefijos de formato de servicio se eliminan automaticamente:
+
+```
+tapa de calamares     -> Calamares a la romana
+pincho de tortilla    -> Tortilla de patatas
+pintxo de bacalao     -> Bacalao al pil pil
+racion de croquetas   -> Croquetas de jamon
+```
+
+---
+
+## 19. Bebidas alcoholicas
+
+El bot estima nutrientes de bebidas alcoholicas incluyendo el **alcohol como nutriente** (7 kcal/g). Cuando una estimacion contiene alcohol > 0, se muestra un indicador adicional.
+
+### Ejemplos
+
+```
+/estimar cerveza
+/estimar vino tinto
+/estimar cana
+```
+
+### Nutrientes mostrados
+
+Para bebidas con alcohol, la respuesta incluye todos los nutrientes estandar mas:
+- **Alcohol** (g por porcion)
+
+El alcohol se incluye en el computo de calorias totales (7 kcal por gramo de alcohol).
 
 ---
 
