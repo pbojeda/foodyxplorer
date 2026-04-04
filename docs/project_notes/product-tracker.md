@@ -11,7 +11,7 @@
 **Last Updated:** 2026-04-04
 
 **Feature:** F073 — Spanish Canonical Dishes (BEDCA-First + LLM Long Tail)
-**Step:** 4/6 (Finalize)
+**Step:** 5/6 (Review)
 **Branch:** feature/F073-spanish-canonical-dishes
 **Complexity:** Standard
 **Ticket:** `docs/tickets/F073-spanish-canonical-dishes.md`

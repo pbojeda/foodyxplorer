@@ -154,6 +154,7 @@ export async function seedPhaseSpanishDishes(client: PrismaClient): Promise<void
           update: {
             name: entry.name,
             nameEs: entry.nameEs,
+            sourceId,
             aliases: entry.aliases,
             portionGrams: entry.portionGrams,
             confidenceLevel: entry.confidenceLevel,
@@ -192,6 +193,9 @@ export async function seedPhaseSpanishDishes(client: PrismaClient): Promise<void
         await client.dishNutrient.upsert({
           where: { id: entry.nutrientId },
           update: {
+            sourceId,
+            estimationMethod: entry.estimationMethod,
+            confidenceLevel: entry.confidenceLevel,
             calories: entry.nutrients.calories,
             proteins: entry.nutrients.proteins,
             carbohydrates: entry.nutrients.carbohydrates,

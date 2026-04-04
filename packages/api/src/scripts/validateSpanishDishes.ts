@@ -16,9 +16,16 @@ const NUTRIENT_FIELDS = [
   'fats', 'saturatedFats', 'fiber', 'salt', 'sodium',
 ] as const;
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 export function validateSpanishDishes(dishes: SpanishDishEntry[]): ValidationResult {
   const errors: string[] = [];
   let hasBlockingError = false;
+
+  // Guard against null/undefined input
+  if (!Array.isArray(dishes)) {
+    return { valid: false, errors: ['Input must be an array of SpanishDishEntry'] };
+  }
 
   // Minimum count
   if (dishes.length < 250) {
@@ -33,7 +40,7 @@ export function validateSpanishDishes(dishes: SpanishDishEntry[]): ValidationRes
 
   for (let i = 0; i < dishes.length; i++) {
     const entry = dishes[i]!;
-    const prefix = `[${i}] ${entry.externalId}`;
+    const prefix = `[${i}] ${entry.externalId ?? '(missing)'}`;
 
     // Duplicate externalId
     if (seenExternalIds.has(entry.externalId)) {
@@ -42,14 +49,22 @@ export function validateSpanishDishes(dishes: SpanishDishEntry[]): ValidationRes
     }
     seenExternalIds.add(entry.externalId);
 
-    // Duplicate dishId
+    // dishId presence and format
+    if (!entry.dishId || !UUID_REGEX.test(entry.dishId)) {
+      errors.push(`${prefix}: Missing or invalid dishId "${entry.dishId}"`);
+      hasBlockingError = true;
+    }
     if (seenDishIds.has(entry.dishId)) {
       errors.push(`${prefix}: Duplicate dishId "${entry.dishId}"`);
       hasBlockingError = true;
     }
     seenDishIds.add(entry.dishId);
 
-    // Duplicate nutrientId
+    // nutrientId presence and format
+    if (!entry.nutrientId || !UUID_REGEX.test(entry.nutrientId)) {
+      errors.push(`${prefix}: Missing or invalid nutrientId "${entry.nutrientId}"`);
+      hasBlockingError = true;
+    }
     if (seenNutrientIds.has(entry.nutrientId)) {
       errors.push(`${prefix}: Duplicate nutrientId "${entry.nutrientId}"`);
       hasBlockingError = true;
@@ -66,18 +81,32 @@ export function validateSpanishDishes(dishes: SpanishDishEntry[]): ValidationRes
       hasBlockingError = true;
     }
 
+    // name must equal nameEs (Spanish cuisine — all names are Spanish)
+    if (entry.name && entry.nameEs && entry.name !== entry.nameEs) {
+      errors.push(`${prefix}: name "${entry.name}" must equal nameEs "${entry.nameEs}" for Spanish dishes`);
+      hasBlockingError = true;
+    }
+
+    // Aliases must be an array
+    if (!Array.isArray(entry.aliases)) {
+      errors.push(`${prefix}: aliases must be an array, got ${typeof entry.aliases}`);
+      hasBlockingError = true;
+    }
+
     // Source validation
     if (!VALID_SOURCES.has(entry.source)) {
       errors.push(`${prefix}: Invalid source "${entry.source}", must be "bedca" or "recipe"`);
       hasBlockingError = true;
     }
 
-    // Source / confidence / estimation consistency
+    // Source / confidence / estimation consistency (blocking)
     if (entry.source === 'bedca' && (entry.confidenceLevel !== 'high' || entry.estimationMethod !== 'official')) {
-      errors.push(`[WARN] ${prefix}: BEDCA source should have confidenceLevel='high' and estimationMethod='official'`);
+      errors.push(`${prefix}: BEDCA source must have confidenceLevel='high' and estimationMethod='official'`);
+      hasBlockingError = true;
     }
     if (entry.source === 'recipe' && (entry.confidenceLevel !== 'medium' || entry.estimationMethod !== 'ingredients')) {
-      errors.push(`[WARN] ${prefix}: Recipe source should have confidenceLevel='medium' and estimationMethod='ingredients'`);
+      errors.push(`${prefix}: Recipe source must have confidenceLevel='medium' and estimationMethod='ingredients'`);
+      hasBlockingError = true;
     }
 
     // Portion grams range

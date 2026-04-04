@@ -36,7 +36,7 @@ function makeMinimalDataset(count: number): SpanishDishEntry[] {
       externalId: `CE-${String(i + 1).padStart(3, '0')}`,
       dishId: `00000000-0000-e073-0007-${String(i + 1).padStart(12, '0')}`,
       nutrientId: `00000000-0000-e073-0008-${String(i + 1).padStart(12, '0')}`,
-      name: `Dish ${i + 1}`,
+      name: `Plato ${i + 1}`,
       nameEs: `Plato ${i + 1}`,
     }),
   );
