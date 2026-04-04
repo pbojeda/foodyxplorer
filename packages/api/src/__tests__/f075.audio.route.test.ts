@@ -378,10 +378,10 @@ describe('POST /conversation/audio (F075)', () => {
   });
 
   // -------------------------------------------------------------------------
-  // 422 TRANSCRIPTION_FAILED cases
+  // 502 TRANSCRIPTION_FAILED cases (upstream Whisper failure)
   // -------------------------------------------------------------------------
 
-  it('callWhisperTranscription returns null → 422 TRANSCRIPTION_FAILED', async () => {
+  it('callWhisperTranscription returns null → 502 TRANSCRIPTION_FAILED', async () => {
     mockCallWhisperTranscription.mockResolvedValue(null);
     const app = await buildApp();
 
@@ -401,7 +401,7 @@ describe('POST /conversation/audio (F075)', () => {
       payload: body,
     });
 
-    expect(response.statusCode).toBe(422);
+    expect(response.statusCode).toBe(502);
     const resBody = response.json<{ success: false; error: { code: string } }>();
     expect(resBody.error.code).toBe('TRANSCRIPTION_FAILED');
   });

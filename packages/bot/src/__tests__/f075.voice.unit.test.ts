@@ -281,7 +281,7 @@ describe('handleVoice (F075)', () => {
   it('ApiError TRANSCRIPTION_FAILED → sends "no he podido procesar" message', async () => {
     const bot = makeBot();
     const sendAudioMock = vi.fn().mockRejectedValue(
-      new ApiError(422, 'TRANSCRIPTION_FAILED', 'Transcription failed'),
+      new ApiError(502, 'TRANSCRIPTION_FAILED', 'Transcription failed'),
     );
     const apiClient = makeApiClient(sendAudioMock);
 

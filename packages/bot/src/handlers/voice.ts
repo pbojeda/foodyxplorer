@@ -37,8 +37,11 @@ export async function handleVoice(
   const chatId = msg.chat.id;
   const voice = msg.voice;
 
+  // Guard: msg.voice should always be present on 'voice' events, but type is optional
+  if (!voice) return;
+
   // Bot-side guard: duration > 120s
-  if ((voice?.duration ?? 0) > 120) {
+  if (voice.duration > 120) {
     await bot.sendMessage(
       chatId,
       escapeMarkdown('Los mensajes de voz deben ser de menos de 2 minutos.'),
@@ -48,7 +51,7 @@ export async function handleVoice(
   }
 
   // Bot-side guard: file too large
-  if ((voice?.file_size ?? 0) > MAX_FILE_SIZE_BYTES) {
+  if ((voice.file_size ?? 0) > MAX_FILE_SIZE_BYTES) {
     await bot.sendMessage(
       chatId,
       escapeMarkdown('El archivo de audio es demasiado grande.'),
@@ -63,7 +66,7 @@ export async function handleVoice(
   // Download audio from Telegram CDN
   let audioBuffer: Buffer;
   try {
-    audioBuffer = await downloadTelegramFile(bot, voice!.file_id);
+    audioBuffer = await downloadTelegramFile(bot, voice.file_id);
   } catch {
     await bot.sendMessage(
       chatId,

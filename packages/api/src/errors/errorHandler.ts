@@ -353,10 +353,10 @@ export function mapError(error: Error): MappedError {
     };
   }
 
-  // TRANSCRIPTION_FAILED — Whisper API error after retry (F075)
+  // TRANSCRIPTION_FAILED — Whisper API upstream failure after retry (F075)
   if (asAny['code'] === 'TRANSCRIPTION_FAILED') {
     return {
-      statusCode: 422,
+      statusCode: 502,
       body: {
         success: false,
         error: {

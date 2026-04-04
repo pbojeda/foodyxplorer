@@ -5104,11 +5104,8 @@ paths:
                   code: "PAYLOAD_TOO_LARGE"
         '422':
           description: |
-            Transcription failed. Two error codes:
-            - `EMPTY_TRANSCRIPTION`: Whisper returned empty/whitespace text or a known
-              hallucination string (background noise, silence).
-            - `TRANSCRIPTION_FAILED`: Whisper API returned an error after retry
-              (or OPENAI_API_KEY not configured).
+            Empty transcription. Whisper returned empty/whitespace text or a known
+            hallucination string (background noise, silence).
           content:
             application/json:
               schema:
@@ -5121,6 +5118,16 @@ paths:
                     error:
                       message: "Audio transcription returned empty text"
                       code: "EMPTY_TRANSCRIPTION"
+        '502':
+          description: |
+            Upstream transcription failure. Whisper API returned an error after retry
+            (or OPENAI_API_KEY not configured). The client's audio was valid but the
+            server-side transcription service failed. Retrying may succeed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
                 transcriptionFailed:
                   summary: Whisper API error after retry
                   value:

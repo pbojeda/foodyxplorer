@@ -65,7 +65,7 @@ Errors:
   400 VALIDATION_ERROR — missing audio field, unsupported MIME type, missing/invalid duration, duration >120s
   413 PAYLOAD_TOO_LARGE — file exceeds 10MB (handled by @fastify/multipart)
   422 EMPTY_TRANSCRIPTION — Whisper returned empty/whitespace text
-  422 TRANSCRIPTION_FAILED — Whisper API error after retry
+  502 TRANSCRIPTION_FAILED — Whisper API error after retry
   429 ACTOR_RATE_LIMIT_EXCEEDED — shares 'queries' bucket (50/day per actor)
 ```
 
@@ -88,7 +88,7 @@ None. Bot response formatting is identical to text messages (same formatters). T
 3. **Background noise / unintelligible** — Whisper may hallucinate stock phrases (e.g., "Subtítulos por la comunidad de Amara.org", "Gracias por ver el vídeo"). API applies a hallucination filter: a set of known Whisper hallucination strings — if the entire transcription matches one, treat as empty (422 EMPTY_TRANSCRIPTION). Otherwise ConversationCore handles as normal text. Uses `temperature: 0` to minimize hallucinations.
 4. **Duration >120s** — Bot-side guard: respond immediately without calling API. "Los mensajes de voz deben ser de menos de 2 minutos."
 5. **File size >10MB** — Bot-side guard: respond immediately. "El archivo de audio es demasiado grande."
-6. **Whisper API failure** (timeout, 429, 5xx) — Retry once with 1s backoff (same pattern as `callChatCompletion`). On final failure: API returns 422 TRANSCRIPTION_FAILED → bot shows "No he podido procesar el audio. Intenta escribir el mensaje."
+6. **Whisper API failure** (timeout, 429, 5xx) — Retry once with 1s backoff (same pattern as `callChatCompletion`). On final failure: API returns 502 TRANSCRIPTION_FAILED → bot shows "No he podido procesar el audio. Intenta escribir el mensaje."
 7. **Telegram file download failure** — Same handling as existing `downloadTelegramFile` in fileUpload.ts.
 8. **No OPENAI_API_KEY configured** — Whisper call fails gracefully → error response to user.
 9. **Audio forwarded from another chat** — Telegram includes `msg.voice.file_id` regardless of forwarding. Works identically.
@@ -208,14 +208,14 @@ Test cases before implementation:
 - 422 EMPTY_TRANSCRIPTION: Whisper returns empty string
 - 422 EMPTY_TRANSCRIPTION: Whisper returns whitespace-only string
 - 422 EMPTY_TRANSCRIPTION: `isWhisperHallucination` returns true for transcription
-- 422 TRANSCRIPTION_FAILED: `callWhisperTranscription` returns null
+- 502 TRANSCRIPTION_FAILED: `callWhisperTranscription` returns null
 - 400 VALIDATION_ERROR: missing `audio` field in multipart body
 - 400 VALIDATION_ERROR: unsupported MIME type (e.g. `application/pdf`)
 - 400 VALIDATION_ERROR: missing or non-numeric `duration` field
 - 400 VALIDATION_ERROR: `duration` > 120 seconds
 - 413 PAYLOAD_TOO_LARGE: file exceeds 10 MB (handled by `@fastify/multipart` automatically — `FST_REQ_FILE_TOO_LARGE` → `mapError` → 413)
 - 429: rate limit exceeded (existing Redis incr mock returns > 50)
-- 422 TRANSCRIPTION_FAILED: when `config.OPENAI_API_KEY` is undefined (callWhisperTranscription returns null)
+- 502 TRANSCRIPTION_FAILED: when `config.OPENAI_API_KEY` is undefined (callWhisperTranscription returns null)
 
 Then implement the route inside `conversationRoutesPlugin` in `conversation.ts`:
 
@@ -231,7 +231,7 @@ app.post('/conversation/audio', { schema: { ... } }, async (request, reply) => {
   // 7. actorId guard (same as /conversation/message)
   // 8. Register fire-and-forget finish listener (same pattern — extracted helper)
   // 9. callWhisperTranscription(config.OPENAI_API_KEY, buffer, mimeType, request.log)
-  // 10. Guard: result === null → 422 TRANSCRIPTION_FAILED
+  // 10. Guard: result === null → 502 TRANSCRIPTION_FAILED
   // 11. Guard: result.trim() === '' → 422 EMPTY_TRANSCRIPTION
   // 12. Guard: isWhisperHallucination(result) → 422 EMPTY_TRANSCRIPTION
   // 13. processMessage({ text: result, actorId, ... }) — identical to /conversation/message
@@ -267,7 +267,7 @@ Add to `f075.voice.unit.test.ts` (the bot test file, written before implementati
 - Uses `VOICE_TIMEOUT_MS` (30s) timeout
 - On 200: returns parsed `ConversationMessageData`
 - On 422 EMPTY_TRANSCRIPTION: throws `ApiError(422, 'EMPTY_TRANSCRIPTION', ...)`
-- On 422 TRANSCRIPTION_FAILED: throws `ApiError(422, 'TRANSCRIPTION_FAILED', ...)`
+- On 502 TRANSCRIPTION_FAILED: throws `ApiError(422, 'TRANSCRIPTION_FAILED', ...)`
 - On timeout (AbortError): throws `ApiError(408, 'TIMEOUT', ...)`
 
 Then implement in `apiClient.ts`:
@@ -417,7 +417,7 @@ Send `bot.sendChatAction(chatId, 'typing')` after the bot-side guards pass but B
 - [ ] AC8: File size guard: audio >10MB rejected (bot-side guard + `@fastify/multipart` 413)
 - [ ] AC9: Empty transcription → API returns 422 EMPTY_TRANSCRIPTION → bot shows helpful message
 - [ ] AC10: Whisper hallucination filter — known hallucination strings treated as empty transcription
-- [ ] AC11: Whisper failure retried once, then API returns 422 TRANSCRIPTION_FAILED → bot shows error
+- [ ] AC11: Whisper failure retried once, then API returns 502 TRANSCRIPTION_FAILED → bot shows error
 - [ ] AC12: Query logged with transcribed text. Whisper latency logged via app logger (not query_logs table)
 - [ ] AC13: Rate limiting shared with existing 'queries' bucket (50/day per actor, code `ACTOR_RATE_LIMIT_EXCEEDED`)
 - [ ] AC14: Bot sends `typing` chat action while transcription and processing run
@@ -462,6 +462,9 @@ Send `bot.sendChatAction(chatId, 'typing')` after the bot-side guards pass but B
 | 2026-04-04 | Ticket created | Spec written with full edge case analysis |
 | 2026-04-04 | Spec reviewed | Gemini+Codex: 2 CRITICAL + 6 IMPORTANT + 2 SUGGESTION. All addressed: timeout, error envelopes, typing action, hallucination filter, context injection, logging, error codes, actor propagation |
 | 2026-04-04 | Plan reviewed | Gemini+Codex: 2 CRITICAL + 4 IMPORTANT + 4 SUGGESTION. All addressed: rate limit mapping, duration API-side validation, OPENAI_API_KEY guard, auth clarification, hallucination list pinned, sendAudio approach, timeout UX, punctuation stripping |
+| 2026-04-04 | Implementation | 7 TDD steps completed. 41 new tests (18 whisper + 12 route + 11 voice handler). Commit 824f85a |
+| 2026-04-04 | Quality gates | API: 2541 (145 files), Bot: 1114 (52 files), Shared: 413, Landing: 659. All pass. Lint clean. Build OK. |
+| 2026-04-04 | Production validator | 1 CRITICAL (OpenAILogger missing error method), 1 HIGH (negative duration), 2 MEDIUM (redundant check, spec min). All fixed in b995f84 |
 
 ---
 
