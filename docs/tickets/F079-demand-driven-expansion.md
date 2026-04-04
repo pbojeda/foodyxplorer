@@ -103,7 +103,7 @@ N/A — Simple task.
 | 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
 | 3. Update key_facts.md | [x] | Updated: F079 entry added (missed query tracking, 3 endpoints, 21st migration) |
 | 4. Update decisions.md | [x] | N/A — no new ADR needed |
-| 5. Commit documentation | [x] | Commit: (pending — this edit) |
+| 5. Commit documentation | [x] | Commit: f5caaba |
 | 6. Verify clean working tree | [x] | `git status`: clean after push |
 
 ---
