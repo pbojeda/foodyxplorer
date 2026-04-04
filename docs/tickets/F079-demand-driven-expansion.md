@@ -1,7 +1,7 @@
 # F079: Demand-Driven Dish Expansion Pipeline
 
 **Feature:** F079 | **Type:** Backend-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F079-demand-driven-expansion
+**Status:** Done | **Branch:** feature/F079-demand-driven-expansion (deleted)
 **Created:** 2026-04-04 | **Dependencies:** F073 (Spanish Canonical Dishes) ✅, F029 (Query Log & Analytics) ✅
 
 ---
@@ -77,7 +77,7 @@ N/A — Simple task.
 - [x] Step 3: TDD implementation
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -89,6 +89,7 @@ N/A — Simple task.
 | 2026-04-04 | Implement | Prisma migration (21st), 3 endpoints, 68 tests. All pass (shared 434, API 2702, bot 1143). Build: pre-existing TS errors only. |
 | 2026-04-04 | Finalize | Production validator: 2 HIGH + 5 MEDIUM found. All fixed: unused imports, error handler pattern, type safety, explicit 'all' case. Re-validated: 68 tests pass. |
 | 2026-04-04 | Review | PR #71. Code review: 1 critical (404 swallowed by catch), 2 important (BatchTrackBodySchema local, no batch size limit), 3 suggestions (timeRange dup, SQL text cast, structural tests). Critical + important fixed. +8 tests (76 total). |
+| 2026-04-04 | Complete | Squash merged to develop (d56551e). Branch deleted. |
 
 ---
 
