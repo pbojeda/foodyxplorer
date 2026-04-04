@@ -27,6 +27,7 @@ import { handleContexto } from './commands/contexto.js';
 import { handleNaturalLanguage } from './handlers/naturalLanguage.js';
 import { handleCallbackQuery } from './handlers/callbackQuery.js';
 import { handlePhoto, handleDocument } from './handlers/fileUpload.js';
+import { handleVoice } from './handlers/voice.js';
 
 const KNOWN_COMMANDS = new Set([
   'start', 'help', 'buscar', 'estimar', 'restaurantes', 'platos', 'cadenas', 'info', 'restaurante', 'receta', 'comparar', 'contexto',
@@ -180,6 +181,14 @@ export function buildBot(config: BotConfig, apiClient: ApiClient, redis: Redis):
       await handleDocument(msg, bot, apiClient, redis, config);
     } catch (err) {
       logger.error({ err, chatId: msg.chat.id }, 'Unhandled document handler error');
+    }
+  });
+
+  bot.on('voice', async (msg) => {
+    try {
+      await handleVoice(msg, bot, apiClient, redis, config);
+    } catch (err) {
+      logger.error({ err, chatId: msg.chat.id }, 'Unhandled voice handler error');
     }
   });
 

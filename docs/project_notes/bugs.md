@@ -348,6 +348,14 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Prevention**: When adding fields to a function's return object, always update the TypeScript return type declaration in the same change. Enable `tsc --noEmit` in CI to catch these immediately.
 - **Feature**: F074 | **Found by**: qa-engineer | **Severity**: Medium (TypeScript compile error; no runtime impact) | **TypeScript error**: `TS2353` | **Status**: Open — needs fix in `runStrategyA` return type
 
+### 2026-04-04 — BUG-F075-01: handleVoice propagates sendChatAction failure — user gets no response
+
+- **Issue**: In `packages/bot/src/handlers/voice.ts`, `await bot.sendChatAction(chatId, 'typing')` is called **outside** any try/catch block (lines 63-64). If Telegram's API returns an error (bot was blocked, chat ID invalid, network issue), the rejection propagates to the `bot.on('voice', ...)` wrapper in `bot.ts`, which only logs the error. The user receives **no response** — not even a generic error message. This is inconsistent with every other handler in the codebase where Telegram API calls are wrapped in try/catch.
+- **Root Cause**: The typing chat action was placed between the bot-side guards (which have their own early-return sendMessage calls inside try blocks) and the file download try/catch, but outside both. No test covered a failing `sendChatAction`.
+- **Solution**: Wrap `sendChatAction` in a fail-open try/catch: `try { await bot.sendChatAction(chatId, 'typing'); } catch { /* ignore — typing indicator is best-effort */ }`. The voice processing should continue regardless. The spec says (Key Patterns section): "Send `bot.sendChatAction(chatId, 'typing')` after the bot-side guards pass but BEFORE the file download and API call" — the fail-open behavior is implied by the design intent.
+- **Prevention**: Bot-side Telegram API calls that are "best-effort" (chat actions, status updates) must always be wrapped in fail-open try/catch. Reserve propagation only for calls that are semantically required (e.g., the final `sendMessage` response — though even that should have a fallback log).
+- **Feature**: F075 | **Found by**: qa-engineer | **Severity**: Medium (UX: silent failure on Telegram API blip) | **Exposed by**: `f075.voice.edge-cases.test.ts` — "BUG: sendChatAction rejects → error propagates" | **Status**: Open
+
 ### 2026-04-03 — BUG-F073-06: validateSpanishDishes throws TypeError on undefined/null input
 
 - **Issue**: Calling `validateSpanishDishes(undefined)` or `validateSpanishDishes(null)` (which happens when `raw.dishes` is missing from the JSON) throws `TypeError: Cannot read properties of undefined (reading 'length')` instead of returning `{ valid: false, errors: [...] }`. The TypeError propagates as an unhandled exception from the seed function, bypassing the error-collection mechanism and producing a cryptic stack trace.
