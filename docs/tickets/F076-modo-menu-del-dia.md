@@ -1,7 +1,7 @@
 # F076: "Modo Menú del Día" — Multi-dish Meal Estimation
 
 **Feature:** F076 | **Type:** Backend-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F076-modo-menu-del-dia
+**Status:** Done | **Branch:** feature/F076-modo-menu-del-dia (deleted)
 **Created:** 2026-04-04 | **Dependencies:** F073 (Spanish Canonical Dishes) ✅, F070 (ConversationCore) ✅
 
 ---
@@ -512,7 +512,7 @@ _Error cases:_
 - [x] Step 4: production-code-validator executed (1 CRITICAL fixed), quality gates pass
 - [x] Step 5: code-review-specialist executed (APPROVED, 1 fix applied)
 - [x] Step 5: qa-engineer executed (2 bugs found and fixed)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -527,6 +527,7 @@ _Error cases:_
 | 2026-04-04 | Production validator | 1 CRITICAL (api-spec.yaml not updated) + 1 HIGH (defensive logging) + 2 LOW. CRITICAL fixed. |
 | 2026-04-04 | Code review | APPROVED with 1 fix: usedContextFallback missing for menu_estimation. Fixed. |
 | 2026-04-04 | QA | 2 bugs: BUG-F076-01 HIGH (compound dish name split when commas present), BUG-F076-02 MINOR (bare €). Both fixed. |
+| 2026-04-04 | Merge approved + squash merged | Commit 1ad5f17 on develop. Branch deleted. |
 
 ---
 

@@ -10,12 +10,7 @@
 
 **Last Updated:** 2026-04-04
 
-**Active Feature:** F076 — "Modo Menú del Día" (/menu command)
-**Step:** 3/6 (Implement)
-**Branch:** feature/F076-modo-menu-del-dia
-**Complexity:** Standard
-**Ticket:** docs/tickets/F076-modo-menu-del-dia.md
-**Context:** Multi-dish meal estimation via ConversationCore. New `menu_estimation` intent, `/menu` bot command, NL detection. No DB changes.
+No active work. F076 complete (squash merged to develop 2026-04-04). Phase A1 continues.
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -172,7 +167,7 @@
 | F073 | Spanish Canonical Dishes (BEDCA-first + LLM long tail) | backend | done | 6/6 | Standard. 250 dishes. Virtual restaurant `cocina-espanola`. PR #65. 69 tests. QA: 6 bugs fixed. |
 | F074 | L4 Cooking State Extraction | backend | done | 6/6 | Standard. Per-ingredient cooking state extraction + yield correction in L4 Strategy B. 28 tests. PR #66 |
 | F075 | Audio Input (Whisper → ConversationCore, bot) | backend+bot | done | 6/6 | Standard. Telegram voice → Whisper → ConversationCore. PR #67. 71 new tests. BUG-F075-01 fixed. |
-| F076 | "Modo Menú del Día" (/menu command) | backend | in-progress | 3/6 | Standard. Multi-dish meal estimation. New menu_estimation intent in ConversationCore + /menu bot command + NL detection. PR pending |
+| F076 | "Modo Menú del Día" (/menu command) | backend | done | 6/6 | Standard. Multi-dish meal estimation. New menu_estimation intent + /menu bot command + NL detection. PR #68. 72 new tests. BUG-F076-01 + BUG-F076-02 fixed. |
 | F077 | Alcohol Nutrient Support | backend | pending | — | Simple. Add alcohol field to calculation pipeline. 7 kcal/g. BEDCA includes alcohol data for beverages |
 | F078 | Regional Aliases + "Modo España Real" | backend | pending | — | Simple. Aliases table for regional vocabulary: caña=cerveza, pintxo=tapa, media ración=0.5x, bocata=bocadillo, etc. |
 | F079 | Demand-Driven Dish Expansion Pipeline | backend | pending | — | Simple. Monitor /estimate queries returning null. Track frequency in QueryLog. Monthly batch: add top 20 missed queries |
