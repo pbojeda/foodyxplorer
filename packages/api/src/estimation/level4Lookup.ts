@@ -610,7 +610,7 @@ async function runStrategyB(
 
     for (const { row, grams, item } of resolved) {
       // Step a: Determine effective state/method with precedence
-      let effectiveState: string;
+      let effectiveState: string | undefined;
       let effectiveMethod: string | undefined;
       let cookingStateSource: YieldAdjustment['cookingStateSource'];
 
@@ -631,7 +631,7 @@ async function runStrategyB(
         cookingStateSource = 'llm_extracted';
       } else {
         // No explicit or LLM-extracted state — use defaults (resolveAndApplyYield will handle)
-        effectiveState = ''; // sentinel — let resolveAndApplyYield determine via food group
+        effectiveState = undefined; // let resolveAndApplyYield determine via food group defaults
         effectiveMethod = undefined;
         cookingStateSource = 'default_assumption';
       }
@@ -647,7 +647,7 @@ async function runStrategyB(
         result: tempResult,
         foodName: item.name,
         rawFoodGroup: row.food_group,
-        cookingState: cookingStateSource === 'default_assumption' ? undefined : effectiveState,
+        cookingState: effectiveState,
         cookingMethod: effectiveMethod,
         prisma: prismaClient,
         logger: loggerAdapter,
