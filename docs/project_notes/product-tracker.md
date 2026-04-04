@@ -14,7 +14,7 @@
 **Ticket:** `docs/tickets/F079-demand-driven-expansion.md`
 **Branch:** `feature/F079-demand-driven-expansion`
 **Complexity:** Simple (1→3→4→5→6)
-**Step:** 4/6 (Finalize)
+**Step:** 5/6 (Review)
 **Context:** Last feature in Phase A1. Surfaces top missed queries from query_logs (levelHit IS NULL), tracks disposition in new missed_query_tracking table. Admin endpoints for viewing gaps and updating status.
 
 > **CRITICAL: Spec Creation Rule**
@@ -175,7 +175,7 @@
 | F076 | "Modo Menú del Día" (/menu command) | backend | done | 6/6 | Standard. Multi-dish meal estimation. New menu_estimation intent + /menu bot command + NL detection. PR #68. 72 new tests. BUG-F076-01 + BUG-F076-02 fixed. |
 | F077 | Alcohol Nutrient Support | backend | done | 6/6 | Simple. Add alcohol field to calculation pipeline. 7 kcal/g. PR #69. +19 tests |
 | F078 | Regional Aliases + "Modo España Real" | backend | done | 6/6 | Simple. Alias SQL matching + name_es exact + serving-format prefix stripping. PR #70. +22 tests |
-| F079 | Demand-Driven Dish Expansion Pipeline | backend | in-progress | 4/6 | Simple. Monitor /estimate queries returning null. Track frequency in QueryLog. Monthly batch: add top 20 missed queries |
+| F079 | Demand-Driven Dish Expansion Pipeline | backend | in-progress | 5/6 | Simple. Monitor /estimate queries returning null. Track frequency in QueryLog. Monthly batch: add top 20 missed queries |
 
 ## Features — E008 Conversational Assistant & Voice (Phase B + C)
 

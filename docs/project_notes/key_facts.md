@@ -102,6 +102,7 @@ Quick reference for project configuration, infrastructure details, and important
 - **Menú del Día (F076)**: `menu_estimation` intent in ConversationCore (Step 3.5). `detectMenuQuery()` in `menuDetector.ts` — accent-insensitive, comma-split, noise filter, max 8 items. Bot `/menu` command. Parallel estimation via Promise.allSettled, aggregated totals (15 nutrients).
 - **Alcohol (F077)**: `alcohol Decimal(8,2) DEFAULT 0` in food_nutrients + dish_nutrients. 15 standard nutrient fields + referenceBasis. BEDCA ALC tagname maps to standard `alcohol` field. Bot shows 🍺 when > 0. Migration: `alcohol_nutrient_f077`.
 - **Regional Aliases (F078)**: L1/L2 exact match queries now search `d.aliases @> ARRAY[query]` + `d.name_es` exact. 250+ dish aliases resolve. Serving-format prefixes stripped: tapa(s)/pincho(s)/pintxo(s)/ración(es) de. No migration (GIN indexes already exist).
+- **Demand-Driven Expansion (F079)**: `missed_query_tracking` table tracks disposition (pending/resolved/ignored) of queries that miss all cascade levels. 3 admin endpoints: GET /analytics/missed-queries (top missed queries by frequency), POST /analytics/missed-queries/track (batch create tracking), POST /analytics/missed-queries/:id/status (update status). 21st Prisma migration.
 - **Auth**: No auth barriers. actor_id from day 1 (ADR-016). Google Identity Platform in Phase D (F107).
 - **i18n**: ADR-010 (Enfoque A: name + name_es). Evolution to dish_translations when 3rd language needed.
 
