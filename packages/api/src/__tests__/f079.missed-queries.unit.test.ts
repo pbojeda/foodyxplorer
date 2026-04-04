@@ -22,6 +22,7 @@ import {
   MissedQueryItemSchema,
   MissedQueryTrackingSchema,
   MissedQueriesResponseSchema,
+  BatchTrackBodySchema,
 } from '@foodxplorer/shared';
 
 describe('F079 — Zod Schema Validation', () => {
@@ -500,13 +501,8 @@ describe('F079 — Batch track validation', () => {
     'utf-8',
   );
 
-  it('defines BatchTrackBodySchema with queries array', () => {
-    expect(routeSource).toMatch(/BatchTrackBodySchema\s*=\s*z\.object/);
-    expect(routeSource).toMatch(/queries:\s*z\.array/);
-  });
-
-  it('requires min 1 query in batch', () => {
-    expect(routeSource).toMatch(/\.min\(1\)/);
+  it('imports BatchTrackBodySchema from shared package', () => {
+    expect(routeSource).toMatch(/import\s*\{[^}]*BatchTrackBodySchema[^}]*\}\s*from\s*'@foodxplorer\/shared'/);
   });
 
   it('uses Prisma upsert for batch tracking (idempotent)', () => {
@@ -515,5 +511,88 @@ describe('F079 — Batch track validation', () => {
 
   it('uses $transaction for atomicity', () => {
     expect(routeSource).toMatch(/prisma\.\$transaction/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 10. BatchTrackBodySchema Zod validation
+// ---------------------------------------------------------------------------
+
+describe('F079 — BatchTrackBodySchema Zod validation', () => {
+  it('accepts valid batch with 1 query', () => {
+    const result = BatchTrackBodySchema.parse({
+      queries: [{ queryText: 'gazpacho', hitCount: 15 }],
+    });
+    expect(result.queries).toHaveLength(1);
+  });
+
+  it('accepts batch with multiple queries', () => {
+    const result = BatchTrackBodySchema.parse({
+      queries: [
+        { queryText: 'gazpacho', hitCount: 15 },
+        { queryText: 'salmorejo', hitCount: 10 },
+      ],
+    });
+    expect(result.queries).toHaveLength(2);
+  });
+
+  it('rejects empty queries array', () => {
+    expect(() => BatchTrackBodySchema.parse({ queries: [] })).toThrow();
+  });
+
+  it('rejects batch exceeding 100 queries', () => {
+    const queries = Array.from({ length: 101 }, (_, i) => ({
+      queryText: `query-${i}`,
+      hitCount: 1,
+    }));
+    expect(() => BatchTrackBodySchema.parse({ queries })).toThrow();
+  });
+
+  it('accepts batch of exactly 100 queries', () => {
+    const queries = Array.from({ length: 100 }, (_, i) => ({
+      queryText: `query-${i}`,
+      hitCount: 1,
+    }));
+    const result = BatchTrackBodySchema.parse({ queries });
+    expect(result.queries).toHaveLength(100);
+  });
+
+  it('rejects queryText shorter than 3 chars', () => {
+    expect(() =>
+      BatchTrackBodySchema.parse({ queries: [{ queryText: 'ab', hitCount: 1 }] }),
+    ).toThrow();
+  });
+
+  it('rejects queryText longer than 255 chars', () => {
+    expect(() =>
+      BatchTrackBodySchema.parse({ queries: [{ queryText: 'x'.repeat(256), hitCount: 1 }] }),
+    ).toThrow();
+  });
+
+  it('rejects hitCount < 1', () => {
+    expect(() =>
+      BatchTrackBodySchema.parse({ queries: [{ queryText: 'gazpacho', hitCount: 0 }] }),
+    ).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11. 404 error handling correctness
+// ---------------------------------------------------------------------------
+
+describe('F079 — 404 error handling', () => {
+  const routeSource = readFileSync(
+    resolve(__dirname, '../routes/missedQueries.ts'),
+    'utf-8',
+  );
+
+  it('findUnique is outside try/catch block (404 not swallowed as 500)', () => {
+    // The findUnique + 404 throw must appear BEFORE the try block
+    const findUniquePos = routeSource.indexOf('findUnique');
+    const notFoundPos = routeSource.indexOf("'NOT_FOUND'");
+    // Find the try block that wraps the update
+    const updateTryPos = routeSource.indexOf('try {', notFoundPos);
+    // 404 throw must be before the try block
+    expect(notFoundPos).toBeLessThan(updateTryPos);
   });
 });

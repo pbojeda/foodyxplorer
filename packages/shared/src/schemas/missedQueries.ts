@@ -96,3 +96,15 @@ export const UpdateMissedQueryStatusResponseSchema = z.object({
   data: MissedQueryTrackingSchema,
 });
 export type UpdateMissedQueryStatusResponse = z.infer<typeof UpdateMissedQueryStatusResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// BatchTrackBodySchema — POST /analytics/missed-queries/track body
+// ---------------------------------------------------------------------------
+
+export const BatchTrackBodySchema = z.object({
+  queries: z.array(z.object({
+    queryText: z.string().min(3).max(255),
+    hitCount: z.number().int().min(1),
+  })).min(1).max(100),
+});
+export type BatchTrackBody = z.infer<typeof BatchTrackBodySchema>;

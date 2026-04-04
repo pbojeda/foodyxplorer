@@ -18,6 +18,7 @@ import {
   MissedQueriesParamsSchema,
   UpdateMissedQueryStatusBodySchema,
   UpdateMissedQueryStatusParamsSchema,
+  BatchTrackBodySchema,
 } from '@foodxplorer/shared';
 import { z } from 'zod';
 
@@ -58,17 +59,6 @@ function timeRangeInterval(timeRange: string): string {
     default:    return '';
   }
 }
-
-// ---------------------------------------------------------------------------
-// Batch track body schema
-// ---------------------------------------------------------------------------
-
-const BatchTrackBodySchema = z.object({
-  queries: z.array(z.object({
-    queryText: z.string().min(3).max(255),
-    hitCount: z.number().int().min(1),
-  })).min(1),
-});
 
 // ---------------------------------------------------------------------------
 // Route plugin
@@ -244,15 +234,16 @@ const missedQueriesRoutesPlugin: FastifyPluginAsync<MissedQueriesPluginOptions> 
       const { id } = request.params as z.infer<typeof UpdateMissedQueryStatusParamsSchema>;
       const { status, resolvedDishId, notes } = request.body as z.infer<typeof UpdateMissedQueryStatusBodySchema>;
 
-      try {
-        const existing = await prisma.missedQueryTracking.findUnique({ where: { id } });
-        if (!existing) {
-          throw Object.assign(
-            new Error('Tracking entry not found'),
-            { statusCode: 404, code: 'NOT_FOUND' },
-          );
-        }
+      // Check existence outside try/catch to avoid 404 being swallowed as 500
+      const existing = await prisma.missedQueryTracking.findUnique({ where: { id } });
+      if (!existing) {
+        throw Object.assign(
+          new Error('Tracking entry not found'),
+          { statusCode: 404, code: 'NOT_FOUND' },
+        );
+      }
 
+      try {
         const updated = await prisma.missedQueryTracking.update({
           where: { id },
           data: {
