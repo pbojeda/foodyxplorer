@@ -72,6 +72,14 @@ export function validateSpanishDishes(dishes: SpanishDishEntry[]): ValidationRes
       hasBlockingError = true;
     }
 
+    // Source / confidence / estimation consistency
+    if (entry.source === 'bedca' && (entry.confidenceLevel !== 'high' || entry.estimationMethod !== 'official')) {
+      errors.push(`[WARN] ${prefix}: BEDCA source should have confidenceLevel='high' and estimationMethod='official'`);
+    }
+    if (entry.source === 'recipe' && (entry.confidenceLevel !== 'medium' || entry.estimationMethod !== 'ingredients')) {
+      errors.push(`[WARN] ${prefix}: Recipe source should have confidenceLevel='medium' and estimationMethod='ingredients'`);
+    }
+
     // Portion grams range
     if (entry.portionGrams < 10 || entry.portionGrams > 800) {
       errors.push(`${prefix}: portionGrams ${entry.portionGrams} out of range [10, 800]`);

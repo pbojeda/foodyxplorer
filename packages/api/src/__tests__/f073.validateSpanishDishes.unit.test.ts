@@ -82,6 +82,17 @@ describe('F073 — validateSpanishDishes', () => {
     expect(result.errors.some((e) => e.includes('dishId'))).toBe(true);
   });
 
+  it('rejects duplicate nutrientId', () => {
+    const dishes = makeMinimalDataset(250);
+    dishes[249] = makeEntry({
+      ...dishes[249],
+      nutrientId: dishes[0].nutrientId,
+    });
+    const result = validateSpanishDishes(dishes);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('nutrientId'))).toBe(true);
+  });
+
   it('rejects negative nutrient value', () => {
     const dishes = makeMinimalDataset(250);
     dishes[0] = makeEntry({
