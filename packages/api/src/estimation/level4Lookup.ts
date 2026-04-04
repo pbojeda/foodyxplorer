@@ -359,7 +359,7 @@ async function runStrategyA(
   query: string,
   apiKey: string,
   logger?: Logger,
-): Promise<{ matchType: EstimateMatchType; result: EstimateResult } | null> {
+): Promise<{ matchType: EstimateMatchType; result: EstimateResult; rawFoodGroup?: string | null } | null> {
   // Step 1: Fetch trigram candidates
   const candidates = await fetchCandidatesByTrigram(db, query);
 
