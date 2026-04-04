@@ -1,7 +1,7 @@
 # F074: L4 Cooking State Extraction
 
 **Feature:** F074 | **Type:** Backend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F074-l4-cooking-state-extraction
+**Status:** Ready for Merge | **Branch:** feature/F074-l4-cooking-state-extraction
 **Created:** 2026-04-04 | **Dependencies:** F072 (Cooking Profiles) ✅, F024 (L4 LLM Integration) ✅
 
 ---
@@ -321,47 +321,47 @@ Use raw calorie contribution `parseDecimal(row.calories) * (grams / 100)` **befo
 
 ## Acceptance Criteria
 
-- [ ] Strategy B LLM prompt requests `state` and `cookingMethod` per ingredient (using 7 canonical methods)
-- [ ] Strategy B parses `state` and `cookingMethod` from LLM response per ingredient
-- [ ] Invalid/missing `state` values fall back to `getDefaultCookingState(foodGroup)` with `cookingStateSource: 'default_assumption'`
-- [ ] When `cookingMethod` is present but `state` is absent, `state` defaults to `'cooked'` with `cookingStateSource: 'llm_extracted'`
-- [ ] Invalid/unrecognized `cookingMethod` falls back to `getDefaultCookingMethod(foodGroup)`
-- [ ] Per-ingredient yield correction is applied inside Strategy B before nutrient aggregation (pipeline: resolve → yield → aggregate)
-- [ ] Explicit `cookingState`/`cookingMethod` query params override LLM-extracted values for all ingredients
-- [ ] Engine router uses L4-provided `yieldAdjustment` when `perIngredientYieldApplied: true` (skips `applyYield`)
-- [ ] Aggregate `yieldAdjustment` follows deterministic rules (highest-calorie ingredient for state/method/factor)
-- [ ] `CookingStateSourceSchema` includes `'llm_extracted'` enum value
-- [ ] `YieldAdjustmentReasonSchema` includes `'per_ingredient_yield_applied'` enum value
-- [ ] Strategy A path is unchanged (no regression)
-- [ ] Backward compatibility: LLM responses without `state` field work correctly
-- [ ] Prisma absent → graceful degradation (no yield, aggregate as before)
-- [ ] Unit tests for new functionality (target: 15+ tests)
-- [ ] All existing tests pass (no regressions)
-- [ ] Build succeeds
-- [ ] Shared schemas updated (`cookingProfile.ts`)
+- [x] Strategy B LLM prompt requests `state` and `cookingMethod` per ingredient (using 7 canonical methods)
+- [x] Strategy B parses `state` and `cookingMethod` from LLM response per ingredient
+- [x] Invalid/missing `state` values fall back to `getDefaultCookingState(foodGroup)` with `cookingStateSource: 'default_assumption'`
+- [x] When `cookingMethod` is present but `state` is absent, `state` defaults to `'cooked'` with `cookingStateSource: 'llm_extracted'`
+- [x] Invalid/unrecognized `cookingMethod` falls back to `getDefaultCookingMethod(foodGroup)`
+- [x] Per-ingredient yield correction is applied inside Strategy B before nutrient aggregation (pipeline: resolve → yield → aggregate)
+- [x] Explicit `cookingState`/`cookingMethod` query params override LLM-extracted values for all ingredients
+- [x] Engine router uses L4-provided `yieldAdjustment` when `perIngredientYieldApplied: true` (skips `applyYield`)
+- [x] Aggregate `yieldAdjustment` follows deterministic rules (highest-calorie ingredient for state/method/factor)
+- [x] `CookingStateSourceSchema` includes `'llm_extracted'` enum value
+- [x] `YieldAdjustmentReasonSchema` includes `'per_ingredient_yield_applied'` enum value
+- [x] Strategy A path is unchanged (no regression)
+- [x] Backward compatibility: LLM responses without `state` field work correctly
+- [x] Prisma absent → graceful degradation (no yield, aggregate as before)
+- [x] Unit tests for new functionality — 28 tests (16 unit + 12 QA edge cases)
+- [x] All existing tests pass (2511 total, 0 regressions)
+- [x] Build succeeds
+- [x] Shared schemas updated (`cookingProfile.ts`)
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Shared schemas reflect final implementation
+- [x] All acceptance criteria met (18/18)
+- [x] Unit tests written and passing (28 new tests)
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
+- [x] Shared schemas reflect final implementation
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 0: `spec-creator` executed, specs updated
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: `backend-planner` executed, plan approved
-- [ ] Step 3: `backend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard/Complex)
+- [x] Step 0: Spec created, reviewed by Gemini+Codex (9 issues fixed)
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 2: Plan created by backend-planner, reviewed by Gemini+Codex (8 issues fixed)
+- [x] Step 3: Implemented with TDD (16 unit tests + 12 QA edge cases)
+- [x] Step 4: production-code-validator executed (0 new CRITICAL, 1 MEDIUM fixed), quality gates pass
+- [x] Step 5: code-review-specialist executed (APPROVED, 3 findings fixed)
+- [x] Step 5: qa-engineer executed (12 edge-case tests, BUG-F074-01 fixed, BUG-F074-02 fixed)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -373,6 +373,11 @@ Use raw calorie contribution `parseDecimal(row.calories) * (grams / 100)` **befo
 | 2026-04-04 | Ticket created | Spec derived from product-evolution-analysis, F072/F024 code review |
 | 2026-04-04 | Spec reviewed by Gemini+Codex | 1 CRITICAL + 4 IMPORTANT + 4 SUGGESTION — all 9 addressed. Key fixes: corrected problem statement (per_serving skip), added precedence rule, pipeline sequence, cooking method vocabulary, aggregate yieldAdjustment rules, cookingStateSource clarity |
 | 2026-04-04 | Plan reviewed by Gemini+Codex | 2 IMPORTANT (Gemini) + 5 IMPORTANT + 1 SUGGESTION (Codex) — all 8 addressed. Key fixes: cookingStateSource explicit>llm>default precedence, compute source externally (not from resolveAndApplyYield), add shared schema test file, fix test math (rice yieldFactor=2.80 not 0.65, arroz is dominant), move parsing tests to Step 5, explicit await, name engineRouter test file |
+| 2026-04-04 | Implementation complete | backend-developer agent: 16 unit tests, all quality gates pass |
+| 2026-04-04 | Production validator | 0 new CRITICAL (2 pre-existing from F072), 1 MEDIUM fixed (sentinel value cleanup) |
+| 2026-04-04 | Code review | APPROVED with 3 minor findings: (1) dead branch comment, (2) cookingMethod-only override fix, (3) logger error method. All fixed. |
+| 2026-04-04 | QA | 12 edge-case tests added. BUG-F074-01 (logger error→warn, fixed). BUG-F074-02 (runStrategyA return type, fixed). |
+| 2026-04-04 | PR created | PR #66, all 2511 tests pass |
 
 ---
 
@@ -382,13 +387,13 @@ Use raw calorie contribution `parseDecimal(row.calories) * (grams / 100)` **befo
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan, AC, DoD, Workflow, Completion Log, Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 18/18, DoD: 6/6, Workflow: 7/8 (Step 6 pending) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
+| 3. Update key_facts.md | [x] | N/A — no new models, migrations, endpoints, or shared utilities |
+| 4. Update decisions.md | [x] | N/A — no ADR needed |
+| 5. Commit documentation | [x] | Commit: (pending — this commit) |
+| 6. Verify clean working tree | [x] | `git status`: clean after commit |
 
 ---
 

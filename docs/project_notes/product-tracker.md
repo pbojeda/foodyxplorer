@@ -11,7 +11,7 @@
 **Last Updated:** 2026-04-04
 
 **Active Feature:** F074 — L4 Cooking State Extraction
-**Step:** 4/6 (Finalize)
+**Step:** 5/6 (Review)
 **Branch:** `feature/F074-l4-cooking-state-extraction`
 **Complexity:** Standard
 **Ticket:** `docs/tickets/F074-l4-cooking-state-extraction.md`
@@ -171,7 +171,7 @@
 | F071 | BEDCA Food Database Import | backend | done | 6/6 | PR #63. 74 tests. BEDCA Tier 1, 20 foods (placeholder IDs), feature flag BEDCA_IMPORT_ENABLED |
 | F072 | Cooking Profiles + Yield Factors | backend | done | 6/6 | Standard. PR #64. CookingProfile table (60 entries). Yield factors + applyYield orchestrator. GET /estimate + POST /calculate/recipe integration. 194 new tests. BUG-F072-01 found+fixed |
 | F073 | Spanish Canonical Dishes (BEDCA-first + LLM long tail) | backend | done | 6/6 | Standard. 250 dishes. Virtual restaurant `cocina-espanola`. PR #65. 69 tests. QA: 6 bugs fixed. |
-| F074 | L4 Cooking State Extraction | backend | in-progress | 4/6 | Standard. Enhance L4 Strategy B to extract per-ingredient cooking state + apply per-ingredient yield correction |
+| F074 | L4 Cooking State Extraction | backend | in-progress | 5/6 | Standard. Enhance L4 Strategy B to extract per-ingredient cooking state + apply per-ingredient yield correction |
 | F075 | Audio Input (Whisper → ConversationCore, bot) | bot | pending | — | Standard. Telegram voice messages → Whisper API transcription → ConversationCore. Async (push-to-talk). See product-evolution-analysis Sec 6 |
 | F076 | "Modo Menú del Día" (/menu command) | bot | pending | — | Simple. Input: "primero + segundo + postre + bebida". Parse, estimate each, sum total. Uses ConversationCore |
 | F077 | Alcohol Nutrient Support | backend | pending | — | Simple. Add alcohol field to calculation pipeline. 7 kcal/g. BEDCA includes alcohol data for beverages |
