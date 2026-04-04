@@ -8,9 +8,14 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-03
+**Last Updated:** 2026-04-04
 
-No active work. F072 complete (PR #64 merged to develop 2026-04-03). Phase A1 continues.
+**Feature:** F073 — Spanish Canonical Dishes (BEDCA-First + LLM Long Tail)
+**Step:** 4/6 (Finalize)
+**Branch:** feature/F073-spanish-canonical-dishes
+**Complexity:** Standard
+**Ticket:** `docs/tickets/F073-spanish-canonical-dishes.md`
+**Context:** Virtual restaurant `cocina-espanola` with ≥250 Spanish dishes. Two DataSources for provenance (BEDCA Tier 1 + recipes Tier 3). Spec reviewed by Gemini+Codex (8 issues fixed).
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -164,7 +169,7 @@ No active work. F072 complete (PR #64 merged to develop 2026-04-03). Phase A1 co
 |----|---------|------|--------|------|-------|
 | F071 | BEDCA Food Database Import | backend | done | 6/6 | PR #63. 74 tests. BEDCA Tier 1, 20 foods (placeholder IDs), feature flag BEDCA_IMPORT_ENABLED |
 | F072 | Cooking Profiles + Yield Factors | backend | done | 6/6 | Standard. PR #64. CookingProfile table (60 entries). Yield factors + applyYield orchestrator. GET /estimate + POST /calculate/recipe integration. 194 new tests. BUG-F072-01 found+fixed |
-| F073 | Spanish Canonical Dishes (BEDCA-first + LLM long tail) | backend | pending | — | Standard. ~300 dishes. BEDCA data where available + LLM recipe generation for rest. Calculate via /calculate/recipe (L2). Virtual restaurant `cocina-espanola`. Human review top 50. See product-evolution-analysis Sec 5 |
+| F073 | Spanish Canonical Dishes (BEDCA-first + LLM long tail) | backend | in-progress | 2/6 | Standard. ≥250 dishes. Virtual restaurant `cocina-espanola`. 2 DataSources (BEDCA Tier 1 + recipes Tier 3). Spec+Plan reviewed by Gemini+Codex |
 | F074 | L4 Cooking State Extraction | backend | pending | — | Simple. Enhance L4 decomposition prompt to extract cooking state per ingredient. Connect to CookingProfile yield factors |
 | F075 | Audio Input (Whisper → ConversationCore, bot) | bot | pending | — | Standard. Telegram voice messages → Whisper API transcription → ConversationCore. Async (push-to-talk). See product-evolution-analysis Sec 6 |
 | F076 | "Modo Menú del Día" (/menu command) | bot | pending | — | Simple. Input: "primero + segundo + postre + bebida". Parse, estimate each, sum total. Uses ConversationCore |
