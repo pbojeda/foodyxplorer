@@ -191,6 +191,7 @@ function makeCorrectedNutrients(calories: number) {
     potassium: 41.0,
     monounsaturatedFats: 0.07,
     polyunsaturatedFats: 0.11,
+    alcohol: 0,
     referenceBasis: 'per_100g' as const,
   };
 }
@@ -393,7 +394,7 @@ describe('F074 edge cases — Strategy B per-ingredient yield', () => {
     const zeroCorrectedNutrients = {
       calories: 0, proteins: 0, carbohydrates: 0, sugars: 0, fats: 0,
       saturatedFats: 0, fiber: 0, salt: 0, sodium: 0, transFats: 0,
-      cholesterol: 0, potassium: 0, monounsaturatedFats: 0, polyunsaturatedFats: 0,
+      cholesterol: 0, potassium: 0, monounsaturatedFats: 0, polyunsaturatedFats: 0, alcohol: 0,
       referenceBasis: 'per_100g' as const,
     };
 

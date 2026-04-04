@@ -200,6 +200,7 @@ paths:
                             potassium: 0
                             monounsaturatedFats: 0
                             polyunsaturatedFats: 0
+                            alcohol: 0
                             referenceBasis: "per_serving"
                           confidenceLevel: "medium"
                           estimationMethod: "scraped"
@@ -433,6 +434,7 @@ paths:
                             potassium: 0
                             monounsaturatedFats: 0
                             polyunsaturatedFats: 0
+                            alcohol: 0
                             referenceBasis: "per_serving"
                           confidenceLevel: "medium"
                           estimationMethod: "scraped"
@@ -687,6 +689,7 @@ paths:
                             potassium: 0
                             monounsaturatedFats: 0
                             polyunsaturatedFats: 0
+                            alcohol: 0
                             referenceBasis: "per_serving"
                           confidenceLevel: "medium"
                           estimationMethod: "scraped"
@@ -936,6 +939,7 @@ paths:
                             potassium: 0
                             monounsaturatedFats: 0
                             polyunsaturatedFats: 0
+                            alcohol: 0
                             referenceBasis: "per_serving"
                           confidenceLevel: "medium"
                           estimationMethod: "scraped"
@@ -1232,6 +1236,7 @@ paths:
                             potassium: 0
                             monounsaturatedFats: 0
                             polyunsaturatedFats: 0
+                            alcohol: 0
                             referenceBasis: "per_serving"
                           confidenceLevel: "medium"
                           estimationMethod: "scraped"
@@ -2151,6 +2156,7 @@ paths:
                           potassium: 0
                           monounsaturatedFats: 0
                           polyunsaturatedFats: 0
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "high"
                         estimationMethod: "official"
@@ -2196,6 +2202,7 @@ paths:
                           potassium: 256
                           monounsaturatedFats: 1.2
                           polyunsaturatedFats: 0.7
+                          alcohol: 0
                           referenceBasis: "per_100g"
                         confidenceLevel: "high"
                         estimationMethod: "official"
@@ -2240,6 +2247,7 @@ paths:
                           potassium: 0
                           monounsaturatedFats: 0
                           polyunsaturatedFats: 0
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "high"
                         estimationMethod: "official"
@@ -2284,6 +2292,7 @@ paths:
                           potassium: 310
                           monounsaturatedFats: 8
                           polyunsaturatedFats: 3
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "medium"
                         estimationMethod: "ingredients"
@@ -2328,6 +2337,7 @@ paths:
                           potassium: 280
                           monounsaturatedFats: 2
                           polyunsaturatedFats: 1
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "low"
                         estimationMethod: "ingredients"
@@ -2372,6 +2382,7 @@ paths:
                           potassium: 350
                           monounsaturatedFats: 8
                           polyunsaturatedFats: 4
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "low"
                         estimationMethod: "extrapolation"
@@ -2417,6 +2428,7 @@ paths:
                           potassium: 256
                           monounsaturatedFats: 1.2
                           polyunsaturatedFats: 0.7
+                          alcohol: 0
                           referenceBasis: "per_100g"
                         confidenceLevel: "low"
                         estimationMethod: "extrapolation"
@@ -2478,6 +2490,7 @@ paths:
                           potassium: 220
                           monounsaturatedFats: 3
                           polyunsaturatedFats: 1
+                          alcohol: 0
                           referenceBasis: "per_100g"
                         confidenceLevel: "medium"
                         estimationMethod: "llm"
@@ -2524,6 +2537,7 @@ paths:
                           potassium: 430
                           monounsaturatedFats: 3
                           polyunsaturatedFats: 2
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "low"
                         estimationMethod: "llm"
@@ -2570,6 +2584,7 @@ paths:
                           potassium: 0
                           monounsaturatedFats: 0
                           polyunsaturatedFats: 0
+                          alcohol: 0
                           referenceBasis: "per_serving"
                         confidenceLevel: "high"
                         estimationMethod: "official"
@@ -4155,6 +4170,7 @@ paths:
                         potassium: 440
                         monounsaturatedFats: 2.4
                         polyunsaturatedFats: 1.6
+                        alcohol: 0
                         referenceBasis: per_serving
                       ingredients:
                         - input:
@@ -4183,6 +4199,7 @@ paths:
                             potassium: 440
                             monounsaturatedFats: 2.4
                             polyunsaturatedFats: 1.6
+                            alcohol: 0
                             referenceBasis: per_serving
                         - input:
                             foodId: null
@@ -4438,6 +4455,7 @@ paths:
                                 potassium: 0
                                 monounsaturatedFats: 0
                                 polyunsaturatedFats: 0
+                                alcohol: 0
                                 referenceBasis: per_serving
                               confidenceLevel: high
                               estimationMethod: official
@@ -4482,6 +4500,7 @@ paths:
                                 potassium: 0
                                 monounsaturatedFats: 0
                                 polyunsaturatedFats: 0
+                                alcohol: 0
                                 referenceBasis: per_serving
                               confidenceLevel: low
                               estimationMethod: extrapolation
@@ -4532,6 +4551,7 @@ paths:
                                 potassium: 0
                                 monounsaturatedFats: 0
                                 polyunsaturatedFats: 0
+                                alcohol: 0
                                 referenceBasis: per_serving
                               confidenceLevel: medium
                               estimationMethod: ingredients
@@ -4776,6 +4796,7 @@ paths:
                             potassium: 0
                             monounsaturatedFats: 0
                             polyunsaturatedFats: 0
+                            alcohol: 0
                             referenceBasis: "per_serving"
                           confidenceLevel: "high"
                           estimationMethod: "official"
@@ -4851,6 +4872,7 @@ paths:
                               potassium: 0
                               monounsaturatedFats: 0
                               polyunsaturatedFats: 0
+                              alcohol: 0
                               referenceBasis: "per_serving"
                             confidenceLevel: "high"
                             estimationMethod: "official"
@@ -4893,6 +4915,7 @@ paths:
                               potassium: 0
                               monounsaturatedFats: 0
                               polyunsaturatedFats: 0
+                              alcohol: 0
                               referenceBasis: "per_serving"
                             confidenceLevel: "high"
                             estimationMethod: "official"
@@ -5301,6 +5324,10 @@ components:
         polyunsaturatedFats:
           type: number
           minimum: 0
+        alcohol:
+          type: number
+          minimum: 0
+          description: Alcohol in grams (F077). 7 kcal/g. BEDCA tagname ALC.
 
     MenuEstimationData:
       type: object
@@ -5486,6 +5513,7 @@ components:
             - potassium
             - monounsaturatedFats
             - polyunsaturatedFats
+            - alcohol
             - referenceBasis
           properties:
             calories:
@@ -5551,6 +5579,12 @@ components:
               type: number
               minimum: 0
               default: 0
+              example: 0
+            alcohol:
+              type: number
+              minimum: 0
+              default: 0
+              description: Alcohol in grams (F077). 7 kcal/g. BEDCA tagname ALC.
               example: 0
             referenceBasis:
               type: string
@@ -7049,6 +7083,11 @@ components:
           type: number
           minimum: 0
           nullable: true
+        alcohol:
+          type: number
+          minimum: 0
+          nullable: true
+          description: Alcohol in grams (F077). 7 kcal/g. BEDCA tagname ALC.
         referenceBasis:
           type: string
           enum: [per_serving]
@@ -7075,6 +7114,7 @@ components:
         - potassium
         - monounsaturatedFats
         - polyunsaturatedFats
+        - alcohol
         - referenceBasis
       properties:
         calories:
@@ -7139,6 +7179,12 @@ components:
           type: number
           minimum: 0
           default: 0
+          example: 0
+        alcohol:
+          type: number
+          minimum: 0
+          default: 0
+          description: Alcohol in grams (F077). 7 kcal/g. BEDCA tagname ALC.
           example: 0
         referenceBasis:
           type: string

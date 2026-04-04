@@ -64,7 +64,7 @@ const BASE_NUTRIENTS = {
   calories: 200, proteins: 8, carbohydrates: 20, sugars: 2,
   fats: 10, saturatedFats: 3, fiber: 1, salt: 0.5, sodium: 200,
   transFats: 0, cholesterol: 0, potassium: 0,
-  monounsaturatedFats: 0, polyunsaturatedFats: 0,
+  monounsaturatedFats: 0, polyunsaturatedFats: 0, alcohol: 0,
   referenceBasis: 'per_serving' as const,
 };
 

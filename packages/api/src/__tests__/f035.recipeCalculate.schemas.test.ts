@@ -308,6 +308,7 @@ describe('ResolvedIngredientSchema', () => {
         potassium: 220,
         monounsaturatedFats: 1.2,
         polyunsaturatedFats: 0.8,
+        alcohol: 0,
         referenceBasis: 'per_serving',
       },
     });
@@ -347,6 +348,7 @@ describe('RecipeCalculateDataSchema', () => {
     potassium: 440,
     monounsaturatedFats: 2.4,
     polyunsaturatedFats: 1.6,
+    alcohol: 0,
     referenceBasis: 'per_serving' as const,
   };
 
@@ -422,6 +424,7 @@ describe('RecipeCalculateResponseSchema', () => {
           potassium: 0,
           monounsaturatedFats: 0,
           polyunsaturatedFats: 0,
+          alcohol: 0,
           referenceBasis: 'per_serving',
         },
         ingredients: [],

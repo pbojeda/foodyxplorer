@@ -383,7 +383,7 @@ describe('Actual data files — structural correctness', () => {
     expect(missing).toHaveLength(0);
   });
 
-  it('every food entry has all 14 nutrient fields defined', () => {
+  it('every food entry has all 14 core nutrient fields defined', () => {
     const issues: string[] = [];
     for (const food of actualFoods) {
       for (const key of NUTRIENT_KEYS) {

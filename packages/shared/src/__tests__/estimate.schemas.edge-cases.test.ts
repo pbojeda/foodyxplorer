@@ -36,6 +36,7 @@ const VALID_NUTRIENTS = {
   potassium: 300,
   monounsaturatedFats: 10,
   polyunsaturatedFats: 3,
+  alcohol: 0,
   referenceBasis: 'per_serving' as const,
 };
 

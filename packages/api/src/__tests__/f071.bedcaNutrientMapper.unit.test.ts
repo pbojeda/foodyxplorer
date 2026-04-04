@@ -10,7 +10,7 @@
  * - Missing standard nutrients default to 0 (not null — DB requires number)
  * - Unmeasured standard fields tracked in extra.unmeasured[]
  * - Non-standard nutrients → extra.nutrients[]
- * - Alcohol → extra.alcohol_g
+ * - Alcohol (ALC tagname) → standard alcohol field (promoted in F077)
  * - Empty/all-null nutrients → all-zeros MappedNutrients
  */
 import { describe, it, expect } from 'vitest';
@@ -179,11 +179,13 @@ describe('mapBedcaNutrientsToSchema', () => {
     );
   });
 
-  it('puts alcohol in extra.alcohol_g', () => {
+  it('maps alcohol (ALC) to standard alcohol field (F077)', () => {
     const nutrients = makeNutrients({ 221: 14.0 }); // 14g alcohol per 100g
     const result = mapBedcaNutrientsToSchema(nutrients, NUTRIENT_INDEX);
 
-    expect(result.extra['alcohol_g']).toBe(14.0);
+    expect(result.alcohol).toBe(14.0);
+    // Alcohol no longer stored in extra (promoted to standard field in F077)
+    expect(result.extra['alcohol_g']).toBeUndefined();
   });
 
   it('returns all-zeros for empty nutrient array', () => {

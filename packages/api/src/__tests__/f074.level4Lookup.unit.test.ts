@@ -198,6 +198,7 @@ function makeCorrectedNutrients(calories: number) {
     potassium: 41.0,
     monounsaturatedFats: 0.07,
     polyunsaturatedFats: 0.11,
+    alcohol: 0,
     referenceBasis: 'per_100g' as const,
   };
 }
@@ -560,6 +561,7 @@ describe('Strategy B — per-ingredient yield (F074)', () => {
       potassium: 115.0 / 2.8,
       monounsaturatedFats: 0.2 / 2.8,
       polyunsaturatedFats: 0.3 / 2.8,
+      alcohol: 0,
       referenceBasis: 'per_100g' as const,
     };
 

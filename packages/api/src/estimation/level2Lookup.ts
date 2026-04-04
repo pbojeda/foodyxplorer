@@ -87,7 +87,8 @@ async function exactIngredientDishMatch(
       SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.cholesterol  * di.gram_weight / 100 ELSE 0 END)::text AS cholesterol,
       SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.potassium    * di.gram_weight / 100 ELSE 0 END)::text AS potassium,
       SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.monounsaturated_fats * di.gram_weight / 100 ELSE 0 END)::text AS monounsaturated_fats,
-      SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.polyunsaturated_fats * di.gram_weight / 100 ELSE 0 END)::text AS polyunsaturated_fats
+      SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.polyunsaturated_fats * di.gram_weight / 100 ELSE 0 END)::text AS polyunsaturated_fats,
+      SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.alcohol * di.gram_weight / 100 ELSE 0 END)::text AS alcohol
     FROM dishes d
     JOIN restaurants r ON r.id = d.restaurant_id
     JOIN dish_ingredients di ON di.dish_id = d.id
@@ -143,7 +144,8 @@ async function ftsIngredientDishMatch(
       SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.cholesterol  * di.gram_weight / 100 ELSE 0 END)::text AS cholesterol,
       SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.potassium    * di.gram_weight / 100 ELSE 0 END)::text AS potassium,
       SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.monounsaturated_fats * di.gram_weight / 100 ELSE 0 END)::text AS monounsaturated_fats,
-      SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.polyunsaturated_fats * di.gram_weight / 100 ELSE 0 END)::text AS polyunsaturated_fats
+      SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.polyunsaturated_fats * di.gram_weight / 100 ELSE 0 END)::text AS polyunsaturated_fats,
+      SUM(CASE WHEN rfn.id IS NOT NULL AND di.gram_weight IS NOT NULL THEN rfn.alcohol * di.gram_weight / 100 ELSE 0 END)::text AS alcohol
     FROM dishes d
     JOIN restaurants r ON r.id = d.restaurant_id
     JOIN dish_ingredients di ON di.dish_id = d.id

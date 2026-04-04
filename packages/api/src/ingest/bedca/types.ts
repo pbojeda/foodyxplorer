@@ -83,10 +83,11 @@ export interface MappedNutrients {
   potassium: number;
   monounsaturatedFats: number;
   polyunsaturatedFats: number;
+  /** Alcohol in grams per 100g (F077). BEDCA tagname ALC, nutrient ID 221. */
+  alcohol: number;
   /**
    * Extended nutrients and metadata.
    * Structure:
-   * - alcohol_g: number | undefined — alcohol in grams
    * - nutrients: Array<{ nutrientId, tagname, name, unit, value }> — non-standard nutrients
    * - unmeasured: string[] — standard field names that were null in source (stored as 0)
    */

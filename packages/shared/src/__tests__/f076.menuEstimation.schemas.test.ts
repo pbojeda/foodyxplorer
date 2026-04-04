@@ -28,13 +28,14 @@ const VALID_TOTALS = {
   potassium: 800,
   monounsaturatedFats: 10,
   polyunsaturatedFats: 5,
+  alcohol: 0,
 };
 
 const ZERO_TOTALS = {
   calories: 0, proteins: 0, carbohydrates: 0, sugars: 0,
   fats: 0, saturatedFats: 0, fiber: 0, salt: 0, sodium: 0,
   transFats: 0, cholesterol: 0, potassium: 0,
-  monounsaturatedFats: 0, polyunsaturatedFats: 0,
+  monounsaturatedFats: 0, polyunsaturatedFats: 0, alcohol: 0,
 };
 
 const VALID_ESTIMATION = {
@@ -57,7 +58,7 @@ const VALID_ESTIMATION = {
       calories: 120, proteins: 2, carbohydrates: 10, sugars: 5,
       fats: 8, saturatedFats: 1, fiber: 2, salt: 0.5, sodium: 200,
       transFats: 0, cholesterol: 0, potassium: 300,
-      monounsaturatedFats: 5, polyunsaturatedFats: 1,
+      monounsaturatedFats: 5, polyunsaturatedFats: 1, alcohol: 0,
       referenceBasis: 'per_serving' as const,
     },
     confidenceLevel: 'high' as const,

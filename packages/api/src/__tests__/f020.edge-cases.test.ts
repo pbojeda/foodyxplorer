@@ -28,7 +28,7 @@ import {
 const BASE_NUTRIENTS_A = {
   calories: 100, proteins: 10, carbohydrates: 20, sugars: 5, fats: 5,
   saturatedFats: 2, fiber: 3, salt: 1, sodium: 400, transFats: 0,
-  cholesterol: 10, potassium: 50, monounsaturatedFats: 2, polyunsaturatedFats: 1,
+  cholesterol: 10, potassium: 50, monounsaturatedFats: 2, polyunsaturatedFats: 1, alcohol: 0,
   referenceBasis: 'per_serving' as const,
 };
 
@@ -165,7 +165,7 @@ describe('Section A — EstimateNutrientsSchema boundary values', () => {
       ...BASE_NUTRIENTS_A,
       calories: 0, proteins: 0, carbohydrates: 0, sugars: 0, fats: 0,
       saturatedFats: 0, fiber: 0, salt: 0, sodium: 0, transFats: 0,
-      cholesterol: 0, potassium: 0, monounsaturatedFats: 0, polyunsaturatedFats: 0,
+      cholesterol: 0, potassium: 0, monounsaturatedFats: 0, polyunsaturatedFats: 0, alcohol: 0,
     };
     expect(EstimateNutrientsSchema.safeParse(allZero).success).toBe(true);
   });
@@ -304,7 +304,7 @@ const ROUTE_MOCK_RESULT = {
       calories: 300, proteins: 10, carbohydrates: 40, sugars: 5,
       fats: 8, saturatedFats: 2, fiber: 3, salt: 1, sodium: 400,
       transFats: 0, cholesterol: 20, potassium: 100,
-      monounsaturatedFats: 4, polyunsaturatedFats: 2,
+      monounsaturatedFats: 4, polyunsaturatedFats: 2, alcohol: 0,
       referenceBasis: 'per_serving' as const,
     },
     confidenceLevel: 'high' as const,

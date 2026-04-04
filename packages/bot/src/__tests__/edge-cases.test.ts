@@ -575,7 +575,7 @@ describe('formatEstimate — edge cases', () => {
           calories: 300, proteins: 20, carbohydrates: 30, sugars: 5,
           fats: 10, saturatedFats: 0, fiber: 0, salt: 0, sodium: 0,
           transFats: 0, cholesterol: 0, potassium: 0,
-          monounsaturatedFats: 0, polyunsaturatedFats: 0,
+          monounsaturatedFats: 0, polyunsaturatedFats: 0, alcohol: 0,
           referenceBasis: 'per_serving',
         },
         ...overrides,

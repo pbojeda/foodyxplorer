@@ -192,6 +192,7 @@ model FoodNutrient {
   potassium          Decimal                @default(0) @db.Decimal(8, 2)
   monounsaturatedFats Decimal               @default(0) @map("monounsaturated_fats") @db.Decimal(8, 2)
   polyunsaturatedFats Decimal               @default(0) @map("polyunsaturated_fats") @db.Decimal(8, 2)
+  alcohol             Decimal               @default(0) @db.Decimal(8, 2)
   sourceId           String                 @map("source_id") @db.Uuid
   confidenceLevel    ConfidenceLevel        @map("confidence_level")
   createdAt          DateTime               @default(now()) @map("created_at")
@@ -373,6 +374,7 @@ model DishNutrient {
   potassium           Decimal                @default(0) @db.Decimal(8, 2)
   monounsaturatedFats Decimal                @default(0) @map("monounsaturated_fats") @db.Decimal(8, 2)
   polyunsaturatedFats Decimal                @default(0) @map("polyunsaturated_fats") @db.Decimal(8, 2)
+  alcohol             Decimal                @default(0) @db.Decimal(8, 2)
   estimationMethod    EstimationMethod       @map("estimation_method")
   sourceId            String                 @map("source_id") @db.Uuid
   confidenceLevel     ConfidenceLevel        @map("confidence_level")

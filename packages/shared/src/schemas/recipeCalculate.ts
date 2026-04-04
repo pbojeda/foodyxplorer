@@ -104,7 +104,7 @@ export const ResolvedAsSchema = z.object({
 export type ResolvedAs = z.infer<typeof ResolvedAsSchema>;
 
 // ---------------------------------------------------------------------------
-// RecipeNutrientsSchema — same 14 fields as EstimateNutrients but nullable fields
+// RecipeNutrientsSchema — same 15 fields as EstimateNutrients but nullable fields
 // For per-ingredient and total, some nutrients may be null (no data for any resolved ingredient).
 // ---------------------------------------------------------------------------
 
@@ -123,6 +123,7 @@ export const RecipeNutrientsSchema = z.object({
   potassium: z.number().nonnegative().nullable(),
   monounsaturatedFats: z.number().nonnegative().nullable(),
   polyunsaturatedFats: z.number().nonnegative().nullable(),
+  alcohol: z.number().nonnegative().nullable(),
   referenceBasis: NutrientReferenceBasisSchema,
 });
 

@@ -321,6 +321,7 @@ async function executeRecipeCalculation(
           potassium: parseFloat(res.nutrientRow.potassium) || 0,
           monounsaturatedFats: parseFloat(res.nutrientRow.monounsaturated_fats) || 0,
           polyunsaturatedFats: parseFloat(res.nutrientRow.polyunsaturated_fats) || 0,
+          alcohol: parseFloat(res.nutrientRow.alcohol) || 0,
           referenceBasis: res.nutrientRow.reference_basis as 'per_100g' | 'per_serving',
         },
         confidenceLevel: 'high' as const,
@@ -363,6 +364,7 @@ async function executeRecipeCalculation(
         potassium: String(correctedResult.nutrients.potassium),
         monounsaturated_fats: String(correctedResult.nutrients.monounsaturatedFats),
         polyunsaturated_fats: String(correctedResult.nutrients.polyunsaturatedFats),
+        alcohol: String(correctedResult.nutrients.alcohol),
       };
 
       resolvedAgg.push({
