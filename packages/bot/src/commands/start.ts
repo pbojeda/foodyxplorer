@@ -14,6 +14,7 @@ export function handleStart(): string {
     '/comparar \\<plato\\> vs \\<plato\\> — Compara dos platos',
     '/receta \\<ingredientes\\> — Calcula nutrientes de una receta',
     '/buscar \\<plato\\> — Busca platos por nombre',
+    '/menu \\<plato1, plato2, \\.\\.\\.\\> — Estima un menú del día completo',
     '/contexto \\[cadena|borrar\\] — Ver, establecer o borrar contexto de cadena',
     '/restaurante \\<nombre\\> — Busca o crea un restaurante',
     '/restaurantes \\[cadena\\] — Lista restaurantes',
