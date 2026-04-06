@@ -364,6 +364,30 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Prevention**: The conjunction-split heuristic must be guarded by whether commas were already used as separators. If commas are present, they are the authoritative separator and " y " within an item is part of the dish name. Add regression tests for compound dish names in last position: "arroz y verduras", "macarrones y atún", "bacalao y tomate".
 - **Feature**: F076 | **Found by**: qa-engineer | **Severity**: High (wrong nutritional totals; silent data corruption) | **Exposed by**: `f076.menuDetector.edge-cases.test.ts` — 4 BUG-1 tests | **Status**: Fixed (bdbc698)
 
+### 2026-04-06 — BUG-F080-01: offValidator crashes with TypeError on null code/id (JSON null from OFF API)
+
+- **Issue**: Calling `validateOffProduct({ code: null, _id: 'abc' })` throws `TypeError: Cannot read properties of null (reading 'trim')`. The OFF API can return JSON `null` for optional string fields at runtime. When `product.code` is `null`, the identifier check evaluates `product.code !== undefined` as `true` (null is not undefined), then immediately calls `null.trim()` which crashes.
+- **Root Cause**: The identifier check at `offValidator.ts:44` uses `product.code !== undefined && product.code.trim() !== ''`. The `!== undefined` guard does not protect against `null`; it only guards against missing fields. JSON deserialization produces `null` (not `undefined`) for explicitly null-valued fields in the OFF API response.
+- **Solution**: Replace the `!== undefined` checks with null-safe optional chaining. Use `product.code?.trim()` (truthy check) instead of `product.code !== undefined && product.code.trim() !== ''`. Pattern: `(product.code != null && product.code.trim() !== '')`.
+- **Prevention**: Any validator that receives external JSON data must guard against `null` separately from `undefined`. TypeScript's optional fields (`field?: string`) only prevent `undefined`, not `null`. Use `!= null` (double equals, covers both) or `?. ` optional chaining when calling methods on fields from external APIs.
+- **Feature**: F080 | **Found by**: qa-engineer | **Severity**: High (crashes import for products with null code field) | **Exposed by**: `f080.edge-cases.unit.test.ts` — BUG-1 tests
+
+### 2026-04-06 — BUG-F080-02: offValidator accepts null product_name as a valid name
+
+- **Issue**: `validateOffProduct({ product_name: null, product_name_es: null, ... })` returns `{ valid: true }` instead of rejecting the product. The name check at `offValidator.ts:35-36` uses `product.product_name?.trim() !== ''` — optional chaining on `null` returns `undefined`, and `undefined !== ''` evaluates to `true`. The subsequent `product.product_name !== undefined` check also passes because `null !== undefined`. Both conditions are true, so `hasName = true` even though the product has no usable name.
+- **Root Cause**: The name validation logic is logically inverted. It checks `value?.trim() !== ''` first (which is `true` for `null` due to optional chaining returning `undefined`) and then checks `value !== undefined` (which is `true` for `null`). The intent was to check "the field exists and is non-empty", but the implementation is backwards and `null` slips through.
+- **Solution**: Replace the name check with null-safe equality: `(product.product_name != null && product.product_name.trim() !== '')`. Using `!= null` (loose inequality) covers both `null` and `undefined` in a single check.
+- **Prevention**: When writing existence+non-empty checks for string fields, prefer `value != null && value.trim() !== ''` over optional chaining. The `?.` operator returns `undefined` for both `null` and `undefined` receivers, masking the null case.
+- **Feature**: F080 | **Found by**: qa-engineer | **Severity**: Medium (products with null names pass validation and get imported with empty name strings) | **Exposed by**: `f080.edge-cases.unit.test.ts` — BUG-2 tests
+
+### 2026-04-06 — BUG-F080-03: offMapper creates invalid externalId from whitespace barcode
+
+- **Issue**: When `product.code = '   '` (whitespace only) and `product._id = 'abc123'`, the mapper's `computeExternalId` returns `'OFF-   '` (whitespace in the ID) instead of `'OFF-id-abc123'`. The barcode field is also set to `'   '` instead of `null`. The validator correctly rejects whitespace as a valid code identifier (using `.trim()` check), but if `_id` is present, the product passes validation. The mapper then uses `if (product.code)` (truthy check) — a whitespace string is truthy in JavaScript, so the mapper uses the whitespace code.
+- **Root Cause**: `computeExternalId` in `offMapper.ts:29` uses `if (product.code)` (truthy) to check for a valid barcode. A non-empty whitespace string like `'   '` is truthy. The validator uses `product.code.trim() !== ''` (correct) but the mapper does not.
+- **Solution**: Change `computeExternalId` to use `if (product.code?.trim())` to ensure the barcode is non-empty after trimming. Also change the barcode assignment `barcode: product.code ?? null` to `barcode: product.code?.trim() || null` to avoid storing whitespace barcodes.
+- **Prevention**: When checking string values that come from external APIs, always apply `.trim()` before treating the string as non-empty. Use a helper `isNonEmpty(s: string | undefined | null)` that checks both null-safety and trim.
+- **Feature**: F080 | **Found by**: qa-engineer | **Severity**: Medium (whitespace barcode stored in DB, wrong externalId created — products would not be idempotently upserted on re-run) | **Exposed by**: `f080.edge-cases.unit.test.ts` — BUG-3 tests
+
 ### 2026-04-04 — BUG-F076-02: NOISE_REGEX does not filter bare "€" symbol
 
 - **Issue**: `detectMenuQuery('menú: gazpacho, €, pollo')` returns `['gazpacho', '€', 'pollo']` instead of `['gazpacho', 'pollo']`. A bare "€" symbol (without a digit before or after it) is not filtered by the noise regex and is passed to the estimation engine as a dish name query.

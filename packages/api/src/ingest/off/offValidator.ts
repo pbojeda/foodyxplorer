@@ -31,18 +31,21 @@ export function validateOffProduct(product: OffProduct): OffValidationResult {
   const reasons: string[] = [];
 
   // 1. Name check — at least one of product_name or product_name_es required
-  const hasName =
-    (product.product_name?.trim() !== '' && product.product_name !== undefined) ||
-    (product.product_name_es?.trim() !== '' && product.product_name_es !== undefined);
+  // OFF API returns null (not undefined) for empty fields, so check both
+  const nameStr = product.product_name?.trim();
+  const nameEsStr = product.product_name_es?.trim();
+  const hasName = (nameStr !== undefined && nameStr !== '' && nameStr !== null) ||
+    (nameEsStr !== undefined && nameEsStr !== '' && nameEsStr !== null);
 
   if (!hasName) {
     reasons.push('Missing product name: both product_name and product_name_es are absent or empty');
   }
 
   // 2. Identifier check — at least code or _id must be present
-  const hasIdentifier =
-    (product.code !== undefined && product.code.trim() !== '') ||
-    (product._id !== undefined && product._id.trim() !== '');
+  // OFF API may return null for these fields, so guard against null.trim()
+  const codeStr = product.code != null ? product.code.trim() : '';
+  const idStr = product._id != null ? product._id.trim() : '';
+  const hasIdentifier = codeStr !== '' || idStr !== '';
 
   if (!hasIdentifier) {
     reasons.push('Missing stable identifier: both code and _id are absent');

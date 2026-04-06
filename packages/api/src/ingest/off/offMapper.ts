@@ -26,10 +26,11 @@ const MG_TO_G = 1000;
  * Prefers EAN barcode. Falls back to OFF internal _id.
  */
 function computeExternalId(product: OffProduct): string {
-  if (product.code) {
-    return `OFF-${product.code}`;
+  const code = product.code?.trim();
+  if (code) {
+    return `OFF-${code}`;
   }
-  return `OFF-id-${product._id}`;
+  return `OFF-id-${product._id?.trim()}`;
 }
 
 /**
@@ -107,11 +108,11 @@ export function mapOffProductToFood(product: OffProduct): MappedOffFood {
   const name = product.product_name?.trim() || product.product_name_es?.trim() || '';
   const nameEs = product.product_name_es?.trim() || product.product_name?.trim() || null;
 
-  const brandName = product.brands
-    ? product.brands.split(',')[0]?.trim().toLowerCase() ?? null
-    : null;
+  const rawBrand = product.brands?.split(',')[0]?.trim().toLowerCase();
+  const brandName = rawBrand || null;
 
-  const barcode = product.code ?? null;
+  const trimmedCode = product.code?.trim();
+  const barcode = trimmedCode || null;
 
   const foodGroup = extractFoodGroup(product.categories_tags);
 
