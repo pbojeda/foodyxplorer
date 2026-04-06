@@ -205,6 +205,7 @@ export async function seedPhaseSpanishDishes(client: PrismaClient): Promise<void
             fiber: entry.nutrients.fiber,
             salt: entry.nutrients.salt,
             sodium: entry.nutrients.sodium,
+            alcohol: entry.nutrients.alcohol ?? 0,
           },
           create: {
             id: entry.nutrientId,
@@ -219,6 +220,7 @@ export async function seedPhaseSpanishDishes(client: PrismaClient): Promise<void
             fiber: entry.nutrients.fiber,
             salt: entry.nutrients.salt,
             sodium: entry.nutrients.sodium,
+            alcohol: entry.nutrients.alcohol ?? 0,
             referenceBasis: 'per_serving',
             estimationMethod: entry.estimationMethod,
             confidenceLevel: entry.confidenceLevel,
