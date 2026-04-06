@@ -231,6 +231,25 @@ No active work. F079 complete (squash merged to develop 2026-04-04). **Phase A1 
 | F039 | Landing Page — nutriXplorer | frontend | done | 6/6 | Standard. packages/landing/ standalone. Next.js 14 + Tailwind + Framer Motion. 9 sections, A/B hero, SEO, GDPR, analytics. 153 tests. SHA 64280e4 |
 | F040 | Landing Page FAQ Section | frontend | pending | — | Simple. FAQ accordion for landing page. Deferred from F039 |
 
+## Security & Robustness Backlog (Post-Phase B)
+
+> Identified during cross-model QA audit (2026-04-06). To be addressed before public launch.
+> Full details: `docs/project_notes/qa-api-audit-2026-04-06.md`
+
+| ID | Severity | Issue | Category |
+|----|----------|-------|----------|
+| A1 | CRITICAL | Actor impersonation — X-Actor-Id trusted blindly, attacker can spoof telegram IDs | Auth |
+| A2 | HIGH | Audio DOS / billing — server buffers entire audio before validating duration | Input validation |
+| A3 | MEDIUM | Free-form recipe grams unbounded — LLM can return grams > 5000 | Input validation |
+| A4 | MEDIUM | Free-form recipes silently ignore cookingState | Documentation |
+| C1 | HIGH | trustProxy: true unconditional — IP rate limiting spoofable via X-Forwarded-For | Infrastructure |
+| C3 | HIGH | Actor table abuse — unbounded row creation per request without X-Actor-Id | Rate limiting |
+| C5 | MEDIUM | Retry-After hardcoded 3600s but daily limit message says "tomorrow" | Rate limiting |
+| C6 | MEDIUM | Health check doesn't cover Kysely — false positive for estimation endpoints | Monitoring |
+| C7 | MEDIUM | /chains derived from restaurants — no canonical table, unstable order | Data model |
+| C8 | MEDIUM | Actor ID confusion — data.actorId (DB UUID) vs X-Actor-Id (header) | API design |
+| C9 | LOW | Failed requests consume daily quota (rate limit before validation) | Rate limiting |
+
 ---
 
 ## Completion Log

@@ -9,12 +9,12 @@
 
 | ID | Severity | Issue | Status |
 |----|----------|-------|--------|
-| F1 | CRITICAL | DB_UNAVAILABLE on all Kysely-based endpoints (/estimate, /conversation/*, /calculate/recipe). Health check passes (Prisma only). | Root cause identified |
+| F1 | CRITICAL | DB_UNAVAILABLE on all Kysely-based endpoints (/estimate, /conversation/*, /calculate/recipe). Health check passes (Prisma only). | **Fixed** — PgBouncer compatibility in kysely.ts |
 | F2 | CRITICAL | cocina-espanola not returned by GET /chains — 250 dishes invisible to API clients | Root cause identified |
 | F3 | CRITICAL | GET /chains?countryCode=ES returns 0 — filter broken (case-sensitivity or empty data) | Root cause identified |
 | F4 | IMPORTANT | mcdonalds-es shows only 2 dishes in /chains — data seeding issue on staging | Root cause identified |
 | F5 | IMPORTANT | cookingState accepts 'as_served' but manual only documented 'raw'\|'cooked' | Fixed (D1) |
-| F6 | IMPORTANT | OPTIONS /estimate returns 404 — CORS not configured on staging | Root cause identified |
+| F6 | IMPORTANT | OPTIONS /estimate returns 404 — CORS not configured on staging | **Fixed** (code) — added X-Actor-Id + X-FXP-Source to CORS allowedHeaders. CORS_ORIGINS still needs to be set in Render |
 
 ## Root Cause Analysis & Solutions
 
