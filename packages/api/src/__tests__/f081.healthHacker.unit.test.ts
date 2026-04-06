@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   getHealthHackerTips,
-  type HealthHackerTip,
+  enrichWithTips,
 } from '../estimation/healthHacker.js';
 
 // ---------------------------------------------------------------------------
@@ -187,6 +187,13 @@ describe('getHealthHackerTips', () => {
   // -----------------------------------------------------------------------
 
   describe('tip structure', () => {
+    it('returns tips sorted by caloriesSaved descending', () => {
+      const tips = getHealthHackerTips('mcdonalds-es', 'Big Mac', 508);
+      for (let i = 1; i < tips.length; i++) {
+        expect(tips[i].caloriesSaved).toBeLessThanOrEqual(tips[i - 1]!.caloriesSaved);
+      }
+    });
+
     it('tips are in Spanish', () => {
       const tips = getHealthHackerTips('mcdonalds-es', 'Big Mac', 508);
       // All tips should contain Spanish text (no English-only tips)
@@ -209,5 +216,47 @@ describe('getHealthHackerTips', () => {
         }
       }
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enrichWithTips
+// ---------------------------------------------------------------------------
+
+describe('enrichWithTips', () => {
+  it('returns healthHackerTips for chain result with sufficient calories', () => {
+    const spread = enrichWithTips({
+      chainSlug: 'mcdonalds-es',
+      nameEs: 'Big Mac',
+      name: 'Big Mac',
+      nutrients: { calories: 508 },
+    });
+    expect(spread.healthHackerTips).toBeDefined();
+    expect(spread.healthHackerTips!.length).toBeGreaterThan(0);
+  });
+
+  it('returns empty object for null result', () => {
+    const spread = enrichWithTips(null);
+    expect(spread).toEqual({});
+  });
+
+  it('returns empty object for result without chainSlug', () => {
+    const spread = enrichWithTips({
+      chainSlug: null,
+      nameEs: 'Tortilla',
+      name: 'Tortilla',
+      nutrients: { calories: 300 },
+    });
+    expect(spread).toEqual({});
+  });
+
+  it('returns empty object for low-calorie chain dish', () => {
+    const spread = enrichWithTips({
+      chainSlug: 'mcdonalds-es',
+      nameEs: 'Ensalada',
+      name: 'Salad',
+      nutrients: { calories: 100 },
+    });
+    expect(spread).toEqual({});
   });
 });

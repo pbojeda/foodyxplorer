@@ -12,12 +12,10 @@
 // Types
 // ---------------------------------------------------------------------------
 
-export interface HealthHackerTip {
-  /** Human-readable modification tip in Spanish. */
-  tip: string;
-  /** Estimated calories saved by applying this modification. */
-  caloriesSaved: number;
-}
+import type { HealthHackerTip } from '@foodxplorer/shared';
+
+// Re-export the shared type for consumers that import from this module.
+export type { HealthHackerTip } from '@foodxplorer/shared';
 
 // ---------------------------------------------------------------------------
 // Chain category mapping
@@ -121,4 +119,29 @@ export function getHealthHackerTips(
   return [...rules]
     .sort((a, b) => b.caloriesSaved - a.caloriesSaved)
     .slice(0, MAX_TIPS);
+}
+
+/**
+ * Compute health-hacker tips from an EstimateResult.
+ *
+ * Threshold is applied to the final (scaled) calories — a half-portion
+ * of a 300 kcal dish (150 kcal) should not show tips.
+ *
+ * Returns an empty object when no tips apply, or { healthHackerTips: [...] }
+ * ready to spread into EstimateData.
+ */
+export function enrichWithTips(
+  result: { chainSlug: string | null; nameEs: string | null; name: string; nutrients: { calories: number } } | null,
+): { healthHackerTips?: HealthHackerTip[] } {
+  if (result === null || !result.chainSlug) {
+    return {};
+  }
+
+  const tips = getHealthHackerTips(
+    result.chainSlug,
+    result.nameEs ?? result.name,
+    result.nutrients.calories,
+  );
+
+  return tips.length > 0 ? { healthHackerTips: tips } : {};
 }
