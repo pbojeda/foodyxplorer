@@ -84,8 +84,10 @@ export function mapError(error: Error): MappedError {
     };
   }
 
-  // DB_UNAVAILABLE — health route DB check failure
+  // DB_UNAVAILABLE — DB query failure (estimation, conversation, health, etc.)
   if (asAny['code'] === 'DB_UNAVAILABLE') {
+    // Include the underlying cause in non-production for debugging.
+    const cause = error.cause instanceof Error ? error.cause.message : undefined;
     return {
       statusCode: 500,
       body: {
@@ -93,6 +95,7 @@ export function mapError(error: Error): MappedError {
         error: {
           message: error.message,
           code: 'DB_UNAVAILABLE',
+          ...(cause && { cause }),
         },
       },
     };

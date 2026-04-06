@@ -31,43 +31,23 @@ export function getKysely(): Kysely<DB> {
       ? (process.env['DATABASE_URL_TEST'] ?? process.env['DATABASE_URL'])
       : process.env['DATABASE_URL'];
 
-  // Detect PgBouncer mode from the connection string (Supabase convention).
-  // When PgBouncer is active, disable prepared statements to avoid
-  // "prepared statement X already exists" errors in transaction mode.
-  const isPgBouncer = url?.includes('pgbouncer=true') ?? false;
+  // Detect remote DB (Supabase, Render, etc.) — requires SSL.
+  // Prisma auto-negotiates SSL, but pg.Pool does not. We enable SSL with
+  // rejectUnauthorized: false for any non-localhost URL.
+  const isLocal = url?.includes('localhost') || url?.includes('127.0.0.1');
 
   const pool = new pg.Pool({
     connectionString: url,
     // Max connections: keep low to share with Prisma's pool.
     max: 10,
+    // SSL: required for cloud databases (Supabase, Render, etc.).
+    // rejectUnauthorized: false is standard for Supabase pooler connections.
+    ...(!isLocal && { ssl: { rejectUnauthorized: false } }),
   });
 
   kyselyInstance = new Kysely<DB>({
-    dialect: new PostgresDialect({
-      pool,
-      cursor: isPgBouncer ? undefined : undefined, // cursor config unchanged
-    }),
-    log: process.env['NODE_ENV'] === 'development' ? ['query'] : undefined,
+    dialect: new PostgresDialect({ pool }),
   });
-
-  // When PgBouncer is detected, override the pool's default query behavior
-  // to avoid prepared statements. pg.Pool uses prepared statements for
-  // parameterized queries by default; setting `statement_timeout` or using
-  // simple protocol avoids this.
-  if (isPgBouncer) {
-    // Monkey-patch: Force simple query protocol by setting a unique name
-    // for each query (prevents pg from reusing prepared statements).
-    // This is the recommended approach for PgBouncer transaction mode.
-    const originalQuery = pool.query.bind(pool);
-    pool.query = function patchedQuery(...args: Parameters<typeof pool.query>) {
-      const first = args[0];
-      if (typeof first === 'object' && first !== null && 'text' in first) {
-        // QueryConfig object — set name to undefined to force simple protocol
-        (first as Record<string, unknown>).name = undefined;
-      }
-      return originalQuery(...args);
-    } as typeof pool.query;
-  }
 
   return kyselyInstance;
 }

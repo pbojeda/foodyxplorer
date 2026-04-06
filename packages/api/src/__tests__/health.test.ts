@@ -103,7 +103,7 @@ describe('GET /health?db=true — DB unavailable', () => {
 
     expect(body.success).toBe(false);
     expect(body.error.code).toBe('DB_UNAVAILABLE');
-    expect(body.error.message).toBe('Database connectivity check failed');
+    expect(body.error.message).toBe('Database connectivity check failed (Prisma)');
   });
 });
 

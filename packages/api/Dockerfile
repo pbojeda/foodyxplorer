@@ -20,4 +20,8 @@ COPY packages/scraper/ packages/scraper/
 RUN npx prisma generate --schema=packages/api/prisma/schema.prisma
 
 EXPOSE 3001
-CMD ["npx", "tsx", "packages/api/src/server.ts"]
+
+# Apply pending migrations at startup (requires DATABASE_URL at runtime).
+# prisma migrate deploy is safe to run on every start — it's idempotent
+# and only applies migrations not yet recorded in _prisma_migrations.
+CMD npx prisma migrate deploy --schema=packages/api/prisma/schema.prisma && npx tsx packages/api/src/server.ts
