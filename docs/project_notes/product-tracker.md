@@ -10,13 +10,15 @@
 
 **Last Updated:** 2026-04-06
 
-**Active Feature:** F080 — OFF Prepared Foods Ingestion
-**Step:** 4/6 (Finalize)
-**Branch:** `feature/F080-off-prepared-foods-ingestion`
-**Complexity:** Standard
-**Ticket:** `docs/tickets/F080-off-prepared-foods-ingestion.md`
-**Spec:** `docs/specs/F080-off-prepared-foods-ingestion.md`
-**Context:** Ingest ~11K Hacendado/Mercadona products from Open Food Facts. Tier 0 branded, Tier 3 generic fallback. ODbL attribution. All 14 TDD steps complete. 2820 tests passing, build clean. Ready for Step 5 (Review).
+No active work. **F080 complete** (2026-04-06). Squash-merged to develop via PR #72.
+
+**Pending operational step:** OFF data import not yet executed — OFF API returned 503 during validation. Run when available:
+```
+OFF_IMPORT_ENABLED=true npm run off:import -- --dry-run --limit 50 -w @foodxplorer/api
+```
+Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
+
+**Next:** F081 — "Health-Hacker" Chain Suggestions (Simple)
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -152,7 +154,7 @@
 |------|------|--------|----------|--------------|
 | E006 | Structural Foundations | in-progress | F068-F070 | Phase 1 complete |
 | E007 | Spanish Food Coverage | pending | F071-F079 | E006 complete |
-| E008 | Conversational Assistant & Voice | pending | F080-F089, F090-F097 | E006 + E007 partial |
+| E008 | Conversational Assistant & Voice | in-progress | F080-F089, F090-F097 | E006 + E007 partial |
 | E009 | Personalization & Tracking | pending | F098-F099, user profiles | E008 partial |
 | E010 | Scale & Monetization | pending | F100-F109 | E008 complete |
 
@@ -184,7 +186,7 @@
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F080 | OFF Prepared Foods Ingestion | backend | in-progress | 3/6 | Standard. Ingest Open Food Facts Hacendado/Mercadona products (~11K). Priority as Tier 0 for branded, Tier 3 fallback for generic queries. ODbL attribution. See product-evolution-analysis Sec 4 |
+| F080 | OFF Prepared Foods Ingestion | backend | done | 6/6 | Standard. PR #72. 146 tests (8 files). OFF client+mapper+validator+seed. L1 branded+Tier 3 fallback. ODbL attribution. Brand aliases. 3 QA bugs fixed. Data import pending (OFF API 503) |
 | F081 | "Health-Hacker" Chain Suggestions | bot | pending | — | Simple. "Pide sin queso ni salsa: -120 kcal". Modification-based suggestions for chain dishes |
 | F082 | Nutritional Substitutions | backend | pending | — | Simple. "Si cambias patatas fritas por ensalada, ahorras 200 kcal". Compare alternatives for dish components |
 | F083 | Allergen Cross-Reference | backend | pending | — | Simple. Ingredient-level allergen detection from L2 data + OFF ingredient lists |

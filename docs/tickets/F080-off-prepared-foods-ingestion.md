@@ -1,7 +1,7 @@
 # F080: OFF Prepared Foods Ingestion
 
 **Feature:** F080 | **Type:** Backend-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F080-off-prepared-foods-ingestion
+**Status:** Done | **Branch:** (merged, deleted)
 **Created:** 2026-04-06 | **Dependencies:** F068 (DataSource.priorityTier), F071 (BEDCA ingest pattern)
 **Epic:** E008 (Phase B — Conversational Assistant & Voice)
 
@@ -496,7 +496,7 @@ All OFF data maps to existing `foods` and `food_nutrients` columns. The `barcode
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed — APPROVED WITH NOTES (5 fixes applied)
 - [x] Step 5: `qa-engineer` executed — 3 bugs found + fixed (BUG-F080-01/02/03)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted. PR #72 squash-merged to develop
 
 ---
 
