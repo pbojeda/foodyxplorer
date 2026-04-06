@@ -83,6 +83,8 @@ X-Actor-Id: your-user-uuid
 - Format: any valid UUID (for web clients) or `telegram:<chatId>` (for Telegram bots)
 - Actors are automatically created on first request
 
+> **Important:** The `X-Actor-Id` header you send is your **external identifier**. The `data.actorId` field in conversation responses is the server's **internal UUID** — these are different values. Always use your original `X-Actor-Id` for subsequent requests, not the `data.actorId` from responses.
+
 ### Source Attribution (X-FXP-Source header)
 
 Optional. Set to `"bot"` or `"api"` (default: `"api"`). Used for analytics attribution in query logs.
@@ -138,6 +140,8 @@ The `details` array is only present for validation errors (`VALIDATION_ERROR`). 
 
 Each HTTP request counts as **1** against the daily limit, regardless of internal complexity (a comparison that estimates 2 dishes still counts as 1 request).
 
+> **Note:** Daily quota is consumed at request entry, before body validation. A request that fails with 400 VALIDATION_ERROR still counts against your daily limit.
+
 ### Per-Route Overrides
 
 | Endpoint | Limit | Scope |
@@ -147,7 +151,7 @@ Each HTTP request counts as **1** against the daily limit, regardless of interna
 
 ### Rate Limit Headers
 
-All rate-limited responses include:
+The **global per-IP/key limiter** includes these headers on every response:
 
 | Header | Description |
 |--------|-------------|
@@ -155,6 +159,8 @@ All rate-limited responses include:
 | `X-RateLimit-Remaining` | Requests remaining in current window |
 | `X-RateLimit-Reset` | Unix timestamp when the window resets |
 | `Retry-After` | Seconds to wait (only on 429 responses) |
+
+> **Note:** The per-actor daily limiter (50/day queries, 10/day photos) and the per-route analysis limiter (10/hour) return 429 responses **without** `X-RateLimit-*` headers. They include `Retry-After: 3600` (1 hour). Only the global per-IP/key limiter provides the full header set.
 
 ### Failure Policy
 
@@ -185,7 +191,7 @@ GET /estimate?query=big+mac&chainSlug=mcdonalds-es
 | `chainSlug` | string | No | Restaurant chain filter (e.g., `mcdonalds-es`) |
 | `restaurantId` | UUID | No | Specific restaurant filter |
 | `portionMultiplier` | number (0.1–5.0) | No | Scale all nutrient values (default: 1.0) |
-| `cookingState` | `"raw"` \| `"cooked"` | No | Declare whether the food is raw or cooked (see [Section 18](#18-cooking-state--yield-factors)) |
+| `cookingState` | `"raw"` \| `"cooked"` \| `"as_served"` | No | Declare whether the food is raw, cooked, or as-served (see [Section 18](#18-cooking-state--yield-factors)) |
 | `cookingMethod` | string (max 100) | No | Cooking method for yield correction (e.g., `"grilled"`, `"fried"`) |
 
 ### Response
@@ -310,7 +316,7 @@ Each ingredient can specify:
 > *Exactly one of `foodId` or `name` must be provided per ingredient. Supplying both or neither is a validation error.
 | `grams` | number (positive, max 5000) | Yes | Weight in grams |
 | `portionMultiplier` | number (0.1–5.0) | No | Scale factor (default: 1.0) |
-| `cookingState` | `"raw"` \| `"cooked"` | No | For yield correction |
+| `cookingState` | `"raw"` \| `"cooked"` \| `"as_served"` | No | For yield correction |
 | `cookingMethod` | string | No | Cooking method for yield profile |
 
 ### Free-Form Mode
@@ -402,7 +408,7 @@ X-API-Key: your-api-key (required)
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `file` | binary | Yes | JPEG, PNG, WebP image or PDF. Max 10 MB |
-| `mode` | string | Yes | `"ocr"` (Tesseract only), `"vision"` (OpenAI Vision only), `"auto"` (Vision with Tesseract fallback) |
+| `mode` | string | Yes | `"ocr"` (Tesseract only), `"vision"` (OpenAI Vision only), `"auto"` (Vision with OCR fallback), `"identify"` (single dish identification) |
 
 ### Response
 
@@ -415,19 +421,20 @@ X-API-Key: your-api-key (required)
     "partial": false,
     "dishes": [
       {
-        "query": "Ensalada César",
-        "level1Hit": true,
-        "result": {
-          "name": "Ensalada César",
-          "nutrients": { "calories": 280, ... },
-          "confidenceLevel": "high",
+        "dishName": "Ensalada César",
+        "estimate": {
+          "result": {
+            "name": "Ensalada César",
+            "nutrients": { "calories": 280, ... },
+            "confidenceLevel": "high",
+            ...
+          },
           ...
         }
       },
       {
-        "query": "Sopa del día",
-        "level1Hit": false,
-        "result": null
+        "dishName": "Sopa del día",
+        "estimate": null
       }
     ]
   }
@@ -438,8 +445,10 @@ X-API-Key: your-api-key (required)
 
 - **Authentication required** — this endpoint returns `401 UNAUTHORIZED` without an API key
 - **Partial results:** if processing exceeds 60 seconds, `partial: true` and only successfully processed dishes are returned
-- The `dishes` array includes both matched and unmatched items — check `result` for `null`
+- The `dishes` array uses `{ dishName, estimate }` shape — check `estimate` for `null` (no nutritional data found)
 - Each dish goes through the full estimation cascade (L1→L4)
+- Mode `"identify"` returns a single dish (first detected) — useful for single-dish photos
+- Mode `"auto"` uses Vision API when `OPENAI_API_KEY` is configured; returns `422 VISION_API_UNAVAILABLE` if not
 - Rate limit: 10 analyses per hour per API key, plus 10 per day per actor
 
 ---
@@ -548,7 +557,7 @@ If ambiguous (multiple chains match), `ambiguous: true` is set instead of `conte
 
 #### intent: "text_too_long"
 
-Input exceeded 500 characters after trimming.
+Input exceeded 500 characters after trimming. This is a **200 OK** response (not an error) — the server successfully determined the input is too long. Handle it as a domain-level rejection, not an HTTP error.
 
 ### Supported Patterns (Spanish)
 
@@ -763,6 +772,8 @@ GET /health?db=true&redis=true
 ```
 
 Returns server status. Optional `db` and `redis` query params trigger connectivity checks.
+
+> **Note:** The `db` check only validates the Prisma connection pool (used by catalog endpoints). It does not check the Kysely/pg connection pool (used by estimation, conversation, and recipe endpoints). A `db: "connected"` response does not guarantee all endpoints are operational.
 
 ```json
 {
