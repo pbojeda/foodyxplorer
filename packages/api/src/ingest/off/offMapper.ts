@@ -132,7 +132,7 @@ export function mapOffProductToFood(product: OffProduct): MappedOffFood {
   return {
     food: {
       name,
-      nameEs: nameEs !== name ? nameEs : nameEs, // always set (could be null)
+      nameEs,
       aliases: [],
       foodGroup,
       foodType: 'branded',
