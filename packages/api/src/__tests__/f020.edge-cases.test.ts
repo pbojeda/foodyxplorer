@@ -245,6 +245,7 @@ const { mockLevel1Lookup } = vi.hoisted(() => ({
 
 vi.mock('../estimation/level1Lookup.js', () => ({
   level1Lookup: mockLevel1Lookup,
+  offFallbackFoodMatch: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Stub for level2Lookup — route imports it; full tests in f021.estimate.route.test.ts

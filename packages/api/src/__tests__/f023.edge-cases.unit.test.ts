@@ -27,7 +27,7 @@ import type { DB } from '../generated/kysely-types.js';
 // ---------------------------------------------------------------------------
 
 const { mockLevel1Lookup } = vi.hoisted(() => ({ mockLevel1Lookup: vi.fn() }));
-vi.mock('../estimation/level1Lookup.js', () => ({ level1Lookup: mockLevel1Lookup }));
+vi.mock('../estimation/level1Lookup.js', () => ({ level1Lookup: mockLevel1Lookup, offFallbackFoodMatch: vi.fn().mockResolvedValue(undefined) }));
 
 // ---------------------------------------------------------------------------
 // Mock level2Lookup

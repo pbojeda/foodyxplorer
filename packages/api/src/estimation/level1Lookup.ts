@@ -20,7 +20,8 @@ import { sql } from 'kysely';
 import type { Kysely } from 'kysely';
 import type { DB } from '../generated/kysely-types.js';
 import type { Level1LookupOptions, Level1Result, DishQueryRow, FoodQueryRow } from './types.js';
-import { mapDishRowToResult, mapFoodRowToResult } from './types.js';
+import { mapDishRowToResult, mapFoodRowToResult, OFF_SOURCE_UUID } from './types.js';
+import { resolveAliases, SUPERMARKET_BRAND_ALIASES } from './brandDetector.js';
 
 // ---------------------------------------------------------------------------
 // Query normalization
@@ -201,6 +202,8 @@ async function exactFoodMatch(
       f.name        AS food_name,
       f.name_es     AS food_name_es,
       f.food_group  AS food_group,
+      f.barcode::text AS barcode,
+      f.brand_name  AS brand_name,
       rfn.calories::text,
       rfn.proteins::text,
       rfn.carbohydrates::text,
@@ -260,6 +263,8 @@ async function ftsFoodMatch(
       f.name        AS food_name,
       f.name_es     AS food_name_es,
       f.food_group  AS food_group,
+      f.barcode::text AS barcode,
+      f.brand_name  AS brand_name,
       rfn.calories::text,
       rfn.proteins::text,
       rfn.carbohydrates::text,
@@ -288,6 +293,162 @@ async function ftsFoodMatch(
        OR to_tsvector('english', f.name) @@ plainto_tsquery('english', ${normalizedQuery}))
     ${tierClause}
     ORDER BY ds.priority_tier ASC NULLS LAST, length(COALESCE(f.name_es, f.name)) ASC
+    LIMIT 1
+  `.execute(db);
+
+  return result.rows[0];
+}
+
+// ---------------------------------------------------------------------------
+// F080: OFF branded lookup (Strategy 0 — runs before normal L1 cascade)
+// ---------------------------------------------------------------------------
+
+/**
+ * Query OFF foods for a branded query.
+ * Filters to source_id = OFF_SOURCE_UUID AND food_type = 'branded'.
+ * Applies brand alias expansion (mercadona → hacendado + mercadona).
+ *
+ * @param db - Kysely DB instance
+ * @param normalizedQuery - Normalized query string
+ * @param detectedBrand - Brand name from detectExplicitBrand()
+ * @param sqlImpl - Injectable sql tagged template (default: kysely sql; override in tests)
+ */
+export async function offBrandedFoodMatch(
+  db: Kysely<DB>,
+  normalizedQuery: string,
+  detectedBrand: string,
+  sqlImpl: typeof sql = sql,
+): Promise<FoodQueryRow | undefined> {
+  const brandAliases = resolveAliases(detectedBrand);
+
+  // Build OR conditions for each brand alias (avoids sql.raw — safe parameterized)
+  const brandClauses = brandAliases.map((b) => sqlImpl`f.brand_name = ${b}`);
+  const brandCondition = brandClauses.reduce(
+    (acc, clause) => sqlImpl`${acc} OR ${clause}`,
+  );
+
+  // Strip brand terms from query for FTS matching — brand is matched via brand_name column
+  const brandTermsSet = new Set(brandAliases);
+  const searchTerms = normalizedQuery
+    .split(/\s+/)
+    .filter((t) => !brandTermsSet.has(t))
+    .join(' ')
+    .trim() || normalizedQuery; // fallback to full query if nothing left
+
+  const result = await sqlImpl<FoodQueryRow>`
+    WITH ranked_fn AS (
+      SELECT fn.*,
+             ROW_NUMBER() OVER (PARTITION BY fn.food_id ORDER BY fn.created_at DESC) AS rn
+      FROM food_nutrients fn
+      WHERE fn.source_id = ${OFF_SOURCE_UUID}::uuid
+    )
+    SELECT
+      f.id          AS food_id,
+      f.name        AS food_name,
+      f.name_es     AS food_name_es,
+      f.food_group  AS food_group,
+      f.barcode::text AS barcode,
+      f.brand_name  AS brand_name,
+      rfn.calories::text,
+      rfn.proteins::text,
+      rfn.carbohydrates::text,
+      rfn.sugars::text,
+      rfn.fats::text,
+      rfn.saturated_fats::text,
+      rfn.fiber::text,
+      rfn.salt::text,
+      rfn.sodium::text,
+      rfn.trans_fats::text,
+      rfn.cholesterol::text,
+      rfn.potassium::text,
+      rfn.monounsaturated_fats::text,
+      rfn.polyunsaturated_fats::text,
+      rfn.alcohol::text,
+      rfn.reference_basis::text,
+      ds.id         AS source_id,
+      ds.name       AS source_name,
+      ds.type::text AS source_type,
+      ds.url        AS source_url,
+      ds.priority_tier::text AS source_priority_tier
+    FROM foods f
+    JOIN ranked_fn rfn ON rfn.food_id = f.id AND rfn.rn = 1
+    JOIN data_sources ds ON ds.id = rfn.source_id
+    WHERE f.source_id = ${OFF_SOURCE_UUID}::uuid
+      AND f.food_type = 'branded'
+      AND (${brandCondition})
+      AND (
+        to_tsvector('spanish', COALESCE(f.name_es, f.name)) @@ plainto_tsquery('spanish', ${searchTerms})
+        OR to_tsvector('english', f.name) @@ plainto_tsquery('english', ${searchTerms})
+        OR LOWER(f.name_es) = LOWER(${searchTerms})
+        OR LOWER(f.name) = LOWER(${searchTerms})
+      )
+    ORDER BY ds.priority_tier ASC NULLS LAST, length(COALESCE(f.name_es, f.name)) ASC
+    LIMIT 1
+  `.execute(db);
+
+  return result.rows[0];
+}
+
+/**
+ * Query OFF foods as a last-resort fallback (Tier 3 generic fallback).
+ * Called by engineRouter after all other levels miss.
+ * No brand filter — searches all OFF foods by name.
+ *
+ * @param db - Kysely DB instance
+ * @param normalizedQuery - Normalized query string
+ * @param sqlImpl - Injectable sql tagged template (default: kysely sql; override in tests)
+ */
+export async function offFallbackFoodMatch(
+  db: Kysely<DB>,
+  normalizedQuery: string,
+  sqlImpl: typeof sql = sql,
+): Promise<FoodQueryRow | undefined> {
+  const result = await sqlImpl<FoodQueryRow>`
+    WITH ranked_fn AS (
+      SELECT fn.*,
+             ROW_NUMBER() OVER (PARTITION BY fn.food_id ORDER BY fn.created_at DESC) AS rn
+      FROM food_nutrients fn
+      WHERE fn.source_id = ${OFF_SOURCE_UUID}::uuid
+    )
+    SELECT
+      f.id          AS food_id,
+      f.name        AS food_name,
+      f.name_es     AS food_name_es,
+      f.food_group  AS food_group,
+      f.barcode::text AS barcode,
+      f.brand_name  AS brand_name,
+      rfn.calories::text,
+      rfn.proteins::text,
+      rfn.carbohydrates::text,
+      rfn.sugars::text,
+      rfn.fats::text,
+      rfn.saturated_fats::text,
+      rfn.fiber::text,
+      rfn.salt::text,
+      rfn.sodium::text,
+      rfn.trans_fats::text,
+      rfn.cholesterol::text,
+      rfn.potassium::text,
+      rfn.monounsaturated_fats::text,
+      rfn.polyunsaturated_fats::text,
+      rfn.alcohol::text,
+      rfn.reference_basis::text,
+      ds.id         AS source_id,
+      ds.name       AS source_name,
+      ds.type::text AS source_type,
+      ds.url        AS source_url,
+      ds.priority_tier::text AS source_priority_tier
+    FROM foods f
+    JOIN ranked_fn rfn ON rfn.food_id = f.id AND rfn.rn = 1
+    JOIN data_sources ds ON ds.id = rfn.source_id
+    WHERE f.source_id = ${OFF_SOURCE_UUID}::uuid
+      AND (
+        to_tsvector('spanish', COALESCE(f.name_es, f.name)) @@ plainto_tsquery('spanish', ${normalizedQuery})
+        OR to_tsvector('english', f.name) @@ plainto_tsquery('english', ${normalizedQuery})
+        OR LOWER(f.name_es) = LOWER(${normalizedQuery})
+        OR LOWER(f.name) = LOWER(${normalizedQuery})
+      )
+    ORDER BY length(COALESCE(f.name_es, f.name)) ASC
     LIMIT 1
   `.execute(db);
 
@@ -361,7 +522,25 @@ export async function level1Lookup(
   const normalizedQuery = normalizeQuery(query);
 
   try {
-    // F068: Branded query → try Tier 0 first
+    // F080: Supermarket branded query → try OFF branded lookup first (Tier 0 priority)
+    if (options.hasExplicitBrand === true && options.detectedBrand !== undefined) {
+      const isKnownSupermarket = options.detectedBrand in SUPERMARKET_BRAND_ALIASES ||
+        // hacendado is also a valid supermarket brand (direct, not via alias)
+        options.detectedBrand === 'hacendado';
+
+      if (isKnownSupermarket) {
+        const offRow = await offBrandedFoodMatch(db, normalizedQuery, options.detectedBrand);
+        if (offRow !== undefined) {
+          return {
+            matchType: 'fts_food',
+            result: mapFoodRowToResult(offRow),
+            rawFoodGroup: offRow.food_group,
+          };
+        }
+      }
+    }
+
+    // F068: Branded query → try Tier 0 first (existing behavior)
     if (options.hasExplicitBrand === true) {
       const tier0Result = await runCascade(db, normalizedQuery, options, 0);
       if (tier0Result !== null) {

@@ -23,6 +23,7 @@ const { mockLevel1Lookup } = vi.hoisted(() => ({
 
 vi.mock('../estimation/level1Lookup.js', () => ({
   level1Lookup: mockLevel1Lookup,
+  offFallbackFoodMatch: vi.fn().mockResolvedValue(undefined),
 }));
 
 // ---------------------------------------------------------------------------

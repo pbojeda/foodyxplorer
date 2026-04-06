@@ -13,6 +13,7 @@ import {
 import type { UsdaSrLegacyFoodEntry, NameEsMap } from './seed-data/types.js';
 import { CHAIN_SEED_IDS } from '../src/config/chains/chain-seed-ids.js';
 import { seedPhaseBedca } from '../src/scripts/seedPhaseBedca.js';
+import { seedPhaseOff } from '../src/scripts/seedPhaseOff.js';
 import { seedPhaseSpanishDishes } from '../src/scripts/seedPhaseSpanishDishes.js';
 
 const prisma = new PrismaClient({
@@ -628,6 +629,15 @@ async function main(): Promise<void> {
   console.log('Starting BEDCA seed: Spanish food composition database...');
   await seedPhaseBedca(prisma);
   console.log('BEDCA seed complete.');
+
+  // ---------------------------------------------------------------------------
+  // OFF — Open Food Facts (F080)
+  // Tier 0 branded queries (priority_tier=0). Requires OFF_IMPORT_ENABLED=true
+  // in non-test environments. ODbL attribution required in all responses.
+  // ---------------------------------------------------------------------------
+  console.log('Starting OFF seed: Open Food Facts prepared foods...');
+  await seedPhaseOff(prisma);
+  console.log('OFF seed complete.');
 
   // ---------------------------------------------------------------------------
   // Spanish Canonical Dishes (F073)

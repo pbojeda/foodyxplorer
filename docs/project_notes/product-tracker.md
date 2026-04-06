@@ -10,15 +10,13 @@
 
 **Last Updated:** 2026-04-06
 
-No active work. **Phase A1 (E007) complete.** Documentation stabilization done (2026-04-06):
-- Bot manual audited (19 sections vs code, cross-model review)
-- API manual created (English, 908 lines, cross-model review)
-- Swagger UI fixed (Zod metadata cleanup)
-- QA audit: staging fixes (migrations, Kysely SSL, health check, alcohol data, CORS)
-- Production verified: 12/12 endpoints passing
-- Security backlog documented (A1-A4, C1-C9) for post-Phase B
-
-**Next:** Phase B (F080 — OFF Prepared Foods Ingestion)
+**Active Feature:** F080 — OFF Prepared Foods Ingestion
+**Step:** 4/6 (Finalize)
+**Branch:** `feature/F080-off-prepared-foods-ingestion`
+**Complexity:** Standard
+**Ticket:** `docs/tickets/F080-off-prepared-foods-ingestion.md`
+**Spec:** `docs/specs/F080-off-prepared-foods-ingestion.md`
+**Context:** Ingest ~11K Hacendado/Mercadona products from Open Food Facts. Tier 0 branded, Tier 3 generic fallback. ODbL attribution. All 14 TDD steps complete. 2820 tests passing, build clean. Ready for Step 5 (Review).
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -186,7 +184,7 @@ No active work. **Phase A1 (E007) complete.** Documentation stabilization done (
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F080 | OFF Prepared Foods Ingestion | backend | pending | — | Standard. Ingest Open Food Facts Hacendado/Mercadona products (~11K). Priority as Tier 0 for branded, Tier 3 fallback for generic queries. ODbL attribution. See product-evolution-analysis Sec 4 |
+| F080 | OFF Prepared Foods Ingestion | backend | in-progress | 3/6 | Standard. Ingest Open Food Facts Hacendado/Mercadona products (~11K). Priority as Tier 0 for branded, Tier 3 fallback for generic queries. ODbL attribution. See product-evolution-analysis Sec 4 |
 | F081 | "Health-Hacker" Chain Suggestions | bot | pending | — | Simple. "Pide sin queso ni salsa: -120 kcal". Modification-based suggestions for chain dishes |
 | F082 | Nutritional Substitutions | backend | pending | — | Simple. "Si cambias patatas fritas por ensalada, ahorras 200 kcal". Compare alternatives for dish components |
 | F083 | Allergen Cross-Reference | backend | pending | — | Simple. Ingredient-level allergen detection from L2 data + OFF ingredient lists |

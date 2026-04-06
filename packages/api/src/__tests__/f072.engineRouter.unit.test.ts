@@ -20,7 +20,7 @@ const { mockLevel1Lookup } = vi.hoisted(() => ({ mockLevel1Lookup: vi.fn() }));
 const { mockLevel2Lookup } = vi.hoisted(() => ({ mockLevel2Lookup: vi.fn() }));
 const { mockLevel3Lookup } = vi.hoisted(() => ({ mockLevel3Lookup: vi.fn() }));
 
-vi.mock('../estimation/level1Lookup.js', () => ({ level1Lookup: mockLevel1Lookup }));
+vi.mock('../estimation/level1Lookup.js', () => ({ level1Lookup: mockLevel1Lookup, offFallbackFoodMatch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../estimation/level2Lookup.js', () => ({ level2Lookup: mockLevel2Lookup }));
 vi.mock('../estimation/level3Lookup.js', () => ({ level3Lookup: mockLevel3Lookup }));
 
