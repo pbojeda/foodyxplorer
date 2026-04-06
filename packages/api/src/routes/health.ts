@@ -12,6 +12,8 @@ import type { FastifyPluginAsync } from 'fastify';
 import fastifyPlugin from 'fastify-plugin';
 import type { PrismaClient } from '@prisma/client';
 import type { Redis } from 'ioredis';
+import { sql } from 'kysely';
+import { getKysely } from '../lib/kysely.js';
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -80,13 +82,24 @@ const healthRoutesPlugin: FastifyPluginAsync<HealthPluginOptions> = async (
         uptime: process.uptime(),
       };
 
-      // DB check runs first when ?db=true
+      // DB check runs first when ?db=true — verifies both Prisma AND Kysely
       if (query.db === true) {
         try {
           await prisma.$queryRaw`SELECT 1`;
         } catch {
           throw Object.assign(
-            new Error('Database connectivity check failed'),
+            new Error('Database connectivity check failed (Prisma)'),
+            { statusCode: 500, code: 'DB_UNAVAILABLE' },
+          );
+        }
+
+        // Kysely check — uses the same DATABASE_URL but a separate pg.Pool
+        try {
+          const db = getKysely();
+          await sql`SELECT 1`.execute(db);
+        } catch (err) {
+          throw Object.assign(
+            new Error(`Database connectivity check failed (Kysely): ${err instanceof Error ? err.message : String(err)}`),
             { statusCode: 500, code: 'DB_UNAVAILABLE' },
           );
         }
