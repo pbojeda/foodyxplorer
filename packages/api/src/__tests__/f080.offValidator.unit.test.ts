@@ -180,4 +180,49 @@ describe('validateOffProduct', () => {
     expect(result.valid).toBe(false);
     expect(result.reasons.some((r) => r.toLowerCase().includes('corrupt'))).toBe(true);
   });
+
+  it('returns valid=false when calories are negative', () => {
+    const result = validateOffProduct(
+      validProduct({
+        nutriments: {
+          'energy-kcal_100g': -50,
+          proteins_100g: 6,
+          carbohydrates_100g: 20,
+          fat_100g: 3,
+        },
+      }),
+    );
+    expect(result.valid).toBe(false);
+    expect(result.reasons.some((r) => r.includes('Negative calories'))).toBe(true);
+  });
+
+  it('returns valid=false when proteins are negative', () => {
+    const result = validateOffProduct(
+      validProduct({
+        nutriments: {
+          'energy-kcal_100g': 200,
+          proteins_100g: -5,
+          carbohydrates_100g: 20,
+          fat_100g: 3,
+        },
+      }),
+    );
+    expect(result.valid).toBe(false);
+    expect(result.reasons.some((r) => r.includes('Negative proteins'))).toBe(true);
+  });
+
+  it('returns valid=false when fats are negative', () => {
+    const result = validateOffProduct(
+      validProduct({
+        nutriments: {
+          'energy-kcal_100g': 200,
+          proteins_100g: 6,
+          carbohydrates_100g: 20,
+          fat_100g: -3,
+        },
+      }),
+    );
+    expect(result.valid).toBe(false);
+    expect(result.reasons.some((r) => r.includes('Negative fats'))).toBe(true);
+  });
 });

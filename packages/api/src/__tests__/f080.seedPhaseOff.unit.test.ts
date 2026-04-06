@@ -234,7 +234,7 @@ describe('seedPhaseOff', () => {
     expect(foodNutrientCalls).toHaveLength(0);
     expect(dataSourceCalls).toHaveLength(0);
     expect(result.productsFound).toBe(3);
-    expect(result.productsImported).toBe(0); // dry-run: no writes
+    expect(result.productsImported).toBe(2); // dry-run: counts validated products that would be imported
     expect(result.productsSkipped).toBe(1);
   });
 

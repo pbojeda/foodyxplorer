@@ -327,6 +327,14 @@ export async function offBrandedFoodMatch(
     (acc, clause) => sqlImpl`${acc} OR ${clause}`,
   );
 
+  // Strip brand terms from query for FTS matching — brand is matched via brand_name column
+  const brandTermsSet = new Set(brandAliases);
+  const searchTerms = normalizedQuery
+    .split(/\s+/)
+    .filter((t) => !brandTermsSet.has(t))
+    .join(' ')
+    .trim() || normalizedQuery; // fallback to full query if nothing left
+
   const result = await sqlImpl<FoodQueryRow>`
     WITH ranked_fn AS (
       SELECT fn.*,
@@ -369,10 +377,10 @@ export async function offBrandedFoodMatch(
       AND f.food_type = 'branded'
       AND (${brandCondition})
       AND (
-        to_tsvector('spanish', COALESCE(f.name_es, f.name)) @@ plainto_tsquery('spanish', ${normalizedQuery})
-        OR to_tsvector('english', f.name) @@ plainto_tsquery('english', ${normalizedQuery})
-        OR LOWER(f.name_es) = LOWER(${normalizedQuery})
-        OR LOWER(f.name) = LOWER(${normalizedQuery})
+        to_tsvector('spanish', COALESCE(f.name_es, f.name)) @@ plainto_tsquery('spanish', ${searchTerms})
+        OR to_tsvector('english', f.name) @@ plainto_tsquery('english', ${searchTerms})
+        OR LOWER(f.name_es) = LOWER(${searchTerms})
+        OR LOWER(f.name) = LOWER(${searchTerms})
       )
     ORDER BY ds.priority_tier ASC NULLS LAST, length(COALESCE(f.name_es, f.name)) ASC
     LIMIT 1

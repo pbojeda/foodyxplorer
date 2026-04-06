@@ -90,6 +90,21 @@ export function validateOffProduct(product: OffProduct): OffValidationResult {
         `Calories ${Math.round(kcal)} kcal/100g exceeds 900 limit — corrupt data (pure fat max is 900 kcal/100g)`,
       );
     }
+
+    if (kcal < 0) {
+      reasons.push(`Negative calories value: ${kcal}`);
+    }
+  }
+
+  // 6. Negative macronutrient check — corrupt data
+  if (hasProteins && n.proteins_100g! < 0) {
+    reasons.push(`Negative proteins value: ${n.proteins_100g}`);
+  }
+  if (hasCarbs && n.carbohydrates_100g! < 0) {
+    reasons.push(`Negative carbohydrates value: ${n.carbohydrates_100g}`);
+  }
+  if (hasFats && n.fat_100g! < 0) {
+    reasons.push(`Negative fats value: ${n.fat_100g}`);
   }
 
   return { valid: reasons.length === 0, reasons };

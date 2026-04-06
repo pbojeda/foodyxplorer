@@ -126,7 +126,6 @@ export async function seedPhaseOff(
   // 3. Validate, map, and upsert products in batches
   // ---------------------------------------------------------------------------
   const toProcess = limit !== undefined ? allProducts.slice(0, limit) : allProducts;
-  const foodIdMap = new Map<string, string>(); // externalId → DB uuid
 
   for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
     const batch = toProcess.slice(i, i + BATCH_SIZE);
@@ -154,9 +153,8 @@ export async function seedPhaseOff(
       const mapped = mapOffProductToFood(product);
 
       if (dryRun) {
-        // Dry-run: count only — no DB writes
-        // (result.productsSkipped already incremented above for invalid products)
-        // Don't increment imports for dry-run
+        // Dry-run: count validated products that would be imported, but skip DB writes
+        result.productsImported++;
         continue;
       }
 
@@ -190,7 +188,6 @@ export async function seedPhaseOff(
         },
       });
 
-      foodIdMap.set(mapped.food.externalId, food.id);
       result.productsImported++;
 
       // Upsert food nutrients

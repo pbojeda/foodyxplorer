@@ -231,7 +231,9 @@ export class OffFetchError extends Error {
 
 function buildSearchUrl(brand: string, page: number): string {
   const params = new URLSearchParams({
-    search_terms: brand,
+    tagtype_0: 'brands',
+    tag_contains_0: 'contains',
+    tag_0: brand,
     page_size: String(PAGE_SIZE),
     page: String(page),
     json: '1',
