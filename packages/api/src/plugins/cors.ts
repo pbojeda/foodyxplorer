@@ -13,7 +13,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Config } from '../config.js';
 
 const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
-const ALLOWED_HEADERS = ['Content-Type', 'Authorization', 'X-API-Key'];
+const ALLOWED_HEADERS = ['Content-Type', 'Authorization', 'X-API-Key', 'X-Actor-Id', 'X-FXP-Source'];
 
 export async function registerCors(
   app: FastifyInstance,
