@@ -1,7 +1,7 @@
 # Manual de Usuario — foodXPlorer Bot (Telegram)
 
 > Guia completa de todas las funcionalidades del bot de Telegram de foodXPlorer.
-> Ultima actualizacion: 2026-03-30 (incluye F053 — desacople foto/restaurante, F054 — NL context footer, F055 — nonce stale-button, F056 — MIME detection)
+> Ultima actualizacion: 2026-04-06 (auditado contra codigo fuente — incluye F070-F079)
 
 ---
 
@@ -22,6 +22,10 @@
 13. [Limites de uso](#13-limites-de-uso)
 14. [Mensajes de error](#14-mensajes-de-error)
 15. [Referencia rapida de comandos](#15-referencia-rapida-de-comandos)
+16. [Mensajes de voz (audio)](#16-mensajes-de-voz-audio)
+17. [Menu del dia (/menu)](#17-menu-del-dia-menu)
+18. [Cocina espanola y aliases regionales](#18-cocina-espanola-y-aliases-regionales)
+19. [Bebidas alcoholicas](#19-bebidas-alcoholicas)
 
 ---
 
@@ -29,9 +33,10 @@
 
 Envia `/start` o `/help` para ver la lista de comandos disponibles.
 
-El bot acepta dos modos de interaccion:
+El bot acepta tres modos de interaccion:
 - **Comandos** — empiezan con `/` (ej. `/estimar big mac`)
 - **Lenguaje natural** — escribe en espanol sin `/` (ej. `cuantas calorias tiene un big mac`)
+- **Mensajes de voz** — envia un audio y el bot lo transcribe y procesa automaticamente (ver [seccion 16](#16-mensajes-de-voz-audio))
 
 ---
 
@@ -67,14 +72,14 @@ El bot acepta dos modos de interaccion:
 Porcion: 200 g
 Cadena: mcdonalds-es
 
-Confianza: alta
+_Confianza: alta_
 ```
 
 ### Notas
 
 - La cadena debe tener formato `slug` con al menos un guion (ej. `mcdonalds-es`, `burger-king-es`). Usa `/cadenas` para ver las disponibles.
 - Si el plato contiene "en" de forma natural (como "pollo en salsa"), el bot lo detecta correctamente y no lo confunde con una cadena.
-- Los nutrientes opcionales (fibra, grasas saturadas, sodio, sal) solo aparecen si su valor es mayor que cero.
+- Los nutrientes opcionales (fibra, grasas saturadas, sodio, sal, alcohol) solo aparecen si su valor es mayor que cero. Para bebidas alcoholicas, se muestra el indicador 🍺 Alcohol en gramos (ver [seccion 19](#19-bebidas-alcoholicas)).
 
 ---
 
@@ -164,9 +169,9 @@ Cuando la consulta menciona un nutriente especifico (ej. `que tiene mas proteina
 
 ### Casos especiales
 
-- **Un plato no encontrado:** muestra la ficha del plato disponible + nota "No se encontraron datos para X".
+- **Un plato no encontrado:** muestra la ficha del plato disponible + nota _No se encontraron datos para "X"._ (con comillas).
 - **Ambos platos no encontrados:** "No se encontraron datos nutricionales para ninguno de los platos."
-- **Timeout en un plato:** "Tiempo de espera agotado para X."
+- **Timeout en un plato:** _Tiempo de espera agotado para "X"._ (con comillas).
 - **Mismo resultado:** si ambos platos resuelven al mismo alimento, se muestra una nota indicandolo.
 
 ---
@@ -220,7 +225,7 @@ Si la receta tiene muchos ingredientes y el mensaje supera el limite de Telegram
 - Limite de **5 recetas por hora** por usuario.
 - El bot usa IA para interpretar ingredientes escritos de forma libre.
 - Si no entiende la lista: "No entendi la lista de ingredientes. Intenta con el formato: 200g pollo, 100g arroz."
-- Si no puede resolver ningun ingrediente: "No se pudo resolver ningun ingrediente de la receta."
+- Si no puede resolver ningun ingrediente: "No se pudo resolver ningun ingrediente. Intenta con nombres mas concretos."
 
 ---
 
@@ -332,14 +337,15 @@ Una vez establecido, simplemente pregunta por platos sin especificar la cadena:
 
 ```
 Usuario: estoy en mcdonalds
-Bot:     ✅ Contexto: McDonald's Spain (mcdonalds-es)
+Bot:     Contexto establecido: *McDonald's Spain* `mcdonalds-es`.
+         Las proximas consultas de /estimar y /comparar se filtraran por esta cadena.
 
 Usuario: big mac
 Bot:     *Big Mac*
          🔥 Calorias: 563 kcal
          ...
          Cadena: mcdonalds-es
-         Contexto activo: McDonald's Spain
+         _Contexto activo: McDonald's Spain_
 ```
 
 > **Importante:** el contexto filtra **dentro de la cadena activa**. Si buscas un plato que no existe en esa cadena (ej. `whopper` estando en McDonald's), el resultado sera "no se encontraron datos". Para buscar en otra cadena, especifica `en <cadena>` explicitamente o borra el contexto con `/contexto borrar`.
@@ -354,11 +360,13 @@ Bot:     *Big Mac*
 
 ### Expiracion automatica
 
-El contexto expira automaticamente tras **2 horas desde la ultima interaccion con el bot**. Cualquier accion que modifique el estado de la conversacion (establecer/borrar contexto, buscar restaurantes, enviar fotos, etc.) reinicia el temporizador. En la practica, el contexto se mantiene activo mientras usas el bot.
+El contexto expira automaticamente tras **2 horas**. El temporizador se reinicia cuando realizas acciones que modifican el estado de la conversacion: establecer/borrar contexto, seleccionar restaurantes, enviar fotos, etc. Las consultas simples (estimaciones, comparaciones, busquedas) **no** reinician el temporizador.
+
+> **Nota tecnica:** Existen dos contextos internos con TTL de 2 horas cada uno: el contexto del bot (`bot:state`) y el de la API (`conv:ctx`). El contexto del bot se refresca con mas acciones; el de la API solo al establecer contexto. En la practica, si llevas mas de 2 horas sin modificar el estado, el contexto puede expirar.
 
 ### Notas
 
-- El contexto funciona con `/estimar`, `/comparar` y con lenguaje natural.
+- El contexto funciona con `/estimar`, `/comparar`, `/menu`, lenguaje natural y mensajes de voz.
 - `/receta` **no** utiliza el contexto (las recetas no se filtran por cadena).
 - Si especificas `en <cadena>` explicitamente en un comando, esa cadena tiene prioridad sobre el contexto activo.
 - El contexto se almacena por chat (si usas el bot en un grupo, el contexto es compartido por todo el grupo).
@@ -497,17 +505,36 @@ API: conectada ✅
 
 ## 13. Limites de uso
 
-| Funcionalidad | Limite | Periodo |
-|---------------|:------:|---------|
-| `/receta` | 5 | Por hora, por usuario |
-| Analizar menu (foto) | 5 | Por hora, por usuario |
-| Identificar plato (foto) | 5 | Por hora, por usuario (compartido con analizar menu) |
-| Texto libre (NL) | 500 caracteres | Por mensaje |
-| Texto de receta | 2000 caracteres | Por mensaje |
-| Tamano de archivo | 10 MB | Por archivo |
-| Contexto conversacional | 2 horas | Desde ultima interaccion |
+### Limites de tasa (rate limits)
 
-Nota: si Redis no esta disponible, los limites de tasa se desactivan (fail-open) y las peticiones se procesan igualmente.
+| Funcionalidad | Limite | Periodo | Notas |
+|---------------|:------:|---------|-------|
+| **Estimaciones** (texto + voz + NL) | **50** | Por dia, por usuario | Bucket compartido: `/estimar`, lenguaje natural, comparaciones, menus y voz comparten el mismo contador de 50/dia |
+| `/receta` | 5 | Por hora, por usuario | Independiente del bucket de estimaciones |
+| Analizar menu (foto) | 5 | Por hora, por usuario | Compartido con "Identificar plato" |
+| Identificar plato (foto) | 5 | Por hora, por usuario | Compartido con "Analizar menu" |
+| Analizar menu (nivel API) | 10 | Por dia, por actor | Limite adicional a nivel de la API (por usuario, no por API key) |
+
+### Limites de tamano
+
+| Recurso | Limite |
+|---------|:------:|
+| Texto libre (NL) | 500 caracteres por mensaje |
+| Texto de receta | 2000 caracteres por mensaje |
+| Tamano de archivo (foto/PDF) | 10 MB por archivo |
+| Duracion de mensaje de voz | 2 minutos (120 segundos) |
+| Platos por menu (`/menu`) | 8 platos maximo |
+
+### Expiracion
+
+| Recurso | Duracion |
+|---------|:--------:|
+| Contexto conversacional | 2 horas (se reinicia al modificar estado, no al consultar) |
+
+### Notas
+
+- Si Redis no esta disponible, los limites de tasa del bot se desactivan (fail-open) y las peticiones se procesan igualmente. Sin embargo, los limites a nivel de API se comportan distinto: fail-closed para usuarios anonimos, fail-open para usuarios con API key.
+- El limite de 50 estimaciones/dia es el mas relevante para el uso normal. Cada peticion HTTP cuenta como 1 consulta independientemente de la complejidad interna: una comparacion cuenta como 1 (aunque internamente estime 2 platos), un menu cuenta como 1 (aunque estime N platos).
 
 ---
 
@@ -547,13 +574,26 @@ Nota: si Redis no esta disponible, los limites de tasa se desactivan (fail-open)
 | Imagen invalida | "El archivo no es una imagen o formato valido. Envia una foto JPEG, PNG, WebP o un PDF." |
 | OCR fallido | "No se pudo extraer texto de la imagen. Asegurate de que el texto del menu sea legible." |
 | Identificacion fallida | "No se pudo identificar el plato." |
-| Limite por hora | "Has alcanzado el limite de analisis de menu (5 por hora). Intentalo de nuevo mas tarde." |
+| Limite por hora (bot) | "Has alcanzado el limite de analisis de menu (5 por hora). Intentalo de nuevo mas tarde." |
+| Limite por dia (API) | "Has alcanzado el limite de analisis. Intentalo de nuevo mas tarde." |
 | Foto expirada | "La foto ha expirado. Envia la foto de nuevo." |
 | Accion expirada (boton antiguo) | "Esta accion ya no es valida. Envia la foto de nuevo." |
 | Formato no soportado | "Formato de imagen no soportado. Envia una foto JPEG, PNG o WebP." |
 | Archivo demasiado grande | "El archivo supera el limite de 10 MB." |
 | Vision API no disponible | "El servicio de analisis de imagenes no esta disponible en este momento. Intentalo mas tarde." |
 | Error de descarga | "Error al descargar el archivo. Intentalo de nuevo." |
+
+### Errores de voz
+
+| Situacion | Mensaje |
+|-----------|---------|
+| Audio demasiado largo (>120s) | "Los mensajes de voz deben ser de menos de 2 minutos." |
+| Archivo demasiado grande | "El archivo de audio es demasiado grande." |
+| Error de descarga | "Error al descargar el audio. Intentalo de nuevo." |
+| Transcripcion vacia | "No he podido entender el audio. ¿Puedes repetirlo o escribirlo?" |
+| Transcripcion fallida | "No he podido procesar el audio. Intenta escribir el mensaje." |
+| Timeout del servidor | "El servidor ha tardado demasiado en procesar el audio. Intentalo de nuevo." |
+| Error generico de audio | "Lo siento, ha ocurrido un error al procesar el audio. Intentalo de nuevo." |
 
 ### Errores de contexto
 
@@ -580,7 +620,149 @@ Nota: si Redis no esta disponible, los limites de tasa se desactivan (fail-open)
 | `/platos` | Platos de un restaurante | `/platos <uuid>` |
 | `/restaurante` | Selecciona contexto de restaurante | `/restaurante mcdonalds` |
 | `/contexto` | Ver, establecer o borrar contexto | `/contexto mcdonalds-es` |
+| `/menu` | Estima un menu del dia completo | `/menu ensalada, filete, flan` |
 | `/info` | Estado del bot y la API | `/info` |
+
+---
+
+## 16. Mensajes de voz (audio)
+
+Puedes enviar un **mensaje de voz** en lugar de escribir. El bot lo transcribe automaticamente usando Whisper (OpenAI) y lo procesa como texto. Funciona con cualquier tipo de consulta: estimaciones, comparaciones, menus y contexto.
+
+### Ejemplos
+
+| Lo que dices | Lo que entiende el bot |
+|-------------|----------------------|
+| "dos pinchos de tortilla" | Estimacion con porcion x2 |
+| "menu: ensalada y un filete" | Estimacion de menu (2 platos) |
+| "que engorda mas, big mac o whopper" | Comparacion de dos platos |
+| "estoy en mcdonalds" | Establece contexto de cadena |
+
+### Limites
+
+- **Duracion maxima:** 2 minutos (120 segundos) por mensaje de voz. Audios mas largos se rechazan inmediatamente sin descargar.
+- **Tamano maximo:** 10 MB por archivo de audio.
+- **Limite diario:** 50 consultas por dia, compartido con estimaciones de texto (ver [seccion 13](#13-limites-de-uso)). Si ya has hecho 50 estimaciones de texto, no podras enviar mensajes de voz ese dia.
+- **Filtro de alucinaciones:** el bot detecta y descarta automaticamente transcripciones falsas generadas por Whisper (ej. silencios transcritos como frases genericas).
+
+### Errores
+
+Los mensajes de error de voz estan listados en la [seccion 14 (Errores de voz)](#errores-de-voz).
+
+---
+
+## 17. Menu del dia (/menu)
+
+El comando `/menu` permite estimar **varios platos a la vez** como si fuera un menu completo. El bot calcula los nutrientes de cada plato individual y muestra un **total agregado**.
+
+### Como usarlo
+
+```
+/menu ensalada mixta, filete de pollo, flan
+/menu sopa de fideos, merluza a la plancha, fruta del tiempo
+```
+
+Tambien funciona por lenguaje natural (siempre requiere la palabra "menu"):
+
+```
+menu: ensalada, filete, postre
+menu del dia: gazpacho, paella, flan
+mi menu: sopa, merluza, fruta
+hoy he comido de menu: ensalada y un filete
+hoy he comido de menu del dia: gazpacho, paella, flan
+```
+
+Y por voz:
+
+```
+[audio] "menu: ensalada mixta, filete de pollo y un flan"
+```
+
+> **Importante:** la palabra "menu" es obligatoria. "hoy he comido ensalada y un filete" sin "menu:" NO se detecta como menu — se procesa como una estimacion individual.
+
+### Formato de salida
+
+El bot muestra:
+1. **Cada plato individual** con 4 nutrientes principales (calorias, proteinas, carbohidratos, grasas)
+2. Platos no encontrados marcados con ❓ y "_no encontrado_"
+3. **Linea separadora** y **totales agregados** del menu
+4. **Contador** de platos encontrados vs totales (ej. "_3/4 platos encontrados_")
+5. **Confianza** — la mas baja de todos los platos encontrados
+
+### Limites
+
+- Maximo **8 platos** por menu
+- Los platos se separan por **comas** (separador principal). Si solo hay un item, se intenta separar por " y " o " más " (con tilde)
+- Minimo **2 platos** — si solo se detecta 1 plato, el bot lo procesa como estimacion individual (fallthrough a /estimar)
+- Cada plato se estima independientemente (misma cascada L1-L4)
+- Filtro de ruido: precios ("12.50€"), euros y numeros puros se descartan automaticamente
+
+---
+
+## 18. Cocina espanola y aliases regionales
+
+El bot reconoce **250 platos canonicos de la cocina espanola** sin necesidad de seleccionar ningun restaurante. Estan disponibles como un restaurante virtual llamado `cocina-espanola`.
+
+### Platos disponibles
+
+Tortilla de patatas, gazpacho andaluz, paella valenciana, croquetas de jamon, fabada asturiana, cocido madrileno, patatas bravas, salmorejo, pimientos de padron, pulpo a la gallega, y muchos mas.
+
+### Aliases regionales
+
+El bot entiende variantes regionales y coloquiales de los nombres:
+
+| Lo que escribes | Lo que encuentra |
+|-----------------|-----------------|
+| bravas | Patatas bravas |
+| bocata de jamon | Bocadillo de jamon serrano |
+| tortilla espanola | Tortilla de patatas |
+| cana | Cerveza (cana) |
+| pincho de tortilla | Tortilla de patatas |
+
+### Formatos de servicio
+
+Los prefijos de formato de servicio se eliminan automaticamente:
+
+```
+tapa de calamares     -> Calamares a la romana
+pincho de tortilla    -> Tortilla de patatas
+pintxo de bacalao     -> Bacalao al pil pil
+racion de croquetas   -> Croquetas de jamon
+```
+
+---
+
+## 19. Bebidas alcoholicas
+
+El bot estima nutrientes de bebidas alcoholicas incluyendo el **alcohol como nutriente** (7 kcal/g). Cuando una estimacion contiene alcohol > 0, se muestra la linea adicional `🍺 Alcohol: X g`.
+
+### Ejemplos
+
+```
+/estimar cerveza
+/estimar vino tinto
+/estimar cana
+/estimar sangria
+comparar cerveza vs vino tinto
+```
+
+### Bebidas disponibles
+
+El restaurante virtual `cocina-espanola` incluye mas de 25 bebidas alcoholicas entre las que se encuentran: cerveza (cana, tercio, pinta), vino tinto, vino blanco, sangria, tinto de verano, sidra, cava, vermut, gin-tonic, cubata, chupito, orujo, licor de hierbas, pacharan, y mas.
+
+Los aliases regionales funcionan con bebidas: `cana` → Cerveza (cana), `clara` → Clara de cerveza, etc.
+
+### Nutrientes mostrados
+
+Para bebidas con alcohol, la respuesta incluye todos los nutrientes estandar mas:
+- **🍺 Alcohol** — gramos de alcohol por porcion
+
+El alcohol aporta **7 kcal por gramo** y se incluye automaticamente en el computo de calorias totales. Por ejemplo, una cerveza con 13g de alcohol aporta ~91 kcal solo de alcohol.
+
+### Limitaciones conocidas
+
+- **Comparaciones:** al comparar dos bebidas alcoholicas (ej. `cerveza vs vino tinto`), la tabla comparativa **no incluye** la fila de alcohol. Los datos de alcohol si se calculan internamente, pero no se muestran en la tabla de comparacion. Esto es una limitacion conocida que se corregira en futuras versiones.
+- **Recetas:** al calcular una receta que incluye ingredientes alcoholicos (ej. `/receta 200ml cerveza, 500g mejillones`), el total de alcohol **no aparece** en el resumen de la receta. Las calorias del alcohol si se contabilizan en el total de calorias.
 
 ---
 
