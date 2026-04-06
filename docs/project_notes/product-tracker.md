@@ -11,7 +11,7 @@
 **Last Updated:** 2026-04-06
 
 **Active Feature:** F081 — "Health-Hacker" Chain Suggestions (Simple)
-**Step:** 4/6 (Finalize)
+**Step:** 5/6 (Review)
 **Branch:** feature/F081-health-hacker-chain-suggestions
 **Ticket:** docs/tickets/F081-health-hacker-chain-suggestions.md
 **Complexity:** Simple → Steps 1→3→4→5→6
@@ -189,7 +189,7 @@ Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F080 | OFF Prepared Foods Ingestion | backend | done | 6/6 | Standard. PR #72. 146 tests (8 files). OFF client+mapper+validator+seed. L1 branded+Tier 3 fallback. ODbL attribution. Brand aliases. 3 QA bugs fixed. Data import pending (OFF API 503) |
-| F081 | "Health-Hacker" Chain Suggestions | bot | in-progress | 4/6 | Simple. "Pide sin queso ni salsa: -120 kcal". Modification-based suggestions for chain dishes |
+| F081 | "Health-Hacker" Chain Suggestions | bot | in-progress | 5/6 | Simple. "Pide sin queso ni salsa: -120 kcal". Modification-based suggestions for chain dishes |
 | F082 | Nutritional Substitutions | backend | pending | — | Simple. "Si cambias patatas fritas por ensalada, ahorras 200 kcal". Compare alternatives for dish components |
 | F083 | Allergen Cross-Reference | backend | pending | — | Simple. Ingredient-level allergen detection from L2 data + OFF ingredient lists |
 | F084 | Estimation with Uncertainty Ranges | backend | pending | — | Simple. Show "320-420 kcal" instead of single number. Based on confidence level + portion variability |
