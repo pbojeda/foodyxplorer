@@ -11,12 +11,12 @@
 **Last Updated:** 2026-04-06
 
 **Active Feature:** F080 — OFF Prepared Foods Ingestion
-**Step:** 3/6 (Implement)
+**Step:** 4/6 (Finalize)
 **Branch:** `feature/F080-off-prepared-foods-ingestion`
 **Complexity:** Standard
 **Ticket:** `docs/tickets/F080-off-prepared-foods-ingestion.md`
 **Spec:** `docs/specs/F080-off-prepared-foods-ingestion.md`
-**Context:** Ingest ~11K Hacendado/Mercadona products from Open Food Facts. Tier 0 branded, Tier 3 generic fallback. ODbL attribution. Cross-model spec review done (Gemini + Codex, 10 issues addressed).
+**Context:** Ingest ~11K Hacendado/Mercadona products from Open Food Facts. Tier 0 branded, Tier 3 generic fallback. ODbL attribution. All 14 TDD steps complete. 2820 tests passing, build clean. Ready for Step 5 (Review).
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.

@@ -457,43 +457,43 @@ All OFF data maps to existing `foods` and `food_nutrients` columns. The `barcode
 
 ## Acceptance Criteria
 
-- [ ] Import script with mocked OFF API responses correctly parses, validates, and upserts products
-- [ ] Idempotency: running import twice produces no duplicate records
-- [ ] `--dry-run` flag performs zero DB writes, prints summary counts
-- [ ] Branded lookup: "tortilla hacendado" returns OFF food with HIGH confidence and ODbL attribution
-- [ ] BEDCA priority: "tortilla de patatas" returns BEDCA data when available, not OFF
-- [ ] OFF fallback: generic query with no BEDCA/chain/canonical match returns OFF food as Tier 3
-- [ ] ODbL attribution: `attributionNote`, `license`, `sourceUrl` present on OFF results, null on others
-- [ ] Validation: missing nutrients, empty nutriments, calories >900, missing name → skip with logged reason
-- [ ] Feature flag: `OFF_IMPORT_ENABLED` gate prevents accidental production runs
-- [ ] Unit tests: offMapper mapping, conversions (mg→g, kJ→kcal), defaults, skip conditions, calorie limit
-- [ ] Brand alias: "tortilla mercadona" matches OFF foods with `brandName: "hacendado"`
-- [ ] Post-import embeddings generation documented as required follow-up step
-- [ ] All tests pass
-- [ ] Build succeeds
-- [ ] `api-spec.yaml` updated with new EstimateSource fields
+- [x] Import script with mocked OFF API responses correctly parses, validates, and upserts products
+- [x] Idempotency: running import twice produces no duplicate records
+- [x] `--dry-run` flag performs zero DB writes, prints summary counts
+- [x] Branded lookup: "tortilla hacendado" returns OFF food with HIGH confidence and ODbL attribution
+- [x] BEDCA priority: "tortilla de patatas" returns BEDCA data when available, not OFF
+- [x] OFF fallback: generic query with no BEDCA/chain/canonical match returns OFF food as Tier 3
+- [x] ODbL attribution: `attributionNote`, `license`, `sourceUrl` present on OFF results, null on others
+- [x] Validation: missing nutrients, empty nutriments, calories >900, missing name → skip with logged reason
+- [x] Feature flag: `OFF_IMPORT_ENABLED` gate prevents accidental production runs
+- [x] Unit tests: offMapper mapping, conversions (mg→g, kJ→kcal), defaults, skip conditions, calorie limit
+- [x] Brand alias: "tortilla mercadona" matches OFF foods with `brandName: "hacendado"`
+- [x] Post-import embeddings generation documented as required follow-up step
+- [x] All tests pass (2820 tests, 158 files)
+- [x] Build succeeds
+- [x] `api-spec.yaml` updated with new EstimateSource fields
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Integration tests for branded/generic/fallback paths
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] `api-spec.yaml` reflects final implementation
+- [x] All acceptance criteria met
+- [x] Unit tests written and passing (7 new test files, 2820 total passing)
+- [ ] Integration tests for branded/generic/fallback paths (unit-tested via mocks; full integration deferred to F080-integration post-seed)
+- [x] Code follows project standards
+- [x] No linting errors (F080 files clean; pre-existing lint errors in other files unrelated)
+- [x] Build succeeds
+- [x] `api-spec.yaml` reflects final implementation
 
 ---
 
 ## Workflow Checklist
 
 - [x] Step 0: `spec-creator` executed, specs updated
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: `backend-planner` executed, plan approved
-- [ ] Step 3: `backend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 2: `backend-planner` executed, plan approved
+- [x] Step 3: `backend-developer` executed with TDD
+- [x] Step 4: `production-code-validator` executed, quality gates pass
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed (Standard)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
@@ -508,6 +508,8 @@ All OFF data maps to existing `foods` and `food_nutrients` columns. The `barcode
 | 2026-04-06 | Spec reviewed | Gemini + Codex cross-model review. Both VERDICT: REVISE. 10 issues addressed (2 CRITICAL, 5 IMPORTANT, 2 SUGGESTION). Key fixes: calorie >900 hard skip, routing order clarified, rate limit 1s, externalId collision fix, brand aliases |
 | 2026-04-06 | Plan created | backend-planner agent. 14 TDD steps, 8 test files |
 | 2026-04-06 | Plan reviewed | Gemini + Codex cross-model review. Both VERDICT: REVISE. 10 issues addressed (1 CRITICAL, 6 IMPORTANT, 2 SUGGESTION). Key fixes: Files to Modify table corrected, 429 retry, null nameEs fallback, conversion logging, integration tests added, seedPhaseOff brand param, CLI exit 0, step reorder (aliases before branded), single OFF_SOURCE_UUID |
+| 2026-04-06 | Implementation complete | backend-developer agent. All 14 steps implemented with TDD. 7 new test files, 2820 tests passing, TypeScript clean, build succeeds. |
+| 2026-04-06 | Quality gates passed | npm test: 2820/2820 passing. Build: clean. F080 files lint-clean. ESLint errors in pre-existing files unrelated to F080. |
 
 ---
 
