@@ -204,7 +204,7 @@ async function executeRecipeCalculation(
   prisma: PrismaClient,
   body: RecipeCalculateBody,
   signal: AbortSignal,
-  logger: { info: (obj: Record<string, unknown>, msg?: string) => void; warn: (obj: Record<string, unknown>, msg?: string) => void; debug: (obj: Record<string, unknown>, msg?: string) => void },
+  logger: { info: (obj: Record<string, unknown>, msg?: string) => void; warn: (obj: Record<string, unknown>, msg?: string) => void; error: (obj: Record<string, unknown>, msg?: string) => void; debug: (obj: Record<string, unknown>, msg?: string) => void },
 ): Promise<RecipeCalculateData> {
   const openAiApiKey = config.OPENAI_API_KEY;
 

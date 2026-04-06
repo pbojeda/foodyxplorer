@@ -6,7 +6,7 @@
  *
  * Tests:
  * - DataSource row created with priority_tier=1
- * - Foods created with BEDCA-{id} externalId and nameSourceLocale='es'
+ * - Foods created with BEDCA-{id} externalId and confidenceLevel='high'
  * - FoodNutrients with confidenceLevel='high', referenceBasis='per_100g'
  * - Idempotency: running twice produces same food count
  * - USDA foods not affected (different sourceId)
@@ -60,7 +60,7 @@ describe('seedPhaseBedca integration', () => {
     expect(ds!.name).toContain('BEDCA');
   });
 
-  it('creates foods with BEDCA-{id} externalId and nameSourceLocale=es', async () => {
+  it('creates foods with BEDCA-{id} externalId and confidenceLevel=high', async () => {
     if (!db) return;
     await seedPhaseBedca(db);
 
@@ -69,7 +69,6 @@ describe('seedPhaseBedca integration', () => {
 
     for (const food of foods) {
       expect(food.externalId).toMatch(/^BEDCA-\d+$/);
-      expect(food.nameSourceLocale).toBe('es');
       expect(food.confidenceLevel).toBe('high');
     }
 

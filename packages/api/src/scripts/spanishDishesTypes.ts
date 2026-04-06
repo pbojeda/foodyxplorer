@@ -13,6 +13,7 @@ export interface SpanishDishNutrients {
   fiber: number;
   salt: number;
   sodium: number;
+  alcohol?: number;
 }
 
 export interface SpanishDishEntry {

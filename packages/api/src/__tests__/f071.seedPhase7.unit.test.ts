@@ -8,7 +8,7 @@
  * - DataSource upserted with UUID 00000000-0000-0000-0000-000000000003, priority_tier=1
  * - Food upserted for each snapshot entry with externalId='BEDCA-{id}'
  * - FoodNutrient upserted for each food with referenceBasis='per_100g'
- * - nameSourceLocale='es' for all BEDCA foods
+ * - nameEs populated for all BEDCA foods
  * - Feature flag: skips in non-test env when BEDCA_IMPORT_ENABLED !== 'true'
  * - Feature flag: proceeds in test env regardless (NODE_ENV=test)
  * - Feature flag: proceeds when BEDCA_IMPORT_ENABLED=true
@@ -109,8 +109,7 @@ describe('seedPhaseBedca', () => {
     });
     expect(oliveOilCall).toBeDefined();
 
-    const create = (oliveOilCall as { create: { nameSourceLocale: string; nameEs: string; name: string } }).create;
-    expect(create.nameSourceLocale).toBe('es');
+    const create = (oliveOilCall as { create: { nameEs: string; name: string } }).create;
     expect(create.nameEs).toBe('Aceite de oliva virgen extra');
     expect(create.name).toBe('Extra virgin olive oil');
   });

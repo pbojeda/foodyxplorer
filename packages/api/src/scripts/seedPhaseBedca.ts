@@ -15,7 +15,7 @@
 
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type {
   BedcaFoodWithNutrients,
   BedcaNutrientInfo,
@@ -172,7 +172,6 @@ export async function seedPhaseBedca(client: PrismaClient): Promise<void> {
           externalId,
           confidenceLevel: 'high',
           foodType: 'generic',
-          nameSourceLocale: 'es',
         },
       });
 
@@ -219,7 +218,7 @@ export async function seedPhaseBedca(client: PrismaClient): Promise<void> {
           potassium: mapped.potassium,
           monounsaturatedFats: mapped.monounsaturatedFats,
           polyunsaturatedFats: mapped.polyunsaturatedFats,
-          extra: mapped.extra,
+          extra: mapped.extra as Prisma.InputJsonValue,
         },
         create: {
           foodId,
@@ -237,7 +236,7 @@ export async function seedPhaseBedca(client: PrismaClient): Promise<void> {
           potassium: mapped.potassium,
           monounsaturatedFats: mapped.monounsaturatedFats,
           polyunsaturatedFats: mapped.polyunsaturatedFats,
-          extra: mapped.extra,
+          extra: mapped.extra as Prisma.InputJsonValue,
           referenceBasis: 'per_100g',
           sourceId: BEDCA_SOURCE_UUID,
           confidenceLevel: 'high',
