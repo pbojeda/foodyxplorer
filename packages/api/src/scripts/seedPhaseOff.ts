@@ -155,8 +155,7 @@ export async function seedPhaseOff(
 
       if (dryRun) {
         // Dry-run: count only — no DB writes
-        result.productsImported = 0; // dry-run: report as 0 imported (not actually written)
-        result.productsSkipped; // already incremented for invalid
+        // (result.productsSkipped already incremented above for invalid products)
         // Don't increment imports for dry-run
         continue;
       }
