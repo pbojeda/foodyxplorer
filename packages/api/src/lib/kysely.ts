@@ -45,6 +45,10 @@ export function getKysely(): Kysely<DB> {
     ...(!isLocal && { ssl: { rejectUnauthorized: false } }),
   });
 
+  kyselyInstance = new Kysely<DB>({
+    dialect: new PostgresDialect({ pool }),
+  });
+
   return kyselyInstance;
 }
 
