@@ -64,6 +64,12 @@ export const EstimateSourceSchema = z.object({
   type: DataSourceTypeSchema,
   url: z.string().nullable(),
   priorityTier: z.number().int().min(0).max(3).nullable().optional(),
+  /** F080: ODbL attribution note. Present for OFF-sourced results; null otherwise. */
+  attributionNote: z.string().nullable().optional(),
+  /** F080: Data license identifier. "ODbL 1.0" for OFF results; null otherwise. */
+  license: z.string().nullable().optional(),
+  /** F080: Product URL on OFF. Present when barcode is available; null otherwise. */
+  sourceUrl: z.string().url().nullable().optional(),
 });
 
 export type EstimateSource = z.infer<typeof EstimateSourceSchema>;

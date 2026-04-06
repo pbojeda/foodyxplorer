@@ -12,7 +12,7 @@ info:
     **Validation:**
     - Request bodies and query params are validated via `fastify-type-provider-zod`.
     - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
-  version: 0.7.0
+  version: 0.8.0
   contact:
     name: foodXPlorer
   license:
@@ -32,6 +32,11 @@ tags:
       normalize to the shared dish/nutrient schema, and persist to the database. These endpoints
       are NOT part of F007 — they are specified and implemented in F007b, F007c, F009, F011,
       F012, and F031 respectively.
+
+      F080 (OFF Prepared Foods Ingestion) is a CLI-only import — no HTTP endpoint. OFF data
+      (11K+ Hacendado/Mercadona products, ODbL license) is imported via `npm run off:import`
+      and surfaces through GET /estimate as Tier 0 branded results and Tier 3 generic fallbacks.
+      ODbL attribution fields (attributionNote, license, sourceUrl) are added to EstimateSource.
   - name: Quality
     description: |
       Data quality monitoring endpoints (F018). Audit ingested dish and nutrient data
@@ -7451,6 +7456,32 @@ components:
             Tier 2: International reference (USDA).
             Tier 3: Estimated (engine L2-L4, LLM-bootstrapped, community).
           example: 0
+        attributionNote:
+          type: string
+          nullable: true
+          description: |
+            ODbL-required attribution note (F080). Non-null only when the result
+            originates from Open Food Facts data. Format:
+            "Valores de referencia: {product_name_es} (plato preparado industrial)".
+            Null for all non-OFF sources.
+          example: "Valores de referencia: Tortilla de Patatas Hacendado (plato preparado industrial)"
+        license:
+          type: string
+          nullable: true
+          description: |
+            Data license identifier (F080). "ODbL 1.0" for Open Food Facts results.
+            Null for all other sources.
+          example: "ODbL 1.0"
+        sourceUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: |
+            Direct URL to the original product on the source database (F080).
+            For OFF products with a barcode:
+            "https://world.openfoodfacts.org/product/{barcode}".
+            Null when the OFF product has no barcode, or when source is not OFF.
+          example: "https://world.openfoodfacts.org/product/8480000123456"
 
     EstimateResult:
       type: object

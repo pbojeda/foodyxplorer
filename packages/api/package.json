@@ -24,7 +24,9 @@
     "translate:dish-names:dry-run": "tsx src/scripts/translate-dish-names.ts --dry-run",
     "bedca:import": "tsx src/scripts/bedca-import.ts",
     "bedca:import:dry-run": "tsx src/scripts/bedca-import.ts --dry-run",
-    "bedca:snapshot": "tsx src/scripts/bedca-snapshot.ts"
+    "bedca:snapshot": "tsx src/scripts/bedca-snapshot.ts",
+    "off:import": "tsx src/scripts/off-import.ts",
+    "off:import:dry-run": "tsx src/scripts/off-import.ts --dry-run"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",

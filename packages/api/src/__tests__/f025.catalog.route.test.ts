@@ -139,7 +139,7 @@ vi.mock('../lib/kysely.js', () => ({
 // ---------------------------------------------------------------------------
 
 // Estimation engine mocks (not used by catalog routes but needed by app.ts imports)
-vi.mock('../estimation/level1Lookup.js', () => ({ level1Lookup: vi.fn() }));
+vi.mock('../estimation/level1Lookup.js', () => ({ level1Lookup: vi.fn(), offFallbackFoodMatch: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../estimation/level2Lookup.js', () => ({ level2Lookup: vi.fn() }));
 vi.mock('../estimation/level3Lookup.js', () => ({ level3Lookup: vi.fn() }));
 vi.mock('../estimation/level4Lookup.js', () => ({ level4Lookup: vi.fn() }));

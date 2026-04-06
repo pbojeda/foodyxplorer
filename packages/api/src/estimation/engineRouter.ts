@@ -15,10 +15,11 @@ import type { Kysely } from 'kysely';
 import type { PrismaClient } from '@prisma/client';
 import type { DB } from '../generated/kysely-types.js';
 import type { EstimateData, EstimateMatchType, EstimateResult, YieldAdjustment } from '@foodxplorer/shared';
-import { level1Lookup } from './level1Lookup.js';
+import { level1Lookup, offFallbackFoodMatch } from './level1Lookup.js';
 import { level2Lookup } from './level2Lookup.js';
 import { level3Lookup } from './level3Lookup.js';
 import { resolveAndApplyYield } from './applyYield.js';
+import { mapFoodRowToResult } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -71,6 +72,8 @@ export interface EngineRouterOptions {
   logger?: { info: (obj: Record<string, unknown>, msg?: string) => void; warn: (obj: Record<string, unknown>, msg?: string) => void; error: (obj: Record<string, unknown>, msg?: string) => void; debug: (obj: Record<string, unknown>, msg?: string) => void };
   /** F068: When true, L1 attempts Tier 0 (branded) match first before normal cascade. */
   hasExplicitBrand?: boolean;
+  /** F080: Detected brand name from detectExplicitBrand(). Passed through to L1 for OFF branded lookup. */
+  detectedBrand?: string;
   /** F072: Prisma client for cooking_profiles lookup (yield correction). */
   prisma?: PrismaClient;
   /** F072: Caller-declared cooking state ('raw' | 'cooked' | 'as_served'). */
@@ -102,7 +105,7 @@ export type EngineRouterResult = {
 export async function runEstimationCascade(
   opts: EngineRouterOptions,
 ): Promise<EngineRouterResult> {
-  const { db, query, chainSlug, restaurantId, openAiApiKey, level4Lookup, logger, hasExplicitBrand, prisma, cookingState, cookingMethod } = opts;
+  const { db, query, chainSlug, restaurantId, openAiApiKey, level4Lookup, logger, hasExplicitBrand, detectedBrand, prisma, cookingState, cookingMethod } = opts;
 
   // Normalize for DB lookups. Raw query is echoed in data.query.
   const normalizedQuery = query.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -137,7 +140,7 @@ export async function runEstimationCascade(
   // --- Level 1 lookup ---
   let lookupResult1;
   try {
-    lookupResult1 = await level1Lookup(db, normalizedQuery, { chainSlug, restaurantId, hasExplicitBrand });
+    lookupResult1 = await level1Lookup(db, normalizedQuery, { chainSlug, restaurantId, hasExplicitBrand, detectedBrand });
   } catch (err) {
     throw Object.assign(
       new Error('Database query failed'),
@@ -227,6 +230,41 @@ export async function runEstimationCascade(
         yieldAdjustment,
       },
     };
+  }
+
+  // --- F080: OFF Tier 3 generic fallback ---
+  // Only for generic queries (hasExplicitBrand !== true).
+  // Reuses levelHit: 3 + level3Hit: true (no new flags — attribution fields signal OFF origin).
+  if (hasExplicitBrand !== true) {
+    let offFallbackRow;
+    try {
+      offFallbackRow = await offFallbackFoodMatch(db, normalizedQuery);
+    } catch (err) {
+      throw Object.assign(
+        new Error('Database query failed'),
+        { statusCode: 500, code: 'DB_UNAVAILABLE', cause: err },
+      );
+    }
+
+    if (offFallbackRow !== undefined) {
+      const offResult = mapFoodRowToResult(offFallbackRow);
+      const { result: yieldResult, yieldAdjustment } = await applyYield(offResult, offFallbackRow.food_group);
+      return {
+        levelHit: 3,
+        data: {
+          query,
+          chainSlug: chainSlug ?? null,
+          level1Hit: false,
+          level2Hit: false,
+          level3Hit: true,
+          level4Hit: false,
+          matchType: 'fts_food',
+          result: yieldResult,
+          cachedAt: null,
+          yieldAdjustment,
+        },
+      };
+    }
   }
 
   // --- Level 4 fallback (F024 injection seam) ---

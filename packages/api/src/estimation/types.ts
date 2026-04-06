@@ -19,6 +19,10 @@ import type {
   EstimateSource,
   EstimateNutrients,
 } from '@foodxplorer/shared';
+import { OFF_SOURCE_UUID } from '../ingest/off/types.js';
+
+// Re-export for convenience — callers can import from types.ts instead of the OFF module.
+export { OFF_SOURCE_UUID };
 
 // ---------------------------------------------------------------------------
 // Lookup options
@@ -29,6 +33,8 @@ export interface Level1LookupOptions {
   restaurantId?: string;
   /** F068: When true, L1 attempts Tier 0 (branded) match first before normal cascade. */
   hasExplicitBrand?: boolean;
+  /** F080: Detected brand name from detectExplicitBrand(). Used for OFF branded lookup. */
+  detectedBrand?: string;
 }
 
 /**
@@ -137,6 +143,10 @@ export interface FoodQueryRow {
   food_name_es: string | null;
   /** F072: raw food_group value from DB (e.g., "Cereal Grains and Pasta"). Null for dish rows. */
   food_group: string | null;
+  /** F080: EAN barcode; null when not set. Used for OFF ODbL attribution sourceUrl. */
+  barcode: string | null;
+  /** F080: Normalized brand name; null when not set. */
+  brand_name: string | null;
   // food_nutrients columns
   calories: string;
   proteins: string;
@@ -242,13 +252,41 @@ function parsePriorityTier(value: string | null | undefined): number | null {
 // Mapping functions
 // ---------------------------------------------------------------------------
 
-function mapSource(row: { source_id: string; source_name: string; source_type: string; source_url: string | null; source_priority_tier?: string | null }): EstimateSource {
+function mapSource(
+  row: { source_id: string; source_name: string; source_type: string; source_url: string | null; source_priority_tier?: string | null },
+  context?: { barcode?: string | null; nameEs?: string | null; foodName?: string | null },
+): EstimateSource {
+  const isOff = row.source_id === OFF_SOURCE_UUID;
+
+  if (isOff) {
+    const displayName =
+      context?.nameEs?.trim() ||
+      context?.foodName?.trim() ||
+      'Producto OFF';
+
+    return {
+      id: row.source_id,
+      name: row.source_name,
+      type: row.source_type as EstimateSource['type'],
+      url: row.source_url,
+      priorityTier: parsePriorityTier(row.source_priority_tier),
+      attributionNote: `Valores de referencia: ${displayName} (plato preparado industrial)`,
+      license: 'ODbL 1.0',
+      sourceUrl: context?.barcode
+        ? `https://world.openfoodfacts.org/product/${context.barcode}`
+        : null,
+    };
+  }
+
   return {
     id: row.source_id,
     name: row.source_name,
     type: row.source_type as EstimateSource['type'],
     url: row.source_url,
     priorityTier: parsePriorityTier(row.source_priority_tier),
+    attributionNote: null,
+    license: null,
+    sourceUrl: null,
   };
 }
 
@@ -316,6 +354,7 @@ export function mapDishRowToResult(row: DishQueryRow): EstimateResult {
  * Map a Kysely food strategy result row to an EstimateResult.
  * Foods have no portion_grams → portionGrams: null.
  * Sets confidenceLevel='high', estimationMethod='official' (ADR-001).
+ * F080: passes barcode + nameEs context to mapSource() for ODbL attribution.
  */
 export function mapFoodRowToResult(row: FoodQueryRow): EstimateResult {
   return {
@@ -329,7 +368,11 @@ export function mapFoodRowToResult(row: FoodQueryRow): EstimateResult {
     nutrients: mapNutrients(row),
     confidenceLevel: 'high',
     estimationMethod: 'official',
-    source: mapSource(row),
+    source: mapSource(row, {
+      barcode: row.barcode,
+      nameEs: row.food_name_es,
+      foodName: row.food_name,
+    }),
     similarityDistance: null,
   };
 }

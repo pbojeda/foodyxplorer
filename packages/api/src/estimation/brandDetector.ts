@@ -116,6 +116,28 @@ function chainSlugToVariants(slug: string): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// F080: Supermarket brand aliases
+//
+// When a user queries for "mercadona" products, OFF data may be stored under
+// the "hacendado" brand name (Mercadona's in-house brand). This map allows
+// the L1 branded lookup to expand a brand query to its aliases.
+// ---------------------------------------------------------------------------
+
+/** Map of supermarket brand → all brand names to include in OFF lookup. */
+export const SUPERMARKET_BRAND_ALIASES: Record<string, string[]> = {
+  mercadona: ['hacendado', 'mercadona'],
+};
+
+/**
+ * Resolve a brand name to all equivalent brand names for OFF lookup.
+ * Returns an array containing the brand plus any aliases.
+ * When the brand is not in the alias map, returns [brand].
+ */
+export function resolveAliases(brand: string): string[] {
+  return SUPERMARKET_BRAND_ALIASES[brand] ?? [brand];
+}
+
+// ---------------------------------------------------------------------------
 // Chain slug loader (cached at app level)
 // ---------------------------------------------------------------------------
 

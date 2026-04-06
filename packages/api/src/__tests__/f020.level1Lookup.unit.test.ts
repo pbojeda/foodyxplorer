@@ -167,6 +167,9 @@ describe('level1Lookup', () => {
       priorityTier: null,
       type: 'official',
       url: 'https://www.mcdonalds.es/nutritional.pdf',
+      attributionNote: null,
+      license: null,
+      sourceUrl: null,
     });
   });
 
