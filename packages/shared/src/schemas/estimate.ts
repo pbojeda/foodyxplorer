@@ -121,6 +121,19 @@ export const EstimateResultSchema = z.object({
 export type EstimateResult = z.infer<typeof EstimateResultSchema>;
 
 // ---------------------------------------------------------------------------
+// F081 — Health-Hacker chain modification tips
+// ---------------------------------------------------------------------------
+
+export const HealthHackerTipSchema = z.object({
+  /** Human-readable modification tip in Spanish. */
+  tip: z.string(),
+  /** Estimated calories saved by applying this modification. */
+  caloriesSaved: z.number().positive(),
+});
+
+export type HealthHackerTip = z.infer<typeof HealthHackerTipSchema>;
+
+// ---------------------------------------------------------------------------
 // Data payload — full response body data
 // ---------------------------------------------------------------------------
 
@@ -137,6 +150,8 @@ export const EstimateDataSchema = z.object({
   cachedAt: z.string().nullable(),
   /** F072 — yield adjustment details; null when no correction was attempted */
   yieldAdjustment: YieldAdjustmentSchema.nullable().optional(),
+  /** F081 — Health-Hacker calorie-saving tips for chain dishes. Empty/absent = no tips. */
+  healthHackerTips: z.array(HealthHackerTipSchema).optional(),
 });
 
 export type EstimateData = z.infer<typeof EstimateDataSchema>;

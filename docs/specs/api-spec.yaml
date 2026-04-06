@@ -7712,6 +7712,35 @@ components:
             the data was served from cache and may be up to 300 seconds old. Null means
             the data was retrieved live from the DB during this request.
           example: "2026-03-17T10:04:55.000Z"
+        healthHackerTips:
+          type: array
+          items:
+            $ref: '#/components/schemas/HealthHackerTip'
+          description: |
+            F081 — Health-Hacker calorie-saving modification tips for chain dishes.
+            Only present when: (a) result is a chain dish, (b) chainSlug maps to a
+            known category, (c) calories >= 200. Omitted when no tips apply.
+          example:
+            - tip: "Ensalada en lugar de patatas fritas"
+              caloriesSaved: 200
+            - tip: "Sin salsa especial"
+              caloriesSaved: 80
+
+    HealthHackerTip:
+      type: object
+      required:
+        - tip
+        - caloriesSaved
+      properties:
+        tip:
+          type: string
+          description: Human-readable modification tip in Spanish.
+          example: "Ensalada en lugar de patatas fritas"
+        caloriesSaved:
+          type: number
+          minimum: 1
+          description: Estimated calories saved by applying this modification.
+          example: 200
 
     EstimateResponse:
       type: object
