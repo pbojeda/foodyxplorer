@@ -2936,9 +2936,10 @@ paths:
                         nullable: true
                         description: F087 — Number of portions the recipe was divided into. Null if not requested.
                       perPortion:
-                        $ref: "#/components/schemas/RecipeNutrients"
                         nullable: true
                         description: F087 — Per-portion nutrients (totalNutrients ÷ portions). Null if portions not requested.
+                        allOf:
+                          - $ref: "#/components/schemas/RecipeNutrients"
         "400":
           description: Validation error
           content:
