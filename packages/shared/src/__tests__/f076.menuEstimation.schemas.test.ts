@@ -151,6 +151,8 @@ describe('MenuEstimationDataSchema', () => {
       totals: VALID_TOTALS,
       itemCount: 2,
       matchedCount: 1,
+      diners: null,
+      perPerson: null,
     });
     expect(result.success).toBe(true);
   });
@@ -161,6 +163,8 @@ describe('MenuEstimationDataSchema', () => {
       totals: ZERO_TOTALS,
       itemCount: 1,
       matchedCount: 0,
+      diners: null,
+      perPerson: null,
     });
     expect(result.success).toBe(true);
   });
@@ -171,6 +175,8 @@ describe('MenuEstimationDataSchema', () => {
       totals: ZERO_TOTALS,
       itemCount: -1,
       matchedCount: 0,
+      diners: null,
+      perPerson: null,
     });
     expect(result.success).toBe(false);
   });
@@ -208,6 +214,8 @@ describe('ConversationMessageDataSchema (F076)', () => {
         totals: VALID_TOTALS,
         itemCount: 1,
         matchedCount: 1,
+        diners: null,
+        perPerson: null,
       },
       activeContext: null,
     });

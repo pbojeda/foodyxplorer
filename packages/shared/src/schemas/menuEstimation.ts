@@ -51,6 +51,10 @@ export const MenuEstimationDataSchema = z.object({
   totals: MenuEstimationTotalsSchema,
   itemCount: z.number().int().nonnegative(),
   matchedCount: z.number().int().nonnegative(),
+  /** F089 — number of diners sharing the tapas; null if not specified */
+  diners: z.number().int().min(1).max(20).nullable(),
+  /** F089 — per-person nutrients (totals ÷ diners); null if diners not specified */
+  perPerson: MenuEstimationTotalsSchema.nullable(),
 });
 
 export type MenuEstimationData = z.infer<typeof MenuEstimationDataSchema>;

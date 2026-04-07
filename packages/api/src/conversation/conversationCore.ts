@@ -23,6 +23,7 @@ import {
   parseDishExpression,
 } from './entityExtractor.js';
 import { detectMenuQuery } from './menuDetector.js';
+import { extractDiners } from './dinersExtractor.js';
 import { reverseSearchDishes } from '../estimation/reverseSearch.js';
 
 // ---------------------------------------------------------------------------
@@ -254,7 +255,9 @@ export async function processMessage(
   // Step 3.5 — Menu estimation (F076)
   // -------------------------------------------------------------------------
 
-  const menuItems = detectMenuQuery(trimmed);
+  // F089: extract "para N personas" before menu detection so it's not treated as a dish name
+  const { diners: detectedDiners, cleanedText: textWithoutDiners } = extractDiners(trimmed);
+  const menuItems = detectMenuQuery(textWithoutDiners);
 
   if (menuItems !== null) {
     const menuResults = await Promise.allSettled(
@@ -314,6 +317,10 @@ export async function processMessage(
       return !parsed.chainSlug && !!effectiveContext?.chainSlug;
     });
 
+    // F089: compute per-person totals if diners were detected
+    const diners = detectedDiners ?? null;
+    const perPerson = diners !== null ? divideMenuTotals(totals, diners) : null;
+
     return {
       intent: 'menu_estimation' as const,
       actorId,
@@ -322,6 +329,8 @@ export async function processMessage(
         totals,
         itemCount: items.length,
         matchedCount,
+        diners,
+        perPerson,
       },
       activeContext,
       usedContextFallback: menuUsedContextFallback,
@@ -398,4 +407,19 @@ function aggregateMenuTotals(
   }
 
   return totals;
+}
+
+// ---------------------------------------------------------------------------
+// F089 — divide menu totals by N diners (Modo Tapeo)
+// ---------------------------------------------------------------------------
+
+function divideMenuTotals(
+  totals: MenuEstimationTotals,
+  diners: number,
+): MenuEstimationTotals {
+  const perPerson: MenuEstimationTotals = { ...totals };
+  for (const key of NUTRIENT_KEYS) {
+    perPerson[key] = Math.round((totals[key] / diners) * 100) / 100;
+  }
+  return perPerson;
 }

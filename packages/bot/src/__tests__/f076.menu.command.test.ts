@@ -75,6 +75,8 @@ const MENU_DATA: MenuEstimationData = {
   },
   itemCount: 2,
   matchedCount: 2,
+  diners: null,
+  perPerson: null,
 };
 
 const MENU_RESPONSE: ConversationMessageData = {

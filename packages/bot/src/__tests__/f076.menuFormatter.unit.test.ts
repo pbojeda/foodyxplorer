@@ -69,6 +69,8 @@ describe('formatMenuEstimate (F076)', () => {
       },
       itemCount: 3,
       matchedCount: 3,
+      diners: null,
+      perPerson: null,
     };
 
     const result = formatMenuEstimate(data);
@@ -97,6 +99,8 @@ describe('formatMenuEstimate (F076)', () => {
       },
       itemCount: 2,
       matchedCount: 1,
+      diners: null,
+      perPerson: null,
     };
 
     const result = formatMenuEstimate(data);
@@ -120,6 +124,8 @@ describe('formatMenuEstimate (F076)', () => {
       },
       itemCount: 2,
       matchedCount: 0,
+      diners: null,
+      perPerson: null,
     };
 
     const result = formatMenuEstimate(data);
@@ -142,6 +148,8 @@ describe('formatMenuEstimate (F076)', () => {
       },
       itemCount: 1,
       matchedCount: 1,
+      diners: null,
+      perPerson: null,
     };
 
     const result = formatMenuEstimate(data);
@@ -164,6 +172,8 @@ describe('formatMenuEstimate (F076)', () => {
       },
       itemCount: 2,
       matchedCount: 2,
+      diners: null,
+      perPerson: null,
     };
 
     const result = formatMenuEstimate(data);
@@ -182,6 +192,8 @@ describe('formatMenuEstimate (F076)', () => {
       },
       itemCount: 1,
       matchedCount: 1,
+      diners: null,
+      perPerson: null,
     };
 
     const result = formatMenuEstimate(data);
