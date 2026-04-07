@@ -1,7 +1,7 @@
 # F087: "El Tupper" Meal Prep
 
 **Feature:** F087 | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F087-meal-prep-tupper
+**Status:** Done | **Branch:** (deleted)
 **Created:** 2026-04-07 | **Dependencies:** F035 (Recipe Calculation), F041 (Bot /receta)
 
 ---
@@ -79,7 +79,7 @@ N/A — Simple task
 - [x] Step 3: Implementation with TDD
 - [x] Step 4: Quality gates pass
 - [x] Step 5: `code-review-specialist` executed — APPROVED WITH MINOR CHANGES (1 fix applied: OpenAPI $ref+nullable)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -91,6 +91,7 @@ N/A — Simple task
 | 2026-04-07 | Implement | TDD: shared schemas (12 tests), API route (6 tests), bot extraction (11 tests), bot formatter (4 tests). 33 new tests |
 | 2026-04-07 | Finalize | All quality gates pass. Build clean. Lint clean |
 | 2026-04-07 | Review | PR #80. Code review: APPROVED WITH MINOR CHANGES (1 fix: OpenAPI $ref+nullable). 0 Critical |
+| 2026-04-07 | Complete | Squash merged to develop (1ae778c). Branch deleted. Ticket closed |
 
 ---
 

@@ -10,12 +10,8 @@
 
 **Last Updated:** 2026-04-07
 
-**Active Feature:** F087 — "El Tupper" Meal Prep (Simple)
-**Step:** 5/6 (Review)
-**Branch:** feature/F087-meal-prep-tupper
-**Ticket:** docs/tickets/F087-meal-prep-tupper.md
-**Complexity:** Simple — Steps 1→3→4→5→6
-**Last Completed:** F086 — Reverse Search (Standard) → develop (e67164d), PR #78. 136 tests.
+**Active Feature:** No active work
+**Last Completed:** F087 — "El Tupper" Meal Prep (Simple) → develop (1ae778c), PR #80. 33 tests.
 
 **Pending operational step (F080):** OFF data import in progress — API v2 auth fix applied (ecdc186). Pagination fix applied (count-based). Ingestion being executed in a separate session.
 ```
@@ -196,7 +192,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F084 | Estimation with Uncertainty Ranges | backend | done | 6/6 | Simple. PR #76. 26 tests (2 files). enrichWithUncertainty() helper, ±5%-±30% matrix. Code review: APPROVED |
 | F085 | Portion Sizing Matrix (Spanish portions) | backend | done | 6/6 | Simple. PR #77. 30 tests (2 files). enrichWithPortionSizing() helper, 9 terms, word boundary matching. Code review: APPROVED |
 | F086 | Reverse Search ("¿qué como con X kcal?") | backend | done | 6/6 | Standard. GET /reverse-search endpoint + conversation intent. 136 tests. PR #78, e67164d |
-| F087 | "El Tupper" Meal Prep | backend | in-progress | 5/6 | Simple. PR #80. Divide recipe by N portions. /receta 2kg lentejas... dividir en 5 tuppers |
+| F087 | "El Tupper" Meal Prep | backend | done | 6/6 | Simple. PR #80, 1ae778c. 33 tests. Optional `portions` param, `perPortion` nutrients, bot tupper detection |
 | F088 | Community Inline Corrections | bot | pending | — | Standard. "Cálculo incorrecto" inline button. User proposes adjustment. Stored for review. Feeds demand pipeline |
 | F089 | "Modo Tapeo" (shared portions) | bot | pending | — | Simple. Multiple tapas → per-tapa + total ÷ N people |
 
@@ -332,6 +328,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | 2026-03-31 | F067 — Data Quality Cleanup | 6513e09 (squash merge to develop, PR #59) | Simple. Clean BK leading slashes (regexp_replace), FTS/similarity length tiebreaker in catalog + level1Lookup. Applied to dev+prod |
 | 2026-04-06 | F080 — OFF Prepared Foods Ingestion | 4ce08a0 (squash merge to develop, PR #72) | Standard. OFF ingestion module (types, validator, mapper, client). L1 branded + Tier 3 fallback. ODbL attribution. Brand aliases. 146 tests (8 files). Data import pending (OFF API 503) |
 | 2026-04-07 | F081 — Health-Hacker Chain Suggestions | a884e57 (squash merge to develop, PR #73) | Simple. Rule-based calorie-saving tips for chain dishes. 13 chains → 5 categories. enrichWithTips() DRY helper. HealthHackerTipSchema. 41 tests (3 files). Code review: APPROVED |
+| 2026-04-07 | F087 — "El Tupper" Meal Prep | 1ae778c (squash merge to develop, PR #80) | Simple. Optional `portions` param on POST /calculate/recipe (1-50). `perPortion` nutrients. Bot tupper extraction (3 regex patterns). 33 tests. Code review: APPROVED |
 
 ---
 
