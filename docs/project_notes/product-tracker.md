@@ -11,7 +11,7 @@
 **Last Updated:** 2026-04-07
 
 **Active Feature:** F089 — "Modo Tapeo" (Simple)
-**Step:** 4/6 (Finalize)
+**Step:** 5/6 (Review)
 **Branch:** feature/F089-modo-tapeo
 **Ticket:** docs/tickets/F089-modo-tapeo.md
 **Complexity:** Simple — Steps 1→3→4→5→6
@@ -198,7 +198,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F086 | Reverse Search ("¿qué como con X kcal?") | backend | done | 6/6 | Standard. GET /reverse-search endpoint + conversation intent. 136 tests. PR #78, e67164d |
 | F087 | "El Tupper" Meal Prep | backend | done | 6/6 | Simple. PR #80, 1ae778c. 33 tests. Optional `portions` param, `perPortion` nutrients, bot tupper detection |
 | F088 | Community Inline Corrections | bot | pending | — | Standard. "Cálculo incorrecto" inline button. User proposes adjustment. Stored for review. Feeds demand pipeline |
-| F089 | "Modo Tapeo" (shared portions) | bot | in-progress | 4/6 | Simple. Multiple tapas → per-tapa + total ÷ N people |
+| F089 | "Modo Tapeo" (shared portions) | bot | in-progress | 5/6 | Simple. PR #81. Multiple tapas → per-tapa + total ÷ N people |
 
 > **Phase C: Conversational Web Assistant + Realtime Voice**
 
