@@ -10,9 +10,11 @@
 
 **Last Updated:** 2026-04-07
 
-No active work. **F084 complete** (2026-04-07). Squash-merged to develop via PR #76 (4cd295a).
-
-**Next:** F085 — Portion Sizing Matrix (Simple)
+**Active Feature:** F085 — Portion Sizing Matrix (Simple)
+**Ticket:** `docs/tickets/F085-portion-sizing-matrix.md`
+**Branch:** `feature/F085-portion-sizing-matrix`
+**Step:** 5/6 (Review)
+**Complexity:** Simple → Steps 1→3→4→5→6
 
 **Pending operational step (F080):** OFF data import not yet executed — OFF API returning HTML instead of JSON for brands_tags search (checked 2026-04-07). Run when available:
 ```
@@ -191,7 +193,7 @@ Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
 | F082 | Nutritional Substitutions | backend | done | 6/6 | Simple. PR #74. 39 tests (3 files). enrichWithSubstitutions() helper, 8 categories, NutritionalSubstitutionSchema. Code review: APPROVED |
 | F083 | Allergen Cross-Reference | backend | done | 6/6 | Simple. PR #75. 50 tests (2 files). enrichWithAllergens() helper, 14 EU allergens, DetectedAllergenSchema. Code review: APPROVED |
 | F084 | Estimation with Uncertainty Ranges | backend | done | 6/6 | Simple. PR #76. 26 tests (2 files). enrichWithUncertainty() helper, ±5%-±30% matrix. Code review: APPROVED |
-| F085 | Portion Sizing Matrix (Spanish portions) | backend | pending | — | Simple. Standard portions: "un plato de"=250-300g, "una ración"=200-250g, "media ración"=100-125g, "una tapa"=50-80g, "un pintxo"=30-60g, etc. |
+| F085 | Portion Sizing Matrix (Spanish portions) | backend | in-progress | 5/6 | Simple. PR #77. 30 tests (2 files). enrichWithPortionSizing() helper, 9 terms, word boundary matching. Code review: APPROVED |
 | F086 | Reverse Search ("¿qué como con X kcal?") | backend | pending | — | Standard. Filter chain menu by calorie/protein constraints. "Estoy en BK, me quedan 600 kcal, necesito 30g proteína" |
 | F087 | "El Tupper" Meal Prep | backend | pending | — | Simple. Divide recipe by N portions. /receta 2kg lentejas... dividir en 5 tuppers |
 | F088 | Community Inline Corrections | bot | pending | — | Standard. "Cálculo incorrecto" inline button. User proposes adjustment. Stored for review. Feeds demand pipeline |
