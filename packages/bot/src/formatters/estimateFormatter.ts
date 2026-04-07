@@ -3,6 +3,11 @@
 import type { EstimateData } from '@foodxplorer/shared';
 import { escapeMarkdown, formatNutrient } from './markdownUtils.js';
 
+/** Format a numeric diff with explicit sign: "+5" or "-10" */
+function formatDiff(value: number): string {
+  return value > 0 ? `+${value}` : String(value);
+}
+
 const CONFIDENCE_MAP: Record<string, string> = {
   high: 'alta',
   medium: 'media',
@@ -77,6 +82,24 @@ export function formatEstimate(data: EstimateData): string {
     lines.push('💡 *Health\\-Hacker Tips:*');
     for (const tip of data.healthHackerTips) {
       lines.push(`  • ${escapeMarkdown(tip.tip)}: \\-${escapeMarkdown(String(tip.caloriesSaved))} kcal`);
+    }
+  }
+
+  // F082: Nutritional substitutions
+  if (data.substitutions && data.substitutions.length > 0) {
+    lines.push('');
+    lines.push('🔄 *Sustituciones:*');
+    for (const sub of data.substitutions) {
+      const diff = sub.nutrientDiff;
+      const parts: string[] = [
+        `${formatDiff(diff.calories)} kcal`,
+        `${formatDiff(diff.proteins)} prot`,
+        `${formatDiff(diff.fats)} grasas`,
+      ];
+      if (diff.fiber !== 0) {
+        parts.push(`${formatDiff(diff.fiber)} fibra`);
+      }
+      lines.push(`  • ${escapeMarkdown(sub.original)} → ${escapeMarkdown(sub.substitute)}: ${escapeMarkdown(parts.join(', '))}`);
     }
   }
 

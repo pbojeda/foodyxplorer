@@ -134,6 +134,27 @@ export const HealthHackerTipSchema = z.object({
 export type HealthHackerTip = z.infer<typeof HealthHackerTipSchema>;
 
 // ---------------------------------------------------------------------------
+// F082 — Nutritional substitution suggestions
+// ---------------------------------------------------------------------------
+
+export const NutritionalSubstitutionSchema = z.object({
+  /** Display name of the original food component. */
+  original: z.string(),
+  /** Display name of the suggested substitute. */
+  substitute: z.string(),
+  /** Per-serving nutrient difference (substitute minus original). Negative = fewer. */
+  nutrientDiff: z.object({
+    calories: z.number(),
+    proteins: z.number(),
+    fats: z.number(),
+    carbohydrates: z.number(),
+    fiber: z.number(),
+  }),
+});
+
+export type NutritionalSubstitution = z.infer<typeof NutritionalSubstitutionSchema>;
+
+// ---------------------------------------------------------------------------
 // Data payload — full response body data
 // ---------------------------------------------------------------------------
 
@@ -152,6 +173,8 @@ export const EstimateDataSchema = z.object({
   yieldAdjustment: YieldAdjustmentSchema.nullable().optional(),
   /** F081 — Health-Hacker calorie-saving tips for chain dishes. Empty/absent = no tips. */
   healthHackerTips: z.array(HealthHackerTipSchema).optional(),
+  /** F082 — Nutritional substitution suggestions. Empty/absent = no substitutions. */
+  substitutions: z.array(NutritionalSubstitutionSchema).optional(),
 });
 
 export type EstimateData = z.infer<typeof EstimateDataSchema>;
