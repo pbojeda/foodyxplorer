@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import { EstimateDataSchema } from './estimate.js';
 import { MenuEstimationDataSchema } from './menuEstimation.js';
+import { ReverseSearchDataSchema } from './reverseSearch.js';
 
 // ---------------------------------------------------------------------------
 // Request body
@@ -36,6 +37,7 @@ export const ConversationIntentSchema = z.enum([
   'comparison',       // "big mac vs whopper" — two estimation results
   'menu_estimation',  // "menú del día: X, Y, Z" — multi-dish meal (F076)
   'estimation',       // "big mac" — single estimation result
+  'reverse_search',   // F086: "qué como con 600 kcal" — filter by calorie/protein constraints
   'text_too_long',    // text > 500 chars after trim (domain rule, not Zod)
 ]);
 
@@ -76,6 +78,9 @@ export const ConversationMessageDataSchema = z.object({
 
   // Present when intent = 'menu_estimation' (F076)
   menuEstimation: MenuEstimationDataSchema.optional(),
+
+  // Present when intent = 'reverse_search' (F086)
+  reverseSearch: ReverseSearchDataSchema.optional(),
 
   // Active chain context echoed in ALL responses (null if none set).
   // Loaded BEFORE intent resolution so even text_too_long echoes context.

@@ -44,6 +44,76 @@ export function detectContextSet(text: string): string | null {
 }
 
 // ---------------------------------------------------------------------------
+// F086 — detectReverseSearch
+// ---------------------------------------------------------------------------
+
+export interface DetectedReverseSearch {
+  maxCalories: number;
+  minProtein?: number;
+}
+
+// Patterns for calorie detection in reverse search queries.
+// All patterns extract a numeric calorie value.
+const REVERSE_SEARCH_PATTERNS: RegExp[] = [
+  // "qué como/pido/comer con X kcal/calorías"
+  /qu[eé]\s+(?:como|pido|comer|puedo\s+comer|puedo\s+pedir)\s+con\s+(\d+)\s*(?:kcal|calor[ií]as?)/i,
+  // "me quedan/sobran X kcal/calorías"
+  /me\s+(?:quedan|sobran)\s+(\d+)\s*(?:kcal|calor[ií]as?)/i,
+  // "tengo [solo/sólo] X kcal/calorías"
+  /tengo\s+(?:solo\s+|s[oó]lo\s+)?(\d+)\s*(?:kcal|calor[ií]as?)/i,
+  // "con X kcal/calorías qué puedo comer/pedir"
+  /con\s+(\d+)\s*(?:kcal|calor[ií]as?)\s+qu[eé]\s+(?:puedo\s+)?(?:comer|pedir|pido|como)/i,
+  // "X kcal/calorías qué como/pido"
+  /(\d+)\s*(?:kcal|calor[ií]as?)\s+qu[eé]\s+(?:como|pido|comer)/i,
+];
+
+// Optional protein patterns — scanned after calorie match.
+const PROTEIN_PATTERNS: RegExp[] = [
+  // "necesito Xg proteína(s)"
+  /necesito\s+(\d+)\s*g\s*prote[ií]nas?/i,
+  // "mínimo Xg proteína(s)"
+  /m[ií]nimo\s+(\d+)\s*g\s*prote[ií]nas?/i,
+  // "al menos Xg [de] proteína(s)"
+  /al\s+menos\s+(\d+)\s*g\s*(?:de\s+)?prote[ií]nas?/i,
+];
+
+/**
+ * Detect a reverse search intent from raw input text.
+ * Returns `{ maxCalories, minProtein? }` or null if no match.
+ */
+export function detectReverseSearch(text: string): DetectedReverseSearch | null {
+  // Strip leading ¿¡ and trailing ?!.
+  const cleaned = text.replace(/^[¿¡]+/, '').replace(/[?!.]+$/, '').trim();
+  if (!cleaned || /\n/.test(cleaned)) return null;
+
+  let maxCalories: number | null = null;
+
+  for (const pattern of REVERSE_SEARCH_PATTERNS) {
+    const match = pattern.exec(cleaned);
+    if (match?.[1]) {
+      maxCalories = Number(match[1]);
+      break;
+    }
+  }
+
+  if (maxCalories === null) return null;
+
+  // Check for optional protein constraint
+  let minProtein: number | undefined;
+  for (const pattern of PROTEIN_PATTERNS) {
+    const match = pattern.exec(cleaned);
+    if (match?.[1]) {
+      minProtein = Number(match[1]);
+      break;
+    }
+  }
+
+  return minProtein !== undefined
+    ? { maxCalories, minProtein }
+    : { maxCalories };
+}
+
+// ---------------------------------------------------------------------------
 // extractPortionModifier (from packages/bot/src/lib/portionModifier.ts)
 // ---------------------------------------------------------------------------
 

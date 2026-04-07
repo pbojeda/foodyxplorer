@@ -17,6 +17,7 @@ import { formatComparison } from '../formatters/comparisonFormatter.js';
 import { escapeMarkdown } from '../formatters/markdownUtils.js';
 import { formatContextConfirmation } from '../formatters/contextFormatter.js';
 import { formatMenuEstimate } from '../formatters/menuFormatter.js';
+import { formatReverseSearch } from '../formatters/reverseSearchFormatter.js';
 import { getState } from '../lib/conversationState.js';
 
 // ---------------------------------------------------------------------------
@@ -192,6 +193,10 @@ export async function handleNaturalLanguage(
 
       // Should not reach here
       return 'Contexto procesado\\.';
+    }
+
+    case 'reverse_search': {
+      return formatReverseSearch(data.reverseSearch ?? null);
     }
 
     case 'text_too_long':

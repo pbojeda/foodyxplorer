@@ -42,6 +42,7 @@ import { recipeCalculateRoutes } from './routes/recipeCalculate.js';
 import { analyzeRoutes } from './routes/analyze.js';
 import { waitlistRoutes } from './routes/waitlist.js';
 import { conversationRoutes } from './routes/conversation.js';
+import { reverseSearchRoutes } from './routes/reverseSearch.js';
 import { getKysely } from './lib/kysely.js';
 
 // ---------------------------------------------------------------------------
@@ -125,6 +126,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(analyzeRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(waitlistRoutes, { prisma: prismaClient });
   await app.register(conversationRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient });
+  await app.register(reverseSearchRoutes, { db: getKysely(), prisma: prismaClient });
 
   return app;
 }

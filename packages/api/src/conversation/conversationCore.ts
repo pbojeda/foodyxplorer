@@ -16,12 +16,14 @@ import { resolveChain } from './chainResolver.js';
 import { estimate } from './estimationOrchestrator.js';
 import {
   detectContextSet,
+  detectReverseSearch,
   extractComparisonQuery,
   extractPortionModifier,
   extractFoodQuery,
   parseDishExpression,
 } from './entityExtractor.js';
 import { detectMenuQuery } from './menuDetector.js';
+import { reverseSearchDishes } from '../estimation/reverseSearch.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -125,6 +127,52 @@ export async function processMessage(
     }
 
     // resolved === null → fall through silently to comparison/estimation
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 2.5 — Reverse search detection (F086)
+  // -------------------------------------------------------------------------
+
+  const reverseSearchParams = detectReverseSearch(trimmed);
+
+  if (reverseSearchParams !== null) {
+    if (effectiveContext?.chainSlug) {
+      // Clamp values to valid bounds (NL input has no Zod validation)
+      const maxCalories = Math.max(100, Math.min(3000, reverseSearchParams.maxCalories));
+      const minProtein = reverseSearchParams.minProtein !== undefined
+        ? Math.max(0, Math.min(200, reverseSearchParams.minProtein))
+        : undefined;
+
+      try {
+        const reverseSearch = await reverseSearchDishes(db, {
+          chainSlug: effectiveContext.chainSlug,
+          maxCalories,
+          minProtein,
+          limit: 5,
+        });
+
+        return {
+          intent: 'reverse_search',
+          actorId,
+          reverseSearch,
+          activeContext,
+        };
+      } catch {
+        // DB failure — return intent without data (graceful degradation)
+        return {
+          intent: 'reverse_search',
+          actorId,
+          activeContext,
+        };
+      }
+    }
+
+    // No chain context — return reverse_search intent without data
+    return {
+      intent: 'reverse_search',
+      actorId,
+      activeContext,
+    };
   }
 
   // -------------------------------------------------------------------------
