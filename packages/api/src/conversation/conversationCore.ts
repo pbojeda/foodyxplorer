@@ -137,19 +137,34 @@ export async function processMessage(
 
   if (reverseSearchParams !== null) {
     if (effectiveContext?.chainSlug) {
-      const reverseSearch = await reverseSearchDishes(db, {
-        chainSlug: effectiveContext.chainSlug,
-        maxCalories: reverseSearchParams.maxCalories,
-        minProtein: reverseSearchParams.minProtein,
-        limit: 5,
-      });
+      // Clamp values to valid bounds (NL input has no Zod validation)
+      const maxCalories = Math.max(100, Math.min(3000, reverseSearchParams.maxCalories));
+      const minProtein = reverseSearchParams.minProtein !== undefined
+        ? Math.max(0, Math.min(200, reverseSearchParams.minProtein))
+        : undefined;
 
-      return {
-        intent: 'reverse_search',
-        actorId,
-        reverseSearch,
-        activeContext,
-      };
+      try {
+        const reverseSearch = await reverseSearchDishes(db, {
+          chainSlug: effectiveContext.chainSlug,
+          maxCalories,
+          minProtein,
+          limit: 5,
+        });
+
+        return {
+          intent: 'reverse_search',
+          actorId,
+          reverseSearch,
+          activeContext,
+        };
+      } catch {
+        // DB failure — return intent without data (graceful degradation)
+        return {
+          intent: 'reverse_search',
+          actorId,
+          activeContext,
+        };
+      }
     }
 
     // No chain context — return reverse_search intent without data

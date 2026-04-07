@@ -112,7 +112,9 @@ export async function reverseSearchDishes(
       proteins,
       fats: toNum(row.fats),
       carbohydrates: toNum(row.carbohydrates),
-      portionGrams: row.portion_grams !== null ? toNum(row.portion_grams) : null,
+      portionGrams: row.portion_grams !== null && toNum(row.portion_grams) > 0
+        ? toNum(row.portion_grams)
+        : null,
       proteinDensity: calcProteinDensity(proteins, calories),
     };
   });

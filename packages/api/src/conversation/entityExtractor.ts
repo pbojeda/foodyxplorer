@@ -47,7 +47,7 @@ export function detectContextSet(text: string): string | null {
 // F086 — detectReverseSearch
 // ---------------------------------------------------------------------------
 
-export interface ReverseSearchParams {
+export interface DetectedReverseSearch {
   maxCalories: number;
   minProtein?: number;
 }
@@ -81,7 +81,7 @@ const PROTEIN_PATTERNS: RegExp[] = [
  * Detect a reverse search intent from raw input text.
  * Returns `{ maxCalories, minProtein? }` or null if no match.
  */
-export function detectReverseSearch(text: string): ReverseSearchParams | null {
+export function detectReverseSearch(text: string): DetectedReverseSearch | null {
   // Strip leading ¿¡ and trailing ?!.
   const cleaned = text.replace(/^[¿¡]+/, '').replace(/[?!.]+$/, '').trim();
   if (!cleaned) return null;
