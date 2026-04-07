@@ -55,16 +55,16 @@ export interface DetectedReverseSearch {
 // Patterns for calorie detection in reverse search queries.
 // All patterns extract a numeric calorie value.
 const REVERSE_SEARCH_PATTERNS: RegExp[] = [
-  // "qué como/pido con X kcal/calorías"
-  /qu[eé]\s+(?:como|pido)\s+con\s+(\d+)\s*(?:kcal|calor[ií]as?)/i,
-  // "me quedan X kcal/calorías"
-  /me\s+quedan\s+(\d+)\s*(?:kcal|calor[ií]as?)/i,
-  // "tengo X kcal/calorías"
-  /tengo\s+(\d+)\s*(?:kcal|calor[ií]as?)/i,
+  // "qué como/pido/comer con X kcal/calorías"
+  /qu[eé]\s+(?:como|pido|comer|puedo\s+comer|puedo\s+pedir)\s+con\s+(\d+)\s*(?:kcal|calor[ií]as?)/i,
+  // "me quedan/sobran X kcal/calorías"
+  /me\s+(?:quedan|sobran)\s+(\d+)\s*(?:kcal|calor[ií]as?)/i,
+  // "tengo [solo/sólo] X kcal/calorías"
+  /tengo\s+(?:solo\s+|s[oó]lo\s+)?(\d+)\s*(?:kcal|calor[ií]as?)/i,
   // "con X kcal/calorías qué puedo comer/pedir"
   /con\s+(\d+)\s*(?:kcal|calor[ií]as?)\s+qu[eé]\s+(?:puedo\s+)?(?:comer|pedir|pido|como)/i,
   // "X kcal/calorías qué como/pido"
-  /(\d+)\s*(?:kcal|calor[ií]as?)\s+qu[eé]\s+(?:como|pido)/i,
+  /(\d+)\s*(?:kcal|calor[ií]as?)\s+qu[eé]\s+(?:como|pido|comer)/i,
 ];
 
 // Optional protein patterns — scanned after calorie match.
@@ -73,8 +73,8 @@ const PROTEIN_PATTERNS: RegExp[] = [
   /necesito\s+(\d+)\s*g\s*prote[ií]nas?/i,
   // "mínimo Xg proteína(s)"
   /m[ií]nimo\s+(\d+)\s*g\s*prote[ií]nas?/i,
-  // "al menos Xg proteína(s)"
-  /al\s+menos\s+(\d+)\s*g\s*prote[ií]nas?/i,
+  // "al menos Xg [de] proteína(s)"
+  /al\s+menos\s+(\d+)\s*g\s*(?:de\s+)?prote[ií]nas?/i,
 ];
 
 /**

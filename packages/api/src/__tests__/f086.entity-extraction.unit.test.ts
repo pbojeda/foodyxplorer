@@ -102,6 +102,37 @@ describe('detectReverseSearch', () => {
   // Non-matching patterns
   // ---------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------
+  // Additional NL patterns (post-QA)
+  // ---------------------------------------------------------------------------
+
+  it('detects "me sobran 600 kcal"', () => {
+    expect(detectReverseSearch('me sobran 600 kcal')).toEqual({ maxCalories: 600 });
+  });
+
+  it('detects "tengo solo 200 kcal"', () => {
+    expect(detectReverseSearch('tengo solo 200 kcal')).toEqual({ maxCalories: 200 });
+  });
+
+  it('detects "tengo sólo 200 kcal" (accent)', () => {
+    expect(detectReverseSearch('tengo sólo 200 kcal')).toEqual({ maxCalories: 200 });
+  });
+
+  it('detects "qué comer con 600 kcal"', () => {
+    expect(detectReverseSearch('qué comer con 600 kcal')).toEqual({ maxCalories: 600 });
+  });
+
+  it('detects "al menos 30g de proteína" (with de)', () => {
+    expect(detectReverseSearch('me quedan 500 kcal al menos 30g de proteína')).toEqual({
+      maxCalories: 500,
+      minProtein: 30,
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Non-matching patterns
+  // ---------------------------------------------------------------------------
+
   it('returns null for regular food query', () => {
     expect(detectReverseSearch('big mac')).toBeNull();
   });

@@ -45,12 +45,11 @@ describe('detectReverseSearch — protein pattern gaps', () => {
   // This is a natural Spanish phrasing that slips through.
   // -----------------------------------------------------------------------
 
-  it('[GAP] does NOT detect protein in "al menos 30g de proteína" — "de" breaks the pattern', () => {
+  it('detects protein in "al menos 30g de proteína" — "de" now supported', () => {
     const result = detectReverseSearch('me quedan 600 kcal al menos 30g de proteína');
     expect(result).not.toBeNull();
     expect(result!.maxCalories).toBe(600);
-    // minProtein is NOT detected because 'de' is between 'g' and 'proteína'
-    expect(result!.minProtein).toBeUndefined();
+    expect(result!.minProtein).toBe(30);
   });
 
   // -----------------------------------------------------------------------
@@ -86,22 +85,19 @@ describe('detectReverseSearch — missing natural language patterns', () => {
   // Patterns mentioned in spec but NOT in REVERSE_SEARCH_PATTERNS:
   // -----------------------------------------------------------------------
 
-  it('[GAP] does NOT detect "tengo solo 200 kcal" — extra word blocks the pattern', () => {
-    // Pattern: /tengo\s+(\d+)\s*.../ — 'solo' between 'tengo' and '200' breaks it
+  it('detects "tengo solo 200 kcal" — solo now supported', () => {
     const result = detectReverseSearch('tengo solo 200 kcal');
-    expect(result).toBeNull();
+    expect(result).toEqual({ maxCalories: 200 });
   });
 
-  it('[GAP] does NOT detect "qué comer con 600 kcal" — infinitive not in patterns', () => {
-    // Spec patterns use 'como' (1st person) not 'comer' (infinitive)
+  it('detects "qué comer con 600 kcal" — infinitive now supported', () => {
     const result = detectReverseSearch('qué comer con 600 kcal');
-    expect(result).toBeNull();
+    expect(result).toEqual({ maxCalories: 600 });
   });
 
-  it('[GAP] does NOT detect "me sobran 600 kcal" — sobran not in patterns', () => {
-    // Common Spanish phrase: "I have X calories left" — not in REVERSE_SEARCH_PATTERNS
+  it('detects "me sobran 600 kcal" — sobran now supported', () => {
     const result = detectReverseSearch('me sobran 600 kcal');
-    expect(result).toBeNull();
+    expect(result).toEqual({ maxCalories: 600 });
   });
 
   // -----------------------------------------------------------------------
