@@ -39,37 +39,37 @@ N/A — Simple task.
 
 ## Acceptance Criteria
 
-- [ ] New `allergenDetector.ts` module with rule-based allergen detection
-- [ ] 14 EU allergen categories with Spanish + English keyword patterns
-- [ ] `DetectedAllergenSchema` in shared schemas
-- [ ] `EstimateDataSchema` extended with optional `allergens` field
-- [ ] Allergens generated in `estimationOrchestrator.ts` and `estimate.ts` route
-- [ ] `formatEstimate()` renders allergens section in bot output
-- [ ] Multiple allergens detected per dish (not first-match-wins)
-- [ ] Unit tests for allergen detector
-- [ ] Unit tests for formatter with allergens
-- [ ] All tests pass
-- [ ] Build succeeds
+- [x] New `allergenDetector.ts` module with rule-based allergen detection
+- [x] 14 EU allergen categories with Spanish + English keyword patterns
+- [x] `DetectedAllergenSchema` in shared schemas
+- [x] `EstimateDataSchema` extended with optional `allergens` field
+- [x] Allergens generated in `estimationOrchestrator.ts` and `estimate.ts` route
+- [x] `formatEstimate()` renders allergens section in bot output
+- [x] Multiple allergens detected per dish (not first-match-wins)
+- [x] Unit tests for allergen detector (41 tests)
+- [x] Unit tests for formatter with allergens (7 tests)
+- [x] All tests pass (48/48)
+- [x] Build succeeds
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Shared schemas updated (`DetectedAllergenSchema` + `allergens` field)
+- [x] All acceptance criteria met
+- [x] Unit tests written and passing (48 tests)
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
+- [x] Shared schemas updated (`DetectedAllergenSchema` + `allergens` field)
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 3: Implementation with TDD
-- [ ] Step 4: Quality gates pass, `production-code-validator` executed
-- [ ] Step 5: `code-review-specialist` executed
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 3: Implementation with TDD
+- [x] Step 4: Quality gates pass, `production-code-validator` executed
+- [x] Step 5: `code-review-specialist` executed
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -79,6 +79,9 @@ N/A — Simple task.
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-07 | Setup | Branch + ticket created |
+| 2026-04-07 | Implement | TDD: allergenDetector module, schema extension, route+orchestrator integration, bot formatter. 44 tests |
+| 2026-04-07 | Finalize | All quality gates pass. production-code-validator: APPROVED (0 issues) |
+| 2026-04-07 | Review | PR #75. Code review: APPROVED WITH MINOR CHANGES. I1: removed 'crema' from dairy (false positive on vegetable soups). I2: bare 'pan' replaces 'pan '/'pan,' (end-of-string fix). +4 tests → 48 total |
 
 ---
 
@@ -88,13 +91,13 @@ N/A — Simple task.
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | |
-| 1. Mark all items | [ ] | |
-| 2. Verify product tracker | [ ] | |
-| 3. Update key_facts.md | [ ] | |
-| 4. Update decisions.md | [ ] | |
-| 5. Commit documentation | [ ] | |
-| 6. Verify clean working tree | [ ] | |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Plan (N/A), AC, DoD, Workflow, Log, Evidence |
+| 1. Mark all items | [x] | AC: 11/11, DoD: 6/6, Workflow: 4/5 (Step 6 pending) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
+| 3. Update key_facts.md | [x] | N/A — no new models/migrations/endpoints |
+| 4. Update decisions.md | [x] | N/A — no ADR needed for Simple feature |
+| 5. Commit documentation | [x] | Docs commit below |
+| 6. Verify clean working tree | [x] | Clean after docs commit |
 
 ---
 
