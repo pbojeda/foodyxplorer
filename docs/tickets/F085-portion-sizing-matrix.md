@@ -23,6 +23,7 @@ Standard Spanish portion terms:
 - "un montadito" / "montadito" = 40-60g
 - "un bocadillo" / "bocadillo" / "bocata" = 200-250g
 - "una caña" (beer context) = 200ml
+- "ración para compartir" = 300-400g
 
 Source: product-evolution-analysis — Spanish portion vocabulary ("media ración", "pintxo", "tapa")
 
@@ -37,6 +38,7 @@ Source: product-evolution-analysis — Spanish portion vocabulary ("media ració
 - null result → still detect from query (portion context is useful even without nutritional data)
 - Multiple portion terms → first match wins (longest match first to avoid "ración" matching inside "media ración")
 - Case-insensitive, accent-insensitive matching
+- Word boundary matching prevents false positives ("tapar" ≠ "tapa")
 
 ---
 
@@ -48,37 +50,37 @@ N/A — Simple task.
 
 ## Acceptance Criteria
 
-- [ ] New `portionSizing.ts` module with portion term detection
-- [ ] 8+ Spanish portion terms with gram ranges
-- [ ] `PortionSizingSchema` in shared schemas
-- [ ] `EstimateDataSchema` extended with optional `portionSizing` field
-- [ ] Portion sizing detected in `estimationOrchestrator.ts` and `estimate.ts` route
-- [ ] `formatEstimate()` renders portion context in bot output
-- [ ] Longest-match-first to avoid partial matches
-- [ ] Unit tests for portion detector
-- [ ] Unit tests for formatter with portion sizing
-- [ ] All tests pass
-- [ ] Build succeeds
+- [x] New `portionSizing.ts` module with portion term detection
+- [x] 9 Spanish portion terms with gram ranges
+- [x] `PortionSizingSchema` in shared schemas
+- [x] `EstimateDataSchema` extended with optional `portionSizing` field
+- [x] Portion sizing detected in `estimationOrchestrator.ts` and `estimate.ts` route
+- [x] `formatEstimate()` renders portion context in bot output
+- [x] Longest-match-first + word boundary matching
+- [x] Unit tests for portion detector (26 tests)
+- [x] Unit tests for formatter with portion sizing (4 tests)
+- [x] All tests pass (30/30)
+- [x] Build succeeds
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Shared schemas updated (`PortionSizingSchema` + `portionSizing` field)
+- [x] All acceptance criteria met
+- [x] Unit tests written and passing (30 tests)
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
+- [x] Shared schemas updated (`PortionSizingSchema` + `portionSizing` field)
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 3: Implementation with TDD
-- [ ] Step 4: Quality gates pass, `production-code-validator` executed
-- [ ] Step 5: `code-review-specialist` executed
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 3: Implementation with TDD
+- [x] Step 4: Quality gates pass, `production-code-validator` executed
+- [x] Step 5: `code-review-specialist` executed
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -88,6 +90,9 @@ N/A — Simple task.
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-07 | Setup | Branch + ticket created |
+| 2026-04-07 | Implement | TDD: portionSizing module, schema extension, route+orchestrator integration, bot formatter. 27 tests |
+| 2026-04-07 | Finalize | All quality gates pass. production-code-validator: NEEDS REVIEW (1 MEDIUM: caña accent, fixed) |
+| 2026-04-07 | Review | PR #77. Code review: APPROVED WITH MINOR CHANGES. Added word boundary matching (tapar≠tapa, platón≠plato). +3 false-positive tests → 30 total |
 
 ---
 
@@ -97,13 +102,13 @@ N/A — Simple task.
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | |
-| 1. Mark all items | [ ] | |
-| 2. Verify product tracker | [ ] | |
-| 3. Update key_facts.md | [ ] | |
-| 4. Update decisions.md | [ ] | |
-| 5. Commit documentation | [ ] | |
-| 6. Verify clean working tree | [ ] | |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Plan (N/A), AC, DoD, Workflow, Log, Evidence |
+| 1. Mark all items | [x] | AC: 11/11, DoD: 6/6, Workflow: 4/5 (Step 6 pending) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
+| 3. Update key_facts.md | [x] | N/A — no new models/migrations/endpoints |
+| 4. Update decisions.md | [x] | N/A — no ADR needed for Simple feature |
+| 5. Commit documentation | [x] | Docs commit below |
+| 6. Verify clean working tree | [x] | Clean after docs commit |
 
 ---
 
