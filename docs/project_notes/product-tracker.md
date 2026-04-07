@@ -10,9 +10,11 @@
 
 **Last Updated:** 2026-04-07
 
-No active work. **F085 complete** (2026-04-07). Squash-merged to develop via PR #77 (2d859f3).
-
-**Next:** F086 — Reverse Search (Standard)
+**Active Feature:** F086 — Reverse Search (Standard)
+**Ticket:** `docs/tickets/F086-reverse-search.md`
+**Branch:** `feature/F086-reverse-search`
+**Step:** 2/6 (Plan)
+**Complexity:** Standard → Steps 0→1→2→3→4→5(+QA)→6
 
 **Pending operational step (F080):** OFF data import not yet executed — OFF API returning HTML instead of JSON for brands_tags search (checked 2026-04-07). Run when available:
 ```
@@ -192,7 +194,7 @@ Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
 | F083 | Allergen Cross-Reference | backend | done | 6/6 | Simple. PR #75. 50 tests (2 files). enrichWithAllergens() helper, 14 EU allergens, DetectedAllergenSchema. Code review: APPROVED |
 | F084 | Estimation with Uncertainty Ranges | backend | done | 6/6 | Simple. PR #76. 26 tests (2 files). enrichWithUncertainty() helper, ±5%-±30% matrix. Code review: APPROVED |
 | F085 | Portion Sizing Matrix (Spanish portions) | backend | done | 6/6 | Simple. PR #77. 30 tests (2 files). enrichWithPortionSizing() helper, 9 terms, word boundary matching. Code review: APPROVED |
-| F086 | Reverse Search ("¿qué como con X kcal?") | backend | pending | — | Standard. Filter chain menu by calorie/protein constraints. "Estoy en BK, me quedan 600 kcal, necesito 30g proteína" |
+| F086 | Reverse Search ("¿qué como con X kcal?") | backend | in-progress | 2/6 | Standard. GET /reverse-search endpoint + conversation intent. Filter chain dishes by calorie/protein constraints |
 | F087 | "El Tupper" Meal Prep | backend | pending | — | Simple. Divide recipe by N portions. /receta 2kg lentejas... dividir en 5 tuppers |
 | F088 | Community Inline Corrections | bot | pending | — | Standard. "Cálculo incorrecto" inline button. User proposes adjustment. Stored for review. Feeds demand pipeline |
 | F089 | "Modo Tapeo" (shared portions) | bot | pending | — | Simple. Multiple tapas → per-tapa + total ÷ N people |
