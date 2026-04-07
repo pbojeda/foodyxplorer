@@ -1076,8 +1076,7 @@ All fields are optional (omitted when not applicable). They appear at the top le
 ```json
 {
   "tip": "Pedir sin salsa",
-  "caloriesSaved": 120,
-  "category": "sauce_removal"
+  "caloriesSaved": 120
 }
 ```
 
@@ -1096,8 +1095,7 @@ All fields are optional (omitted when not applicable). They appear at the top le
 ```json
 {
   "allergen": "Gluten",
-  "category": "cereals_gluten",
-  "confidence": "keyword_match"
+  "keyword": "harina"
 }
 ```
 
@@ -1109,7 +1107,7 @@ All fields are optional (omitted when not applicable). They appear at the top le
 {
   "caloriesMin": 535,
   "caloriesMax": 591,
-  "marginPercent": 5
+  "percentage": 5
 }
 ```
 
@@ -1121,7 +1119,8 @@ Margin varies by confidence: ±5% (high/official), ±10% (medium/L2), ±15% (med
 {
   "term": "media ración",
   "gramsMin": 100,
-  "gramsMax": 150
+  "gramsMax": 125,
+  "description": "Media ración estándar española"
 }
 ```
 
