@@ -1,7 +1,7 @@
 # foodXPlorer API — Developer Manual
 
 > Complete reference for integrating with the foodXPlorer nutritional data API.
-> Last updated: 2026-04-06 (audited against codebase — includes F070–F079)
+> Last updated: 2026-04-07 (audited against codebase — includes F070–F089)
 
 ---
 
@@ -26,6 +26,8 @@
 17. [Estimation Engine](#17-estimation-engine)
 18. [Cooking State & Yield Factors](#18-cooking-state--yield-factors)
 19. [Caching Behavior](#19-caching-behavior)
+20. [GET /reverse-search — Reverse Search](#20-get-reverse-search--reverse-search)
+21. [Estimation Enrichments](#21-estimation-enrichments)
 
 ---
 
@@ -331,6 +333,22 @@ POST /calculate/recipe
 
 The `text` field (1–2,000 chars) is parsed by an LLM into structured ingredient tuples, then each ingredient is resolved through the estimation engine.
 
+### Portion Division (F087 — "El Tupper")
+
+Both modes accept an optional `portions` field to divide the total into per-portion nutrients:
+
+```json
+{
+  "mode": "free-form",
+  "text": "2kg lentejas, 500g chorizo, 200g zanahoria",
+  "portions": 5
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `portions` | integer (1–50) | No | Divide totals by N portions |
+
 ### Response
 
 ```json
@@ -369,10 +387,29 @@ The `text` field (1–2,000 chars) is parsed by an LLM into structured ingredien
     "parsedIngredients": [
       { "name": "chicken breast", "grams": 200, "portionMultiplier": 1 }
     ],
-    "cachedAt": null
+    "cachedAt": null,
+    "portions": 5,
+    "perPortion": {
+      "calories": 169,
+      "proteins": 13.82,
+      "carbohydrates": 15.6,
+      "fats": 5.7,
+      ...
+    }
   }
 }
 ```
+
+When `portions` is not provided, both fields are `null`:
+
+```json
+{
+  "portions": null,
+  "perPortion": null
+}
+```
+
+The `perPortion` object has the same shape as `totalNutrients`. Null nutrient values in `totalNutrients` remain null in `perPortion`.
 
 ### Error Codes
 
@@ -532,9 +569,20 @@ Multi-dish menu. `menuEstimation` contains per-item results and aggregated total
       ],
       "totals": { "calories": 850, "proteins": 65, ... },
       "itemCount": 2,
-      "matchedCount": 2
+      "matchedCount": 2,
+      "diners": null,
+      "perPerson": null
     }
   }
+}
+```
+
+**Modo Tapeo (F089):** When the text includes "para N personas" (or similar), the response includes per-person breakdown:
+
+```json
+{
+  "diners": 3,
+  "perPerson": { "calories": 283.33, "proteins": 21.67, ... }
 }
 ```
 
@@ -555,6 +603,32 @@ Chain context established. The actor's conversation context is stored in Redis f
 
 If ambiguous (multiple chains match), `ambiguous: true` is set instead of `contextSet`.
 
+#### intent: "reverse_search"
+
+Reverse search results. `reverseSearch` contains matching dishes within a chain.
+
+```json
+{
+  "success": true,
+  "data": {
+    "intent": "reverse_search",
+    "actorId": "uuid",
+    "reverseSearch": {
+      "chainSlug": "mcdonalds-es",
+      "chainName": "McDonald's Spain",
+      "maxCalories": 600,
+      "minProtein": 30,
+      "results": [
+        { "name": "Chicken McNuggets", "nameEs": null, "calories": 280, "proteins": 32, "fats": 14, "carbohydrates": 12, "portionGrams": 150, "proteinDensity": 11.43 }
+      ],
+      "totalMatches": 5
+    }
+  }
+}
+```
+
+Triggered by NL patterns like "qué como con 600 kcal", "me quedan 400 calorías". Requires active chain context — without it, `reverseSearch` is absent and the response indicates the user should set a chain context first.
+
 #### intent: "text_too_long"
 
 Input exceeded 500 characters after trimming. This is a **200 OK** response (not an error) — the server successfully determined the input is too long. Handle it as a domain-level rejection, not an HTTP error.
@@ -570,6 +644,9 @@ Input exceeded 500 characters after trimming. This is a **200 OK** response (not
 | `qué tiene más proteínas, X vs Y` | comparison (focus: proteins) | |
 | `compara X con Y` | comparison (no focus) | |
 | `menú: X, Y, Z` | menu_estimation | "menú del día: ensalada, filete, flan" |
+| `menú X para N personas` | menu_estimation (with diners) | "menú bravas, croquetas para 3 personas" |
+| `qué como con X kcal` | reverse_search | "qué como con 600 kcal" (requires chain context) |
+| `me quedan X calorías` | reverse_search | "me quedan 400 calorías" |
 | `estoy en X` | context_set | "estoy en mcdonalds" |
 
 ### Conversational Context
@@ -803,6 +880,7 @@ Returns server status. Optional `db` and `redis` query params trigger connectivi
 | 408 | `PROCESSING_TIMEOUT` | Server-side processing exceeded time limit |
 | 409 | `DUPLICATE_RESTAURANT` | Restaurant with same (chainSlug, countryCode) already exists |
 | 413 | `PAYLOAD_TOO_LARGE` | Uploaded file exceeds the 10 MB size limit |
+| 404 | `CHAIN_NOT_FOUND` | Unknown chainSlug in reverse search |
 | 422 | `RECIPE_UNRESOLVABLE` | Zero ingredients resolved in recipe calculation |
 | 422 | `FREE_FORM_PARSE_FAILED` | LLM could not parse free-form recipe text |
 | 422 | `MENU_ANALYSIS_FAILED` | Could not extract any dish names from the photo/PDF |
@@ -906,13 +984,148 @@ All cacheable responses are stored in Redis with fail-open behavior (cache error
 | Endpoint | Cache Key Pattern | TTL |
 |----------|-------------------|-----|
 | GET /estimate | `fxp:estimate:<query>:<chainSlug>:<restaurantId>:<portionMultiplier>:<cookingState>:<cookingMethod>` | 300s |
-| POST /calculate/recipe | `fxp:recipe:<mode>:<sha256(canonical_input)>` | 300s |
+| POST /calculate/recipe | `fxp:recipe:<mode>:<sha256(canonical_input)>[:pN]` | 300s |
 | GET /dishes/search | `fxp:dishes-search:<params>` | 60s |
 | GET /chains | `fxp:chains:<params>` | 60s |
 | GET /restaurants | `fxp:restaurants:<params>` | 60s |
 | GET /restaurants/:id/dishes | `fxp:restaurant-dishes:<params>` | 60s |
 
 Cached responses include a `cachedAt` ISO 8601 timestamp (when applicable) so clients know whether they received fresh or cached data.
+
+---
+
+---
+
+## 20. GET /reverse-search — Reverse Search
+
+Find chain dishes that fit a calorie budget with optional protein minimum.
+
+### Request
+
+```
+GET /reverse-search?chainSlug=mcdonalds-es&maxCalories=600&minProtein=30&limit=5
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `chainSlug` | string | Yes | Chain to search within |
+| `maxCalories` | number (100–3000) | Yes | Maximum calories per dish |
+| `minProtein` | number (0–200) | No | Minimum protein grams |
+| `limit` | number (1–20) | No | Max results (default: 5) |
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "chainSlug": "mcdonalds-es",
+    "chainName": "McDonald's Spain",
+    "maxCalories": 600,
+    "minProtein": 30,
+    "results": [
+      {
+        "name": "Chicken McNuggets 9pc",
+        "nameEs": null,
+        "calories": 420,
+        "proteins": 38,
+        "fats": 22,
+        "carbohydrates": 18,
+        "portionGrams": 250,
+        "proteinDensity": 9.05
+      }
+    ],
+    "totalMatches": 12
+  }
+}
+```
+
+Results sorted by `proteinDensity` (proteins/calories × 100) descending. Only `available` dishes with `per_serving` reference basis are included.
+
+### Error Codes
+
+| Code | Status | Description |
+|------|--------|-------------|
+| `VALIDATION_ERROR` | 400 | Invalid query params |
+| `CHAIN_NOT_FOUND` | 404 | Unknown chainSlug |
+
+No results matching → empty `results` array (200 OK, not an error).
+
+---
+
+## 21. Estimation Enrichments
+
+Starting from Phase B, each `GET /estimate` and `POST /conversation/message` (estimation intent) response includes optional enrichment fields alongside the standard result. These fields are present only when relevant data exists.
+
+### Response Fields
+
+| Field | Type | Source | Description |
+|-------|------|--------|-------------|
+| `healthHackerTips` | `HealthHackerTip[]` | F081 | Calorie-saving suggestions for chain dishes |
+| `substitutions` | `NutritionalSubstitution[]` | F082 | Healthier alternatives with nutrient diff |
+| `allergens` | `DetectedAllergen[]` | F083 | Potential allergens detected from dish name |
+| `uncertaintyRange` | `UncertaintyRange` | F084 | Calorie min/max based on confidence level |
+| `portionSizing` | `PortionSizing` | F085 | Standard gram range for detected Spanish portion terms |
+
+All fields are optional (omitted when not applicable). They appear at the top level of the `data` object alongside `query`, `result`, etc.
+
+### HealthHackerTip
+
+```json
+{
+  "tip": "Pedir sin salsa",
+  "caloriesSaved": 120,
+  "category": "sauce_removal"
+}
+```
+
+### NutritionalSubstitution
+
+```json
+{
+  "original": "Patatas fritas",
+  "substitute": "Ensalada",
+  "nutrientDiff": { "calories": -180, "proteins": 2, "carbohydrates": -22, "fats": -12, "fiber": 3 }
+}
+```
+
+### DetectedAllergen
+
+```json
+{
+  "allergen": "Gluten",
+  "category": "cereals_gluten",
+  "confidence": "keyword_match"
+}
+```
+
+14 EU allergen categories covered. Detection is keyword-based (not ingredient-list verification) — flagged as advisory only.
+
+### UncertaintyRange
+
+```json
+{
+  "caloriesMin": 535,
+  "caloriesMax": 591,
+  "marginPercent": 5
+}
+```
+
+Margin varies by confidence: ±5% (high/official), ±10% (medium/L2), ±15% (medium/L3), ±20% (low/L4 match), ±30% (low/L4 decomposition).
+
+### PortionSizing
+
+```json
+{
+  "term": "media ración",
+  "gramsMin": 100,
+  "gramsMax": 150
+}
+```
+
+Recognized terms: `tapa`, `pincho`/`pintxo`, `ración`, `media ración`, `montadito`, `bocadillo`, `plato`, `cuenco`.
 
 ---
 

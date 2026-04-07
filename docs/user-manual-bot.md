@@ -1,7 +1,7 @@
 # Manual de Usuario — foodXPlorer Bot (Telegram)
 
 > Guia completa de todas las funcionalidades del bot de Telegram de foodXPlorer.
-> Ultima actualizacion: 2026-04-06 (auditado contra codigo fuente — incluye F070-F079)
+> Ultima actualizacion: 2026-04-07 (auditado contra codigo fuente — incluye F070-F089)
 
 ---
 
@@ -26,6 +26,10 @@
 17. [Menu del dia (/menu)](#17-menu-del-dia-menu)
 18. [Cocina espanola y aliases regionales](#18-cocina-espanola-y-aliases-regionales)
 19. [Bebidas alcoholicas](#19-bebidas-alcoholicas)
+20. [Enriquecimientos automaticos](#20-enriquecimientos-automaticos)
+21. [Busqueda inversa (reverse search)](#21-busqueda-inversa-reverse-search)
+22. [Meal prep — "El Tupper"](#22-meal-prep--el-tupper)
+23. [Modo Tapeo — compartir entre N personas](#23-modo-tapeo--compartir-entre-n-personas)
 
 ---
 
@@ -763,6 +767,191 @@ El alcohol aporta **7 kcal por gramo** y se incluye automaticamente en el comput
 
 - **Comparaciones:** al comparar dos bebidas alcoholicas (ej. `cerveza vs vino tinto`), la tabla comparativa **no incluye** la fila de alcohol. Los datos de alcohol si se calculan internamente, pero no se muestran en la tabla de comparacion. Esto es una limitacion conocida que se corregira en futuras versiones.
 - **Recetas:** al calcular una receta que incluye ingredientes alcoholicos (ej. `/receta 200ml cerveza, 500g mejillones`), el total de alcohol **no aparece** en el resumen de la receta. Las calorias del alcohol si se contabilizan en el total de calorias.
+
+---
+
+## 20. Enriquecimientos automaticos
+
+A partir de Phase B, cada estimacion individual incluye informacion adicional automatica cuando es relevante. Estos enriquecimientos aparecen debajo de los nutrientes principales:
+
+### Health-Hacker Tips (F081)
+
+Sugerencias para ahorrar calorias al pedir en cadenas de restaurantes. Aparecen cuando el plato es de una cadena conocida.
+
+```
+💡 *Health-Hacker Tips:*
+  • Pedir sin salsa: -120 kcal
+  • Sin queso: -80 kcal
+```
+
+### Sustituciones nutricionales (F082)
+
+Alternativas mas saludables para el plato estimado. Muestra el impacto en calorias, proteinas, carbohidratos y grasas.
+
+```
+🔄 *Sustituciones:*
+  • Patatas fritas → Ensalada: -180 kcal, +2 prot, -22 carbs, -12 grasas
+```
+
+### Alergenos detectados (F083)
+
+Alergenos potenciales detectados por palabras clave en el nombre del plato. Cubre las 14 categorias de alergenos de la UE.
+
+```
+⚠️ *Alérgenos detectados:*
+  Gluten, Lacteos
+_(orientativo — verificar con el establecimiento)_
+```
+
+> **Importante:** la deteccion es orientativa (basada en nombres, no en listas de ingredientes reales). Siempre consulta con el establecimiento para confirmacion.
+
+### Rangos de incertidumbre (F084)
+
+Las calorias se muestran con un rango de incertidumbre que depende del nivel de confianza y el metodo de estimacion.
+
+```
+🔥 Calorías: 563 kcal (535-591)
+```
+
+El rango varia segun la confianza: ±5% para datos oficiales (alta), ±10-15% para estimaciones intermedias (media), ±20-30% para estimaciones por IA (baja).
+
+### Porcion detectada (F085)
+
+Cuando el nombre del plato incluye un termino de porcion espanol (ej. "media racion", "tapa", "pincho"), el bot muestra el rango de gramos tipico.
+
+```
+📏 *Porción detectada:* media ración (100-150 g)
+```
+
+Terminos reconocidos: `tapa`, `pincho`/`pintxo`, `racion`, `media racion`, `montadito`, `bocadillo`, `plato`, `cuenco`.
+
+---
+
+## 21. Busqueda inversa (reverse search)
+
+Encuentra platos que encajen en tu presupuesto calorico. Funciona por lenguaje natural cuando tienes un contexto de cadena activo.
+
+### Ejemplos
+
+| Input | Que hace |
+|-------|----------|
+| `que como con 600 kcal` | Busca platos <= 600 kcal en la cadena activa |
+| `me quedan 400 calorias` | Platos <= 400 kcal |
+| `que pido con 500 kcal y necesito 30g proteina` | Platos <= 500 kcal con >= 30g proteina |
+| `tengo solo 300 kcal` | Platos <= 300 kcal |
+
+### Requisitos
+
+- **Contexto de cadena activo** — si no hay cadena, el bot responde pidiendo que establezcas contexto primero ("estoy en X" o `/contexto X`).
+- Los resultados se ordenan por **densidad proteica** (proteinas/calorias) de mayor a menor.
+
+### Formato de salida
+
+```
+🔍 *Búsqueda inversa — McDonald's Spain*
+Presupuesto: ≤600 kcal | Proteína mín: 30 g
+
+1. Pechuga de pollo — 🔥 320 kcal | 🥩 42 g | 🍞 12 g | 🧈 14 g
+2. Ensalada César — 🔥 280 kcal | 🥩 32 g | 🍞 8 g | 🧈 18 g
+...
+
+_5 platos encontrados (de 12 totales)_
+```
+
+### Limites
+
+- Calorias: 100-3000 kcal (valores fuera de rango se ajustan automaticamente)
+- Proteina minima: 0-200 g
+- Maximo 5 resultados por busqueda
+
+---
+
+## 22. Meal prep — "El Tupper"
+
+Al calcular una receta con `/receta`, puedes anadir una frase de division por porciones. El bot calcula los nutrientes totales y muestra el desglose **por tupper/porcion**.
+
+### Ejemplos
+
+| Input | Que hace |
+|-------|----------|
+| `/receta 2kg lentejas, 500g chorizo dividir en 5 tuppers` | Total ÷ 5 |
+| `/receta 1kg arroz con pollo para 3 porciones` | Total ÷ 3 |
+| `/receta 500g pasta repartir en 4 raciones` | Total ÷ 4 |
+
+### Patrones reconocidos
+
+- `dividir en N tuppers/porciones/raciones/partes`
+- `repartir en N tuppers/porciones/raciones`
+- `para N tuppers/porciones/raciones`
+- `N tuppers/porciones/raciones` (al final del texto)
+
+### Formato de salida
+
+```
+*Resultado de la receta*
+
+🔥 Calorías: 3200 kcal
+🥩 Proteínas: 180 g
+🍞 Carbohidratos: 420 g
+🧈 Grasas: 85 g
+
+*Por porción (5 tuppers):*
+🔥 640 kcal
+🥩 36 g prot
+🍞 84 g carbs
+🧈 17 g grasa
+
+*Ingredientes (2/2):*
+...
+```
+
+### Limites
+
+- Maximo **50 porciones** (valores mayores se ajustan a 50)
+- La frase de porciones se elimina del texto antes de enviar la receta a la API
+
+---
+
+## 23. Modo Tapeo — compartir entre N personas
+
+Cuando usas `/menu` o lenguaje natural con multiples platos, puedes anadir "para N personas" y el bot divide los totales del menu entre los comensales.
+
+### Ejemplos
+
+| Input | Que hace |
+|-------|----------|
+| `/menu patatas bravas, croquetas, tortilla para 3 personas` | Menu ÷ 3 |
+| `menu: bravas, calamares, tortilla entre 4 personas` | Menu ÷ 4 |
+| `/menu ensaladilla, gambas al ajillo para compartir entre 5` | Menu ÷ 5 |
+
+### Patrones reconocidos
+
+- `para N personas/comensales/gente`
+- `entre N personas/comensales`
+- `compartir entre N` / `para compartir entre N`
+- `N personas/comensales` (al final del texto)
+
+### Formato de salida
+
+```
+*Menú del día*
+
+🍽 *Patatas bravas* — 🔥 320 kcal | 🥩 5 g | 🍞 42 g | 🧈 16 g
+🍽 *Croquetas de jamón* — 🔥 480 kcal | 🥩 18 g | 🍞 32 g | 🧈 28 g
+🍽 *Tortilla de patatas* — 🔥 380 kcal | 🥩 15 g | 🍞 25 g | 🧈 22 g
+
+──────────────────
+*Total* — 🔥 1180 kcal | 🥩 38 g | 🍞 99 g | 🧈 66 g
+*Por persona (3 personas):* 🔥 393 kcal | 🥩 13 g | 🍞 33 g | 🧈 22 g
+
+_3/3 platos encontrados_
+_Confianza: alta_
+```
+
+### Limites
+
+- Maximo **20 comensales** (valores mayores se ajustan a 20)
+- La frase de personas se elimina del texto antes de la deteccion de platos
 
 ---
 
