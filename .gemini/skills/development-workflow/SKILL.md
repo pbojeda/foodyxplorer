@@ -75,7 +75,7 @@ Ask user to classify complexity before starting. See `references/complexity-guid
 5. **Cross-Model Spec Review:** Run `/review-spec`. If at least one external CLI is available (`claude`, `codex`), this provides independent validation from other models. If no external CLIs are detected, skip this step (the self-review above is sufficient).
 6. **Design Review (optional):** If this feature includes UI changes, mention to the user: "This feature has UI changes. Want to invoke `ui-ux-designer` for design notes?" If yes, follow the `ui-ux-designer` agent instructions in `.gemini/agents/`. If `docs/specs/design-guidelines.md` does not exist yet, suggest creating it first.
 
-**→ CHECKPOINT: Spec Approval** — Update tracker (Active Session + Features table): step `0/6 (Spec)`
+**→ CHECKPOINT: Spec Approval** — Update tracker (Active Session + Features table): step `0/6 (Spec)`. Update ticket Status to `Spec`.
 
 ---
 
@@ -92,7 +92,7 @@ See `references/branching-strategy.md` for details.
 3. **Simple:** Generate a **lite ticket** at `docs/tickets/<feature-id>-<short-desc>.md` using `references/ticket-template.md`. Fill the header and a one-line `## Spec > Description`. Set `## Implementation Plan` to `N/A — Simple task`. Fill lightweight Acceptance Criteria and Definition of Done. Set Workflow Checklist to Steps 1, 3, 4, 5 only. Leave Completion Log and Merge Checklist Evidence empty (filled in later steps). **Verify the ticket contains ALL 7 sections.**
 4. **Std/Cplx:** Copy ALL sections from `references/ticket-template.md` (Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log) → fill `## Spec` section. Do NOT omit empty sections — they are filled in later steps. **After generating the ticket, verify it contains ALL 7 sections in this exact order: Spec → Implementation Plan → Acceptance Criteria → Definition of Done → Workflow Checklist → Completion Log → Merge Checklist Evidence. If any section is missing, add it now.**
 5. **Complex:** Also review `decisions.md` for related ADRs
-6. Update product tracker → Active Session: feature, step `1/6 (Setup)`, branch, complexity. Update Features table: status `in-progress`, step `1/6`
+6. Update product tracker → Active Session: feature, step `1/6 (Setup)`, branch, complexity. Update Features table: status `in-progress`, step `1/6`. Update ticket Status to `In Progress`.
 
 **→ CHECKPOINT: Ticket Approval** (Std/Cplx only — Simple skips to Step 3)
 
@@ -111,7 +111,7 @@ See `references/branching-strategy.md` for details.
    - Over-engineering or unnecessary abstractions?
    Update the plan with any fixes found before proceeding.
 5. **Cross-Model Plan Review:** Run `/review-plan`. If at least one external CLI is available (`claude`, `codex`), this provides independent validation from other models. If no external CLIs are detected, skip this step (the self-review above is sufficient).
-6. Update tracker: step `2/6 (Plan)` (Active Session + Features table)
+6. Update tracker: step `2/6 (Plan)` (Active Session + Features table). Update ticket Status to `Planning`.
 
 **→ CHECKPOINT: Plan Approval**
 
@@ -135,7 +135,7 @@ See `references/branching-strategy.md` for details.
 
 **Commits:** Commit freely during implementation (one per logical unit is fine). Final history cleanup happens via squash merge in Step 5.
 
-Update tracker (Active Session + Features table): step `3/6 (Implement)`, context summary. Mark ticket Workflow Checklist `[x]` for Step 3.
+Update tracker (Active Session + Features table): step `3/6 (Implement)`, context summary. Mark ticket Workflow Checklist `[x]` for Step 3. Update ticket Status to `In Progress`.
 
 ---
 
@@ -150,13 +150,15 @@ Update tracker (Active Session + Features table): step `3/6 (Implement)`, contex
 
 **Commit format:** `<type>(<scope>): <description>`
 
-Update tracker (Active Session + Features table): step `4/6 (Finalize)`. Mark ticket Workflow Checklist `[x]` for Step 4.
+Update tracker (Active Session + Features table): step `4/6 (Finalize)`. Mark ticket Workflow Checklist `[x]` for Step 4. Update ticket Status to `In Progress`.
 
 ---
 
 ## Step 5: Review
 
 **Target branch** from `key_facts.md` → same as base branch (Step 1).
+
+Update ticket Status to `Review`.
 
 1. Push branch, create PR (use `references/pr-template.md`)
 2. **Std/Cplx:** Follow `code-review-specialist` instructions in `.gemini/agents/` — **do NOT skip**

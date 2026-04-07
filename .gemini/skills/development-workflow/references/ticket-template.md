@@ -2,7 +2,7 @@
 
 **Feature:** [ID] | **Type:** [Backend/Frontend/Fullstack]-[Feature/Bugfix/Refactor] | **Priority:** [High/Medium/Low]
 **Status:** In Progress | **Branch:** feature/[FEATURE-ID]-[short-description]
-<!-- Valid Status values: In Progress | Ready for Merge | Done -->
+<!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** [YYYY-MM-DD] | **Dependencies:** [List or "None"]
 
 ---
@@ -101,6 +101,7 @@ This creates a feedback loop for improving future reviews. -->
 | 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
 | 5. Commit documentation | [ ] | Commit: (hash) |
 | 6. Verify clean working tree | [ ] | `git status`: clean |
+| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
 
 ---
 

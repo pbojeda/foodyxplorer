@@ -66,6 +66,15 @@ Scan code systematically to identify and report issues that should never reach p
 - Mismatch between spec-defined request/response schemas and actual implementation
 - **Ticket accuracy**: verify acceptance criteria test count matches actual test count
 
+### 9. Data File & Seed Validation
+
+Scan JSON files, seed scripts, and data fixtures for data quality issues:
+
+- **Case consistency in string arrays**: If a field contains an array of strings (e.g., `aliases`, `tags`, `keywords`), verify all values follow the same casing convention. Flag mixed casing (e.g., `["admin", "Admin"]`). Arrays of display names or titles may use Title Case by design — use context to avoid false positives.
+- **Duplicate detection in ID fields**: Scan objects in arrays for duplicate values in fields that should be unique (e.g., `id`, `externalId`, `slug`, `code`). Flag exact duplicates.
+- **Required field presence**: If objects in the same array have inconsistent keys (some have a field, others don't), flag the missing fields. All objects in a homogeneous array should have the same shape.
+- **Value range checks**: Flag negative numbers in fields where negatives are unlikely (e.g., `calories`, `proteins`, `portionGrams`). Flag suspiciously high values that look like placeholder data. Use field semantics for context.
+
 ## Output Format
 
 For each issue found:

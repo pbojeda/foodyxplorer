@@ -49,16 +49,30 @@ Commit ALL documentation updates from actions 0–4. Use commit message: `docs: 
 
 Run `git status`. **No unstaged or untracked files allowed.** If any remain, stage and commit them.
 
-## Action 7: Fill Merge Checklist Evidence
+## Action 7: Verify branch is up to date with target
 
-In the ticket, fill the `## Merge Checklist Evidence` table. For each action (0–6), mark `[x]` and write the actual evidence (not placeholders). Example:
+Determine the target branch from `docs/project_notes/key_facts.md` → `branching-strategy` (github-flow → `main`, gitflow → `develop`).
+
+1. Fetch latest: `git fetch origin <target-branch>`
+2. Check divergence: `git merge-base --is-ancestor origin/<target-branch> HEAD`
+   - If the command **succeeds** (exit code 0) → the feature branch already contains all target branch commits. Proceed to Action 8.
+   - If the command **fails** (exit code 1) → the feature branch has diverged.
+3. **If diverged:** Merge the target branch into the feature branch:
+   - `git merge origin/<target-branch>`
+   - If **conflicts** occur: resolve them, run quality gates (`npm test`, lint, build) again, and commit the merge.
+   - If no conflicts: the merge commit is created automatically.
+4. After merging, verify clean working tree again (`git status`).
+
+## Action 8: Fill Merge Checklist Evidence
+
+In the ticket, fill the `## Merge Checklist Evidence` table. For each action (0–7), mark `[x]` and write the actual evidence (not placeholders). Example:
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | Sections verified: Spec, Plan, AC, DoD, Workflow, Log, Evidence |
 | 1. Mark all items | [x] | AC: 12/12, DoD: 7/7, Workflow: 0-5/6 |
 
-## Action 8: Request merge approval
+## Action 9: Request merge approval
 
 Verify the Merge Checklist Evidence table is fully filled (all rows `[x]` with real evidence).
 

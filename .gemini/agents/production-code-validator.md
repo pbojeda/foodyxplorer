@@ -16,6 +16,8 @@ Scan code systematically for issues that should never reach production:
 7. **Code Quality**: Unused imports, missing types, overly long functions
 8. **Spec Drift** (BLOCKING): Enumerate every route in code vs `api-spec.yaml` — any mismatch is HIGH. Check components vs `ui-components.md`, validation schemas up to date. Verify ticket test counts match actual
 
+9. **Data File & Seed Validation**: Scan JSON files, seed scripts, and data fixtures for: case consistency in string arrays (e.g., `aliases` all lowercase), duplicate IDs in arrays, inconsistent object shapes, negative numbers in fields that should be non-negative, suspiciously high placeholder values
+
 ## Output Format
 
 For each issue:
