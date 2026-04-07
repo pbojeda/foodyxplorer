@@ -41,36 +41,36 @@ N/A — Simple task.
 
 ## Acceptance Criteria
 
-- [ ] New `uncertaintyCalculator.ts` module with range calculation
-- [ ] `UncertaintyRangeSchema` in shared schemas
-- [ ] `EstimateDataSchema` extended with optional `uncertaintyRange` field
-- [ ] Uncertainty ranges generated in `estimationOrchestrator.ts` and `estimate.ts` route
-- [ ] `formatEstimate()` renders calorie range in bot output
-- [ ] Range percentages based on confidence level + estimation method
-- [ ] Unit tests for uncertainty calculator
-- [ ] Unit tests for formatter with ranges
-- [ ] All tests pass
-- [ ] Build succeeds
+- [x] New `uncertaintyCalculator.ts` module with range calculation
+- [x] `UncertaintyRangeSchema` in shared schemas
+- [x] `EstimateDataSchema` extended with optional `uncertaintyRange` field
+- [x] Uncertainty ranges generated in `estimationOrchestrator.ts` and `estimate.ts` route
+- [x] `formatEstimate()` renders calorie range in bot output
+- [x] Range percentages based on confidence level + estimation method
+- [x] Unit tests for uncertainty calculator (21 tests)
+- [x] Unit tests for formatter with ranges (5 tests)
+- [x] All tests pass (26/26)
+- [x] Build succeeds
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Shared schemas updated (`UncertaintyRangeSchema` + `uncertaintyRange` field)
+- [x] All acceptance criteria met
+- [x] Unit tests written and passing (26 tests)
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
+- [x] Shared schemas updated (`UncertaintyRangeSchema` + `uncertaintyRange` field)
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 3: Implementation with TDD
-- [ ] Step 4: Quality gates pass, `production-code-validator` executed
-- [ ] Step 5: `code-review-specialist` executed
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 3: Implementation with TDD
+- [x] Step 4: Quality gates pass, `production-code-validator` executed
+- [x] Step 5: `code-review-specialist` executed
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -80,6 +80,9 @@ N/A — Simple task.
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-07 | Setup | Branch + ticket created |
+| 2026-04-07 | Implement | TDD: uncertaintyCalculator module, schema extension, route+orchestrator integration, bot formatter. 26 tests |
+| 2026-04-07 | Finalize | All quality gates pass. production-code-validator: APPROVED (1 MEDIUM: spec description clarity, fixed) |
+| 2026-04-07 | Review | PR #76. Code review: APPROVED WITH MINOR CHANGES. S3: added .int() constraint on Zod caloriesMin/Max + api-spec integer type |
 
 ---
 
@@ -89,13 +92,13 @@ N/A — Simple task.
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | |
-| 1. Mark all items | [ ] | |
-| 2. Verify product tracker | [ ] | |
-| 3. Update key_facts.md | [ ] | |
-| 4. Update decisions.md | [ ] | |
-| 5. Commit documentation | [ ] | |
-| 6. Verify clean working tree | [ ] | |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Plan (N/A), AC, DoD, Workflow, Log, Evidence |
+| 1. Mark all items | [x] | AC: 10/10, DoD: 6/6, Workflow: 4/5 (Step 6 pending) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
+| 3. Update key_facts.md | [x] | N/A — no new models/migrations/endpoints |
+| 4. Update decisions.md | [x] | N/A — no ADR needed for Simple feature |
+| 5. Commit documentation | [x] | Docs commit below |
+| 6. Verify clean working tree | [x] | Clean after docs commit |
 
 ---
 

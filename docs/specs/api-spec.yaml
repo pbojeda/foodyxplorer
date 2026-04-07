@@ -7849,12 +7849,12 @@ components:
         - percentage
       properties:
         caloriesMin:
-          type: number
+          type: integer
           minimum: 0
           description: Lower bound of the calorie range.
           example: 332
         caloriesMax:
-          type: number
+          type: integer
           minimum: 0
           description: Upper bound of the calorie range.
           example: 368

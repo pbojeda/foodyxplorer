@@ -173,9 +173,9 @@ export type DetectedAllergen = z.infer<typeof DetectedAllergenSchema>;
 
 export const UncertaintyRangeSchema = z.object({
   /** Lower bound of the estimated calorie range. */
-  caloriesMin: z.number().nonnegative(),
+  caloriesMin: z.number().int().nonnegative(),
   /** Upper bound of the estimated calorie range. */
-  caloriesMax: z.number().nonnegative(),
+  caloriesMax: z.number().int().nonnegative(),
   /** Uncertainty percentage used to compute the range (e.g., 10 for ±10%). */
   percentage: z.number().min(0).max(100),
 });
