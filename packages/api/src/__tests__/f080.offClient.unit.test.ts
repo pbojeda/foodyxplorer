@@ -80,11 +80,10 @@ describe('fetchProductsByBrand', () => {
 
     expect(mockFetch).toHaveBeenCalledOnce();
     const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain('https://world.openfoodfacts.org/cgi/search.pl');
-    expect(url).toContain('tag_0=hacendado');
+    expect(url).toContain('https://world.openfoodfacts.org/api/v2/search');
+    expect(url).toContain('brands_tags_contains=hacendado');
     expect(url).toContain('page_size=100');
     expect(url).toContain('page=1');
-    expect(url).toContain('json=1');
   });
 
   it('includes correct User-Agent header on every request', async () => {

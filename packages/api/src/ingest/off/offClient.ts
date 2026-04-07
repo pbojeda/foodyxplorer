@@ -3,6 +3,13 @@
  *
  * HTTP client for the Open Food Facts (OFF) Search and Product APIs.
  *
+ * **Authentication:** OFF API v2 requires session cookies for search queries.
+ * The session cookie is read from the OFF_SESSION_COOKIE env var.
+ * To obtain a session cookie:
+ *   1. Create an account at https://world.openfoodfacts.org/
+ *   2. Log in and copy the session cookie value from browser dev tools
+ *   3. Set OFF_SESSION_COOKIE="session=<value>" in .env
+ *
  * Retry policy: 3 retries with exponential backoff (1s, 2s, 4s).
  * 4xx responses are not retried — except 429 (Too Many Requests) which IS retried.
  * 5xx responses and network errors are retried.
@@ -13,8 +20,8 @@
 
 import type { OffProduct } from './types.js';
 
-/** OFF Search API base URL. */
-const OFF_SEARCH_URL = 'https://world.openfoodfacts.org/cgi/search.pl';
+/** OFF Search API v2 base URL (requires authentication). */
+const OFF_SEARCH_URL = 'https://world.openfoodfacts.org/api/v2/search';
 
 /** OFF Product API base URL. */
 const OFF_PRODUCT_URL = 'https://world.openfoodfacts.org/api/v2/product';
@@ -37,6 +44,8 @@ export interface OffClientOptions {
   maxRetries?: number;
   /** Stop fetching after reaching this many products. */
   limit?: number;
+  /** OFF session cookie for authentication (default: reads OFF_SESSION_COOKIE env var). */
+  sessionCookie?: string;
 }
 
 /**
@@ -50,7 +59,18 @@ export async function fetchProductsByBrand(
   brand: string,
   options: OffClientOptions = {},
 ): Promise<OffProduct[]> {
-  const { fetchImpl = fetch, retryDelayMs = 1000, maxRetries = 3, limit } = options;
+  const { fetchImpl = fetch, retryDelayMs = 1000, maxRetries = 3, limit, sessionCookie } = options;
+
+  // Resolve session cookie: explicit option > env var
+  const cookie = sessionCookie ?? process.env['OFF_SESSION_COOKIE'];
+  const isTestEnv = (process.env['NODE_ENV'] === 'test');
+  if (!cookie && !isTestEnv) {
+    console.warn(
+      '[offClient] WARNING: OFF_SESSION_COOKIE not set. OFF API v2 requires authentication.\n' +
+      'Search requests will likely fail with 503 or return HTML instead of JSON.\n' +
+      'See offClient.ts header comment for setup instructions.',
+    );
+  }
 
   // Mercadona special case: also query hacendado
   const brandQueries = brand === 'mercadona'
@@ -72,7 +92,7 @@ export async function fetchProductsByBrand(
       const url = buildSearchUrl(brandQuery, page);
       const data = await fetchWithRetry<OffSearchResponse>(
         url,
-        { fetchImpl, retryDelayMs, maxRetries },
+        { fetchImpl, retryDelayMs, maxRetries, cookie },
       );
 
       const products: OffProduct[] = data?.products ?? [];
@@ -109,14 +129,15 @@ export async function fetchProductByBarcode(
   barcode: string,
   options: OffClientOptions = {},
 ): Promise<OffProduct | null> {
-  const { fetchImpl = fetch, retryDelayMs = 1000, maxRetries = 3 } = options;
+  const { fetchImpl = fetch, retryDelayMs = 1000, maxRetries = 3, sessionCookie } = options;
+  const cookie = sessionCookie ?? process.env['OFF_SESSION_COOKIE'];
 
   const url = `${OFF_PRODUCT_URL}/${barcode}.json`;
 
   try {
     const data = await fetchWithRetry<OffProductResponse>(
       url,
-      { fetchImpl, retryDelayMs, maxRetries },
+      { fetchImpl, retryDelayMs, maxRetries, cookie },
       true, // allow404
     );
     if (data === null) return null;
@@ -150,22 +171,27 @@ interface OffProductResponse {
 
 async function fetchWithRetry<T>(
   url: string,
-  opts: { fetchImpl: typeof fetch; retryDelayMs: number; maxRetries: number },
+  opts: { fetchImpl: typeof fetch; retryDelayMs: number; maxRetries: number; cookie?: string },
   allow404 = false,
 ): Promise<T | null> {
-  const { fetchImpl, retryDelayMs, maxRetries } = opts;
+  const { fetchImpl, retryDelayMs, maxRetries, cookie } = opts;
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const signal = AbortSignal.timeout(30_000);
 
+      const headers: Record<string, string> = {
+        'User-Agent': OFF_USER_AGENT,
+        'Accept': 'application/json',
+      };
+      if (cookie) {
+        headers['Cookie'] = cookie;
+      }
+
       const response = await fetchImpl(url, {
         method: 'GET',
-        headers: {
-          'User-Agent': OFF_USER_AGENT,
-          'Accept': 'application/json',
-        },
+        headers,
         signal,
       });
 
@@ -231,12 +257,9 @@ export class OffFetchError extends Error {
 
 function buildSearchUrl(brand: string, page: number): string {
   const params = new URLSearchParams({
-    tagtype_0: 'brands',
-    tag_contains_0: 'contains',
-    tag_0: brand,
+    brands_tags_contains: brand,
     page_size: String(PAGE_SIZE),
     page: String(page),
-    json: '1',
   });
   return `${OFF_SEARCH_URL}?${params.toString()}`;
 }

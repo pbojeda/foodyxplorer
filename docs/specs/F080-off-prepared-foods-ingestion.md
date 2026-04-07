@@ -27,11 +27,11 @@ OFF is ingested as a batch import (CLI script), following the same structural pa
 
 A new module `packages/api/src/ingest/off/offClient.ts` must provide:
 
-1. **`fetchProductsByBrand(brand, options)`** — Queries the OFF Search API to retrieve all products for a given brand keyword (e.g., `"hacendado"`). Must paginate automatically through all result pages using `page` and `page_size=100` parameters. Returns an array of raw OFF product objects. The `--brand` flag accepts any brand (default: `"hacendado"`); when `"mercadona"` is specified, the client must also query `"hacendado"` (Mercadona's house brand) and merge results.
+1. **`fetchProductsByBrand(brand, options)`** — Queries the OFF Search API v2 (`/api/v2/search`) to retrieve all products for a given brand keyword (e.g., `"hacendado"`). Must paginate automatically through all result pages using `page` and `page_size=100` parameters. Returns an array of raw OFF product objects. The `--brand` flag accepts any brand (default: `"hacendado"`); when `"mercadona"` is specified, the client must also query `"hacendado"` (Mercadona's house brand) and merge results.
 2. **`fetchProductByBarcode(barcode, options)`** — Queries the OFF Product API (`/api/v2/product/{barcode}.json`) to retrieve a single product. Returns a raw OFF product object or `null` if not found (404).
 3. **Retry policy:** 3 retries with exponential backoff (1 s, 2 s, 4 s). 4xx responses are not retried. 5xx responses and network errors are retried. Timeout: 30 s per request.
 4. **User-Agent header:** Must include the project identifier and contact per OFF API policy: `nutriXplorer/1.0 (nutrixplorer@example.com)`.
-5. **No API key required.** OFF is free and open.
+5. **Authentication required.** OFF API v2 requires session cookies for search queries (discovered 2026-04-07). Without authentication, the API returns HTML "Page temporarily unavailable" instead of JSON. Session cookie is read from the `OFF_SESSION_COOKIE` environment variable. See `.env.example` for setup instructions.
 
 #### R2 — OFF Parser / Mapper
 
@@ -245,7 +245,7 @@ The ingestion is CLI-only. No HTTP endpoint is needed to trigger OFF import. The
 10. **`--limit` flag:** When provided, the script must stop fetching new pages once the limit is reached, not after importing. Do not fetch page 5 when page 4 already satisfied the limit.
 11. **Partial page on last page:** OFF `page_size=100` may return fewer products on the final page. This is normal — the loop terminates when the returned page is empty or has fewer items than `page_size`.
 12. **OFF product `brands` field contains multiple brands:** Use only the first entry after splitting on `,`. Trim and lowercase.
-13. **Non-prepared products:** The brand query may return raw ingredients, beverages, snacks, and other non-prepared items. **All products with valid nutrients are imported** — the feature name "prepared foods" is a description of the majority of products, not a filter. Filtering by OFF category tags is unreliable (inconsistent tagging). The `foodType: "branded"` flag and brand detection handle routing correctly regardless of product type.
+13. **Non-food products:** The brand query may return non-food items (cosmetics, cleaning products, pet food) that are incorrectly tagged in OFF. These should be excluded. However, filtering by OFF `categories_tags` is unreliable (inconsistent tagging), so the primary quality gate is the nutrient validator (R2): products without valid macronutrients are automatically skipped. Products with valid nutrients are imported regardless of category — the `foodType: "branded"` flag and brand detection handle routing correctly.
 14. **Missing both `code` (barcode) and `_id`:** Skip product — no stable external identifier available.
 
 ---
@@ -293,6 +293,23 @@ docs/specs/api-spec.yaml                — extend ProvenanceInfo schema
 - Barcode scanning / barcode extraction from photos (Phase D, F100–F101)
 - Any frontend/UI changes
 - New HTTP endpoints for triggering OFF import
-- Importing brands other than Hacendado/Mercadona in this iteration
+- Importing brands other than Hacendado/Mercadona in this iteration (multi-brand expansion planned as a future task — see product-evolution-analysis Section 4)
 - FatSecret, Edamam, or other external API integrations
 - Real-time OFF synchronisation (scheduled jobs, webhooks) — batch import only
+
+---
+
+### Known Issues & Discoveries (2026-04-07)
+
+1. **OFF API v2 requires authentication.** The old endpoint (`/cgi/search.pl`) returns 503 without auth. The new endpoint (`/api/v2/search`) returns HTML "Page temporarily unavailable" without session cookies. Solution: user creates an OFF account, logs in, copies session cookie to `OFF_SESSION_COOKIE` env var. This was discovered during the first ingestion attempt.
+
+2. **OFF data is broader than expected.** A query for "tortilla de patatas" in OFF returns multiple variants (con cebolla, con chorizo) and multiple brands (Hacendado, Carrefour, Dia, Aldi). This opens the door to multi-brand ingestion in future iterations.
+
+3. **Data quality criteria (mandatory for import):**
+   - Product must have at least: calories + proteins + fats + carbohydrates (enforced by validator)
+   - Calories must be ≤ 900 kcal/100g (enforced by validator)
+   - No negative nutrient values (enforced by validator)
+   - Product must have at least one name (product_name or product_name_es)
+   - Product must have a stable identifier (code or _id)
+
+4. **Multi-brand expansion strategy (future):** When expanding beyond Hacendado, the same `--brand` flag can be used with different brand names. Quality filtering is already in place. The main consideration is disambiguation when multiple brands offer the same product — the estimation engine currently returns the first L1 match, which may need refinement for multi-brand scenarios.
