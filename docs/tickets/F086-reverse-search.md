@@ -1,7 +1,7 @@
 # F086: Reverse Search
 
 **Feature:** F086 | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F086-reverse-search
+**Status:** Done | **Branch:** (deleted)
 **Created:** 2026-04-07 | **Dependencies:** None (dishes + dish_nutrients populated, catalog routes exist)
 
 ---
@@ -191,7 +191,7 @@ Add to `packages/bot/src/formatters/`:
 - [x] Step 3: Implementation with TDD
 - [x] Step 4: Quality gates pass, `production-code-validator` executed
 - [x] Step 5: `code-review-specialist` + `qa-engineer` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -202,7 +202,9 @@ Add to `packages/bot/src/formatters/`:
 | 2026-04-07 | Spec | Spec written with 6-step implementation plan |
 | 2026-04-07 | Implement | TDD: 6 steps — schemas, query module, route, entity extraction, conversationCore, bot formatter. 65 tests |
 | 2026-04-07 | Finalize | All quality gates pass. production-code-validator: READY (95/100, 0 issues) |
-| 2026-04-07 | Review | PR #78. Code review: APPROVED WITH MINOR CHANGES (3 fixes applied). QA: VERIFIED (0 bugs, 66 edge case tests added). 131 total tests |
+| 2026-04-07 | Review | PR #78. Code review: APPROVED WITH MINOR CHANGES (3 fixes applied). QA: VERIFIED (0 bugs, 66 edge case tests added) |
+| 2026-04-07 | NL Fix | Added 4 NL patterns (me sobran, tengo solo, qué comer, de proteína). 136 total tests |
+| 2026-04-07 | Complete | Squash merged to develop (e67164d). Branch deleted. Ticket closed |
 
 ---
 
