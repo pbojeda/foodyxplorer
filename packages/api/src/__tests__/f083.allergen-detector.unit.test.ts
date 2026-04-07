@@ -247,10 +247,22 @@ describe('detectAllergens', () => {
     expect(allergenNames).not.toContain('Lácteos');
   });
 
-  // --- I2: "pan" at end of string (from code review) ---
+  // --- I2: "pan" compound patterns (from code review + user audit) ---
 
-  it('detects gluten from "tostada con pan" (pan at end)', () => {
-    const result = detectAllergens('Tostada con pan');
+  it('does not flag gluten for "panacota" (no gluten)', () => {
+    const result = detectAllergens('Panacota');
+    const allergenNames = result.map((a) => a.allergen);
+    expect(allergenNames).not.toContain('Gluten');
+  });
+
+  it('does not flag gluten for "panaché de verduras" (no gluten)', () => {
+    const result = detectAllergens('Panaché de verduras');
+    const allergenNames = result.map((a) => a.allergen);
+    expect(allergenNames).not.toContain('Gluten');
+  });
+
+  it('detects gluten from "bocadillo de jamón"', () => {
+    const result = detectAllergens('Bocadillo de jamón');
     expect(result).toEqual(
       expect.arrayContaining([expect.objectContaining({ allergen: 'Gluten' })]),
     );

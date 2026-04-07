@@ -36,7 +36,10 @@ const ALLERGEN_RULES: AllergenRule[] = [
     allergen: 'Gluten',
     patterns: [
       'trigo', 'cebada', 'centeno', 'avena', 'espelta',
-      'pan', 'pasta', 'pizza', 'harina', 'galleta', 'bizcocho',
+      'pan blanco', 'pan integral', 'pan de molde', 'pan de ajo',
+      'pan con', 'pan tostado', 'pan rallado', 'bocadillo',
+      'sandwich', 'sándwich',
+      'pasta', 'pizza', 'harina', 'galleta', 'bizcocho',
       'croissant', 'empanada', 'croqueta', 'rebozado', 'empanado',
       'wheat', 'barley', 'rye', 'oat', 'bread', 'flour',
     ],
