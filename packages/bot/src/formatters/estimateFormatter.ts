@@ -53,7 +53,9 @@ export function formatEstimate(data: EstimateData): string {
 
   lines.push(
     '',
-    `🔥 Calorías: ${formatNutrient(n.calories, 'kcal')}`,
+    data.uncertaintyRange
+      ? `🔥 Calorías: ${formatNutrient(n.calories, 'kcal')} \\(${escapeMarkdown(String(data.uncertaintyRange.caloriesMin))}\\-${escapeMarkdown(String(data.uncertaintyRange.caloriesMax))}\\)`
+      : `🔥 Calorías: ${formatNutrient(n.calories, 'kcal')}`,
     `🥩 Proteínas: ${formatNutrient(n.proteins, 'g')}`,
     `🍞 Carbohidratos: ${formatNutrient(n.carbohydrates, 'g')}`,
     `🧈 Grasas: ${formatNutrient(n.fats, 'g')}`,

@@ -10,9 +10,11 @@
 
 **Last Updated:** 2026-04-07
 
-No active work. **F083 complete** (2026-04-07). Squash-merged to develop via PR #75 (bf16e6e).
-
-**Next:** F084 — Estimation with Uncertainty Ranges (Simple)
+**Active Feature:** F084 — Estimation with Uncertainty Ranges (Simple)
+**Ticket:** `docs/tickets/F084-uncertainty-ranges.md`
+**Branch:** `feature/F084-uncertainty-ranges`
+**Step:** 1/6 (Setup)
+**Complexity:** Simple → Steps 1→3→4→5→6
 
 **Pending operational step (F080):** OFF data import not yet executed — OFF API returning HTML instead of JSON for brands_tags search (checked 2026-04-07). Run when available:
 ```
@@ -190,7 +192,7 @@ Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
 | F081 | "Health-Hacker" Chain Suggestions | bot | done | 6/6 | Simple. PR #73. 41 tests (3 files). enrichWithTips() helper, 13 chains → 5 categories, HealthHackerTipSchema. Code review: APPROVED |
 | F082 | Nutritional Substitutions | backend | done | 6/6 | Simple. PR #74. 39 tests (3 files). enrichWithSubstitutions() helper, 8 categories, NutritionalSubstitutionSchema. Code review: APPROVED |
 | F083 | Allergen Cross-Reference | backend | done | 6/6 | Simple. PR #75. 50 tests (2 files). enrichWithAllergens() helper, 14 EU allergens, DetectedAllergenSchema. Code review: APPROVED |
-| F084 | Estimation with Uncertainty Ranges | backend | pending | — | Simple. Show "320-420 kcal" instead of single number. Based on confidence level + portion variability |
+| F084 | Estimation with Uncertainty Ranges | backend | in-progress | 1/6 | Simple. Calorie ranges based on confidence + estimation method. enrichWithUncertainty() DRY helper |
 | F085 | Portion Sizing Matrix (Spanish portions) | backend | pending | — | Simple. Standard portions: "un plato de"=250-300g, "una ración"=200-250g, "media ración"=100-125g, "una tapa"=50-80g, "un pintxo"=30-60g, etc. |
 | F086 | Reverse Search ("¿qué como con X kcal?") | backend | pending | — | Standard. Filter chain menu by calorie/protein constraints. "Estoy en BK, me quedan 600 kcal, necesito 30g proteína" |
 | F087 | "El Tupper" Meal Prep | backend | pending | — | Simple. Divide recipe by N portions. /receta 2kg lentejas... dividir en 5 tuppers |
