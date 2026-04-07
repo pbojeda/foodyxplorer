@@ -1,7 +1,7 @@
 # F089: "Modo Tapeo" (Shared Portions)
 
 **Feature:** F089 | **Type:** Bot-Feature | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F089-modo-tapeo
+**Status:** Done | **Branch:** (deleted)
 **Created:** 2026-04-07 | **Dependencies:** F076 (Menu Estimation)
 
 ---
@@ -62,7 +62,7 @@ N/A — Simple task
 - [x] Step 3: Implementation with TDD
 - [x] Step 4: Quality gates pass
 - [x] Step 5: `code-review-specialist` executed — APPROVED (0 Critical, 0 fixes needed)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -74,6 +74,7 @@ N/A — Simple task
 | 2026-04-07 | Implement | TDD: schema (7), diners extractor (12), formatter (3). 22 new tests |
 | 2026-04-07 | Finalize | All quality gates pass. Build clean. Lint clean |
 | 2026-04-07 | Review | PR #81. Code review: APPROVED. 0 Critical, 0 fixes needed |
+| 2026-04-07 | Complete | Squash merged to develop (ef5dbe6). Branch deleted. Ticket closed |
 
 ---
 

@@ -10,12 +10,8 @@
 
 **Last Updated:** 2026-04-07
 
-**Active Feature:** F089 — "Modo Tapeo" (Simple)
-**Step:** 5/6 (Review)
-**Branch:** feature/F089-modo-tapeo
-**Ticket:** docs/tickets/F089-modo-tapeo.md
-**Complexity:** Simple — Steps 1→3→4→5→6
-**Last Completed:** F087 — "El Tupper" Meal Prep (Simple) → develop (1ae778c), PR #80. 33 tests.
+**Active Feature:** No active work
+**Last Completed:** F089 — "Modo Tapeo" (Simple) → develop (ef5dbe6), PR #81. 22 tests.
 
 **Pending operational step (F080):** OFF data import in progress — API v2 auth fix applied (ecdc186). Pagination fix applied (count-based). Ingestion being executed in a separate session.
 ```
@@ -198,7 +194,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F086 | Reverse Search ("¿qué como con X kcal?") | backend | done | 6/6 | Standard. GET /reverse-search endpoint + conversation intent. 136 tests. PR #78, e67164d |
 | F087 | "El Tupper" Meal Prep | backend | done | 6/6 | Simple. PR #80, 1ae778c. 33 tests. Optional `portions` param, `perPortion` nutrients, bot tupper detection |
 | F088 | Community Inline Corrections | bot | pending | — | Standard. "Cálculo incorrecto" inline button. User proposes adjustment. Stored for review. Feeds demand pipeline |
-| F089 | "Modo Tapeo" (shared portions) | bot | in-progress | 5/6 | Simple. PR #81. Multiple tapas → per-tapa + total ÷ N people |
+| F089 | "Modo Tapeo" (shared portions) | bot | done | 6/6 | Simple. PR #81, ef5dbe6. 22 tests. Diners extraction + perPerson in menu estimation |
 
 > **Phase C: Conversational Web Assistant + Realtime Voice**
 
@@ -333,6 +329,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | 2026-04-06 | F080 — OFF Prepared Foods Ingestion | 4ce08a0 (squash merge to develop, PR #72) | Standard. OFF ingestion module (types, validator, mapper, client). L1 branded + Tier 3 fallback. ODbL attribution. Brand aliases. 146 tests (8 files). Data import pending (OFF API 503) |
 | 2026-04-07 | F081 — Health-Hacker Chain Suggestions | a884e57 (squash merge to develop, PR #73) | Simple. Rule-based calorie-saving tips for chain dishes. 13 chains → 5 categories. enrichWithTips() DRY helper. HealthHackerTipSchema. 41 tests (3 files). Code review: APPROVED |
 | 2026-04-07 | F087 — "El Tupper" Meal Prep | 1ae778c (squash merge to develop, PR #80) | Simple. Optional `portions` param on POST /calculate/recipe (1-50). `perPortion` nutrients. Bot tupper extraction (3 regex patterns). 33 tests. Code review: APPROVED |
+| 2026-04-07 | F089 — "Modo Tapeo" (shared portions) | ef5dbe6 (squash merge to develop, PR #81) | Simple. Diners extraction (4 regex patterns, cap 20). `diners` + `perPerson` in MenuEstimationData. Per-person formatter line. 22 tests. Code review: APPROVED |
 
 ---
 
