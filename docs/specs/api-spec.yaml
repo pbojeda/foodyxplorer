@@ -2815,6 +2815,13 @@ paths:
                               Not applicable in free-form mode — defaults apply to all
                               resolved ingredients (F074 will extract state from text).
                         required: [grams]
+                    portions:
+                      type: integer
+                      minimum: 1
+                      maximum: 50
+                      description: |
+                        F087 — Number of portions to divide the recipe into ("El Tupper" meal prep).
+                        When provided, the response includes perPortion nutrients (totalNutrients ÷ portions).
                 - type: object
                   required: [mode, text]
                   properties:
@@ -2825,6 +2832,13 @@ paths:
                       type: string
                       minLength: 1
                       maxLength: 2000
+                    portions:
+                      type: integer
+                      minimum: 1
+                      maximum: 50
+                      description: |
+                        F087 — Number of portions to divide the recipe into ("El Tupper" meal prep).
+                        When provided, the response includes perPortion nutrients (totalNutrients ÷ portions).
               discriminator:
                 propertyName: mode
       responses:
@@ -2915,6 +2929,17 @@ paths:
                         type: string
                         format: date-time
                         nullable: true
+                      portions:
+                        type: integer
+                        minimum: 1
+                        maximum: 50
+                        nullable: true
+                        description: F087 — Number of portions the recipe was divided into. Null if not requested.
+                      perPortion:
+                        nullable: true
+                        description: F087 — Per-portion nutrients (totalNutrients ÷ portions). Null if portions not requested.
+                        allOf:
+                          - $ref: "#/components/schemas/RecipeNutrients"
         "400":
           description: Validation error
           content:

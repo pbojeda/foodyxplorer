@@ -115,6 +115,8 @@ const BASE_DATA: RecipeCalculateData = {
   ingredients: [makeIngredient()],
   unresolvedIngredients: [],
   cachedAt: null,
+  portions: null,
+  perPortion: null,
 };
 
 const CHAT_ID = 42;
@@ -248,7 +250,7 @@ describe('handleReceta — trim before length check', () => {
     // After trimming: exactly 2000 chars → should NOT trigger length error
     await handleReceta(padded, CHAT_ID, mock as unknown as ApiClient, redis);
 
-    expect(mock.calculateRecipe).toHaveBeenCalledWith('a'.repeat(2000));
+    expect(mock.calculateRecipe).toHaveBeenCalledWith('a'.repeat(2000), undefined);
   });
 
   it('rejects input that is exactly 2001 chars AFTER trimming surrounding whitespace', async () => {

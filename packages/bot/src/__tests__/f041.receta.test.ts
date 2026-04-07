@@ -116,6 +116,8 @@ const RECIPE_RESULT: RecipeCalculateData = {
   ],
   unresolvedIngredients: [],
   cachedAt: null,
+  portions: null,
+  perPortion: null,
 };
 
 const CHAT_ID = 42;
@@ -264,7 +266,7 @@ describe('handleReceta — happy path', () => {
 
     await handleReceta('  200g pollo, 100g arroz  ', CHAT_ID, mock as unknown as ApiClient, redis);
 
-    expect(mock.calculateRecipe).toHaveBeenCalledWith('200g pollo, 100g arroz');
+    expect(mock.calculateRecipe).toHaveBeenCalledWith('200g pollo, 100g arroz', undefined);
   });
 
   it('returns formatted result containing *Resultado de la receta*', async () => {

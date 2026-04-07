@@ -74,6 +74,8 @@ const BASE_DATA: RecipeCalculateData = {
   ],
   unresolvedIngredients: [],
   cachedAt: null,
+  portions: null,
+  perPortion: null,
 };
 
 // ---------------------------------------------------------------------------

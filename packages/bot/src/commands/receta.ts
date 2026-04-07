@@ -9,6 +9,7 @@ import type { ApiClient } from '../apiClient.js';
 import { ApiError } from '../apiClient.js';
 import { handleApiError } from './errorMessages.js';
 import { formatRecipeResult } from '../formatters/recipeFormatter.js';
+import { extractPortions } from './tupperExtractor.js';
 import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
@@ -129,7 +130,9 @@ export async function handleReceta(
   }
 
   try {
-    const data = await apiClient.calculateRecipe(trimmed);
+    // F087: extract "dividir en N tuppers" before sending to API
+    const { portions, cleanedText } = extractPortions(trimmed);
+    const data = await apiClient.calculateRecipe(cleanedText, portions);
     return formatRecipeResult(data);
   } catch (err) {
     // Refund the rate-limit slot for server/network errors (not user errors).
