@@ -16,8 +16,8 @@ import type { OffProduct } from '../ingest/off/types.js';
 // Helper: build mock fetch responses
 // ---------------------------------------------------------------------------
 
-function makeSearchResponse(products: OffProduct[], page_size = 100): Response {
-  const body = JSON.stringify({ products, count: products.length, page_size });
+function makeSearchResponse(products: OffProduct[], page_size = 100, totalCount?: number): Response {
+  const body = JSON.stringify({ products, count: totalCount ?? products.length, page_size });
   return new Response(body, {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
@@ -120,8 +120,8 @@ describe('fetchProductsByBrand', () => {
     const page2 = Array.from({ length: 50 }, (_, i) => product(`p2-${i}`));
 
     const mockFetch = vi.fn()
-      .mockResolvedValueOnce(makeSearchResponse(page1, 100))
-      .mockResolvedValueOnce(makeSearchResponse(page2, 100));
+      .mockResolvedValueOnce(makeSearchResponse(page1, 100, 150))
+      .mockResolvedValueOnce(makeSearchResponse(page2, 100, 150));
 
     const resultPromise = fetchProductsByBrand('hacendado', {
       fetchImpl: mockFetch,
@@ -134,13 +134,35 @@ describe('fetchProductsByBrand', () => {
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
-  it('terminates when returned page has fewer products than page_size', async () => {
+  it('uses count to paginate — does not stop on intermediate pages with fewer products', async () => {
+    // OFF API may return fewer products on intermediate pages (e.g., page 6 returns 99)
     const page1 = Array.from({ length: 100 }, (_, i) => product(`p1-${i}`));
-    const page2 = Array.from({ length: 30 }, (_, i) => product(`p2-${i}`)); // fewer than 100
+    const page2 = Array.from({ length: 99 }, (_, i) => product(`p2-${i}`)); // partial intermediate
+    const page3 = Array.from({ length: 30 }, (_, i) => product(`p3-${i}`)); // real last page
 
     const mockFetch = vi.fn()
-      .mockResolvedValueOnce(makeSearchResponse(page1, 100))
-      .mockResolvedValueOnce(makeSearchResponse(page2, 100));
+      .mockResolvedValueOnce(makeSearchResponse(page1, 100, 229))
+      .mockResolvedValueOnce(makeSearchResponse(page2, 100, 229))
+      .mockResolvedValueOnce(makeSearchResponse(page3, 100, 229));
+
+    const resultPromise = fetchProductsByBrand('hacendado', {
+      fetchImpl: mockFetch,
+      retryDelayMs: 0,
+    });
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result).toHaveLength(229);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('terminates on last page when count indicates no more pages', async () => {
+    const page1 = Array.from({ length: 100 }, (_, i) => product(`p1-${i}`));
+    const page2 = Array.from({ length: 30 }, (_, i) => product(`p2-${i}`));
+
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce(makeSearchResponse(page1, 100, 130))
+      .mockResolvedValueOnce(makeSearchResponse(page2, 100, 130));
 
     const resultPromise = fetchProductsByBrand('hacendado', {
       fetchImpl: mockFetch,

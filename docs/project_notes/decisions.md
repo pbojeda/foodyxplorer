@@ -516,3 +516,41 @@ Analysis in `docs/research/product-evolution-analysis-2026-03-31.md` Section 17,
 - (-) localStorage/cookie can be cleared → user loses identity (mitigated by auth upgrade)
 - (-) Multi-device sync impossible without auth (acceptable tradeoff)
 - (-) Slightly more complex middleware than no-identity approach
+
+### ADR-017: OFF Multi-Brand Expansion — Expand Later (2026-04-07)
+
+**Context:** During the first OFF ingestion attempt (F080), we discovered that Open Food Facts has significant coverage beyond Hacendado/Mercadona. A search for "tortilla de patatas" returns multiple variants (con cebolla, con chorizo) and multiple brands (Carrefour, Dia, Aldi, Eroski, Lidl). The `--brand` flag already supports arbitrary brands, so the code effort to expand is minimal. Cross-model review conducted with Claude Opus, Gemini CLI, and Codex CLI — all three reached the same conclusion.
+
+**Decision: EXPAND LATER** — Do not broaden OFF ingestion beyond Hacendado/Mercadona in Phase B.
+
+**Rationale:**
+
+1. **Validate first.** Hacendado ingestion (~11K products) is the first real OFF data in production. Must validate: branded hit rate, correction rate, fallback usefulness, L3 pgvector behavior with branded items, and user confusion rate. Expanding before this validation introduces too many variables.
+
+2. **Search relevance risk.** With 50K+ near-duplicate supermarket SKUs, L3 pgvector may return 15 different supermarket tortillas instead of falling through to the BEDCA/canonical baseline. The estimation engine needs stronger disambiguation and ranking before absorbing multi-brand catalogs.
+
+3. **Hidden product effort.** The code change is trivial (`--brand carrefour`), but the product effort is not: brand-family aliasing, duplicate handling, variant disambiguation, quality scoring, and result ranking all need hardening. Without this, the conversational experience degrades.
+
+4. **Product vision.** nutriXplorer is a conversational nutrition assistant, not a product catalog. Broad supermarket ingestion pulls the product toward "Spanish packaged-food catalog with chat UI" — misaligned with the core value proposition.
+
+**When to revisit:**
+
+- **Trigger:** After 1-2 weeks of real Hacendado usage in production, review F079 query logs (MissedQueryTracking) to identify which brands users actually request.
+- **Approach:** Selective expansion by demand-heavy categories (prepared meals, protein yogurts, snacks) and 1-2 pilot brands, not all major chains at once.
+- **Quality gates:** Non-Hacendado imports should require stricter validation: complete macros, ingredients text, recent modification date.
+- **Phase:** C or D, once search ranking is stronger and barcode flows (F100-F101) justify deeper catalog breadth.
+
+**Cross-model consensus:**
+
+| Model | Verdict | Key insight |
+|-------|---------|-------------|
+| Claude Opus | Expand Later | Disambiguation logic needs work before scaling data |
+| Gemini CLI | Expand Later | L3 pgvector pollution risk — validate baseline first |
+| Codex CLI (GPT-5.4) | Expand Later | Hidden product effort far exceeds code effort |
+
+**Consequences:**
+- (+) Bounded complexity for Phase B — focus on validating OFF pipeline
+- (+) Query logs (F079) will provide data-driven expansion decisions
+- (+) Avoids L3 search noise before disambiguation is hardened
+- (-) Users of Carrefour/Dia/Lidl won't find their specific branded products until expansion
+- (-) Competitors (MyFitnessPal, FatSecret) already have multi-brand — gap remains temporarily

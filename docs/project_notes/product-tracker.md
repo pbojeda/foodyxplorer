@@ -13,11 +13,11 @@
 **Active Feature:** No active work
 **Last Completed:** F086 — Reverse Search (Standard) → develop (e67164d), PR #78. 136 tests.
 
-**Pending operational step (F080):** OFF data import not yet executed — OFF API returning HTML instead of JSON for brands_tags search (checked 2026-04-07). Run when available:
+**Pending operational step (F080):** OFF data import in progress — API v2 auth fix applied (ecdc186). Pagination fix applied (count-based). Ingestion being executed in a separate session.
 ```
-OFF_IMPORT_ENABLED=true npm run off:import -- --dry-run --limit 50 -w @foodxplorer/api
+OFF_IMPORT_ENABLED=true npx tsx packages/api/src/scripts/off-import.ts --brand hacendado
 ```
-Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
+After import: `npm run embeddings:generate -w @foodxplorer/api`.
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -221,6 +221,7 @@ Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F100 | Open Food Facts Full Integration (Barcodes) | fullstack | pending | — | Standard. Barcode photo → extraction → OFF query. For packaged products tracking |
+| F110 | OFF Multi-Brand Expansion | backend | pending | — | Simple. Expand OFF ingestion beyond Hacendado to Carrefour, Dia, Lidl, Aldi, Eroski. ADR-017: expand later. **Prerequisites:** (1) Review F079 query logs for brand demand data, (2) Harden L1/L3 disambiguation for duplicate branded products, (3) Add quality scoring for non-Hacendado imports. Code already supports `--brand` flag. See ADR-017 for rationale |
 | F101 | Barcode Extraction from Photos | backend | pending | — | Simple. Photo → barcode reading library → OFF lookup |
 | F102 | API B2B Tiers + Documentation | backend | pending | — | Standard. Free (100/mo) → Starter (€49, 5K/mo) → Business (€199, 50K/mo). OpenAPI docs |
 | F103 | Weekly Summary + Charts | frontend | pending | — | Standard. In-bot + web. Calorie/macro trends. Requires tracking (F099) |

@@ -96,6 +96,7 @@ export async function fetchProductsByBrand(
       );
 
       const products: OffProduct[] = data?.products ?? [];
+      const totalCount = data?.count ?? 0;
 
       for (const p of products) {
         if (limit !== undefined && allProducts.length >= limit) break;
@@ -106,8 +107,11 @@ export async function fetchProductsByBrand(
         allProducts.push(p);
       }
 
-      // Stop pagination if we got fewer products than page_size
-      if (products.length < PAGE_SIZE) break;
+      // Stop pagination: use count from response to calculate total pages.
+      // Do NOT rely on products.length < PAGE_SIZE — OFF may return fewer
+      // products on intermediate pages (e.g., page 6 returns 99 of 100).
+      const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+      if (products.length === 0 || page >= totalPages) break;
 
       page++;
 
