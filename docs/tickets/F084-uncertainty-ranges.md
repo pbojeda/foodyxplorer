@@ -1,7 +1,7 @@
 # F084: Estimation with Uncertainty Ranges
 
 **Feature:** F084 | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/F084-uncertainty-ranges
+**Status:** Done | **Branch:** (deleted)
 **Created:** 2026-04-07 | **Dependencies:** None (estimation engine stable, confidence levels exist)
 
 ---
@@ -71,7 +71,7 @@ N/A — Simple task.
 - [x] Step 3: Implementation with TDD
 - [x] Step 4: Quality gates pass, `production-code-validator` executed
 - [x] Step 5: `code-review-specialist` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -83,6 +83,7 @@ N/A — Simple task.
 | 2026-04-07 | Implement | TDD: uncertaintyCalculator module, schema extension, route+orchestrator integration, bot formatter. 26 tests |
 | 2026-04-07 | Finalize | All quality gates pass. production-code-validator: APPROVED (1 MEDIUM: spec description clarity, fixed) |
 | 2026-04-07 | Review | PR #76. Code review: APPROVED WITH MINOR CHANGES. S3: added .int() constraint on Zod caloriesMin/Max + api-spec integer type |
+| 2026-04-07 | Complete | Squash merged to develop (4cd295a). Branch deleted. Ticket closed |
 
 ---
 
