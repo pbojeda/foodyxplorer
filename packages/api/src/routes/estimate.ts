@@ -30,6 +30,7 @@ import { writeQueryLog } from '../lib/queryLogger.js';
 import { applyPortionMultiplier } from '../estimation/portionUtils.js';
 import { enrichWithTips } from '../estimation/healthHacker.js';
 import { enrichWithSubstitutions } from '../estimation/substitutions.js';
+import { enrichWithAllergens } from '../estimation/allergenDetector.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -202,6 +203,8 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         ...enrichWithTips(scaledResult),
         // F082: Nutritional substitution suggestions (food-name keyword matching)
         ...enrichWithSubstitutions(scaledResult),
+        // F083: Allergen detection from food/dish name keywords
+        ...enrichWithAllergens(scaledResult),
       };
 
       // --- Cache write (with cachedAt timestamp) ---

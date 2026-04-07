@@ -155,6 +155,19 @@ export const NutritionalSubstitutionSchema = z.object({
 export type NutritionalSubstitution = z.infer<typeof NutritionalSubstitutionSchema>;
 
 // ---------------------------------------------------------------------------
+// F083 — Detected allergen from food/dish name keyword matching
+// ---------------------------------------------------------------------------
+
+export const DetectedAllergenSchema = z.object({
+  /** EU allergen category name in Spanish. */
+  allergen: z.string(),
+  /** Keywords that triggered the detection. */
+  keyword: z.string(),
+});
+
+export type DetectedAllergen = z.infer<typeof DetectedAllergenSchema>;
+
+// ---------------------------------------------------------------------------
 // Data payload — full response body data
 // ---------------------------------------------------------------------------
 
@@ -175,6 +188,8 @@ export const EstimateDataSchema = z.object({
   healthHackerTips: z.array(HealthHackerTipSchema).optional(),
   /** F082 — Nutritional substitution suggestions. Empty/absent = no substitutions. */
   substitutions: z.array(NutritionalSubstitutionSchema).optional(),
+  /** F083 — Detected allergens from food/dish name keywords. Empty/absent = none detected. */
+  allergens: z.array(DetectedAllergenSchema).optional(),
 });
 
 export type EstimateData = z.infer<typeof EstimateDataSchema>;
