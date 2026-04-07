@@ -162,7 +162,7 @@ The **global per-IP/key limiter** includes these headers on every response:
 | `X-RateLimit-Reset` | Unix timestamp when the window resets |
 | `Retry-After` | Seconds to wait (only on 429 responses) |
 
-> **Note:** The per-actor daily limiter (50/day queries, 10/day photos) and the per-route analysis limiter (10/hour) return 429 responses **without** `X-RateLimit-*` headers. They include `Retry-After: 3600` (1 hour). Only the global per-IP/key limiter provides the full header set.
+> **Note:** The per-actor daily limiter (50/day queries, 10/day photos) returns 429 with `Retry-After: 3600` (1 hour) but **without** `X-RateLimit-*` headers. On Redis failure, anonymous actors get `Retry-After: 60` (fail-closed). The per-route analysis limiter (10/hour) returns 429 without `Retry-After`. Only the global per-IP/key limiter provides the full header set.
 
 ### Failure Policy
 
@@ -243,7 +243,10 @@ GET /estimate?query=big+mac&chainSlug=mcdonalds-es
         "name": "McDonald's España",
         "type": "scraped",
         "url": "https://mcdonalds.es/nutricion",
-        "priorityTier": 2
+        "priorityTier": 2,
+        "attributionNote": null,
+        "license": null,
+        "sourceUrl": null
       },
       "similarityDistance": null
     },
@@ -260,9 +263,9 @@ GET /estimate?query=big+mac&chainSlug=mcdonalds-es
 | `level1Hit` – `level4Hit` | Which estimation level resolved the query (exactly one is true, or all false if no result) |
 | `matchType` | How the query was matched: `exact_dish`, `fts_dish`, `similarity_food`, `llm_food_match`, etc. |
 | `result` | `null` when no data found at any level |
-| `result.nutrients` | 15 nutrients + `referenceBasis` (`per_100g` or `per_serving`) |
+| `result.nutrients` | 15 nutrients + `referenceBasis` (`per_100g`, `per_serving`, or `per_package`) |
 | `result.confidenceLevel` | `"high"` (L1 official), `"medium"` (L2/L3), `"low"` (L4 LLM) |
-| `result.source` | Data provenance: who provided this data and how |
+| `result.source` | Data provenance: who provided this data and how. For OFF-sourced results, includes `attributionNote`, `license` ("ODbL 1.0"), and `sourceUrl` |
 | `cachedAt` | ISO 8601 timestamp if served from Redis cache, `null` if freshly computed |
 | `yieldAdjustment` | Present when `cookingState`/`cookingMethod` triggered a yield correction |
 
@@ -547,7 +550,8 @@ Two-dish comparison. `comparison` contains both dishes and an optional nutrient 
       "dishA": { "query": "big mac", "result": { ... }, ... },
       "dishB": { "query": "whopper", "result": { ... }, ... },
       "nutrientFocus": "calorías"
-    }
+    },
+    "activeContext": null
   }
 }
 ```
@@ -572,7 +576,8 @@ Multi-dish menu. `menuEstimation` contains per-item results and aggregated total
       "matchedCount": 2,
       "diners": null,
       "perPerson": null
-    }
+    },
+    "activeContext": null
   }
 }
 ```
@@ -716,7 +721,7 @@ GET /dishes/search?q=big+mac&pageSize=10
 | `pageSize` | number (1–100) | No | Results per page (default: 20) |
 | `chainSlug` | string | No | Filter by chain |
 | `restaurantId` | UUID | No | Filter by restaurant (takes precedence over chainSlug) |
-| `availability` | string | No | Filter by availability: `"available"`, `"seasonal"`, `"discontinued"` |
+| `availability` | string | No | Filter by availability: `"available"`, `"seasonal"`, `"discontinued"`, `"regional"` |
 
 ### Response
 
@@ -850,7 +855,7 @@ GET /health?db=true&redis=true
 
 Returns server status. Optional `db` and `redis` query params trigger connectivity checks.
 
-> **Note:** The `db` check only validates the Prisma connection pool (used by catalog endpoints). It does not check the Kysely/pg connection pool (used by estimation, conversation, and recipe endpoints). A `db: "connected"` response does not guarantee all endpoints are operational.
+> **Note:** The `db` check validates both the Prisma connection pool (catalog endpoints) and the Kysely/pg connection pool (estimation, conversation, recipe endpoints).
 
 ```json
 {
@@ -925,7 +930,7 @@ Regional aliases are recognized: `bravas` → Patatas bravas, `bocata de jamón`
 
 `calories`, `proteins`, `carbohydrates`, `sugars`, `fats`, `saturatedFats`, `fiber`, `salt`, `sodium`, `transFats`, `cholesterol`, `potassium`, `monounsaturatedFats`, `polyunsaturatedFats`, `alcohol`
 
-Plus `referenceBasis`: `"per_100g"` or `"per_serving"`.
+Plus `referenceBasis`: `"per_100g"`, `"per_serving"`, or `"per_package"`.
 
 ---
 
@@ -974,6 +979,30 @@ When `cookingState` and/or `cookingMethod` are provided, the engine applies yiel
 4. The response includes `yieldAdjustment` with the correction details
 
 **When to use:** only when the user explicitly reports cooked weight. If omitted, the engine assumes the weight matches the database's reference basis.
+
+**YieldAdjustment structure** (returned in `yieldAdjustment` field):
+
+```json
+{
+  "applied": true,
+  "cookingState": "cooked",
+  "cookingStateSource": "explicit",
+  "cookingMethod": "grilled",
+  "yieldFactor": 0.75,
+  "fatAbsorptionApplied": false,
+  "reason": "yield_applied"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `applied` | boolean | Whether yield correction was applied |
+| `cookingState` | `"raw"` \| `"cooked"` \| `"as_served"` | Effective cooking state |
+| `cookingStateSource` | `"explicit"` \| `"default_assumption"` \| `"none"` | How the cooking state was determined |
+| `cookingMethod` | string \| null | Cooking method used for profile lookup |
+| `yieldFactor` | number \| null | Factor applied (null when not applied) |
+| `fatAbsorptionApplied` | boolean | Whether fat absorption was added |
+| `reason` | string | Outcome reason code (e.g., `yield_applied`, `no_profile_found`, `nutrients_not_per_100g`) |
 
 ---
 

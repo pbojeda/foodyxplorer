@@ -538,7 +538,7 @@ API: conectada ✅
 ### Notas
 
 - Si Redis no esta disponible, los limites de tasa del bot se desactivan (fail-open) y las peticiones se procesan igualmente. Sin embargo, los limites a nivel de API se comportan distinto: fail-closed para usuarios anonimos, fail-open para usuarios con API key.
-- El limite de 50 estimaciones/dia es el mas relevante para el uso normal. Cada peticion HTTP cuenta como 1 consulta independientemente de la complejidad interna: una comparacion cuenta como 1 (aunque internamente estime 2 platos), un menu cuenta como 1 (aunque estime N platos).
+- El limite de 50 estimaciones/dia es el mas relevante para el uso normal. **El comando `/comparar` consume 2 consultas** del bucket diario (hace 2 llamadas de estimacion separadas). Las comparaciones por lenguaje natural (ej. "que engorda mas, big mac o whopper") se procesan como 1 consulta via ConversationCore. Un menu (`/menu`) cuenta como 1 consulta independientemente del numero de platos.
 
 ---
 
@@ -560,7 +560,7 @@ API: conectada ✅
 
 | Situacion | Mensaje |
 |-----------|---------|
-| Sin argumentos | "Uso: /receta `<ingredientes>`" |
+| Sin argumentos | "Uso: /receta \<ingredientes\>\nEjemplo: /receta 200g pollo, 100g arroz, 50g aceite de oliva" |
 | Texto demasiado largo | "La receta es demasiado larga. El limite es de 2000 caracteres." |
 | Limite por hora | "Has alcanzado el limite de recetas por hora. Intentalo mas tarde." |
 | Ingredientes no resueltos | "No se pudo resolver ningun ingrediente. Intenta con nombres mas concretos." |
@@ -598,6 +598,15 @@ API: conectada ✅
 | Transcripcion fallida | "No he podido procesar el audio. Intenta escribir el mensaje." |
 | Timeout del servidor | "El servidor ha tardado demasiado en procesar el audio. Intentalo de nuevo." |
 | Error generico de audio | "Lo siento, ha ocurrido un error al procesar el audio. Intentalo de nuevo." |
+
+### Errores de /menu
+
+| Situacion | Mensaje |
+|-----------|---------|
+| Sin argumentos | "Uso: /menu plato1, plato2, plato3, plato4" (con ejemplo) |
+| Texto demasiado largo | "El texto del menú es demasiado largo. Intenta con menos platos." |
+| Menu no procesable | "No se pudo procesar el menú. Inténtalo de nuevo." |
+| Menu sin datos | "No se pudo procesar el menú." |
 
 ### Errores de contexto
 
@@ -641,6 +650,7 @@ Puedes enviar un **mensaje de voz** en lugar de escribir. El bot lo transcribe a
 | "menu: ensalada y un filete" | Estimacion de menu (2 platos) |
 | "que engorda mas, big mac o whopper" | Comparacion de dos platos |
 | "estoy en mcdonalds" | Establece contexto de cadena |
+| "que como con 500 kcal" | Busqueda inversa (requiere contexto de cadena) |
 
 ### Limites
 
@@ -823,7 +833,7 @@ Cuando el nombre del plato incluye un termino de porcion espanol (ej. "media rac
 📏 *Porción detectada:* media ración (100-150 g)
 ```
 
-Terminos reconocidos: `tapa`, `pincho`/`pintxo`, `racion`, `media racion`, `montadito`, `bocadillo`, `plato`, `cuenco`.
+Terminos reconocidos: `media racion`, `racion para compartir`, `racion`, `pintxo`/`pincho`, `montadito`, `tapa`, `bocadillo`, `plato`, `caña`.
 
 ---
 
@@ -848,14 +858,21 @@ Encuentra platos que encajen en tu presupuesto calorico. Funciona por lenguaje n
 ### Formato de salida
 
 ```
-🔍 *Búsqueda inversa — McDonald's Spain*
-Presupuesto: ≤600 kcal | Proteína mín: 30 g
+🔍 *Platos en McDonald's Spain con ≤ 600 kcal* *y ≥ 30g proteína*
 
-1. Pechuga de pollo — 🔥 320 kcal | 🥩 42 g | 🍞 12 g | 🧈 14 g
-2. Ensalada César — 🔥 280 kcal | 🥩 32 g | 🍞 8 g | 🧈 18 g
-...
+1. *Pechuga de pollo*
+   🔥 320 kcal | 💪 42 g prot | 🧈 14 g grasa | 🍞 12 g carbs
+2. *Ensalada César*
+   🔥 280 kcal | 💪 32 g prot | 🧈 18 g grasa | 🍞 8 g carbs
 
-_5 platos encontrados (de 12 totales)_
+_12 platos en total — mostrando los 5 con más proteína por caloría_
+```
+
+Si no hay contexto de cadena:
+
+```
+Necesito saber en qué cadena estás.
+Usa "estoy en <cadena>" primero.
 ```
 
 ### Limites
