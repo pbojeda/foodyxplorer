@@ -39,6 +39,15 @@ export function formatMenuEstimate(data: MenuEstimationData): string {
     `*Total* — 🔥 ${formatNutrient(t.calories, 'kcal')} \\| 🥩 ${formatNutrient(t.proteins, 'g')} \\| 🍞 ${formatNutrient(t.carbohydrates, 'g')} \\| 🧈 ${formatNutrient(t.fats, 'g')}`,
   );
 
+  // F089: per-person breakdown when diners specified
+  if (data.diners !== null && data.diners > 0 && data.perPerson !== null) {
+    const p = data.perPerson;
+    const label = data.diners === 1 ? '1 persona' : `${data.diners} personas`;
+    lines.push(
+      `*Por persona \\(${escapeMarkdown(label)}\\):* 🔥 ${formatNutrient(p.calories, 'kcal')} \\| 🥩 ${formatNutrient(p.proteins, 'g')} \\| 🍞 ${formatNutrient(p.carbohydrates, 'g')} \\| 🧈 ${formatNutrient(p.fats, 'g')}`,
+    );
+  }
+
   // Match count
   lines.push('');
   lines.push(`_${data.matchedCount}/${data.itemCount} platos encontrados_`);
