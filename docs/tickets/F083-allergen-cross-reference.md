@@ -1,7 +1,7 @@
 # F083: Allergen Cross-Reference
 
 **Feature:** F083 | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/F083-allergen-cross-reference
+**Status:** Done | **Branch:** (deleted)
 **Created:** 2026-04-07 | **Dependencies:** None (estimation engine stable, F081/F082 enrichment pattern established)
 
 ---
@@ -70,7 +70,7 @@ N/A — Simple task.
 - [x] Step 3: Implementation with TDD
 - [x] Step 4: Quality gates pass, `production-code-validator` executed
 - [x] Step 5: `code-review-specialist` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -81,7 +81,8 @@ N/A — Simple task.
 | 2026-04-07 | Setup | Branch + ticket created |
 | 2026-04-07 | Implement | TDD: allergenDetector module, schema extension, route+orchestrator integration, bot formatter. 44 tests |
 | 2026-04-07 | Finalize | All quality gates pass. production-code-validator: APPROVED (0 issues) |
-| 2026-04-07 | Review | PR #75. Code review: APPROVED WITH MINOR CHANGES. I1: removed 'crema' from dairy (false positive on vegetable soups). I2: bare 'pan' replaces 'pan '/'pan,' (end-of-string fix). +4 tests → 48 total |
+| 2026-04-07 | Review | PR #75. Code review: APPROVED WITH MINOR CHANGES. I1: removed 'crema' from dairy (false positive on vegetable soups). I2: bare 'pan' → compound patterns (panacota/panaché false positives). +6 tests → 50 total |
+| 2026-04-07 | Complete | Squash merged to develop (bf16e6e). Branch deleted. Ticket closed |
 
 ---
 

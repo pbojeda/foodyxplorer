@@ -10,11 +10,9 @@
 
 **Last Updated:** 2026-04-07
 
-**Active Feature:** F083 — Allergen Cross-Reference (Simple)
-**Ticket:** `docs/tickets/F083-allergen-cross-reference.md`
-**Branch:** `feature/F083-allergen-cross-reference`
-**Step:** 5/6 (Review)
-**Complexity:** Simple → Steps 1→3→4→5→6
+No active work. **F083 complete** (2026-04-07). Squash-merged to develop via PR #75 (bf16e6e).
+
+**Next:** F084 — Estimation with Uncertainty Ranges (Simple)
 
 **Pending operational step (F080):** OFF data import not yet executed — OFF API returning HTML instead of JSON for brands_tags search (checked 2026-04-07). Run when available:
 ```
@@ -191,7 +189,7 @@ Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
 | F080 | OFF Prepared Foods Ingestion | backend | done | 6/6 | Standard. PR #72. 146 tests (8 files). OFF client+mapper+validator+seed. L1 branded+Tier 3 fallback. ODbL attribution. Brand aliases. 3 QA bugs fixed. Data import pending (OFF API 503) |
 | F081 | "Health-Hacker" Chain Suggestions | bot | done | 6/6 | Simple. PR #73. 41 tests (3 files). enrichWithTips() helper, 13 chains → 5 categories, HealthHackerTipSchema. Code review: APPROVED |
 | F082 | Nutritional Substitutions | backend | done | 6/6 | Simple. PR #74. 39 tests (3 files). enrichWithSubstitutions() helper, 8 categories, NutritionalSubstitutionSchema. Code review: APPROVED |
-| F083 | Allergen Cross-Reference | backend | in-progress | 5/6 | Simple. PR #75. 48 tests (2 files). enrichWithAllergens() helper, 14 EU allergens, DetectedAllergenSchema. Code review: APPROVED |
+| F083 | Allergen Cross-Reference | backend | done | 6/6 | Simple. PR #75. 50 tests (2 files). enrichWithAllergens() helper, 14 EU allergens, DetectedAllergenSchema. Code review: APPROVED |
 | F084 | Estimation with Uncertainty Ranges | backend | pending | — | Simple. Show "320-420 kcal" instead of single number. Based on confidence level + portion variability |
 | F085 | Portion Sizing Matrix (Spanish portions) | backend | pending | — | Simple. Standard portions: "un plato de"=250-300g, "una ración"=200-250g, "media ración"=100-125g, "una tapa"=50-80g, "un pintxo"=30-60g, etc. |
 | F086 | Reverse Search ("¿qué como con X kcal?") | backend | pending | — | Standard. Filter chain menu by calorie/protein constraints. "Estoy en BK, me quedan 600 kcal, necesito 30g proteína" |
