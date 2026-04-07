@@ -72,8 +72,14 @@ In the ticket, fill the `## Merge Checklist Evidence` table. For each action (0�
 | 0. Validate ticket structure | [x] | Sections verified: Spec, Plan, AC, DoD, Workflow, Log, Evidence |
 | 1. Mark all items | [x] | AC: 12/12, DoD: 7/7, Workflow: 0-5/6 |
 
-## Action 9: Request merge approval
+## Action 9: Run compliance audit
 
-Verify the Merge Checklist Evidence table is fully filled (all rows `[x]` with real evidence).
+Run `/audit-merge` to verify all compliance checks pass automatically. If any check fails, fix it and re-run until all pass.
+
+Include the audit output in the merge approval request message so the reviewer can skip compliance checks and focus on code/architecture review.
+
+## Action 10: Request merge approval
+
+Verify the compliance audit passed and the Merge Checklist Evidence table is fully filled.
 
 THEN — and only then — request merge approval from the user.

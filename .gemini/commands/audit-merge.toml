@@ -1,0 +1,2 @@
+description = "Run automated compliance audit on the current feature before requesting merge approval"
+prompt = "Read the file .gemini/commands/audit-merge-instructions.md and follow the instructions to audit the current feature for merge readiness."
