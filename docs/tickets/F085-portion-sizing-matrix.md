@@ -1,7 +1,7 @@
 # F085: Portion Sizing Matrix
 
 **Feature:** F085 | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/F085-portion-sizing-matrix
+**Status:** Done | **Branch:** (deleted)
 **Created:** 2026-04-07 | **Dependencies:** None (estimation engine stable)
 
 ---
@@ -81,7 +81,7 @@ N/A — Simple task.
 - [x] Step 3: Implementation with TDD
 - [x] Step 4: Quality gates pass, `production-code-validator` executed
 - [x] Step 5: `code-review-specialist` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -93,6 +93,7 @@ N/A — Simple task.
 | 2026-04-07 | Implement | TDD: portionSizing module, schema extension, route+orchestrator integration, bot formatter. 27 tests |
 | 2026-04-07 | Finalize | All quality gates pass. production-code-validator: NEEDS REVIEW (1 MEDIUM: caña accent, fixed) |
 | 2026-04-07 | Review | PR #77. Code review: APPROVED WITH MINOR CHANGES. Added word boundary matching (tapar≠tapa, platón≠plato). +3 false-positive tests → 30 total |
+| 2026-04-07 | Complete | Squash merged to develop (2d859f3). Branch deleted. Ticket closed |
 
 ---
 
