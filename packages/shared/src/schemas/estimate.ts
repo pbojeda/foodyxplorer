@@ -168,6 +168,21 @@ export const DetectedAllergenSchema = z.object({
 export type DetectedAllergen = z.infer<typeof DetectedAllergenSchema>;
 
 // ---------------------------------------------------------------------------
+// F084 — Uncertainty range for calorie estimation
+// ---------------------------------------------------------------------------
+
+export const UncertaintyRangeSchema = z.object({
+  /** Lower bound of the estimated calorie range. */
+  caloriesMin: z.number().int().nonnegative(),
+  /** Upper bound of the estimated calorie range. */
+  caloriesMax: z.number().int().nonnegative(),
+  /** Uncertainty percentage used to compute the range (e.g., 10 for ±10%). */
+  percentage: z.number().min(0).max(100),
+});
+
+export type UncertaintyRange = z.infer<typeof UncertaintyRangeSchema>;
+
+// ---------------------------------------------------------------------------
 // Data payload — full response body data
 // ---------------------------------------------------------------------------
 
@@ -190,6 +205,8 @@ export const EstimateDataSchema = z.object({
   substitutions: z.array(NutritionalSubstitutionSchema).optional(),
   /** F083 — Detected allergens from food/dish name keywords. Empty/absent = none detected. */
   allergens: z.array(DetectedAllergenSchema).optional(),
+  /** F084 — Calorie uncertainty range based on confidence + estimation method. */
+  uncertaintyRange: UncertaintyRangeSchema.optional(),
 });
 
 export type EstimateData = z.infer<typeof EstimateDataSchema>;

@@ -31,6 +31,7 @@ import { applyPortionMultiplier } from '../estimation/portionUtils.js';
 import { enrichWithTips } from '../estimation/healthHacker.js';
 import { enrichWithSubstitutions } from '../estimation/substitutions.js';
 import { enrichWithAllergens } from '../estimation/allergenDetector.js';
+import { enrichWithUncertainty } from '../estimation/uncertaintyCalculator.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -205,6 +206,8 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         ...enrichWithSubstitutions(scaledResult),
         // F083: Allergen detection from food/dish name keywords
         ...enrichWithAllergens(scaledResult),
+        // F084: Calorie uncertainty range based on confidence + estimation method
+        ...enrichWithUncertainty(scaledResult),
       };
 
       // --- Cache write (with cachedAt timestamp) ---

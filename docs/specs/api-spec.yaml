@@ -7757,6 +7757,13 @@ components:
               keyword: "pizza"
             - allergen: "Lácteos"
               keyword: "queso"
+        uncertaintyRange:
+          $ref: '#/components/schemas/UncertaintyRange'
+          description: |
+            F084 — Calorie uncertainty range based on confidence level and
+            estimation method. Percentage varies from ±5% (high confidence,
+            official data) to ±30% (low confidence, LLM estimation).
+            Present when result is non-null; omitted when result is null.
 
     HealthHackerTip:
       type: object
@@ -7833,6 +7840,30 @@ components:
           type: string
           description: The keyword that triggered the allergen detection.
           example: "pizza"
+
+    UncertaintyRange:
+      type: object
+      required:
+        - caloriesMin
+        - caloriesMax
+        - percentage
+      properties:
+        caloriesMin:
+          type: integer
+          minimum: 0
+          description: Lower bound of the calorie range.
+          example: 332
+        caloriesMax:
+          type: integer
+          minimum: 0
+          description: Upper bound of the calorie range.
+          example: 368
+        percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Uncertainty percentage used (e.g., 5 for ±5%).
+          example: 5
 
     EstimateResponse:
       type: object
