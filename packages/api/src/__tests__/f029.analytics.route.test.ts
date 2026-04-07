@@ -121,29 +121,30 @@ import { buildApp } from '../app.js';
 // Default result sets
 // ---------------------------------------------------------------------------
 
+// Note: getKysely() resets callIndex to 0 on every call. Since buildApp()
+// calls getKysely() for each route plugin, the analytics handler's db
+// always starts reading from index 0. No init entries needed.
 const HAPPY_PATH_RESULTS = [
-  // 0: consumed by conversationRoutes.loadChainData() during buildApp plugin init
-  [],
-  // 1: scalar
+  // 0: scalar
   [{ total_queries: 100, cache_hit_rate: '0.7500', avg_response_time_ms: '42.5' }],
-  // 2: by level
+  // 1: by level
   [
     { level_hit: 'l1', count: 60 },
     { level_hit: 'l2', count: 10 },
     { level_hit: 'l3', count: 20 },
     { level_hit: null, count: 10 },
   ],
-  // 3: by chain
+  // 2: by chain
   [
     { chain_slug: 'mcdonalds-es', count: 80 },
     { chain_slug: 'subway-es', count: 20 },
   ],
-  // 4: by source
+  // 3: by source
   [
     { source: 'api', count: 70 },
     { source: 'bot', count: 30 },
   ],
-  // 5: top queries
+  // 4: top queries
   [
     { query_text: 'big mac', count: 25 },
     { query_text: 'whopper', count: 15 },
@@ -151,8 +152,6 @@ const HAPPY_PATH_RESULTS = [
 ];
 
 const EMPTY_TABLE_RESULTS = [
-  // 0: consumed by conversationRoutes.loadChainData() during buildApp plugin init
-  [],
   [{ total_queries: 0, cache_hit_rate: null, avg_response_time_ms: null }],
   [],
   [],
