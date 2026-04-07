@@ -104,7 +104,7 @@ export interface ApiClient {
    * Uses RECIPE_TIMEOUT_MS (30s) — LLM parsing + multi-ingredient resolution
    * can take up to ~10s; the default 10s REQUEST_TIMEOUT_MS is too short.
    */
-  calculateRecipe(text: string): Promise<RecipeCalculateData>;
+  calculateRecipe(text: string, portions?: number): Promise<RecipeCalculateData>;
   /**
    * Process a natural language message via the Conversation Core (F070).
    * POSTs to POST /conversation/message with { text, chainSlug?, chainName? }.
@@ -439,11 +439,14 @@ export function createApiClient(config: BotConfig): ApiClient {
       return postFormData<MenuAnalysisData>('/analyze/menu', form);
     },
 
-    async calculateRecipe(text) {
+    async calculateRecipe(text, portions) {
       // Uses BOT_API_KEY (no adminKey) — public endpoint.
       // RECIPE_TIMEOUT_MS (30s) overrides the default 10s — LLM parsing + multi-ingredient
       // resolution can take up to ~10s per ingredient before returning.
-      return postJson<RecipeCalculateData>('/calculate/recipe', { mode: 'free-form', text }, undefined, RECIPE_TIMEOUT_MS);
+      const body = portions !== undefined
+        ? { mode: 'free-form' as const, text, portions }
+        : { mode: 'free-form' as const, text };
+      return postJson<RecipeCalculateData>('/calculate/recipe', body, undefined, RECIPE_TIMEOUT_MS);
     },
 
     async sendAudio({ audioBuffer, filename, mimeType, duration, chatId, legacyChainContext }) {

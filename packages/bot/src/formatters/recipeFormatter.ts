@@ -99,6 +99,29 @@ export function formatRecipeResult(data: RecipeCalculateData): string {
 
   const header = headerLines.join('\n');
 
+  // ---- 1b. Per-portion section (F087) ----
+  let portionSection = '';
+  if (data.portions !== null && data.portions > 0 && data.perPortion !== null) {
+    const p = data.perPortion;
+    const pLines: string[] = [
+      '',
+      `*Por porción \\(${escapeMarkdown(String(data.portions))} tuppers\\):*`,
+    ];
+    if (p.calories !== null) {
+      pLines.push(`🔥 ${formatNutrient(p.calories, 'kcal')}`);
+    }
+    if (p.proteins !== null) {
+      pLines.push(`🥩 ${formatNutrient(p.proteins, 'g prot')}`);
+    }
+    if (p.carbohydrates !== null) {
+      pLines.push(`🍞 ${formatNutrient(p.carbohydrates, 'g carbs')}`);
+    }
+    if (p.fats !== null) {
+      pLines.push(`🧈 ${formatNutrient(p.fats, 'g grasa')}`);
+    }
+    portionSection = pLines.join('\n');
+  }
+
   // ---- 2. Footer ----
   const footerLines: string[] = [];
 
@@ -122,8 +145,9 @@ export function formatRecipeResult(data: RecipeCalculateData): string {
 
   // ---- 4. Assemble with smart truncation ----
   // Build the full section and check if it fits.
+  const headerWithPortion = `${header}${portionSection}`;
   const baseSection = buildIngredientSection(allLines, ingredientHeaderLine, 0);
-  const fullMessage = `${header}${baseSection}\n\n${footer}`;
+  const fullMessage = `${headerWithPortion}${baseSection}\n\n${footer}`;
 
   if (fullMessage.length <= MAX_MESSAGE_LENGTH) {
     return fullMessage;
@@ -140,7 +164,7 @@ export function formatRecipeResult(data: RecipeCalculateData): string {
     const keptLines = allLines.slice(0, kept);
     const suffix = extraCount > 0 ? `\n\\.\\.\\.  y ${extraCount} ingredientes más` : '';
     const sectionBody = keptLines.join('\n') + suffix;
-    const assembled = `${header}${ingredientHeaderLine}\n${sectionBody}${footerBlock}`;
+    const assembled = `${headerWithPortion}${ingredientHeaderLine}\n${sectionBody}${footerBlock}`;
     if (assembled.length <= MAX_MESSAGE_LENGTH) {
       return assembled;
     }
@@ -151,5 +175,5 @@ export function formatRecipeResult(data: RecipeCalculateData): string {
   // return header + footer without ingredient lines.
   const extraCount = allLines.length;
   const suffix = extraCount > 0 ? `\n\\.\\.\\.  y ${extraCount} ingredientes más` : '';
-  return `${header}${ingredientHeaderLine}\n${suffix}${footerBlock}`;
+  return `${headerWithPortion}${ingredientHeaderLine}\n${suffix}${footerBlock}`;
 }

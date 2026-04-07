@@ -362,6 +362,8 @@ describe('RecipeCalculateDataSchema', () => {
       ingredients: [],
       unresolvedIngredients: [],
       cachedAt: null,
+      portions: null,
+      perPortion: null,
     });
     expect(result.mode).toBe('structured');
   });
@@ -377,6 +379,8 @@ describe('RecipeCalculateDataSchema', () => {
       unresolvedIngredients: [],
       parsedIngredients: [{ name: 'pollo', grams: 200, portionMultiplier: 1.0 }],
       cachedAt: null,
+      portions: null,
+      perPortion: null,
     });
     expect(result.mode).toBe('free-form');
   });
@@ -391,6 +395,8 @@ describe('RecipeCalculateDataSchema', () => {
       ingredients: [],
       unresolvedIngredients: [],
       cachedAt: '2026-03-25T10:00:00.000Z',
+      portions: null,
+      perPortion: null,
     });
     expect(result.cachedAt).toBe('2026-03-25T10:00:00.000Z');
   });
@@ -430,6 +436,8 @@ describe('RecipeCalculateResponseSchema', () => {
         ingredients: [],
         unresolvedIngredients: [],
         cachedAt: null,
+        portions: null,
+        perPortion: null,
       },
     });
     expect(result.success).toBe(true);

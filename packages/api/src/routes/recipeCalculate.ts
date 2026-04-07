@@ -27,6 +27,7 @@ import {
   RecipeCalculateBodySchema,
   type RecipeCalculateBody,
   type RecipeCalculateData,
+  type RecipeNutrients,
   type ResolvedIngredient,
   type YieldAdjustment,
 } from '@foodxplorer/shared';
@@ -110,6 +111,36 @@ function canonicalizeFreeForm(text: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// F087 — divide nutrients by N portions
+// ---------------------------------------------------------------------------
+
+function divideNutrient(value: number | null, portions: number): number | null {
+  if (value === null) return null;
+  return Math.round((value / portions) * 100) / 100;
+}
+
+function divideNutrients(nutrients: RecipeNutrients, portions: number): RecipeNutrients {
+  return {
+    calories: divideNutrient(nutrients.calories, portions),
+    proteins: divideNutrient(nutrients.proteins, portions),
+    carbohydrates: divideNutrient(nutrients.carbohydrates, portions),
+    sugars: divideNutrient(nutrients.sugars, portions),
+    fats: divideNutrient(nutrients.fats, portions),
+    saturatedFats: divideNutrient(nutrients.saturatedFats, portions),
+    fiber: divideNutrient(nutrients.fiber, portions),
+    salt: divideNutrient(nutrients.salt, portions),
+    sodium: divideNutrient(nutrients.sodium, portions),
+    transFats: divideNutrient(nutrients.transFats, portions),
+    cholesterol: divideNutrient(nutrients.cholesterol, portions),
+    potassium: divideNutrient(nutrients.potassium, portions),
+    monounsaturatedFats: divideNutrient(nutrients.monounsaturatedFats, portions),
+    polyunsaturatedFats: divideNutrient(nutrients.polyunsaturatedFats, portions),
+    alcohol: divideNutrient(nutrients.alcohol, portions),
+    referenceBasis: nutrients.referenceBasis,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Route plugin
 // ---------------------------------------------------------------------------
 
@@ -139,9 +170,11 @@ const recipeCalculateRoutesPlugin: FastifyPluginAsync<RecipeCalculatePluginOptio
     },
     async (request, reply) => {
       const body = request.body as RecipeCalculateBody;
+      const portions = body.portions ?? null;
 
-      // Build cache key
+      // Build cache key (F087: include portions so different portion counts cache separately)
       let cacheKey: string;
+      const portionsSuffix = portions !== null ? `:p${portions}` : '';
       if (body.mode === 'structured') {
         // F072: include cookingState/cookingMethod so yield-corrected results cache separately
         const ingredientsForCache: IngredientForCache[] = body.ingredients.map((i) => ({
@@ -152,9 +185,9 @@ const recipeCalculateRoutesPlugin: FastifyPluginAsync<RecipeCalculatePluginOptio
           cookingState: i.cookingState,
           cookingMethod: i.cookingMethod,
         }));
-        cacheKey = buildCacheKey('structured', canonicalizeStructured(ingredientsForCache));
+        cacheKey = buildCacheKey('structured', canonicalizeStructured(ingredientsForCache)) + portionsSuffix;
       } else {
-        cacheKey = buildCacheKey('free-form', canonicalizeFreeForm(body.text));
+        cacheKey = buildCacheKey('free-form', canonicalizeFreeForm(body.text)) + portionsSuffix;
       }
 
       // --- Cache check ---
@@ -179,14 +212,25 @@ const recipeCalculateRoutesPlugin: FastifyPluginAsync<RecipeCalculatePluginOptio
 
         clearTimeout(timeoutHandle);
 
+        // F087: compute per-portion nutrients
+        const perPortion = portions !== null
+          ? divideNutrients(result.totalNutrients, portions)
+          : null;
+
+        const responseData: RecipeCalculateData = {
+          ...result,
+          portions,
+          perPortion,
+        };
+
         // --- Cache write ---
         const dataToCache: RecipeCalculateData = {
-          ...result,
+          ...responseData,
           cachedAt: new Date().toISOString(),
         };
         await cacheSet(cacheKey, dataToCache, request.log);
 
-        return reply.send({ success: true, data: result });
+        return reply.send({ success: true, data: responseData });
       } catch (err) {
         clearTimeout(timeoutHandle);
         throw err;
@@ -443,6 +487,8 @@ async function executeRecipeCalculation(
     ingredients: displayIngredients,
     unresolvedIngredients,
     cachedAt: null,
+    portions: null,
+    perPortion: null,
   };
 
   if (parsedIngredients !== undefined) {

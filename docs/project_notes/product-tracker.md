@@ -10,7 +10,11 @@
 
 **Last Updated:** 2026-04-07
 
-**Active Feature:** No active work
+**Active Feature:** F087 — "El Tupper" Meal Prep (Simple)
+**Step:** 4/6 (Finalize)
+**Branch:** feature/F087-meal-prep-tupper
+**Ticket:** docs/tickets/F087-meal-prep-tupper.md
+**Complexity:** Simple — Steps 1→3→4→5→6
 **Last Completed:** F086 — Reverse Search (Standard) → develop (e67164d), PR #78. 136 tests.
 
 **Pending operational step (F080):** OFF data import in progress — API v2 auth fix applied (ecdc186). Pagination fix applied (count-based). Ingestion being executed in a separate session.
@@ -192,7 +196,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F084 | Estimation with Uncertainty Ranges | backend | done | 6/6 | Simple. PR #76. 26 tests (2 files). enrichWithUncertainty() helper, ±5%-±30% matrix. Code review: APPROVED |
 | F085 | Portion Sizing Matrix (Spanish portions) | backend | done | 6/6 | Simple. PR #77. 30 tests (2 files). enrichWithPortionSizing() helper, 9 terms, word boundary matching. Code review: APPROVED |
 | F086 | Reverse Search ("¿qué como con X kcal?") | backend | done | 6/6 | Standard. GET /reverse-search endpoint + conversation intent. 136 tests. PR #78, e67164d |
-| F087 | "El Tupper" Meal Prep | backend | pending | — | Simple. Divide recipe by N portions. /receta 2kg lentejas... dividir en 5 tuppers |
+| F087 | "El Tupper" Meal Prep | backend | in-progress | 4/6 | Simple. Divide recipe by N portions. /receta 2kg lentejas... dividir en 5 tuppers |
 | F088 | Community Inline Corrections | bot | pending | — | Standard. "Cálculo incorrecto" inline button. User proposes adjustment. Stored for review. Feeds demand pipeline |
 | F089 | "Modo Tapeo" (shared portions) | bot | pending | — | Simple. Multiple tapas → per-tapa + total ÷ N people |
 

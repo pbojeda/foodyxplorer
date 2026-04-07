@@ -54,11 +54,15 @@ export type RecipeIngredientInput = z.infer<typeof RecipeIngredientInputSchema>;
 const StructuredBodySchema = z.object({
   mode: z.literal('structured'),
   ingredients: z.array(RecipeIngredientInputSchema).min(1).max(50),
+  /** F087 — number of portions to divide the recipe into ("El Tupper" meal prep) */
+  portions: z.number().int().min(1).max(50).optional(),
 });
 
 const FreeFormBodySchema = z.object({
   mode: z.literal('free-form'),
   text: z.string().min(1).max(2000),
+  /** F087 — number of portions to divide the recipe into ("El Tupper" meal prep) */
+  portions: z.number().int().min(1).max(50).optional(),
 });
 
 export const RecipeCalculateBodySchema = z.discriminatedUnion('mode', [
@@ -164,6 +168,10 @@ export const RecipeCalculateDataSchema = z.object({
   /** Present only in free-form mode — the LLM-extracted ingredient list */
   parsedIngredients: z.array(ParsedIngredientSchema).optional(),
   cachedAt: z.string().nullable(),
+  /** F087 — number of portions the recipe was divided into; null if not requested */
+  portions: z.number().int().min(1).max(50).nullable(),
+  /** F087 — per-portion nutrients (totalNutrients ÷ portions); null if portions not requested */
+  perPortion: RecipeNutrientsSchema.nullable(),
 });
 
 export type RecipeCalculateData = z.infer<typeof RecipeCalculateDataSchema>;
