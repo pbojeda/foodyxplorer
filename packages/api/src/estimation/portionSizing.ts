@@ -109,6 +109,18 @@ const PORTION_RULES: PortionRule[] = [
 // ---------------------------------------------------------------------------
 
 /**
+ * Check if a pattern appears as a whole word (not substring of a larger word).
+ * Boundary = start/end of string or whitespace.
+ */
+function matchesAsWord(text: string, pattern: string): boolean {
+  const idx = text.indexOf(pattern);
+  if (idx === -1) return false;
+  const before = idx === 0 || /\s/.test(text[idx - 1]!);
+  const after = idx + pattern.length >= text.length || /\s/.test(text[idx + pattern.length]!);
+  return before && after;
+}
+
+/**
  * Detect a Spanish portion term in a query string.
  *
  * Returns the first matching portion rule (longest patterns checked first).
@@ -120,7 +132,7 @@ export function detectPortionTerm(query: string): PortionSizing | null {
   const lowerQuery = query.toLowerCase();
 
   for (const rule of PORTION_RULES) {
-    const matched = rule.patterns.some((p) => lowerQuery.includes(p));
+    const matched = rule.patterns.some((p) => matchesAsWord(lowerQuery, p));
     if (!matched) continue;
 
     return {

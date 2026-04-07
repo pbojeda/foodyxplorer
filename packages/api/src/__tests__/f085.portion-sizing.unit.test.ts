@@ -113,6 +113,21 @@ describe('detectPortionTerm', () => {
     const result = detectPortionTerm('una tapa de bocadillo');
     expect(result?.term).toBe('tapa');
   });
+
+  // --- False positive prevention (word boundary matching) ---
+
+  it('does not match "tapar" as "tapa"', () => {
+    expect(detectPortionTerm('tapar la olla')).toBeNull();
+  });
+
+  it('does not match "platón" as "plato"', () => {
+    expect(detectPortionTerm('un platón de servir')).toBeNull();
+  });
+
+  it('disambiguates "media ración para compartir" as "media ración" (first match wins)', () => {
+    const result = detectPortionTerm('media ración para compartir de jamón');
+    expect(result?.term).toBe('media ración');
+  });
 });
 
 // ---------------------------------------------------------------------------
