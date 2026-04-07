@@ -7743,6 +7743,20 @@ components:
                 fats: -15
                 carbohydrates: -38
                 fiber: 2
+        allergens:
+          type: array
+          items:
+            $ref: '#/components/schemas/DetectedAllergen'
+          description: |
+            F083 — Detected allergens from food/dish name keyword matching.
+            Based on 14 EU-regulated allergen categories. Multiple allergens
+            can be detected per dish. Omitted when no allergens detected.
+            Heuristic detection — for informational purposes only.
+          example:
+            - allergen: "Gluten"
+              keyword: "pizza"
+            - allergen: "Lácteos"
+              keyword: "queso"
 
     HealthHackerTip:
       type: object
@@ -7804,6 +7818,21 @@ components:
               type: number
               description: Fiber difference in grams.
               example: 2
+
+    DetectedAllergen:
+      type: object
+      required:
+        - allergen
+        - keyword
+      properties:
+        allergen:
+          type: string
+          description: EU allergen category name in Spanish.
+          example: "Gluten"
+        keyword:
+          type: string
+          description: The keyword that triggered the allergen detection.
+          example: "pizza"
 
     EstimateResponse:
       type: object

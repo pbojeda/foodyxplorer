@@ -100,6 +100,14 @@ export function formatEstimate(data: EstimateData): string {
     }
   }
 
+  // F083: Detected allergens
+  if (data.allergens && data.allergens.length > 0) {
+    lines.push('');
+    lines.push('⚠️ *Alérgenos detectados:*');
+    lines.push(`  ${escapeMarkdown(data.allergens.map((a) => a.allergen).join(', '))}`);
+    lines.push(`_\\(orientativo — verificar con el establecimiento\\)_`);
+  }
+
   const confidenceLabel = CONFIDENCE_MAP[result.confidenceLevel] ?? escapeMarkdown(result.confidenceLevel);
   lines.push('');
   lines.push(`_Confianza: ${confidenceLabel}_`);

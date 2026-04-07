@@ -17,6 +17,7 @@ import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 import { applyPortionMultiplier } from '../estimation/portionUtils.js';
 import { enrichWithTips } from '../estimation/healthHacker.js';
 import { enrichWithSubstitutions } from '../estimation/substitutions.js';
+import { enrichWithAllergens } from '../estimation/allergenDetector.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -111,6 +112,8 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     ...enrichWithTips(scaledResult),
     // F082: Nutritional substitution suggestions (food-name keyword matching)
     ...enrichWithSubstitutions(scaledResult),
+    // F083: Allergen detection from food/dish name keywords
+    ...enrichWithAllergens(scaledResult),
   };
 
   // Step 8 — Cache write (with cachedAt timestamp)
