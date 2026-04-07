@@ -84,7 +84,7 @@ const PROTEIN_PATTERNS: RegExp[] = [
 export function detectReverseSearch(text: string): DetectedReverseSearch | null {
   // Strip leading ¿¡ and trailing ?!.
   const cleaned = text.replace(/^[¿¡]+/, '').replace(/[?!.]+$/, '').trim();
-  if (!cleaned) return null;
+  if (!cleaned || /\n/.test(cleaned)) return null;
 
   let maxCalories: number | null = null;
 

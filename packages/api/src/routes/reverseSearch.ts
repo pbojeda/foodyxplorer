@@ -56,7 +56,7 @@ const reverseSearchRoutesPlugin: FastifyPluginAsync<ReverseSearchPluginOptions> 
       // Verify chain exists
       const restaurant = await prisma.restaurant.findFirst({
         where: { chainSlug },
-        select: { id: true },
+        select: { id: true, name: true },
       });
 
       if (!restaurant) {
@@ -72,6 +72,7 @@ const reverseSearchRoutesPlugin: FastifyPluginAsync<ReverseSearchPluginOptions> 
         maxCalories,
         minProtein,
         limit,
+        chainName: restaurant.name,
       });
 
       return reply.send({ success: true, data });

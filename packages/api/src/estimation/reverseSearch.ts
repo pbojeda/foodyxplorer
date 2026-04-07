@@ -33,6 +33,8 @@ export interface ReverseSearchParams {
   maxCalories: number;
   minProtein?: number;
   limit: number;
+  /** Pre-resolved chain name. When provided, avoids empty-results fallback to raw slug. */
+  chainName?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,7 +101,7 @@ export async function reverseSearchDishes(
 
   const rows = result.rows as ReverseSearchRow[];
 
-  const chainName = rows.length > 0 ? rows[0]!.chain_name : chainSlug;
+  const chainName = rows.length > 0 ? rows[0]!.chain_name : (params.chainName ?? chainSlug);
   const totalMatches = rows.length > 0 ? Number(rows[0]!.total_matches) : 0;
 
   const results: ReverseSearchResult[] = rows.map((row) => {
