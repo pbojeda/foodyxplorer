@@ -101,6 +101,22 @@ describe('getSubstitutions', () => {
     expect(subs.length).toBeLessThanOrEqual(2);
   });
 
+  // --- False positive prevention ---
+  it('does not match "natillas" (bare "nata" pattern removed)', () => {
+    const subs = getSubstitutions('natillas caseras', 400);
+    expect(subs).toEqual([]);
+  });
+
+  it('does not match "arroz con leche" (broad "arroz con" pattern removed)', () => {
+    const subs = getSubstitutions('arroz con leche', 300);
+    expect(subs).toEqual([]);
+  });
+
+  it('does not match "carbonara" for nata pattern', () => {
+    const subs = getSubstitutions('pasta carbonara con nata', 500);
+    expect(subs).toEqual([]);
+  });
+
   it('is case-insensitive', () => {
     const subs = getSubstitutions('PATATAS FRITAS', 400);
     expect(subs.length).toBeGreaterThanOrEqual(1);

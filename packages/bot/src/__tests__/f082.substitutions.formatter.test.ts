@@ -124,9 +124,10 @@ describe('formatEstimate — F082 substitutions', () => {
     const output = formatEstimate(data);
     expect(output).toContain('\\+5 prot');
     expect(output).toContain('\\+3 fibra');
+    expect(output).toContain('\\-15 carbs');
   });
 
-  it('omits fiber when diff is 0', () => {
+  it('omits zero-value nutrients', () => {
     const data = makeEstimateData({
       substitutions: [
         {
@@ -138,6 +139,9 @@ describe('formatEstimate — F082 substitutions', () => {
     });
     const output = formatEstimate(data);
     expect(output).not.toContain('fibra');
+    expect(output).not.toContain('prot');
+    expect(output).not.toContain('carbs');
+    expect(output).toContain('\\-3 grasas');
   });
 
   it('renders substitutions after health-hacker tips when both present', () => {

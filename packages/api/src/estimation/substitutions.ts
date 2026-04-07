@@ -41,6 +41,7 @@ interface SubstitutionRule {
 // Substitution rules — curated pairs with per-serving nutrient diffs
 // ---------------------------------------------------------------------------
 
+// Rules are ordered by priority — first match wins. Do not reorder without review.
 const SUBSTITUTION_RULES: SubstitutionRule[] = [
   // Sides
   {
@@ -130,7 +131,7 @@ const SUBSTITUTION_RULES: SubstitutionRule[] = [
   },
   // Rice
   {
-    patterns: ['arroz blanco', 'arroz con'],
+    patterns: ['arroz blanco'],
     original: 'Arroz blanco',
     substitutes: [
       {
@@ -145,7 +146,7 @@ const SUBSTITUTION_RULES: SubstitutionRule[] = [
   },
   // Cream/whip
   {
-    patterns: ['nata montada', 'nata', 'crema batida'],
+    patterns: ['nata montada', 'crema batida', 'nata para montar'],
     original: 'Nata montada',
     substitutes: [
       {
@@ -216,7 +217,7 @@ export function getSubstitutions(
  * { substitutions: [...] } ready to spread into EstimateData.
  */
 export function enrichWithSubstitutions(
-  result: { chainSlug: string | null; nameEs: string | null; name: string; nutrients: { calories: number } } | null,
+  result: { nameEs: string | null; name: string; nutrients: { calories: number } } | null,
 ): { substitutions?: NutritionalSubstitution[] } {
   if (result === null) {
     return {};

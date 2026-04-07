@@ -91,14 +91,11 @@ export function formatEstimate(data: EstimateData): string {
     lines.push('🔄 *Sustituciones:*');
     for (const sub of data.substitutions) {
       const diff = sub.nutrientDiff;
-      const parts: string[] = [
-        `${formatDiff(diff.calories)} kcal`,
-        `${formatDiff(diff.proteins)} prot`,
-        `${formatDiff(diff.fats)} grasas`,
-      ];
-      if (diff.fiber !== 0) {
-        parts.push(`${formatDiff(diff.fiber)} fibra`);
-      }
+      const parts: string[] = [`${formatDiff(diff.calories)} kcal`];
+      if (diff.proteins !== 0) parts.push(`${formatDiff(diff.proteins)} prot`);
+      if (diff.carbohydrates !== 0) parts.push(`${formatDiff(diff.carbohydrates)} carbs`);
+      if (diff.fats !== 0) parts.push(`${formatDiff(diff.fats)} grasas`);
+      if (diff.fiber !== 0) parts.push(`${formatDiff(diff.fiber)} fibra`);
       lines.push(`  • ${escapeMarkdown(sub.original)} → ${escapeMarkdown(sub.substitute)}: ${escapeMarkdown(parts.join(', '))}`);
     }
   }
