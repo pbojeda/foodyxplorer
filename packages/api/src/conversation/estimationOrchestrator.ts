@@ -16,6 +16,7 @@ import { detectExplicitBrand } from '../estimation/brandDetector.js';
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 import { applyPortionMultiplier } from '../estimation/portionUtils.js';
 import { enrichWithTips } from '../estimation/healthHacker.js';
+import { enrichWithSubstitutions } from '../estimation/substitutions.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,6 +109,8 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     cachedAt: null,
     // F081: Health-Hacker tips for chain dishes (threshold on scaled calories)
     ...enrichWithTips(scaledResult),
+    // F082: Nutritional substitution suggestions (food-name keyword matching)
+    ...enrichWithSubstitutions(scaledResult),
   };
 
   // Step 8 — Cache write (with cachedAt timestamp)

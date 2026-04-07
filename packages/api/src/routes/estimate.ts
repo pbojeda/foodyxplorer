@@ -29,6 +29,7 @@ import { config } from '../config.js';
 import { writeQueryLog } from '../lib/queryLogger.js';
 import { applyPortionMultiplier } from '../estimation/portionUtils.js';
 import { enrichWithTips } from '../estimation/healthHacker.js';
+import { enrichWithSubstitutions } from '../estimation/substitutions.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -199,6 +200,8 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         cachedAt: null,
         // F081: Health-Hacker tips for chain dishes (threshold on scaled calories)
         ...enrichWithTips(scaledResult),
+        // F082: Nutritional substitution suggestions (food-name keyword matching)
+        ...enrichWithSubstitutions(scaledResult),
       };
 
       // --- Cache write (with cachedAt timestamp) ---

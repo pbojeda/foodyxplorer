@@ -7725,6 +7725,24 @@ components:
               caloriesSaved: 200
             - tip: "Sin salsa especial"
               caloriesSaved: 80
+        substitutions:
+          type: array
+          items:
+            $ref: '#/components/schemas/NutritionalSubstitution'
+          description: |
+            F082 — Nutritional substitution suggestions with multi-nutrient diffs.
+            Triggers on food-name keyword matching. Applies to ALL estimations.
+            Only present when: (a) food name matches a substitution pattern,
+            (b) calories >= 200. Omitted when no substitutions apply. Max 2.
+          example:
+            - original: "Patatas fritas"
+              substitute: "Ensalada verde"
+              nutrientDiff:
+                calories: -275
+                proteins: 1
+                fats: -15
+                carbohydrates: -38
+                fiber: 2
 
     HealthHackerTip:
       type: object
@@ -7741,6 +7759,51 @@ components:
           minimum: 1
           description: Estimated calories saved by applying this modification.
           example: 200
+
+    NutritionalSubstitution:
+      type: object
+      required:
+        - original
+        - substitute
+        - nutrientDiff
+      properties:
+        original:
+          type: string
+          description: Display name of the original food component.
+          example: "Patatas fritas"
+        substitute:
+          type: string
+          description: Display name of the suggested substitute.
+          example: "Ensalada verde"
+        nutrientDiff:
+          type: object
+          required:
+            - calories
+            - proteins
+            - fats
+            - carbohydrates
+            - fiber
+          properties:
+            calories:
+              type: number
+              description: Calorie difference (negative = fewer calories).
+              example: -275
+            proteins:
+              type: number
+              description: Protein difference in grams.
+              example: 1
+            fats:
+              type: number
+              description: Fat difference in grams.
+              example: -15
+            carbohydrates:
+              type: number
+              description: Carbohydrate difference in grams.
+              example: -38
+            fiber:
+              type: number
+              description: Fiber difference in grams.
+              example: 2
 
     EstimateResponse:
       type: object
