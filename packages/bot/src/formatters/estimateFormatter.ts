@@ -71,6 +71,15 @@ export function formatEstimate(data: EstimateData): string {
     lines.push(`Cadena: ${escapeMarkdown(result.chainSlug)}`);
   }
 
+  // F081: Health-Hacker tips
+  if (data.healthHackerTips && data.healthHackerTips.length > 0) {
+    lines.push('');
+    lines.push('💡 *Health\\-Hacker Tips:*');
+    for (const tip of data.healthHackerTips) {
+      lines.push(`  • ${escapeMarkdown(tip.tip)}: \\-${escapeMarkdown(String(tip.caloriesSaved))} kcal`);
+    }
+  }
+
   const confidenceLabel = CONFIDENCE_MAP[result.confidenceLevel] ?? escapeMarkdown(result.confidenceLevel);
   lines.push('');
   lines.push(`_Confianza: ${confidenceLabel}_`);

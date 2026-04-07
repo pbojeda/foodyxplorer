@@ -15,6 +15,7 @@ import { runEstimationCascade } from '../estimation/engineRouter.js';
 import { detectExplicitBrand } from '../estimation/brandDetector.js';
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 import { applyPortionMultiplier } from '../estimation/portionUtils.js';
+import { enrichWithTips } from '../estimation/healthHacker.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -105,6 +106,8 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     portionMultiplier: effectiveMultiplier,
     result: scaledResult,
     cachedAt: null,
+    // F081: Health-Hacker tips for chain dishes (threshold on scaled calories)
+    ...enrichWithTips(scaledResult),
   };
 
   // Step 8 — Cache write (with cachedAt timestamp)

@@ -28,6 +28,7 @@ import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 import { config } from '../config.js';
 import { writeQueryLog } from '../lib/queryLogger.js';
 import { applyPortionMultiplier } from '../estimation/portionUtils.js';
+import { enrichWithTips } from '../estimation/healthHacker.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -196,6 +197,8 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         portionMultiplier: effectiveMultiplier,
         result: scaledResult,
         cachedAt: null,
+        // F081: Health-Hacker tips for chain dishes (threshold on scaled calories)
+        ...enrichWithTips(scaledResult),
       };
 
       // --- Cache write (with cachedAt timestamp) ---
