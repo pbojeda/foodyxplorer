@@ -1,7 +1,7 @@
 # F082: Nutritional Substitutions
 
 **Feature:** F082 | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/F082-nutritional-substitutions
+**Status:** Done | **Branch:** (deleted)
 **Created:** 2026-04-07 | **Dependencies:** None (F081 Health-Hacker tips complete, estimation engine stable)
 
 ---
@@ -73,7 +73,7 @@ N/A — Simple task.
 - [x] Step 3: Implementation with TDD
 - [x] Step 4: Quality gates pass, `production-code-validator` executed
 - [x] Step 5: `code-review-specialist` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -85,6 +85,7 @@ N/A — Simple task.
 | 2026-04-07 | Implement | TDD: substitutions module, schema extension, route+orchestrator integration, bot formatter. 36 tests |
 | 2026-04-07 | Finalize | All quality gates pass. production-code-validator: APPROVED (1 LOW: broad arroz pattern, acceptable) |
 | 2026-04-07 | Review | PR #74. Code review: APPROVED WITH MINOR CHANGES. Accepted: I1 (arroz con removed), I2 (nata narrowed), I3 (chainSlug removed from type), S4 (ordering comment), S5 (carbs in formatter), S6 (false-positive tests), S7 (filter zeros). 39 tests total |
+| 2026-04-07 | Complete | Squash merged to develop (2d7b4fe). Branch deleted. Ticket closed |
 
 ---
 

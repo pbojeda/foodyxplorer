@@ -10,17 +10,15 @@
 
 **Last Updated:** 2026-04-07
 
-**Active Feature:** F082 — Nutritional Substitutions (Simple)
-**Step:** 5/6 (Review)
-**Branch:** feature/F082-nutritional-substitutions
-**Ticket:** docs/tickets/F082-nutritional-substitutions.md
-**Complexity:** Simple → Steps 1→3→4→5→6
+No active work. **F082 complete** (2026-04-07). Squash-merged to develop via PR #74 (2d7b4fe).
 
-**Pending operational step (F080):** OFF data import not yet executed — OFF API returning 503 for brands_tags search (still 503 as of 2026-04-07). Run when available:
+**Pending operational step (F080):** OFF data import not yet executed — OFF API returning HTML instead of JSON for brands_tags search (checked 2026-04-07). Run when available:
 ```
 OFF_IMPORT_ENABLED=true npm run off:import -- --dry-run --limit 50 -w @foodxplorer/api
 ```
 Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
+
+**Next:** F083 — Allergen Cross-Reference (Simple)
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -190,7 +188,7 @@ Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
 |----|---------|------|--------|------|-------|
 | F080 | OFF Prepared Foods Ingestion | backend | done | 6/6 | Standard. PR #72. 146 tests (8 files). OFF client+mapper+validator+seed. L1 branded+Tier 3 fallback. ODbL attribution. Brand aliases. 3 QA bugs fixed. Data import pending (OFF API 503) |
 | F081 | "Health-Hacker" Chain Suggestions | bot | done | 6/6 | Simple. PR #73. 41 tests (3 files). enrichWithTips() helper, 13 chains → 5 categories, HealthHackerTipSchema. Code review: APPROVED |
-| F082 | Nutritional Substitutions | backend | in-progress | 5/6 | Simple. "Si cambias patatas fritas por ensalada, ahorras 200 kcal". Compare alternatives for dish components |
+| F082 | Nutritional Substitutions | backend | done | 6/6 | Simple. PR #74. 39 tests (3 files). enrichWithSubstitutions() helper, 8 categories, NutritionalSubstitutionSchema. Code review: APPROVED |
 | F083 | Allergen Cross-Reference | backend | pending | — | Simple. Ingredient-level allergen detection from L2 data + OFF ingredient lists |
 | F084 | Estimation with Uncertainty Ranges | backend | pending | — | Simple. Show "320-420 kcal" instead of single number. Based on confidence level + portion variability |
 | F085 | Portion Sizing Matrix (Spanish portions) | backend | pending | — | Simple. Standard portions: "un plato de"=250-300g, "una ración"=200-250g, "media ración"=100-125g, "una tapa"=50-80g, "un pintxo"=30-60g, etc. |
