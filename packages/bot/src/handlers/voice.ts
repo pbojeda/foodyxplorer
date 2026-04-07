@@ -23,6 +23,7 @@ import { formatEstimate } from '../formatters/estimateFormatter.js';
 import { formatComparison } from '../formatters/comparisonFormatter.js';
 import { formatContextConfirmation } from '../formatters/contextFormatter.js';
 import { formatMenuEstimate } from '../formatters/menuFormatter.js';
+import { formatReverseSearch } from '../formatters/reverseSearchFormatter.js';
 
 // Pre-escaped MarkdownV2 string for the >500-char prompt.
 const TOO_LONG_MESSAGE =
@@ -150,6 +151,11 @@ export async function handleVoice(
         }
 
         responseText = 'Contexto procesado\\.';
+        break;
+      }
+
+      case 'reverse_search': {
+        responseText = formatReverseSearch(data.reverseSearch ?? null);
         break;
       }
 

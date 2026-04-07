@@ -1873,6 +1873,80 @@ paths:
                       message: "Database error during embedding write"
                       code: "DB_UNAVAILABLE"
 
+  /reverse-search:
+    get:
+      summary: "F086: Reverse search — find dishes within calorie/protein constraints"
+      description: |
+        Given a chain, calorie budget, and optional protein minimum, returns
+        dishes that fit the constraints sorted by protein density (proteins/calories) descending.
+        Only `available` dishes with `per_serving` reference basis are included.
+      operationId: reverseSearch
+      tags:
+        - Estimation
+      parameters:
+        - name: chainSlug
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-z0-9-]+$"
+          description: Chain slug to search within
+        - name: maxCalories
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: 100
+            maximum: 3000
+          description: Maximum calorie budget
+        - name: minProtein
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 0
+            maximum: 200
+          description: Minimum protein requirement in grams
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 5
+          description: Maximum number of results to return
+      responses:
+        "200":
+          description: Matching dishes (may be empty)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  data:
+                    $ref: "#/components/schemas/ReverseSearchData"
+        "400":
+          description: Invalid query parameters
+        "404":
+          description: Chain not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [false]
+                  code:
+                    type: string
+                    enum: [CHAIN_NOT_FOUND]
+                  message:
+                    type: string
+
   /estimate:
     get:
       summary: Estimation Engine — L1 (official) + L2 (ingredients) + L3 (similarity) + L4 (LLM identification)
@@ -7897,6 +7971,75 @@ components:
           maximum: 100
           description: Uncertainty percentage used (e.g., 5 for ±5%).
           example: 5
+
+    ReverseSearchResult:
+      type: object
+      description: "F086: Single dish matching reverse search constraints."
+      required:
+        - name
+        - nameEs
+        - calories
+        - proteins
+        - fats
+        - carbohydrates
+        - portionGrams
+        - proteinDensity
+      properties:
+        name:
+          type: string
+          description: Dish name (original locale).
+        nameEs:
+          type: string
+          nullable: true
+          description: Dish name in Spanish.
+        calories:
+          type: number
+          minimum: 0
+        proteins:
+          type: number
+          minimum: 0
+        fats:
+          type: number
+          minimum: 0
+        carbohydrates:
+          type: number
+          minimum: 0
+        portionGrams:
+          type: number
+          nullable: true
+          description: Serving size in grams.
+        proteinDensity:
+          type: number
+          minimum: 0
+          description: "proteins / calories * 100"
+
+    ReverseSearchData:
+      type: object
+      description: "F086: Reverse search response payload."
+      required:
+        - chainSlug
+        - chainName
+        - maxCalories
+        - minProtein
+        - results
+        - totalMatches
+      properties:
+        chainSlug:
+          type: string
+        chainName:
+          type: string
+        maxCalories:
+          type: number
+        minProtein:
+          type: number
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReverseSearchResult"
+        totalMatches:
+          type: integer
+          minimum: 0
 
     EstimateResponse:
       type: object
