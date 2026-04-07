@@ -225,6 +225,36 @@ describe('detectAllergens', () => {
   it('does not flag "pollo a la plancha" (no allergens)', () => {
     expect(detectAllergens('Pollo a la plancha')).toEqual([]);
   });
+
+  // --- I1: "crema" false positive prevention (from code review) ---
+
+  it('does not flag dairy for "crema de verduras" (vegetable soup)', () => {
+    const result = detectAllergens('Crema de verduras');
+    const allergenNames = result.map((a) => a.allergen);
+    expect(allergenNames).not.toContain('Lácteos');
+  });
+
+  it('does not flag dairy for "crema de calabaza" (pumpkin soup)', () => {
+    const result = detectAllergens('Crema de calabaza');
+    const allergenNames = result.map((a) => a.allergen);
+    expect(allergenNames).not.toContain('Lácteos');
+  });
+
+  it('does not flag dairy for "crema de apio" (celery soup)', () => {
+    const result = detectAllergens('Crema de apio');
+    const allergenNames = result.map((a) => a.allergen);
+    expect(allergenNames).toContain('Apio');
+    expect(allergenNames).not.toContain('Lácteos');
+  });
+
+  // --- I2: "pan" at end of string (from code review) ---
+
+  it('detects gluten from "tostada con pan" (pan at end)', () => {
+    const result = detectAllergens('Tostada con pan');
+    expect(result).toEqual(
+      expect.arrayContaining([expect.objectContaining({ allergen: 'Gluten' })]),
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

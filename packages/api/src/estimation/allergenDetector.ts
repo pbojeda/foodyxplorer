@@ -36,7 +36,7 @@ const ALLERGEN_RULES: AllergenRule[] = [
     allergen: 'Gluten',
     patterns: [
       'trigo', 'cebada', 'centeno', 'avena', 'espelta',
-      'pan ', 'pan,', 'pasta', 'pizza', 'harina', 'galleta', 'bizcocho',
+      'pan', 'pasta', 'pizza', 'harina', 'galleta', 'bizcocho',
       'croissant', 'empanada', 'croqueta', 'rebozado', 'empanado',
       'wheat', 'barley', 'rye', 'oat', 'bread', 'flour',
     ],
@@ -83,7 +83,7 @@ const ALLERGEN_RULES: AllergenRule[] = [
     allergen: 'Lácteos',
     patterns: [
       'leche', 'queso', 'mantequilla', 'nata', 'yogur', 'yogurt',
-      'crema', 'requesón', 'cuajada', 'mozzarella', 'parmesano',
+      'requesón', 'cuajada', 'mozzarella', 'parmesano',
       'cheddar', 'brie', 'camembert', 'gouda', 'manchego',
       'milk', 'cheese', 'butter', 'cream', 'dairy',
     ],
