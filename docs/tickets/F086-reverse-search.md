@@ -1,7 +1,7 @@
 # F086: Reverse Search
 
 **Feature:** F086 | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/F086-reverse-search
+**Status:** Ready for Merge | **Branch:** feature/F086-reverse-search
 **Created:** 2026-04-07 | **Dependencies:** None (dishes + dish_nutrients populated, catalog routes exist)
 
 ---
@@ -154,43 +154,43 @@ Add to `packages/bot/src/formatters/`:
 
 ## Acceptance Criteria
 
-- [ ] `GET /reverse-search` endpoint with chainSlug, maxCalories, minProtein, limit params
-- [ ] Dishes filtered by calorie budget and optional protein minimum
-- [ ] Results sorted by protein density descending
-- [ ] totalMatches count returned alongside limited results
-- [ ] Only `available` + `per_serving` dishes returned
-- [ ] `reverse_search` intent added to ConversationIntentSchema
-- [ ] Entity extraction detects "qué como con X kcal" and similar patterns
-- [ ] ConversationCore handles reverse search with chain context
-- [ ] Error message when no chain context set
-- [ ] Bot formatter renders reverse search results
-- [ ] API spec updated with endpoint and schemas
-- [ ] Unit tests for query module, route, entity extraction, conversation, formatter
-- [ ] All tests pass
-- [ ] Build succeeds
+- [x] `GET /reverse-search` endpoint with chainSlug, maxCalories, minProtein, limit params
+- [x] Dishes filtered by calorie budget and optional protein minimum
+- [x] Results sorted by protein density descending
+- [x] totalMatches count returned alongside limited results
+- [x] Only `available` + `per_serving` dishes returned
+- [x] `reverse_search` intent added to ConversationIntentSchema
+- [x] Entity extraction detects "qué como con X kcal" and similar patterns
+- [x] ConversationCore handles reverse search with chain context
+- [x] Error message when no chain context set
+- [x] Bot formatter renders reverse search results
+- [x] API spec updated with endpoint and schemas
+- [x] Unit tests for query module, route, entity extraction, conversation, formatter (65 tests)
+- [x] All tests pass
+- [x] Build succeeds
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] API spec updated (new endpoint + schemas)
-- [ ] Shared schemas exported and typed
+- [x] All acceptance criteria met
+- [x] Unit tests written and passing (65 tests)
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
+- [x] API spec updated (new endpoint + schemas)
+- [x] Shared schemas exported and typed
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 0: Spec created, self-reviewed
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: Implementation plan written, self-reviewed
-- [ ] Step 3: Implementation with TDD
-- [ ] Step 4: Quality gates pass, `production-code-validator` executed
-- [ ] Step 5: `code-review-specialist` + `qa-engineer` executed
+- [x] Step 0: Spec created, self-reviewed
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 2: Implementation plan written, self-reviewed
+- [x] Step 3: Implementation with TDD
+- [x] Step 4: Quality gates pass, `production-code-validator` executed
+- [x] Step 5: `code-review-specialist` + `qa-engineer` executed
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -200,6 +200,9 @@ Add to `packages/bot/src/formatters/`:
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-07 | Spec | Spec written with 6-step implementation plan |
+| 2026-04-07 | Implement | TDD: 6 steps — schemas, query module, route, entity extraction, conversationCore, bot formatter. 65 tests |
+| 2026-04-07 | Finalize | All quality gates pass. production-code-validator: READY (95/100, 0 issues) |
+| 2026-04-07 | Review | PR #78. Code review: APPROVED WITH MINOR CHANGES (3 fixes applied). QA: VERIFIED (0 bugs, 66 edge case tests added). 131 total tests |
 
 ---
 
@@ -209,13 +212,13 @@ Add to `packages/bot/src/formatters/`:
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | |
-| 1. Mark all items | [ ] | |
-| 2. Verify product tracker | [ ] | |
-| 3. Update key_facts.md | [ ] | |
-| 4. Update decisions.md | [ ] | |
-| 5. Commit documentation | [ ] | |
-| 6. Verify clean working tree | [ ] | |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Plan, AC, DoD, Workflow, Log, Evidence |
+| 1. Mark all items | [x] | AC: 14/14, DoD: 7/7, Workflow: 5/6 (Step 6 pending) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
+| 3. Update key_facts.md | [x] | Added Reverse Search entry (route, query module, schemas, entity extraction, formatter) |
+| 4. Update decisions.md | [x] | N/A — no ADR needed for Standard feature |
+| 5. Commit documentation | [x] | Docs commit below |
+| 6. Verify clean working tree | [x] | Clean after docs commit |
 
 ---
 
