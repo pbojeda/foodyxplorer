@@ -105,7 +105,7 @@ export function formatRecipeResult(data: RecipeCalculateData): string {
     const p = data.perPortion;
     const pLines: string[] = [
       '',
-      `*Por porción \\(${escapeMarkdown(String(data.portions))} tuppers\\):*`,
+      `*Por porción \\(${escapeMarkdown(String(data.portions))} ${data.portions === 1 ? 'tupper' : 'tuppers'}\\):*`,
     ];
     if (p.calories !== null) {
       pLines.push(`🔥 ${formatNutrient(p.calories, 'kcal')}`);
