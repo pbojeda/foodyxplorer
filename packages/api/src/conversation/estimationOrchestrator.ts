@@ -19,6 +19,7 @@ import { enrichWithTips } from '../estimation/healthHacker.js';
 import { enrichWithSubstitutions } from '../estimation/substitutions.js';
 import { enrichWithAllergens } from '../estimation/allergenDetector.js';
 import { enrichWithUncertainty } from '../estimation/uncertaintyCalculator.js';
+import { enrichWithPortionSizing } from '../estimation/portionSizing.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -117,6 +118,8 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     ...enrichWithAllergens(scaledResult),
     // F084: Calorie uncertainty range based on confidence + estimation method
     ...enrichWithUncertainty(scaledResult),
+    // F085: Spanish portion term context from query
+    ...enrichWithPortionSizing(query),
   };
 
   // Step 8 — Cache write (with cachedAt timestamp)

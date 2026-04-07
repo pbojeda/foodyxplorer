@@ -7757,6 +7757,12 @@ components:
               keyword: "pizza"
             - allergen: "Lácteos"
               keyword: "queso"
+        portionSizing:
+          $ref: '#/components/schemas/PortionSizing'
+          description: |
+            F085 — Detected Spanish portion term with standard gram range.
+            Present when the query contains a recognized portion term
+            (e.g., "media ración", "tapa", "pintxo"). Informational only.
         uncertaintyRange:
           $ref: '#/components/schemas/UncertaintyRange'
           description: |
@@ -7840,6 +7846,33 @@ components:
           type: string
           description: The keyword that triggered the allergen detection.
           example: "pizza"
+
+    PortionSizing:
+      type: object
+      required:
+        - term
+        - gramsMin
+        - gramsMax
+        - description
+      properties:
+        term:
+          type: string
+          description: Detected Spanish portion term.
+          example: "media ración"
+        gramsMin:
+          type: integer
+          minimum: 1
+          description: Lower bound of typical gram weight.
+          example: 100
+        gramsMax:
+          type: integer
+          minimum: 1
+          description: Upper bound of typical gram weight.
+          example: 125
+        description:
+          type: string
+          description: Human-readable description in Spanish.
+          example: "Media ración estándar española"
 
     UncertaintyRange:
       type: object

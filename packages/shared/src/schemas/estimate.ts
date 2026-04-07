@@ -183,6 +183,23 @@ export const UncertaintyRangeSchema = z.object({
 export type UncertaintyRange = z.infer<typeof UncertaintyRangeSchema>;
 
 // ---------------------------------------------------------------------------
+// F085 — Portion sizing context from Spanish portion terms
+// ---------------------------------------------------------------------------
+
+export const PortionSizingSchema = z.object({
+  /** Detected Spanish portion term (e.g., "media ración"). */
+  term: z.string(),
+  /** Lower bound of typical gram weight for this portion. */
+  gramsMin: z.number().int().positive(),
+  /** Upper bound of typical gram weight for this portion. */
+  gramsMax: z.number().int().positive(),
+  /** Human-readable description in Spanish. */
+  description: z.string(),
+});
+
+export type PortionSizing = z.infer<typeof PortionSizingSchema>;
+
+// ---------------------------------------------------------------------------
 // Data payload — full response body data
 // ---------------------------------------------------------------------------
 
@@ -207,6 +224,8 @@ export const EstimateDataSchema = z.object({
   allergens: z.array(DetectedAllergenSchema).optional(),
   /** F084 — Calorie uncertainty range based on confidence + estimation method. */
   uncertaintyRange: UncertaintyRangeSchema.optional(),
+  /** F085 — Detected Spanish portion term with standard gram range. */
+  portionSizing: PortionSizingSchema.optional(),
 });
 
 export type EstimateData = z.infer<typeof EstimateDataSchema>;

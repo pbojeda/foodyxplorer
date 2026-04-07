@@ -110,6 +110,16 @@ export function formatEstimate(data: EstimateData): string {
     lines.push(`_\\(orientativo — verificar con el establecimiento\\)_`);
   }
 
+  // F085: Portion sizing context
+  if (data.portionSizing) {
+    const ps = data.portionSizing;
+    const gramsLabel = ps.gramsMin === ps.gramsMax
+      ? `${ps.gramsMin} g`
+      : `${ps.gramsMin}\\-${ps.gramsMax} g`;
+    lines.push('');
+    lines.push(`📏 *Porción detectada:* ${escapeMarkdown(ps.term)} \\(${gramsLabel}\\)`);
+  }
+
   const confidenceLabel = CONFIDENCE_MAP[result.confidenceLevel] ?? escapeMarkdown(result.confidenceLevel);
   lines.push('');
   lines.push(`_Confianza: ${confidenceLabel}_`);
