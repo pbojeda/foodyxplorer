@@ -8,19 +8,17 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-06
+**Last Updated:** 2026-04-07
 
-**Active Feature:** F081 — "Health-Hacker" Chain Suggestions (Simple)
-**Step:** 5/6 (Review)
-**Branch:** feature/F081-health-hacker-chain-suggestions
-**Ticket:** docs/tickets/F081-health-hacker-chain-suggestions.md
-**Complexity:** Simple → Steps 1→3→4→5→6
+No active work. **F081 complete** (2026-04-07). Squash-merged to develop via PR #73 (a884e57).
 
-**Pending operational step (F080):** OFF data import not yet executed — OFF API returned 503 during validation. Run when available:
+**Pending operational step (F080):** OFF data import not yet executed — OFF API returning 503 for brands_tags search. Run when available:
 ```
 OFF_IMPORT_ENABLED=true npm run off:import -- --dry-run --limit 50 -w @foodxplorer/api
 ```
 Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
+
+**Next:** F082 — Nutritional Substitutions (Simple)
 
 > **CRITICAL: Spec Creation Rule**
 > Before creating ANY spec for F068-F109, the spec-creator agent MUST read `docs/research/product-evolution-analysis-2026-03-31.md` first. That document contains the approved strategy, architectural decisions, data source hierarchy, voice architecture notes, and cross-model reviewed rationale for every feature. Do NOT invent requirements — derive them from that document.
@@ -189,7 +187,7 @@ Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F080 | OFF Prepared Foods Ingestion | backend | done | 6/6 | Standard. PR #72. 146 tests (8 files). OFF client+mapper+validator+seed. L1 branded+Tier 3 fallback. ODbL attribution. Brand aliases. 3 QA bugs fixed. Data import pending (OFF API 503) |
-| F081 | "Health-Hacker" Chain Suggestions | bot | in-progress | 5/6 | Simple. "Pide sin queso ni salsa: -120 kcal". Modification-based suggestions for chain dishes |
+| F081 | "Health-Hacker" Chain Suggestions | bot | done | 6/6 | Simple. PR #73. 41 tests (3 files). enrichWithTips() helper, 13 chains → 5 categories, HealthHackerTipSchema. Code review: APPROVED |
 | F082 | Nutritional Substitutions | backend | pending | — | Simple. "Si cambias patatas fritas por ensalada, ahorras 200 kcal". Compare alternatives for dish components |
 | F083 | Allergen Cross-Reference | backend | pending | — | Simple. Ingredient-level allergen detection from L2 data + OFF ingredient lists |
 | F084 | Estimation with Uncertainty Ranges | backend | pending | — | Simple. Show "320-420 kcal" instead of single number. Based on confidence level + portion variability |
@@ -328,6 +326,8 @@ Then full import + `npm run embeddings:generate -w @foodxplorer/api`.
 | 2026-03-30 | F064 — Accessibility & Code Cleanup | ff25635 (squash merge to develop, PR #58) | Standard frontend. 10 fixes: aria-selected, contrast (WCAG AA), MobileMenu a11y, HSTS, CSP-Report-Only, dead code, honeypot, keyframes, themeColor, sitemap. 659 tests (35 new). Code review: APPROVED (1 fix). QA: VERIFIED (10 edge-case tests, 0 bugs) |
 | 2026-03-30 | F066 — E2E Smoke Tests | d0e63f3 (squash merge to develop, PR #57) | Standard. 10 E2E smoke tests with real HTTP server (port 0). vitest.config.e2e.ts, NODE_ENV=development. Code review + QA approved |
 | 2026-03-31 | F067 — Data Quality Cleanup | 6513e09 (squash merge to develop, PR #59) | Simple. Clean BK leading slashes (regexp_replace), FTS/similarity length tiebreaker in catalog + level1Lookup. Applied to dev+prod |
+| 2026-04-06 | F080 — OFF Prepared Foods Ingestion | 4ce08a0 (squash merge to develop, PR #72) | Standard. OFF ingestion module (types, validator, mapper, client). L1 branded + Tier 3 fallback. ODbL attribution. Brand aliases. 146 tests (8 files). Data import pending (OFF API 503) |
+| 2026-04-07 | F081 — Health-Hacker Chain Suggestions | a884e57 (squash merge to develop, PR #73) | Simple. Rule-based calorie-saving tips for chain dishes. 13 chains → 5 categories. enrichWithTips() DRY helper. HealthHackerTipSchema. 41 tests (3 files). Code review: APPROVED |
 
 ---
 

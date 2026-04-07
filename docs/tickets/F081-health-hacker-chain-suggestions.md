@@ -1,7 +1,7 @@
 # F081: "Health-Hacker" Chain Suggestions
 
 **Feature:** F081 | **Type:** Bot-Feature | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F081-health-hacker-chain-suggestions
+**Status:** Done | **Branch:** (deleted)
 **Created:** 2026-04-06 | **Dependencies:** None (E007 complete, chains have dishes with nutrients)
 
 ---
@@ -82,6 +82,7 @@ N/A — Simple task.
 | 2026-04-06 | Implement | TDD: healthHacker module, schema extension, orchestrator + route integration, bot formatter. 36 tests |
 | 2026-04-06 | Finalize | All quality gates pass. production-code-validator: APPROVED (1 HIGH fixed: API spec sync) |
 | 2026-04-06 | Review | PR #73. Code review: APPROVED WITH MINOR CHANGES. Accepted: I1 (DRY enrichWithTips), I2 (threshold comment), S2 (sort test), S4 (shared type). 5 tests added (41 total) |
+| 2026-04-07 | Complete | Squash merged to develop (a884e57). Branch deleted. Ticket closed |
 
 ---
 
