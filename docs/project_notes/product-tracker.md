@@ -11,7 +11,7 @@
 **Last Updated:** 2026-04-08
 
 **Active Feature:** F090 — Web Assistant: Shell + Text Mode (/hablar)
-**Step:** 4/6 (Finalize) — completed, moving to Step 5 (Review)
+**Step:** 5/6 (Review) — PR #85, code review APPROVED, QA BUG fixed, merge checklist in progress
 **Branch:** `feature/F090-web-assistant-hablar`
 **Complexity:** Standard
 **Ticket:** `docs/tickets/F090-web-assistant-hablar.md`
@@ -228,7 +228,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F090 | Web Assistant: Shell + Text Mode (/hablar) | frontend | in-progress | 4/6 | Standard. **Creates new `packages/web` package** (separate from landing). Next.js route /hablar. ConversationCore integration. Text input → JSON response → NutritionCard UI. Design: see hablar-design-guidelines.md. 119 tests, next build passes. |
+| F090 | Web Assistant: Shell + Text Mode (/hablar) | frontend | in-progress | 5/6 | Standard. **Creates new `packages/web` package** (separate from landing). Next.js route /hablar. ConversationCore integration. Text input → JSON response → NutritionCard UI. Design: see hablar-design-guidelines.md. 119 tests, next build passes. |
 | F091 | Web Assistant: Async Voice (STT → Core → TTS) | frontend | pending | — | Standard. Whisper transcription → ConversationCore → TTS response. Push-to-talk UX. Async, not realtime |
 | F092 | Web Assistant: Plate Photo Upload | frontend | pending | — | Standard. Photo → existing /analyze/menu pipeline → results in UI. Reuses existing Vision API infrastructure |
 | F093 | Web Assistant: Landing Integration + Analytics | frontend | pending | — | Simple. CTA from landing → /hablar. Analytics events. Visual coherence with landing design system |

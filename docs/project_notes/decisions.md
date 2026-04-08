@@ -487,7 +487,7 @@ Analysis in `docs/research/product-evolution-analysis-2026-03-31.md` Section 17,
    }
    ```
 
-2. **Web identity:** Generate UUID v4 on first visit, store in `localStorage` + signed HTTP-only cookie. Send as `X-Actor-Id` header on all API requests. Server creates `actors` row on first seen.
+2. **Web identity:** Generate UUID v4 on first visit, store in `localStorage` + signed HTTP-only cookie. Send as `X-Actor-Id` header on all API requests. Server creates `actors` row on first seen. **F090 deviation (2026-04-08):** Initial `/hablar` implementation uses `localStorage` + header transport only. HTTP-only cookie deferred — requires complex cross-domain cookie setup between Next.js (nutrixplorer.com) and Fastify (api.nutrixplorer.com) that is not justified until SSR data fetching is needed. UUID format validation added to prevent header injection.
 
 3. **Telegram identity:** Use `chat_id` as `external_id` with `type: 'telegram'`. Already persistent by Telegram's design.
 
