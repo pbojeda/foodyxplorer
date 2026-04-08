@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F090 | Standard | pending | — | Web Assistant: Shell + Text Mode (/hablar). Creates packages/web |
+| F090 | Standard | in-progress | — | Web Assistant: Shell + Text Mode (/hablar). Creates packages/web. Step 5/6, PR #85 |
 | F111 | Simple | pending | — | Web Package CI/CD Pipeline |
 | F112 | Simple | pending | — | Web Assistant Usage Metrics |
 
@@ -33,7 +33,7 @@ _(Move features here if blocked)_
 ## Recovery Instructions
 
 **Current feature:** F090
-**Branch:** (to be created: feature/F090-web-assistant-hablar)
+**Branch:** `feature/F090-web-assistant-hablar`
 **Next features:** F111, F112 (then batch 2: F091, F092, F093)
 **Blocked:** (none)
 
