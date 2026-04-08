@@ -73,21 +73,33 @@ For each feature in the batch:
 
 #### b. Start Feature
 
-1. Update `pm-session.md`: set current feature status to `in-progress`, note step 0/6.
-2. Invoke the `development-workflow` skill:
+1. Update `pm-session.md`:
+   - Set current feature status to `in-progress`, note step 0/6.
+   - Update **Recovery Instructions**: set **Current feature**, **Branch** (once created), and current step.
+2. **Print progress**: `[PM] Starting FXXX — Step 0: Spec`
+3. Invoke the `development-workflow` skill:
    - Command: `start task FXXX as [Simple|Standard|Complex]`
    - The development-workflow reads L5 → all checkpoints auto-approve.
    - All quality gates run as normal (tests, lint, build, validators, code review, QA).
    - At Step 5 (Review): execute `/audit-merge` before the merge checklist evidence.
+4. **During the feature lifecycle**, keep `pm-session.md` up to date:
+   - Update the **Notes** column with current step (e.g., "Step 3/6 — Implementation").
+   - Update **Recovery Instructions** with the current step and branch after each step transition.
+   - Print a one-liner when entering each step: `[PM] FXXX | Step N/6 | StepName`
+   - Print when a quality gate passes/fails: `[PM] FXXX | Step 4 | tests: PASS (133/133)`
 
 #### c. Feature Completed (Step 6 done)
 
 1. Verify `docs/project_notes/product-tracker.md` shows the feature at step 6/6 with status `done`.
 2. **Post-merge sanity check**: Run `npm test` (or the project's test command) on the target branch.
    - If tests **fail** → STOP immediately. The merged feature broke the target branch. Report to user.
-   - If tests **pass** → continue.
-3. Update `pm-session.md`: set feature status to `done`, record approximate duration.
-4. Reset consecutive failure counter to 0.
+   - If tests **pass** → print: `[PM] FXXX | Post-merge sanity: PASS`
+3. Update `pm-session.md`:
+   - Move the feature row from **Current Batch** to **Completed Features**.
+   - Record approximate duration in the Duration column.
+   - Clear **Recovery Instructions** current feature (or set to next feature).
+4. Print: `[PM] FXXX | DONE (~Xmin) | Moving to next feature`
+5. Reset consecutive failure counter to 0.
 
 #### d. Feature Failed
 
