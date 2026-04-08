@@ -262,3 +262,7 @@ Quick reference for project configuration, infrastructure details, and important
 - **Feature flag**: `BEDCA_IMPORT_ENABLED=true` required in non-test environments
 - **Salt formula**: sodium_g * 2.5 (EU Regulation 1169/2011 — NOT 2.54)
 - **CLI**: `npm run bedca:import -w @foodxplorer/api` | `npm run bedca:snapshot -w @foodxplorer/api`
+
+## Web Package — Server-Side Env Vars (F092)
+
+- **`API_KEY`** (web package, server-only, NOT `NEXT_PUBLIC_`): Private API key for `POST /analyze/menu`. Read exclusively by the Next.js Route Handler proxy at `packages/web/src/app/api/analyze/route.ts`. Must NOT be exposed client-side — adding `NEXT_PUBLIC_` prefix would allow key extraction via browser DevTools and create a global rate-limit bottleneck. Format: `fxp_<32 hex chars>`. Required deployment: Vercel project env vars for staging (`develop` branch) and production (`main` branch).

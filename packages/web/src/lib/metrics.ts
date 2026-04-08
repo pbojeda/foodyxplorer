@@ -14,12 +14,16 @@ export type MetricEvent =
   | 'query_sent'
   | 'query_success'
   | 'query_error'
-  | 'query_retry';
+  | 'query_retry'
+  | 'photo_sent'
+  | 'photo_success'
+  | 'photo_error';
 
 export interface MetricPayload {
   intent?: string;
   responseTimeMs?: number;
   errorCode?: string;
+  dishCount?: number;
 }
 
 export interface MetricsSnapshot {
@@ -134,6 +138,24 @@ export function trackEvent(event: MetricEvent, payload?: MetricPayload): void {
 
     case 'query_retry':
       state.retryCount++;
+      break;
+
+    case 'photo_sent':
+      state.queryCount++;
+      break;
+
+    case 'photo_success':
+      state.successCount++;
+      if (payload?.responseTimeMs != null) {
+        state.totalResponseTimeMs += payload.responseTimeMs;
+      }
+      break;
+
+    case 'photo_error':
+      state.errorCount++;
+      if (payload?.errorCode) {
+        state.errors[payload.errorCode] = (state.errors[payload.errorCode] ?? 0) + 1;
+      }
       break;
   }
 

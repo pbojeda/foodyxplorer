@@ -1,7 +1,14 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ResultsArea } from '../../components/ResultsArea';
-import { createConversationMessageData, createEstimateData, createEstimateResult, createReverseSearchResult } from '../fixtures';
+import {
+  createConversationMessageData,
+  createEstimateData,
+  createEstimateResult,
+  createReverseSearchResult,
+  createMenuAnalysisData,
+  createMenuAnalysisDish,
+} from '../fixtures';
 
 describe('ResultsArea', () => {
   describe('empty/loading states', () => {
@@ -106,6 +113,78 @@ describe('ResultsArea', () => {
       });
       render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
       expect(screen.getByText(/No encontré platos con esas características/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('photo loading and results (F092)', () => {
+    it('renders LoadingState when isPhotoLoading=true', () => {
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          isPhotoLoading={true}
+        />
+      );
+      expect(screen.getByRole('status')).toBeInTheDocument();
+    });
+
+    it('renders NutritionCard for each dish in photoResults with estimate', () => {
+      const photoResults = createMenuAnalysisData({
+        dishes: [
+          createMenuAnalysisDish({
+            dishName: 'Big Mac',
+            estimate: createEstimateData({ query: 'big mac' }),
+          }),
+        ],
+      });
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          photoResults={photoResults}
+        />
+      );
+      // NutritionCard renders the dish name from estimateData.result.name
+      expect(screen.getByText('Big Mac')).toBeInTheDocument();
+    });
+
+    it('renders "not found" card when dish.estimate is null', () => {
+      const photoResults = createMenuAnalysisData({
+        dishes: [
+          createMenuAnalysisDish({
+            dishName: 'Plato desconocido',
+            estimate: null,
+          }),
+        ],
+      });
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          photoResults={photoResults}
+        />
+      );
+      expect(screen.getByText('Plato desconocido')).toBeInTheDocument();
+      expect(screen.getByText('Sin datos nutricionales disponibles.')).toBeInTheDocument();
+    });
+
+    it('renders EmptyState when photoResults is null and isPhotoLoading is false', () => {
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          photoResults={null}
+        />
+      );
+      expect(screen.getByText('¿Qué quieres saber?')).toBeInTheDocument();
     });
   });
 

@@ -1,7 +1,7 @@
 # F093: Web Assistant — Landing Integration + Analytics
 
 **Feature:** F093 | **Type:** Frontend-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F093-landing-web-integration
+**Status:** Done | **Branch:** deleted (squash-merged to develop as cb1b0fc)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-08 | **Dependencies:** F090 (web assistant /hablar), F112 (web usage metrics), F060 (GA4 landing integration)
 
@@ -680,7 +680,7 @@ Follow Red-Green-Refactor for each step. Write the failing test first, then impl
 - [x] Step 3: Implementation complete
 - [x] Step 4: Quality gates pass, committed
 - [x] Step 5: PR #89, code-review-specialist (APPROVED WITH NOTES — UTM fix applied), qa-engineer (21 edge-case tests)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -695,6 +695,7 @@ Follow Red-Green-Refactor for each step. Write the failing test first, then impl
 | 2026-04-08 | Step 3: Implement | 13 steps implemented with TDD. HeaderCTA, HablarAnalytics new components. GA4 script injection with ID validation. |
 | 2026-04-08 | Step 4: Finalize | Tests: 737/742 landing + 167/167 web. Lint: clean. Build: both pass. Production validator: APPROVED (1 GA_ID fix applied). |
 | 2026-04-08 | Step 5: Review | PR #89. Code review: APPROVED WITH NOTES (2 UTM gaps fixed). QA: 21 edge-case tests, 1 low-severity test data bug (BUG-F093-01). |
+| 2026-04-08 | Step 6: Complete | PR #89 squash-merged to develop (cb1b0fc). Branch deleted. 737 landing + 167 web tests. |
 
 ---
 
