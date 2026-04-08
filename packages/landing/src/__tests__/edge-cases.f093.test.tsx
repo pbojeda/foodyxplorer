@@ -121,7 +121,7 @@ describe('F093 — HeroSection hablarUrl undefined vs null', () => {
         variant="c"
         dict={dict.hero}
         variantsCopy={dict.variants}
-        hablarUrl="https://hablar.nutrixplorer.com/hablar?utm_source=landing&utm_medium=hero_cta"
+        hablarUrl="https://hablar.nutrixplorer.com/hablar"
       />
     );
     expect(screen.queryByRole('link', { name: /pruébalo ahora/i })).not.toBeInTheDocument();
@@ -133,7 +133,7 @@ describe('F093 — HeroSection hablarUrl undefined vs null', () => {
         variant="f"
         dict={dict.hero}
         variantsCopy={dict.variants}
-        hablarUrl="https://hablar.nutrixplorer.com/hablar?utm_source=landing&utm_medium=hero_cta"
+        hablarUrl="https://hablar.nutrixplorer.com/hablar"
       />
     );
     expect(screen.queryByRole('link', { name: /pruébalo ahora/i })).not.toBeInTheDocument();
@@ -146,7 +146,7 @@ describe('F093 — HeroSection hablarUrl undefined vs null', () => {
 
 import { WaitlistCTASection } from '@/components/sections/WaitlistCTASection';
 
-const bottomUrl = 'https://hablar.nutrixplorer.com/hablar?utm_source=landing&utm_medium=bottom_cta';
+const bottomUrl = 'https://hablar.nutrixplorer.com/hablar';
 
 describe('F093 — WaitlistCTASection bottom CTA applies to all variants', () => {
   it('renders bottom CTA for variant a', () => {

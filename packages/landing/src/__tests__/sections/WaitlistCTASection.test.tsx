@@ -76,7 +76,8 @@ describe('WaitlistCTASection', () => {
 // ---------------------------------------------------------------------------
 
 describe('F093 — WaitlistCTASection hablarUrl CTA', () => {
-  const hablarUrl = 'https://hablar.nutrixplorer.com/hablar?utm_source=landing&utm_medium=bottom_cta';
+  const hablarUrl = 'https://hablar.nutrixplorer.com/hablar';
+  const expectedHref = 'https://hablar.nutrixplorer.com/hablar?utm_source=landing&utm_medium=bottom_cta';
 
   beforeEach(() => {
     mockTrackEvent.mockClear();
@@ -89,7 +90,7 @@ describe('F093 — WaitlistCTASection hablarUrl CTA', () => {
 
   it('"O pruébalo ahora gratis" link has correct href', () => {
     render(<WaitlistCTASection dict={dict.waitlistCta} variant="a" hablarUrl={hablarUrl} />);
-    expect(screen.getByRole('link', { name: /o pruébalo ahora gratis/i })).toHaveAttribute('href', hablarUrl);
+    expect(screen.getByRole('link', { name: /o pruébalo ahora gratis/i })).toHaveAttribute('href', expectedHref);
   });
 
   it('"O pruébalo ahora gratis" link opens in new tab', () => {

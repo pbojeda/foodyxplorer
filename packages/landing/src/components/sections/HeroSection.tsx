@@ -132,7 +132,7 @@ function HeroVariantA({ dict, variant, copy, animProps, containerAnimProps, habl
               {/* Secondary CTA — only shown when web URL is configured */}
               {hablarUrl && hablarUrl !== '#waitlist' && (
                 <a
-                  href={hablarUrl}
+                  href={`${hablarUrl}?utm_source=landing&utm_medium=hero_cta`}
                   target="_blank"
                   rel="noopener noreferrer"
                   data-cta-source="hero"

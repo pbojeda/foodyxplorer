@@ -85,7 +85,7 @@ export function WaitlistCTASection({ dict, variant, hablarUrl }: WaitlistCTASect
           {hablarUrl && hablarUrl !== '#waitlist' && (
             <p className="mb-4">
               <a
-                href={hablarUrl}
+                href={`${hablarUrl}?utm_source=landing&utm_medium=bottom_cta`}
                 target="_blank"
                 rel="noopener noreferrer"
                 data-cta-source="bottom"

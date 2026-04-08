@@ -137,7 +137,8 @@ describe('HeroSection', () => {
 // ---------------------------------------------------------------------------
 
 describe('F093 — HeroSection hablarUrl CTA', () => {
-  const hablarUrl = 'https://hablar.nutrixplorer.com/hablar?utm_source=landing&utm_medium=hero_cta';
+  const hablarUrl = 'https://hablar.nutrixplorer.com/hablar';
+  const expectedHref = 'https://hablar.nutrixplorer.com/hablar?utm_source=landing&utm_medium=hero_cta';
 
   beforeEach(() => {
     mockTrackEvent.mockClear();
@@ -154,7 +155,7 @@ describe('F093 — HeroSection hablarUrl CTA', () => {
     render(
       <HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} hablarUrl={hablarUrl} />
     );
-    expect(screen.getByRole('link', { name: /pruébalo ahora/i })).toHaveAttribute('href', hablarUrl);
+    expect(screen.getByRole('link', { name: /pruébalo ahora/i })).toHaveAttribute('href', expectedHref);
   });
 
   it('"Pruébalo ahora" link opens in new tab', () => {
