@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F113 | Standard | in-progress | — | Step 3/6 — Implement |
+| F113 | Standard | in-progress | — | Step 4/6 — Finalize |
 | F093 | Standard | pending | — | Web Assistant: Landing Integration + Analytics |
 | F092 | Standard | pending | — | Web Assistant: Plate Photo Upload |
 
