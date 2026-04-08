@@ -1,7 +1,7 @@
 # F093: Web Assistant — Landing Integration + Analytics
 
 **Feature:** F093 | **Type:** Frontend-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F093-landing-web-integration
+**Status:** Ready for Merge | **Branch:** feature/F093-landing-web-integration
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-08 | **Dependencies:** F090 (web assistant /hablar), F112 (web usage metrics), F060 (GA4 landing integration)
 
@@ -664,22 +664,22 @@ Follow Red-Green-Refactor for each step. Write the failing test first, then impl
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] No linting errors
-- [ ] Build succeeds (landing and web packages)
-- [ ] Visual coherence verified (CTAs match design system)
+- [x] All acceptance criteria met (12/12 verified by QA)
+- [x] Unit tests written and passing (737 landing + 167 web)
+- [x] No linting errors
+- [x] Build succeeds (landing and web packages)
+- [x] Visual coherence verified (CTAs match design system)
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 0: Spec created, reviewed
+- [x] Step 0: Spec created, reviewed
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: Plan created, reviewed
 - [x] Step 3: Implementation complete
 - [x] Step 4: Quality gates pass, committed
-- [ ] Step 5: PR, code-review-specialist, qa-engineer executed
+- [x] Step 5: PR #89, code-review-specialist (APPROVED WITH NOTES — UTM fix applied), qa-engineer (21 edge-case tests)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -692,6 +692,9 @@ Follow Red-Green-Refactor for each step. Write the failing test first, then impl
 | 2026-04-08 | Spec review | Reviewed by Gemini + Codex. 2 CRITICAL + 5 IMPORTANT + 3 SUGGESTION. All addressed: HeaderCTA extraction, UTM per-component, variant prop threading, fallback clarification, dataLayer queue, cross-domain wording, Script component, trailing slash, useSearchParams |
 | 2026-04-08 | Step 2: Plan | Plan written by frontend-planner agent. 13 implementation steps. |
 | 2026-04-08 | Plan review | Reviewed by Gemini + Codex. 1 CRITICAL + 5 IMPORTANT + 2 SUGGESTION. All addressed: dataLayer init pattern, null→undefined prop conversion, no analytics on fallback clicks, variant prop for WaitlistCTA, payload type mapping, spec/plan gtag→dataLayer consistency |
+| 2026-04-08 | Step 3: Implement | 13 steps implemented with TDD. HeaderCTA, HablarAnalytics new components. GA4 script injection with ID validation. |
+| 2026-04-08 | Step 4: Finalize | Tests: 737/742 landing + 167/167 web. Lint: clean. Build: both pass. Production validator: APPROVED (1 GA_ID fix applied). |
+| 2026-04-08 | Step 5: Review | PR #89. Code review: APPROVED WITH NOTES (2 UTM gaps fixed). QA: 21 edge-case tests, 1 low-severity test data bug (BUG-F093-01). |
 
 ---
 
