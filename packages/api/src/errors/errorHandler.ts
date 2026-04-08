@@ -129,6 +129,20 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // CHAIN_NOT_FOUND — reverse-search chain slug not found (BUG-AUDIT-C1C3)
+  if (asAny['code'] === 'CHAIN_NOT_FOUND') {
+    return {
+      statusCode: 404,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'CHAIN_NOT_FOUND',
+        },
+      },
+    };
+  }
+
   // NOT_FOUND — resource not found (e.g. restaurantId or sourceId not in DB)
   if (asAny['code'] === 'NOT_FOUND') {
     return {

@@ -7,6 +7,7 @@ vi.mock('../estimation/reverseSearch.js', () => ({
   reverseSearchDishes: vi.fn(),
 }));
 
+import { registerErrorHandler } from '../errors/errorHandler.js';
 import { reverseSearchRoutes } from '../routes/reverseSearch.js';
 import { reverseSearchDishes } from '../estimation/reverseSearch.js';
 
@@ -28,6 +29,7 @@ const mockPrisma = {
 
 beforeAll(async () => {
   app = Fastify();
+  registerErrorHandler(app);
   await app.register(reverseSearchRoutes, { db: mockDb, prisma: mockPrisma });
   await app.ready();
 });
@@ -113,7 +115,7 @@ describe('GET /reverse-search', () => {
 
     expect(res.statusCode).toBe(404);
     const body = JSON.parse(res.payload);
-    expect(body.code).toBe('CHAIN_NOT_FOUND');
+    expect(body.error.code).toBe('CHAIN_NOT_FOUND');
   });
 
   it('returns 200 with empty results when no dishes match', async () => {
