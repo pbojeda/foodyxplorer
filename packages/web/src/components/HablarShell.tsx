@@ -72,10 +72,10 @@ export function HablarShell() {
       if (err instanceof ApiError) {
         if (err.code === 'RATE_LIMIT_EXCEEDED') {
           setError('Has alcanzado el límite diario de 50 consultas. Vuelve mañana.');
+        } else if (err.code === 'TIMEOUT_ERROR') {
+          setError('La consulta ha tardado demasiado. Inténtalo de nuevo.');
         } else if (err.code === 'NETWORK_ERROR') {
-          setError(err.message.includes('Sin conexión')
-            ? err.message
-            : 'Sin conexión. Comprueba tu red.');
+          setError('Sin conexión. Comprueba tu red.');
         } else {
           setError(err.message || 'Algo salió mal. Inténtalo de nuevo.');
         }
