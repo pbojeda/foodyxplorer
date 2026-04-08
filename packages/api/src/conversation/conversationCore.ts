@@ -158,8 +158,9 @@ export async function processMessage(
           reverseSearch,
           activeContext,
         };
-      } catch {
-        // DB failure — return intent without data (graceful degradation)
+      } catch (err) {
+        // DB failure — log and return intent without data (graceful degradation)
+        logger.warn({ err }, 'F086: reverse search DB query failed, returning intent without data');
         return {
           intent: 'reverse_search',
           actorId,

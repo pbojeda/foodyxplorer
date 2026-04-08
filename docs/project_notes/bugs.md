@@ -426,4 +426,4 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Root Cause**: `conversationCore.ts:148` calls `reverseSearchDishes(db, {...})` wrapped in a `catch` block (line 161) that silently swallows the error. The actual DB error is unknown — possibly a Kysely instance mismatch between conversation and reverse-search routes.
 - **Solution**: Add error logging in the catch block. Investigate whether the Kysely `db` instance is the same singleton. Fix the underlying query/instance issue.
 - **Prevention**: Never use empty `catch` blocks — always log the error. Add integration tests exercising reverse_search via conversation endpoint.
-- **Feature**: F086 | **Found by**: Phase B Audit (Punto 4) | **Severity**: Medium | **Status**: Pending fix
+- **Feature**: F086 | **Found by**: Phase B Audit (Punto 4) | **Severity**: Medium | **Status**: Fixed (PR #84)
