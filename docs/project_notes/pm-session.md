@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F093 | Standard | in-progress | — | Step 2/6 — Plan |
+| F093 | Standard | in-progress | — | Step 4/6 — Finalize |
 | F092 | Standard | pending | — | Web Assistant: Plate Photo Upload |
 
 ## Completed Features

@@ -10,7 +10,7 @@
 
 **Last Updated:** 2026-04-08
 
-**Active Feature:** F093 — Web Assistant: Landing Integration + Analytics | Step 3/6 (Implementation complete — awaiting quality gates) | Standard | Branch: feature/F093-landing-web-integration
+**Active Feature:** F093 — Web Assistant: Landing Integration + Analytics | Step 4/6 (Finalize) | Standard | Branch: feature/F093-landing-web-integration
 **PM Session:** pm-uf3 (L5 PM Autonomous) — Batch: F113, F093, F092
 **Last Completed:** F112 — Web Assistant Usage Metrics. PR #87 squash-merged to develop (356609f).
 
@@ -227,7 +227,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F090 | Web Assistant: Shell + Text Mode (/hablar) | frontend | done | 6/6 | Standard. **Creates new `packages/web` package** (separate from landing). Next.js route /hablar. ConversationCore integration. Text input → JSON response → NutritionCard UI. Design: see hablar-design-guidelines.md. 119 tests, next build passes. |
 | F091 | Web Assistant: Async Voice (STT → Core → TTS) | frontend | pending | — | Standard. Whisper transcription → ConversationCore → TTS response. Push-to-talk UX. Async, not realtime |
 | F092 | Web Assistant: Plate Photo Upload | frontend | pending | — | Standard. Photo → existing /analyze/menu pipeline → results in UI. Reuses existing Vision API infrastructure |
-| F093 | Web Assistant: Landing Integration + Analytics | frontend | in-progress | 2/6 | Standard. CTA from landing → /hablar. Analytics events. Visual coherence with landing design system |
+| F093 | Web Assistant: Landing Integration + Analytics | frontend | in-progress | 4/6 | Standard. CTA from landing → /hablar. Analytics events. Visual coherence with landing design system |
 | F094 | Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud | research | pending | — | Research. Compare: Web Speech API (free), Whisper.cpp/Transformers.js (browser), Deepgram (cloud), OpenAI Realtime (cloud). Decide architecture for F095-F097. See product-evolution-analysis "OPEN INVESTIGATION" section |
 | F095 | Realtime Voice: Implement Chosen Architecture | frontend | pending | — | Standard. Based on F094 spike results. WebSocket/WebRTC server if needed. STT streaming + VAD |
 | F096 | Realtime Voice: Pause Detection + Barge-In + Filler | frontend | pending | — | Standard. End-of-speech detection, interruption handling, filler audio for L4 delays ("Déjame calcular...") |
