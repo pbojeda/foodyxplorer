@@ -5,6 +5,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MobileMenu } from '@/components/MobileMenu';
+import * as analytics from '@/lib/analytics';
 
 jest.mock('next/link', () => {
   return function MockLink({
@@ -20,15 +21,29 @@ jest.mock('next/link', () => {
   };
 });
 
+jest.mock('@/lib/analytics', () => ({
+  trackEvent: jest.fn(),
+  getUtmParams: jest.fn(() => ({})),
+}));
+
+const mockTrackEvent = analytics.trackEvent as jest.MockedFunction<typeof analytics.trackEvent>;
+
 const NAV_LINKS = [
   { label: 'Demo', href: '#demo' },
   { label: 'Cómo funciona', href: '#como-funciona' },
   { label: 'FAQ', href: '#faq' },
 ];
 
-function setup() {
+function setup(overrides: Partial<React.ComponentProps<typeof MobileMenu>> = {}) {
   return render(
-    <MobileMenu navLinks={NAV_LINKS} ctaText="Probar gratis" mobileCta="Probar" />
+    <MobileMenu
+      navLinks={NAV_LINKS}
+      ctaText="Probar gratis"
+      mobileCta="Probar"
+      ctaHref="#waitlist"
+      variant="a"
+      {...overrides}
+    />
   );
 }
 
@@ -190,5 +205,72 @@ describe('F064 — MobileMenu dynamic aria-label and focus management', () => {
     await user.click(screen.getByText('Demo'));
     const btn = screen.queryByRole('button', { name: 'Abrir menú' });
     expect(document.activeElement).not.toBe(btn);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F093 — ctaHref + variant props, analytics on CTA click
+// ---------------------------------------------------------------------------
+
+describe('F093 — MobileMenu ctaHref and analytics', () => {
+  beforeEach(() => {
+    mockTrackEvent.mockClear();
+  });
+
+  it('uses ctaHref prop as href on the mobile CTA link', async () => {
+    const user = userEvent.setup();
+    setup({ ctaHref: '#waitlist' });
+    await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    const cta = screen.getByText('Probar');
+    expect(cta.closest('a')).toHaveAttribute('href', '#waitlist');
+  });
+
+  it('sets target="_blank" and rel="noopener noreferrer" when ctaHref is external', async () => {
+    const user = userEvent.setup();
+    setup({ ctaHref: 'https://hablar.nutrixplorer.com/hablar?utm_source=landing&utm_medium=header_cta' });
+    await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    const cta = screen.getByText('Probar').closest('a');
+    expect(cta).toHaveAttribute('target', '_blank');
+    expect(cta).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('does NOT set target="_blank" when ctaHref is #waitlist', async () => {
+    const user = userEvent.setup();
+    setup({ ctaHref: '#waitlist' });
+    await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    const cta = screen.getByText('Probar').closest('a');
+    expect(cta).not.toHaveAttribute('target', '_blank');
+  });
+
+  it('fires cta_hablar_click with source="header" when external ctaHref is clicked', async () => {
+    const user = userEvent.setup();
+    const externalHref = 'https://hablar.nutrixplorer.com/hablar?utm_source=landing&utm_medium=header_cta';
+    setup({ ctaHref: externalHref, variant: 'a' });
+    await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    await user.click(screen.getByText('Probar'));
+    expect(mockTrackEvent).toHaveBeenCalledWith({
+      event: 'cta_hablar_click',
+      source: 'header',
+      variant: 'a',
+      lang: 'es',
+      utm_medium: 'header_cta',
+    });
+  });
+
+  it('does NOT fire trackEvent when ctaHref is #waitlist', async () => {
+    const user = userEvent.setup();
+    setup({ ctaHref: '#waitlist' });
+    await user.click(screen.getByRole('button', { name: 'Abrir menú' }));
+    await user.click(screen.getByText('Probar'));
+    expect(mockTrackEvent).not.toHaveBeenCalled();
+  });
+
+  it('closes the menu after CTA click', async () => {
+    const user = userEvent.setup();
+    setup({ ctaHref: '#waitlist' });
+    const hamburger = screen.getByRole('button', { name: 'Abrir menú' });
+    await user.click(hamburger);
+    await user.click(screen.getByText('Probar'));
+    expect(hamburger).toHaveAttribute('aria-expanded', 'false');
   });
 });

@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { MobileMenu } from '@/components/MobileMenu';
+import { HeaderCTA } from '@/components/HeaderCTA';
+import type { Variant } from '@/types';
 
 const NAV_LINKS = [
   { label: 'Demo', href: '#demo' },
@@ -10,12 +12,21 @@ const NAV_LINKS = [
 const WAITLIST_CTA = 'Probar gratis';
 const MOBILE_CTA_TEXT = 'Probar';
 
+interface SiteHeaderProps {
+  hablarBaseUrl: string | null;
+  variant: Variant;
+}
+
 /**
  * Sticky top navigation header.
  * Server Component — no interactivity needed.
- * MobileMenu is a separate Client Component for the hamburger toggle.
+ * MobileMenu and HeaderCTA are separate Client Components.
  */
-export function SiteHeader() {
+export function SiteHeader({ hablarBaseUrl, variant }: SiteHeaderProps) {
+  const ctaHref = hablarBaseUrl
+    ? `${hablarBaseUrl}?utm_source=landing&utm_medium=header_cta`
+    : '#waitlist';
+
   return (
     <header className="sticky top-0 z-40 border-b border-white/60 bg-paper/78 backdrop-blur-xl">
       <div className="section-shell flex h-16 items-center justify-between gap-6">
@@ -40,16 +51,17 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <a
-            href="#waitlist"
-            className="rounded-full bg-botanical px-4 py-2 text-sm font-semibold text-white transition hover:scale-[1.02]"
-          >
-            {WAITLIST_CTA}
-          </a>
+          <HeaderCTA hablarBaseUrl={hablarBaseUrl} variant={variant} />
         </div>
 
         {/* Mobile hamburger menu — Client Component */}
-        <MobileMenu navLinks={NAV_LINKS} ctaText={WAITLIST_CTA} mobileCta={MOBILE_CTA_TEXT} />
+        <MobileMenu
+          navLinks={NAV_LINKS}
+          ctaText={WAITLIST_CTA}
+          mobileCta={MOBILE_CTA_TEXT}
+          ctaHref={ctaHref}
+          variant={variant}
+        />
       </div>
     </header>
   );
