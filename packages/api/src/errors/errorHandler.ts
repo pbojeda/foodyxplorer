@@ -69,8 +69,38 @@ export function mapError(error: Error): MappedError {
     };
   }
 
-  // Fastify schema validation error
+  // Fastify schema validation error / body parsing errors
   const asAny = error as unknown as Record<string, unknown>;
+
+  // SyntaxError — malformed JSON body (BUG-AUDIT-C4)
+  // Check both instanceof and statusCode+message since Fastify may wrap the error
+  if (error instanceof SyntaxError || asAny['statusCode'] === 400 && error.message.includes('JSON')) {
+    return {
+      statusCode: 400,
+      body: {
+        success: false,
+        error: {
+          message: 'Invalid JSON in request body',
+          code: 'VALIDATION_ERROR',
+        },
+      },
+    };
+  }
+
+  // FST_ERR_CTP_EMPTY_JSON_BODY — POST with no body (BUG-AUDIT-C4)
+  if (asAny['code'] === 'FST_ERR_CTP_EMPTY_JSON_BODY') {
+    return {
+      statusCode: 400,
+      body: {
+        success: false,
+        error: {
+          message: 'Request body is required',
+          code: 'VALIDATION_ERROR',
+        },
+      },
+    };
+  }
+
   if (asAny['code'] === 'FST_ERR_VALIDATION') {
     return {
       statusCode: 400,
