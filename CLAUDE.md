@@ -4,7 +4,7 @@
 ## Claude-Specific Configuration
 
 <!-- CONFIG: Set your preferred autonomy level (1-5). See base-standards.mdc § Autonomy Levels for definitions. -->
-**Autonomy Level: 2 (Trusted)**
+**Autonomy Level: 5 (PM Autonomous)**
 
 <!-- CONFIG: Set branching strategy in docs/project_notes/key_facts.md (github-flow or gitflow) -->
 

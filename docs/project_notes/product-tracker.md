@@ -10,9 +10,13 @@
 
 **Last Updated:** 2026-04-08
 
-**Active Feature:** No active work
-**Last Completed:** All 3 Phase B audit bugfixes done (C1C3 PR #82, C4 PR #83, C5 PR #84)
-**Last Completed:** Phase B Audit (Puntos 1-5) — all 5 audit steps done
+**Active Feature:** F090 — Web Assistant: Shell + Text Mode (/hablar)
+**Step:** 4/6 (Finalize) — completed, moving to Step 5 (Review)
+**Branch:** `feature/F090-web-assistant-hablar`
+**Complexity:** Standard
+**Ticket:** `docs/tickets/F090-web-assistant-hablar.md`
+**PM Session:** pm-c3a (L5 PM Autonomous)
+**Last Completed:** F090 Step 3 implementation complete — 119 tests pass, next build succeeds
 
 **Phase B Audit Summary (2026-04-07 to 2026-04-08):**
 - Punto 1: Manuals updated (bot §20-23, API §20-21) ✓
@@ -169,7 +173,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 |------|------|--------|----------|--------------|
 | E006 | Structural Foundations | in-progress | F068-F070 | Phase 1 complete |
 | E007 | Spanish Food Coverage | pending | F071-F079 | E006 complete |
-| E008 | Conversational Assistant & Voice | in-progress | F080-F089, F090-F097 | E006 + E007 partial |
+| E008 | Conversational Assistant & Voice | in-progress | F080-F089, F090-F097, F111-F112 | E006 + E007 partial |
 | E009 | Personalization & Tracking | pending | F098-F099, user profiles | E008 partial |
 | E010 | Scale & Monetization | pending | F100-F109 | E008 complete |
 
@@ -224,7 +228,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F090 | Web Assistant: Shell + Text Mode (/hablar) | frontend | pending | — | Standard. Next.js route /hablar. ConversationCore integration. Text input → JSON response → NutritionCard UI. See conversational-mode-briefing.md + development-plan.md in foodXPlorerResources |
+| F090 | Web Assistant: Shell + Text Mode (/hablar) | frontend | in-progress | 4/6 | Standard. **Creates new `packages/web` package** (separate from landing). Next.js route /hablar. ConversationCore integration. Text input → JSON response → NutritionCard UI. Design: see hablar-design-guidelines.md. 119 tests, next build passes. |
 | F091 | Web Assistant: Async Voice (STT → Core → TTS) | frontend | pending | — | Standard. Whisper transcription → ConversationCore → TTS response. Push-to-talk UX. Async, not realtime |
 | F092 | Web Assistant: Plate Photo Upload | frontend | pending | — | Standard. Photo → existing /analyze/menu pipeline → results in UI. Reuses existing Vision API infrastructure |
 | F093 | Web Assistant: Landing Integration + Analytics | frontend | pending | — | Simple. CTA from landing → /hablar. Analytics events. Visual coherence with landing design system |
@@ -232,6 +236,8 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F095 | Realtime Voice: Implement Chosen Architecture | frontend | pending | — | Standard. Based on F094 spike results. WebSocket/WebRTC server if needed. STT streaming + VAD |
 | F096 | Realtime Voice: Pause Detection + Barge-In + Filler | frontend | pending | — | Standard. End-of-speech detection, interruption handling, filler audio for L4 delays ("Déjame calcular...") |
 | F097 | Realtime Voice: Frontend States + Mobile QA | frontend | pending | — | Standard. Listening/Processing/Speaking/Results states. Mobile-first QA. Accessibility fallbacks |
+| F111 | Web Package CI/CD Pipeline | infra | pending | — | Simple. Add `packages/web` to root workspaces. Add `test-web` job to ci.yml (no DB/Redis needed). Create `deploy-web.yml` for Vercel (separate project from landing). Update key_facts.md with new package. Depends on F090 |
+| F112 | Web Assistant Usage Metrics | frontend | pending | — | Simple. Track conversation counts, voice vs text ratio, response times, intent distribution. Integration with Vercel Analytics or custom events. Dashboard or export. Depends on F090 |
 
 ## Features — E009 Personalization & Tracking (Phase C continued)
 
