@@ -77,6 +77,7 @@ Complexity and Autonomy Level combine to determine the effective workflow overhe
 | Standard + L3-4 | Fast execution, quality gates + QA still enforced |
 | Complex + L1 | Full ceremony (all checkpoints + QA + ADR) |
 | Complex + L3-4 | Fast but with QA engineer + ADR |
+| Any + L5 | Same as L4 per feature, but PM Orchestrator auto-sequences features via `start pm` |
 
 **Note:** The user can override the autonomy level per-task. E.g., "use level 1 for this task" forces all checkpoints regardless of the project-level setting.
 

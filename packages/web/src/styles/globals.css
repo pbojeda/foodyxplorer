@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   CSS custom properties — brand tokens
+--------------------------------------------------------------------------- */
+
+:root {
+  --color-botanical: #2d5a27;
+  --color-energy: #ff8c42;
+  --color-ivory: #fdfbf7;
+  --color-paper: #f7f7f2;
+  --color-mist: #eef4ec;
+  --color-accent-gold: #d4a843;
+  --color-dark-bg: #0f172a;
+}
+
+/* ---------------------------------------------------------------------------
+   Base — html/body defaults for /hablar shell
+--------------------------------------------------------------------------- */
+
+html {
+  height: -webkit-fill-available;
+}
+
+body {
+  background-color: #ffffff;
+  color: #334155; /* slate-700 */
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   @keyframes card-enter — entrance animation for NutritionCard
+   Each card fades in and slides up 12px over 0.35s.
+   nth-child stagger (up to 3 cards, then repeats last delay).
+--------------------------------------------------------------------------- */
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-enter {
+  animation: card-enter 0.35s ease-out both;
+}
+
+/* Stagger per card position (up to 3) */
+.card-enter:nth-child(1) {
+  animation-delay: 0s;
+}
+.card-enter:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.card-enter:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.card-enter:nth-child(n + 4) {
+  animation-delay: 0.16s;
+}
+
+/* ---------------------------------------------------------------------------
+   @keyframes shimmer — skeleton loading animation
+--------------------------------------------------------------------------- */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-element {
+  background: linear-gradient(
+    90deg,
+    #f1f5f9 25%,
+    #e2e8f0 50%,
+    #f1f5f9 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   prefers-reduced-motion — disable all animations when requested
+--------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .card-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .shimmer-element {
+    animation: none;
+    background: #f1f5f9;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

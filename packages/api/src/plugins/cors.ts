@@ -27,9 +27,10 @@ export async function registerCors(
 
   if (config.NODE_ENV === 'development') {
     await app.register(cors, {
-      origin: ['http://localhost:3000', 'http://localhost:5173'],
+      origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:3002'],
       methods: ALLOWED_METHODS,
       allowedHeaders: ALLOWED_HEADERS,
+      exposedHeaders: ['X-Actor-Id'],
     });
     return;
   }
@@ -52,5 +53,6 @@ export async function registerCors(
     origin: origins.length > 0 ? origins : false,
     methods: ALLOWED_METHODS,
     allowedHeaders: ALLOWED_HEADERS,
+    exposedHeaders: ['X-Actor-Id'],
   });
 }

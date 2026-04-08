@@ -683,3 +683,362 @@ Contains `DISHES` array (10 pre-loaded dishes), `Dish` type, `getConfidenceBadge
 - `restaurants`: eyebrow, headline, subtitle, items[]
 - `audienceGrid`: eyebrow, headline
 
+---
+
+## Web Package — nutriXplorer (/hablar, F090)
+
+**Package:** `packages/web/` | **Stack:** Next.js 15 App Router + TypeScript strict + Tailwind CSS (no Framer Motion)
+**Route:** `/hablar` (single route for F090)
+**Deploy:** Render (independent from landing) | **All code in English, user-facing copy in Spanish**
+**Design reference:** `docs/specs/hablar-design-guidelines.md`
+
+### Component Hierarchy
+
+```
+app/hablar/page.tsx (Server Component — metadata, shell render)
+└── HablarShell (Client Component — owns all state)
+    ├── AppBar
+    ├── ResultsArea
+    │   ├── EmptyState          (initial load, no results)
+    │   ├── LoadingState        (API in flight — skeleton cards)
+    │   ├── ErrorState          (API error or network failure)
+    │   └── [NutritionCard...]  (results)
+    │       ├── ConfidenceBadge
+    │       └── [AllergenChip...]
+    └── ConversationInput (fixed bottom)
+        ├── <textarea>
+        ├── PhotoButton         (disabled placeholder)
+        ├── MicButton           (disabled placeholder)
+        └── SubmitButton        (visible when text present)
+```
+
+### HablarShell
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+**File:** `src/components/HablarShell.tsx`
+
+Top-level orchestrator component. Manages all page state and coordinates API calls.
+
+**Props:** None
+
+**State:**
+- `query: string` — current textarea value
+- `isLoading: boolean` — API request in flight
+- `results: ConversationMessageData | null` — last successful API response
+- `error: ErrorType | null` — discriminated error type (api | network | rate_limit | too_long)
+
+**Interactions:**
+- Submit (button click or Cmd+Enter): call `sendMessage(query, actorId)`, set `isLoading: true`, clear previous results/error
+- On response: set `results`, `isLoading: false`
+- On error: set `error`, `isLoading: false`
+- Retry button in ErrorState: re-submits last query
+
+**Layout:**
+```
+h-[100dvh] flex flex-col bg-white
+├── AppBar (52px, optional)
+├── ResultsArea (flex-1, overflow-y-auto, pb-[84px])
+└── ConversationInput (fixed bottom-0)
+```
+
+### ConversationInput
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+**File:** `src/components/ConversationInput.tsx`
+
+Fixed bottom input bar. Contains textarea + action buttons. Safe-area aware for iOS.
+
+**Props:**
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| value | `string` | Yes | Controlled textarea value |
+| onChange | `(v: string) => void` | Yes | Text change handler |
+| onSubmit | `() => void` | Yes | Submit handler |
+| isLoading | `boolean` | Yes | Disables submit and textarea during API call |
+| inlineError | `string \| null` | Yes | Inline error text (e.g. for text_too_long); null = no error |
+
+**Styling:**
+```
+fixed bottom-0 left-0 right-0
+bg-white border-t border-slate-200
+px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))]
+backdrop-blur-sm
+```
+
+**Interactions:**
+- `Enter` → submit (all devices; universal pattern, no mobile heuristic)
+- `Shift+Enter` → newline (does not submit)
+- Submit button click → submit
+- `textarea` auto-resizes up to 3 lines
+
+### MicButton
+
+**Type:** Primitive | **Client:** No
+**File:** `src/components/MicButton.tsx`
+
+Voice trigger placeholder for F091. Visible but fully disabled in F090.
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| disabled | `boolean` | No | `true` | Always true in F090 |
+| size | `'sm' \| 'lg'` | No | `'sm'` | 48px (sm) or 80px (lg, overlay variant) |
+
+**Styling (F090 disabled state):**
+```
+rounded-full w-12 h-12 bg-slate-300 text-slate-400
+cursor-not-allowed opacity-60
+```
+
+**Accessibility:** `aria-label="Micrófono (próximamente)"` `title="Próximamente"` `disabled`
+
+### PhotoButton
+
+**Type:** Primitive | **Client:** No
+**File:** `src/components/PhotoButton.tsx`
+
+Photo upload placeholder for F092. Visible but fully disabled in F090.
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| disabled | `boolean` | No | `true` | Always true in F090 |
+
+**Styling:**
+```
+rounded-xl w-12 h-12 border border-slate-200 bg-white text-slate-400
+cursor-not-allowed opacity-60
+```
+
+**Accessibility:** `aria-label="Foto (próximamente)"` `title="Próximamente"` `disabled`
+
+### SubmitButton
+
+**Type:** Primitive | **Client:** No
+**File:** `src/components/SubmitButton.tsx`
+
+Primary text submit action. Visible only when query is non-empty.
+
+**Props:**
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| onSubmit | `() => void` | Yes | Submit handler |
+| isLoading | `boolean` | Yes | Disables button when true |
+
+**Styling:**
+```
+rounded-xl w-12 h-12 bg-brand-orange text-white shadow-soft
+hover:opacity-90 active:scale-[0.98] transition-all duration-200
+disabled:opacity-40 disabled:pointer-events-none
+```
+
+**Accessibility:** `aria-label="Buscar"` `type="submit"`
+
+### NutritionCard
+
+**Type:** Feature | **Client:** No
+**File:** `src/components/NutritionCard.tsx`
+
+Primary result display unit. One card per resolved dish/food item.
+
+**Props:**
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| name | `string` | Yes | Dish/food display name |
+| calories | `number` | Yes | kcal value |
+| nutrients | `{ proteins: number; carbohydrates: number; fats: number; fiber?: number }` | Yes | Macro values |
+| confidence | `'high' \| 'medium' \| 'low'` | Yes | For ConfidenceBadge |
+| allergens | `string[]` | No | Allergen names; row hidden if empty/absent |
+| source | `{ name: string; url?: string \| null }` | No | Attribution footer |
+| index | `number` | No | Card index for stagger animation delay |
+
+**Sections:**
+- Header row: `name` (text-lg font-bold text-slate-800) + `<ConfidenceBadge confidence={confidence}>` (right)
+- Calorie block: `calories` in `text-[28px] font-extrabold text-brand-orange` + "KCAL" label
+- Macros row: Proteínas (brand-green) / Carbohidratos (amber) / Grasas (slate) — each `value text-lg font-bold` + `label text-[11px] uppercase`
+- Allergens row: conditional, `flex flex-wrap gap-1.5`, `<AllergenChip>` per item
+- Source footer: `border-t border-slate-100 text-[11px] text-slate-400`
+
+**Animation:** CSS `card-enter` class (defined in `globals.css`). Uses `animationDelay: ${index * 0.08}s` inline style for stagger.
+
+**Accessibility:** `<article aria-label="{name}: {calories} calorías">`
+
+### ConfidenceBadge
+
+**Type:** Primitive | **Client:** No
+**File:** `src/components/ConfidenceBadge.tsx`
+
+**Props:**
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| level | `'high' \| 'medium' \| 'low'` | Yes | Determines color and Spanish label |
+
+**Variants:**
+- `high` → `bg-emerald-50 text-emerald-800 border-emerald-200` — "Verificado"
+- `medium` → `bg-amber-50 text-amber-800 border-amber-200` — "Estimado"
+- `low` → `bg-rose-50 text-rose-800 border-rose-200` — "Aproximado"
+
+**Styling:** `inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold border`
+
+### AllergenChip
+
+**Type:** Primitive | **Client:** No
+**File:** `src/components/AllergenChip.tsx`
+
+**Props:**
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| allergen | `string` | Yes | Allergen display name |
+
+**Styling:** `inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 text-[11px] font-semibold`
+
+**Icon:** Small ⚠ SVG (12px) or unicode character fallback.
+
+### LoadingState
+
+**Type:** Feature | **Client:** No
+**File:** `src/components/LoadingState.tsx`
+
+1–3 skeleton cards while API call is in flight. Mirrors NutritionCard dimensions.
+
+**Props:** None
+
+**Accessibility:** `role="status" aria-label="Buscando información nutricional..."` — skeleton cards are `aria-hidden="true"`
+
+**Skeleton elements (per card):**
+- Title bar: `h-5 w-48 rounded-lg bg-slate-100 animate-shimmer`
+- Calorie block: `h-9 w-24 rounded-lg bg-slate-100 animate-shimmer`
+- Macro row: 3× `h-6 w-16 rounded-lg bg-slate-100 animate-shimmer`
+
+**Animation:** `shimmer` keyframe defined in `globals.css` (see design guidelines §7.4). Disabled under `prefers-reduced-motion: reduce` (static `bg-slate-100`).
+
+### EmptyState
+
+**Type:** Feature | **Client:** No
+**File:** `src/components/EmptyState.tsx`
+
+Shown on first load before any query is submitted.
+
+**Props:** None
+
+**Content:**
+- Headline: "¿Qué quieres saber?" (`text-[15px] font-medium text-slate-600 mt-4`)
+- Subtext: "Escribe el nombre de un plato para conocer sus calorías." (`text-sm text-slate-400 mt-1.5 max-w-[280px] text-center`)
+
+**Layout:** `flex flex-col items-center justify-center flex-1 px-8 text-center`
+
+### ErrorState
+
+**Type:** Feature | **Client:** No
+**File:** `src/components/ErrorState.tsx`
+
+Shown on API error or network failure.
+
+**Props:**
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| message | `string` | Yes | Context-sensitive Spanish error message |
+| onRetry | `() => void` | Yes | Retry handler — re-sends last query |
+
+**Copy examples (set by HablarShell):**
+- `500 / generic` → "Algo salió mal. Inténtalo de nuevo."
+- `NETWORK_ERROR` → "Sin conexión. Comprueba tu red."
+- `RATE_LIMIT_EXCEEDED` → "Has alcanzado el límite diario de 50 consultas. Vuelve mañana."
+- `text_too_long` → inline in ConversationInput (not this component)
+
+**Layout:** Same as EmptyState. Warning triangle SVG `text-red-400` (32px). "Intentar de nuevo" secondary button.
+
+### ContextConfirmation
+
+**Type:** Feature | **Client:** No
+**File:** `src/components/ContextConfirmation.tsx`
+
+Shown when intent is `context_set`. Displays a chain name confirmation or ambiguity message.
+
+**Props:**
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| contextSet | `{ chainSlug: string; chainName: string } \| undefined` | Yes | Chain that was set; undefined when ambiguous |
+| ambiguous | `boolean` | Yes | True when the chain was not uniquely resolved |
+
+**Variants:**
+- Confirmed: emerald-colored banner with "Contexto activo: [chainName]"
+- Ambiguous: amber-colored banner with "No encontré ese restaurante. Prueba con el nombre exacto."
+
+### ResultsArea
+
+**Type:** Feature | **Client:** No
+**File:** `src/components/ResultsArea.tsx`
+
+Routes display to the correct component based on intent. Applies the responsive card grid.
+
+**Props:**
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| isLoading | `boolean` | Yes | Shows LoadingState when true |
+| results | `ConversationMessageData \| null` | Yes | Last successful API response data |
+| error | `string \| null` | Yes | Error message (shows ErrorState when set) |
+| onRetry | `() => void` | Yes | Passed to ErrorState retry button |
+
+**Intent routing:**
+- `null` + not loading → EmptyState
+- loading → LoadingState
+- error → ErrorState
+- `estimation` → 1× NutritionCard
+- `comparison` → 2× NutritionCard (side by side on tablet+)
+- `menu_estimation` → N× NutritionCard (one per item; totals card deferred to F093)
+- `context_set` → ContextConfirmation
+- `reverse_search` → N× NutritionCard from results; empty message if 0 results
+- `text_too_long` → EmptyState (inline error is in ConversationInput)
+
+**Layout:** `grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:max-w-2xl lg:mx-auto`
+
+### Data Layer
+
+#### `src/lib/actorId.ts`
+Manages anonymous actor UUID lifecycle.
+
+Exports:
+- `getActorId(): string` — reads from `localStorage['nxi_actor_id']`; generates + persists a new `crypto.randomUUID()` if absent; falls back to in-memory UUID if `localStorage` throws (SSR, private browsing, quota exceeded).
+- `persistActorId(id: string): void` — writes to `localStorage['nxi_actor_id']`; no-op on error.
+
+#### `src/lib/apiClient.ts`
+Typed fetch wrapper for `POST /conversation/message`.
+
+Exports:
+- `sendMessage(text: string, actorId: string, signal?: AbortSignal): Promise<ConversationMessageResponse>`
+  - Reads `NEXT_PUBLIC_API_URL` for base URL (throws descriptive error if unset)
+  - Sets `Content-Type: application/json`, `X-Actor-Id`, `X-FXP-Source: web` headers
+  - Applies 15-second hard timeout via `AbortSignal.any([signal, AbortSignal.timeout(15000)])` (or `AbortSignal.timeout(15000)` when no external signal)
+  - Reads `X-Actor-Id` from response headers and calls `persistActorId` when it differs
+  - Throws `ApiError` on non-2xx responses and malformed JSON; re-throws `DOMException(AbortError)` directly
+- `ApiError` — typed error class with `.code: string` and `.status: number | undefined`
+
+Imports response types from `@foodxplorer/shared` — no type duplication.
+
+### CSS Animations (globals.css additions)
+
+```css
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card-enter {
+  animation: card-enter 0.35s ease-out forwards;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, #f1f5f9 0px, #e2e8f0 40px, #f1f5f9 80px);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-enter { animation: none; opacity: 1; transform: none; }
+  .animate-shimmer { animation: none; background: #f1f5f9; }
+}
+```

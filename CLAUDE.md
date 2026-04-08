@@ -3,8 +3,8 @@
 
 ## Claude-Specific Configuration
 
-<!-- CONFIG: Set your preferred autonomy level (1-4). See base-standards.mdc § Autonomy Levels for definitions. -->
-**Autonomy Level: 2 (Trusted)**
+<!-- CONFIG: Set your preferred autonomy level (1-5). See base-standards.mdc § Autonomy Levels for definitions. -->
+**Autonomy Level: 5 (PM Autonomous)**
 
 <!-- CONFIG: Set branching strategy in docs/project_notes/key_facts.md (github-flow or gitflow) -->
 
@@ -18,3 +18,4 @@ After context compaction or new session — BEFORE continuing work:
 4. If at Step 5 or later → read `references/merge-checklist.md` and check if the ticket's `## Merge Checklist Evidence` table needs to be filled
 5. Do NOT proceed past any checkpoint without user confirmation (respect autonomy level)
 6. If Active Session shows a pending checkpoint, ask before continuing
+7. If L5 (PM Autonomous) and `docs/project_notes/pm-session.md` exists → read it and run `continue pm` to resume the PM Orchestrator session
