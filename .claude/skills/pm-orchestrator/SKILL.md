@@ -77,6 +77,7 @@ For each feature in the batch:
 - **Kill switch**: If `docs/project_notes/pm-stop.md` exists → stop gracefully (go to Shutdown).
 - **Lock**: If `docs/project_notes/pm-session.lock` is missing → stop (session was terminated externally).
 - **Circuit breaker**: If 3 consecutive features are `blocked` → stop and report to user.
+- **Context check**: If **2+ features have been completed** in this session, STOP and tell the user to run `/compact` followed by `continue pm`. Do NOT continue to the next feature — context degradation causes skipped steps, lost constraints, and poor quality. This is mandatory, not a suggestion.
 - **Clean workspace**: Run `git status`. If dirty, commit or stash before proceeding.
 
 #### b. Start Feature
@@ -130,7 +131,7 @@ After each completed or blocked feature:
 2. If the current batch is exhausted and more eligible features remain:
    - Present the next 1-3 features to the user for complexity classification.
    - Add them to the batch in `pm-session.md`.
-3. If **3+ features completed** in this session → suggest the user run `/compact` before continuing (context may be getting heavy).
+3. If **2+ features completed** in this session → STOP and tell the user to run `/compact` followed by `continue pm`. This is mandatory — do not ask, do not continue.
 4. If max session limit reached (**5 features**) → stop and report.
 
 ### Phase 4: Shutdown
@@ -190,6 +191,7 @@ Completed: 2/3 | Blocked: 1/3 | Remaining: 0
 | Guardrail | Value | Rationale |
 |-----------|-------|-----------|
 | Max features per session | 5 | Model attention degrades after many iterations |
+| Mandatory compact after 2 features | STOP + `/compact` + `continue pm` | Context degradation causes skipped steps and lost constraints |
 | Consecutive failure circuit breaker | 3 | Prevent wasting resources on a systemic issue |
 | Kill switch | `pm-stop.md` or `stop pm` | User can always halt the loop |
 | Session lock | `pm-session.lock` | Prevents concurrent PM sessions |
