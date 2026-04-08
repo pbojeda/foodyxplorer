@@ -16,6 +16,7 @@ vi.mock('../estimation/reverseSearch.js', () => ({
   reverseSearchDishes: vi.fn(),
 }));
 
+import { registerErrorHandler } from '../errors/errorHandler.js';
 import { reverseSearchRoutes } from '../routes/reverseSearch.js';
 import { reverseSearchDishes } from '../estimation/reverseSearch.js';
 
@@ -38,6 +39,7 @@ const emptyResult = {
 
 beforeAll(async () => {
   app = Fastify();
+  registerErrorHandler(app);
   await app.register(reverseSearchRoutes, { db: mockDb, prisma: mockPrisma });
   await app.ready();
 });
@@ -288,7 +290,7 @@ describe('GET /reverse-search — chainSlug format validation', () => {
 // ---------------------------------------------------------------------------
 
 describe('GET /reverse-search — error response shapes', () => {
-  it('404 response has success:false, code:CHAIN_NOT_FOUND, message with chainSlug', async () => {
+  it('404 response has success:false, error.code:CHAIN_NOT_FOUND, error.message with chainSlug', async () => {
     (mockPrisma as { restaurant: { findFirst: ReturnType<typeof vi.fn> } })
       .restaurant.findFirst.mockResolvedValueOnce(null);
 
@@ -300,11 +302,11 @@ describe('GET /reverse-search — error response shapes', () => {
     expect(res.statusCode).toBe(404);
     const body = JSON.parse(res.payload);
     expect(body.success).toBe(false);
-    expect(body.code).toBe('CHAIN_NOT_FOUND');
-    expect(body.message).toContain('no-such-chain');
+    expect(body.error.code).toBe('CHAIN_NOT_FOUND');
+    expect(body.error.message).toContain('no-such-chain');
   });
 
-  it('400 response has success:false and error object', async () => {
+  it('400 response has success:false and error object with code VALIDATION_ERROR', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/reverse-search?maxCalories=600', // missing chainSlug
@@ -314,6 +316,7 @@ describe('GET /reverse-search — error response shapes', () => {
     const body = JSON.parse(res.payload);
     expect(body.success).toBe(false);
     expect(body.error).toBeDefined();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('200 success response has success:true and data object', async () => {
