@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F112 | Simple | pending | — | Web Assistant Usage Metrics |
+| F112 | Simple | in-progress | — | Web Assistant Usage Metrics — Step 1/6 |
 
 ## Completed Features
 
