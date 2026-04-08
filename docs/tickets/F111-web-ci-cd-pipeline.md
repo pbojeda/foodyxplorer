@@ -63,6 +63,7 @@ N/A — Simple task.
 | 2026-04-08 | Step 1: Setup | Branch + lite ticket created |
 | 2026-04-08 | Step 3: Implement | ci.yml: web filter + test-web job. deploy-web.yml created. key_facts.md updated |
 | 2026-04-08 | Step 4: Finalize | YAML valid, 133 tests pass, lint clean, build OK |
+| 2026-04-08 | Step 5: Review | PR #86. Code review: Accepted H1 (shared path trigger), H2 (env names). Rejected: none |
 
 ---
 
