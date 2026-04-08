@@ -1,8 +1,8 @@
 // ResultsArea — renders the correct state/component based on intent.
-// Handles: loading, error, empty, all 6 intents.
+// Handles: loading, error, empty, all 6 intents, and photo results (F092).
 // Pure presentational — no 'use client' needed.
 
-import type { ConversationMessageData } from '@foodxplorer/shared';
+import type { ConversationMessageData, MenuAnalysisData } from '@foodxplorer/shared';
 import { LoadingState } from './LoadingState';
 import { EmptyState } from './EmptyState';
 import { ErrorState } from './ErrorState';
@@ -14,11 +14,20 @@ interface ResultsAreaProps {
   results: ConversationMessageData | null;
   error: string | null;
   onRetry: () => void;
+  isPhotoLoading?: boolean;
+  photoResults?: MenuAnalysisData | null;
 }
 
-export function ResultsArea({ isLoading, results, error, onRetry }: ResultsAreaProps) {
-  // Loading state takes priority
-  if (isLoading) {
+export function ResultsArea({
+  isLoading,
+  results,
+  error,
+  onRetry,
+  isPhotoLoading = false,
+  photoResults = null,
+}: ResultsAreaProps) {
+  // Loading state takes priority (text or photo)
+  if (isLoading || isPhotoLoading) {
     return (
       <div className="flex-1 overflow-y-auto px-4 pb-24 pt-4">
         <LoadingState />
@@ -32,6 +41,34 @@ export function ResultsArea({ isLoading, results, error, onRetry }: ResultsAreaP
       <div className="flex flex-1 overflow-y-auto">
         <ErrorState message={error} onRetry={onRetry} />
       </div>
+    );
+  }
+
+  // Photo results (F092) — render NutritionCard per dish identified from photo
+  if (photoResults) {
+    return (
+      <CardGrid>
+        {photoResults.dishes.map((dish, index) => {
+          if (dish.estimate !== null) {
+            return (
+              <NutritionCard
+                key={`${dish.dishName}-${index}`}
+                estimateData={dish.estimate}
+              />
+            );
+          }
+          // Null estimate — dish identified but no nutritional data found
+          return (
+            <article
+              key={`${dish.dishName}-${index}`}
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-soft"
+            >
+              <h2 className="text-base font-semibold text-slate-700">{dish.dishName}</h2>
+              <p className="mt-1 text-sm text-slate-500">Sin datos nutricionales disponibles.</p>
+            </article>
+          );
+        })}
+      </CardGrid>
     );
   }
 

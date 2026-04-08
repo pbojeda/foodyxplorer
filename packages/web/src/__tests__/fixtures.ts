@@ -9,6 +9,9 @@ import type {
   ReverseSearchResult,
   ReverseSearchData,
   MenuEstimationData,
+  MenuAnalysisDish,
+  MenuAnalysisData,
+  MenuAnalysisResponse,
 } from '@foodxplorer/shared';
 
 // ---------------------------------------------------------------------------
@@ -188,6 +191,49 @@ export function createConversationMessageResponse(
   return {
     success: true,
     data: createConversationMessageData(intent, overrides),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// MenuAnalysisDish factory
+// ---------------------------------------------------------------------------
+
+export function createMenuAnalysisDish(
+  overrides: Partial<MenuAnalysisDish> = {}
+): MenuAnalysisDish {
+  return {
+    dishName: 'Tortilla española',
+    estimate: createEstimateData({ query: 'tortilla española' }),
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// MenuAnalysisData factory
+// ---------------------------------------------------------------------------
+
+export function createMenuAnalysisData(
+  overrides: Partial<MenuAnalysisData> = {}
+): MenuAnalysisData {
+  return {
+    mode: 'identify',
+    dishCount: 1,
+    dishes: [createMenuAnalysisDish()],
+    partial: false,
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// MenuAnalysisResponse factory
+// ---------------------------------------------------------------------------
+
+export function createMenuAnalysisResponse(
+  overrides: Partial<MenuAnalysisData> = {}
+): MenuAnalysisResponse {
+  return {
+    success: true,
+    data: createMenuAnalysisData(overrides),
   };
 }
 

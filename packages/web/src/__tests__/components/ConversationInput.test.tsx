@@ -8,7 +8,9 @@ function renderInput(props: Partial<React.ComponentProps<typeof ConversationInpu
     value: '',
     onChange: jest.fn(),
     onSubmit: jest.fn(),
+    onPhotoSelect: jest.fn(),
     isLoading: false,
+    isPhotoLoading: false,
     inlineError: null,
   };
   return render(<ConversationInput {...defaults} {...props} />);
@@ -69,6 +71,16 @@ describe('ConversationInput', () => {
       renderInput({ isLoading: false });
       expect(screen.getByRole('textbox')).not.toBeDisabled();
     });
+
+    it('textarea is disabled when isPhotoLoading is true', () => {
+      renderInput({ isPhotoLoading: true });
+      expect(screen.getByRole('textbox')).toBeDisabled();
+    });
+
+    it('PhotoButton is disabled when isPhotoLoading is true', () => {
+      renderInput({ isPhotoLoading: true });
+      expect(screen.getByRole('button', { name: 'Subir foto del plato' })).toBeDisabled();
+    });
   });
 
   describe('SubmitButton visibility', () => {
@@ -106,9 +118,9 @@ describe('ConversationInput', () => {
       expect(screen.getByRole('button', { name: 'Micrófono (próximamente)' })).toBeInTheDocument();
     });
 
-    it('renders PhotoButton (disabled placeholder)', () => {
+    it('renders PhotoButton (active, aria-label "Subir foto del plato")', () => {
       renderInput();
-      expect(screen.getByRole('button', { name: 'Foto (próximamente)' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Subir foto del plato' })).toBeInTheDocument();
     });
   });
 });

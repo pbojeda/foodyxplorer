@@ -12,7 +12,9 @@ interface ConversationInputProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onPhotoSelect: (file: File) => void;
   isLoading: boolean;
+  isPhotoLoading?: boolean;
   inlineError: string | null;
 }
 
@@ -20,7 +22,9 @@ export function ConversationInput({
   value,
   onChange,
   onSubmit,
+  onPhotoSelect,
   isLoading,
+  isPhotoLoading = false,
   inlineError,
 }: ConversationInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -59,14 +63,14 @@ export function ConversationInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={isLoading}
+          disabled={isLoading || isPhotoLoading}
           placeholder="¿Qué quieres saber?"
           rows={1}
           className="flex-1 resize-none overflow-hidden rounded-2xl border border-slate-200 bg-paper px-4 py-3 text-base text-slate-700 placeholder:text-slate-400 focus:border-brand-green focus:outline-none focus:ring-2 focus:ring-brand-green/15 disabled:opacity-60"
           style={{ minHeight: '48px' }}
           aria-label="Escribe tu consulta"
         />
-        <PhotoButton />
+        <PhotoButton onFileSelect={onPhotoSelect} isLoading={isPhotoLoading} />
         <MicButton />
         {showSubmit && (
           <SubmitButton onSubmit={onSubmit} isLoading={isLoading} />

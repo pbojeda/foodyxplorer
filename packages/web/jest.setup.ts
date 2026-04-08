@@ -1,6 +1,28 @@
 import '@testing-library/jest-dom';
 import { webcrypto } from 'crypto';
 
+// Polyfill Web Fetch API globals for test environment (needed by Route Handler tests).
+// In Node.js 20 these are available globally but jsdom may shadow them.
+if (typeof globalThis.Request === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Request, Response, Headers, fetch } = require('node-fetch');
+  globalThis.Request = Request;
+  globalThis.Response = Response;
+  globalThis.Headers = Headers;
+  globalThis.fetch = fetch;
+} else {
+  // Node 20+ — ensure the native globals are exposed in jsdom test env
+  // (next/jest may clear them; re-assign from global scope)
+  if (typeof Request === 'undefined') {
+    // @ts-expect-error global assignment for test env
+    global.Request = globalThis.Request;
+    // @ts-expect-error global assignment for test env
+    global.Response = globalThis.Response;
+    // @ts-expect-error global assignment for test env
+    global.Headers = globalThis.Headers;
+  }
+}
+
 // Polyfill crypto.randomUUID for jsdom test environment (Node < 19 / jsdom does
 // not expose crypto.randomUUID by default).
 if (typeof globalThis.crypto === 'undefined' || typeof globalThis.crypto.randomUUID !== 'function') {

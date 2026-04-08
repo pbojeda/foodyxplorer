@@ -179,6 +179,33 @@ describe('flushMetrics', () => {
   });
 });
 
+// ---------- photo events (F092) ----------
+
+describe('photo events', () => {
+  it('increments queryCount on photo_sent', () => {
+    trackEvent('photo_sent');
+    trackEvent('photo_sent');
+    const m = getMetrics();
+    expect(m.queryCount).toBe(2);
+  });
+
+  it('increments successCount and totalResponseTime on photo_success', () => {
+    trackEvent('photo_success', { dishCount: 1, responseTimeMs: 8000 });
+    const m = getMetrics();
+    expect(m.successCount).toBe(1);
+    expect(m.avgResponseTimeMs).toBe(8000);
+  });
+
+  it('increments errorCount and tracks error code on photo_error', () => {
+    trackEvent('photo_error', { errorCode: 'INVALID_IMAGE' });
+    trackEvent('photo_error', { errorCode: 'INVALID_IMAGE' });
+    trackEvent('photo_error', { errorCode: 'MENU_ANALYSIS_FAILED' });
+    const m = getMetrics();
+    expect(m.errorCount).toBe(3);
+    expect(m.errors).toEqual({ INVALID_IMAGE: 2, MENU_ANALYSIS_FAILED: 1 });
+  });
+});
+
 // ---------- localStorage hydration ----------
 
 describe('localStorage hydration', () => {

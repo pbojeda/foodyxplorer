@@ -914,23 +914,30 @@ cursor-not-allowed opacity-60
 
 ### PhotoButton
 
-**Type:** Primitive | **Client:** No
+**Type:** Primitive | **Client:** Yes (`'use client'` — uses `useRef`)
 **File:** `src/components/PhotoButton.tsx`
 
-Photo upload placeholder for F092. Visible but fully disabled in F090.
+Interactive camera button activated in F092. Owns a hidden `<input type="file">` and triggers it programmatically on click. Was a disabled placeholder in F090.
 
 **Props:**
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| disabled | `boolean` | No | `true` | Always true in F090 |
+| onFileSelect | `(file: File) => void` | Yes | — | Called with the selected File object |
+| isLoading | `boolean` | No | `false` | Disables the button during photo analysis |
 
-**Styling:**
+**Behavior:**
+- Button click → `inputRef.current?.click()` (programmatic trigger on hidden input)
+- `<input type="file" hidden>` attributes: `accept="image/jpeg,image/png,image/webp"`, `capture="environment"`
+- `onChange` → reads `e.target.files?.[0]` → calls `onFileSelect(file)` → resets `input.value = ''` (allows same-file re-selection)
+
+**Active state styling:**
 ```
-rounded-xl w-12 h-12 border border-slate-200 bg-white text-slate-400
-cursor-not-allowed opacity-60
+rounded-xl w-12 h-12 border border-brand-green bg-white text-brand-green
+hover:bg-emerald-50 active:scale-[0.97] transition-all duration-200
+disabled:opacity-40 disabled:pointer-events-none disabled:border-slate-200 disabled:text-slate-400
 ```
 
-**Accessibility:** `aria-label="Foto (próximamente)"` `title="Próximamente"` `disabled`
+**Accessibility:** `aria-label="Subir foto del plato"` | no `title` | `type="button"`
 
 ### SubmitButton
 
@@ -1300,7 +1307,7 @@ app/hablar/page.tsx (Server Component — unchanged)
 
 Photo errors are shown via `inlineError` prop in `ConversationInput` (no full-screen ErrorState for photos).
 
-**Updated `ConversationInput` call site:**
+**Updated `ConversationInput` call site (actual implementation):**
 ```tsx
 <ConversationInput
   value={query}
@@ -1309,11 +1316,11 @@ Photo errors are shown via `inlineError` prop in `ConversationInput` (no full-sc
   isLoading={isLoading}
   isPhotoLoading={photoMode === 'analyzing'}
   onPhotoSelect={executePhotoAnalysis}
-  inlineError={inlineError ?? photoError}
+  inlineError={inlineError}
 />
 ```
 
-Note: `inlineError` (text path) and `photoError` (photo path) are mutually exclusive — only one should be non-null at a time.
+Note: A single `inlineError` state is used for both text and photo path errors. `executePhotoAnalysis` calls `setInlineError(message)` for validation and API errors. `executeQuery` (text path) also calls `setInlineError(...)`. Both paths call `setInlineError(null)` before starting a new request, so they are mutually exclusive.
 
 ### Updated: PhotoButton (F092)
 
@@ -1409,19 +1416,20 @@ export async function sendPhotoAnalysis(
 ): Promise<MenuAnalysisResponse>
 ```
 
-**Contract:**
+**Contract (actual implementation):**
 - Builds `FormData`: `file` field (the `File` object) + `mode` field (`"identify"`)
-- Request headers: `X-Actor-Id: actorId`, `X-API-Key: process.env['NEXT_PUBLIC_API_KEY']`, `X-FXP-Source: web`
-- **No explicit `Content-Type` header** — browser must set `multipart/form-data` with boundary automatically
-- Timeout: `AbortSignal.timeout(60000)` merged with optional external `signal` via `AbortSignal.any`
-- Throws `ApiError('NEXT_PUBLIC_API_KEY is not defined.', 'CONFIG_ERROR')` if env var is absent
+- Target URL: `/api/analyze` (relative, same-origin — Next.js Route Handler proxy)
+- Request headers: `X-Actor-Id: actorId`, `X-FXP-Source: web`
+- **No `X-API-Key` header** — the Route Handler adds it server-side
+- **No `Content-Type` header** — browser sets `multipart/form-data; boundary=...` automatically
+- Timeout: `AbortSignal.timeout(65000)` merged with optional external `signal` via `AbortSignal.any`
+- **No env var check** — always sends to `/api/analyze`; env var validation lives in the Route Handler only
 - On non-2xx: parse error envelope `{ error: { code, message } }` → throw `ApiError(message, code, status)`
 - On network failure: throw `ApiError(err.message, 'NETWORK_ERROR')`
-- On `AbortError`: re-throw as-is (not wrapped)
-- On timeout: throw `ApiError('...', 'TIMEOUT_ERROR')`
-- Response shape guard: `success === true && typeof data === 'object'`
+- On `AbortError`: re-throw as-is (not wrapped in ApiError)
+- Response shape guard: `success === true && typeof data === 'object'` → throws `ApiError('MALFORMED_RESPONSE')`
 
-**New import:** `MenuAnalysisResponse` from `@foodxplorer/shared`. If not yet exported from shared, it must be added to `packages/shared/src/index.ts` as a prerequisite step.
+**New import:** `MenuAnalysisResponse` from `@foodxplorer/shared` (already exported from `packages/shared/src/index.ts` via `analysis.ts`).
 
 ### Updated: Metrics (F092)
 
@@ -1449,10 +1457,7 @@ export interface MetricPayload {
 }
 ```
 
-**New `MetricsState` / `MetricsSnapshot` fields:**
-- `photoCount: number` — total photo analyses initiated
-- `photoSuccessCount: number` — total successful photo analyses
-- `photoErrorCount: number` — total photo errors
+**Implementation note:** Photo events reuse existing `MetricsState` counters (`queryCount` for `photo_sent`, `successCount` for `photo_success`, `errorCount` for `photo_error`) rather than adding separate photo-specific counters. This keeps `MetricsSnapshot` unchanged.
 
 ### New env var: NEXT_PUBLIC_API_KEY
 
