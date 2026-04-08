@@ -70,10 +70,8 @@ let state: MetricsState = loadFromStorage() ?? createEmptyState();
 type Listener = () => void;
 const listeners = new Set<Listener>();
 let cachedSnapshot: MetricsSnapshot | null = null;
-let snapshotVersion = 0;
 
 function notify(): void {
-  snapshotVersion++;
   cachedSnapshot = null; // invalidate cache
   for (const listener of listeners) listener();
 }
@@ -91,7 +89,9 @@ function loadFromStorage(): MetricsState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as MetricsState;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.queryCount !== 'number') return null;
+    return parsed as MetricsState;
   } catch {
     return null;
   }
@@ -167,6 +167,7 @@ export function resetMetrics(): void {
   } catch {
     // silent
   }
+  notify();
 }
 
 // flushMetrics sends the current session snapshot via navigator.sendBeacon.

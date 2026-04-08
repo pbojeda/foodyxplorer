@@ -65,6 +65,7 @@ N/A — Simple task.
 | 2026-04-08 | Step 1: Setup | Branch + lite ticket created |
 | 2026-04-08 | Step 3: Implement | metrics.ts (4 exports + subscribe), useMetrics hook (useSyncExternalStore), HablarShell instrumented. 17 new tests |
 | 2026-04-08 | Step 4: Finalize | 150 tests pass, lint clean, build OK (108kB) |
+| 2026-04-08 | Step 5: Review | PR #87. Code review: Accepted H1 (text_too_long tracking gap), H2 (resetMetrics notify). Fixed S1 (dead snapshotVersion), S2 (localStorage validation). ADR-018 added. F113 registered |
 
 ---
 

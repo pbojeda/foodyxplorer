@@ -57,6 +57,10 @@ export function HablarShell() {
 
       // Handle text_too_long inline (not full-screen ErrorState)
       if (data.intent === 'text_too_long') {
+        trackEvent('query_success', {
+          intent: 'text_too_long',
+          responseTimeMs: Date.now() - startTime,
+        });
         setInlineError('Demasiado largo. Máx. 500 caracteres.');
         setResults(null);
         return;
