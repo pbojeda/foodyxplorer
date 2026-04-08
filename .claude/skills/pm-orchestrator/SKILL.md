@@ -222,3 +222,9 @@ Completed: 2/3 | Blocked: 1/3 | Remaining: 0
 - **Do NOT force-resolve merge conflicts.** Mark as blocked and skip.
 - **Do NOT modify pm-session.md format.** Follow the template structure exactly.
 - **Do NOT continue after post-merge sanity failure.** Stop and report.
+- **Do NOT make architectural decisions without checking first.** Before choosing a new approach, library, or pattern:
+  1. Search the existing codebase for similar solutions (other packages, shared modules, existing endpoints).
+  2. Check `docs/project_notes/decisions.md` and `docs/project_notes/key_facts.md` for prior decisions.
+  3. If the project uses multiple packages/modules, check how they solved the same problem.
+  4. If still uncertain, ask the user or consult external AI models (Gemini CLI, Codex CLI) before proceeding.
+  5. If the chosen approach creates a dependency on something that doesn't exist yet (e.g., a backend endpoint), create a follow-up task in `product-tracker.md` to track it.
