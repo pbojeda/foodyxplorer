@@ -10,7 +10,7 @@
 
 **Last Updated:** 2026-04-08
 
-**Active Feature:** F111 — Web Package CI/CD Pipeline | Step 4/6 (Finalize) | Simple | Branch: `feature/F111-web-ci-cd-pipeline`
+**Active Feature:** F111 — Web Package CI/CD Pipeline | Step 5/6 (Review) | Simple | Branch: `feature/F111-web-ci-cd-pipeline`
 **PM Session:** pm-c3a (L5 PM Autonomous) — F090 done, F111 in progress
 **Last Completed:** F090 — Web Assistant: Shell + Text Mode (/hablar). PR #85 squash-merged to develop (f8e5929). 133 tests, 15 components, packages/web created.
 
@@ -232,7 +232,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F095 | Realtime Voice: Implement Chosen Architecture | frontend | pending | — | Standard. Based on F094 spike results. WebSocket/WebRTC server if needed. STT streaming + VAD |
 | F096 | Realtime Voice: Pause Detection + Barge-In + Filler | frontend | pending | — | Standard. End-of-speech detection, interruption handling, filler audio for L4 delays ("Déjame calcular...") |
 | F097 | Realtime Voice: Frontend States + Mobile QA | frontend | pending | — | Standard. Listening/Processing/Speaking/Results states. Mobile-first QA. Accessibility fallbacks |
-| F111 | Web Package CI/CD Pipeline | infra | in-progress | 4/6 | Simple. Add `packages/web` to root workspaces. Add `test-web` job to ci.yml (no DB/Redis needed). Create `deploy-web.yml` for Vercel (separate project from landing). Update key_facts.md with new package. Depends on F090 |
+| F111 | Web Package CI/CD Pipeline | infra | in-progress | 5/6 | Simple. Add `packages/web` to root workspaces. Add `test-web` job to ci.yml (no DB/Redis needed). Create `deploy-web.yml` for Vercel (separate project from landing). Update key_facts.md with new package. Depends on F090 |
 | F112 | Web Assistant Usage Metrics | frontend | pending | — | Simple. Track conversation counts, voice vs text ratio, response times, intent distribution. Integration with Vercel Analytics or custom events. Dashboard or export. Depends on F090 |
 
 ## Features — E009 Personalization & Tracking (Phase C continued)
