@@ -1239,3 +1239,229 @@ Imports response types from `@foodxplorer/shared` — no type duplication.
 - Uses `(window.dataLayer = window.dataLayer || []).push(...)` init pattern
 - Returns null (no DOM output)
 - Must be wrapped in `<Suspense fallback={null}>` at call site (Next.js App Router requirement for useSearchParams)
+
+---
+
+## Web Package — nutriXplorer (F092 updates)
+
+**Feature:** F092 — Web Assistant: Plate Photo Upload
+
+### Updated Component Hierarchy
+
+```
+app/hablar/page.tsx (Server Component — unchanged)
+└── HablarShell (Client Component — new photo state)
+    ├── AppBar (unchanged)
+    ├── ResultsArea (new isPhotoLoading prop + photoResults prop)
+    │   ├── EmptyState
+    │   ├── LoadingState  (reused for photo analysis wait)
+    │   ├── ErrorState
+    │   └── [NutritionCard...]
+    └── ConversationInput (new onPhotoSelect + isPhotoLoading props)
+        ├── <textarea>
+        ├── PhotoButton  ← ACTIVATED (was disabled placeholder)
+        │   └── <input type="file" hidden>
+        ├── MicButton (unchanged — still disabled)
+        └── SubmitButton
+```
+
+### Updated: HablarShell (F092)
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+**File:** `src/components/HablarShell.tsx`
+
+**New state fields:**
+- `photoMode: 'idle' | 'analyzing'` — tracks photo analysis lifecycle
+- `photoResults: MenuAnalysisData | null` — last successful photo API response (separate from text `results`)
+- `photoError: string | null` — photo-specific inline error (passed as `inlineError` to `ConversationInput`)
+
+**New interaction: executePhotoAnalysis(file: File)**
+1. Client-side validation: `file.type ∈ {image/jpeg, image/png, image/webp}` and `file.size ≤ 10 MB`; failure → `setPhotoError(message)`, return early
+2. Abort any in-flight text request (`currentRequestRef.current?.abort()`)
+3. `setPhotoMode('analyzing')`, clear previous results/errors
+4. `const controller = new AbortController(); currentRequestRef.current = controller`
+5. `trackEvent('photo_sent')`
+6. `await sendPhotoAnalysis(file, actorId, controller.signal)` → on abort, return early
+7. On success: `setPhotoResults(data)`, `setPhotoMode('idle')`, `trackEvent('photo_success', { dishCount, responseTimeMs })`
+8. On error: map API error code to Spanish message, `setPhotoError(message)`, `setPhotoMode('idle')`, `trackEvent('photo_error', { errorCode })`
+
+**Error mapping (photo path):**
+
+| API error code | Spanish message |
+|---------------|-----------------|
+| `INVALID_IMAGE` | `'Formato no soportado. Usa JPEG, PNG o WebP.'` |
+| `MENU_ANALYSIS_FAILED` | `'No he podido identificar el plato. Intenta con otra foto.'` |
+| `PAYLOAD_TOO_LARGE` | `'La foto es demasiado grande. Máximo 10 MB.'` |
+| `RATE_LIMIT_EXCEEDED` | `'Has alcanzado el límite de análisis por foto. Inténtalo más tarde.'` |
+| `UNAUTHORIZED` | `'Error de configuración. Contacta con soporte.'` |
+| `TIMEOUT_ERROR` | `'El análisis ha tardado demasiado. Inténtalo de nuevo.'` |
+| `NETWORK_ERROR` | `'Sin conexión. Comprueba tu red.'` |
+| Generic | `'No se pudo analizar la foto. Inténtalo de nuevo.'` |
+
+Photo errors are shown via `inlineError` prop in `ConversationInput` (no full-screen ErrorState for photos).
+
+**Updated `ConversationInput` call site:**
+```tsx
+<ConversationInput
+  value={query}
+  onChange={setQuery}
+  onSubmit={handleSubmit}
+  isLoading={isLoading}
+  isPhotoLoading={photoMode === 'analyzing'}
+  onPhotoSelect={executePhotoAnalysis}
+  inlineError={inlineError ?? photoError}
+/>
+```
+
+Note: `inlineError` (text path) and `photoError` (photo path) are mutually exclusive — only one should be non-null at a time.
+
+### Updated: PhotoButton (F092)
+
+**Type:** Primitive | **Client:** Yes (`'use client'`) — needs `useRef` for file input
+**File:** `src/components/PhotoButton.tsx`
+
+Transitions from a fully-disabled presentational placeholder to an interactive upload trigger.
+
+**Props:**
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| onFileSelect | `(file: File) => void` | Yes | — | Called with the selected File object |
+| isLoading | `boolean` | No | `false` | Disables the button while photo analysis is in flight |
+
+**Internal behavior:**
+- `inputRef = useRef<HTMLInputElement>(null)`
+- Button `onClick` → `inputRef.current?.click()`
+- Hidden `<input type="file">` attributes:
+  - `accept="image/jpeg,image/png,image/webp"`
+  - `capture="environment"` (hints rear camera on mobile; ignored on desktop)
+  - `onChange`: reads `e.target.files?.[0]`, calls `onFileSelect(file)`, then resets `e.target.value = ''` to allow re-selecting the same file
+- When `isLoading=true`: button `disabled` attribute set
+
+**Active (enabled) styling:**
+```
+rounded-xl w-12 h-12 border border-brand-green bg-white text-brand-green
+hover:bg-emerald-50 active:scale-[0.97] transition-all duration-200
+disabled:opacity-40 disabled:pointer-events-none disabled:border-slate-200 disabled:text-slate-400
+```
+
+**Accessibility:**
+- `aria-label="Subir foto del plato"` (replaces `"Foto (próximamente)"`)
+- `title` attribute removed (was `"Próximamente"`)
+- `type="button"` (prevents accidental form submission)
+- Hidden input: `aria-hidden="true"` (the button is the accessible control)
+
+### Updated: ConversationInput (F092)
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+**File:** `src/components/ConversationInput.tsx`
+
+**New props:**
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| onPhotoSelect | `(file: File) => void` | Yes | — | Passed to PhotoButton |
+| isPhotoLoading | `boolean` | No | `false` | Passed to PhotoButton; also disables textarea |
+
+**Change:** `<PhotoButton />` (no props) becomes `<PhotoButton onFileSelect={onPhotoSelect} isLoading={isPhotoLoading} />`.
+
+When `isPhotoLoading=true`, the `<textarea>` receives `disabled` (same behavior as `isLoading`).
+
+### Updated: ResultsArea (F092)
+
+**Type:** Feature | **Client:** No
+**File:** `src/components/ResultsArea.tsx`
+
+**New props:**
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| isPhotoLoading | `boolean` | No | `false` | When true, renders `LoadingState` regardless of `results` |
+| photoResults | `MenuAnalysisData \| null` | No | `null` | Photo analysis results from `POST /analyze/menu` |
+
+**Rendering priority (updated):**
+1. `isLoading || isPhotoLoading` → `LoadingState`
+2. `error` → `ErrorState`
+3. `photoResults` (non-null) → render `NutritionCard` per dish (see below)
+4. `results` (non-null) → existing intent-based routing (unchanged)
+5. default → `EmptyState`
+
+**Photo result card rendering:**
+For each `dish` in `photoResults.dishes`:
+- If `dish.estimate !== null`: render `<NutritionCard>` with data from `dish.estimate.result`
+- If `dish.estimate === null`: render a "not found" card showing `dish.dishName` + message `'Sin datos nutricionales disponibles para este plato.'`
+
+Note: The "not found" card may reuse `NutritionCard` with a `noData` prop, or be a separate minimal component — planner's choice.
+
+**Partial results banner:**
+When `photoResults.partial === true`, render a `<p role="status">` warning above the cards:
+`'Resultado parcial — no todos los platos pudieron analizarse.'`
+
+### New: sendPhotoAnalysis (F092)
+
+**File:** `packages/web/src/lib/apiClient.ts` (new export in existing module)
+
+```typescript
+export async function sendPhotoAnalysis(
+  file: File,
+  actorId: string,
+  signal?: AbortSignal,
+): Promise<MenuAnalysisResponse>
+```
+
+**Contract:**
+- Builds `FormData`: `file` field (the `File` object) + `mode` field (`"identify"`)
+- Request headers: `X-Actor-Id: actorId`, `X-API-Key: process.env['NEXT_PUBLIC_API_KEY']`, `X-FXP-Source: web`
+- **No explicit `Content-Type` header** — browser must set `multipart/form-data` with boundary automatically
+- Timeout: `AbortSignal.timeout(60000)` merged with optional external `signal` via `AbortSignal.any`
+- Throws `ApiError('NEXT_PUBLIC_API_KEY is not defined.', 'CONFIG_ERROR')` if env var is absent
+- On non-2xx: parse error envelope `{ error: { code, message } }` → throw `ApiError(message, code, status)`
+- On network failure: throw `ApiError(err.message, 'NETWORK_ERROR')`
+- On `AbortError`: re-throw as-is (not wrapped)
+- On timeout: throw `ApiError('...', 'TIMEOUT_ERROR')`
+- Response shape guard: `success === true && typeof data === 'object'`
+
+**New import:** `MenuAnalysisResponse` from `@foodxplorer/shared`. If not yet exported from shared, it must be added to `packages/shared/src/index.ts` as a prerequisite step.
+
+### Updated: Metrics (F092)
+
+**File:** `packages/web/src/lib/metrics.ts`
+
+**Extended `MetricEvent` union:**
+```typescript
+export type MetricEvent =
+  | 'query_sent'
+  | 'query_success'
+  | 'query_error'
+  | 'query_retry'
+  | 'photo_sent'     // ← new
+  | 'photo_success'  // ← new
+  | 'photo_error';   // ← new
+```
+
+**Extended `MetricPayload`:**
+```typescript
+export interface MetricPayload {
+  intent?: string;
+  responseTimeMs?: number;
+  errorCode?: string;
+  dishCount?: number;  // ← new (used in photo_success)
+}
+```
+
+**New `MetricsState` / `MetricsSnapshot` fields:**
+- `photoCount: number` — total photo analyses initiated
+- `photoSuccessCount: number` — total successful photo analyses
+- `photoErrorCount: number` — total photo errors
+
+### New env var: NEXT_PUBLIC_API_KEY
+
+**File:** `packages/web/.env.local.example` (and Vercel env vars for staging + prod)
+
+```
+# Public API key for POST /analyze/menu (F092 plate photo upload)
+# Format: fxp_<32 hex chars> — use a low-privilege public key (not admin)
+NEXT_PUBLIC_API_KEY=fxp_your_key_here
+```
+
+This key is exposed in the browser bundle. It must be a public-tier key (not admin). Rate limits (10 analyses/hour) provide the primary protection.
