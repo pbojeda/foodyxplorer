@@ -10,7 +10,8 @@
 
 **Last Updated:** 2026-04-08
 
-**Active Feature:** No active feature — preparing bugfix batch from Phase B audit
+**Active Feature:** No active work
+**Last Bugfix Completed:** BUG-AUDIT-C1C3 — Fixed (PR #82, squash merged)
 **Last Completed:** Phase B Audit (Puntos 1-5) — all 5 audit steps done
 
 **Phase B Audit Summary (2026-04-07 to 2026-04-08):**
@@ -215,7 +216,8 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| BUG-AUDIT-C1C3 | Fix `/reverse-search` error envelope | backend | pending | — | Simple. 404 returns `{success,code,message}` instead of `{success,error:{code,message}}`. 400 returns raw Zod `{formErrors,fieldErrors}`. Standardize both to project error envelope |
+<<<<<<< HEAD
+| BUG-AUDIT-C1C3 | Fix `/reverse-search` error envelope | backend | done | 6/6 | Simple. PR #82. 6 new tests. Standardized 404+400 to project error envelope |
 | BUG-AUDIT-C4 | Fix POST empty body → 500 | backend | pending | — | Simple. POST `/calculate/recipe` and `/conversation/message` return 500 when body is null/invalid JSON. Fastify body parser throws before Zod. Add onError hook or content-type-parser guard |
 | BUG-AUDIT-C5 | Fix reverse search via conversation | backend | pending | — | Simple. `reverseSearchDishes()` called from `conversationCore.ts` always returns empty results. Direct endpoint works. Silent `catch` block masks DB error. Investigate Kysely instance or query mismatch |
 
@@ -353,6 +355,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | 2026-04-07 | F081 — Health-Hacker Chain Suggestions | a884e57 (squash merge to develop, PR #73) | Simple. Rule-based calorie-saving tips for chain dishes. 13 chains → 5 categories. enrichWithTips() DRY helper. HealthHackerTipSchema. 41 tests (3 files). Code review: APPROVED |
 | 2026-04-07 | F087 — "El Tupper" Meal Prep | 1ae778c (squash merge to develop, PR #80) | Simple. Optional `portions` param on POST /calculate/recipe (1-50). `perPortion` nutrients. Bot tupper extraction (3 regex patterns). 33 tests. Code review: APPROVED |
 | 2026-04-07 | F089 — "Modo Tapeo" (shared portions) | ef5dbe6 (squash merge to develop, PR #81) | Simple. Diners extraction (4 regex patterns, cap 20). `diners` + `perPerson` in MenuEstimationData. Per-person formatter line. 22 tests. Code review: APPROVED |
+| 2026-04-08 | BUG-AUDIT-C1C3 — Fix `/reverse-search` error envelope | f994f83 (squash merge to develop, PR #82) | Simple bugfix. Standardized 404 CHAIN_NOT_FOUND + 400 validation to project error envelope. 6 new tests. Code review: APPROVED |
 
 ---
 

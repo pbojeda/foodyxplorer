@@ -410,7 +410,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Root Cause**: The `/reverse-search` route handler in `reverseSearch.ts` constructs error responses manually instead of throwing typed errors for the global error handler to format. The Zod validation is done inline with `.safeParse()` and the error is returned directly without going through `mapError()`.
 - **Solution**: Throw `CHAIN_NOT_FOUND` as a typed error (like other routes) so the global error handler wraps it. For Zod validation, use Fastify's built-in schema validation or throw a VALIDATION_ERROR with formatted message.
 - **Prevention**: All routes must use the global error handler for error formatting. Never return error responses directly — always throw typed errors.
-- **Feature**: F086 | **Found by**: Phase B Audit (Punto 2 + Codex review) | **Severity**: High | **Status**: Pending fix
+- **Feature**: F086 | **Found by**: Phase B Audit (Punto 2 + Codex review) | **Severity**: High | **Status**: Fixed (PR #82)
 
 ### 2026-04-08 — BUG-AUDIT-C4: POST endpoints return 500 on missing/invalid body
 

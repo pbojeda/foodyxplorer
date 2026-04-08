@@ -9,7 +9,7 @@
 
 | Priority | IDs | Action | SDD Feature ID | Status |
 |----------|-----|--------|---------------|--------|
-| 1 | C1 + C3 | Fix `/reverse-search` error envelope | BUG-AUDIT-C1C3 (Simple) | pending |
+| 1 | C1 + C3 | Fix `/reverse-search` error envelope | BUG-AUDIT-C1C3 (Simple) | **done** (PR #82) |
 | 2 | C4 | Fix POST empty body → 500 | BUG-AUDIT-C4 (Simple) | pending |
 | 3 | C5 | Fix reverse search via conversation | BUG-AUDIT-C5 (Simple) | pending |
 | — | C2 | Context persistence — deferred (pre-existing F069/F070) | — | deferred |
@@ -20,8 +20,8 @@
 
 | ID | Severity | Finding | Source | Status |
 |----|----------|---------|--------|--------|
-| C1 | HIGH | `/reverse-search` 404 CHAIN_NOT_FOUND returns `{success, code, message}` instead of `{success, error: {code, message}}` — inconsistent with API error envelope | Punto 2 + Codex | pending |
-| C3 | HIGH | `/reverse-search` 400 validation error returns raw Zod `{formErrors, fieldErrors}` without `{success, error: {code: "VALIDATION_ERROR"}}` wrapper | Punto 2 + Codex | pending |
+| C1 | HIGH | `/reverse-search` 404 CHAIN_NOT_FOUND returns `{success, code, message}` instead of `{success, error: {code, message}}` — inconsistent with API error envelope | Punto 2 + Codex | **fixed** (PR #82) |
+| C3 | HIGH | `/reverse-search` 400 validation error returns raw Zod `{formErrors, fieldErrors}` without `{success, error: {code: "VALIDATION_ERROR"}}` wrapper | Punto 2 + Codex | **fixed** (PR #82) |
 | C2 | MEDIUM | Conversation context set via `POST /conversation/message` ("estoy en X") does not persist for subsequent requests with same X-Actor-Id — `activeContext: null` on next request. Pre-existing (F069/F070 actor system design). Works when chain is passed in request body. | Punto 2 | pending |
 
 ## Documentation Fixes (Applied)
