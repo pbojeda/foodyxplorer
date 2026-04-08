@@ -13,9 +13,6 @@
 **Active Feature:** BUG-AUDIT-C5 — Fix silent error in reverse search via conversation (Simple, Step 5/6)
 **Branch:** `feature/bug-audit-c5-reverse-search-conversation`
 **Ticket:** `docs/tickets/BUG-AUDIT-C5-reverse-search-conversation.md`
-**Branch:** `feature/bug-audit-c4-post-empty-body-500`
-**Ticket:** `docs/tickets/BUG-AUDIT-C4-post-empty-body-500.md`
-**Last Bugfix Completed:** BUG-AUDIT-C1C3 — Fixed (PR #82, squash merged)
 **Last Completed:** Phase B Audit (Puntos 1-5) — all 5 audit steps done
 
 **Phase B Audit Summary (2026-04-07 to 2026-04-08):**
