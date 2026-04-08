@@ -8,10 +8,25 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-07
+**Last Updated:** 2026-04-08
 
-**Active Feature:** No active work
-**Last Completed:** F089 — "Modo Tapeo" (Simple) → develop (ef5dbe6), PR #81. 22 tests.
+**Active Feature:** No active feature — preparing bugfix batch from Phase B audit
+**Last Completed:** Phase B Audit (Puntos 1-5) — all 5 audit steps done
+
+**Phase B Audit Summary (2026-04-07 to 2026-04-08):**
+- Punto 1: Manuals updated (bot §20-23, API §20-21) ✓
+- Punto 2: Real API testing — found 3 code bugs (C1-C3) + 4 doc errors (D1-D4, fixed) ✓
+- Punto 3: Cross-model review (Gemini + Codex) — found 13 more doc issues (D5-D17, all fixed) ✓
+- Punto 4: Exhaustive API testing — found 3 new bugs (C4-C6) + 1 architectural observation (A1) ✓
+- Punto 5: Stability confirmed — core features working, bugfix plan agreed ✓
+
+**Bugfix plan (before Phase C):**
+1. BUG-AUDIT-C1C3 — Fix `/reverse-search` error envelope (C1+C3). Simple SDD.
+2. BUG-AUDIT-C4 — Fix POST empty body → 500 (C4). Simple SDD.
+3. BUG-AUDIT-C5 — Fix reverse search via conversation returns empty (C5). Simple SDD.
+4. Deferred: C2 (context persistence), C6 (data quality), A1 (bot rate limit architecture)
+
+Full findings: `docs/project_notes/audit-phase-b-findings.md`
 
 **Pending operational step (F080):** OFF data import in progress — API v2 auth fix applied (ecdc186). Pagination fix applied (count-based). Ingestion being executed in a separate session.
 ```
@@ -193,8 +208,16 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F085 | Portion Sizing Matrix (Spanish portions) | backend | done | 6/6 | Simple. PR #77. 30 tests (2 files). enrichWithPortionSizing() helper, 9 terms, word boundary matching. Code review: APPROVED |
 | F086 | Reverse Search ("¿qué como con X kcal?") | backend | done | 6/6 | Standard. GET /reverse-search endpoint + conversation intent. 136 tests. PR #78, e67164d |
 | F087 | "El Tupper" Meal Prep | backend | done | 6/6 | Simple. PR #80, 1ae778c. 33 tests. Optional `portions` param, `perPortion` nutrients, bot tupper detection |
-| F088 | Community Inline Corrections | bot | pending | — | Standard. "Cálculo incorrecto" inline button. User proposes adjustment. Stored for review. Feeds demand pipeline |
+| F088 | Community Inline Corrections | bot | postponed | — | Standard. "Cálculo incorrecto" inline button. User proposes adjustment. Stored for review. Feeds demand pipeline |
 | F089 | "Modo Tapeo" (shared portions) | bot | done | 6/6 | Simple. PR #81, ef5dbe6. 22 tests. Diners extraction + perPerson in menu estimation |
+
+> **Phase B Audit Bugfixes (before Phase C)**
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| BUG-AUDIT-C1C3 | Fix `/reverse-search` error envelope | backend | pending | — | Simple. 404 returns `{success,code,message}` instead of `{success,error:{code,message}}`. 400 returns raw Zod `{formErrors,fieldErrors}`. Standardize both to project error envelope |
+| BUG-AUDIT-C4 | Fix POST empty body → 500 | backend | pending | — | Simple. POST `/calculate/recipe` and `/conversation/message` return 500 when body is null/invalid JSON. Fastify body parser throws before Zod. Add onError hook or content-type-parser guard |
+| BUG-AUDIT-C5 | Fix reverse search via conversation | backend | pending | — | Simple. `reverseSearchDishes()` called from `conversationCore.ts` always returns empty results. Direct endpoint works. Silent `catch` block masks DB error. Investigate Kysely instance or query mismatch |
 
 > **Phase C: Conversational Web Assistant + Realtime Voice**
 

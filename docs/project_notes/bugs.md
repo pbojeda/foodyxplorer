@@ -403,3 +403,27 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Solution**: Add `if (!Array.isArray(dishes))` guard at the top of `validateSpanishDishes`: push a descriptive error and return `{ valid: false }` immediately. Alternatively, add a guard in `seedPhaseSpanishDishes.ts` before calling the validator.
 - **Prevention**: Public validation functions accepting external data must guard against non-array input at the entry point before accessing any array method. Never trust a TypeScript cast on data loaded from disk.
 - **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Minor | **Exposed by**: `f073.validateSpanishDishes.edge-cases.test.ts` (2 tests)
+
+### 2026-04-08 — BUG-AUDIT-C1C3: `/reverse-search` error envelope inconsistency
+
+- **Issue**: (C1) 404 CHAIN_NOT_FOUND returns `{success: false, code: "CHAIN_NOT_FOUND", message: "..."}` — flat structure instead of nested `{success: false, error: {code, message}}`. (C3) 400 validation error returns raw Zod output `{success: false, error: {formErrors: [], fieldErrors: {...}}}` instead of the standard `{success: false, error: {code: "VALIDATION_ERROR", message: "..."}}` wrapper.
+- **Root Cause**: The `/reverse-search` route handler in `reverseSearch.ts` constructs error responses manually instead of throwing typed errors for the global error handler to format. The Zod validation is done inline with `.safeParse()` and the error is returned directly without going through `mapError()`.
+- **Solution**: Throw `CHAIN_NOT_FOUND` as a typed error (like other routes) so the global error handler wraps it. For Zod validation, use Fastify's built-in schema validation or throw a VALIDATION_ERROR with formatted message.
+- **Prevention**: All routes must use the global error handler for error formatting. Never return error responses directly — always throw typed errors.
+- **Feature**: F086 | **Found by**: Phase B Audit (Punto 2 + Codex review) | **Severity**: High | **Status**: Pending fix
+
+### 2026-04-08 — BUG-AUDIT-C4: POST endpoints return 500 on missing/invalid body
+
+- **Issue**: POST to `/calculate/recipe` or `/conversation/message` without a body (or with invalid JSON) returns 500 INTERNAL_ERROR. Should return 400 VALIDATION_ERROR.
+- **Root Cause**: Fastify's JSON body parser throws a `SyntaxError` (invalid JSON) or the route handler accesses `request.body` as null/undefined. The global error handler catches it as a generic error and returns 500.
+- **Solution**: Add error handler case for `SyntaxError` / FST_ERR_CTP_EMPTY_JSON_BODY that maps to 400 VALIDATION_ERROR.
+- **Prevention**: Test all POST endpoints with: no body, empty body `{}`, and invalid JSON as standard edge-case coverage.
+- **Feature**: Global (all POST routes) | **Found by**: Phase B Audit (Punto 4) | **Severity**: Medium | **Status**: Pending fix
+
+### 2026-04-08 — BUG-AUDIT-C5: Reverse search via conversation returns empty results
+
+- **Issue**: `POST /conversation/message` with reverse_search intent returns `intent: "reverse_search"` but no `reverseSearch` data. Direct `GET /reverse-search` works correctly for the same parameters.
+- **Root Cause**: `conversationCore.ts:148` calls `reverseSearchDishes(db, {...})` wrapped in a `catch` block (line 161) that silently swallows the error. The actual DB error is unknown — possibly a Kysely instance mismatch between conversation and reverse-search routes.
+- **Solution**: Add error logging in the catch block. Investigate whether the Kysely `db` instance is the same singleton. Fix the underlying query/instance issue.
+- **Prevention**: Never use empty `catch` blocks — always log the error. Add integration tests exercising reverse_search via conversation endpoint.
+- **Feature**: F086 | **Found by**: Phase B Audit (Punto 4) | **Severity**: Medium | **Status**: Pending fix
