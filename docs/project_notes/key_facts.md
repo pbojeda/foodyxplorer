@@ -58,9 +58,11 @@ Quick reference for project configuration, infrastructure details, and important
 
 ## Infrastructure
 
-- **CI/CD**: GitHub Actions (`ci.yml` with path-filtered jobs per package + `deploy-landing.yml`)
+- **CI/CD**: GitHub Actions (`ci.yml` with path-filtered jobs per package + `deploy-landing.yml` + `deploy-web.yml`)
+- **CI jobs**: test-shared, test-api, test-bot, test-scraper, test-landing, test-web (dorny/paths-filter, shared changes trigger all dependent jobs)
 - **Hosting (API, early stage)**: Railway or Render (staging: develop, prod: main)
 - **Hosting (Landing)**: Vercel (auto-deploy: preview on PR, production on push to main)
+- **Hosting (Web)**: Vercel (auto-deploy: preview on PR, production on push to main). Separate project from landing. Secret: `VERCEL_PROJECT_ID_WEB`
 - **Landing domain**: nutrixplorer.com (Vercel, configured 2026-03-27)
 - **Error Tracking**: Sentry (free plan)
 - **Uptime**: UptimeRobot or Better Uptime (free plan)

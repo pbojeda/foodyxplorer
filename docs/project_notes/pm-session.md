@@ -10,17 +10,14 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F090 | Standard | in-progress | — | Web Assistant: Shell + Text Mode (/hablar). Creates packages/web. Step 5/6, PR #85 |
-| F111 | Simple | pending | — | Web Package CI/CD Pipeline |
+| F111 | Simple | in-progress | — | Web Package CI/CD Pipeline — Step 1/6 |
 | F112 | Simple | pending | — | Web Assistant Usage Metrics |
 
 ## Completed Features
 
-_(Move features here as they complete)_
-
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
-<!-- | F0XX | Simple | ~8 min | Clean | -->
+| F090 | Standard | — | PR #85 squash-merged (f8e5929). 133 tests, 15 components. Code review APPROVED, QA 1 bug fixed. |
 
 ## Blocked Features
 
@@ -32,8 +29,8 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** F090
-**Branch:** `feature/F090-web-assistant-hablar`
+**Current feature:** (none — starting F111 next)
+**Branch:** develop (clean)
 **Next features:** F111, F112 (then batch 2: F091, F092, F093)
 **Blocked:** (none)
 

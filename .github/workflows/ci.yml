@@ -39,6 +39,7 @@ jobs:
       bot: ${{ steps.filter.outputs.bot }}
       scraper: ${{ steps.filter.outputs.scraper }}
       landing: ${{ steps.filter.outputs.landing }}
+      web: ${{ steps.filter.outputs.web }}
       root: ${{ steps.filter.outputs.root }}
     steps:
       - uses: actions/checkout@v4
@@ -57,6 +58,8 @@ jobs:
               - 'packages/scraper/**'
             landing:
               - 'packages/landing/**'
+            web:
+              - 'packages/web/**'
             root:
               - 'package.json'
               - 'package-lock.json'
@@ -284,3 +287,41 @@ jobs:
 
       - name: Build landing
         run: cd packages/landing && npm run build
+
+  # ───────────────────────────────────────────
+  # Test Web
+  # Triggers: web, shared, or root changes
+  # No DB/Redis needed — Next.js package (imports from shared)
+  # ───────────────────────────────────────────
+  test-web:
+    needs: changes
+    if: >-
+      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.shared == 'true' ||
+      needs.changes.outputs.root == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build shared
+        run: npm run build -w @foodxplorer/shared
+
+      - name: Typecheck web
+        run: npm run typecheck -w @foodxplorer/web
+
+      - name: Lint web
+        run: npm run lint -w @foodxplorer/web
+
+      - name: Test web
+        run: npm run test -w @foodxplorer/web
+
+      - name: Build web
+        run: npm run build -w @foodxplorer/web

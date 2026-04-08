@@ -1,7 +1,7 @@
 # F090: Web Assistant — Shell + Text Mode (/hablar)
 
 **Feature:** F090 | **Type:** Frontend-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F090-web-assistant-hablar
+**Status:** Done | **Branch:** feature/F090-web-assistant-hablar (deleted)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-08 | **Dependencies:** F070 (ConversationCore), F069 (ActorID middleware)
 
@@ -682,7 +682,7 @@ The API uses Vitest (not Jest) — confirmed by `packages/shared` using Vitest a
 - [x] Step 4: `production-code-validator` — PRODUCTION-READY. 0 critical/high. Quality gates: tests 119/119, lint clean, build ok, TS strict ok
 - [x] Step 5: `code-review-specialist` — APPROVED (3 MEDIUM, 4 LOW, all fixed)
 - [x] Step 5: `qa-engineer` — QA_FAIL → fixed BUG-F090-01 → re-verified 133/133 tests
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted. PR #85 squash-merged to develop (f8e5929). 133 tests.
 
 ---
 
