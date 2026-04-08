@@ -410,6 +410,126 @@ Script tag has `id="ga4-script"` for onLoad callback identification.
 
 ---
 
+## Landing + Web Package — nutriXplorer (F093 updates)
+
+**Feature:** F093 — Web Assistant Landing Integration + Analytics
+
+### Updated SiteHeader (F093)
+
+**Type:** Layout | **Client:** No (Server Component — unchanged)
+
+**Change:** Resolves `hablarUrl` from `process.env['NEXT_PUBLIC_WEB_URL']` at build time. When env var is set, the desktop CTA `<a>` targets the web assistant with UTM params. When unset, falls back to `#waitlist` (no broken link).
+
+**Resolution:**
+```
+hablarUrl = NEXT_PUBLIC_WEB_URL
+  ? NEXT_PUBLIC_WEB_URL + '/hablar?utm_source=landing&utm_medium=header_cta'
+  : '#waitlist'
+```
+
+**Desktop CTA attributes when URL is configured:**
+- `href`: resolved `hablarUrl`
+- `target="_blank" rel="noopener noreferrer"`
+- `data-cta-source="header"`
+
+Passes `ctaHref={hablarUrl}` to `<MobileMenu>` (new prop).
+
+---
+
+### Updated MobileMenu (F093)
+
+**Type:** Feature | **Client:** Yes (`'use client'` — unchanged)
+
+**New prop:**
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| ctaHref | `string` | Yes | — | Resolved CTA URL — either external web assistant URL or `#waitlist` |
+
+**Change:** Hardcoded `href="#waitlist"` on the mobile CTA `<a>` is replaced with `ctaHref`. `target="_blank" rel="noopener noreferrer"` applied conditionally when `ctaHref.startsWith('http')`.
+
+---
+
+### Updated HeroSection (F093)
+
+**Type:** Feature | **Client:** Yes (`'use client'` — unchanged)
+
+**New prop:**
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| hablarUrl | `string` | No | `undefined` | Resolved web assistant URL. Secondary CTA only rendered when this is a full URL (not `#waitlist`). |
+
+**Change (Variant A only):** A secondary "Pruébalo ahora →" text-link is rendered below `<WaitlistForm>`. Style: `text-sm font-medium text-botanical underline underline-offset-2`. Fires `cta_hablar_click` with `source='hero'` on click. Not rendered for Variants C or F.
+
+---
+
+### Updated WaitlistCTASection (F093)
+
+**Type:** Feature | **Client:** Yes (`'use client'` — unchanged)
+
+**New prop:**
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| hablarUrl | `string` | No | `undefined` | Resolved web assistant URL. Subtle link only rendered when this is a full URL. |
+
+**Change:** An "O pruébalo ahora gratis →" text-link is rendered below the social proof counter (when present) and above the trust note. Style: `text-sm text-botanical hover:underline`. Fires `cta_hablar_click` with `source='bottom'` on click. Applies to all three variant layouts.
+
+---
+
+### Updated RootLayout — web package (F093)
+
+**Type:** Layout | **Client:** No (Server Component — unchanged)
+
+**Package:** `packages/web/`
+
+**Change:** Conditional GA4 script block injected into `<head>` when `NEXT_PUBLIC_GA_MEASUREMENT_ID` is set. Script uses `send_page_view: false` — page views are fired manually per route to capture UTM params.
+
+No consent banner. No event queue. GA4 is treated as a functional analytics tool, not a marketing tracker, in the web package.
+
+---
+
+### New: HablarAnalytics — web package (F093)
+
+**Type:** Utility | **Client:** Yes (`'use client'`)
+
+**Package:** `packages/web/`
+
+**Props:** None
+
+**State:** None (fires once on mount, no ongoing state)
+
+**Responsibilities:**
+- Reads UTM params from `window.location.search` on mount
+- Fires `hablar_page_view` via `window.gtag` if defined, with UTM params
+- Mounted inside `hablar/page.tsx` (not inside `HablarShell` — keeps analytics concerns separate)
+
+**Loading/Error/Empty States:** None — returns `null`. Fires and forgets. Silent if `window.gtag` undefined.
+
+---
+
+### Analytics Events Summary (F093)
+
+#### Landing — new GA4 events
+
+| Event | Trigger | Key Parameters |
+|-------|---------|---------------|
+| `cta_hablar_click` | Click on any of the 3 landing→web CTAs | `source: 'header'\|'hero'\|'bottom'`, `variant`, `utm_medium` |
+
+Uses existing `trackEvent()`. Subject to consent check. Added to `AnalyticsEventName` union in `packages/landing/src/types/index.ts`.
+
+#### Web — new GA4 events
+
+| Event | Trigger | Key Parameters |
+|-------|---------|---------------|
+| `hablar_page_view` | `/hablar` route mounts (client-side) | `utm_source`, `utm_medium`, `utm_campaign` (from URL) |
+| `hablar_query_sent` | User submits a query | _(none — no PII)_ |
+
+Fires via `window.gtag` directly. Silent when `window.gtag` undefined.
+
+---
+
 ## Shared UI Primitives
 
 List the primitive components available in your project (e.g., from shadcn/ui):
