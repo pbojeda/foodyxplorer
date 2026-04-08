@@ -1,7 +1,7 @@
 # F092: Web Assistant — Plate Photo Upload
 
 **Feature:** F092 | **Type:** Frontend-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F092-web-assistant-plate-photo-upload
+**Status:** Done | **Branch:** (deleted — squash-merged to develop as 4c1553a)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-08 | **Dependencies:** F090 (HablarShell text mode), F034 (POST /analyze/menu API)
 
@@ -486,7 +486,7 @@ The existing `MetricEvent` union in `packages/web/src/lib/metrics.ts` must be ex
 - [x] Next.js Route Handler at `/api/analyze` proxies multipart requests with server-side API key
 - [x] `PhotoButton` is `aria-label="Subir foto del plato"` (not "próximamente")
 - [x] Unit tests for `sendPhotoAnalysis` (mock fetch), client-side validation logic, and `PhotoButton` file-input trigger (240 tests total)
-- [x] All tests pass (240/240)
+- [x] All tests pass (263/263)
 - [x] Build succeeds
 - [x] Specs updated (`ui-components.md` updated with F092 section)
 
@@ -495,7 +495,7 @@ The existing `MetricEvent` union in `packages/web/src/lib/metrics.ts` must be ex
 ## Definition of Done
 
 - [x] All acceptance criteria met (19/19)
-- [x] Unit tests written and passing (240/240)
+- [x] Unit tests written and passing (263/263)
 - [x] E2E tests updated (if applicable) — N/A
 - [x] Code follows project standards
 - [x] No linting errors
@@ -513,7 +513,7 @@ The existing `MetricEvent` union in `packages/web/src/lib/metrics.ts` must be ex
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed — APPROVED WITH NOTES (2 IMPORTANT fixed)
 - [x] Step 5: `qa-engineer` executed — 23 edge-case tests added (263 total)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted. PR #90 (4c1553a). 263 tests.
 
 ---
 
@@ -529,6 +529,7 @@ The existing `MetricEvent` union in `packages/web/src/lib/metrics.ts` must be ex
 | 2026-04-08 | Finalize | production-code-validator: 1 CRITICAL (spec drift NEXT_PUBLIC_API_KEY→API_KEY in ui-components.md). Fixed. Quality gates: 240/240 tests, 0 lint warnings, build OK |
 | 2026-04-08 | Code review | code-review-specialist: APPROVED WITH NOTES. 2 IMPORTANT (upstream fetch try/catch, TimeoutError handler), 4 SUGGESTION. Both IMPORTANT fixed |
 | 2026-04-08 | QA | qa-engineer: 23 edge-case tests in F092.qa.test.tsx. 263/263 tests passing |
+| 2026-04-08 | Complete | PR #90 squash-merged to develop (4c1553a). Branch deleted. 263 tests. |
 
 ---
 
