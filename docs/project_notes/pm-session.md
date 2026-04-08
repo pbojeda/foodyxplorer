@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F092 | Standard | pending | — | Web Assistant: Plate Photo Upload |
+| F092 | Standard | in-progress | — | Step 4/6 — Finalize |
 
 ## Completed Features
 
@@ -29,8 +29,8 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** F092 (next)
-**Branch:** (pending creation)
+**Current feature:** F092
+**Branch:** feature/F092-web-assistant-plate-photo-upload
 **Next features:** (none)
 **Blocked:** (none)
 

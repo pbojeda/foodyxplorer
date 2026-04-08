@@ -1459,14 +1459,14 @@ export interface MetricPayload {
 
 **Implementation note:** Photo events reuse existing `MetricsState` counters (`queryCount` for `photo_sent`, `successCount` for `photo_success`, `errorCount` for `photo_error`) rather than adding separate photo-specific counters. This keeps `MetricsSnapshot` unchanged.
 
-### New env var: NEXT_PUBLIC_API_KEY
+### New env var: API_KEY (server-only)
 
 **File:** `packages/web/.env.local.example` (and Vercel env vars for staging + prod)
 
 ```
-# Public API key for POST /analyze/menu (F092 plate photo upload)
-# Format: fxp_<32 hex chars> — use a low-privilege public key (not admin)
-NEXT_PUBLIC_API_KEY=fxp_your_key_here
+# Server-only API key for POST /analyze/menu proxy (F092 plate photo upload)
+# Format: fxp_<32 hex chars> — NOT NEXT_PUBLIC_, only used in Route Handler
+API_KEY=fxp_your_key_here
 ```
 
-This key is exposed in the browser bundle. It must be a public-tier key (not admin). Rate limits (10 analyses/hour) provide the primary protection.
+This key is **server-only** — it is read exclusively by the Next.js Route Handler at `app/api/analyze/route.ts` and is never exposed to the browser. The Route Handler proxies multipart requests from the client to the Fastify API, injecting the `X-API-Key` header server-side.
