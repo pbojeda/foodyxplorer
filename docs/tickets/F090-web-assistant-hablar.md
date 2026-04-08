@@ -708,14 +708,14 @@ The API uses Vitest (not Jest) — confirmed by `packages/shared` using Vitest a
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Plan, AC, DoD, Workflow, Completion Log, Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 29/29, DoD: 8/8, Workflow: Steps 0-5 checked (6 pending) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6, Features table: 5/6 |
+| 3. Update key_facts.md | [x] | Updated: Monorepo layout (+packages/web), Web stack entry (F090) |
+| 4. Update decisions.md | [x] | ADR-016 deviation documented (F090: no HTTP-only cookie, localStorage + header only) |
+| 5. Commit documentation | [x] | Commit: c484c7a |
+| 6. Verify clean working tree | [x] | `git status`: clean (after f01ac97) |
+| 7. Verify branch up to date | [x] | merge-base: origin/develop is ancestor of HEAD |
 
 ---
 
