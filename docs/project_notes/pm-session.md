@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F092 | Standard | in-progress | — | Step 4/6 — Finalize |
+| F092 | Standard | in-progress | — | Step 5/6 — Review |
 
 ## Completed Features
 
