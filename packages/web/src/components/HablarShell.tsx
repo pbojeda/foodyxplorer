@@ -114,6 +114,11 @@ export function HablarShell() {
   }, []);
 
   function handleSubmit() {
+    if (!query.trim()) return;
+    // Push hablar_query_sent immediately on submit — no PII, no query text.
+    // Uses init pattern to guarantee queue exists even before gtag loads.
+    window.dataLayer = window.dataLayer ?? [];
+    window.dataLayer.push({ event: 'hablar_query_sent' });
     executeQuery(query);
   }
 

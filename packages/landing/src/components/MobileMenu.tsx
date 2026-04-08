@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { trackEvent } from '@/lib/analytics';
+import type { Variant } from '@/types';
 
 interface NavLink {
   label: string;
@@ -12,6 +14,8 @@ interface MobileMenuProps {
   navLinks: NavLink[];
   ctaText: string;
   mobileCta: string;
+  ctaHref: string;
+  variant: Variant;
 }
 
 /**
@@ -24,7 +28,7 @@ interface MobileMenuProps {
  * - aria-controls linking button to panel
  * - Closes on: link click, outside click, Escape key
  */
-export function MobileMenu({ navLinks, ctaText: _ctaText, mobileCta }: MobileMenuProps) {
+export function MobileMenu({ navLinks, ctaText: _ctaText, mobileCta, ctaHref, variant }: MobileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -114,8 +118,22 @@ export function MobileMenu({ navLinks, ctaText: _ctaText, mobileCta }: MobileMen
         </nav>
         <div className="mt-3 border-t border-slate-100 pt-3">
           <a
-            href="#waitlist"
-            onClick={close}
+            href={ctaHref}
+            onClick={() => {
+              if (ctaHref.startsWith('http')) {
+                trackEvent({
+                  event: 'cta_hablar_click',
+                  source: 'header',
+                  variant,
+                  lang: 'es',
+                  utm_medium: 'header_cta',
+                });
+              }
+              close();
+            }}
+            {...(ctaHref.startsWith('http')
+              ? { target: '_blank', rel: 'noopener noreferrer' }
+              : {})}
             className="block rounded-full bg-botanical px-4 py-2 text-center text-sm font-semibold text-white transition hover:scale-[1.02]"
           >
             {mobileCta}

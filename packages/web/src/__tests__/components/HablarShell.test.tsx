@@ -197,3 +197,58 @@ describe('HablarShell', () => {
     expect(screen.getByText(/nutriXplorer/i)).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// F093 — hablar_query_sent dataLayer push
+// ---------------------------------------------------------------------------
+
+describe('F093 — HablarShell hablar_query_sent analytics', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (window as Window & { dataLayer?: unknown[] }).dataLayer = [];
+  });
+
+  it('pushes hablar_query_sent to window.dataLayer when form is submitted', async () => {
+    mockSendMessage.mockResolvedValue(createConversationMessageResponse('estimation'));
+    render(<HablarShell />);
+
+    await typeAndSubmit('big mac');
+
+    expect((window as Window & { dataLayer?: unknown[] }).dataLayer).toEqual(
+      expect.arrayContaining([{ event: 'hablar_query_sent' }])
+    );
+  });
+
+  it('initializes dataLayer if undefined before pushing hablar_query_sent', async () => {
+    delete (window as Window & { dataLayer?: unknown[] }).dataLayer;
+    mockSendMessage.mockResolvedValue(createConversationMessageResponse('estimation'));
+    render(<HablarShell />);
+
+    await typeAndSubmit('big mac');
+
+    expect((window as Window & { dataLayer?: unknown[] }).dataLayer).toBeDefined();
+    expect(
+      ((window as Window & { dataLayer?: unknown[] }).dataLayer ?? []).some(
+        (e) => (e as { event: string }).event === 'hablar_query_sent'
+      )
+    ).toBe(true);
+  });
+
+  it('does NOT push hablar_query_sent when query is empty', async () => {
+    render(<HablarShell />);
+    const textarea = screen.getByRole('textbox');
+    await userEvent.type(textarea, '{Enter}');
+    expect((window as Window & { dataLayer?: unknown[] }).dataLayer ?? []).toHaveLength(0);
+  });
+
+  it('pushes hablar_query_sent even when the API call fails', async () => {
+    mockSendMessage.mockRejectedValue(new ApiError('Error', 'INTERNAL_ERROR', 500));
+    render(<HablarShell />);
+
+    await typeAndSubmit('big mac');
+
+    expect((window as Window & { dataLayer?: unknown[] }).dataLayer).toEqual(
+      expect.arrayContaining([{ event: 'hablar_query_sent' }])
+    );
+  });
+});

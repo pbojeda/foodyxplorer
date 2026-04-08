@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F093 | Standard | pending | — | Web Assistant: Landing Integration + Analytics |
+| F093 | Standard | in-progress | — | Step 4/6 — Finalize |
 | F092 | Standard | pending | — | Web Assistant: Plate Photo Upload |
 
 ## Completed Features
@@ -29,8 +29,8 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** F093 (next)
-**Branch:** (pending creation)
+**Current feature:** F093
+**Branch:** feature/F093-landing-web-integration
 **Next features:** F092
 **Blocked:** (none)
 

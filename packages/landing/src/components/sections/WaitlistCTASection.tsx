@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { WaitlistForm } from '@/components/features/WaitlistForm';
+import { trackEvent } from '@/lib/analytics';
 import type { Dictionary } from '@/lib/i18n';
 import type { Variant } from '@/types';
 
 interface WaitlistCTASectionProps {
   dict: Dictionary['waitlistCta'];
   variant: Variant;
+  hablarUrl?: string;
 }
 
-export function WaitlistCTASection({ dict, variant }: WaitlistCTASectionProps) {
+export function WaitlistCTASection({ dict, variant, hablarUrl }: WaitlistCTASectionProps) {
   const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -76,6 +78,30 @@ export function WaitlistCTASection({ dict, variant }: WaitlistCTASectionProps) {
           {waitlistCount !== null && (
             <p className="text-sm font-medium text-emerald-400 mb-4">
               Ya se han apuntado {waitlistCount} personas
+            </p>
+          )}
+
+          {/* Hablar CTA — shown only when web URL is configured */}
+          {hablarUrl && hablarUrl !== '#waitlist' && (
+            <p className="mb-4">
+              <a
+                href={`${hablarUrl}?utm_source=landing&utm_medium=bottom_cta`}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-cta-source="bottom"
+                onClick={() => {
+                  trackEvent({
+                    event: 'cta_hablar_click',
+                    source: 'bottom',
+                    variant,
+                    lang: 'es',
+                    utm_medium: 'bottom_cta',
+                  });
+                }}
+                className="text-sm text-botanical hover:underline"
+              >
+                O pruébalo ahora gratis →
+              </a>
             </p>
           )}
 

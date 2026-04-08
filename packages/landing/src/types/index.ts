@@ -26,7 +26,8 @@ export type AnalyticsEventName =
   | 'waitlist_cta_click'
   | 'waitlist_submit_start'
   | 'waitlist_submit_success'
-  | 'waitlist_submit_error';
+  | 'waitlist_submit_error'
+  | 'cta_hablar_click';
 
 export type AnalyticsEventPayload = {
   event: AnalyticsEventName;

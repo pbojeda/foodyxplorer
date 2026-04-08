@@ -34,11 +34,11 @@ interface LandingPageProps {
 // ---------------------------------------------------------------------------
 // Variant A layout — "Improved Baseline"
 // ---------------------------------------------------------------------------
-function VariantALayout({ dict, variant }: { dict: Dictionary; variant: Variant }) {
+function VariantALayout({ dict, variant, hablarBaseUrl }: { dict: Dictionary; variant: Variant; hablarBaseUrl: string | null }) {
   return (
     <main>
       <SectionObserver sectionId="hero" variant={variant}>
-        <HeroSection variant={variant} dict={dict.hero} variantsCopy={dict.variants} />
+        <HeroSection variant={variant} dict={dict.hero} variantsCopy={dict.variants} hablarUrl={hablarBaseUrl ?? undefined} />
       </SectionObserver>
 
       <SectionObserver sectionId="product-demo" variant={variant}>
@@ -88,7 +88,7 @@ function VariantALayout({ dict, variant }: { dict: Dictionary; variant: Variant 
       )}
 
       <SectionObserver sectionId="waitlist-cta" variant={variant}>
-        <WaitlistCTASection dict={dict.waitlistCta} variant={variant} />
+        <WaitlistCTASection dict={dict.waitlistCta} variant={variant} hablarUrl={hablarBaseUrl ?? undefined} />
       </SectionObserver>
     </main>
   );
@@ -98,7 +98,7 @@ function VariantALayout({ dict, variant }: { dict: Dictionary; variant: Variant 
 // Variant C layout — "Pain-First"
 // Order: Hero (dark, no form) → EmotionalBlock → ProductDemo → HowItWorks → TrustEngine → Comparison → WaitlistCTA
 // ---------------------------------------------------------------------------
-function VariantCLayout({ dict, variant }: { dict: Dictionary; variant: Variant }) {
+function VariantCLayout({ dict, variant, hablarBaseUrl }: { dict: Dictionary; variant: Variant; hablarBaseUrl: string | null }) {
   return (
     <main>
       <SectionObserver sectionId="hero" variant={variant}>
@@ -141,7 +141,7 @@ function VariantCLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
       )}
 
       <SectionObserver sectionId="waitlist-cta" variant={variant}>
-        <WaitlistCTASection dict={dict.waitlistCta} variant={variant} />
+        <WaitlistCTASection dict={dict.waitlistCta} variant={variant} hablarUrl={hablarBaseUrl ?? undefined} />
       </SectionObserver>
     </main>
   );
@@ -151,7 +151,7 @@ function VariantCLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
 // Variant F layout — "Single-Audience" (allergens focus)
 // Order: Hero (allergen image, email-only form) → TrustEngine → ProductDemo → HowItWorks → EmotionalBlock → WaitlistCTA
 // ---------------------------------------------------------------------------
-function VariantFLayout({ dict, variant }: { dict: Dictionary; variant: Variant }) {
+function VariantFLayout({ dict, variant, hablarBaseUrl }: { dict: Dictionary; variant: Variant; hablarBaseUrl: string | null }) {
   return (
     <main>
       <SectionObserver sectionId="hero" variant={variant}>
@@ -190,7 +190,7 @@ function VariantFLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
       )}
 
       <SectionObserver sectionId="waitlist-cta" variant={variant}>
-        <WaitlistCTASection dict={dict.waitlistCta} variant={variant} />
+        <WaitlistCTASection dict={dict.waitlistCta} variant={variant} hablarUrl={hablarBaseUrl ?? undefined} />
       </SectionObserver>
     </main>
   );
@@ -199,14 +199,14 @@ function VariantFLayout({ dict, variant }: { dict: Dictionary; variant: Variant 
 // ---------------------------------------------------------------------------
 // Variant router
 // ---------------------------------------------------------------------------
-function getVariantLayout(variant: Variant, dict: Dictionary): React.JSX.Element {
+function getVariantLayout(variant: Variant, dict: Dictionary, hablarBaseUrl: string | null): React.JSX.Element {
   switch (variant) {
     case 'c':
-      return <VariantCLayout dict={dict} variant={variant} />;
+      return <VariantCLayout dict={dict} variant={variant} hablarBaseUrl={hablarBaseUrl} />;
     case 'f':
-      return <VariantFLayout dict={dict} variant={variant} />;
+      return <VariantFLayout dict={dict} variant={variant} hablarBaseUrl={hablarBaseUrl} />;
     default:
-      return <VariantALayout dict={dict} variant={variant} />;
+      return <VariantALayout dict={dict} variant={variant} hablarBaseUrl={hablarBaseUrl} />;
   }
 }
 
@@ -218,6 +218,12 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
   const cookieVariant = cookieStore.get(VARIANT_COOKIE_NAME)?.value;
   const variant = resolveVariant(variantParam, cookieVariant);
   const palette: Palette = paletteParam === 'med' ? 'med' : 'botanical';
+
+  // Resolve hablar base URL — strips trailing slashes; null when unset
+  const rawWebUrl = process.env['NEXT_PUBLIC_WEB_URL'] ?? '';
+  const hablarBaseUrl: string | null = rawWebUrl
+    ? rawWebUrl.replace(/\/+$/, '') + '/hablar'
+    : null;
 
   const dict = getDictionary('es');
 
@@ -252,7 +258,7 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
       )}
 
       {/* Sticky site header */}
-      <SiteHeader />
+      <SiteHeader hablarBaseUrl={hablarBaseUrl} variant={variant} />
 
       {/* No-JS waitlist success banner — useSearchParams requires Suspense to preserve SSG */}
       <Suspense fallback={null}>
@@ -260,7 +266,7 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
       </Suspense>
 
       {/* Variant-specific layout */}
-      {getVariantLayout(variant, dict)}
+      {getVariantLayout(variant, dict, hablarBaseUrl)}
 
       {/* Footer is outside <main> — it's a landmark element */}
       <SectionObserver sectionId="footer" variant={variant}>

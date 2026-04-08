@@ -1162,3 +1162,80 @@ Imports response types from `@foodxplorer/shared` — no type duplication.
   .animate-shimmer { animation: none; background: #f1f5f9; }
 }
 ```
+
+---
+
+## F093 — Landing Integration + Analytics
+
+### HeaderCTA (landing)
+
+**Type**: Feature | **Client**: Yes (`'use client'` — onClick analytics handler)
+**File**: `packages/landing/src/components/HeaderCTA.tsx`
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| hablarBaseUrl | `string \| null` | Yes | — | Base web URL or null when unconfigured |
+| variant | `Variant` | Yes | — | Current A/B variant for analytics |
+
+**Behavior:**
+- When `hablarBaseUrl` is set: `href = hablarBaseUrl + '?utm_source=landing&utm_medium=header_cta'`, `target="_blank"`, fires `cta_hablar_click`
+- When `hablarBaseUrl` is null: `href="#waitlist"`, no `target`, no analytics
+- Styling: `rounded-full bg-botanical px-4 py-2 text-sm font-semibold text-white`
+
+### SiteHeader (landing) — modified
+
+**Type**: Layout | **Client**: No (Server Component)
+**File**: `packages/landing/src/components/SiteHeader.tsx`
+
+**New Props (F093):**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| hablarBaseUrl | `string \| null` | Yes | — | Resolved web URL (with /hablar path), or null |
+| variant | `Variant` | Yes | — | Current A/B variant passed to HeaderCTA and MobileMenu |
+
+**Change**: Replaced inline `<a href="#waitlist">` desktop CTA with `<HeaderCTA>` Client Component. Passes `ctaHref` and `variant` to `<MobileMenu>`.
+
+### MobileMenu (landing) — modified
+
+**New Props (F093):**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| ctaHref | `string` | Yes | — | Resolved CTA href (external URL or `#waitlist`) |
+| variant | `Variant` | Yes | — | A/B variant for analytics event |
+
+**Change**: CTA `<a>` uses `ctaHref` prop. `target="_blank" rel="noopener noreferrer"` set when `ctaHref.startsWith('http')`. Fires `cta_hablar_click` on click when external; no analytics on `#waitlist` fallback.
+
+### HeroSection (landing) — modified
+
+**New Prop (F093):**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| hablarUrl | `string` | No | `undefined` | Full URL with UTM params. When absent or `#waitlist`, CTA not rendered |
+
+**Change**: Variant A only renders secondary `<a>Pruébalo ahora →</a>` below `<WaitlistForm>` when `hablarUrl` is truthy and not `#waitlist`. Variants C and F unchanged.
+**Style**: `text-sm font-medium text-botanical underline underline-offset-2 hover:text-botanical/80`
+
+### WaitlistCTASection (landing) — modified
+
+**New Props (F093):**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| hablarUrl | `string` | No | `undefined` | Full URL with UTM params. When absent or `#waitlist`, CTA not rendered |
+
+**Change**: Renders `<a>O pruébalo ahora gratis →</a>` below social proof counter when `hablarUrl` is set. Fires `cta_hablar_click` with `source='bottom'`.
+**Style**: `text-sm text-botanical hover:underline`
+
+### HablarAnalytics (web)
+
+**Type**: Feature | **Client**: Yes (`'use client'` — useSearchParams + useEffect)
+**File**: `packages/web/src/components/HablarAnalytics.tsx`
+
+**Props**: None
+
+**Behavior:**
+- Uses `useSearchParams()` to read UTM params from URL on mount
+- Pushes `{ event: 'hablar_page_view', utm_source, utm_medium, utm_campaign }` to `window.dataLayer`
+- Uses `(window.dataLayer = window.dataLayer || []).push(...)` init pattern
+- Returns null (no DOM output)
+- Must be wrapped in `<Suspense fallback={null}>` at call site (Next.js App Router requirement for useSearchParams)

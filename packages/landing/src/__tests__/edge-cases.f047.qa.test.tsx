@@ -176,7 +176,7 @@ describe('F047 QA — MobileMenu: CTA link click closes panel', () => {
   it('clicking the mobile CTA link closes the panel', async () => {
     const user = userEvent.setup();
     render(
-      <MobileMenu navLinks={NAV_LINKS} ctaText="Probar gratis" mobileCta="Probar" />
+      <MobileMenu navLinks={NAV_LINKS} ctaText="Probar gratis" mobileCta="Probar" ctaHref="#waitlist" variant="a" />
     );
 
     // Open the panel
@@ -191,7 +191,7 @@ describe('F047 QA — MobileMenu: CTA link click closes panel', () => {
   it('panel is hidden after opening and then clicking CTA link', async () => {
     const user = userEvent.setup();
     render(
-      <MobileMenu navLinks={NAV_LINKS} ctaText="Probar gratis" mobileCta="Probar" />
+      <MobileMenu navLinks={NAV_LINKS} ctaText="Probar gratis" mobileCta="Probar" ctaHref="#waitlist" variant="a" />
     );
 
     await user.click(screen.getByRole('button', { name: /menú/i }));
@@ -205,7 +205,7 @@ describe('F047 QA — MobileMenu: CTA link click closes panel', () => {
 
   it('hamburger button label is "Abrir menú" when closed', () => {
     render(
-      <MobileMenu navLinks={NAV_LINKS} ctaText="Probar gratis" mobileCta="Probar" />
+      <MobileMenu navLinks={NAV_LINKS} ctaText="Probar gratis" mobileCta="Probar" ctaHref="#waitlist" variant="a" />
     );
     expect(screen.getByRole('button', { name: /abrir menú/i })).toBeInTheDocument();
   });

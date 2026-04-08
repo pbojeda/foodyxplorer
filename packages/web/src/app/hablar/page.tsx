@@ -1,5 +1,7 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { HablarShell } from '@/components/HablarShell';
+import { HablarAnalytics } from '@/components/HablarAnalytics';
 
 export const metadata: Metadata = {
   title: 'Hablar — Asistente nutricional',
@@ -7,5 +9,13 @@ export const metadata: Metadata = {
 };
 
 export default function HablarPage() {
-  return <HablarShell />;
+  return (
+    <>
+      {/* HablarAnalytics uses useSearchParams — requires Suspense boundary */}
+      <Suspense fallback={null}>
+        <HablarAnalytics />
+      </Suspense>
+      <HablarShell />
+    </>
+  );
 }
