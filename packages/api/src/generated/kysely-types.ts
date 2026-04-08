@@ -274,6 +274,19 @@ export type WaitlistSubmission = {
   ip_address: string | null;
   created_at: Generated<Timestamp>;
 };
+export type WebMetricsEvent = {
+  id: string;
+  query_count: number;
+  success_count: number;
+  error_count: number;
+  retry_count: number;
+  intents: unknown;
+  errors: unknown;
+  avg_response_time_ms: number;
+  session_started_at: Timestamp;
+  received_at: Generated<Timestamp>;
+  ip_hash: string | null;
+};
 export type DB = {
   actors: Actor;
   api_keys: ApiKey;
@@ -295,4 +308,5 @@ export type DB = {
   restaurants: Restaurant;
   standard_portions: StandardPortion;
   waitlist_submissions: WaitlistSubmission;
+  web_metrics_events: WebMetricsEvent;
 };

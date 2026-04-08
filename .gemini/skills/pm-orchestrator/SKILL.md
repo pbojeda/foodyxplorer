@@ -29,6 +29,14 @@ Before starting:
 
 ## `start pm` — New Autonomous Session
 
+### Phase 0: Previous Session Cleanup
+
+1. Check if `docs/project_notes/pm-session.md` exists.
+2. If it exists and Status is `completed` or `stopped`:
+   - Archive it: rename to `docs/project_notes/pm-session-{session-id}.md` (e.g., `pm-session-pm-c3a.md`).
+   - Print: `[PM] Archived previous session {session-id} → pm-session-{session-id}.md`
+3. If it exists and Status is `in-progress`: warn the user that a session is still active — suggest `continue pm` or `stop pm` first.
+
 ### Phase 1: Batch Selection
 
 1. Read `docs/project_notes/product-tracker.md` → collect all features with step < 6/6.
@@ -151,7 +159,7 @@ Completed: 2/3 | Blocked: 1/3 | Remaining: 0
 ## `continue pm` — Resume After /compact or Restart
 
 1. Read `docs/project_notes/pm-session.md`. If it doesn't exist, inform user there is no active session.
-2. **Validate session Status.** If Status is `completed` or `stopped`, inform user the session has ended. To start a new one, delete pm-session.md and run `start pm`.
+2. **Validate session Status.** If Status is `completed` or `stopped`, inform user the session has ended. To start a new one, run `start pm` (it will archive the old session automatically).
 3. **Re-create lock.** If `docs/project_notes/pm-session.lock` is missing (e.g., after terminal crash), re-create it with content: `session resumed at {ISO date}`.
 4. Find the feature with status `in-progress`:
    - Read its ticket file and the product tracker Active Session to determine current step.

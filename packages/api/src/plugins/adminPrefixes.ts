@@ -8,6 +8,8 @@ export const ADMIN_PREFIXES = ['/ingest/', '/quality/', '/embeddings/', '/analyt
 
 export function isAdminRoute(url: string | undefined, method?: string): boolean {
   if (!url) return false;
+  // Method-specific public exemptions (POST beacon route — no auth headers possible)
+  if (url === '/analytics/web-events' && method === 'POST') return false;
   // Method-specific admin routes
   if (url === '/restaurants' && method === 'POST') return true;
   // Prefix-based admin routes (existing)

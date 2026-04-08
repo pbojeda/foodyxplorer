@@ -50,7 +50,13 @@ export async function registerActorResolver(
     const url = request.routeOptions.url;
 
     // Infrastructure routes — exempt from actor resolution
-    if (url === '/health' || url === '/docs' || url === '/docs/json') return;
+    // Also exempt sendBeacon POST (cannot set headers, must not auto-create ghost actors)
+    if (
+      url === '/health' ||
+      url === '/docs' ||
+      url === '/docs/json' ||
+      (url === '/analytics/web-events' && request.method === 'POST')
+    ) return;
 
     const rawHeader = request.headers['x-actor-id'];
     const headerValue = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
