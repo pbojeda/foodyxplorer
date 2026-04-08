@@ -10,7 +10,9 @@
 
 **Last Updated:** 2026-04-08
 
-**Active Feature:** No active work
+**Active Feature:** BUG-AUDIT-C5 — Fix silent error in reverse search via conversation (Simple, Step 5/6)
+**Branch:** `feature/bug-audit-c5-reverse-search-conversation`
+**Ticket:** `docs/tickets/BUG-AUDIT-C5-reverse-search-conversation.md`
 **Branch:** `feature/bug-audit-c4-post-empty-body-500`
 **Ticket:** `docs/tickets/BUG-AUDIT-C4-post-empty-body-500.md`
 **Last Bugfix Completed:** BUG-AUDIT-C1C3 — Fixed (PR #82, squash merged)
@@ -220,7 +222,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 |----|---------|------|--------|------|-------|
 | BUG-AUDIT-C1C3 | Fix `/reverse-search` error envelope | backend | done | 6/6 | Simple. PR #82. 6 new tests. Standardized 404+400 to project error envelope |
 | BUG-AUDIT-C4 | Fix POST empty body → 500 | backend | done | 6/6 | Simple. POST `/calculate/recipe` and `/conversation/message` return 500 when body is null/invalid JSON. Fastify body parser throws before Zod. Add onError hook or content-type-parser guard |
-| BUG-AUDIT-C5 | Fix reverse search via conversation | backend | pending | — | Simple. `reverseSearchDishes()` called from `conversationCore.ts` always returns empty results. Direct endpoint works. Silent `catch` block masks DB error. Investigate Kysely instance or query mismatch |
+| BUG-AUDIT-C5 | Fix reverse search via conversation | backend | in-progress | 5/6 | Simple. `reverseSearchDishes()` called from `conversationCore.ts` always returns empty results. Direct endpoint works. Silent `catch` block masks DB error. Investigate Kysely instance or query mismatch |
 
 > **Phase C: Conversational Web Assistant + Realtime Voice**
 
