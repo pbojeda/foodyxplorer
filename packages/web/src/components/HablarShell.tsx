@@ -57,6 +57,14 @@ export function HablarShell() {
       if (err instanceof DOMException && err.name === 'AbortError') {
         return;
       }
+      // TimeoutError from AbortSignal.timeout(15000) — show specific message
+      if (err instanceof DOMException && err.name === 'TimeoutError') {
+        if (!controller.signal.aborted) {
+          setError('La consulta ha tardado demasiado. Inténtalo de nuevo.');
+          setResults(null);
+        }
+        return;
+      }
       // Double-check for race condition
       if (controller.signal.aborted) return;
 

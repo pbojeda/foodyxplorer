@@ -44,6 +44,13 @@ describe('getActorId', () => {
     expect(id).toBe(existingId);
   });
 
+  it('generates a new UUID when stored value is not a valid UUID', () => {
+    localStorage.setItem(LOCAL_STORAGE_KEY, 'not-a-valid-uuid');
+    const id = getActorId();
+    expect(id).toMatch(UUID_PATTERN);
+    expect(id).not.toBe('not-a-valid-uuid');
+  });
+
   it('generates an in-memory UUID when localStorage.getItem throws', () => {
     jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('localStorage unavailable');
@@ -83,9 +90,16 @@ describe('persistActorId', () => {
   });
 
   it('overwrites an existing id in localStorage', () => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, 'old-id');
-    persistActorId('new-id');
-    expect(localStorage.getItem(LOCAL_STORAGE_KEY)).toBe('new-id');
+    localStorage.setItem(LOCAL_STORAGE_KEY, 'abc12345-0000-4000-a000-000000000001');
+    const newId = 'abc12345-0000-4000-a000-000000000002';
+    persistActorId(newId);
+    expect(localStorage.getItem(LOCAL_STORAGE_KEY)).toBe(newId);
+  });
+
+  it('rejects non-UUID values without writing', () => {
+    localStorage.setItem(LOCAL_STORAGE_KEY, 'abc12345-0000-4000-a000-000000000001');
+    persistActorId('not-a-uuid');
+    expect(localStorage.getItem(LOCAL_STORAGE_KEY)).toBe('abc12345-0000-4000-a000-000000000001');
   });
 
   it('is a no-op (no throw) when localStorage is unavailable', () => {

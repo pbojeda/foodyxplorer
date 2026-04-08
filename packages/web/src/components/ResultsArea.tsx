@@ -35,7 +35,9 @@ export function ResultsArea({ isLoading, results, error, onRetry }: ResultsAreaP
     );
   }
 
-  // No results yet (initial state) or text_too_long (inline error handled in shell)
+  // No results yet (initial state).
+  // text_too_long is handled exclusively by HablarShell (inline error, sets results=null).
+  // The guard below is a defensive safety net — it should never be reached in practice.
   if (!results || results.intent === 'text_too_long') {
     return (
       <div className="flex flex-1 overflow-y-auto">
