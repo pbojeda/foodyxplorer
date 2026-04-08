@@ -4,6 +4,7 @@
 // instead of 500 INTERNAL_ERROR.
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { mapError } from '../errors/errorHandler.js';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import { registerErrorHandler } from '../errors/errorHandler.js';
@@ -60,9 +61,7 @@ describe('C4: POST with no body returns 400 (not 500)', () => {
       payload: '{invalid',
     });
 
-    // Debug: log the actual response
     const responseBody = JSON.parse(res.payload);
-    // Check what Fastify returns for malformed JSON
     expect(res.statusCode).toBe(400);
     expect(responseBody.success).toBe(false);
     expect(responseBody.error.code).toBe('VALIDATION_ERROR');
@@ -93,5 +92,18 @@ describe('C4: POST with no body returns 400 (not 500)', () => {
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.payload);
     expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mapError unit test: non-JSON SyntaxError falls through to 500
+// ---------------------------------------------------------------------------
+
+describe('mapError: non-JSON SyntaxError → 500', () => {
+  it('SyntaxError without statusCode or JSON message → 500 INTERNAL_ERROR', () => {
+    const err = new SyntaxError('unexpected token');
+    const result = mapError(err);
+    expect(result.statusCode).toBe(500);
+    expect(result.body.error.code).toBe('INTERNAL_ERROR');
   });
 });

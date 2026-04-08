@@ -1,7 +1,7 @@
 # BUG-AUDIT-C4: Fix POST Empty Body → 500
 
 **Feature:** BUG-AUDIT-C4 | **Type:** Backend-Bugfix | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/bug-audit-c4-post-empty-body-500
+**Status:** Ready for Merge | **Branch:** feature/bug-audit-c4-post-empty-body-500
 **Created:** 2026-04-08 | **Dependencies:** None
 
 ---
@@ -34,8 +34,8 @@ N/A — Simple task.
 - [x] POST with no body returns 400 VALIDATION_ERROR (not 500)
 - [x] POST with invalid JSON returns 400 VALIDATION_ERROR (not 500)
 - [x] Existing valid POST requests unchanged
-- [x] Unit tests for empty/invalid body scenarios (4 tests)
-- [x] All tests pass (3147 API)
+- [x] Unit tests for empty/invalid body scenarios (5 tests)
+- [x] All tests pass (3148 API)
 - [x] Build succeeds
 
 ---
@@ -54,7 +54,7 @@ N/A — Simple task.
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 3: TDD implementation
 - [x] Step 4: Quality gates pass (3147 API tests, lint clean, build OK)
-- [ ] Step 5: PR created, code review
+- [x] Step 5: PR #83 created, code review: APPROVED (1 fix applied: operator precedence)
 - [ ] Step 6: Ticket updated, branch deleted
 
 ---
@@ -64,11 +64,22 @@ N/A — Simple task.
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-08 | Step 1: Setup | Branch + lite ticket |
-| 2026-04-08 | Step 3: TDD | 4 new tests, added SyntaxError + FST_ERR_CTP_EMPTY_JSON_BODY handlers |
-| 2026-04-08 | Step 4: Finalize | 3147 API tests pass, lint clean, build OK |
+| 2026-04-08 | Step 3: TDD | 5 tests, SyntaxError + FST_ERR_CTP_EMPTY_JSON_BODY handlers |
+| 2026-04-08 | Step 4: Finalize | 3148 API tests pass, lint clean, build OK |
+| 2026-04-08 | Step 5: PR #83 | code-review: 1 fix (operator precedence), +1 mapError unit test |
 
 ---
 
 ## Merge Checklist Evidence
 
-_To be filled before merge approval._
+| Action | Done | Evidence |
+|--------|:----:|----------|
+| 0. Validate ticket structure | [x] | All 7 sections present |
+| 1. Mark all items | [x] | AC: 6/6, DoD: 4/4, Workflow: Steps 1,3,4,5 |
+| 2. Verify product tracker | [x] | Active Session + Features table updated |
+| 3. Update key_facts.md | [x] | N/A — no new models/endpoints |
+| 4. Update decisions.md | [x] | N/A |
+| 5. Commit documentation | [x] | Included in this commit |
+| 6. Clean working tree | [x] | Verified |
+| 7. Branch up to date | [x] | Based on develop, no divergence |
+| 8. Evidence table filled | [x] | This table |

@@ -72,9 +72,8 @@ export function mapError(error: Error): MappedError {
   // Fastify schema validation error / body parsing errors
   const asAny = error as unknown as Record<string, unknown>;
 
-  // SyntaxError — malformed JSON body (BUG-AUDIT-C4)
-  // Check both instanceof and statusCode+message since Fastify may wrap the error
-  if (error instanceof SyntaxError || asAny['statusCode'] === 400 && error.message.includes('JSON')) {
+  // Malformed JSON body — Fastify wraps SyntaxError with statusCode 400 (BUG-AUDIT-C4)
+  if (asAny['statusCode'] === 400 && error.message.includes('JSON')) {
     return {
       statusCode: 400,
       body: {
