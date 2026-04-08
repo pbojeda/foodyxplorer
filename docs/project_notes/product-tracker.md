@@ -10,7 +10,9 @@
 
 **Last Updated:** 2026-04-08
 
-**Active Feature:** No active feature — preparing bugfix batch from Phase B audit
+**Active Feature:** BUG-AUDIT-C1C3 — Fix `/reverse-search` error envelope (Simple, Step 5/6 Review)
+**Branch:** `feature/bug-audit-c1c3-reverse-search-error-envelope`
+**Ticket:** `docs/tickets/BUG-AUDIT-C1C3-reverse-search-error-envelope.md`
 **Last Completed:** Phase B Audit (Puntos 1-5) — all 5 audit steps done
 
 **Phase B Audit Summary (2026-04-07 to 2026-04-08):**
@@ -215,7 +217,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| BUG-AUDIT-C1C3 | Fix `/reverse-search` error envelope | backend | pending | — | Simple. 404 returns `{success,code,message}` instead of `{success,error:{code,message}}`. 400 returns raw Zod `{formErrors,fieldErrors}`. Standardize both to project error envelope |
+| BUG-AUDIT-C1C3 | Fix `/reverse-search` error envelope | backend | in-progress | 5/6 | Simple. 404 returns `{success,code,message}` instead of `{success,error:{code,message}}`. 400 returns raw Zod `{formErrors,fieldErrors}`. Standardize both to project error envelope |
 | BUG-AUDIT-C4 | Fix POST empty body → 500 | backend | pending | — | Simple. POST `/calculate/recipe` and `/conversation/message` return 500 when body is null/invalid JSON. Fastify body parser throws before Zod. Add onError hook or content-type-parser guard |
 | BUG-AUDIT-C5 | Fix reverse search via conversation | backend | pending | — | Simple. `reverseSearchDishes()` called from `conversationCore.ts` always returns empty results. Direct endpoint works. Silent `catch` block masks DB error. Investigate Kysely instance or query mismatch |
 
