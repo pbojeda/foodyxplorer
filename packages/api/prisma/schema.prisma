@@ -543,6 +543,27 @@ model WaitlistSubmission {
 }
 
 // ---------------------------------------------------------------------------
+// F113 — Web Metrics Events
+// ---------------------------------------------------------------------------
+
+model WebMetricsEvent {
+  id                String   @id @default(uuid()) @db.Uuid
+  queryCount        Int      @map("query_count")
+  successCount      Int      @map("success_count")
+  errorCount        Int      @map("error_count")
+  retryCount        Int      @map("retry_count")
+  intents           Json     @map("intents")
+  errors            Json     @map("errors")
+  avgResponseTimeMs Int      @map("avg_response_time_ms")
+  sessionStartedAt  DateTime @map("session_started_at") @db.Timestamptz
+  receivedAt        DateTime @default(now()) @map("received_at") @db.Timestamptz
+  ipHash            String?  @map("ip_hash") @db.VarChar(64)
+
+  @@index([receivedAt(sort: Desc)])
+  @@map("web_metrics_events")
+}
+
+// ---------------------------------------------------------------------------
 // F072 — Cooking Profiles + Yield Factors
 // ---------------------------------------------------------------------------
 
