@@ -68,11 +68,14 @@ tags:
       in F026. Write endpoints (POST /restaurants) are admin-only (F032).
   - name: Analytics
     description: |
-      Query log analytics endpoints (F029). Every call to GET /estimate is recorded
+      Query log analytics endpoints (F029, F113). Every call to GET /estimate is recorded
       asynchronously to the query_logs table. This endpoint aggregates those rows into
       operational metrics: total query counts, level-hit distribution, top queried terms,
       cache hit rate, average response time, and queries by chain and source.
       Admin-only (requires X-API-Key matching ADMIN_API_KEY env var).
+      F113 adds POST /analytics/web-events (public, IP-rate-limited) to receive client-side
+      session metrics from the /hablar web assistant, and GET /analytics/web-events
+      (admin-only) to aggregate stored web metrics.
   - name: Calculation
     description: |
       Recipe calculation endpoints (F035). Compute aggregate nutritional information
@@ -3285,6 +3288,178 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  # ---------------------------------------------------------------------------
+  # F113 — Web Metrics Receiver
+  # ---------------------------------------------------------------------------
+
+  /analytics/web-events:
+    post:
+      summary: Receive web assistant session metrics
+      description: |
+        Receives a MetricsSnapshot payload from the /hablar web assistant via
+        navigator.sendBeacon on page unload (F112, ADR-018). No authentication
+        required — sendBeacon cannot set custom headers. Protected by a dedicated
+        per-IP rate limit (10 req/min/IP) applied at the route level.
+
+        Accepts both application/json and text/plain content types. sendBeacon
+        with a plain string body sends text/plain;charset=UTF-8 — the route
+        handler JSON-parses the raw body string before Zod validation when
+        Content-Type is text/plain.
+
+        Always returns 202 Accepted with { "success": true }. If the DB insert
+        fails, the error is logged server-side but the 202 is still returned
+        (fire-and-forget: client ignores the response body).
+
+        Stores one row per beacon event in web_metrics_events (Prisma). The IP
+        is stored as SHA-256(request.ip) for privacy-preserving deduplication.
+        No PII is stored — no query text, no actorId (ADR-018).
+      operationId: receiveWebMetrics
+      tags:
+        - Analytics
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebMetricsSnapshot'
+            example:
+              queryCount: 5
+              successCount: 4
+              errorCount: 1
+              retryCount: 0
+              intents:
+                nutritional_query: 3
+                comparison: 1
+              errors:
+                NETWORK_ERROR: 1
+              avgResponseTimeMs: 1200
+              sessionStartedAt: "2026-04-08T10:00:00.000Z"
+          text/plain:
+            schema:
+              type: string
+              description: |
+                JSON-encoded WebMetricsSnapshot sent by navigator.sendBeacon.
+                The server parses this as JSON and validates against
+                WebMetricsSnapshot before storing.
+            example: '{"queryCount":5,"successCount":4,"errorCount":1,"retryCount":0,"intents":{"nutritional_query":3},"errors":{},"avgResponseTimeMs":1200,"sessionStartedAt":"2026-04-08T10:00:00.000Z"}'
+      responses:
+        '202':
+          description: Metrics accepted for storage (fire-and-forget).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+              example:
+                success: true
+        '400':
+          description: |
+            Payload is not valid JSON, fails schema validation, or violates
+            cross-field constraints (e.g. successCount > queryCount,
+            sessionStartedAt older than 24h or in the future).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Validation failed"
+                  code: "VALIDATION_ERROR"
+        '429':
+          description: |
+            Per-IP rate limit exceeded (10 req/min/IP). Fail-open when Redis
+            is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Too many requests, please try again later."
+                  code: "RATE_LIMIT_EXCEEDED"
+
+    get:
+      summary: Aggregate web assistant session metrics
+      description: |
+        Aggregates web_metrics_events rows into summary statistics for admin
+        visibility. Returns event count, total/success/error/retry counts,
+        average response time, top intents, and top errors. All values are
+        summed across rows in the selected time window (not averaged per row).
+        avgResponseTimeMs is the weighted mean: sum(avgResponseTimeMs *
+        successCount) / sum(successCount) across all rows. Returns null when
+        no rows with successCount > 0 exist in the window.
+        Admin-only (F113).
+      operationId: getWebMetricsAnalytics
+      tags:
+        - Analytics
+      security:
+        - AdminKeyAuth: []
+      parameters:
+        - name: timeRange
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [24h, 7d, 30d, all]
+            default: 7d
+          description: Time window to scope the aggregation. 'all' applies no time filter.
+      responses:
+        '200':
+          description: Web metrics aggregation successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebMetricsAggregateResponse'
+              example:
+                success: true
+                data:
+                  eventCount: 42
+                  totalQueries: 310
+                  totalSuccesses: 285
+                  totalErrors: 25
+                  totalRetries: 8
+                  avgResponseTimeMs: 980.5
+                  topIntents:
+                    - intent: nutritional_query
+                      count: 180
+                    - intent: comparison
+                      count: 75
+                  topErrors:
+                    - errorCode: NETWORK_ERROR
+                      count: 15
+                    - errorCode: TIMEOUT
+                      count: 10
+                  timeRange: 7d
+        '401':
+          description: Missing or invalid admin API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Unauthorized"
+                  code: "UNAUTHORIZED"
+        '500':
+          description: Database unavailable during aggregation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database query failed during web metrics aggregation"
+                  code: "DB_UNAVAILABLE"
 
   /restaurants:
     get:
@@ -8599,6 +8774,195 @@ components:
           enum: [true]
         data:
           $ref: '#/components/schemas/AnalyticsData'
+
+    # -------------------------------------------------------------------------
+    # F113 — Web Metrics
+    # -------------------------------------------------------------------------
+
+    WebMetricsSnapshot:
+      type: object
+      description: |
+        Session-level usage metrics snapshot sent by the /hablar web assistant
+        via navigator.sendBeacon on page unload (F112). No PII — no query text,
+        no actorId. All values are session aggregates (not per-query).
+
+        Cross-field constraints (enforced by WebMetricsSnapshotSchema Zod refine):
+        - successCount <= queryCount
+        - errorCount <= queryCount
+        - sessionStartedAt must be within the past 24 hours and no more than
+          1 minute in the future (clock skew tolerance)
+      required:
+        - queryCount
+        - successCount
+        - errorCount
+        - retryCount
+        - intents
+        - errors
+        - avgResponseTimeMs
+        - sessionStartedAt
+      properties:
+        queryCount:
+          type: integer
+          minimum: 1
+          description: Total queries sent during the session. Minimum 1 (zero-query beacons rejected).
+          example: 5
+        successCount:
+          type: integer
+          minimum: 0
+          description: Queries that received a successful response.
+          example: 4
+        errorCount:
+          type: integer
+          minimum: 0
+          description: Queries that resulted in an error.
+          example: 1
+        retryCount:
+          type: integer
+          minimum: 0
+          description: Retry attempts across all queries.
+          example: 0
+        intents:
+          type: object
+          description: |
+            Distribution of query intents. Keys are intent strings (max 100 chars each,
+            max 50 keys). Values are non-negative counts. Empty object is valid.
+          additionalProperties:
+            type: integer
+            minimum: 0
+          maxProperties: 50
+          example:
+            nutritional_query: 3
+            comparison: 1
+        errors:
+          type: object
+          description: |
+            Distribution of error codes. Keys are error code strings (max 100 chars each,
+            max 50 keys). Values are non-negative counts. Empty object is valid.
+          additionalProperties:
+            type: integer
+            minimum: 0
+          maxProperties: 50
+          example:
+            NETWORK_ERROR: 1
+        avgResponseTimeMs:
+          type: integer
+          minimum: 0
+          maximum: 120000
+          description: |
+            Average perceived response time in milliseconds across successful queries.
+            Computed client-side as sum(responseTimeMs) / successCount.
+            0 when successCount is 0. Maximum 120000ms (2 minutes ceiling).
+          example: 1200
+        sessionStartedAt:
+          type: string
+          format: date-time
+          description: |
+            ISO 8601 timestamp of when the session metrics state was initialized.
+            Client-reported — used for session duration analytics, not trusted for
+            security. Must be within the past 24 hours and at most 1 minute in the
+            future (clock skew tolerance).
+          example: "2026-04-08T10:00:00.000Z"
+
+    WebMetricsIntentCount:
+      type: object
+      required: [intent, count]
+      properties:
+        intent:
+          type: string
+          example: nutritional_query
+        count:
+          type: integer
+          minimum: 0
+          example: 180
+
+    WebMetricsErrorCount:
+      type: object
+      required: [errorCode, count]
+      properties:
+        errorCode:
+          type: string
+          example: NETWORK_ERROR
+        count:
+          type: integer
+          minimum: 0
+          example: 15
+
+    WebMetricsAggregateData:
+      type: object
+      description: Aggregated web metrics across all events in the selected time window.
+      required:
+        - eventCount
+        - totalQueries
+        - totalSuccesses
+        - totalErrors
+        - totalRetries
+        - avgResponseTimeMs
+        - topIntents
+        - topErrors
+        - timeRange
+      properties:
+        eventCount:
+          type: integer
+          minimum: 0
+          description: Number of beacon events received in the time window.
+          example: 42
+        totalQueries:
+          type: integer
+          minimum: 0
+          description: Sum of queryCount across all events.
+          example: 310
+        totalSuccesses:
+          type: integer
+          minimum: 0
+          description: Sum of successCount across all events.
+          example: 285
+        totalErrors:
+          type: integer
+          minimum: 0
+          description: Sum of errorCount across all events.
+          example: 25
+        totalRetries:
+          type: integer
+          minimum: 0
+          description: Sum of retryCount across all events.
+          example: 8
+        avgResponseTimeMs:
+          type: number
+          format: float
+          nullable: true
+          description: |
+            Weighted mean response time: sum(avgResponseTimeMs * successCount) /
+            sum(successCount) across all events. Null when sum(successCount) = 0.
+          example: 980.5
+        topIntents:
+          type: array
+          description: |
+            Top intent keys by total count, aggregated across all JSONB intents
+            columns. Sorted descending by count.
+          items:
+            $ref: '#/components/schemas/WebMetricsIntentCount'
+        topErrors:
+          type: array
+          description: |
+            Top error codes by total count, aggregated across all JSONB errors
+            columns. Sorted descending by count.
+          items:
+            $ref: '#/components/schemas/WebMetricsErrorCount'
+        timeRange:
+          type: string
+          enum: [24h, 7d, 30d, all]
+          description: The time range used for this aggregation.
+          example: 7d
+
+    WebMetricsAggregateResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/WebMetricsAggregateData'
 
     # -------------------------------------------------------------------------
     # F079 — Missed Query Tracking
