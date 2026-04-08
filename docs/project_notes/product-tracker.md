@@ -10,9 +10,8 @@
 
 **Last Updated:** 2026-04-08
 
-**Active Feature:** BUG-AUDIT-C5 — Fix silent error in reverse search via conversation (Simple, Step 5/6)
-**Branch:** `feature/bug-audit-c5-reverse-search-conversation`
-**Ticket:** `docs/tickets/BUG-AUDIT-C5-reverse-search-conversation.md`
+**Active Feature:** No active work
+**Last Completed:** All 3 Phase B audit bugfixes done (C1C3 PR #82, C4 PR #83, C5 PR #84)
 **Last Completed:** Phase B Audit (Puntos 1-5) — all 5 audit steps done
 
 **Phase B Audit Summary (2026-04-07 to 2026-04-08):**
@@ -219,7 +218,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 |----|---------|------|--------|------|-------|
 | BUG-AUDIT-C1C3 | Fix `/reverse-search` error envelope | backend | done | 6/6 | Simple. PR #82. 6 new tests. Standardized 404+400 to project error envelope |
 | BUG-AUDIT-C4 | Fix POST empty body → 500 | backend | done | 6/6 | Simple. POST `/calculate/recipe` and `/conversation/message` return 500 when body is null/invalid JSON. Fastify body parser throws before Zod. Add onError hook or content-type-parser guard |
-| BUG-AUDIT-C5 | Fix reverse search via conversation | backend | in-progress | 5/6 | Simple. `reverseSearchDishes()` called from `conversationCore.ts` always returns empty results. Direct endpoint works. Silent `catch` block masks DB error. Investigate Kysely instance or query mismatch |
+| BUG-AUDIT-C5 | Fix reverse search via conversation | backend | done | 6/6 | Simple. `reverseSearchDishes()` called from `conversationCore.ts` always returns empty results. Direct endpoint works. Silent `catch` block masks DB error. Investigate Kysely instance or query mismatch |
 
 > **Phase C: Conversational Web Assistant + Realtime Voice**
 
@@ -357,6 +356,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | 2026-04-07 | F089 — "Modo Tapeo" (shared portions) | ef5dbe6 (squash merge to develop, PR #81) | Simple. Diners extraction (4 regex patterns, cap 20). `diners` + `perPerson` in MenuEstimationData. Per-person formatter line. 22 tests. Code review: APPROVED |
 | 2026-04-08 | BUG-AUDIT-C1C3 — Fix `/reverse-search` error envelope | f994f83 (squash merge to develop, PR #82) | Simple bugfix. Standardized 404 CHAIN_NOT_FOUND + 400 validation to project error envelope. 6 new tests. Code review: APPROVED |
 | 2026-04-08 | BUG-AUDIT-C4 — Fix POST empty body → 500 | 3a8732f (squash merge to develop, PR #83) | Simple bugfix. SyntaxError + FST_ERR_CTP_EMPTY_JSON_BODY → 400 VALIDATION_ERROR. 5 new tests. Code review: 1 fix (operator precedence) |
+| 2026-04-08 | BUG-AUDIT-C5 — Fix reverse search conversation logging | f747679 (squash merge to develop, PR #84) | Simple bugfix. Add logger.warn to silent catch block. 2 new tests. Code review: APPROVED |
 
 ---
 

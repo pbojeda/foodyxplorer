@@ -1,7 +1,7 @@
 # BUG-AUDIT-C5: Fix Silent Error in Reverse Search via Conversation
 
 **Feature:** BUG-AUDIT-C5 | **Type:** Backend-Bugfix | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/bug-audit-c5-reverse-search-conversation
+**Status:** Done | **Branch:** feature/bug-audit-c5-reverse-search-conversation (deleted)
 **Created:** 2026-04-08 | **Dependencies:** None
 
 ---
