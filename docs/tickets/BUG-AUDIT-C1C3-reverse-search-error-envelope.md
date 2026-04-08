@@ -57,7 +57,7 @@ N/A — Simple task.
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 3: TDD implementation
 - [x] Step 4: Quality gates pass (3143 API + 475 shared + 1198 bot, lint clean, build OK)
-- [ ] Step 5: PR created, code review
+- [x] Step 5: PR created, code review
 - [ ] Step 6: Ticket updated, branch deleted
 
 ---
