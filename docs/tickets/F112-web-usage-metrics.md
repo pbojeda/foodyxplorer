@@ -1,7 +1,7 @@
 # F112: Web Assistant Usage Metrics
 
 **Feature:** F112 | **Type:** Frontend | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F112-web-usage-metrics
+**Status:** Done | **Branch:** feature/F112-web-usage-metrics
 **Created:** 2026-04-08 | **Dependencies:** F090 (done)
 
 ---
@@ -54,7 +54,7 @@ N/A — Simple task.
 - [x] Step 3: Implementation complete
 - [x] Step 4: Quality gates pass, committed
 - [x] Step 5: `code-review-specialist` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -66,6 +66,7 @@ N/A — Simple task.
 | 2026-04-08 | Step 3: Implement | metrics.ts (4 exports + subscribe), useMetrics hook (useSyncExternalStore), HablarShell instrumented. 17 new tests |
 | 2026-04-08 | Step 4: Finalize | 150 tests pass, lint clean, build OK (108kB) |
 | 2026-04-08 | Step 5: Review | PR #87. Code review: Accepted H1 (text_too_long tracking gap), H2 (resetMetrics notify). Fixed S1 (dead snapshotVersion), S2 (localStorage validation). ADR-018 added. F113 registered |
+| 2026-04-08 | Step 6: Complete | Squash-merged to develop (356609f). Branch deleted. 150 tests pass post-merge |
 
 ---
 
