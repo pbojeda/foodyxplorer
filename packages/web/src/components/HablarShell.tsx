@@ -4,10 +4,11 @@
 // Manages all page state: query, loading, results, error, inlineError.
 // Uses useRef<AbortController | null> for stale request guard.
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ConversationMessageData } from '@foodxplorer/shared';
 import { getActorId } from '@/lib/actorId';
 import { sendMessage, ApiError } from '@/lib/apiClient';
+import { trackEvent, flushMetrics } from '@/lib/metrics';
 import { ConversationInput } from './ConversationInput';
 import { ResultsArea } from './ResultsArea';
 
@@ -22,6 +23,13 @@ export function HablarShell() {
   // Ref to track the current in-flight AbortController for stale request guard
   const currentRequestRef = useRef<AbortController | null>(null);
 
+  // Flush metrics on page unload
+  useEffect(() => {
+    const handleUnload = () => flushMetrics();
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, []);
+
   const executeQuery = useCallback(async (text: string) => {
     if (!text.trim()) return;
 
@@ -35,6 +43,9 @@ export function HablarShell() {
     setError(null);
     setInlineError(null);
 
+    const startTime = Date.now();
+    trackEvent('query_sent');
+
     try {
       const actorId = getActorId();
       const response = await sendMessage(text, actorId, controller.signal);
@@ -46,11 +57,19 @@ export function HablarShell() {
 
       // Handle text_too_long inline (not full-screen ErrorState)
       if (data.intent === 'text_too_long') {
+        trackEvent('query_success', {
+          intent: 'text_too_long',
+          responseTimeMs: Date.now() - startTime,
+        });
         setInlineError('Demasiado largo. Máx. 500 caracteres.');
         setResults(null);
         return;
       }
 
+      trackEvent('query_success', {
+        intent: data.intent,
+        responseTimeMs: Date.now() - startTime,
+      });
       setResults(data);
     } catch (err) {
       // AbortError from stale request guard or user-triggered abort — silently ignore
@@ -60,6 +79,7 @@ export function HablarShell() {
       // TimeoutError from AbortSignal.timeout(15000) — show specific message
       if (err instanceof DOMException && err.name === 'TimeoutError') {
         if (!controller.signal.aborted) {
+          trackEvent('query_error', { errorCode: 'TIMEOUT_ERROR' });
           setError('La consulta ha tardado demasiado. Inténtalo de nuevo.');
           setResults(null);
         }
@@ -70,6 +90,7 @@ export function HablarShell() {
 
       // Map ApiError to user-friendly Spanish message
       if (err instanceof ApiError) {
+        trackEvent('query_error', { errorCode: err.code });
         if (err.code === 'RATE_LIMIT_EXCEEDED') {
           setError('Has alcanzado el límite diario de 50 consultas. Vuelve mañana.');
         } else if (err.code === 'TIMEOUT_ERROR') {
@@ -80,6 +101,7 @@ export function HablarShell() {
           setError(err.message || 'Algo salió mal. Inténtalo de nuevo.');
         }
       } else {
+        trackEvent('query_error', { errorCode: 'UNKNOWN_ERROR' });
         setError('Algo salió mal. Inténtalo de nuevo.');
       }
       setResults(null);
@@ -97,6 +119,7 @@ export function HablarShell() {
 
   function handleRetry() {
     if (lastQuery) {
+      trackEvent('query_retry');
       executeQuery(lastQuery);
     }
   }
