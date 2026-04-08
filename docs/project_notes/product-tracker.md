@@ -10,7 +10,7 @@
 
 **Last Updated:** 2026-04-08
 
-**Active Feature:** F113 — Backend Metrics Endpoint for Web | Step 4/6 (Finalize) | Standard | Branch: feature/F113-backend-metrics-endpoint
+**Active Feature:** F113 — Backend Metrics Endpoint for Web | Step 5/6 (Review) | Standard | Branch: feature/F113-backend-metrics-endpoint
 **PM Session:** pm-uf3 (L5 PM Autonomous) — Batch: F113, F093, F092
 **Last Completed:** F112 — Web Assistant Usage Metrics. PR #87 squash-merged to develop (356609f).
 
@@ -234,7 +234,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F097 | Realtime Voice: Frontend States + Mobile QA | frontend | pending | — | Standard. Listening/Processing/Speaking/Results states. Mobile-first QA. Accessibility fallbacks |
 | F111 | Web Package CI/CD Pipeline | infra | done | 6/6 | Simple. Add `packages/web` to root workspaces. Add `test-web` job to ci.yml (no DB/Redis needed). Create `deploy-web.yml` for Vercel (separate project from landing). Update key_facts.md with new package. Depends on F090 |
 | F112 | Web Assistant Usage Metrics | frontend | done | 6/6 | Simple. Client-side metrics (localStorage + sendBeacon). ADR-018. Depends on F090 |
-| F113 | Backend Metrics Endpoint for Web | backend | in-progress | 4/6 | Standard. POST /analytics/web-events — receives sendBeacon payloads from F112. Connect NEXT_PUBLIC_METRICS_ENDPOINT. Depends on F112 |
+| F113 | Backend Metrics Endpoint for Web | backend | in-progress | 5/6 | Standard. POST /analytics/web-events — receives sendBeacon payloads from F112. Connect NEXT_PUBLIC_METRICS_ENDPOINT. Depends on F112 |
 
 ## Features — E009 Personalization & Tracking (Phase C continued)
 
