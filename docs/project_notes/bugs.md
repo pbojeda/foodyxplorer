@@ -418,7 +418,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Root Cause**: Fastify's JSON body parser throws a `SyntaxError` (invalid JSON) or the route handler accesses `request.body` as null/undefined. The global error handler catches it as a generic error and returns 500.
 - **Solution**: Add error handler case for `SyntaxError` / FST_ERR_CTP_EMPTY_JSON_BODY that maps to 400 VALIDATION_ERROR.
 - **Prevention**: Test all POST endpoints with: no body, empty body `{}`, and invalid JSON as standard edge-case coverage.
-- **Feature**: Global (all POST routes) | **Found by**: Phase B Audit (Punto 4) | **Severity**: Medium | **Status**: Pending fix
+- **Feature**: Global (all POST routes) | **Found by**: Phase B Audit (Punto 4) | **Severity**: Medium | **Status**: Fixed (PR #83)
 
 ### 2026-04-08 — BUG-AUDIT-C5: Reverse search via conversation returns empty results
 

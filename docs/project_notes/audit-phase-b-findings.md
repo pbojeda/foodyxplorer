@@ -10,7 +10,7 @@
 | Priority | IDs | Action | SDD Feature ID | Status |
 |----------|-----|--------|---------------|--------|
 | 1 | C1 + C3 | Fix `/reverse-search` error envelope | BUG-AUDIT-C1C3 (Simple) | **done** (PR #82) |
-| 2 | C4 | Fix POST empty body → 500 | BUG-AUDIT-C4 (Simple) | pending |
+| 2 | C4 | Fix POST empty body → 500 | BUG-AUDIT-C4 (Simple) | **done** (PR #83) |
 | 3 | C5 | Fix reverse search via conversation | BUG-AUDIT-C5 (Simple) | pending |
 | — | C2 | Context persistence — deferred (pre-existing F069/F070) | — | deferred |
 | — | C6 | Pizza data corruption — deferred (scraping issue) | — | deferred |
@@ -58,7 +58,7 @@
 
 | ID | Severity | Finding | Status |
 |----|----------|---------|--------|
-| C4 | MEDIUM | POST endpoints (`/calculate/recipe`, `/conversation/message`) return 500 INTERNAL_ERROR when body is missing or invalid JSON. Should return 400 VALIDATION_ERROR. Fastify body parser throws before Zod validation runs. | pending |
+| C4 | MEDIUM | POST endpoints (`/calculate/recipe`, `/conversation/message`) return 500 INTERNAL_ERROR when body is missing or invalid JSON. Should return 400 VALIDATION_ERROR. Fastify body parser throws before Zod validation runs. | **fixed** (PR #83) |
 | C5 | MEDIUM | Reverse search via conversation (`POST /conversation/message` with reverse_search intent) always returns `dishes: []` even when the direct endpoint (`GET /reverse-search`) returns results. The `catch` block in `conversationCore.ts:161` silently swallows the DB error. Likely a Kysely instance issue or query parameter mismatch between the two code paths. | pending |
 | C6 | LOW | Comparison data quality: "Pizza" from Pizza Hut chain shows 4 calories (clearly wrong — likely column swap during scraping). Source field says "McDonald's Spain — Web Scrape" for a Pizza Hut dish. Data integrity issue, not API code bug. | noted |
 

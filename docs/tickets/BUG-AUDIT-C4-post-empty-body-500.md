@@ -1,7 +1,7 @@
 # BUG-AUDIT-C4: Fix POST Empty Body → 500
 
 **Feature:** BUG-AUDIT-C4 | **Type:** Backend-Bugfix | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/bug-audit-c4-post-empty-body-500
+**Status:** Done | **Branch:** feature/bug-audit-c4-post-empty-body-500 (deleted)
 **Created:** 2026-04-08 | **Dependencies:** None
 
 ---
