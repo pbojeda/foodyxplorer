@@ -10,17 +10,14 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F113 | Standard | in-progress | — | Step 4/6 — Finalize |
 | F093 | Standard | pending | — | Web Assistant: Landing Integration + Analytics |
 | F092 | Standard | pending | — | Web Assistant: Plate Photo Upload |
 
 ## Completed Features
 
-_(Move features here as they complete)_
-
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
-<!-- | F0XX | Simple | ~8 min | Clean | -->
+| F113 | Standard | — | PR #88 squash-merged (865ff53). 110 tests. Code review: APPROVED. QA: VERIFIED (54 edge-case tests). |
 
 ## Blocked Features
 
@@ -32,9 +29,9 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** F113
-**Branch:** feature/F113-backend-metrics-endpoint
-**Next features:** F093, F092
+**Current feature:** F093 (next)
+**Branch:** (pending creation)
+**Next features:** F092
 **Blocked:** (none)
 
 To resume after /compact: run `continue pm`
