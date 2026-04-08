@@ -10,7 +10,7 @@
 
 **Last Updated:** 2026-04-08
 
-**Active Feature:** F112 — Web Assistant Usage Metrics | Step 4/6 (Finalize) | Simple | Branch: `feature/F112-web-usage-metrics`
+**Active Feature:** F112 — Web Assistant Usage Metrics | Step 5/6 (Review) | Simple | Branch: `feature/F112-web-usage-metrics`
 **PM Session:** pm-c3a (L5 PM Autonomous) — F090 done, F111 done, F112 in progress
 **Last Completed:** F111 — Web Package CI/CD Pipeline. PR #86 squash-merged to develop (9b30f8c). CI test-web job + deploy-web.yml.
 
@@ -233,7 +233,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F096 | Realtime Voice: Pause Detection + Barge-In + Filler | frontend | pending | — | Standard. End-of-speech detection, interruption handling, filler audio for L4 delays ("Déjame calcular...") |
 | F097 | Realtime Voice: Frontend States + Mobile QA | frontend | pending | — | Standard. Listening/Processing/Speaking/Results states. Mobile-first QA. Accessibility fallbacks |
 | F111 | Web Package CI/CD Pipeline | infra | done | 6/6 | Simple. Add `packages/web` to root workspaces. Add `test-web` job to ci.yml (no DB/Redis needed). Create `deploy-web.yml` for Vercel (separate project from landing). Update key_facts.md with new package. Depends on F090 |
-| F112 | Web Assistant Usage Metrics | frontend | in-progress | 4/6 | Simple. Client-side metrics (localStorage + sendBeacon). ADR-018. Depends on F090 |
+| F112 | Web Assistant Usage Metrics | frontend | in-progress | 5/6 | Simple. Client-side metrics (localStorage + sendBeacon). ADR-018. Depends on F090 |
 | F113 | Backend Metrics Endpoint for Web | backend | pending | — | Simple. POST /analytics/web-events — receives sendBeacon payloads from F112. Connect NEXT_PUBLIC_METRICS_ENDPOINT. Depends on F112 |
 
 ## Features — E009 Personalization & Tracking (Phase C continued)
