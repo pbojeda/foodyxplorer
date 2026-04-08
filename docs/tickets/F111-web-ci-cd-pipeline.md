@@ -1,0 +1,86 @@
+# F111: Web Package CI/CD Pipeline
+
+**Feature:** F111 | **Type:** Infra | **Priority:** High
+**Status:** In Progress | **Branch:** feature/F111-web-ci-cd-pipeline
+**Created:** 2026-04-08 | **Dependencies:** F090 (done)
+
+---
+
+## Spec
+
+### Description
+
+Add CI/CD pipeline support for the new `packages/web` workspace. This includes adding path filters and a `test-web` job to the existing CI workflow, and creating a separate Vercel deployment workflow for the web package. The web package (Next.js 15, Jest) does not need DB/Redis services — same pattern as `test-landing`. It does import from `@foodxplorer/shared`, so shared changes must also trigger the web CI job.
+
+**Manual prerequisite:** The Vercel project for `packages/web` must be created by the user. This ticket creates the workflow file and documents the required secret (`VERCEL_PROJECT_ID_WEB`).
+
+---
+
+## Implementation Plan
+
+N/A — Simple task.
+
+---
+
+## Acceptance Criteria
+
+- [x] `ci.yml` has `web` output in the `changes` job
+- [x] `ci.yml` has `web` filter: `packages/web/**`
+- [x] `ci.yml` has `test-web` job triggered by web, shared, or root changes
+- [x] `test-web` runs: `npm ci` → typecheck → lint → test → build (in `packages/web`)
+- [x] `deploy-web.yml` exists with preview (PR) and production (push to main) jobs
+- [x] `deploy-web.yml` uses `VERCEL_PROJECT_ID_WEB` secret (separate from landing)
+- [x] `deploy-web.yml` working directory is `packages/web`
+- [x] `key_facts.md` updated with CI/CD information for web package
+- [x] All existing tests pass (133 web, all green)
+- [x] Build succeeds (107kB first load)
+
+---
+
+## Definition of Done
+
+- [x] All acceptance criteria met
+- [x] No linting errors
+- [x] Build succeeds
+- [x] YAML syntax valid
+
+---
+
+## Workflow Checklist
+
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 3: Implementation complete
+- [x] Step 4: Quality gates pass, committed
+- [ ] Step 5: `code-review-specialist` executed
+- [ ] Step 6: Ticket updated with final metrics, branch deleted
+
+---
+
+## Completion Log
+
+| Date | Action | Notes |
+|------|--------|-------|
+| 2026-04-08 | Step 1: Setup | Branch + lite ticket created |
+| 2026-04-08 | Step 3: Implement | ci.yml: web filter + test-web job. deploy-web.yml created. key_facts.md updated |
+| 2026-04-08 | Step 4: Finalize | YAML valid, 133 tests pass, lint clean, build OK |
+
+---
+
+## Merge Checklist Evidence
+
+> **MANDATORY before requesting merge approval.** Read `references/merge-checklist.md` and execute ALL actions. Record evidence below.
+
+| Action | Done | Evidence |
+|--------|:----:|----------|
+| 0. Validate ticket structure | [ ] | Sections verified: (list) |
+| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
+| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
+| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
+| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
+| 5. Commit documentation | [ ] | Commit: (hash) |
+| 6. Verify clean working tree | [ ] | `git status`: clean |
+| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
+
+---
+
+*Ticket created: 2026-04-08*

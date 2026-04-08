@@ -1,0 +1,109 @@
+# ===========================================
+# Deploy Web — Vercel
+# ===========================================
+# Preview on PR, Production on push to main.
+# Only triggers on packages/web/ changes.
+#
+# Required secrets:
+#   VERCEL_ORG_ID        — shared with landing
+#   VERCEL_PROJECT_ID_WEB — separate Vercel project for web
+#   VERCEL_TOKEN          — shared with landing
+
+name: Deploy Web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/web/**'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'packages/web/**'
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+
+jobs:
+  deploy-preview:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: packages/web
+
+      - name: Build
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: packages/web
+
+      - name: Deploy preview
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "### Web Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "$URL" >> "$GITHUB_STEP_SUMMARY"
+        working-directory: packages/web
+
+      - name: Comment PR with preview URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `**Web Preview:** ${{ steps.deploy.outputs.url }}`
+            })
+
+  deploy-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: packages/web
+
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: packages/web
+
+      - name: Deploy production
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "### Web Production" >> "$GITHUB_STEP_SUMMARY"
+          echo "$URL" >> "$GITHUB_STEP_SUMMARY"
+        working-directory: packages/web

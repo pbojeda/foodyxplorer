@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F111 | Simple | pending | — | Web Package CI/CD Pipeline |
+| F111 | Simple | in-progress | — | Web Package CI/CD Pipeline — Step 1/6 |
 | F112 | Simple | pending | — | Web Assistant Usage Metrics |
 
 ## Completed Features
