@@ -53,7 +53,15 @@ export async function POST(request: Request): Promise<Response> {
     duplex: 'half',
   });
 
-  const upstreamResponse = await fetch(upstreamRequest);
+  let upstreamResponse: Response;
+  try {
+    upstreamResponse = await fetch(upstreamRequest);
+  } catch {
+    return new Response(JSON.stringify({ error: 'UPSTREAM_UNAVAILABLE' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
   // Return the upstream response as-is (body + status code).
   return new Response(upstreamResponse.body, {

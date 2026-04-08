@@ -207,6 +207,7 @@ export function HablarShell() {
             setInlineError('Error de configuración. Contacta con soporte.');
             break;
           case 'PROCESSING_TIMEOUT':
+          case 'TIMEOUT_ERROR':
             setInlineError('El análisis ha tardado demasiado. Inténtalo de nuevo.');
             break;
           case 'NETWORK_ERROR':

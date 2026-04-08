@@ -279,4 +279,27 @@ describe('sendPhotoAnalysis', () => {
       expect(error).not.toBeInstanceOf(ApiError);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // TimeoutError handling
+  // ---------------------------------------------------------------------------
+
+  describe('TimeoutError handling', () => {
+    it('wraps TimeoutError in ApiError with TIMEOUT_ERROR code', async () => {
+      const timeoutError = new DOMException('Signal timed out', 'TimeoutError');
+      global.fetch = jest.fn().mockRejectedValue(timeoutError);
+
+      await expect(sendPhotoAnalysis(makeFile(), MOCK_ACTOR_ID)).rejects.toMatchObject({
+        code: 'TIMEOUT_ERROR',
+      });
+    });
+
+    it('wraps TimeoutError as ApiError (not raw DOMException)', async () => {
+      const timeoutError = new DOMException('Signal timed out', 'TimeoutError');
+      global.fetch = jest.fn().mockRejectedValue(timeoutError);
+
+      const error = await sendPhotoAnalysis(makeFile(), MOCK_ACTOR_ID).catch((e) => e);
+      expect(error).toBeInstanceOf(ApiError);
+    });
+  });
 });

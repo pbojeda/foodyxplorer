@@ -215,4 +215,20 @@ describe('POST /api/analyze Route Handler', () => {
 
     expect(response.status).toBe(429);
   });
+
+  // ---------------------------------------------------------------------------
+  // Upstream unavailable
+  // ---------------------------------------------------------------------------
+
+  it('returns 502 UPSTREAM_UNAVAILABLE when fetch to upstream throws', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('connect ECONNREFUSED'));
+    const { POST } = await import('../../app/api/analyze/route');
+
+    const req = makeMultipartRequest();
+    const response = await POST(req);
+
+    expect(response.status).toBe(502);
+    const body = await response.json();
+    expect(body).toEqual({ error: 'UPSTREAM_UNAVAILABLE' });
+  });
 });

@@ -202,6 +202,13 @@ export async function sendPhotoAnalysis(
     if (err instanceof DOMException && err.name === 'AbortError') {
       throw err;
     }
+    // TimeoutError from AbortSignal.timeout(65000) — wrap with specific code
+    if (err instanceof DOMException && err.name === 'TimeoutError') {
+      throw new ApiError(
+        'El análisis ha tardado demasiado. Inténtalo de nuevo.',
+        'TIMEOUT_ERROR',
+      );
+    }
     // Network failure
     throw new ApiError(
       err instanceof Error ? err.message : 'Network request failed',
