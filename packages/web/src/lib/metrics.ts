@@ -169,6 +169,9 @@ export function resetMetrics(): void {
   }
 }
 
+// flushMetrics sends the current session snapshot via navigator.sendBeacon.
+// Disabled by default — only activates when NEXT_PUBLIC_METRICS_ENDPOINT is set.
+// This is the hook for F113 (POST /analytics/web-events backend endpoint).
 export function flushMetrics(): void {
   const endpoint = process.env['NEXT_PUBLIC_METRICS_ENDPOINT'];
   if (!endpoint) return;
