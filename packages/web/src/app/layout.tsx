@@ -33,6 +33,7 @@ export const viewport: Viewport = {
 };
 
 const GA_ID = process.env['NEXT_PUBLIC_GA_MEASUREMENT_ID'];
+const isValidGAId = GA_ID && /^G-[A-Z0-9]+$/.test(GA_ID);
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -43,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             strategy="afterInteractive" avoids hydration warnings from raw script tags.
             send_page_view: false — page views are fired manually per route (HablarAnalytics)
             to include UTM params captured from the URL. */}
-        {GA_ID && (
+        {isValidGAId && (
           <>
             <Script
               src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
