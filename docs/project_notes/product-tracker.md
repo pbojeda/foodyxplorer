@@ -10,9 +10,9 @@
 
 **Last Updated:** 2026-04-08
 
-**Active Feature:** F111 — Web Package CI/CD Pipeline | Step 5/6 (Review) | Simple | Branch: `feature/F111-web-ci-cd-pipeline`
-**PM Session:** pm-c3a (L5 PM Autonomous) — F090 done, F111 in progress
-**Last Completed:** F090 — Web Assistant: Shell + Text Mode (/hablar). PR #85 squash-merged to develop (f8e5929). 133 tests, 15 components, packages/web created.
+**Active Feature:** No active work
+**PM Session:** pm-c3a (L5 PM Autonomous) — F090 done, F111 done, next: F112
+**Last Completed:** F111 — Web Package CI/CD Pipeline. PR #86 squash-merged to develop (9b30f8c). CI test-web job + deploy-web.yml.
 
 **Phase B Audit Summary (2026-04-07 to 2026-04-08):**
 - Punto 1: Manuals updated (bot §20-23, API §20-21) ✓
@@ -232,7 +232,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F095 | Realtime Voice: Implement Chosen Architecture | frontend | pending | — | Standard. Based on F094 spike results. WebSocket/WebRTC server if needed. STT streaming + VAD |
 | F096 | Realtime Voice: Pause Detection + Barge-In + Filler | frontend | pending | — | Standard. End-of-speech detection, interruption handling, filler audio for L4 delays ("Déjame calcular...") |
 | F097 | Realtime Voice: Frontend States + Mobile QA | frontend | pending | — | Standard. Listening/Processing/Speaking/Results states. Mobile-first QA. Accessibility fallbacks |
-| F111 | Web Package CI/CD Pipeline | infra | in-progress | 5/6 | Simple. Add `packages/web` to root workspaces. Add `test-web` job to ci.yml (no DB/Redis needed). Create `deploy-web.yml` for Vercel (separate project from landing). Update key_facts.md with new package. Depends on F090 |
+| F111 | Web Package CI/CD Pipeline | infra | done | 6/6 | Simple. Add `packages/web` to root workspaces. Add `test-web` job to ci.yml (no DB/Redis needed). Create `deploy-web.yml` for Vercel (separate project from landing). Update key_facts.md with new package. Depends on F090 |
 | F112 | Web Assistant Usage Metrics | frontend | pending | — | Simple. Track conversation counts, voice vs text ratio, response times, intent distribution. Integration with Vercel Analytics or custom events. Dashboard or export. Depends on F090 |
 
 ## Features — E009 Personalization & Tracking (Phase C continued)
@@ -359,6 +359,8 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | 2026-04-08 | BUG-AUDIT-C1C3 — Fix `/reverse-search` error envelope | f994f83 (squash merge to develop, PR #82) | Simple bugfix. Standardized 404 CHAIN_NOT_FOUND + 400 validation to project error envelope. 6 new tests. Code review: APPROVED |
 | 2026-04-08 | BUG-AUDIT-C4 — Fix POST empty body → 500 | 3a8732f (squash merge to develop, PR #83) | Simple bugfix. SyntaxError + FST_ERR_CTP_EMPTY_JSON_BODY → 400 VALIDATION_ERROR. 5 new tests. Code review: 1 fix (operator precedence) |
 | 2026-04-08 | BUG-AUDIT-C5 — Fix reverse search conversation logging | f747679 (squash merge to develop, PR #84) | Simple bugfix. Add logger.warn to silent catch block. 2 new tests. Code review: APPROVED |
+| 2026-04-08 | F090 — Web Assistant: Shell + Text Mode (/hablar) | f8e5929 (squash merge to develop, PR #85) | Standard fullstack. packages/web created. 15 components, 133 tests (17 suites). Code review: APPROVED (UUID validation, userScalable, TimeoutError). QA: 1 bug fixed (BUG-F090-01). ADR-016 deviation |
+| 2026-04-08 | F111 — Web Package CI/CD Pipeline | 9b30f8c (squash merge to develop, PR #86) | Simple infra. test-web CI job + deploy-web.yml Vercel workflow. Code review: 2 findings fixed (shared path trigger, env names). No new tests (infra-only) |
 
 ---
 

@@ -1,7 +1,7 @@
 # F111: Web Package CI/CD Pipeline
 
 **Feature:** F111 | **Type:** Infra | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F111-web-ci-cd-pipeline
+**Status:** Done | **Branch:** feature/F111-web-ci-cd-pipeline
 **Created:** 2026-04-08 | **Dependencies:** F090 (done)
 
 ---
@@ -52,7 +52,7 @@ N/A — Simple task.
 - [x] Step 3: Implementation complete
 - [x] Step 4: Quality gates pass, committed
 - [x] Step 5: `code-review-specialist` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -64,6 +64,7 @@ N/A — Simple task.
 | 2026-04-08 | Step 3: Implement | ci.yml: web filter + test-web job. deploy-web.yml created. key_facts.md updated |
 | 2026-04-08 | Step 4: Finalize | YAML valid, 133 tests pass, lint clean, build OK |
 | 2026-04-08 | Step 5: Review | PR #86. Code review: Accepted H1 (shared path trigger), H2 (env names). Rejected: none |
+| 2026-04-08 | Step 6: Complete | Squash-merged to develop (9b30f8c). Branch deleted. 133 tests pass post-merge |
 
 ---
 
