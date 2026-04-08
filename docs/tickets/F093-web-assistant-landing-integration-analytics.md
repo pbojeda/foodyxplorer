@@ -704,11 +704,11 @@ Follow Red-Green-Refactor for each step. Write the failing test first, then impl
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | |
-| 1. Mark all items | [ ] | |
-| 2. Verify product tracker | [ ] | |
-| 3. Update key_facts.md | [ ] | |
-| 4. Update decisions.md | [ ] | |
-| 5. Commit documentation | [ ] | |
-| 6. Verify clean working tree | [ ] | |
-| 7. Verify branch up to date | [ ] | |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 12/12 (verified by QA), DoD: 5/5, Workflow: Steps 0-5 marked |
+| 2. Verify product tracker | [x] | Active Session: Step 5/6 (Review). Features table: 5/6 in-progress |
+| 3. Update key_facts.md | [x] | Added F093 CTA integration entry (HeaderCTA, HablarAnalytics, env vars, UTM, dataLayer, GA_ID validation) |
+| 4. Update decisions.md | [x] | No new ADR needed — architecture decisions within existing ADR-018 scope |
+| 5. Commit documentation | [x] | SHA 969f0a5 |
+| 6. Verify clean working tree | [x] | `git status` clean |
+| 7. Verify branch up to date | [x] | `merge-base --is-ancestor origin/develop HEAD` = true |
