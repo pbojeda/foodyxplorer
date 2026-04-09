@@ -195,7 +195,7 @@ const webMetricsRoutesPlugin: FastifyPluginAsync<WebMetricsPluginOptions> = asyn
       try {
         [scalarRows, intentRows, errorRows] = await Promise.all([
           // Query 1: scalar aggregates with COALESCE to handle empty result sets
-          sql<ScalarAggRow[]>`
+          sql<ScalarAggRow>`
             SELECT
               COUNT(*)                                         AS event_count,
               COALESCE(SUM(query_count), 0)                   AS total_queries,
@@ -211,7 +211,7 @@ const webMetricsRoutesPlugin: FastifyPluginAsync<WebMetricsPluginOptions> = asyn
           `.execute(db).then((r) => r.rows),
 
           // Query 2: top intents via jsonb_each_text
-          sql<IntentRow[]>`
+          sql<IntentRow>`
             SELECT
               key AS intent,
               SUM(value::int) AS count
@@ -226,7 +226,7 @@ const webMetricsRoutesPlugin: FastifyPluginAsync<WebMetricsPluginOptions> = asyn
           `.execute(db).then((r) => r.rows),
 
           // Query 3: top errors via jsonb_each_text
-          sql<ErrorRow[]>`
+          sql<ErrorRow>`
             SELECT
               key AS error_code,
               SUM(value::int) AS count
