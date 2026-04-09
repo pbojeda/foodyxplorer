@@ -16,7 +16,10 @@ on:
       - 'packages/**'
       - 'package.json'
       - 'package-lock.json'
-      - 'tsconfig.base.json'
+      - 'tsconfig*.json'
+      - 'eslint.config.mjs'
+      - '**/.eslintrc*'
+      - '.eslintignore'
       - '.github/workflows/**'
   pull_request:
     branches: [develop, main]
@@ -24,7 +27,10 @@ on:
       - 'packages/**'
       - 'package.json'
       - 'package-lock.json'
-      - 'tsconfig.base.json'
+      - 'tsconfig*.json'
+      - 'eslint.config.mjs'
+      - '**/.eslintrc*'
+      - '.eslintignore'
       - '.github/workflows/**'
 
 # ───────────────────────────────────────────
@@ -63,7 +69,10 @@ jobs:
             root:
               - 'package.json'
               - 'package-lock.json'
-              - 'tsconfig.base.json'
+              - 'tsconfig*.json'
+              - 'eslint.config.mjs'
+              - '**/.eslintrc*'
+              - '.eslintignore'
               - '.github/workflows/**'
 
   # ───────────────────────────────────────────
@@ -89,6 +98,9 @@ jobs:
 
       - name: Typecheck shared
         run: npm run typecheck -w @foodxplorer/shared
+
+      - name: Lint shared
+        run: npm run lint -w @foodxplorer/shared
 
       - name: Test shared
         run: npm run test -w @foodxplorer/shared
@@ -157,10 +169,10 @@ jobs:
             -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
 
           psql -h localhost -p 5433 -U foodxplorer -d postgres \
-            -c "CREATE DATABASE foodxplorer_test OWNER foodxplorer;" || true
+            -c "CREATE DATABASE foodxplorer_test OWNER foodxplorer;"
 
           psql -h localhost -p 5433 -U foodxplorer -d foodxplorer_test \
-            -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
+            -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
 
       - name: Run migrations (dev + test)
         run: |
@@ -214,7 +226,7 @@ jobs:
         run: npm run typecheck -w @foodxplorer/bot
 
       - name: Lint bot
-        run: npm run lint -w @foodxplorer/bot || true
+        run: npm run lint -w @foodxplorer/bot
 
       - name: Test bot
         run: npm run test -w @foodxplorer/bot
