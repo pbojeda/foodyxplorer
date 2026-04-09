@@ -35,8 +35,7 @@ export function formatReverseSearch(data: ReverseSearchData | null): string {
   }
 
   // Numbered dish list
-  for (let i = 0; i < data.results.length; i++) {
-    const dish = data.results[i]!;
+  for (const [i, dish] of data.results.entries()) {
     const displayName = dish.nameEs ?? dish.name;
     const num = escapeMarkdown(String(i + 1));
 
