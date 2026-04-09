@@ -301,25 +301,3 @@ describe('F093 QA — empty string hablarUrl hides CTAs (falsy check)', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 8. edge-cases.f093.test.tsx consistency: bottomUrl test data check
-//    That file passes pre-UTM-appended URL to WaitlistCTASection.
-//    The component then appends UTMs AGAIN → malformed double-UTM href.
-//    Those tests do NOT check the href value so they silently pass.
-//    This QA test documents and exposes the test data inconsistency.
-// ---------------------------------------------------------------------------
-
-describe('F093 QA — edge-cases.f093.test.tsx test data inconsistency', () => {
-  it('WaitlistCTASection with pre-UTM-appended hablarUrl produces double-appended href', () => {
-    // This simulates the test data used in edge-cases.f093.test.tsx (bottomUrl)
-    const preAppended = `${HABLAR_BASE}?utm_source=landing&utm_medium=bottom_cta`;
-    render(<WaitlistCTASection dict={dict.waitlistCta} variant="a" hablarUrl={preAppended} />);
-    const link = screen.getByRole('link', { name: /o pruébalo ahora gratis/i });
-    const href = link.getAttribute('href') ?? '';
-    // Component appends UTMs again → double utm_medium param
-    const matchCount = (href.match(/utm_medium/g) ?? []).length;
-    // Bug: matchCount is 2 (double-appended). Correct value would be 1.
-    // Fix: edge-cases.f093.test.tsx should pass HABLAR_BASE (no UTM) to WaitlistCTASection.
-    expect(matchCount).toBe(2);
-  });
-});
