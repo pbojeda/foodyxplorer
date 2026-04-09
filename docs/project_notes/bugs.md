@@ -485,6 +485,8 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 The two invalid `// eslint-disable-next-line @typescript-eslint/no-require-imports` directives in `edge-cases.f093.qa.test.tsx` were removed. The underlying `require('@/lib/analytics')` calls inside `jest.isolateModules(() => { ... })` do not trigger any real lint error once the invalid disable comments are gone (verified locally: `packages/landing` now lints clean). This fix is SAFE because removing directives that reference a non-existent rule cannot change runtime behavior and the require() calls are inside test scaffolding only.
 
+**Parts 1-4 status — FIXED and merged to develop via PR #91 as squash commit `2eda357` (2026-04-09).** Parts 5 (api lint, 100 errors) and 6 (scraper lint cleanup, 27 errors including 2 NEW `no-this-alias`) remain deferred to F116. The root cause (`|| true` on api lint step in `ci.yml:195`) is also deferred to F116 because removing it before the 100 api errors are cleaned up would make CI red on the merge day.
+
 **Part 2 status (bot) — FIXED on branch `chore/F115-bot-lint-bankruptcy` (in Phase 1+2 of F115 execution).**
 
 - Phase 1 (production, 3 errors): `menuFormatter.ts:59` → `flatMap` with ternary; `menuFormatter.ts:74` → nullable tracking + tighten type to `ReadonlyArray<ConfidenceLevel>`; `reverseSearchFormatter.ts:39` → `for...of` with `.entries()`. All 3 are false positives from the TS `noUncheckedIndexedAccess` + `.filter` narrowing gap family. Cross-model review (Gemini + Codex) caught a sparse-array risk that the engineer's initial analysis missed; type tightening resolved it by construction.
@@ -563,11 +565,11 @@ Evidence that this is a copy-paste error in F113 and NOT an intentional kysely i
 
 **Verification:** `npm run typecheck -w @foodxplorer/api` exits 0 after the fix.
 
-**Status:** Fixed on branch `chore/F115-bot-lint-bankruptcy`. Unblocks `test-api` CI typecheck step. **Api tests themselves were NOT verified locally by F115** because the tests require Postgres + Redis services (not part of F115's environment). If the api test suite has ALSO been silently broken by F113 or subsequent commits, that is a separate bug to be discovered when `test-api` CI starts running green on typecheck.
+**Status:** FIXED and merged to develop via PR #91 squash commit `2eda357` (2026-04-09). Unblocks `test-api` CI typecheck step for the first time since F113 merged on 2026-04-08. **Api tests themselves were NOT verified locally by F115** because the tests require Postgres + Redis services (not part of F115's environment). If the api test suite has ALSO been silently broken by F113 or subsequent commits, that is a separate bug to be discovered when `test-api` CI starts running green on typecheck.
 
 **Scope rationale for the drive-by:** F115's stated goal is to end lint/CI bankruptcy. The `|| true` on the api lint CI step is retained for F116, but without this typecheck fix the `test-api` job would remain red even after F116 removes `|| true`, defeating the purpose of the removal. The fix is 3 characters deleted, zero runtime risk, and unblocks real CI. The user explicitly approved the drive-by under F115's scope with the reasoning that the alternative (leaving develop's CI permanently red) contradicts F115's purpose.
 
-**BUG-F093-02 — F063 test mock missing `drainEventQueue`/`clearEventQueue` (fixed in F115 as drive-by):**
+**BUG-F093-02 — F063 test mock missing `drainEventQueue`/`clearEventQueue` (FIXED in F115 as drive-by, merged to develop via PR #91 squash commit `2eda357` on 2026-04-09):**
 
 During F115 Phase 5 `npm test` verification, `packages/landing` reported 2 test failures in `src/__tests__/edge-cases.f063.qa.test.tsx` (lines 166 and 175) with the error `TypeError: (0 , _analytics.drainEventQueue) is not a function`. Investigation showed that F093 modified `packages/landing/src/components/analytics/CookieBanner.tsx:8` to import `drainEventQueue` and `clearEventQueue` from `@/lib/analytics` and call `drainEventQueue()` in the GA script's `onLoad` handler (line 80). The F093 PR merged without updating the corresponding mock at `edge-cases.f063.qa.test.tsx:226`, which only declared `trackEvent` and `getUtmParams`. The two failing tests exercise the full CookieBanner mount path (including the mocked `next/script` calling `onLoad` immediately), so they trigger the missing function.
 
@@ -626,7 +628,7 @@ F115 does not configure branch protection (that is an out-of-band repo-level con
 
 These rules are tracked as sub-item 7 of F116 (CI workflow hardening) for the engineer to apply manually; F115 only documents them here.
 
-**BUG-DEV-CI-001 status:** partially mitigated by F115 (the two specific CI red jobs are fixed). The underlying absence of branch protection is tracked in F116 and requires the engineer to configure it manually in the GitHub UI.
+**BUG-DEV-CI-001 status:** partially mitigated by F115 (PR #91 squash commit `2eda357`, merged 2026-04-09). The two specific CI red jobs (`test-api` via BUG-F113-01 and `test-landing` via BUG-F093-02) are fixed. The underlying absence of branch protection is tracked in F116 sub-item 7 and requires the engineer to configure it manually in the GitHub UI. As of the F115 merge, develop's CI should return to fully green on the next push (the first time in ~3 days).
 
 **CI trigger path hardening (bonus fix in F115):**
 
