@@ -185,7 +185,7 @@ describe('WebMetricsSnapshotSchema — sessionStartedAt edge cases', () => {
   it('accepts date-only ISO string (e.g. "2026-04-08") — Date.parse() accepts this format', () => {
     // Date.parse("2026-04-08") is a valid ISO 8601 date-only string.
     // It parses to midnight UTC on that date. If within 24h, it passes.
-    const today = new Date().toISOString().split('T')[0]!; // "2026-04-08"
+    const today = new Date().toISOString().slice(0, 10); // "2026-04-08" (ISO 8601 date portion)
     const result = WebMetricsSnapshotSchema.safeParse(
       validSnapshot({ sessionStartedAt: today }),
     );

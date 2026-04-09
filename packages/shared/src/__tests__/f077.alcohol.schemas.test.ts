@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { EstimateNutrientsSchema } from '../schemas/estimate.js';
 import { MenuEstimationTotalsSchema } from '../schemas/menuEstimation.js';
-import { FoodNutrientSchema, CreateFoodNutrientSchema } from '../schemas/foodNutrient.js';
+import { CreateFoodNutrientSchema } from '../schemas/foodNutrient.js';
 import { RecipeNutrientsSchema } from '../schemas/recipeCalculate.js';
 
 describe('F077 — Alcohol in Zod schemas', () => {

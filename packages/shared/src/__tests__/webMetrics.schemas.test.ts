@@ -1,7 +1,7 @@
 // Unit tests for webMetrics Zod schemas (F113)
 // Pure unit tests — no DB needed, no external deps
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   WebMetricsSnapshotSchema,
   WebMetricsQueryParamsSchema,

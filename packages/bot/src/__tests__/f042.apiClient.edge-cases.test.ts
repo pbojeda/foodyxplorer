@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
 import type { ApiClient } from '../apiClient.js';
 import type { BotConfig } from '../config.js';
+import { firstCallArg } from './helpers/mocks.js';
 
 let createApiClient: (config: BotConfig) => ApiClient;
 
@@ -67,56 +68,56 @@ describe('apiClient.estimate() — F042 portionMultiplier querystring', () => {
   it('portionMultiplier=0.1 (minimum, not 1.0) IS sent in querystring', async () => {
     await client.estimate({ query: 'big mac', portionMultiplier: 0.1 });
 
-    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    const url = new URL(firstCallArg<string>(fetchMock));
     expect(url.searchParams.get('portionMultiplier')).toBe('0.1');
   });
 
   it('portionMultiplier=5.0 (maximum) IS sent in querystring', async () => {
     await client.estimate({ query: 'big mac', portionMultiplier: 5.0 });
 
-    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    const url = new URL(firstCallArg<string>(fetchMock));
     expect(url.searchParams.get('portionMultiplier')).toBe('5');
   });
 
   it('portionMultiplier=0.5 IS sent in querystring', async () => {
     await client.estimate({ query: 'big mac', portionMultiplier: 0.5 });
 
-    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    const url = new URL(firstCallArg<string>(fetchMock));
     expect(url.searchParams.get('portionMultiplier')).toBe('0.5');
   });
 
   it('portionMultiplier=0.7 IS sent in querystring', async () => {
     await client.estimate({ query: 'ensalada', portionMultiplier: 0.7 });
 
-    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    const url = new URL(firstCallArg<string>(fetchMock));
     expect(url.searchParams.get('portionMultiplier')).toBe('0.7');
   });
 
   it('portionMultiplier=3.0 IS sent in querystring', async () => {
     await client.estimate({ query: 'sandwich', portionMultiplier: 3.0 });
 
-    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    const url = new URL(firstCallArg<string>(fetchMock));
     expect(url.searchParams.get('portionMultiplier')).toBe('3');
   });
 
   it('portionMultiplier=1.0 is NOT sent (regression: already covered)', async () => {
     await client.estimate({ query: 'big mac', portionMultiplier: 1.0 });
 
-    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    const url = new URL(firstCallArg<string>(fetchMock));
     expect(url.searchParams.has('portionMultiplier')).toBe(false);
   });
 
   it('portionMultiplier absent is NOT sent (regression: already covered)', async () => {
     await client.estimate({ query: 'big mac' });
 
-    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    const url = new URL(firstCallArg<string>(fetchMock));
     expect(url.searchParams.has('portionMultiplier')).toBe(false);
   });
 
   it('portionMultiplier=0.5 with chainSlug → both params present in querystring', async () => {
     await client.estimate({ query: 'big mac', chainSlug: 'mcdonalds-es', portionMultiplier: 0.5 });
 
-    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    const url = new URL(firstCallArg<string>(fetchMock));
     expect(url.searchParams.get('portionMultiplier')).toBe('0.5');
     expect(url.searchParams.get('chainSlug')).toBe('mcdonalds-es');
     expect(url.searchParams.get('query')).toBe('big mac');
@@ -126,7 +127,7 @@ describe('apiClient.estimate() — F042 portionMultiplier querystring', () => {
     // Spec §4: sp['portionMultiplier'] = String(params.portionMultiplier)
     await client.estimate({ query: 'test', portionMultiplier: 2.0 });
 
-    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    const url = new URL(firstCallArg<string>(fetchMock));
     // String(2.0) === '2' in JS — not '2.0'
     const rawParam = url.searchParams.get('portionMultiplier');
     expect(typeof rawParam).toBe('string');

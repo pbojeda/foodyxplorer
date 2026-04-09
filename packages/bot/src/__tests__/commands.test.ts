@@ -6,6 +6,7 @@ import type { ApiClient } from '../apiClient.js';
 import type { Redis } from 'ioredis';
 import type { DishListItem, RestaurantListItem, ChainListItem, EstimateData, PaginationMeta } from '@foodxplorer/shared';
 import { ApiError } from '../apiClient.js';
+import { firstCallArg } from './helpers/mocks.js';
 import { handleStart } from '../commands/start.js';
 import { handleBuscar } from '../commands/buscar.js';
 import { handleEstimar } from '../commands/estimar.js';
@@ -373,7 +374,7 @@ describe('handleEstimar', () => {
   it('"big mac" (no modifier) → estimate called without portionMultiplier key', async () => {
     mock.estimate.mockResolvedValue(ESTIMATE_DATA_NULL);
     await handleEstimar('big mac', 0, makeMockRedis(), mock as unknown as ApiClient);
-    const args = mock.estimate.mock.calls[0]![0] as Record<string, unknown>;
+    const args = firstCallArg<Record<string, unknown>>(mock.estimate);
     expect(Object.prototype.hasOwnProperty.call(args, 'portionMultiplier')).toBe(false);
   });
 

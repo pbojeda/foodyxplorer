@@ -226,6 +226,8 @@ jest.mock('next/link', () => {
 jest.mock('@/lib/analytics', () => ({
   trackEvent: jest.fn(),
   getUtmParams: jest.fn(() => ({})),
+  drainEventQueue: jest.fn(),
+  clearEventQueue: jest.fn(),
 }));
 
 describe('F063 QA — SiteHeader: no legacy #para-quien href', () => {
