@@ -3,6 +3,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
 import type { ApiClient, ApiError as ApiErrorType } from '../apiClient.js';
 import type { BotConfig } from '../config.js';
+import { firstCallArg } from './helpers/mocks.js';
 
 let ApiError: typeof ApiErrorType;
 let createApiClient: (config: BotConfig) => ApiClient;
@@ -214,7 +215,7 @@ describe('createApiClient', () => {
     fetchMock.mockResolvedValue(makeResponse(200, { success: true, data: estimateData }));
 
     await client.estimate({ query: 'big mac', portionMultiplier: 1.5 });
-    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    const url = new URL(firstCallArg<string>(fetchMock));
     expect(url.searchParams.get('portionMultiplier')).toBe('1.5');
   });
 
@@ -234,7 +235,7 @@ describe('createApiClient', () => {
     fetchMock.mockResolvedValue(makeResponse(200, { success: true, data: estimateData }));
 
     await client.estimate({ query: 'big mac' });
-    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    const url = new URL(firstCallArg<string>(fetchMock));
     expect(url.searchParams.has('portionMultiplier')).toBe(false);
   });
 
@@ -254,7 +255,7 @@ describe('createApiClient', () => {
     fetchMock.mockResolvedValue(makeResponse(200, { success: true, data: estimateData }));
 
     await client.estimate({ query: 'big mac', portionMultiplier: 1.0 });
-    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    const url = new URL(firstCallArg<string>(fetchMock));
     expect(url.searchParams.has('portionMultiplier')).toBe(false);
   });
 

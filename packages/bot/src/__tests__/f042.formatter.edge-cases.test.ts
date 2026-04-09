@@ -166,17 +166,13 @@ describe('formatEstimate — F042 portionMultiplier edge cases', () => {
 
   it('portionMultiplier=1.5 with non-null portionGrams → only ONE Porción line, not two', () => {
     const result = formatEstimate(makeData(1.5));
-    const portionMatches = result.match(/Porción:/g);
     // Should have exactly one 'Porción:' line (the combined label+grams line)
-    expect(portionMatches).not.toBeNull();
-    expect(portionMatches!.length).toBe(1);
+    expect(result.match(/Porción:/g)).toHaveLength(1);
   });
 
   it('portionMultiplier=1.0 with non-null portionGrams → only the bottom portionGrams line', () => {
     const result = formatEstimate(makeData(1.0));
-    const portionMatches = result.match(/Porción:/g);
-    expect(portionMatches).not.toBeNull();
-    expect(portionMatches!.length).toBe(1);
+    expect(result.match(/Porción:/g)).toHaveLength(1);
     // Should be the plain grams line
     expect(result).toContain('Porción: 200 g');
   });
