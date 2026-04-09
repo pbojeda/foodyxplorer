@@ -93,7 +93,6 @@ describe('F093 QA — consent denied: analytics.ts blocks cta_hablar_click', () 
     process.env['NEXT_PUBLIC_GA_MEASUREMENT_ID'] = 'G-TEST123';
 
     jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { trackEvent: realTrackEvent } = require('@/lib/analytics');
       realTrackEvent({
         event: 'cta_hablar_click',
@@ -118,7 +117,6 @@ describe('F093 QA — consent denied: analytics.ts blocks cta_hablar_click', () 
     process.env['NEXT_PUBLIC_GA_MEASUREMENT_ID'] = 'G-TEST123';
 
     jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { trackEvent: realTrackEvent } = require('@/lib/analytics');
       realTrackEvent({
         event: 'cta_hablar_click',
