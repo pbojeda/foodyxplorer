@@ -8,10 +8,10 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-08
+**Last Updated:** 2026-04-10
 
-**Active Feature:** No active work
-**PM Session:** pm-uf3 (L5 PM Autonomous) — Batch: F113, F093, F092
+**Active Feature:** F094 — Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud | Step 5/6 | Branch: `feature/F094-voice-architecture-spike`
+**PM Session:** pm-vs1 (stopped) — resumed manually for F094 completion
 **Last Completed:** F092 — Web Assistant: Plate Photo Upload. PR #90 squash-merged to develop (4c1553a).
 
 **Phase B Audit Summary (2026-04-07 to 2026-04-08):**
@@ -228,7 +228,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F091 | Web Assistant: Async Voice (STT → Core → TTS) | frontend | pending | — | Standard. Whisper transcription → ConversationCore → TTS response. Push-to-talk UX. Async, not realtime |
 | F092 | Web Assistant: Plate Photo Upload | frontend | done | 6/6 | Standard. PR #90 squash-merged (4c1553a). 263 tests. Code review: APPROVED WITH NOTES. QA: VERIFIED (23 edge-case tests) |
 | F093 | Web Assistant: Landing Integration + Analytics | frontend | done | 6/6 | Standard. PR #89 squash-merged (cb1b0fc). 737 landing + 167 web tests. Code review: APPROVED WITH NOTES. QA: VERIFIED (21 edge-case tests). |
-| F094 | Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud | research | pending | — | Research. Compare: Web Speech API (free), Whisper.cpp/Transformers.js (browser), Deepgram (cloud), OpenAI Realtime (cloud). Decide architecture for F095-F097. See product-evolution-analysis "OPEN INVESTIGATION" section |
+| F094 | Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud | research | in-progress | 5/6 | Research. Decision doc at `docs/specs/voice-architecture-decision.md` (789→800 lines). Recommendation: Option 12 (F075 STT + SpeechSynthesis TTS) for F091; variant 12a (Deepgram Nova-3 + SpeechSynthesis) for F095-F097 (requires separate spike). Cross-model review complete (Gemini + Codex, both approve). Awaiting user approval of decision doc before merge. |
 | F095 | Realtime Voice: Implement Chosen Architecture | frontend | pending | — | Standard. Based on F094 spike results. WebSocket/WebRTC server if needed. STT streaming + VAD |
 | F096 | Realtime Voice: Pause Detection + Barge-In + Filler | frontend | pending | — | Standard. End-of-speech detection, interruption handling, filler audio for L4 delays ("Déjame calcular...") |
 | F097 | Realtime Voice: Frontend States + Mobile QA | frontend | pending | — | Standard. Listening/Processing/Speaking/Results states. Mobile-first QA. Accessibility fallbacks |

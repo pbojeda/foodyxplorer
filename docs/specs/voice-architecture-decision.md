@@ -515,7 +515,7 @@ Note: these are upper-bound rates. At Business-tier $0.12/1K, Tier 2 drops to $3
 **Canonical pairing (matrix row):** Option 10 STT + Option 1 TTS-half (browser `SpeechSynthesis`).
 
 **Variants** (not in the matrix):
-- 12a. Deepgram Nova-3 streaming (STT) + browser SpeechSynthesis — streaming latency upgrade for F095-F097 realtime track. This is the recommended F095-F097 evolution.
+- 12a. Deepgram Nova-3 streaming (STT) + browser SpeechSynthesis — streaming latency upgrade for F095-F097 realtime track. **Requires a separate validation spike** before adoption: must prove barge-in UX, echo cancellation feasibility, TTFA under real `processMessage` latency, and Android/iOS `SpeechSynthesis` quality for streaming use. Cross-model review (2026-04-10) consensus: treat 12a as a hypothesis to validate, not a pre-approved evolution path.
 - 12b. F075 + Piper/VITS (browser TTS) — avoids OS-dependent SpeechSynthesis quality variance, adds ~20-75 MB bundle.
 
 **Cost (canonical, F075 + SpeechSynthesis).** STT = per Option 10 (incremental Whisper). TTS = $0 (browser-native).
@@ -653,7 +653,7 @@ Split into Table A (cost, latency, browser, privacy) and Table B (complexity, tu
 
 **For F095-F097 (realtime voice loop in /hablar): Option 12 variant 12a — Upgrade the STT leg to Deepgram Nova-3 streaming over WebSocket; keep browser `SpeechSynthesis` for TTS.**
 
-Both tracks share the same TTS leg and the same ADR-001 invariants. The difference between F091 and F095-F097 is a single replaceable STT module on the server side, not a separate architecture.
+Both tracks share the same TTS leg and the same ADR-001 invariants. The difference between F091 and F095-F097 is a single replaceable STT module on the server side, not a separate architecture. **Note (added after cross-model review, 2026-04-10):** variant 12a should be treated as a hypothesis requiring its own validation spike — not as a pre-approved evolution. The realtime path introduces challenges (echo cancellation, barge-in UX, Android TTS quality under streaming) that this spike did not validate empirically.
 
 ### 6.2 Why Option 12 wins on the criteria that matter most
 
@@ -743,11 +743,12 @@ The recommended architecture (Option 12 for both F091 and, via variant 12a, F095
 
 ### 10.2 New risks / open questions discovered during the spike
 
-- **R11 — F075 50/day shared rate limit.** At Tier 1 baseline (5 voice interactions/user/day) the limit is comfortable, but the limit is *shared* with text queries and `GET /estimate`. A voice-heavy user mixing voice and text will burn through 50/day faster than anticipated. **Open question for user:** raise the limit? Split voice/text buckets? Keep-and-document? Must be resolved before F091 ships.
+- **R11 — F075 50/day shared rate limit.** At Tier 1 baseline (5 voice interactions/user/day) the limit is comfortable, but the limit is *shared* with text queries and `GET /estimate`. A voice-heavy user mixing voice and text will burn through 50/day faster than anticipated. **Open question for user:** raise the limit? Split voice/text buckets? Keep-and-document? Must be resolved before F091 ships. **Cross-model review consensus (Gemini + GPT-5.4, 2026-04-10):** both reviewers recommend splitting into separate buckets (e.g., `20 voice/day` + `50 text/day`) or a weighted credit system (`voice=2-3 credits`, `text=1`). Rationale: voice retries, accidental short recordings, and mixed sessions make a shared bucket feel arbitrary and punitive. Also: return a voice-specific error message when the voice quota is hit, not a generic rate-limit failure.
 - **R12 — Research doc cost discrepancy.** The research doc's "$2,500/mo pipeline desacoplado" figure does not reproduce under this workload model — the honest Tier 2 Deepgram Nova-3 + OpenAI tts-1 figure is ~$5,655/mo. Document the discrepancy when the product tracker / research doc is next updated. Not a blocker for F091.
 - **R13 — Paper-only R2 interpretation.** This spike satisfies "Mobile Safari partial support must be tested in scope" with documented compatibility evidence only (MDN, caniuse, vendor docs), not real-device testing. **Open question for user:** is the user OK with paper-level R2 verification, or must real-device testing on an iPhone happen before F091 starts? If the latter, F091 starts with a 1-day field-test sub-task.
 - **R14 — MediaRecorder MIME branching for iOS.** iOS Safari's MediaRecorder default MIME is `audio/mp4`, not `audio/webm`. F075 accepts both, so the server side is fine, but the web client must branch on `MediaRecorder.isTypeSupported(...)`. Low-risk but must be explicit in F091's spec. Not a blocker.
 - **R15 — Chrome-on-Linux SpeechSynthesis may degrade to cloud TTS.** On some Linux Chrome configurations, `SpeechSynthesis` falls back to a Google cloud TTS endpoint rather than an OS-local engine. This is a minor edge case (desktop Linux is a small slice of traffic) but must be documented in the privacy notice. Accepted limitation.
+- **R16 — iOS Safari async gesture chain for SpeechSynthesis.** `SpeechSynthesis.speak()` is called after an async `fetch` (the F075 round-trip takes ~2-3s). iOS Safari drops the user-gesture authorization token after asynchronous work, which can silently block TTS playback. **Mitigation (must be implemented in F091):** "unlock" the TTS engine synchronously inside the mic button's `onClick` handler by calling `speechSynthesis.speak(new SpeechSynthesisUtterance(''))` before starting the async recording/upload flow. Once unlocked in that session, subsequent async `.speak()` calls succeed. Identified by cross-model review (Gemini 2.5 Pro + GPT-5.4, 2026-04-10).
 
 ---
 
