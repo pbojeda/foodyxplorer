@@ -1,7 +1,7 @@
 # Voice Architecture Decision — Browser-Side vs Cloud STT/TTS for /hablar
 
 **Feature reference:** F094 — Voice Spike
-**Status:** Draft for user review
+**Status:** Provisional recommendation — user must confirm before F091 starts
 **Author:** F094 spike developer
 **Date:** 2026-04-09
 **Downstream consumers:** F091 (async voice in /hablar), F095-F097 (realtime voice in /hablar)
@@ -652,6 +652,8 @@ Split into Table A (cost, latency, browser, privacy) and Table B (complexity, tu
 **For F091 (async push-to-talk voice in /hablar): Option 12 canonical — Reuse F075 `POST /conversation/audio` for STT + browser `SpeechSynthesis` for TTS.**
 
 **For F095-F097 (realtime voice loop in /hablar): Option 12 variant 12a — Upgrade the STT leg to Deepgram Nova-3 streaming over WebSocket; keep browser `SpeechSynthesis` for TTS.**
+
+> **GATE — Provisional recommendation (2026-04-10).** This is the spike's best-evidence recommendation based on 13 options evaluated. The user has NOT yet confirmed this choice as final. **Before starting F091 implementation, the developer MUST ask the user to confirm or change this recommendation.** The user may choose a different option after further reflection. Do not treat this as a settled decision until the user explicitly says so.
 
 Both tracks share the same TTS leg and the same ADR-001 invariants. The difference between F091 and F095-F097 is a single replaceable STT module on the server side, not a separate architecture. **Note (added after cross-model review, 2026-04-10):** variant 12a should be treated as a hypothesis requiring its own validation spike — not as a pre-approved evolution. The realtime path introduces challenges (echo cancellation, barge-in UX, Android TTS quality under streaming) that this spike did not validate empirically.
 

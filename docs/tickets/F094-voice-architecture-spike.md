@@ -576,7 +576,7 @@ Phase 6 separates **research-method review** (substantive critique of the decisi
 - [x] Cross-model review of the decision doc has been run (via `/review-spec` or equivalent) and flagged issues are addressed or documented
 - [x] `/audit-merge` has been run before requesting merge approval
 - [x] Ticket Completion Log reflects all step transitions and commits
-- [ ] **User has personally reviewed and approved the decision doc** — this is explicit and non-negotiable before F091/F095 specs are created in a follow-up PM session
+- [ ] **User has personally reviewed and approved the decision doc** — this is explicit and non-negotiable before F091/F095 specs are created in a follow-up PM session. **The recommendation (Option 12) is provisional. Before starting F091, ask the user to confirm or change the architecture choice.**
 
 ---
 
