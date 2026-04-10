@@ -10,9 +10,9 @@
 
 **Last Updated:** 2026-04-10
 
-**Active Feature:** F094 — Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud | Step 5/6 | Branch: `feature/F094-voice-architecture-spike`
-**PM Session:** pm-vs1 (stopped) — resumed manually for F094 completion
-**Last Completed:** F092 — Web Assistant: Plate Photo Upload. PR #90 squash-merged to develop (4c1553a).
+**Active Feature:** No active work
+**PM Session:** None active
+**Last Completed:** F094 — Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud. PR #93 squash-merged to develop (00f27f5). Recommendation: Option 12 (provisional — user must confirm before F091).
 
 **Phase B Audit Summary (2026-04-07 to 2026-04-08):**
 - Punto 1: Manuals updated (bot §20-23, API §20-21) ✓
@@ -228,7 +228,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F091 | Web Assistant: Async Voice (STT → Core → TTS) | frontend | pending | — | Standard. Push-to-talk UX. Async, not realtime. **GATE: before starting, confirm voice architecture choice with user** — F094 recommends Option 12 (F075 STT + SpeechSynthesis TTS) but decision is provisional |
 | F092 | Web Assistant: Plate Photo Upload | frontend | done | 6/6 | Standard. PR #90 squash-merged (4c1553a). 263 tests. Code review: APPROVED WITH NOTES. QA: VERIFIED (23 edge-case tests) |
 | F093 | Web Assistant: Landing Integration + Analytics | frontend | done | 6/6 | Standard. PR #89 squash-merged (cb1b0fc). 737 landing + 167 web tests. Code review: APPROVED WITH NOTES. QA: VERIFIED (21 edge-case tests). |
-| F094 | Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud | research | in-progress | 5/6 | Research. Decision doc at `docs/specs/voice-architecture-decision.md` (789→800 lines). Recommendation: Option 12 (F075 STT + SpeechSynthesis TTS) for F091; variant 12a (Deepgram Nova-3 + SpeechSynthesis) for F095-F097 (requires separate spike). Cross-model review complete (Gemini + Codex, both approve). Awaiting user approval of decision doc before merge. |
+| F094 | Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud | research | done | 6/6 | Research. PR #93 squash-merged (00f27f5). Decision doc: `docs/specs/voice-architecture-decision.md` (800 lines, 13 options). Provisional recommendation: Option 12 (F075 STT + SpeechSynthesis TTS). Cross-model review: Gemini + Codex both approve. **GATE: user must confirm architecture choice before F091 starts.** Also fixed: CI rollup job (`ci-success`) for docs-only PR mergeability. |
 | F095 | Realtime Voice: Implement Chosen Architecture | frontend | pending | — | Standard. Based on F094 spike results. WebSocket/WebRTC server if needed. STT streaming + VAD |
 | F096 | Realtime Voice: Pause Detection + Barge-In + Filler | frontend | pending | — | Standard. End-of-speech detection, interruption handling, filler audio for L4 delays ("Déjame calcular...") |
 | F097 | Realtime Voice: Frontend States + Mobile QA | frontend | pending | — | Standard. Listening/Processing/Speaking/Results states. Mobile-first QA. Accessibility fallbacks |

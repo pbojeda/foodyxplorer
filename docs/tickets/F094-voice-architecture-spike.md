@@ -1,7 +1,7 @@
 # F094: Voice Spike — Evaluate Browser-Side STT/TTS vs Cloud
 
 **Feature:** F094 | **Type:** Research | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F094-voice-architecture-spike
+**Status:** Done | **Branch:** feature/F094-voice-architecture-spike
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-09 | **Dependencies:** F090 (ConversationCore in /hablar), F091 (blocked pending this decision)
 
@@ -588,7 +588,7 @@ Phase 6 separates **research-method review** (substantive critique of the decisi
 - [x] Step 3: Decision doc drafted at `docs/specs/voice-architecture-decision.md` (789 lines, 11 sections, 13 options, all AC satisfied)
 - [x] Step 4: Quality gates passed after F115 landed on develop and branch rebased. `npm run lint` = 0 errors/warnings. `npm run build` = success. `npm test` = 26 suites, 263 tests passing.
 - [x] Step 5: Cross-model review (Gemini 2.5 Pro + GPT-5.4 via Codex CLI, 2026-04-10). Both approve Option 12. 3 corrections applied: R16 iOS gesture chain, 12a requires separate spike, R11 split-bucket consensus. `/audit-merge` run. Merge Checklist Evidence filled.
-- [ ] Step 6: Ticket finalized, branch merged to develop, product tracker updated
+- [x] Step 6: PR #93 squash-merged to develop (00f27f5). Ticket → Done. Tracker updated. Branch cleanup.
 
 ---
 
