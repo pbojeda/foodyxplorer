@@ -24,6 +24,11 @@ Before starting:
 2. **Product tracker must have pending features.** Read `docs/project_notes/product-tracker.md` → Features table. If no features have step < 6/6, there is nothing to do.
 3. **Working tree must be clean.** Run `git status`. If dirty, ask user to commit or stash.
 4. **No active PM session.** Check if `docs/project_notes/pm-session.lock` exists. If it does, another PM session may be running — ask user before proceeding.
+5. **Target branch quality gates baseline.** Run `npm test`, `npm run lint`, and `npm run build` on the target branch (main or develop) to verify it is clean BEFORE starting any feature. If any gate fails:
+   - Document the failures in `docs/project_notes/bugs.md` as a tech debt entry (e.g., `BUG-DEV-LINT-XXX`).
+   - Create a follow-up task in `product-tracker.md` to fix the baseline.
+   - STOP and inform the user. Do NOT start features on a broken baseline — features will fail Step 4 quality gates and the agent will be unable to distinguish pre-existing failures from regressions.
+   - Exception: if the lint command itself does not exist for some packages, note it but do not block.
 
 ---
 
@@ -59,6 +64,10 @@ Classify complexity for each (Simple / Standard / Complex):
 ```
 
 5. Wait for user to classify all features in the batch.
+6. **Intra-batch dependency check.** Before proceeding, verify that no feature in the batch depends on another feature in the same batch. If F-Y depends on F-X and both are in the batch:
+   - Warn the user explicitly: "F-Y depends on F-X which is also in this batch. F-X's results will be auto-merged at L5 without your validation before F-Y starts. If F-Y's spec/implementation depends on decisions made in F-X, those decisions won't have been validated by you."
+   - Ask the user: "Do you want to (a) remove F-Y from this batch and run it in a future session after validating F-X, or (b) proceed knowing the risk?"
+   - Default to (a) — only proceed with (b) if the user explicitly confirms.
 
 ### Phase 2: Session Initialization
 
@@ -192,6 +201,8 @@ Completed: 2/3 | Blocked: 1/3 | Remaining: 0
 |-----------|-------|-----------|
 | Max features per session | 5 | Model attention degrades after many iterations |
 | Mandatory compact after 2 features | STOP + `/compact` + `continue pm` | Context degradation causes skipped steps and lost constraints |
+| Target branch baseline check | tests/lint/build before first feature | Pre-existing failures would block Step 4 quality gates and contaminate audit trails |
+| Intra-batch dependency check | Warn + default to remove dependent feature | Auto-merge at L5 means dependent feature won't see user-validated parent results |
 | Consecutive failure circuit breaker | 3 | Prevent wasting resources on a systemic issue |
 | Kill switch | `pm-stop.md` or `stop pm` | User can always halt the loop |
 | Session lock | `pm-session.lock` | Prevents concurrent PM sessions |
