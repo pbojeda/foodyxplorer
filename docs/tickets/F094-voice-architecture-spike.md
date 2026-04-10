@@ -443,16 +443,16 @@ Write `docs/specs/voice-architecture-decision.md` in one pass following the requ
 11. **References** — Bullet list of every URL and document cited. Use the format: `[Source name](URL) — accessed [date], purpose: [what data was taken from it]`.
 
 **Self-review checklist before writing is complete:**
-- [ ] All 11 sections present in order
-- [ ] All 13 options have subsections in Section 4
-- [ ] Every R1-R10 addressed in every applicable option subsection (check each one)
-- [ ] Matrix has 13 rows and all criteria columns — no TBD cells
-- [ ] Section 7 has all 9 directive items filled
-- [ ] Section 8 has all directive items filled, including F075 reuse/extend/bypass decision
-- [ ] Cost Workload Model used consistently across all options (same formula, same tiers)
-- [ ] No fabricated numbers — every figure either cites a source or is explicitly marked "estimated with rationale"
-- [ ] ADR-001 compliance confirmed in Section 9
-- [ ] Executive Summary names a specific option
+- [x] All 11 sections present in order
+- [x] All 13 options have subsections in Section 4
+- [x] Every R1-R10 addressed in every applicable option subsection (check each one)
+- [x] Matrix has 13 rows and all criteria columns — no TBD cells
+- [x] Section 7 has all 9 directive items filled
+- [x] Section 8 has all directive items filled, including F075 reuse/extend/bypass decision
+- [x] Cost Workload Model used consistently across all options (same formula, same tiers)
+- [x] No fabricated numbers — every figure either cites a source or is explicitly marked "estimated with rationale"
+- [x] ADR-001 compliance confirmed in Section 9
+- [x] Executive Summary names a specific option
 
 ---
 
