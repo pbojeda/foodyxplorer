@@ -35,22 +35,13 @@ export async function registerCors(
     return;
   }
 
-  // production
-  const rawOrigins = process.env['CORS_ORIGINS'] ?? '';
-  const origins = rawOrigins
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean)
-    .filter((o) => {
-      if (!o.startsWith('http://') && !o.startsWith('https://')) {
-        app.log.warn(`[cors] Ignoring invalid CORS origin: ${o}`);
-        return false;
-      }
-      return true;
-    });
-
+  // production — allow all origins.
+  // Security rationale: the API is public (anonymous access), has no session
+  // cookies, and abuse is controlled by per-actorId rate limiting (50/day).
+  // CORS adds no meaningful protection in this context. If auth with cookies
+  // is added in the future, restrict origins via CORS_ORIGINS env var.
   await app.register(cors, {
-    origin: origins.length > 0 ? origins : false,
+    origin: true,
     methods: ALLOWED_METHODS,
     allowedHeaders: ALLOWED_HEADERS,
     exposedHeaders: ['X-Actor-Id'],

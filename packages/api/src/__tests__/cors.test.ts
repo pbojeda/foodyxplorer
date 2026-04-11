@@ -72,17 +72,20 @@ describe('registerCors — F090 additions', () => {
   });
 
   describe('production mode', () => {
-    it('includes exposedHeaders: [X-Actor-Id]', async () => {
-      const originalEnv = process.env['CORS_ORIGINS'];
-      process.env['CORS_ORIGINS'] = 'https://nutrixplorer.com,https://www.nutrixplorer.com';
+    it('allows all origins (origin: true)', async () => {
+      const { registerCors } = await import('../plugins/cors.js');
+      await registerCors(app as unknown as FastifyInstance, makeConfig({ NODE_ENV: 'production' }));
 
+      const options = app._registered[0]?.options as Record<string, unknown>;
+      expect(options.origin).toBe(true);
+    });
+
+    it('includes exposedHeaders: [X-Actor-Id]', async () => {
       const { registerCors } = await import('../plugins/cors.js');
       await registerCors(app as unknown as FastifyInstance, makeConfig({ NODE_ENV: 'production' }));
 
       const options = app._registered[0]?.options as Record<string, unknown>;
       expect(options.exposedHeaders).toEqual(['X-Actor-Id']);
-
-      process.env['CORS_ORIGINS'] = originalEnv;
     });
   });
 
