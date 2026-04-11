@@ -443,7 +443,7 @@ Estimated tests: **~4**
 | 2. Verify product tracker | [x] | Active Session: step 5/6, PR #99 |
 | 3. Update key_facts.md | [x] | N/A — QA task, no new infrastructure |
 | 4. Update decisions.md | [x] | N/A |
-| 5. Commit documentation | [x] | Commit: (pending — this commit) |
+| 5. Commit documentation | [x] | Commit: 6e33ec7 |
 | 6. Verify clean working tree | [x] | `git status`: clean after commit |
 | 7. Verify branch up to date | [x] | merge-base: up to date with develop |
 
