@@ -13,7 +13,7 @@
 //   F-027 — Context set — ambiguous vs. confirmed
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   createConversationMessageResponse,
@@ -267,11 +267,8 @@ describe('QA-WEB-001 gaps — F-020: Stale request guard', () => {
     // Resolve first promise with the stale Big Mac data (it should be aborted/ignored)
     resolveFirst(firstResponse);
 
-    // Wait a tick — the stale response should be ignored due to abort guard
-    await waitFor(() => {
-      // After first resolves, either still loading or shows result
-      // If not aborted yet, Big Mac shows briefly — that's OK for this test's approach
-    });
+    // Let microtasks settle after first promise resolves
+    await act(async () => { await Promise.resolve(); });
 
     // Wait for textarea to be enabled (first call done)
     await waitFor(() => {
