@@ -10,7 +10,7 @@
 
 **Last Updated:** 2026-04-11
 
-**Active Feature:** QA-WEB-001 — Exhaustive Testing packages/web | Step 3/6 (Implement) | Branch: qa/QA-WEB-001-exhaustive-web-testing | Standard
+**Active Feature:** QA-WEB-001 — Exhaustive Testing packages/web | Step 5/6 (Review) | Branch: qa/QA-WEB-001-exhaustive-web-testing | Standard | PR #99
 **PM Session:** None active
 **Last Completed:** F094 — Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud. PR #93 squash-merged to develop (00f27f5). Recommendation: Option 12 (provisional — user must confirm before F091).
 
