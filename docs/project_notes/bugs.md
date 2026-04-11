@@ -644,3 +644,109 @@ The user explicitly requires human review for the 2 production errors (`menuForm
 4. **When adding a `// eslint-disable-next-line` directive**, verify the rule name exists in the installed plugins. A typo or stale rule name produces the "Definition for rule not found" error we saw in landing.
 
 - **Feature**: Discovered during F094 Step 4 (voice architecture spike). Blocks F094 commit. | **Found by**: PM Orchestrator (pm-vs1) during lint quality gate | **Severity**: High (blocks quality gates for all features touching lint; 2 production files have potentially-real null-assertion risks) | **Status**: Part 1 FIXED on F094 branch. Part 2 DEFERRED to F115.
+
+---
+
+### 2026-04-11 — QA-WEB-001: Exhaustive Testing — packages/web (13 bugs)
+
+> Found during bounded QA pass over packages/web. Source: `docs/project_notes/qa-web-001-findings.md`
+
+#### P1 — Significant
+
+### 2026-04-11 — BUG-QA-001: CSP script-src missing GA4 domain (P1)
+
+- **Issue**: `next.config.mjs` CSP header has `script-src 'self' 'unsafe-inline'` but GA4 loads scripts from `https://www.googletagmanager.com`. Currently Report-Only mode so not blocking, but will break GA4 when CSP is enforced.
+- **Root Cause**: GA4 domains were not included when CSP was initially configured.
+- **Solution**: Add `https://www.googletagmanager.com` to `script-src` directive in `next.config.mjs`.
+- **Prevention**: When adding CSP, audit all third-party script origins.
+- **Status**: Open | **Found by**: QA-WEB-001 | **Evidence**: `csp.qa-web-001.test.ts`
+
+### 2026-04-11 — BUG-QA-002: CSP connect-src missing GA4 endpoint (P1)
+
+- **Issue**: CSP `connect-src 'self' ${apiUrl}` missing `https://www.google-analytics.com` and `https://analytics.google.com`. GA4 beacon/XHR requests generate CSP violation reports.
+- **Root Cause**: Same as BUG-QA-001 — GA4 endpoints not audited during CSP setup.
+- **Solution**: Add `https://www.google-analytics.com https://analytics.google.com` to `connect-src` directive.
+- **Prevention**: Same as BUG-QA-001.
+- **Status**: Open | **Found by**: QA-WEB-001 | **Evidence**: `csp.qa-web-001.test.ts`
+
+### 2026-04-11 — BUG-QA-003: Route handler error format mismatch (P1)
+
+- **Issue**: `app/api/analyze/route.ts:19` returns `{ error: 'CONFIG_ERROR' }` (string) but `apiClient.ts:136` expects `{ error: { code, message } }` (object). Client falls back to generic `'API_ERROR'` code — ops team gets no signal that API_KEY is missing.
+- **Root Cause**: Route handler error response shape was not aligned with apiClient error parser expectations.
+- **Solution**: Change route handler to return `{ error: { code: 'CONFIG_ERROR', message: 'API_KEY or NEXT_PUBLIC_API_URL not configured' } }`. Same for `UPSTREAM_UNAVAILABLE`.
+- **Prevention**: Define error response schema in shared types; validate at both ends.
+- **Status**: Open | **Found by**: QA-WEB-001 | **Evidence**: `route.qa-web-001.test.ts`
+
+#### P2 — Minor
+
+### 2026-04-11 — BUG-QA-004: ConfidenceBadge crashes on unexpected level (P2)
+
+- **Issue**: `BADGE_CONFIG[level]` returns undefined for values outside `high | medium | low`. Destructuring throws TypeError, crashing the card.
+- **Root Cause**: No fallback for unknown confidence levels in the lookup map.
+- **Solution**: Add `const config = BADGE_CONFIG[level] ?? BADGE_CONFIG['medium']`.
+- **Prevention**: Add runtime fallback for enum-like lookups.
+- **Status**: Open | **Found by**: QA-WEB-001 | **Evidence**: `edge-cases.qa-web-001.test.tsx`
+
+### 2026-04-11 — BUG-QA-006: Permissions-Policy camera=() may conflict with capture=environment (P2)
+
+- **Issue**: `Permissions-Policy: camera=()` blocks JS camera API. `<input capture="environment">` uses the OS file picker, typically unaffected, but may be blocked on some Android browsers.
+- **Root Cause**: Permissions-Policy was set to deny all camera access without considering the file input capture attribute.
+- **Solution**: Verify on real Android Chrome device. If confirmed, change to `camera=(self)`.
+- **Prevention**: Test Permissions-Policy interactions with HTML attributes on mobile.
+- **Status**: Open (unverified) | **Found by**: QA-WEB-001
+
+### 2026-04-11 — BUG-QA-007: ErrorState missing role="alert" (P2)
+
+- **Issue**: The `ErrorState` component's root div has no ARIA live region. Screen readers don't announce errors when they appear dynamically.
+- **Root Cause**: `role="alert"` was not added to the error container.
+- **Solution**: Add `role="alert"` to the root `<div>` in `ErrorState.tsx`.
+- **Prevention**: Include ARIA live region in error component templates.
+- **Status**: Open | **Found by**: QA-WEB-001 | **Evidence**: `a11y.qa-web-001.test.tsx`
+
+### 2026-04-11 — BUG-QA-008: No photo retry mechanism (P2)
+
+- **Issue**: `handleRetry()` re-sends `lastQuery` (text only). There's no `lastPhotoFile` state, so photo errors have no retry button.
+- **Root Cause**: Photo retry was not implemented — `handleRetry` only handles text queries.
+- **Solution**: Store `lastPhotoFile` in a ref and re-send on retry. Or show the photo button prominently after a photo error.
+- **Prevention**: When adding new input modalities, verify retry flows work for each.
+- **Status**: Open | **Found by**: QA-WEB-001 | **Evidence**: `gaps.qa-web-001.test.tsx`
+
+### 2026-04-11 — BUG-QA-009: No client-side query length pre-validation (P2)
+
+- **Issue**: Queries > 500 chars make a full 15s server round-trip before receiving `text_too_long` inline error. No client-side `maxLength` or pre-check.
+- **Root Cause**: Length validation was only implemented server-side.
+- **Solution**: Add `if (text.length > 500) { setInlineError(...); return; }` at the top of `executeQuery`.
+- **Prevention**: Client-side validation for known server constraints.
+- **Status**: Open | **Found by**: QA-WEB-001 | **Evidence**: `gaps.qa-web-001.test.tsx`
+
+### 2026-04-11 — BUG-QA-010: Route handler has no upstream fetch timeout (P2)
+
+- **Issue**: `fetch(upstreamRequest)` in `route.ts` has no timeout. If upstream hangs, the serverless function waits until Vercel's function timeout (10s Hobby, 60s Pro).
+- **Root Cause**: No `AbortSignal.timeout()` added to the upstream fetch.
+- **Solution**: Add `signal: AbortSignal.timeout(60000)` to the upstream fetch.
+- **Prevention**: Always add timeouts to outbound fetches in serverless functions.
+- **Status**: Open (code-inspection finding) | **Found by**: QA-WEB-001
+
+### 2026-04-11 — BUG-QA-011: Actor ID persisted before response body validation (P2)
+
+- **Issue**: `persistActorId()` is called after reading the response header but before validating the response body. If body is malformed, the actor ID is still overwritten.
+- **Root Cause**: Header processing and body validation are sequential; persistence happens between them.
+- **Solution**: Move `persistActorId` call after successful body validation.
+- **Prevention**: Process response atomically — persist side effects only after full validation.
+- **Status**: Open | **Found by**: QA-WEB-001 | **Evidence**: `apiClient.qa-web-001.test.ts`
+
+### 2026-04-11 — BUG-QA-012: Misleading comment in ResultsArea (P2)
+
+- **Issue**: Comment says "no 'use client' needed" but the component works client-side only because its parent (`HablarShell`) is a client component.
+- **Root Cause**: Comment was written based on the absence of the directive, not the runtime behavior.
+- **Solution**: Clarify comment: "Renders client-side via parent boundary — no standalone server rendering."
+- **Prevention**: Review 'use client' comments for accuracy.
+- **Status**: Open (code-inspection finding) | **Found by**: QA-WEB-001
+
+### 2026-04-11 — BUG-QA-013: Response type guards pass for data: null (P2)
+
+- **Issue**: `isConversationMessageResponse` and `isMenuAnalysisResponse` check `typeof data === 'object'` but `typeof null === 'object'` in JS. So `{ success: true, data: null }` passes both guards.
+- **Root Cause**: JavaScript quirk — `typeof null === 'object'`.
+- **Solution**: Add `&& (value as Record<string, unknown>)['data'] !== null` to both guards.
+- **Prevention**: Always check `!== null` alongside `typeof === 'object'`.
+- **Status**: Open | **Found by**: QA-WEB-001 qa-engineer | **Evidence**: `apiClient.qa-web-001.test.ts`
