@@ -30,6 +30,8 @@
 | 7 | **P2** | BUG-QA-009 | No client-side query length pre-validation | Text query > 500 chars | Always with long input | 15s round-trip before error | Keep queries short | `gaps.qa-web-001.test.tsx` — asserts sendMessage IS called |
 | 8 | **P2** | BUG-QA-011 | Actor ID persisted before response body validation | API response | On malformed 200 response | Actor ID overwritten with potentially incorrect value | Low probability | `apiClient.qa-web-001.test.ts` — asserts persistActorId called before parse |
 
+| 9 | **P2** | BUG-QA-013 | `isConversationMessageResponse` / `isMenuAnalysisResponse` guards pass for `data: null` | API response | If backend returns `{ success: true, data: null }` | Client receives null, crashes on `response.data.intent` | Backend currently never returns this | `apiClient.qa-web-001.test.ts` — asserts no throw for null data |
+
 ### Code-Inspection Findings (no automated test)
 
 | # | Sev | Bug ID | Finding | Recommendation |

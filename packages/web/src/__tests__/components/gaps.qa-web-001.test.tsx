@@ -262,9 +262,12 @@ describe('QA-WEB-001 gaps — F-020: Stale request guard', () => {
     // Loading state visible
     expect(screen.getByRole('status')).toBeInTheDocument();
 
-    // The first request is in flight. Abort it by triggering retry
-    // (the only way to trigger a new query while disabled during loading).
-    // Resolve first promise with the stale Big Mac data (it should be aborted/ignored)
+    // Resolve first promise — this completes the first request normally.
+    // Note: this tests sequential replacement (second result overwrites first),
+    // NOT the controller.signal.aborted guard. The true abort path cannot be
+    // exercised via the public UI because the textarea is disabled during loading.
+    // The disabled state is the primary double-submit prevention; AbortController
+    // is a safety net for programmatic access only.
     resolveFirst(firstResponse);
 
     // Let microtasks settle after first promise resolves
