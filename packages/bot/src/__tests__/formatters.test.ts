@@ -303,6 +303,18 @@ describe('formatChainList', () => {
 // ---------------------------------------------------------------------------
 
 describe('formatEstimate', () => {
+  // Guard: several tests spread `ESTIMATE_DATA_WITH_RESULT.result` which is typed
+  // as nullable in the schema. Extract once with an invariant check so individual
+  // tests can reference `baseResult` without non-null assertions. If the shared
+  // fixture is ever changed to have `result: null`, this guard fails fast with a
+  // clear message instead of leaving each spread site to hit a silent error.
+  const baseResult = ESTIMATE_DATA_WITH_RESULT.result;
+  if (!baseResult) {
+    throw new Error(
+      'test fixture ESTIMATE_DATA_WITH_RESULT.result must be non-null for formatEstimate tests',
+    );
+  }
+
   it('returns no-data message when result is null', () => {
     const result = formatEstimate(ESTIMATE_DATA_NULL_RESULT);
     expect(result).toContain('No se encontraron datos nutricionales');
@@ -417,7 +429,7 @@ describe('formatEstimate', () => {
     const data: EstimateData = {
       ...ESTIMATE_DATA_WITH_RESULT,
       portionMultiplier: 1.5,
-      result: { ...ESTIMATE_DATA_WITH_RESULT.result!, portionGrams: 300 },
+      result: { ...baseResult, portionGrams: 300 },
     };
     const result = formatEstimate(data);
     // Single line with label + grams
@@ -429,7 +441,7 @@ describe('formatEstimate', () => {
     const data: EstimateData = {
       ...ESTIMATE_DATA_WITH_RESULT,
       portionMultiplier: 1.5,
-      result: { ...ESTIMATE_DATA_WITH_RESULT.result!, portionGrams: null },
+      result: { ...baseResult, portionGrams: null },
     };
     const result = formatEstimate(data);
     expect(result).toContain('grande');

@@ -223,20 +223,27 @@ jest.mock('next/link', () => {
   };
 });
 
+jest.mock('@/lib/analytics', () => ({
+  trackEvent: jest.fn(),
+  getUtmParams: jest.fn(() => ({})),
+  drainEventQueue: jest.fn(),
+  clearEventQueue: jest.fn(),
+}));
+
 describe('F063 QA — SiteHeader: no legacy #para-quien href', () => {
   it('no rendered link has href="#para-quien"', () => {
-    const { container } = render(<SiteHeader />);
+    const { container } = render(<SiteHeader hablarBaseUrl={null} variant="a" />);
     const staleLinks = container.querySelectorAll('a[href="#para-quien"]');
     expect(staleLinks).toHaveLength(0);
   });
 
   it('no rendered text contains "Para quién"', () => {
-    render(<SiteHeader />);
+    render(<SiteHeader hablarBaseUrl={null} variant="a" />);
     expect(screen.queryByText('Para quién')).not.toBeInTheDocument();
   });
 
   it('exactly one #faq link is rendered in the desktop nav', () => {
-    const { container } = render(<SiteHeader />);
+    const { container } = render(<SiteHeader hablarBaseUrl={null} variant="a" />);
     // Desktop nav is the <nav> element; mobile menu also renders links
     // We just confirm at least one #faq link is present
     const faqLinks = container.querySelectorAll('a[href="#faq"]');

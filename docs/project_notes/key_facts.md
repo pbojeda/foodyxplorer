@@ -16,7 +16,7 @@ Quick reference for project configuration, infrastructure details, and important
 - **Repository**: GitHub (público, licencia pendiente)
 - **Primary Language**: TypeScript (strict mode)
 - **Branching Strategy**: gitflow <!-- main (producción) + develop (integración) + feature/* -->
-- **Monorepo Layout**: npm workspaces — `packages/api`, `packages/bot`, `packages/shared`, `packages/scraper`, `packages/landing/`
+- **Monorepo Layout**: npm workspaces — `packages/api`, `packages/bot`, `packages/shared`, `packages/scraper`, `packages/landing/`, `packages/web/`
 
 ## Technology Stack
 
@@ -27,7 +27,7 @@ Quick reference for project configuration, infrastructure details, and important
 - **Database**: PostgreSQL 16 + pgvector + pg_trgm + JSONB
 - **Cache / Rate Limiting**: Redis
 - **Bot**: node-telegram-bot-api
-- **Web (Fase 2)**: Next.js (SSR/SEO)
+- **Web (F090)**: Next.js 15 (App Router) + TypeScript strict + Tailwind CSS — `packages/web/` workspace, port 3002. Conversational web assistant `/hablar`: text queries → NutritionCard results. Consumes `POST /conversation/message` API. Imports types from `@foodxplorer/shared`.
 - **Landing (F039)**: Next.js 14 (App Router) + TypeScript strict + Tailwind CSS + Framer Motion — `packages/landing/` workspace, deployed on Vercel. Marketing page for nutriXplorer: waitlist capture, A/B hero variants, SEO (JSON-LD), @vercel/analytics.
 - **Validation**: Zod (schemas compartidos en packages/shared)
 
@@ -58,9 +58,11 @@ Quick reference for project configuration, infrastructure details, and important
 
 ## Infrastructure
 
-- **CI/CD**: GitHub Actions (`ci.yml` with path-filtered jobs per package + `deploy-landing.yml`)
+- **CI/CD**: GitHub Actions (`ci.yml` with path-filtered jobs per package + `deploy-landing.yml` + `deploy-web.yml`)
+- **CI jobs**: test-shared, test-api, test-bot, test-scraper, test-landing, test-web (dorny/paths-filter, shared changes trigger all dependent jobs)
 - **Hosting (API, early stage)**: Railway or Render (staging: develop, prod: main)
 - **Hosting (Landing)**: Vercel (auto-deploy: preview on PR, production on push to main)
+- **Hosting (Web)**: Vercel (auto-deploy: preview on PR, production on push to main). Separate project from landing. Secret: `VERCEL_PROJECT_ID_WEB`
 - **Landing domain**: nutrixplorer.com (Vercel, configured 2026-03-27)
 - **Error Tracking**: Sentry (free plan)
 - **Uptime**: UptimeRobot or Better Uptime (free plan)
@@ -186,6 +188,10 @@ Quick reference for project configuration, infrastructure details, and important
 - **Conversation module (F070)**: `packages/api/src/conversation/` — 6 files: `types.ts` (ConversationRequest, ConversationContext, ChainRow, ResolvedChain), `entityExtractor.ts` (6 pure functions copied from bot), `chainResolver.ts` (resolveChain pure in-memory + loadChainData DB), `contextManager.ts` (getContext/setContext raw Redis), `estimationOrchestrator.ts` (cache → brand detect → cascade → portion multiply), `conversationCore.ts` (processMessage 5-step pipeline)
 - **Cooking profiles (F072)**: `packages/api/src/estimation/yieldUtils.ts` (5 pure functions: normalizeFoodGroup, getDefaultCookingMethod, getDefaultCookingState, isAlreadyCookedFood, applyYieldFactor), `cookingProfileService.ts` (getCookingProfile DB lookup), `applyYield.ts` (resolveAndApplyYield orchestrator, 9 reason codes). `cooking_profiles` table: 60 entries, `@@unique([foodGroup, foodName, cookingMethod])`, sentinel `'*'` for group defaults. `GET /estimate` + `POST /calculate/recipe` accept optional `cookingState`/`cookingMethod` params
 - **Cooking profile schemas (F072)**: `packages/shared/src/schemas/cookingProfile.ts` — CookingStateSchema, CookingStateSourceSchema, YieldAdjustmentReasonSchema, YieldAdjustmentSchema, CookingProfileSchema
+- **Web metrics route (F113)**: `packages/api/src/routes/webMetrics.ts` — Fastify plugin. `POST /analytics/web-events` (public, no auth, IP-rate-limited 10/min): receives sendBeacon payloads from web assistant (text/plain + JSON), fire-and-forget DB insert, SHA-256 ipHash, always returns 202. `GET /analytics/web-events` (admin-only): Kysely JSONB aggregation (jsonb_each_text), weighted avg, COALESCE nulls, top 10 intents/errors, timeRange filter (24h/7d/30d/all)
+- **Web metrics schemas (F113)**: `packages/shared/src/schemas/webMetrics.ts` — 3 Zod schemas: `WebMetricsSnapshotSchema` (cross-field refines, Math.round transform, sessionStartedAt temporal bounds), `WebMetricsQueryParamsSchema`, `WebMetricsAggregateSchema`
+- **Web metrics migration (F113)**: `packages/api/prisma/migrations/20260408140000_add_web_metrics_events/` — `web_metrics_events` table: UUID PK, integer counters, intents/errors JSONB, avg_response_time_ms, session_started_at TIMESTAMPTZ, received_at DESC index, ip_hash VARCHAR(64) nullable
+- **Landing → Web CTA integration (F093)**: 3 CTA entry points in landing linking to `/hablar`. `HeaderCTA.tsx` (new Client Component), `HablarAnalytics.tsx` (new Client Component). GA4 in web via `next/script` with `send_page_view:false`. `NEXT_PUBLIC_WEB_URL` env var (landing), `NEXT_PUBLIC_GA_MEASUREMENT_ID` env var (web). UTM attribution per-component (`header_cta`, `hero_cta`, `bottom_cta`). `dataLayer.push` pattern for guaranteed event delivery. GA_ID validated with `/^G-[A-Z0-9]+$/` before script injection.
 - **CORS**: `packages/api/src/plugins/cors.ts` — disabled in test, localhost origins in dev, `CORS_ORIGINS` env var in prod
 
 ### Shared (packages/shared)
@@ -256,3 +262,7 @@ Quick reference for project configuration, infrastructure details, and important
 - **Feature flag**: `BEDCA_IMPORT_ENABLED=true` required in non-test environments
 - **Salt formula**: sodium_g * 2.5 (EU Regulation 1169/2011 — NOT 2.54)
 - **CLI**: `npm run bedca:import -w @foodxplorer/api` | `npm run bedca:snapshot -w @foodxplorer/api`
+
+## Web Package — Server-Side Env Vars (F092)
+
+- **`API_KEY`** (web package, server-only, NOT `NEXT_PUBLIC_`): Private API key for `POST /analyze/menu`. Read exclusively by the Next.js Route Handler proxy at `packages/web/src/app/api/analyze/route.ts`. Must NOT be exposed client-side — adding `NEXT_PUBLIC_` prefix would allow key extraction via browser DevTools and create a global rate-limit bottleneck. Format: `fxp_<32 hex chars>`. Required deployment: Vercel project env vars for staging (`develop` branch) and production (`main` branch).

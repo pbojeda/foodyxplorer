@@ -27,3 +27,4 @@ export * from './schemas/cookingProfile';
 export * from './schemas/menuEstimation';
 export * from './schemas/missedQueries';
 export * from './schemas/reverseSearch';
+export * from './schemas/webMetrics';

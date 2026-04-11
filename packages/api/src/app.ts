@@ -43,6 +43,7 @@ import { analyzeRoutes } from './routes/analyze.js';
 import { waitlistRoutes } from './routes/waitlist.js';
 import { conversationRoutes } from './routes/conversation.js';
 import { reverseSearchRoutes } from './routes/reverseSearch.js';
+import { webMetricsRoutes } from './routes/webMetrics.js';
 import { getKysely } from './lib/kysely.js';
 
 // ---------------------------------------------------------------------------
@@ -94,6 +95,12 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
+  // Register text/plain content type parser for sendBeacon requests (F113).
+  // The route handler calls JSON.parse() on the raw string body.
+  app.addContentTypeParser('text/plain', { parseAs: 'string' }, (_req, body, done) => {
+    done(null, body);
+  });
+
   // Register all plugins and routes — await to ensure dynamic imports
   // (swagger, cors, rateLimit) complete before app.ready() is called.
   await registerSwagger(app, cfg);
@@ -127,6 +134,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(waitlistRoutes, { prisma: prismaClient });
   await app.register(conversationRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient });
   await app.register(reverseSearchRoutes, { db: getKysely(), prisma: prismaClient });
+  await app.register(webMetricsRoutes, { db: getKysely(), prisma: prismaClient });
 
   return app;
 }

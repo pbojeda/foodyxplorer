@@ -14,6 +14,7 @@ interface HeroSectionProps {
   variant: Variant;
   dict: Dictionary['hero'];
   variantsCopy?: Dictionary['variants'];
+  hablarUrl?: string;
 }
 
 const fadeUp = {
@@ -31,7 +32,7 @@ const stagger = {
   },
 };
 
-export function HeroSection({ variant, dict, variantsCopy }: HeroSectionProps) {
+export function HeroSection({ variant, dict, variantsCopy, hablarUrl }: HeroSectionProps) {
   const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -61,7 +62,7 @@ export function HeroSection({ variant, dict, variantsCopy }: HeroSectionProps) {
 
   // Default: Variant A — "Improved Baseline" with new hero image
   const copy = variantsCopy?.a.hero;
-  return <HeroVariantA dict={dict} variant={variant} copy={copy} animProps={animProps} containerAnimProps={containerAnimProps} />;
+  return <HeroVariantA dict={dict} variant={variant} copy={copy} animProps={animProps} containerAnimProps={containerAnimProps} hablarUrl={hablarUrl} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -80,9 +81,10 @@ interface VariantAProps {
   copy: VariantACopy | undefined;
   animProps: object;
   containerAnimProps: object;
+  hablarUrl?: string;
 }
 
-function HeroVariantA({ dict, variant, copy, animProps, containerAnimProps }: VariantAProps) {
+function HeroVariantA({ dict, variant, copy, animProps, containerAnimProps, hablarUrl }: VariantAProps) {
   return (
     <section
       aria-label="Inicio"
@@ -127,6 +129,27 @@ function HeroVariantA({ dict, variant, copy, animProps, containerAnimProps }: Va
             <motion.div {...animProps} className="mb-6">
               {/* Email-only form in hero */}
               <WaitlistForm source="hero" variant={variant} showPhone={false} />
+              {/* Secondary CTA — only shown when web URL is configured */}
+              {hablarUrl && hablarUrl !== '#waitlist' && (
+                <a
+                  href={`${hablarUrl}?utm_source=landing&utm_medium=hero_cta`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-cta-source="hero"
+                  onClick={() => {
+                    trackEvent({
+                      event: 'cta_hablar_click',
+                      source: 'hero',
+                      variant,
+                      lang: 'es',
+                      utm_medium: 'hero_cta',
+                    });
+                  }}
+                  className="mt-3 inline-block text-sm font-medium text-botanical underline underline-offset-2 hover:text-botanical/80"
+                >
+                  Pruébalo ahora →
+                </a>
+              )}
             </motion.div>
             {/* Trust pills */}
             <motion.div

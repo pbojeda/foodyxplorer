@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function AvisoLegalPage() {
   return (
     <>
-      <SiteHeader />
+      <SiteHeader hablarBaseUrl={null} variant="a" />
       <main className="min-h-screen bg-white">
         <div className="mx-auto max-w-3xl px-6 py-16">
           <article>

@@ -8,10 +8,26 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-07
+**Last Updated:** 2026-04-10
 
 **Active Feature:** No active work
-**Last Completed:** F089 — "Modo Tapeo" (Simple) → develop (ef5dbe6), PR #81. 22 tests.
+**PM Session:** None active
+**Last Completed:** F094 — Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud. PR #93 squash-merged to develop (00f27f5). Recommendation: Option 12 (provisional — user must confirm before F091).
+
+**Phase B Audit Summary (2026-04-07 to 2026-04-08):**
+- Punto 1: Manuals updated (bot §20-23, API §20-21) ✓
+- Punto 2: Real API testing — found 3 code bugs (C1-C3) + 4 doc errors (D1-D4, fixed) ✓
+- Punto 3: Cross-model review (Gemini + Codex) — found 13 more doc issues (D5-D17, all fixed) ✓
+- Punto 4: Exhaustive API testing — found 3 new bugs (C4-C6) + 1 architectural observation (A1) ✓
+- Punto 5: Stability confirmed — core features working, bugfix plan agreed ✓
+
+**Bugfix plan (before Phase C):**
+1. BUG-AUDIT-C1C3 — Fix `/reverse-search` error envelope (C1+C3). Simple SDD.
+2. BUG-AUDIT-C4 — Fix POST empty body → 500 (C4). Simple SDD.
+3. BUG-AUDIT-C5 — Fix reverse search via conversation returns empty (C5). Simple SDD.
+4. Deferred: C2 (context persistence), C6 (data quality), A1 (bot rate limit architecture)
+
+Full findings: `docs/project_notes/audit-phase-b-findings.md`
 
 **Pending operational step (F080):** OFF data import in progress — API v2 auth fix applied (ecdc186). Pagination fix applied (count-based). Ingestion being executed in a separate session.
 ```
@@ -153,7 +169,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 |------|------|--------|----------|--------------|
 | E006 | Structural Foundations | in-progress | F068-F070 | Phase 1 complete |
 | E007 | Spanish Food Coverage | pending | F071-F079 | E006 complete |
-| E008 | Conversational Assistant & Voice | in-progress | F080-F089, F090-F097 | E006 + E007 partial |
+| E008 | Conversational Assistant & Voice | in-progress | F080-F089, F090-F097, F111-F112 | E006 + E007 partial |
 | E009 | Personalization & Tracking | pending | F098-F099, user profiles | E008 partial |
 | E010 | Scale & Monetization | pending | F100-F109 | E008 complete |
 
@@ -193,21 +209,34 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F085 | Portion Sizing Matrix (Spanish portions) | backend | done | 6/6 | Simple. PR #77. 30 tests (2 files). enrichWithPortionSizing() helper, 9 terms, word boundary matching. Code review: APPROVED |
 | F086 | Reverse Search ("¿qué como con X kcal?") | backend | done | 6/6 | Standard. GET /reverse-search endpoint + conversation intent. 136 tests. PR #78, e67164d |
 | F087 | "El Tupper" Meal Prep | backend | done | 6/6 | Simple. PR #80, 1ae778c. 33 tests. Optional `portions` param, `perPortion` nutrients, bot tupper detection |
-| F088 | Community Inline Corrections | bot | pending | — | Standard. "Cálculo incorrecto" inline button. User proposes adjustment. Stored for review. Feeds demand pipeline |
+| F088 | Community Inline Corrections | bot | postponed | — | Standard. "Cálculo incorrecto" inline button. User proposes adjustment. Stored for review. Feeds demand pipeline |
 | F089 | "Modo Tapeo" (shared portions) | bot | done | 6/6 | Simple. PR #81, ef5dbe6. 22 tests. Diners extraction + perPerson in menu estimation |
+
+> **Phase B Audit Bugfixes (before Phase C)**
+
+| ID | Feature | Type | Status | Step | Notes |
+|----|---------|------|--------|------|-------|
+| BUG-AUDIT-C1C3 | Fix `/reverse-search` error envelope | backend | done | 6/6 | Simple. PR #82. 6 new tests. Standardized 404+400 to project error envelope |
+| BUG-AUDIT-C4 | Fix POST empty body → 500 | backend | done | 6/6 | Simple. POST `/calculate/recipe` and `/conversation/message` return 500 when body is null/invalid JSON. Fastify body parser throws before Zod. Add onError hook or content-type-parser guard |
+| BUG-AUDIT-C5 | Fix reverse search via conversation | backend | done | 6/6 | Simple. `reverseSearchDishes()` called from `conversationCore.ts` always returns empty results. Direct endpoint works. Silent `catch` block masks DB error. Investigate Kysely instance or query mismatch |
 
 > **Phase C: Conversational Web Assistant + Realtime Voice**
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F090 | Web Assistant: Shell + Text Mode (/hablar) | frontend | pending | — | Standard. Next.js route /hablar. ConversationCore integration. Text input → JSON response → NutritionCard UI. See conversational-mode-briefing.md + development-plan.md in foodXPlorerResources |
-| F091 | Web Assistant: Async Voice (STT → Core → TTS) | frontend | pending | — | Standard. Whisper transcription → ConversationCore → TTS response. Push-to-talk UX. Async, not realtime |
-| F092 | Web Assistant: Plate Photo Upload | frontend | pending | — | Standard. Photo → existing /analyze/menu pipeline → results in UI. Reuses existing Vision API infrastructure |
-| F093 | Web Assistant: Landing Integration + Analytics | frontend | pending | — | Simple. CTA from landing → /hablar. Analytics events. Visual coherence with landing design system |
-| F094 | Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud | research | pending | — | Research. Compare: Web Speech API (free), Whisper.cpp/Transformers.js (browser), Deepgram (cloud), OpenAI Realtime (cloud). Decide architecture for F095-F097. See product-evolution-analysis "OPEN INVESTIGATION" section |
+| F090 | Web Assistant: Shell + Text Mode (/hablar) | frontend | done | 6/6 | Standard. **Creates new `packages/web` package** (separate from landing). Next.js route /hablar. ConversationCore integration. Text input → JSON response → NutritionCard UI. Design: see hablar-design-guidelines.md. 119 tests, next build passes. |
+| F091 | Web Assistant: Async Voice (STT → Core → TTS) | frontend | pending | — | Standard. Push-to-talk UX. Async, not realtime. **GATE: before starting, confirm voice architecture choice with user** — F094 recommends Option 12 (F075 STT + SpeechSynthesis TTS) but decision is provisional |
+| F092 | Web Assistant: Plate Photo Upload | frontend | done | 6/6 | Standard. PR #90 squash-merged (4c1553a). 263 tests. Code review: APPROVED WITH NOTES. QA: VERIFIED (23 edge-case tests) |
+| F093 | Web Assistant: Landing Integration + Analytics | frontend | done | 6/6 | Standard. PR #89 squash-merged (cb1b0fc). 737 landing + 167 web tests. Code review: APPROVED WITH NOTES. QA: VERIFIED (21 edge-case tests). |
+| F094 | Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud | research | done | 6/6 | Research. PR #93 squash-merged (00f27f5). Decision doc: `docs/specs/voice-architecture-decision.md` (800 lines, 13 options). Provisional recommendation: Option 12 (F075 STT + SpeechSynthesis TTS). Cross-model review: Gemini + Codex both approve. **GATE: user must confirm architecture choice before F091 starts.** Also fixed: CI rollup job (`ci-success`) for docs-only PR mergeability. |
 | F095 | Realtime Voice: Implement Chosen Architecture | frontend | pending | — | Standard. Based on F094 spike results. WebSocket/WebRTC server if needed. STT streaming + VAD |
 | F096 | Realtime Voice: Pause Detection + Barge-In + Filler | frontend | pending | — | Standard. End-of-speech detection, interruption handling, filler audio for L4 delays ("Déjame calcular...") |
 | F097 | Realtime Voice: Frontend States + Mobile QA | frontend | pending | — | Standard. Listening/Processing/Speaking/Results states. Mobile-first QA. Accessibility fallbacks |
+| F111 | Web Package CI/CD Pipeline | infra | done | 6/6 | Simple. Add `packages/web` to root workspaces. Add `test-web` job to ci.yml (no DB/Redis needed). Create `deploy-web.yml` for Vercel (separate project from landing). Update key_facts.md with new package. Depends on F090 |
+| F112 | Web Assistant Usage Metrics | frontend | done | 6/6 | Simple. Client-side metrics (localStorage + sendBeacon). ADR-018. Depends on F090 |
+| F113 | Backend Metrics Endpoint for Web | backend | done | 6/6 | Standard. POST /analytics/web-events — receives sendBeacon payloads from F112. Connect NEXT_PUBLIC_METRICS_ENDPOINT. Depends on F112 |
+| F115 | Tech Debt: Bot Lint Bankruptcy Cleanup | chore | done | 6/6 | **Simple → medium, High priority.** PR #91 squash-merged to develop (`2eda357`, 2026-04-09). Cleaned up 27 lint errors across monorepo: 20 in `packages/bot` (3 production + 17 tests), 5 in `packages/shared` (tests), 2 in `packages/landing` (invalid eslint-disable directives). Added `firstCallArg<T>` test helper. Removed `\|\| true` from ci.yml lines 160/163/217 (bot lint + postgres test DB setup). Added `Lint shared` CI step and 4 trigger path entries (`eslint.config.mjs`, `**/.eslintrc*`, `.eslintignore`, `tsconfig*.json`). Added `lint` script to `packages/scraper/package.json`. Two drive-bys: **BUG-F113-01** (webMetrics.ts kysely `sql<T[]>` typecheck regression, 3-char fix) and **BUG-F093-02** (f063 test mock missing drainEventQueue/clearEventQueue). Unblocks F094 merge. Full investigation documented in `bugs.md` (BUG-DEV-LINT-001 Parts 1-7, BUG-F113-01, BUG-F093-02, BUG-DEV-CI-001). Deferred to F116: api lint cleanup (100 errors) + scraper lint cleanup (27 errors incl. NEW `no-this-alias` pattern) + 5 CI hardening items. 9 commits in PR (one story per commit). Tests post-merge: 2963/2963 passing across shared/bot/scraper/landing/web. |
+| F116 | Tech Debt: CI Workflow Hardening + API + Scraper Lint Cleanup | chore | pending | — | **Standard, High priority** (scope grew during F115 discovery). **Five sub-items:** (1) **API lint cleanup — 100 errors** across 33 files: 91 `@typescript-eslint/no-non-null-assertion`, 8 `no-unused-vars`, 1 `no-dynamic-delete`. Distributed across 21 test files + 12 production files. Same root cause and solution framework as F115 bot cleanup. Requires HUMAN REVIEW for production `!` assertions (could mask real null-risk bugs). After cleanup, remove `\|\| true` from `ci.yml:195` (api lint step). (2) **Scraper lint cleanup — 27 errors**: 12 `no-non-null-assertion`, 9 `no-unused-vars`, 4 `prefer-const`, **2 `@typescript-eslint/no-this-alias` (NEW PATTERN)**. Affected files include `src/chains/mcdonalds-es/config.ts`, `src/utils/normalize.ts`, `src/utils/retry.ts`, `src/__tests__/persist.test.ts`, and others. **The 2 `no-this-alias` errors are a pattern not seen in F115 — require cross-review (Gemini + Codex) with the same discipline as F115 Phase 1 before applying any fix**, because `const self = this;` can be either a trivial mechanical fix (arrow function) or a genuine capture-semantics concern depending on context. After cleanup, **add a `Lint scraper` step to `test-scraper` in `ci.yml`** (the script was added in F115 but no CI step yet). (3) **`defaults.run.shell: bash` hardening** — add workflow-level default shell for ci.yml to harden future multiline/pipeline steps (Codex recommendation, Low). (4) **`test-landing` execution context consistency** — currently uses `cd packages/landing && npm ci` at every step, inconsistent with `test-web` which uses root-level `npm ci` + `-w` flag. Empirically works (F093 merged) but non-idiomatic for workspaces (Gemini flagged). (5) **`package.json` scripts audit** — check every workspace's `package.json` scripts for embedded suppression patterns (`\|\| true`, `--passWithNoTests`, `--silent`, `--max-warnings 9999`, `2>/dev/null`, etc.) that CI-level grep cannot detect. (6) **Investigate whether api test suite is also silently broken by F113/subsequent commits** — F115 only fixed the api typecheck regression (BUG-F113-01 via drive-by), but did NOT verify api tests locally (requires Postgres + Redis). Once F115 merges and `test-api` CI typecheck passes, the test step will run for the first time in ~3 days; if tests fail, F116 owns the cleanup. (7) **Configure `develop` branch protection** (BUG-DEV-CI-001) — `develop` currently has NO branch protection, which is the root cause that allowed BUG-DEV-LINT-001, BUG-F093-02, and BUG-F113-01 to accumulate silently. Recommended rules documented in `bugs.md` → BUG-DEV-CI-001 (require 7 status checks + up-to-date branch + 1 review + dismiss stale approvals + no bypass). **This sub-item is a MANUAL GitHub UI configuration task for the engineer, not a code change.** Consider also protecting `main`. **Workflow:** MANUAL (same discipline as F115). Dependencies: none (independent of F115). |
 
 ## Features — E009 Personalization & Tracking (Phase C continued)
 
@@ -330,6 +359,12 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | 2026-04-07 | F081 — Health-Hacker Chain Suggestions | a884e57 (squash merge to develop, PR #73) | Simple. Rule-based calorie-saving tips for chain dishes. 13 chains → 5 categories. enrichWithTips() DRY helper. HealthHackerTipSchema. 41 tests (3 files). Code review: APPROVED |
 | 2026-04-07 | F087 — "El Tupper" Meal Prep | 1ae778c (squash merge to develop, PR #80) | Simple. Optional `portions` param on POST /calculate/recipe (1-50). `perPortion` nutrients. Bot tupper extraction (3 regex patterns). 33 tests. Code review: APPROVED |
 | 2026-04-07 | F089 — "Modo Tapeo" (shared portions) | ef5dbe6 (squash merge to develop, PR #81) | Simple. Diners extraction (4 regex patterns, cap 20). `diners` + `perPerson` in MenuEstimationData. Per-person formatter line. 22 tests. Code review: APPROVED |
+| 2026-04-08 | BUG-AUDIT-C1C3 — Fix `/reverse-search` error envelope | f994f83 (squash merge to develop, PR #82) | Simple bugfix. Standardized 404 CHAIN_NOT_FOUND + 400 validation to project error envelope. 6 new tests. Code review: APPROVED |
+| 2026-04-08 | BUG-AUDIT-C4 — Fix POST empty body → 500 | 3a8732f (squash merge to develop, PR #83) | Simple bugfix. SyntaxError + FST_ERR_CTP_EMPTY_JSON_BODY → 400 VALIDATION_ERROR. 5 new tests. Code review: 1 fix (operator precedence) |
+| 2026-04-08 | BUG-AUDIT-C5 — Fix reverse search conversation logging | f747679 (squash merge to develop, PR #84) | Simple bugfix. Add logger.warn to silent catch block. 2 new tests. Code review: APPROVED |
+| 2026-04-08 | F090 — Web Assistant: Shell + Text Mode (/hablar) | f8e5929 (squash merge to develop, PR #85) | Standard fullstack. packages/web created. 15 components, 133 tests (17 suites). Code review: APPROVED (UUID validation, userScalable, TimeoutError). QA: 1 bug fixed (BUG-F090-01). ADR-016 deviation |
+| 2026-04-08 | F111 — Web Package CI/CD Pipeline | 9b30f8c (squash merge to develop, PR #86) | Simple infra. test-web CI job + deploy-web.yml Vercel workflow. Code review: 2 findings fixed (shared path trigger, env names). No new tests (infra-only) |
+| 2026-04-08 | F112 — Web Assistant Usage Metrics | 356609f (squash merge to develop, PR #87) | Simple frontend. Client-side metrics (localStorage + sendBeacon). metrics.ts, useMetrics hook, HablarShell instrumented. ADR-018. 17 new tests (150 total). Code review: 4 fixes (text_too_long gap, notify, dead var, validation) |
 
 ---
 

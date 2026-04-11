@@ -94,17 +94,17 @@ import { SiteHeader } from '@/components/SiteHeader';
 
 describe('F047 — SiteHeader updated copy', () => {
   it('renders "Probar gratis" as desktop CTA text', () => {
-    render(<SiteHeader />);
+    render(<SiteHeader hablarBaseUrl={null} variant="a" />);
     expect(screen.getByText('Probar gratis')).toBeInTheDocument();
   });
 
   it('does not render "Pedir acceso anticipado" anymore', () => {
-    render(<SiteHeader />);
+    render(<SiteHeader hablarBaseUrl={null} variant="a" />);
     expect(screen.queryByText('Pedir acceso anticipado')).not.toBeInTheDocument();
   });
 
   it('does not render "Acceso" as standalone mobile CTA anymore', () => {
-    render(<SiteHeader />);
+    render(<SiteHeader hablarBaseUrl={null} variant="a" />);
     // The old standalone mobile "Acceso" link should be gone; MobileMenu takes its place
     expect(screen.queryByText('Acceso')).not.toBeInTheDocument();
   });

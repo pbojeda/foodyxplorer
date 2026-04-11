@@ -2,7 +2,7 @@
 //
 // Shows per-item compact cards + aggregated total row + match count + confidence.
 
-import type { MenuEstimationData } from '@foodxplorer/shared';
+import type { ConfidenceLevel, MenuEstimationData } from '@foodxplorer/shared';
 import { escapeMarkdown, formatNutrient } from './markdownUtils.js';
 
 const CONFIDENCE_MAP: Record<string, string> = {
@@ -54,9 +54,9 @@ export function formatMenuEstimate(data: MenuEstimationData): string {
 
   // Confidence — show lowest among matched items
   if (data.matchedCount > 0) {
-    const confidenceLevels = data.items
-      .filter((i) => i.estimation.result)
-      .map((i) => i.estimation.result!.confidenceLevel);
+    const confidenceLevels = data.items.flatMap((i) =>
+      i.estimation.result ? [i.estimation.result.confidenceLevel] : [],
+    );
 
     const lowestConfidence = getLowestConfidence(confidenceLevels);
     if (lowestConfidence) {
@@ -68,12 +68,11 @@ export function formatMenuEstimate(data: MenuEstimationData): string {
   return lines.join('\n');
 }
 
-function getLowestConfidence(levels: string[]): string | null {
-  if (levels.length === 0) return null;
-  const ORDER = ['low', 'medium', 'high'];
-  let lowest = levels[0]!;
+function getLowestConfidence(levels: ReadonlyArray<ConfidenceLevel>): ConfidenceLevel | null {
+  const ORDER: readonly ConfidenceLevel[] = ['low', 'medium', 'high'];
+  let lowest: ConfidenceLevel | null = null;
   for (const level of levels) {
-    if (ORDER.indexOf(level) < ORDER.indexOf(lowest)) {
+    if (lowest === null || ORDER.indexOf(level) < ORDER.indexOf(lowest)) {
       lowest = level;
     }
   }

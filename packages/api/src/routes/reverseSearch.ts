@@ -43,28 +43,33 @@ const reverseSearchRoutesPlugin: FastifyPluginAsync<ReverseSearchPluginOptions> 
       },
     },
     async (request, reply) => {
+      // Validate query params — throw on failure so the global error handler
+      // formats the response using the standard error envelope (BUG-AUDIT-C1C3: C3).
       const parseResult = ReverseSearchQuerySchema.safeParse(request.query);
       if (!parseResult.success) {
-        return reply.code(400).send({
-          success: false,
-          error: parseResult.error.flatten(),
-        });
+        const firstIssue = parseResult.error.issues[0];
+        const path = firstIssue ? firstIssue.path.join('/') : '';
+        const msg = firstIssue ? firstIssue.message : 'Validation failed';
+        throw Object.assign(
+          new Error(`querystring/${path} ${msg}`),
+          { code: 'VALIDATION_ERROR' },
+        );
       }
 
       const { chainSlug, maxCalories, minProtein, limit } = parseResult.data;
 
-      // Verify chain exists
+      // Verify chain exists — throw on miss so the global error handler
+      // wraps the response in the standard envelope (BUG-AUDIT-C1C3: C1).
       const restaurant = await prisma.restaurant.findFirst({
         where: { chainSlug },
         select: { id: true, name: true },
       });
 
       if (!restaurant) {
-        return reply.code(404).send({
-          success: false,
-          code: 'CHAIN_NOT_FOUND',
-          message: `Chain "${chainSlug}" not found`,
-        });
+        throw Object.assign(
+          new Error(`Chain "${chainSlug}" not found`),
+          { code: 'CHAIN_NOT_FOUND' },
+        );
       }
 
       const data = await reverseSearchDishes(db, {

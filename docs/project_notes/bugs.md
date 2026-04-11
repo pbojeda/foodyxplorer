@@ -403,3 +403,244 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Solution**: Add `if (!Array.isArray(dishes))` guard at the top of `validateSpanishDishes`: push a descriptive error and return `{ valid: false }` immediately. Alternatively, add a guard in `seedPhaseSpanishDishes.ts` before calling the validator.
 - **Prevention**: Public validation functions accepting external data must guard against non-array input at the entry point before accessing any array method. Never trust a TypeScript cast on data loaded from disk.
 - **Feature**: F073 | **Found by**: qa-engineer | **Severity**: Minor | **Exposed by**: `f073.validateSpanishDishes.edge-cases.test.ts` (2 tests)
+
+### 2026-04-08 — BUG-AUDIT-C1C3: `/reverse-search` error envelope inconsistency
+
+- **Issue**: (C1) 404 CHAIN_NOT_FOUND returns `{success: false, code: "CHAIN_NOT_FOUND", message: "..."}` — flat structure instead of nested `{success: false, error: {code, message}}`. (C3) 400 validation error returns raw Zod output `{success: false, error: {formErrors: [], fieldErrors: {...}}}` instead of the standard `{success: false, error: {code: "VALIDATION_ERROR", message: "..."}}` wrapper.
+- **Root Cause**: The `/reverse-search` route handler in `reverseSearch.ts` constructs error responses manually instead of throwing typed errors for the global error handler to format. The Zod validation is done inline with `.safeParse()` and the error is returned directly without going through `mapError()`.
+- **Solution**: Throw `CHAIN_NOT_FOUND` as a typed error (like other routes) so the global error handler wraps it. For Zod validation, use Fastify's built-in schema validation or throw a VALIDATION_ERROR with formatted message.
+- **Prevention**: All routes must use the global error handler for error formatting. Never return error responses directly — always throw typed errors.
+- **Feature**: F086 | **Found by**: Phase B Audit (Punto 2 + Codex review) | **Severity**: High | **Status**: Fixed (PR #82)
+
+### 2026-04-08 — BUG-AUDIT-C4: POST endpoints return 500 on missing/invalid body
+
+- **Issue**: POST to `/calculate/recipe` or `/conversation/message` without a body (or with invalid JSON) returns 500 INTERNAL_ERROR. Should return 400 VALIDATION_ERROR.
+- **Root Cause**: Fastify's JSON body parser throws a `SyntaxError` (invalid JSON) or the route handler accesses `request.body` as null/undefined. The global error handler catches it as a generic error and returns 500.
+- **Solution**: Add error handler case for `SyntaxError` / FST_ERR_CTP_EMPTY_JSON_BODY that maps to 400 VALIDATION_ERROR.
+- **Prevention**: Test all POST endpoints with: no body, empty body `{}`, and invalid JSON as standard edge-case coverage.
+- **Feature**: Global (all POST routes) | **Found by**: Phase B Audit (Punto 4) | **Severity**: Medium | **Status**: Fixed (PR #83)
+
+### 2026-04-08 — BUG-AUDIT-C5: Reverse search via conversation returns empty results
+
+- **Issue**: `POST /conversation/message` with reverse_search intent returns `intent: "reverse_search"` but no `reverseSearch` data. Direct `GET /reverse-search` works correctly for the same parameters.
+- **Root Cause**: `conversationCore.ts:148` calls `reverseSearchDishes(db, {...})` wrapped in a `catch` block (line 161) that silently swallows the error. The actual DB error is unknown — possibly a Kysely instance mismatch between conversation and reverse-search routes.
+- **Solution**: Add error logging in the catch block. Investigate whether the Kysely `db` instance is the same singleton. Fix the underlying query/instance issue.
+- **Prevention**: Never use empty `catch` blocks — always log the error. Add integration tests exercising reverse_search via conversation endpoint.
+- **Feature**: F086 | **Found by**: Phase B Audit (Punto 4) | **Severity**: Medium | **Status**: Fixed (PR #84)
+
+### 2026-04-08 — BUG-F090-01: Network timeout shows "Sin conexión" instead of "La consulta tardó demasiado"
+
+- **Issue**: When the 15-second `AbortSignal.timeout(15000)` fires, the browser throws a `DOMException` with `name === 'TimeoutError'` (NOT `'AbortError'`). `apiClient.ts` only guards for `AbortError` and re-throws it; all other `DOMException` types fall through to the generic network error wrapper: `new ApiError(err.message, 'NETWORK_ERROR')`. The timeout `err.message` is `'The operation was aborted.'`. In `HablarShell.tsx`, the `NETWORK_ERROR` branch checks `err.message.includes('Sin conexión')` — this is `false` for the timeout message — so the fallback `'Sin conexión. Comprueba tu red.'` is shown. The spec (§9) requires: `"La consulta tardó demasiado. Inténtalo de nuevo."`.
+- **Root Cause**: The `apiClient.ts` catch block only treats `'AbortError'` as a passthrough. `TimeoutError` is a distinct error name in the Web API spec. The `HablarShell.tsx` error mapper has no code path for timeout vs. network failure — both arrive as `NETWORK_ERROR`.
+- **Solution**: Either (a) also detect `err.name === 'TimeoutError'` in `apiClient.ts` and throw `new ApiError('La consulta tardó demasiado. Inténtalo de nuevo.', 'TIMEOUT_ERROR')`, then handle `TIMEOUT_ERROR` code in `HablarShell.tsx`; or (b) check `err.name === 'TimeoutError'` in the existing `apiClient.ts` catch block and wrap with a distinct message/code. Option (a) is preferred for clarity.
+- **Prevention**: When using `AbortSignal.timeout()`, always check both `'AbortError'` and `'TimeoutError'` error names — they are different per the WHATWG spec. Add a test that passes a `DOMException('...', 'TimeoutError')` to the fetch mock and asserts the correct Spanish error copy is shown.
+- **Feature**: F090 | **Found by**: QA (PR #85 review) | **Severity**: Medium | **Status**: Fixed (commit 365259c)
+- **Exposed by**: `packages/web/src/__tests__/lib/apiClient.edge-cases.test.ts` — "BUG: TimeoutError from AbortSignal.timeout is wrapped as NETWORK_ERROR (not re-thrown)"; `packages/web/src/__tests__/components/HablarShell.edge-cases.test.tsx` — "BUG: shows timeout-specific error copy when request times out (15s)"
+
+### 2026-04-08 — BUG-F093-01: edge-cases.f093.test.tsx passes pre-UTM-appended URL to WaitlistCTASection (test data inconsistency — double-appended href)
+
+- **Issue**: `packages/landing/src/__tests__/edge-cases.f093.test.tsx` line 149 declares `bottomUrl = 'https://hablar.nutrixplorer.com/hablar?utm_source=landing&utm_medium=bottom_cta'` (already contains UTM params) and passes it as `hablarUrl` to `WaitlistCTASection`. The component appends its own UTM params unconditionally: `href={`${hablarUrl}?utm_source=landing&utm_medium=bottom_cta`}`. Result: the rendered `href` is `...bottom_cta?utm_source=landing&utm_medium=bottom_cta` (double-appended, malformed URL). The test only checks `toBeInTheDocument()` (not the href value), so it silently passes.
+- **Root Cause**: Inconsistent test data. The architecture spec says `page.tsx` passes the BASE URL (`https://.../hablar` without UTM params) to each component, and each component appends its own UTMs. The WaitlistCTASection tests in `sections/WaitlistCTASection.test.tsx` correctly pass the base URL and assert the full UTM-appended href — but `edge-cases.f093.test.tsx` used the fully-appended URL in the WaitlistCTASection test group.
+- **Solution**: In `edge-cases.f093.test.tsx`, change `bottomUrl` to `'https://hablar.nutrixplorer.com/hablar'` (base URL, no UTM params). The existing href assertion tests in `sections/WaitlistCTASection.test.tsx` already verify the correct behavior.
+- **Prevention**: When writing integration edge-case tests that pass URLs to components, always pass the SAME value `page.tsx` passes (the base URL without UTMs). Document the prop contract: `hablarUrl` is the BASE URL; UTM appending is the component's responsibility.
+- **Feature**: F093 | **Found by**: QA review (edge-cases.f093.qa.test.tsx) | **Severity**: Low (test data bug, no production impact — `page.tsx` always passes base URL) | **Status**: Fixed (2026-04-09)
+- **Resolution**: `edge-cases.f093.test.tsx:149` already used the base URL (no UTMs) in the committed code — the originally reported state did not persist into the merged branch. The stale QA test at `edge-cases.f093.qa.test.tsx:312` that asserted the double-append behavior as "expected" has been removed. No production code change required.
+- **Exposed by**: `packages/landing/src/__tests__/edge-cases.f093.qa.test.tsx` — "REGRESSION: edge-cases.f093.test.tsx passes pre-UTM URL — exposes double-append bug" (test deleted)
+
+### 2026-04-09 — BUG-DEV-LINT-001: Lint bankruptcy on `develop` — 20 silent errors in `packages/bot` + 2 invalid ESLint directives in `packages/landing`
+
+**Discovered during F094 Step 4 quality gates.** Running `npm run lint` at the repo root revealed that `develop` has been shipping lint errors silently for several feature merges. Blocks F094 Step 4 and will block any future feature that relies on lint as a gate.
+
+**Issue (two parts):**
+
+1. **`packages/landing` — 2 ESLint directives referencing a non-existent rule (`@typescript-eslint/no-require-imports`).** ESLint 8 + `eslint-config-next@14.2.29` (the version pinned in `packages/landing/package.json`) does not register this rule. When the file contains `// eslint-disable-next-line @typescript-eslint/no-require-imports`, ESLint raises: `Definition for rule '@typescript-eslint/no-require-imports' was not found.` Location: `packages/landing/src/__tests__/edge-cases.f093.qa.test.tsx:96` and `:121`.
+
+2. **`packages/bot` — 20 `@typescript-eslint/no-non-null-assertion` errors across 7 files** (17 in tests across 5 files, 3 in production code across 2 files — 2 errors in `menuFormatter.ts` + 1 in `reverseSearchFormatter.ts`):
+
+| File | Lines | Category |
+|------|-------|----------|
+| `packages/bot/src/__tests__/apiClient.test.ts` | 217, 237, 257 | Test |
+| `packages/bot/src/__tests__/commands.test.ts` | 376 | Test |
+| `packages/bot/src/__tests__/f042.apiClient.edge-cases.test.ts` | 70, 77, 84, 91, 98, 105, 112, 119, 129 | Test (F042 edge cases) |
+| `packages/bot/src/__tests__/f042.formatter.edge-cases.test.ts` | 172, 179 | Test (F042 edge cases) |
+| `packages/bot/src/__tests__/formatters.test.ts` | 420, 432 | Test |
+| **`packages/bot/src/formatters/menuFormatter.ts`** | **59, 74** | **Production (F076 — Modo Menú del Día)** |
+| **`packages/bot/src/formatters/reverseSearchFormatter.ts`** | **39** | **Production (F086 — reverse search filter)** |
+
+**Root cause — TWO independent mechanisms:**
+
+- **Why the rule is enforced:** Root `eslint.config.mjs` has used `...tseslint.configs.strict` since F001b (commit `9f38639`, 2026-03-10). The `strict` preset includes `@typescript-eslint/no-non-null-assertion` as an error by default. This has been the project rule since day 1 of TypeScript adoption — it is not new.
+- **Why the errors accumulated silently:** `.github/workflows/ci.yml` lines 183 and 217 run lint with `|| true` for the `api` and `bot` workspaces:
+  ```yaml
+  run: npm run lint -w @foodxplorer/api || true
+  run: npm run lint -w @foodxplorer/bot || true
+  ```
+  The `|| true` swallows any non-zero exit, so bot and api lint failures **never break CI**. Landing and web (lines 283, 321) do NOT have `|| true` — that is why the landing error surfaced as a blocker for F094 but the bot errors didn't.
+- **When the production errors were introduced:**
+  - `menuFormatter.ts:59,74` — SHA `1ad5f171` (2026-04-04, F076 — "Modo Menú del Día — multi-dish meal estimation"). The `!` assertions on `i.estimation.result!.confidenceLevel` and `levels[0]!` were authored by pbojeda and merged straight through the silent CI gate.
+  - `reverseSearchFormatter.ts:39` — SHA `e67164d` (2026-04-06 range, F086 — "reverse search — filter dishes by calorie/protein constraints").
+- **When the test errors were introduced:** F042 (2026-03-26 range — portion-aware NL estimation), plus accumulated across earlier test files.
+
+**Part 1 resolution (landing) — already applied on branch `feature/F094-voice-architecture-spike`:**
+
+The two invalid `// eslint-disable-next-line @typescript-eslint/no-require-imports` directives in `edge-cases.f093.qa.test.tsx` were removed. The underlying `require('@/lib/analytics')` calls inside `jest.isolateModules(() => { ... })` do not trigger any real lint error once the invalid disable comments are gone (verified locally: `packages/landing` now lints clean). This fix is SAFE because removing directives that reference a non-existent rule cannot change runtime behavior and the require() calls are inside test scaffolding only.
+
+**Parts 1-4 status — FIXED and merged to develop via PR #91 as squash commit `2eda357` (2026-04-09).** Parts 5 (api lint, 100 errors) and 6 (scraper lint cleanup, 27 errors including 2 NEW `no-this-alias`) remain deferred to F116. The root cause (`|| true` on api lint step in `ci.yml:195`) is also deferred to F116 because removing it before the 100 api errors are cleaned up would make CI red on the merge day.
+
+**Part 2 status (bot) — FIXED on branch `chore/F115-bot-lint-bankruptcy` (in Phase 1+2 of F115 execution).**
+
+- Phase 1 (production, 3 errors): `menuFormatter.ts:59` → `flatMap` with ternary; `menuFormatter.ts:74` → nullable tracking + tighten type to `ReadonlyArray<ConfidenceLevel>`; `reverseSearchFormatter.ts:39` → `for...of` with `.entries()`. All 3 are false positives from the TS `noUncheckedIndexedAccess` + `.filter` narrowing gap family. Cross-model review (Gemini + Codex) caught a sparse-array risk that the engineer's initial analysis missed; type tightening resolved it by construction.
+- Phase 2 (tests, 17 errors): Pattern A (13 × `mock.calls[0]![0]`) → new helper `packages/bot/src/__tests__/helpers/mocks.ts` with `firstCallArg<T>()` function. Pattern B (2 × `String.match()` + `not.toBeNull()` + `!.length`) → `toHaveLength(1)` matcher (collapses 3 expect lines to 1). Pattern C (2 × fixture spread with `!` on nullable field) → extract with invariant guard at top of describe block.
+- All 161 tests across the 5 modified test files still pass. Bot lint: 0 errors after fixes.
+
+**Part 3 status (shared) — FIXED on the same F115 branch.**
+
+Shared had 5 silent lint errors (not via `|| true` bypass, but via missing `Lint shared` step in `test-shared` CI job):
+
+- `f077.alcohol.schemas.test.ts:8` — unused import `FoodNutrientSchema` → removed.
+- `webMetrics.schemas.test.ts:4` — 3 unused imports (`beforeEach`, `afterEach`, `vi`) → removed.
+- `webMetrics.schemas.edge-cases.test.ts:188` — `new Date().toISOString().split('T')[0]!` — same family as the Phase 1 false-positives (`noUncheckedIndexedAccess` + known-length array). Fixed by replacing the entire `.split('T')[0]!` expression with `.slice(0, 10)`, which is the idiomatic JavaScript way to extract the date portion of an ISO 8601 string and eliminates both the split and the index access.
+
+F115 also adds a `Lint shared` step to `test-shared` in `ci.yml`, closing this silent-accumulation path.
+
+**Part 4 status (landing) — FIXED on the same F115 branch (cherry-picked from feature/F094-voice-architecture-spike).**
+
+The 2 invalid `@typescript-eslint/no-require-imports` eslint-disable directives in `edge-cases.f093.qa.test.tsx:96,121` are removed. See the original Part 1 description above.
+
+**Part 5 status (api) — DEFERRED to F116.**
+
+During F115 Phase 3 (CI workflow bypass audit), running `npm run lint -w @foodxplorer/api` (with `|| true` bypass removed locally) revealed **100 pre-existing lint errors** in the api package. This is the same silent-accumulation bug that caused Parts 2-4, but at a scale significantly beyond F115's remit:
+
+- **91 × `@typescript-eslint/no-non-null-assertion`** (same family as bot Part 2)
+- **8 × `@typescript-eslint/no-unused-vars`** (same family as shared Part 3)
+- **1 × `@typescript-eslint/no-dynamic-delete`** (new pattern — `plugins/swagger.ts:34`)
+- Distributed across **33 files**: 21 test files + 12 production files
+
+Affected production files include: `plugins/swagger.ts`, `plugins/actorRateLimit.ts`, `routes/estimate.ts`, `ingest/off/offValidator.ts`, `estimation/reverseSearch.ts`, `estimation/portionSizing.ts`, `conversation/menuDetector.ts`, `conversation/conversationCore.ts`, `scripts/batch-ingest-images.ts`, `scripts/batch-ingest.ts`, `scripts/translate-dish-names.ts`, `scripts/validateSpanishDishes.ts`.
+
+Per the rules F115 was operating under (`>5 errors → STOP and defer to F116`), this api cleanup is documented as a separate ticket. **`ci.yml:195` retains its `|| true` bypass until F116 ships** — removing it now would break CI.
+
+F116 also absorbs three residual CI hardening items discovered during F115 Phase 3: `defaults.run.shell: bash` workflow-level default (Codex Low), `test-landing` execution context consistency with `test-web` (Gemini observation), and a `package.json` scripts audit for embedded suppression patterns (`|| true`, `--passWithNoTests`, `--silent`, `--max-warnings`, etc.) invisible to CI-level grep.
+
+**Part 6 status (scraper) — PARTIALLY ADDRESSED in F115 (script added), cleanup DEFERRED to F116.**
+
+`packages/scraper` had no `lint` script at all in its `package.json` — another silent-accumulation path, even deeper than shared's (shared had a script but no CI step; scraper had neither). F115 adds the script with the same pattern as bot/shared/api: `"lint": "eslint src/"`. F115 does NOT add a `Lint scraper` step to `test-scraper` in `ci.yml` — that is F116's responsibility, because running the script reveals **27 pre-existing lint errors** that must be cleaned up before CI can gate on them.
+
+Breakdown of the 27 scraper errors:
+- **12 × `@typescript-eslint/no-non-null-assertion`** (same family as bot Phase 1 + api Part 5)
+- **9 × `@typescript-eslint/no-unused-vars`** (same family as shared Part 3 + api Part 5)
+- **4 × `prefer-const`** (trivial: `let` → `const` on never-reassigned variables in `src/utils/normalize.ts:130-133`)
+- **2 × `@typescript-eslint/no-this-alias` — NEW PATTERN not seen in bot/shared/landing**. This rule catches `const self = this;` anti-patterns. It can be a trivial mechanical fix (rewrite the containing function to use arrow syntax so `this` propagates naturally) OR a genuine capture-semantics concern depending on context. **F116 must apply the Phase-1 cross-review discipline** (Gemini + Codex second opinion) before deciding how to fix each `no-this-alias`, because this is exactly the scenario where the user-facing F115 playbook says "new pattern → stop + cross-review".
+
+Known affected files: `src/chains/mcdonalds-es/config.ts:17,18` (2 non-null assertions), `src/utils/normalize.ts:130-133` (4 prefer-const), `src/utils/retry.ts:15` (1 unused var), `src/__tests__/persist.test.ts:303` (1 unused import), and additional files containing the remaining 19 errors.
+
+Net effect: F115 adds the `lint` script so developers can run `npm run lint -w @foodxplorer/scraper` locally to prevent **further** accumulation during the gap between F115 and F116. CI does not gate on scraper lint until F116 ships both the cleanup and the `Lint scraper` step.
+
+**Part 7 status (api typecheck) — FIXED on the same F115 branch as a drive-by.**
+
+During F115 Phase 5 CI investigation (`gh run view` on recent develop pushes) the engineer discovered `test-api` had been failing on every develop push since F113 was merged. Running `npx tsc --noEmit` on `packages/api` locally reproduced the failure:
+
+```
+src/routes/webMetrics.ts(196,10): error TS2322: Type 'ScalarAggRow[][]' is not assignable to type 'ScalarAggRow[]'.
+  Type 'ScalarAggRow[]' is missing the following properties from type 'ScalarAggRow': event_count, total_queries, total_successes, total_errors, and 3 more.
+src/routes/webMetrics.ts(196,22): error TS2322: Type 'IntentRow[][]' is not assignable to type 'IntentRow[]'.
+src/routes/webMetrics.ts(196,34): error TS2322: Type 'ErrorRow[][]' is not assignable to type 'ErrorRow[]'.
+```
+
+**Tracked as BUG-F113-01.**
+
+**Root cause:** F113 introduced `packages/api/src/routes/webMetrics.ts` with three uses of kysely's `sql<T>` tag template where the type parameter was passed with `[]` already attached:
+
+```typescript
+sql<ScalarAggRow[]>`SELECT ... FROM web_metrics_events ...`.execute(db).then((r) => r.rows)
+sql<IntentRow[]>`SELECT ... FROM web_metrics_events ...`.execute(db).then((r) => r.rows)
+sql<ErrorRow[]>`SELECT ... FROM web_metrics_events ...`.execute(db).then((r) => r.rows)
+```
+
+Kysely's `sql<T>` signature means "this query returns rows of type `T`", and `.execute(db)` returns `{ rows: T[] }`. Passing `sql<Row[]>` therefore makes `r.rows` of type `Row[][]` — kysely wraps the already-arrayed type in another array. The destination variables (`let scalarRows: ScalarAggRow[]`, etc., lines 191-193) expect `T[]`, and the destructuring of `Promise.all([p1, p2, p3])` expects `[T1[], T2[], T3[]]`, so TypeScript reports three errors (one per column of the destructured tuple).
+
+Evidence that this is a copy-paste error in F113 and NOT an intentional kysely idiom: the rest of the api package uses the **correct** pattern `sql<Row>` (singular row type, no `[]`) in at least 10 locations: `src/calculation/resolveIngredient.ts:73,119,166`, `src/estimation/level1Lookup.ts:56,130,194,255`, `src/estimation/level4Lookup.ts:195,267,312`, etc. Only `webMetrics.ts` (3 occurrences, all in the same `Promise.all` block) used the wrong pattern.
+
+**Fix (3 edits, 2 characters each):** remove the `[]` from the three `sql<...>` type parameters in `webMetrics.ts:198,214,229`. Zero runtime impact — the SQL is unchanged, the query behavior is unchanged. Only the compile-time type of `r.rows` changes from `Row[][]` to `Row[]`, making it assignable to the destination `let scalarRows: ScalarAggRow[]` variables.
+
+**Verification:** `npm run typecheck -w @foodxplorer/api` exits 0 after the fix.
+
+**Status:** FIXED and merged to develop via PR #91 squash commit `2eda357` (2026-04-09). Unblocks `test-api` CI typecheck step for the first time since F113 merged on 2026-04-08. **Api tests themselves were NOT verified locally by F115** because the tests require Postgres + Redis services (not part of F115's environment). If the api test suite has ALSO been silently broken by F113 or subsequent commits, that is a separate bug to be discovered when `test-api` CI starts running green on typecheck.
+
+**Scope rationale for the drive-by:** F115's stated goal is to end lint/CI bankruptcy. The `|| true` on the api lint CI step is retained for F116, but without this typecheck fix the `test-api` job would remain red even after F116 removes `|| true`, defeating the purpose of the removal. The fix is 3 characters deleted, zero runtime risk, and unblocks real CI. The user explicitly approved the drive-by under F115's scope with the reasoning that the alternative (leaving develop's CI permanently red) contradicts F115's purpose.
+
+**BUG-F093-02 — F063 test mock missing `drainEventQueue`/`clearEventQueue` (FIXED in F115 as drive-by, merged to develop via PR #91 squash commit `2eda357` on 2026-04-09):**
+
+During F115 Phase 5 `npm test` verification, `packages/landing` reported 2 test failures in `src/__tests__/edge-cases.f063.qa.test.tsx` (lines 166 and 175) with the error `TypeError: (0 , _analytics.drainEventQueue) is not a function`. Investigation showed that F093 modified `packages/landing/src/components/analytics/CookieBanner.tsx:8` to import `drainEventQueue` and `clearEventQueue` from `@/lib/analytics` and call `drainEventQueue()` in the GA script's `onLoad` handler (line 80). The F093 PR merged without updating the corresponding mock at `edge-cases.f063.qa.test.tsx:226`, which only declared `trackEvent` and `getUtmParams`. The two failing tests exercise the full CookieBanner mount path (including the mocked `next/script` calling `onLoad` immediately), so they trigger the missing function.
+
+**Fix:** add `drainEventQueue: jest.fn()` and `clearEventQueue: jest.fn()` to the mock object in `edge-cases.f063.qa.test.tsx:226`. The full `f063.qa` suite (14 tests) and the full landing suite (738 passing + 3 todo, 58 suites) then pass cleanly.
+
+**How did F093 merge with this failure?** See BUG-DEV-CI-001 below. Short version: develop has no branch protection, and F093's PR #89 was explicitly merged 6 seconds before the `test-landing` CI check even started running. F093 PR run `24155755046` and the post-merge develop push run `24155765049` both show `test-landing: failure`. At least three subsequent pushes (F093 `cb1b0fc`, F092 `4c1553a`, and `f142b29`) left `test-landing` red on develop without anyone noticing.
+
+**BUG-DEV-CI-001 — CI enforcement bankruptcy on develop (discovered during F115 Phase 5 investigation):**
+
+**Issue:** `develop` has no branch protection rules configured (`gh api repos/pbojeda/foodyxplorer/branches/develop/protection` returns `404 Branch not protected`). As a consequence, pull requests can be merged regardless of CI status, and multiple PRs have done so in recent days, leaving develop's CI in a persistent red state that no one is enforced to notice or fix. This is the root cause that allowed BUG-DEV-LINT-001 (bot/shared/api lint bankruptcy), BUG-F093-02 (landing test mock), and BUG-F113-01 (api typecheck regression) to all accumulate silently on develop.
+
+**Evidence from `gh run list` (2026-04-08/09):**
+
+| SHA | Title | Event | Conclusion |
+|-----|-------|-------|------------|
+| `f142b29` (HEAD of develop) | test(landing): remove stale BUG-F093-01 test | push | **failure** |
+| `4c1553a` (F092) | F092 plate photo | push | **failure** |
+| `cb1b0fc` (F093) | F093 landing+web integration | push | **failure** |
+| `865ff53` (F113) | F113 backend metrics endpoint | push | **failure** |
+
+And from `gh pr view 89 --json statusCheckRollup` for F093 specifically:
+
+- PR mergedAt: `2026-04-08T20:00:18Z`
+- `test-landing` started: `20:00:24Z` (6 seconds AFTER the merge)
+- `test-landing` conclusion: `FAILURE`
+- `deploy-preview` (Landing): `FAILURE`
+- `deploy-preview` (Web): `FAILURE`
+- `test-api`, `test-bot`, `test-shared`, `test-scraper`: `SKIPPED` (path filters did not match F093's changes)
+
+The PR was effectively merged without waiting for CI, and when CI did run, multiple jobs failed — but by then the PR was already on develop.
+
+**Failing jobs on develop as of 2026-04-09:**
+
+- `test-api`: failing since F113 (`865ff53`) due to `webMetrics.ts:196` typecheck regression — **fixed in F115 Part 7 (BUG-F113-01)**.
+- `test-landing`: failing since F093 (`cb1b0fc`) due to missing mock exports in `edge-cases.f063.qa.test.tsx:226` — **fixed in F115 as drive-by (BUG-F093-02)**.
+
+After F115 merges, `test-api` and `test-landing` should both return to green on develop, PROVIDED no further regressions have landed since.
+
+**Recommended branch protection rules (NOT configured by F115 — engineer to apply via GitHub UI):**
+
+F115 does not configure branch protection (that is an out-of-band repo-level config change, not a code change). The following rules are recommended for `develop`:
+
+1. **Require status checks to pass before merging** with the following required checks:
+   - `test-shared` (from CI workflow)
+   - `test-api` (from CI workflow)
+   - `test-bot` (from CI workflow)
+   - `test-scraper` (from CI workflow)
+   - `test-landing` (from CI workflow)
+   - `test-web` (from CI workflow)
+   - `changes` (from CI workflow) — the path-filter job itself
+2. **Require branches to be up to date before merging** — forces rebase against the latest develop so the CI result reflects the actual merge state.
+3. **Require at least 1 pull request review** from a code owner before merge (configure CODEOWNERS as appropriate, or require self-review).
+4. **Dismiss stale pull request approvals when new commits are pushed** — prevents approving an old version and merging a later version without re-review.
+5. **Do not allow bypassing the above settings** (unless strictly necessary for admin emergencies). If bypass is allowed, at least enable audit logging to make bypasses visible.
+6. Consider also applying the same rules to `main` if it is not already protected.
+
+These rules are tracked as sub-item 7 of F116 (CI workflow hardening) for the engineer to apply manually; F115 only documents them here.
+
+**BUG-DEV-CI-001 status:** partially mitigated by F115 (PR #91 squash commit `2eda357`, merged 2026-04-09). The two specific CI red jobs (`test-api` via BUG-F113-01 and `test-landing` via BUG-F093-02) are fixed. The underlying absence of branch protection is tracked in F116 sub-item 7 and requires the engineer to configure it manually in the GitHub UI. As of the F115 merge, develop's CI should return to fully green on the next push (the first time in ~3 days).
+
+**CI trigger path hardening (bonus fix in F115):**
+
+During F115 Phase 3 cross-model review, both Gemini and Codex independently flagged that `.github/workflows/ci.yml` did not include `eslint.config.mjs` in its trigger paths (lines 15-20 push, 23-28 PR, 63-67 root filter). This meant edits to the root ESLint config would not trigger CI at all — jobs would be skipped and show green. F115 adds `eslint.config.mjs`, `**/.eslintrc*`, `.eslintignore`, and `tsconfig*.json` (replacing the specific `tsconfig.base.json` entry) to all three locations.
+
+The user explicitly requires human review for the 2 production errors (`menuFormatter.ts:59,74` and `reverseSearchFormatter.ts:39`) because **a non-null assertion (`!`) on a value that can actually be null or undefined would mask a real latent bug**. Silencing them with `eslint-disable-next-line` without auditing the surrounding code could hide a real crash. The 18 test errors are lower-risk but should still be addressed with judgment (often the correct fix is either `as NonNullable<...>` with rationale or a proper assertion with `expect(x).toBeDefined()` before the `!`).
+
+**Prevention:**
+
+1. **Remove `|| true` from CI lint steps in `.github/workflows/ci.yml` lines 183 and 217** once the existing errors are cleaned up. This is the single most important change — it restores lint as an actual quality gate. Must be done as part of F115.
+2. **Add a workflow-level step** that runs `npm run lint` at the repo root (not per-workspace) and fails CI on any lint error. This catches any new workspace that forgets to wire its own lint script.
+3. **When introducing a new lint rule or upgrading a lint config**, run `npm run lint` at the root and resolve all errors in the same commit, not in a follow-up.
+4. **When adding a `// eslint-disable-next-line` directive**, verify the rule name exists in the installed plugins. A typo or stale rule name produces the "Definition for rule not found" error we saw in landing.
+
+- **Feature**: Discovered during F094 Step 4 (voice architecture spike). Blocks F094 commit. | **Found by**: PM Orchestrator (pm-vs1) during lint quality gate | **Severity**: High (blocks quality gates for all features touching lint; 2 production files have potentially-real null-assertion risks) | **Status**: Part 1 FIXED on F094 branch. Part 2 DEFERRED to F115.

@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { HeroSection } from '@/components/sections/HeroSection';
 import { getDictionary } from '@/lib/i18n';
 import * as analytics from '@/lib/analytics';
@@ -128,5 +129,82 @@ describe('HeroSection', () => {
     expect(screen.getByRole('button', { name: /únete/i })).toBeInTheDocument();
     // No phone field (showPhone defaults to false)
     expect(screen.queryByPlaceholderText(/teléfono/i)).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F093 — hablarUrl prop — Variant A secondary CTA
+// ---------------------------------------------------------------------------
+
+describe('F093 — HeroSection hablarUrl CTA', () => {
+  const hablarUrl = 'https://hablar.nutrixplorer.com/hablar';
+  const expectedHref = 'https://hablar.nutrixplorer.com/hablar?utm_source=landing&utm_medium=hero_cta';
+
+  beforeEach(() => {
+    mockTrackEvent.mockClear();
+  });
+
+  it('renders "Pruébalo ahora →" link in Variant A when hablarUrl is set', () => {
+    render(
+      <HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} hablarUrl={hablarUrl} />
+    );
+    expect(screen.getByRole('link', { name: /pruébalo ahora/i })).toBeInTheDocument();
+  });
+
+  it('"Pruébalo ahora" link has correct href', () => {
+    render(
+      <HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} hablarUrl={hablarUrl} />
+    );
+    expect(screen.getByRole('link', { name: /pruébalo ahora/i })).toHaveAttribute('href', expectedHref);
+  });
+
+  it('"Pruébalo ahora" link opens in new tab', () => {
+    render(
+      <HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} hablarUrl={hablarUrl} />
+    );
+    const link = screen.getByRole('link', { name: /pruébalo ahora/i });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('does NOT render "Pruébalo ahora" in Variant A when hablarUrl is absent', () => {
+    render(<HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} />);
+    expect(screen.queryByRole('link', { name: /pruébalo ahora/i })).not.toBeInTheDocument();
+  });
+
+  it('does NOT render "Pruébalo ahora" in Variant A when hablarUrl is "#waitlist"', () => {
+    render(
+      <HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} hablarUrl="#waitlist" />
+    );
+    expect(screen.queryByRole('link', { name: /pruébalo ahora/i })).not.toBeInTheDocument();
+  });
+
+  it('does NOT render "Pruébalo ahora" in Variant C even when hablarUrl is set', () => {
+    render(
+      <HeroSection variant="c" dict={dict.hero} variantsCopy={dict.variants} hablarUrl={hablarUrl} />
+    );
+    expect(screen.queryByRole('link', { name: /pruébalo ahora/i })).not.toBeInTheDocument();
+  });
+
+  it('does NOT render "Pruébalo ahora" in Variant F even when hablarUrl is set', () => {
+    render(
+      <HeroSection variant="f" dict={dict.hero} variantsCopy={dict.variants} hablarUrl={hablarUrl} />
+    );
+    expect(screen.queryByRole('link', { name: /pruébalo ahora/i })).not.toBeInTheDocument();
+  });
+
+  it('fires cta_hablar_click with source="hero" when link is clicked', async () => {
+    const user = userEvent.setup();
+    render(
+      <HeroSection variant="a" dict={dict.hero} variantsCopy={dict.variants} hablarUrl={hablarUrl} />
+    );
+    await user.click(screen.getByRole('link', { name: /pruébalo ahora/i }));
+    expect(mockTrackEvent).toHaveBeenCalledWith({
+      event: 'cta_hablar_click',
+      source: 'hero',
+      variant: 'a',
+      lang: 'es',
+      utm_medium: 'hero_cta',
+    });
   });
 });

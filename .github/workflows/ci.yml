@@ -12,20 +12,13 @@ name: CI
 on:
   push:
     branches: [develop, main]
-    paths:
-      - 'packages/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'tsconfig.base.json'
-      - '.github/workflows/**'
   pull_request:
     branches: [develop, main]
-    paths:
-      - 'packages/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'tsconfig.base.json'
-      - '.github/workflows/**'
+  # Path filtering is handled at the job level by dorny/paths-filter.
+  # The workflow always triggers so that the ci-success rollup job
+  # reports a status even on docs-only PRs (all test jobs skip → rollup passes).
+  # Previously, top-level path filters prevented the workflow from running
+  # at all on docs-only changes, which deadlocked branch protection.
 
 # ───────────────────────────────────────────
 # Detect which packages changed
@@ -39,6 +32,7 @@ jobs:
       bot: ${{ steps.filter.outputs.bot }}
       scraper: ${{ steps.filter.outputs.scraper }}
       landing: ${{ steps.filter.outputs.landing }}
+      web: ${{ steps.filter.outputs.web }}
       root: ${{ steps.filter.outputs.root }}
     steps:
       - uses: actions/checkout@v4
@@ -57,10 +51,15 @@ jobs:
               - 'packages/scraper/**'
             landing:
               - 'packages/landing/**'
+            web:
+              - 'packages/web/**'
             root:
               - 'package.json'
               - 'package-lock.json'
-              - 'tsconfig.base.json'
+              - 'tsconfig*.json'
+              - 'eslint.config.mjs'
+              - '**/.eslintrc*'
+              - '.eslintignore'
               - '.github/workflows/**'
 
   # ───────────────────────────────────────────
@@ -86,6 +85,9 @@ jobs:
 
       - name: Typecheck shared
         run: npm run typecheck -w @foodxplorer/shared
+
+      - name: Lint shared
+        run: npm run lint -w @foodxplorer/shared
 
       - name: Test shared
         run: npm run test -w @foodxplorer/shared
@@ -154,10 +156,10 @@ jobs:
             -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
 
           psql -h localhost -p 5433 -U foodxplorer -d postgres \
-            -c "CREATE DATABASE foodxplorer_test OWNER foodxplorer;" || true
+            -c "CREATE DATABASE foodxplorer_test OWNER foodxplorer;"
 
           psql -h localhost -p 5433 -U foodxplorer -d foodxplorer_test \
-            -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;" || true
+            -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
 
       - name: Run migrations (dev + test)
         run: |
@@ -211,7 +213,7 @@ jobs:
         run: npm run typecheck -w @foodxplorer/bot
 
       - name: Lint bot
-        run: npm run lint -w @foodxplorer/bot || true
+        run: npm run lint -w @foodxplorer/bot
 
       - name: Test bot
         run: npm run test -w @foodxplorer/bot
@@ -284,3 +286,61 @@ jobs:
 
       - name: Build landing
         run: cd packages/landing && npm run build
+
+  # ───────────────────────────────────────────
+  # Test Web
+  # Triggers: web, shared, or root changes
+  # No DB/Redis needed — Next.js package (imports from shared)
+  # ───────────────────────────────────────────
+  test-web:
+    needs: changes
+    if: >-
+      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.shared == 'true' ||
+      needs.changes.outputs.root == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build shared
+        run: npm run build -w @foodxplorer/shared
+
+      - name: Typecheck web
+        run: npm run typecheck -w @foodxplorer/web
+
+      - name: Lint web
+        run: npm run lint -w @foodxplorer/web
+
+      - name: Test web
+        run: npm run test -w @foodxplorer/web
+
+      - name: Build web
+        run: npm run build -w @foodxplorer/web
+
+  # ───────────────────────────────────────────
+  # CI Rollup — the ONLY required check in branch protection
+  # ───────────────────────────────────────────
+  # Passes when all jobs pass OR were skipped (docs-only PRs).
+  # Fails if any job failed. Branch protection should require
+  # ONLY this job, not the individual test-* jobs.
+  # See: sdd-devflow template ci.yml "Scaling tips" comment.
+  ci-success:
+    runs-on: ubuntu-latest
+    needs: [test-shared, test-api, test-bot, test-scraper, test-landing, test-web]
+    if: always()
+    steps:
+      - name: All required jobs passed or were skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more required jobs failed"
+            exit 1
+          fi
+          echo "All jobs passed or were skipped — CI green"

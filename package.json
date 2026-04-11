@@ -7,11 +7,13 @@
     "packages/api",
     "packages/bot",
     "packages/scraper",
-    "packages/landing"
+    "packages/landing",
+    "packages/web"
   ],
   "scripts": {
     "dev:api": "npm run dev -w @foodxplorer/api",
     "dev:bot": "npm run dev -w @foodxplorer/bot",
+    "dev:web": "npm run dev -w @foodxplorer/web",
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
     "typecheck": "npm run typecheck --workspaces",

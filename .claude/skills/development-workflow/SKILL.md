@@ -39,17 +39,19 @@ description: "Orchestrates the complete development workflow for each feature. I
 
 Read the **Autonomy Level** from `CLAUDE.md` section 2.
 
-| Checkpoint | L1 Full Control | L2 Trusted | L3 Autopilot | L4 Full Auto |
-|------------|:-:|:-:|:-:|:-:|
-| Spec Approval (Step 0) | Required | Auto | Auto | Auto |
-| Ticket Approval (Step 1) | Required | Auto | Auto | Auto |
-| Plan Approval (Step 2) | Required | Required | Auto | Auto |
-| Commit Approval (Step 4) | Required | Auto | Auto | Auto |
-| Merge Approval (Step 5) | Required | Required | Required | Auto |
+| Checkpoint | L1 Full Control | L2 Trusted | L3 Autopilot | L4 Full Auto | L5 PM Auto |
+|------------|:-:|:-:|:-:|:-:|:-:|
+| Spec Approval (Step 0) | Required | Auto | Auto | Auto | Auto |
+| Ticket Approval (Step 1) | Required | Auto | Auto | Auto | Auto |
+| Plan Approval (Step 2) | Required | Required | Auto | Auto | Auto |
+| Commit Approval (Step 4) | Required | Auto | Auto | Auto | Auto |
+| Merge Approval (Step 5) | Required | Required | Required | Auto | Auto |
+| Next Feature (PM loop) | — | — | — | — | Auto |
 
 - **Auto** = proceed without asking; log in product tracker → "Auto-Approved Decisions" table
 - **Required** = ask user explicitly; do NOT continue without approval
 - **Quality gates always run** regardless of level (tests, lint, build, validators)
+- **L5** behaves like L4 for individual checkpoints. The `pm-orchestrator` skill handles automatic feature sequencing via `start pm`.
 - **Steps are strictly sequential.** Do NOT start a later step before the current checkpoint is approved — even when the checkpoint is Auto (auto-approval still happens in order, not in parallel). In particular, do NOT generate the Implementation Plan (Step 2) while Spec Approval (Step 0) is still pending. Reason: if the spec review finds issues, any plan built on the flawed spec must be discarded and redone — parallelizing wastes work and risks shipping a plan that doesn't match the final spec.
 
 ---

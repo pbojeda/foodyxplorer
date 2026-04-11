@@ -487,7 +487,7 @@ Analysis in `docs/research/product-evolution-analysis-2026-03-31.md` Section 17,
    }
    ```
 
-2. **Web identity:** Generate UUID v4 on first visit, store in `localStorage` + signed HTTP-only cookie. Send as `X-Actor-Id` header on all API requests. Server creates `actors` row on first seen.
+2. **Web identity:** Generate UUID v4 on first visit, store in `localStorage` + signed HTTP-only cookie. Send as `X-Actor-Id` header on all API requests. Server creates `actors` row on first seen. **F090 deviation (2026-04-08):** Initial `/hablar` implementation uses `localStorage` + header transport only. HTTP-only cookie deferred — requires complex cross-domain cookie setup between Next.js (nutrixplorer.com) and Fastify (api.nutrixplorer.com) that is not justified until SSR data fetching is needed. UUID format validation added to prevent header injection.
 
 3. **Telegram identity:** Use `chat_id` as `external_id` with `type: 'telegram'`. Already persistent by Telegram's design.
 
@@ -554,3 +554,25 @@ Analysis in `docs/research/product-evolution-analysis-2026-03-31.md` Section 17,
 - (+) Avoids L3 search noise before disambiguation is hardened
 - (-) Users of Carrefour/Dia/Lidl won't find their specific branded products until expansion
 - (-) Competitors (MyFitnessPal, FatSecret) already have multi-brand — gap remains temporarily
+
+### ADR-018: Web Metrics — Client-Side Only, No GA4 (2026-04-08)
+
+**Context:** F112 adds usage metrics for the `/hablar` web assistant. Three options were evaluated: (A) reuse landing's GA4/gtag pattern, (B) send events to the existing `GET /analytics/queries` backend, (C) client-side only with localStorage.
+
+**Decision:** Option C — client-side localStorage + optional sendBeacon to a future dedicated endpoint.
+
+**Rationale:**
+
+1. **GA4 not suitable.** The web package has a restrictive CSP (`script-src 'self' 'unsafe-inline'`) that blocks Google Analytics scripts. Relaxing CSP for a product tool (vs marketing landing) is a security regression. GA4 is also overkill for aggregate session metrics.
+
+2. **Existing analytics endpoint is different.** `GET /analytics/queries` (F029) aggregates server-side `query_logs` — it tracks backend performance (cache hit rate, response time, level distribution). F112 tracks client-side UX metrics (perceived response time, retry behavior, error rates) that the backend doesn't see.
+
+3. **Privacy-first.** No PII, no query text, no actorId stored in metrics. Only aggregate counts and timings. No third-party scripts.
+
+4. **Backend endpoint deferred to F113.** `NEXT_PUBLIC_METRICS_ENDPOINT` is the hook for a future `POST /analytics/web-events` endpoint that will receive sendBeacon payloads. Until then, metrics live in localStorage only.
+
+**Consequences:**
+- (+) No CSP changes, no external dependencies, no privacy concerns
+- (+) Clean separation: client metrics (F112) vs server metrics (F029)
+- (+) sendBeacon ready for F113 backend integration
+- (-) Metrics only visible in browser localStorage until F113 ships
