@@ -22,11 +22,13 @@ on:
     paths:
       - 'packages/web/**'
       - 'packages/shared/**'
+      - '.github/workflows/deploy-web.yml'
   pull_request:
     branches: [develop, main]
     paths:
       - 'packages/web/**'
       - 'packages/shared/**'
+      - '.github/workflows/deploy-web.yml'
 
 jobs:
   deploy-preview:
