@@ -169,6 +169,21 @@ describe('resizeImageForUpload', () => {
     expect(result).toBe(big);
   });
 
+  it('returns the original file when convertToBlob produces a zero-byte blob (QA P1)', async () => {
+    // Real browser failure mode — GPU process death between getContext and convertToBlob
+    // can yield a zero-byte blob. The safety net must catch this so the user never
+    // receives a 0 B JPEG (which would surface as a confusing INVALID_IMAGE 422).
+    const big = makeFile({ size: 6 * 1024 * 1024 });
+    installBitmapSupport({
+      bitmap: { width: 4000, height: 3000, close: jest.fn() },
+      blobSize: 0,
+    });
+
+    const result = await resizeImageForUpload(big);
+
+    expect(result).toBe(big);
+  });
+
   it('does not throw when the bitmap has no close() method', async () => {
     const big = makeFile({ size: 6 * 1024 * 1024 });
     installBitmapSupport({

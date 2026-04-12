@@ -94,10 +94,10 @@ export async function resizeImageForUpload(file: File): Promise<File> {
       quality: JPEG_QUALITY,
     });
 
-    // Safety net: if the re-encoded blob is not actually smaller, keep the
-    // original. This protects against degenerate inputs (already compressed
-    // below our quality target, tiny panoramas that fit in memory, etc.).
-    if (blob.size >= file.size) {
+    // Safety net: if the re-encoded blob is not actually smaller, or is
+    // zero bytes (real browser failure mode — GPU process death between
+    // getContext and convertToBlob), keep the original file.
+    if (blob.size === 0 || blob.size >= file.size) {
       return file;
     }
 

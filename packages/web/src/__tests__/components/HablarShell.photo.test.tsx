@@ -132,6 +132,106 @@ describe('HablarShell — photo flow (F092)', () => {
       expect(mockResizeImageForUpload).not.toHaveBeenCalled();
       expect(mockSendPhotoAnalysis).not.toHaveBeenCalled();
     });
+
+    it('emits photo_resize_ok telemetry when resize returns a smaller file', async () => {
+      const original = makeFile('plate.jpg', 'image/jpeg', 6 * 1024 * 1024);
+      const resized = new File([new Uint8Array(10)], 'plate.jpg', { type: 'image/jpeg' });
+      Object.defineProperty(resized, 'size', { value: 700 * 1024 });
+      mockResizeImageForUpload.mockResolvedValue(resized);
+      mockSendPhotoAnalysis.mockResolvedValue(createMenuAnalysisResponse());
+
+      render(<HablarShell />);
+      await selectFile(original);
+
+      await waitFor(() => {
+        expect(mockTrackEvent).toHaveBeenCalledWith('photo_resize_ok', expect.objectContaining({
+          originalKB: 6144,
+          resizedKB: 700,
+        }));
+      });
+    });
+
+    it('emits photo_resize_fallback telemetry when a large file comes back unchanged', async () => {
+      const original = makeFile('plate.jpg', 'image/jpeg', 5 * 1024 * 1024);
+      // Resize silently falls back — returns the same File reference.
+      mockResizeImageForUpload.mockResolvedValue(original);
+      mockSendPhotoAnalysis.mockResolvedValue(createMenuAnalysisResponse());
+
+      render(<HablarShell />);
+      await selectFile(original);
+
+      await waitFor(() => {
+        expect(mockTrackEvent).toHaveBeenCalledWith('photo_resize_fallback', {
+          originalKB: 5120,
+        });
+      });
+    });
+
+    it('does NOT emit resize telemetry when file is under the passthrough threshold', async () => {
+      const small = makeFile('small.jpg', 'image/jpeg', 500 * 1024);
+      mockResizeImageForUpload.mockResolvedValue(small);
+      mockSendPhotoAnalysis.mockResolvedValue(createMenuAnalysisResponse());
+
+      render(<HablarShell />);
+      await selectFile(small);
+
+      await waitFor(() => {
+        expect(mockSendPhotoAnalysis).toHaveBeenCalled();
+      });
+
+      const resizeCalls = mockTrackEvent.mock.calls.filter(
+        (c) => c[0] === 'photo_resize_ok' || c[0] === 'photo_resize_fallback',
+      );
+      expect(resizeCalls).toHaveLength(0);
+    });
+
+    it('bails out after resize if the request was aborted mid-resize', async () => {
+      // Each call gets its own pending promise + resolver. Resize for
+      // request #1 deliberately resolves AFTER request #2 has been started
+      // (which aborts controller #1). We then assert request #1 never reaches
+      // sendPhotoAnalysis.
+      const resolvers: Array<(f: File) => void> = [];
+      mockResizeImageForUpload.mockImplementation(
+        (f: File) =>
+          new Promise<File>((resolve) => {
+            resolvers.push(() => resolve(f));
+          }),
+      );
+      mockSendPhotoAnalysis.mockResolvedValue(createMenuAnalysisResponse());
+
+      render(<HablarShell />);
+      const file1 = makeFile('one.jpg');
+      const file2 = makeFile('two.jpg');
+
+      await selectFile(file1);
+      await selectFile(file2);
+
+      await waitFor(() => {
+        expect(resolvers).toHaveLength(2);
+      });
+
+      // Resolve request #1 first — controller is already aborted by the time
+      // the post-resize guard runs.
+      resolvers[0]?.();
+      // Then resolve request #2 — this one should proceed to the network.
+      resolvers[1]?.();
+
+      await waitFor(() => {
+        expect(mockSendPhotoAnalysis).toHaveBeenCalled();
+      });
+
+      // Request #1 must never have reached sendPhotoAnalysis.
+      const sendCallsForFile1 = mockSendPhotoAnalysis.mock.calls.filter(
+        (c) => (c[0] as File) === file1,
+      );
+      expect(sendCallsForFile1).toHaveLength(0);
+
+      // Request #2 did reach it.
+      const sendCallsForFile2 = mockSendPhotoAnalysis.mock.calls.filter(
+        (c) => (c[0] as File) === file2,
+      );
+      expect(sendCallsForFile2).toHaveLength(1);
+    });
   });
 
   // ---------------------------------------------------------------------------

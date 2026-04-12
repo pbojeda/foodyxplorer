@@ -161,6 +161,24 @@ export function HablarShell() {
       // no-op for files already below 1.5 MB and falls back gracefully on
       // any error (see BUG-PROD-001).
       const uploadFile = await resizeImageForUpload(file);
+      // Emit telemetry when the resize actually shrunk the file, or when it
+      // silently fell back (same identity) — the gap between these two in
+      // production tells us whether the fix is working.
+      if (uploadFile !== file) {
+        trackEvent('photo_resize_ok', {
+          originalKB: Math.round(file.size / 1024),
+          resizedKB: Math.round(uploadFile.size / 1024),
+        });
+      } else if (file.size > 1.5 * 1024 * 1024) {
+        // Resize was supposed to run (file > passthrough threshold) but the
+        // returned File is the original → silent fallback path.
+        trackEvent('photo_resize_fallback', {
+          originalKB: Math.round(file.size / 1024),
+        });
+      }
+      // Stale-request guard: if the user submitted another photo while we
+      // were resizing, abort before touching the network.
+      if (controller.signal.aborted) return;
       const response = await sendPhotoAnalysis(uploadFile, actorId, controller.signal);
 
       // Stale response guard
