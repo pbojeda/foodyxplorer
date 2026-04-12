@@ -10,13 +10,13 @@
 
 **Last Updated:** 2026-04-12
 
-**Active Feature:** No active work. BUG-PROD-001 done — PR #103 squash-merged to develop at `a750f5e` (2026-04-12). Next up: Issue 2 (BUG-PROD-002 mobile gallery picker).
+**Active Feature:** BUG-PROD-002 — Mobile photo button forces camera, no gallery option (P2). Step 5/6 (Review). Branch `bug/BUG-PROD-002-mobile-gallery-picker`. Simple complexity. Root cause: `capture="environment"` attribute forced mobile browsers to open the native camera and bypass the chooser. Fix: remove the attribute (one line). Test inverted to assert absence.
 **PM Session:** None active (L5 single-ticket execution on 7 issues pipeline)
 **Last Completed:** BUG-PROD-001 — Mobile photo upload always errors (P0). Primary root cause: Vercel 4.5 MB Serverless Function body limit exceeded by mobile photos. Fix: client-side canvas downscale (1600 px long edge, JPEG q0.82, 1.5 MB passthrough) + proxy error envelope normalization (resolves BUG-QA-003 as a side effect) + `AbortSignal.timeout(65s)` on upstream fetch + resize telemetry (`photo_resize_ok` / `photo_resize_fallback`) + Vercel platform 413 → `PAYLOAD_TOO_LARGE` mapping. 33 suites / 345 tests green (+20 net new). **Pending user action:** manual verification on a real mobile device — if it still fails, reopen and investigate secondary causes (Permissions-Policy, HEIC, upstream routing).
 
 **Pipeline — 7 production issues (2026-04-12):**
 1. Issue 1 — BUG-PROD-001 mobile camera error — **DONE** (PR #103, merge commit `a750f5e`)
-2. Issue 2 — BUG-PROD-002 mobile gallery picker — **NEXT**
+2. Issue 2 — BUG-PROD-002 mobile gallery picker — **IN PROGRESS** (Step 5/6, Simple tier, PR pending)
 3. Issue 3 — BUG-PROD-003 vino/vinagre disambiguation — pending
 4. F-UX-A — size modifier display (grande/pequeña) — pending
 5. F-UX-B — spanish portion terms (pincho/tapa/ración) — pending, starts with deep cross-model analysis
