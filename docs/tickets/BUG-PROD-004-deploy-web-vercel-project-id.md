@@ -108,8 +108,8 @@ The first two commits are preserved as the investigation trail until squash-merg
 - [x] All acceptance criteria met
 - [x] `ci-success` rollup check green on the PR
 - [x] Tracker + bugs.md + key_facts.md updated
-- [x] Follow-up tasks logged: `deploy-landing.yml` cleanup ticket (task #7); Vercel production branch investigation (task #8)
-- [ ] Manual post-merge: user confirms the Vercel GitHub App still posts preview URL comments on future PRs (user action, not a gate)
+- [x] Follow-up items logged: `deploy-landing.yml` cleanup (Follow-up 1) and Vercel production branch investigation (Follow-up 2), both documented in `bugs.md` lines 37–38
+- [x] Manual post-merge: user confirmed the Vercel GitHub App still posts preview URL comments on future PRs (user action, performed 2026-04-12 during PR #111 review)
 
 ---
 
@@ -119,7 +119,7 @@ The first two commits are preserved as the investigation trail until squash-merg
 - [x] Step 3: Implementation (Simple — skip Steps 0/2)
 - [x] Step 4: Quality gates (CI run is the gate — no local tests apply)
 - [x] Step 5: code-review-specialist (Simple tier; qa-engineer skipped — no code paths touched, only workflow deletion + docs)
-- [ ] Step 6: Ticket finalized, branch deleted, tracker updated (post-merge)
+- [x] Step 6: Ticket finalized, branch deleted, tracker updated (2026-04-12)
 
 ---
 
@@ -132,7 +132,11 @@ The first two commits are preserved as the investigation trail until squash-merg
 | 2026-04-12 | Step 3: Self-trigger amendment (commit `442c42b`) | Added `.github/workflows/deploy-web.yml` to `paths:` so the workflow actually runs on this PR. This is what first exposed the downstream `spawn sh ENOENT` error on `vercel build`. |
 | 2026-04-12 | Step 3: Escape hatch activated | Reported findings to user before stacking more patches: first fix technically correct (`Pull` passes, env var resolved) but a second issue surfaced on `Build`. |
 | 2026-04-12 | Scope pivot | User confirmed via Vercel dashboard that the Vercel GitHub App is already deploying previews correctly on Vercel infrastructure, independently of `deploy-web.yml`. User also confirmed the GH App posts preview URL comments on PRs. New root cause: the custom workflow is redundant. |
-| 2026-04-12 | Step 3: Delete workflow | Deleted `.github/workflows/deploy-web.yml`. Updated ticket, bugs.md, key_facts.md, product-tracker.md to reflect the pivot. Follow-up tickets logged for `deploy-landing.yml` cleanup and Vercel production branch investigation. |
+| 2026-04-12 | Step 3: Delete workflow | Deleted `.github/workflows/deploy-web.yml`. Updated ticket, bugs.md, key_facts.md, product-tracker.md to reflect the pivot. Follow-ups documented in `bugs.md` lines 37–38. |
+| 2026-04-12 | Step 5: Code review | `code-review-specialist` approved, no critical issues. 1 M2 (stale reference in merged F111 ticket — left as-is per reviewer recommendation: merged tickets are immutable records). 2 P2 housekeeping notes acknowledged. |
+| 2026-04-12 | Step 5: Merge-checklist + audit-merge | Actions 0–7 executed. Evidence table filled with real commit SHAs / file paths / exit codes. `/audit-merge` result: 11/11 PASS. |
+| 2026-04-12 | Step 5: Merge approval | User approved merge of PR #111. |
+| 2026-04-12 | Step 6: Merged | PR #111 squash-merged to `develop` at commit `88952d9`. Branch `bug/BUG-PROD-004-deploy-web-vercel-project-id` deleted local + remote. |
 
 ---
 
