@@ -10,7 +10,7 @@
 
 **Last Updated:** 2026-04-12
 
-**Active Feature:** BUG-PROD-001 — Mobile photo upload always errors (P0). Step 2/6 (Plan). Branch `bug/BUG-PROD-001-mobile-camera-error`. Standard complexity. Root cause: Vercel 4.5 MB Serverless Function body limit exceeded by mobile photos + error envelope mismatch in proxy route + missing upstream timeout. Fix: client-side image downscaling (canvas, 1600 px long edge, JPEG q0.82) + envelope normalization + `AbortSignal.timeout(65s)`.
+**Active Feature:** BUG-PROD-001 — Mobile photo upload always errors (P0). Step 5/6 (Review). PR #103 open. Branch `bug/BUG-PROD-001-mobile-camera-error`. Standard complexity. Root cause: Vercel 4.5 MB Serverless Function body limit exceeded by mobile photos + error envelope mismatch in proxy route + missing upstream timeout. Fix: client-side image downscaling (canvas, 1600 px long edge, JPEG q0.82) + envelope normalization + `AbortSignal.timeout(65s)` + resize telemetry. 33 suites / 345 tests green. Review hardening done (H1/H2/P1/P2). Pending: merge checklist + /audit-merge + manual mobile verification post-merge.
 **PM Session:** None active (L5 single-ticket execution on 7 issues pipeline)
 **Last Completed:** QA-WEB-001 — exhaustive web testing (62 new tests, 13 bugs documented). PR #99 + PR #102 merged.
 

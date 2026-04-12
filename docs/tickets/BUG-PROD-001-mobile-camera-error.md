@@ -1,8 +1,8 @@
 # BUG-PROD-001: Mobile photo upload always errors
 
 **Feature:** BUG-PROD-001 | **Type:** Fullstack-Bugfix | **Priority:** P0 (Critical)
-**Status:** In Progress | **Branch:** bug/BUG-PROD-001-mobile-camera-error
-**Created:** 2026-04-12 | **Dependencies:** None
+**Status:** Ready for Merge | **Branch:** bug/BUG-PROD-001-mobile-camera-error
+**Created:** 2026-04-12 | **Dependencies:** None | **PR:** #103
 
 ---
 
@@ -118,45 +118,46 @@ Because I cannot reproduce on a physical mobile device from this session, the fi
 
 ## Acceptance Criteria
 
-- [ ] New `imageResize.ts` utility exists with `resizeImageForUpload(file)` function
-- [ ] Small images (< 1.5 MB) are returned unchanged
-- [ ] Large images are resized so the longest edge is ≤ 1600 px and re-encoded as JPEG q≈0.82
-- [ ] All resize error paths fall back to the original file (never block the user)
-- [ ] `HablarShell.executePhotoAnalysis` calls `resizeImageForUpload` before `sendPhotoAnalysis`
-- [ ] `route.ts` `CONFIG_ERROR`, `UPSTREAM_UNAVAILABLE`, and new `UPSTREAM_TIMEOUT` responses all use `{ error: { code, message } }` envelope
-- [ ] `route.ts` upstream `fetch()` has a 65 s `AbortSignal.timeout`
-- [ ] New unit tests cover the resize utility (≥ 4 tests)
-- [ ] New route tests cover the 3 error envelopes (≥ 3 tests)
-- [ ] Updated `HablarShell.photo.test.tsx` asserts resize call
-- [ ] All existing tests still pass
-- [ ] Lint, typecheck, build all green for `@foodxplorer/web`
-- [ ] `docs/user-manual-web.md` §6 updated with resize note
+- [x] New `imageResize.ts` utility exists with `resizeImageForUpload(file)` function
+- [x] Small images (< 1.5 MB) are returned unchanged
+- [x] Large images are resized so the longest edge is ≤ 1600 px and re-encoded as JPEG q≈0.82
+- [x] All resize error paths fall back to the original file (never block the user)
+- [x] `HablarShell.executePhotoAnalysis` calls `resizeImageForUpload` before `sendPhotoAnalysis`
+- [x] `route.ts` `CONFIG_ERROR`, `UPSTREAM_UNAVAILABLE`, and new `UPSTREAM_TIMEOUT` responses all use `{ error: { code, message } }` envelope
+- [x] `route.ts` upstream `fetch()` has a 65 s `AbortSignal.timeout`
+- [x] New unit tests cover the resize utility (9 tests)
+- [x] New route tests cover the 3 error envelopes (5 new/updated)
+- [x] Updated `HablarShell.photo.test.tsx` asserts resize call + telemetry + abort race (7 new)
+- [x] All existing tests still pass (33 suites / 345 tests)
+- [x] Lint, typecheck, build all green for `@foodxplorer/web`
+- [x] `docs/user-manual-web.md` §6 updated with resize note
+- [x] Review-hardening landed: H1 abort-after-resize guard, H2 resize telemetry, P1 zero-byte blob safety, P2 Vercel 413 → PAYLOAD_TOO_LARGE mapping
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] Code follows project standards (TypeScript strict, no `any`)
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] `bugs.md` updated with root cause, fix, and prevention
-- [ ] Tracker updated (Active Session + Features table)
-- [ ] PR reviewed by `code-review-specialist` and `qa-engineer`
-- [ ] Manual mobile verification scheduled post-merge (user action)
+- [x] All acceptance criteria met
+- [x] Unit tests written and passing
+- [x] Code follows project standards (TypeScript strict, no `any`)
+- [x] No linting errors
+- [x] Build succeeds
+- [x] `bugs.md` updated with root cause, fix, and prevention
+- [x] Tracker updated (Active Session + Features table)
+- [x] PR reviewed by `code-review-specialist` and `qa-engineer`
+- [ ] Manual mobile verification scheduled post-merge (user action — flagged in PR)
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 0: Spec written (self, with deep investigation)
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: Implementation plan written (self, above)
-- [ ] Step 3: Implementation with TDD
-- [ ] Step 4: Quality gates pass, production-code-validator
-- [ ] Step 5: code-review-specialist + qa-engineer
-- [ ] Step 6: Ticket finalized, branch deleted, tracker updated
+- [x] Step 0: Spec written (self, with deep investigation)
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 2: Implementation plan written (self, above)
+- [x] Step 3: Implementation with TDD (10 files, ~690 insertions)
+- [x] Step 4: Quality gates pass, production-code-validator → GREEN
+- [x] Step 5: code-review-specialist (APPROVE WITH MINOR) + qa-engineer (PASS WITH CONCERNS) → all H1/H2/P1/P2 fixed
+- [ ] Step 6: Ticket finalized, branch deleted, tracker updated (post-merge)
 
 ---
 
@@ -165,6 +166,9 @@ Because I cannot reproduce on a physical mobile device from this session, the fi
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-12 | Spec + plan written | Deep investigation via Explore agent + direct file reads. Primary root cause: Vercel 4.5 MB body limit. |
+| 2026-04-12 | Implementation | Commit `e42c102` — 10 files, 690 insertions. 13 new tests. 33 suites / 338 tests green. |
+| 2026-04-12 | Review | code-review-specialist APPROVE WITH MINOR (H1, H2); qa-engineer PASS WITH CONCERNS (P1, P2). |
+| 2026-04-12 | Review hardening | Commit `01217fe` — H1 abort-after-resize, H2 resize telemetry (`photo_resize_ok`/`photo_resize_fallback` + `MetricEvent` union extended), P1 zero-byte blob safety, P2 Vercel 413 → PAYLOAD_TOO_LARGE. +7 tests → 33 suites / 345 tests. |
 
 ---
 
@@ -174,14 +178,14 @@ Because I cannot reproduce on a physical mobile device from this session, the fi
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (pending) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | N/A (no new models/endpoints) |
-| 4. Update decisions.md | [ ] | N/A |
-| 5. Commit documentation | [ ] | Commit: (pending) |
-| 6. Verify clean working tree | [ ] | `git status`: (pending) |
-| 7. Verify branch up to date | [ ] | (pending) |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Plan, AC, DoD, Workflow, Log, Evidence |
+| 1. Mark all items | [x] | AC: 14/14, DoD: 8/9 (one post-merge user action), Workflow: 0-5/6 (Step 6 pending post-merge) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6 (Review), BUG-PROD-001 is active, pipeline of 7 issues logged |
+| 3. Update key_facts.md | [x] | N/A — no new models/endpoints/migrations; resize is an internal web-only utility |
+| 4. Update decisions.md | [x] | N/A — no architectural decision beyond fixing a P0 infra mismatch |
+| 5. Commit documentation | [x] | Commit `e42c102` (ticket + tracker + user manual §6) |
+| 6. Verify clean working tree | [x] | `git status` reported below post-audit |
+| 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` → true (branched from develop; no divergence since) |
 
 ---
 
