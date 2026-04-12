@@ -10,7 +10,7 @@
 
 **Last Updated:** 2026-04-12
 
-**Active Feature:** No active work. F-UX-A done — PR #109 squash-merged to develop at `ecb78c5` (2026-04-12). Next up: F-UX-B (pincho/tapa/ración — starts with deep cross-model analysis).
+**Active Feature:** BUG-PROD-004 — `deploy-web` workflow `VERCEL_PROJECT_ID` resolution fix (Simple, CI/infra). Step 1 → 3 complete on branch `bug/BUG-PROD-004-deploy-web-vercel-project-id`. Root cause: `.github/workflows/deploy-web.yml` declared `env:` at workflow level referencing `secrets.VERCEL_PROJECT_ID_WEB` (does not exist); user already provisioned env-scoped `vars.VERCEL_PROJECT_ID` on both `preview-web` and `production-web` environments, but env-scoped vars only resolve after a job's `environment:` binding. Fix: deleted workflow-level `env:`, added a job-level `env:` block on both `deploy-preview` and `deploy-production` reading `vars.VERCEL_PROJECT_ID`. Pending: commit, push, PR, watch CI (empirical verification that `deploy-preview` turns green). F-UX-B branch `feature/F-UX-B-spanish-portion-terms` is paused mid-analysis at `06fc653` and resumes after Issue 4 merges.
 **Last Completed:** F-UX-A — Size modifier display in NutritionCard + API (Standard, fullstack). 4 packages touched (shared + api + bot refactor + web). New `@foodxplorer/shared/portion/portionLabel.ts` helper consolidated from bot. New `EstimateDataSchema.baseNutrients` + `basePortionGrams` optional fields with paired `superRefine` invariant. Both `POST /conversation/message` and `GET /estimate` capture base before scaling. NutritionCard renders amber `PORCIÓN GRANDE` pill + `base: N kcal` subtitle. Bot refactor is byte-identical (all 1198 tests green). Cross-model spec review (Codex + Gemini). Review hardening: M1/M2/M3/P1/P2 all fixed. 38 new tests (+22 shared, +8 api, +8 web). 0 regressions across 5332 workspace tests. **Pending user action:** manual verification on `/hablar` (query "ración grande de paella").
 **Last Completed:** BUG-PROD-002 — Mobile photo button forces camera, no gallery option (P2). Simple tier one-line fix: deleted `capture="environment"` from `PhotoButton.tsx`. Test inverted to assert attribute absence. 33 suites / 345 tests still green. **Pending user action:** manual verification that mobile now shows the chooser (Take Photo / Library).
 **PM Session:** None active (L5 single-ticket execution on 7 issues pipeline)
@@ -22,7 +22,7 @@
 3. Issue 3 — BUG-PROD-003 vino/vinagre disambiguation — **DONE** (PR #107, merge commit `a23fd3f`)
 4. F-UX-A — size modifier display (grande/pequeña) — **DONE** (PR #109, merge commit `ecb78c5`)
 5. F-UX-B — spanish portion terms (pincho/tapa/ración) — **NEXT** (starts with deep cross-model analysis per user request)
-6. Issue 4 — BUG-PROD-004 deploy-web GitHub Actions — pending (confirmed `deploy-preview` fails on every PR due to missing `VERCEL_PROJECT_ID_WEB` secret → workflow needs to read env-scoped `vars.VERCEL_PROJECT_ID` instead; user already configured the var)
+6. Issue 4 — BUG-PROD-004 deploy-web GitHub Actions — **IN PROGRESS** (branch `bug/BUG-PROD-004-deploy-web-vercel-project-id`, Simple tier, step 3/6 — workflow edited, pending commit + PR + empirical CI verification)
 7. Issue 5 — BUG-PROD-005 Render excess minutes — pending (user confirmed: Build Filters empty in Render dashboard → services were created manually, not via Blueprint → `render.yaml` `buildFilter` config is not being applied)
 
 **Phase B Audit Summary (2026-04-07 to 2026-04-08):**

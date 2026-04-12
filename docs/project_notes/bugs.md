@@ -17,6 +17,19 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-04-12 — BUG-PROD-004: `deploy-web` workflow fails — `VERCEL_PROJECT_ID` not resolved
+
+- **Severity**: P1 (blocks preview deploys) | **Area**: `.github/workflows/deploy-web.yml` / GitHub Actions env resolution
+- **Issue**: The `deploy-preview` check on `.github/workflows/deploy-web.yml` failed on every PR since the web workflow was first wired. Symptom: the `vercel pull` / `vercel build` / `vercel deploy` steps ran with `VERCEL_PROJECT_ID=""` and bailed out. Preview URLs were never posted as PR comments, breaking fast manual verification on merged features.
+- **Root Cause**: Two stacked mistakes. (1) The workflow-level `env:` block referenced `secrets.VERCEL_PROJECT_ID_WEB`, a secret that does not exist in the repository. The user had instead provisioned `vars.VERCEL_PROJECT_ID` as an **environment-scoped variable** on both the `preview-web` and `production-web` GitHub environments. (2) Even a corrected `vars.VERCEL_PROJECT_ID` reference at the workflow level would still resolve to an empty string, because environment-scoped variables are only available to a job **after** the job's `environment:` binding has been evaluated — the workflow-level `env:` block is evaluated earlier and cannot see env-scoped vars.
+- **Solution**: Deleted the workflow-level `env:` block entirely. Added a job-level `env:` block to both `deploy-preview` and `deploy-production` that reads `VERCEL_ORG_ID` from `secrets.VERCEL_ORG_ID` (repository-scoped, fine) and `VERCEL_PROJECT_ID` from `vars.VERCEL_PROJECT_ID` (environment-scoped, now resolvable because the job has already bound its `environment:`). No other workflow files touched.
+- **Prevention**:
+  - **Rule:** environment-scoped `vars.*` (and `secrets.*`) MUST be read inside a job's `env:` block, never at the workflow level. The workflow-level `env:` block is only safe for truly global values or repository-scoped secrets.
+  - When adding a new GitHub environment variable, smoke-test it with a trivial `printenv | grep <VAR>` debug step in the target job before assuming it resolves.
+  - Any CI red that persists across multiple consecutive PRs without investigation is tech debt that will bite a future task. Issue 4 existed in the backlog because Issues 1–3 and F-UX-A could ship without it, but it blocked the feedback loop on manual preview verification the whole time.
+- **Status**: Fix applied on branch `bug/BUG-PROD-004-deploy-web-vercel-project-id`. PR pending. Empirical verification = the PR's own `deploy-preview` check must turn green (previously red on every prior PR).
+- **Feature**: BUG-PROD-004 | **Found by**: pipeline Issue 4 follow-up | **Severity**: P1
+
 ### 2026-04-12 — BUG-PROD-003: Ambiguous plain Spanish queries resolve to specialty items
 
 - **Severity**: P1 (UX) | **Area**: packages/api / estimation L1 cascade / spanish-dishes seed data

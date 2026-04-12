@@ -5,9 +5,14 @@
 # Only triggers on packages/web/ changes.
 #
 # Required secrets:
-#   VERCEL_ORG_ID        — shared with landing
-#   VERCEL_PROJECT_ID_WEB — separate Vercel project for web
-#   VERCEL_TOKEN          — shared with landing
+#   VERCEL_ORG_ID — shared with landing (repository secret)
+#   VERCEL_TOKEN  — shared with landing (repository secret)
+#
+# Required env-scoped variables (configured per environment in GitHub):
+#   vars.VERCEL_PROJECT_ID — set on both `preview-web` and `production-web`
+#   environments. Must be read at the JOB level (not workflow level), because
+#   environment-scoped vars are only resolvable after the job's `environment:`
+#   binding is evaluated. See BUG-PROD-004.
 
 name: Deploy Web
 
@@ -23,10 +28,6 @@ on:
       - 'packages/web/**'
       - 'packages/shared/**'
 
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
-
 jobs:
   deploy-preview:
     if: github.event_name == 'pull_request'
@@ -34,6 +35,9 @@ jobs:
     environment:
       name: preview-web
       url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
 
     steps:
       - uses: actions/checkout@v4
@@ -80,6 +84,9 @@ jobs:
     environment:
       name: production-web
       url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
 
     steps:
       - uses: actions/checkout@v4
