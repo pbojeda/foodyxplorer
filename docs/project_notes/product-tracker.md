@@ -22,7 +22,7 @@
 3. Issue 3 — BUG-PROD-003 vino/vinagre disambiguation — **DONE** (PR #107, merge commit `a23fd3f`)
 4. F-UX-A — size modifier display (grande/pequeña) — **DONE** (PR #109, merge commit `ecb78c5`)
 5. F-UX-B — spanish portion terms (pincho/tapa/ración) — **NEXT** (starts with deep cross-model analysis per user request)
-6. Issue 4 — BUG-PROD-004 deploy-web GitHub Actions — **IN PROGRESS** (branch `bug/BUG-PROD-004-deploy-web-vercel-project-id`, Simple tier, step 3/6 — **pivoted**: deleted the redundant workflow instead of fixing it, after empirical verification that the Vercel GitHub App already handles web preview deploys on Vercel infra. Pending: push + CI verification + review + merge)
+6. Issue 4 — BUG-PROD-004 deploy-web GitHub Actions — **IN PROGRESS** (PR #111, Simple tier, step 5/6 Review — **pivoted**: deleted the redundant workflow instead of fixing it, after empirical verification that the Vercel GitHub App already handles web preview deploys on Vercel infra. CI green (ci-success + all tests + Vercel GH App). code-review-specialist approved. Pending: merge approval + Step 6 finalization)
 7. Issue 5 — BUG-PROD-005 Render excess minutes — pending (user confirmed: Build Filters empty in Render dashboard → services were created manually, not via Blueprint → `render.yaml` `buildFilter` config is not being applied)
 
 **Phase B Audit Summary (2026-04-07 to 2026-04-08):**
