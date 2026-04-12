@@ -1,7 +1,7 @@
 # F-UX-B — Expose assumptions behind Spanish serving-size terms (pincho / tapa / media ración / ración)
 
 **Feature:** F-UX-B | **Type:** Fullstack-Feature | **Priority:** Standard
-**Status:** Analysis — awaiting user review before planning/implementation
+**Status:** Spec — awaiting cross-model review
 **Created:** 2026-04-12 | **Dependencies:** F085 (portion term detection), F-UX-A (card metadata slot)
 
 ---
@@ -159,69 +159,226 @@ Everywhere the card or API says "pieces", the copy must include an uncertainty q
 
 ---
 
-## Open questions for you (block implementation until answered)
+## User decisions — Q1–Q7 (locked in 2026-04-12, verbatim)
 
-These are the decisions I need from you before writing the final spec + plan + code. The cross-model analysis surfaced enough ambiguity that guessing would waste cycles.
+All 7 recommendations accepted as **Option A**.
 
-### Q1 — Scope: start narrow or cover all catalog?
+### Q1 — Scope: **NARROW (~30 countable dishes)**
 
-- **Option A (narrow, recommended):** Seed ~30 countable Spanish tapas/raciones where pieces have real value (croquetas, patatas bravas, gambas, aceitunas, pintxos, boquerones, jamón, queso, calamares, chopitos, …). Everything else falls back to F085 global ranges. Ships in one PR, ~1–2 days.
-- **Option B (broad):** Seed all ~250 Spanish dishes with at least a `ración` row, even if `tapa` is null for most. Bigger data-entry effort but fewer fallbacks. ~2–3 days.
-- **Option C (minimal):** Only fix the web parity gap — render the existing F085 global ranges on the card. Skip the per-dish table entirely. Ships in hours, solves the "invisible on web" bug but doesn't address the "pieces" ask.
+Covers 80% of value with F085 as fallback for everything else. **Priority dishes (30, verbatim from user, do not re-order or substitute):**
 
-### Q2 — Piece scaling for size modifiers
+> croquetas, patatas bravas, gambas al ajillo, aceitunas, pintxos, jamón, queso manchego, boquerones, calamares, chopitos, ensaladilla, tortilla, pan con tomate, chorizo, morcilla, pulpo a la gallega, gazpacho (sin pieces), salmorejo (sin pieces), albóndigas, alitas de pollo, empanadillas, mejillones, navajas, zamburiñas, berberechos, sepia, rabas, champiñones al ajillo, pimientos de padrón, tostas
 
-When the user types `ración grande de croquetas`, should the card show:
-- **Option A (my recommendation):** `~12 croquetas (≈360 g)` — multiply both nutrients and pieces by 1.5, round pieces.
-- **Option B (Codex):** `~8 croquetas (≈360 g)` — scale nutrients only, keep pieces at the term default. Visually confusing.
-- **Option C:** Don't scale pieces at all when a size modifier is present; show the term default and let the user do the math.
+**Note:** `gazpacho` and `salmorejo` are explicitly tagged `(sin pieces)` — they are included in the 30 because raciones make sense but pieces don't. Their seed rows must have `pieces = null`; the UI drops the pieces clause and renders only `Ración ≈ 250 g`.
 
-### Q3 — LLM backfill
+### Q2 — Piece scaling with F042: **SCALE BOTH**
 
-- **Option A (recommended):** I write a small offline script that prompts `codex` / `gemini` once per top-30 dish for `{ grams, pieces, piece_name }` per term, outputs a CSV, you review and commit. Seed pipeline reads the CSV.
-- **Option B:** I seed a smaller set manually (top 10) with no LLM involvement.
-- **Option C:** No seeding at all in v1 — only the web parity fix (Option C in Q1 above).
+When a size modifier (F042 `portionMultiplier`) is present together with a portion term (F085) backed by a `StandardPortion` row with `pieces != null`:
 
-### Q4 — UI placement in the NutritionCard
+- `displayedPieces = Math.round(basePieces × multiplier)`
+- **Clamp minimum 1** — if rounding produces `0` (e.g., `Math.round(2 × 0.3)`), use `1` instead so we never render "0 croquetas"
+- **Document the edge case** in tests: near-zero multiplier × small piece count → clamp activates; assert the assertion message explains why
 
-- **Option A (recommended):** Add a new line below the F-UX-A PORCIÓN pill. Two orthogonal slots for two orthogonal concerns.
-- **Option B:** Merge F-UX-A pill and F-UX-B line into a single combined block: `Ración grande · ~12 croquetas (≈360 g) · base ~240 g`. Richer but denser.
-- **Option C:** Replace F-UX-A pill with F-UX-B line. Single concept wins, loses F-UX-A's visual distinction.
+Example: `ración grande de croquetas` with base 8 croquetas × 1.5 = `~12 croquetas (≈ 360 g)` on the card.
 
-### Q5 — Copy strategy for pieces
+### Q3 — LLM backfill: **OFFLINE SCRIPT → CSV → REVIEW → SEED**
 
-- **Option A (recommended):** `~N X (≈ G g)` everywhere — e.g. `~2 croquetas (≈ 50 g)`.
-- **Option B:** Use `unas` (Spanish informal), e.g. `unas 2 croquetas (≈ 50 g)`. More natural reading but more characters.
-- **Option C:** Only show pieces when `confidence >= high`; otherwise drop to `~ 50 g` without the piece count.
+- A new offline script (ADR-020+ candidate) reads the 30 priority dishes × 4 terms (`pincho/pintxo`, `tapa`, `media ración`, `ración`) and prompts `codex exec` and/or `gemini` for `{ grams, pieces, piece_name, confidence }` per cell
+- Output is a **CSV** with an empty `reviewed_by` column
+- Analyst (user) fills `reviewed_by` manually in the CSV
+- **Seed pipeline reads ONLY rows where `reviewed_by != null`** — unreviewed rows are silently skipped (not errors, not warnings — they simply don't seed)
+- **Zero runtime LLM cost** — the script runs once during development; the DB is the only thing hit at query time
 
-### Q6 — Term to display pincho vs pintxo
+### Q4 — UI placement: **NEW LINE BELOW F-UX-A PILL**
 
-Basque spelling `pintxo` is more common in the Basque Country, `pincho` elsewhere. Options:
-- **Option A (recommended):** Detect both in queries, store under a single internal key (`pintxo`), display using the spelling the user typed.
-- **Option B:** Always display `pincho` on the card regardless of input.
-- **Option C:** Add a regional setting (future scope).
+The F-UX-A amber `PORCIÓN GRANDE` pill (size modifier) is NOT reshaped. The F-UX-B portion-term assumption is rendered as a **new, visually distinct line below it** — two orthogonal concerns in two orthogonal slots.
 
-### Q7 — Should F085's existing global map stay as the fallback?
+Example layout when both F-UX-A and F-UX-B apply:
 
-- **Option A (recommended):** Yes — F085 becomes the fallback when no `StandardPortion` row exists. UI marks it as `assumption: "generic"` so the copy can be weaker. Bot's existing output keeps working for un-seeded dishes.
-- **Option B:** Delete F085 and require a `StandardPortion` row for every term detection. Stricter but breaks bot output on un-seeded dishes.
+```
+[PORCIÓN GRANDE]                              ← F-UX-A pill (size modifier)
+Ración ≈ 12 croquetas (≈ 360 g)              ← F-UX-B new line (per-dish assumption)
+```
+
+### Q5 — Copy format: **`~N X (≈ G g)` with uncertainty symbols, always**
+
+- Canonical format with pieces: `~2 croquetas (≈ 50 g)`
+- Canonical format without pieces (`pieces == null`): `≈ 250 g` — drop the pieces clause entirely, do NOT render `~null` or `~0`
+- Generic fallback (F085, no `StandardPortion` row): `Tapa estándar: 50–80 g (estimado genérico)`
+- **Always** prefix pieces with `~` (tilde)
+- **Always** prefix grams with `≈` (almost equal)
+- **Never** render a bare integer piece count like `2 croquetas` without the qualifiers
+- Use the term label the user typed (`Pincho`, `Tapa`, `Media ración`, `Ración`, `Pintxo`) — see Q6
+
+### Q6 — pincho vs pintxo: **DETECT BOTH, STORE AS `pintxo`, DISPLAY USER'S WORDING**
+
+- Query parser normalizes both `pincho` and `pintxo` to the internal canonical key `pintxo` (Basque spelling as the invariant)
+- DB stores under `pintxo`
+- The UI and bot render using the spelling the user typed in their **original query** — if the user typed "pincho de croquetas" the card says "Pincho", if they typed "pintxo" it says "Pintxo"
+- Default when the query didn't come from a typed term (edge case): use `pintxo`
+
+### Q7 — F085 fallback: **KEEP, MARK AS `generic`**
+
+- The API response includes `portionAssumption.source: "per_dish" | "generic"`
+- `per_dish` = a `StandardPortion` row was found for `(dish_id, term)` → render the precise copy with pieces
+- `generic` = no per-dish row → fall back to F085's existing hardcoded global range (50–80 g for `tapa`, etc.) → render the weaker copy (`Tapa estándar: 50–80 g (estimado genérico)`, no pieces, no `~` qualifier on the term)
+- **Bot backwards-compatibility**: un-seeded dishes continue to render exactly like today (see Bot regression guarantee below)
+
+---
+
+## Red-flag mitigation (Gemini concern — MANDATORY)
+
+> **Gemini raised:** *"A ración isn't a standardized unit — showing '2 croquetas' asserts a precision the real world doesn't have. Could damage trust more than help."*
+
+**Non-negotiable mitigations encoded in this spec:**
+
+1. **Copy discipline** — NEVER render bare `N croquetas`; ALWAYS `~N croquetas (≈ G g)` with both uncertainty symbols present
+2. **`confidence` field in seed data** — `high | medium | low`, based on analyst review vs raw LLM output
+3. **Tests validating copy format in every render path**:
+   - web `NutritionCard` — assert the rendered text matches `/~\d+ \w+ \(≈ \d+ g\)/` or the gram-only variant
+   - bot `estimateFormatter` — same regex on the rendered string
+   - ARIA label — see next point
+4. **Accessibility** — `aria-label` on the portion assumption line MUST include the Spanish word `"aproximadamente"`, e.g. `"aproximadamente 2 croquetas, unos 50 gramos"`. Screen readers must communicate the uncertainty explicitly. Tests assert this.
+5. **Low-confidence weakening** — UI may render weaker copy for rows with `confidence: low` in a follow-up; v1 ships all three confidence levels with the same copy but keeps the field so the hook is there
+
+---
+
+## Spec — final design
+
+### Semantic model
+
+A per-dish serving assumption for each of the 4 canonical Spanish terms (`pintxo`, `tapa`, `media ración`, `ración`), stored in the existing (unused) `StandardPortion` Prisma model. Each row:
+
+```
+{
+  dishId: number,              // FK to dishes
+  term: string,                // 'pintxo' | 'tapa' | 'media_racion' | 'racion'
+  grams: number,               // positive integer, mean of analyst-reviewed range
+  pieces: number | null,       // null for non-countable dishes (gazpacho, salmorejo)
+  pieceName: string | null,    // singular, e.g. 'croqueta', null if pieces is null
+  confidence: 'high' | 'medium' | 'low',
+  notes: string | null         // analyst commentary, free text
+}
+```
+
+- **Base unit is `ración`** — the 100% reference portion for a dish
+- `media_racion` stored explicitly when analyst review chose to (mostly not — it's derived as `ración × 0.5` via arithmetic)
+- `tapa` and `pintxo` always stored per-dish because their sizes do NOT follow a simple fraction of a ración
+- Arithmetic-derived terms (like `doble`, `triple`) remain F042's responsibility — this ticket does not introduce new F042 modifiers
+
+### 3-tier fallback chain at query time
+
+When a user query contains a portion term (F085 detection is unchanged):
+
+1. **Tier 1 — per-dish lookup.** Query `StandardPortion` by `(dishId, term)`. If hit, build `portionAssumption` with `source: "per_dish"` and all fields populated from the row.
+2. **Tier 2 — ración-scaled arithmetic.** If the user typed `media ración` and a `ración` row exists for the dish, derive `grams = ración.grams × 0.5` and `pieces = round(ración.pieces × 0.5)` (clamped to 1). `source: "per_dish"`, `notes: "derived from ración ×0.5"`. This tier is NOT used when the user explicitly stored a `media_racion` row.
+3. **Tier 3 — F085 generic fallback.** No per-dish row exists → return the current F085 global range `{ gramsMin, gramsMax }` with `source: "generic"`, `pieces: null`, `pieceName: null`. UI renders the weaker copy.
+
+F042 `portionMultiplier` composes on top of the resolved assumption (per Q2). The multiplier applies to both `nutrients` (F-UX-A's existing behavior) AND `portionAssumption.grams/pieces` (new).
+
+### API contract (`EstimateDataSchema` extension)
+
+New optional field on `EstimateData`:
+
+```ts
+portionAssumption?: {
+  term: string,                // 'pintxo' | 'tapa' | 'media ración' | 'ración' — display key
+  termDisplay: string,         // user-typed variant (e.g., "pincho" or "pintxo") for UI rendering
+  source: 'per_dish' | 'generic',
+  grams: number,               // post-F042-multiplier
+  pieces: number | null,       // post-F042-multiplier with clamp-to-1
+  pieceName: string | null,    // singular form
+  gramsRange: [number, number] | null,  // only when source === 'generic' (from F085 global map)
+  confidence: 'high' | 'medium' | 'low' | null  // null when source === 'generic'
+}
+```
+
+**Paired `superRefine` invariants** (following the F-UX-A pattern):
+
+- If `source === 'per_dish'` → `grams` MUST be present, `gramsRange` MUST be null, `confidence` MUST be present
+- If `source === 'generic'` → `gramsRange` MUST be present, `grams` equals `(gramsRange[0] + gramsRange[1]) / 2`, `pieces` MUST be null, `pieceName` MUST be null, `confidence` MUST be null
+- If `pieces === null` → `pieceName` MUST be null (and vice versa)
+- `grams > 0`, `pieces >= 1` when present
+
+F085's existing `portionSizing` field on the response **remains present** for bot backwards-compatibility (see guarantee below). It is NOT deprecated in v1.
+
+### UI surfacing
+
+**`NutritionCard.tsx` (web)** — currently ignores `portionSizing` entirely. This ticket teaches it to read `portionAssumption`:
+
+- Renders a **new line** below the F-UX-A `PORCIÓN` pill (or below the nutrient grid if no F-UX-A pill is present)
+- Layout slot: `<div role="note" aria-label="...">…</div>`
+- `aria-label` format: `"aproximadamente N pieceName, G gramos"` (MUST contain "aproximadamente")
+- Visual style: secondary text color, smaller than the nutrient numbers, icon optional (TBD by `ui-ux-designer`)
+
+**`estimateFormatter.ts` (bot)** — current emoji line `📏 Porción detectada: tapa (50–80 g)` is enhanced:
+
+- When `portionAssumption.source === 'per_dish'` and `pieces != null`: `📏 Porción detectada: tapa (~2 croquetas, ≈ 50 g)`
+- When `portionAssumption.source === 'per_dish'` and `pieces == null`: `📏 Porción detectada: ración (≈ 250 g)`
+- When `portionAssumption.source === 'generic'`: **byte-identical** to today's output → `📏 Porción detectada: tapa (50–80 g)` — this is the bot regression guarantee
+
+### Bot regression guarantee (non-negotiable)
+
+The 1198 existing bot tests MUST continue to pass **byte-identical** output for every un-seeded dish. Changes to `estimateFormatter.ts` / `comparisonFormatter.ts` can ONLY:
+
+- ADD new rendering when `portionAssumption.source === 'per_dish'` — a branch that didn't exist before
+- NEVER modify the existing branch where `source === 'generic'` is the effective default
+
+Quality gate: `npm test -w @foodxplorer/bot` must report **exactly `Tests: 1198 passed`** before the final commit. Any delta → STOP, reassess scope, do not commit.
+
+### Documentation deliverables (mandatory before merge)
+
+1. **`docs/user-manual-web.md`** — new section on portion-term assumptions (how the card shows tapa/ración assumptions, what the ≈ and ~ symbols mean, what "estimado genérico" means)
+2. **`docs/specs/api-spec.yaml`** — add `portionAssumption` to `EstimateData` with the `source: "per_dish" | "generic"` discriminator and every presence rule from `superRefine`
+3. **`docs/project_notes/key_facts.md`** — note that `StandardPortion` is now in use (was flagged existing-but-unused in the F-UX-B analysis) and document the 3-tier fallback chain
+4. **`docs/project_notes/decisions.md`** — evaluate whether the fallback strategy warrants an ADR. Likely yes — **ADR-020 candidate**: "Per-dish portion assumptions with graceful degradation to F085 generic ranges". Title/scope subject to cross-model review.
+
+---
+
+## Out of scope (v1, document explicitly)
+
+- **User personalization** ("para mí, una ración son 6 croquetas")
+- **Overrides por cadena/restaurante** (`StandardPortion` is global, not chain-scoped)
+- **Admin UI** for editing `StandardPortion` (analyst uses CSV + seed pipeline in v1)
+- **LLM at runtime** — offline backfill script only, zero runtime LLM cost
+- **Regional variations** (Andalusian, Catalan, Basque, etc.) beyond the `pincho`/`pintxo` display duality
+- **Dishes outside the 30-item priority catalog** — fall back to F085 generic
+- **Base macros (protein/carbs/fat)** in the card for F-UX-A's base row — already deferred
+- **Weakening copy for low-confidence rows** — field exists and ships, visual degradation is a follow-up
+
+---
+
+## Verification plan
+
+**Automated (in the implementation plan)**
+- Shared schema superRefine invariants: unit tests covering all legal + illegal combinations
+- API orchestrator: integration test exercising each of the 3 fallback tiers
+- Web `NutritionCard`: Testing Library assertions on rendered text AND `aria-label` (must contain `aproximadamente`)
+- Bot formatter: new branch tested, existing branches regression-tested (1198 count invariant)
+- Copy discipline regex: `/~\d+ [a-záéíóúñ]+ \(≈ \d+ g\)/` matched in every render path test
+- Seed pipeline: unreviewed CSV rows are skipped, reviewed rows produce exactly one DB row each
+
+**Manual post-merge (user action)**
+- `/hablar` query: "ración grande de croquetas" → card shows `PORCIÓN GRANDE` pill + `Ración ≈ 12 croquetas (≈ 360 g)` line
+- `/hablar` query: "tapa de croquetas" → card shows no F-UX-A pill + `Tapa ≈ 2 croquetas (≈ 50 g)` line
+- `/hablar` query: "tapa de manchego curado" (not in priority-30) → card shows `Tapa estándar: 50–80 g (estimado genérico)`
+- Bot Telegram: same 3 queries → verify bot rendering matches expectations
+- Screen reader smoke test (macOS VoiceOver): navigate to the portion line → verify "aproximadamente" is spoken
 
 ---
 
 ## What happens next
 
-**Once you answer Q1–Q7, I will:**
-1. Write the final spec + implementation plan section in this ticket
-2. Run `ui-ux-designer` for the card copy and placement details
-3. Run cross-model review (Codex + Gemini) on the **plan** (not just the analysis)
-4. Implement via TDD in order: shared schema → Prisma migration → seed data → API orchestrator → bot formatter → web NutritionCard
-5. Quality gates → review agents → merge checklist → merge
-
-**Estimated implementation effort after you approve:**
-- Option A (Q1 narrow) + my recommended defaults for Q2–Q7: ~1 day of focused work including tests, reviews, and docs.
-- Option B (broad) + my defaults: ~2–3 days (mostly data entry/review).
-- Option C (minimal, web parity only): ~2 hours.
+1. **Cross-model spec review** — Codex (`codex exec` gpt-5-codex) + Gemini (`gemini-2.5-pro`) in parallel, format identical to F-UX-A: table of disagreements arbitrated inline
+2. **User approval of spec** (checkpoint — constraint #10, PR-mode, L5 autonomous)
+3. **Plan phase:**
+   a. `ui-ux-designer` agent (BEFORE any planner agent — feedback memory)
+   b. `backend-planner` + `frontend-planner` in parallel
+   c. Cross-model plan review (Codex + Gemini)
+   d. User approval of plan (checkpoint)
+4. **Implementation (TDD, dependency order):** shared → prisma migration + seed → api orchestrator → web NutritionCard → bot formatter
+5. **Quality gates → `code-review-specialist` + `qa-engineer` → merge checklist → `/audit-merge` → merge approval → squash-merge → Step 6 finalization → post-merge tracker sync PR**
 
 ---
 
-*Analysis phase complete. Awaiting user decisions on Q1–Q7 before proceeding to spec + plan + implementation.*
+*Analysis complete, Spec written 2026-04-12. Awaiting cross-model spec review next.*
