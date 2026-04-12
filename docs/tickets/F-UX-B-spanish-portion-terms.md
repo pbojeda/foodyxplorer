@@ -1,7 +1,7 @@
 # F-UX-B — Expose assumptions behind Spanish serving-size terms (pincho / tapa / media ración / ración)
 
 **Feature:** F-UX-B | **Type:** Fullstack-Feature | **Priority:** Standard
-**Status:** Spec — awaiting cross-model review
+**Status:** Spec v2 — cross-model review complete, awaiting user approval before plan phase
 **Created:** 2026-04-12 | **Dependencies:** F085 (portion term detection), F-UX-A (card metadata slot)
 
 ---
@@ -171,6 +171,19 @@ Covers 80% of value with F085 as fallback for everything else. **Priority dishes
 
 **Note:** `gazpacho` and `salmorejo` are explicitly tagged `(sin pieces)` — they are included in the 30 because raciones make sense but pieces don't. Their seed rows must have `pieces = null`; the UI drops the pieces clause and renders only `Ración ≈ 250 g`.
 
+**Countable vs. gram-only classification (added post-cross-model review 2026-04-12):**
+
+The verbatim user list is locked (not re-ordered, not substituted). Cross-model review flagged that beyond gazpacho/salmorejo, several dishes on the list are semantically ambiguous about piece semantics (continuous substances, slice-based servings, weight-based servings). The seed-data pipeline uses this classification as a template — analyst may override per-row during CSV review:
+
+- **Strong-countable** (default `pieces != null`, `pieceName` set):
+  `croquetas`, `patatas bravas`, `gambas al ajillo`, `aceitunas`, `pintxos`, `boquerones`, `calamares`, `chopitos`, `albóndigas`, `alitas de pollo`, `empanadillas`, `mejillones`, `navajas`, `zamburiñas`, `berberechos`, `sepia`, `rabas`, `champiñones al ajillo`, `pimientos de padrón`
+- **User-tagged sin pieces** (MUST `pieces == null`, `pieceName == null`):
+  `gazpacho`, `salmorejo`
+- **Analyst-decides at seed time** (default `pieces == null` if in doubt — false-negative gram-only copy is safer than false-positive piece count):
+  `ensaladilla`, `pulpo a la gallega`, `jamón`, `queso manchego`, `tortilla`, `pan con tomate`, `chorizo`, `morcilla`, `tostas`
+
+**Rule:** for the "analyst-decides" group, the seed script template sets `pieces = null` by default. Analyst may override by filling `pieces` + `pieceName` on that CSV row during review. Rationale: a false-positive "4 lonchas de jamón" on a dish that's actually served by weight is worse UX than the gram-only fallback `≈ G g`. When in doubt, default to null. User can review and override in the CSV.
+
 ### Q2 — Piece scaling with F042: **SCALE BOTH**
 
 When a size modifier (F042 `portionMultiplier`) is present together with a portion term (F085) backed by a `StandardPortion` row with `pieces != null`:
@@ -234,12 +247,13 @@ Ración ≈ 12 croquetas (≈ 360 g)              ← F-UX-B new line (per-dish 
 
 1. **Copy discipline** — NEVER render bare `N croquetas`; ALWAYS `~N croquetas (≈ G g)` with both uncertainty symbols present
 2. **`confidence` field in seed data** — `high | medium | low`, based on analyst review vs raw LLM output
-3. **Tests validating copy format in every render path**:
-   - web `NutritionCard` — assert the rendered text matches `/~\d+ \w+ \(≈ \d+ g\)/` or the gram-only variant
-   - bot `estimateFormatter` — same regex on the rendered string
-   - ARIA label — see next point
-4. **Accessibility** — `aria-label` on the portion assumption line MUST include the Spanish word `"aproximadamente"`, e.g. `"aproximadamente 2 croquetas, unos 50 gramos"`. Screen readers must communicate the uncertainty explicitly. Tests assert this.
-5. **Low-confidence weakening** — UI may render weaker copy for rows with `confidence: low` in a follow-up; v1 ships all three confidence levels with the same copy but keeps the field so the hook is there
+3. **Tests validating copy format — SPLIT BY `source` BRANCH** (updated after cross-model review found this was internally contradictory):
+   - **`per_dish` + `pieces != null` path (web + bot)** — rendered text MUST match `/~\d+ [a-záéíóúñ]+ \(≈ \d+ g\)/` (uncertainty symbols both present)
+   - **`per_dish` + `pieces == null` path (web + bot)** — rendered text MUST match `/≈ \d+ g/` and MUST NOT contain `~` (no piece clause)
+   - **`generic` path (bot)** — rendered text MUST be byte-identical to today's F085 output (e.g., `tapa (50–80 g)`). **No `~`, no `≈`.** This is the bot regression guarantee. A separate regression test asserts exact-string equality against a frozen snapshot of current output.
+   - **`generic` path (web)** — new string `{Term} estándar: {N}–{M} g (estimado genérico)`. This is a brand-new render path (web today renders nothing for F085), so no regression concern; assert the exact new string.
+4. **Accessibility** — `aria-label` on the portion line MUST include the Spanish word `"aproximadamente"` in EVERY render path (`per_dish` + pieces, `per_dish` gram-only, `generic`). Example: `"aproximadamente 2 croquetas, unos 50 gramos"` or `"aproximadamente 250 gramos"`. Tests assert the presence of `/aproximadamente/` on all three paths.
+5. **`confidence` field kept but NOT used for copy in v1** (clarification post-review, originally ambiguous): the field ships in the DB + API response so a future iteration can weaken copy. v1 renders the same copy across all confidence levels. This is **out of scope for v1** per the OOS section — there is no "low-confidence weakening" mitigation to rely on in this release, only the copy-discipline symbols + aria-label.
 
 ---
 
@@ -271,8 +285,9 @@ A per-dish serving assumption for each of the 4 canonical Spanish terms (`pintxo
 When a user query contains a portion term (F085 detection is unchanged):
 
 1. **Tier 1 — per-dish lookup.** Query `StandardPortion` by `(dishId, term)`. If hit, build `portionAssumption` with `source: "per_dish"` and all fields populated from the row.
-2. **Tier 2 — ración-scaled arithmetic.** If the user typed `media ración` and a `ración` row exists for the dish, derive `grams = ración.grams × 0.5` and `pieces = round(ración.pieces × 0.5)` (clamped to 1). `source: "per_dish"`, `notes: "derived from ración ×0.5"`. This tier is NOT used when the user explicitly stored a `media_racion` row.
-3. **Tier 3 — F085 generic fallback.** No per-dish row exists → return the current F085 global range `{ gramsMin, gramsMax }` with `source: "generic"`, `pieces: null`, `pieceName: null`. UI renders the weaker copy.
+2. **Tier 2 — ración × 0.5 arithmetic for `media ración` ONLY.** If and only if the user typed `media ración` AND a `ración` row exists for the dish AND no explicit `media_racion` row exists for that dish, derive `grams = ración.grams × 0.5` and `pieces = Math.round(ración.pieces × 0.5)` (clamped to 1). `source: "per_dish"`, `notes: "derived from ración ×0.5"`.
+   - **Explicit non-rule (added after cross-model review — Gemini proposed expanding Tier 2 to `tapa = ración × 0.25` and `pincho = ración × 0.15`, rejected on arbitration):** Tier 2 does NOT apply to `tapa` / `pintxo` queries even when a `ración` row exists. The whole point of the per-dish data model is to reject global ratios — `tapa = ración × 0.25` is exactly the kind of false precision the analysis phase rejected via Explore + Codex + Gemini consensus. Any `tapa`/`pintxo` query that misses Tier 1 falls through directly to Tier 3 generic. Log a counter metric (`portionAssumption.tier2_rejected_as_tapa_or_pintxo`) so we can see whether missing per-dish rows cause user-visible "estimado genérico" copy often enough to justify seeding more rows.
+3. **Tier 3 — F085 generic fallback.** Any portion term query that fails Tier 1 and is not eligible for Tier 2 (per above) → return the current F085 global range `{ gramsMin, gramsMax }` with `source: "generic"`, `pieces: null`, `pieceName: null`. UI renders the weaker copy.
 
 F042 `portionMultiplier` composes on top of the resolved assumption (per Q2). The multiplier applies to both `nutrients` (F-UX-A's existing behavior) AND `portionAssumption.grams/pieces` (new).
 
@@ -293,12 +308,23 @@ portionAssumption?: {
 }
 ```
 
-**Paired `superRefine` invariants** (following the F-UX-A pattern):
+**Paired `superRefine` invariants** (following the F-UX-A pattern; tightened after cross-model review):
 
-- If `source === 'per_dish'` → `grams` MUST be present, `gramsRange` MUST be null, `confidence` MUST be present
-- If `source === 'generic'` → `gramsRange` MUST be present, `grams` equals `(gramsRange[0] + gramsRange[1]) / 2`, `pieces` MUST be null, `pieceName` MUST be null, `confidence` MUST be null
-- If `pieces === null` → `pieceName` MUST be null (and vice versa)
-- `grams > 0`, `pieces >= 1` when present
+- **`source === 'per_dish'` branch:**
+  - `grams` MUST be a positive integer (> 0)
+  - `gramsRange` MUST be null
+  - `confidence` MUST be one of `'high' | 'medium' | 'low'` (non-null)
+  - `pieces` is null OR a positive integer (≥ 1, clamp-to-1 enforced upstream)
+  - `pieceName` is null iff `pieces` is null
+- **`source === 'generic'` branch:**
+  - `gramsRange` MUST be present as `[gramsMin, gramsMax]` with `gramsMin > 0`, `gramsMax > gramsMin`, both **integers**
+  - `grams` MUST equal `Math.round((gramsMin + gramsMax) / 2)` (derived, not free-form)
+  - `pieces` MUST be null
+  - `pieceName` MUST be null
+  - `confidence` MUST be null
+- **Cross-branch:** the `pieces`/`pieceName` pairing invariant always holds (null iff null, non-null iff non-null). Never `pieces = 2` with `pieceName = null`.
+
+Rationale for tightening: cross-model review found the original invariants allowed `gramsRange = [0, 0]` or `[250, 150]` (reversed), which would pass type validation but render nonsense copy at runtime. The positive-ordered-integer constraint catches CSV slips or data-entry errors at seed/response time.
 
 F085's existing `portionSizing` field on the response **remains present** for bot backwards-compatibility (see guarantee below). It is NOT deprecated in v1.
 
@@ -307,9 +333,30 @@ F085's existing `portionSizing` field on the response **remains present** for bo
 **`NutritionCard.tsx` (web)** — currently ignores `portionSizing` entirely. This ticket teaches it to read `portionAssumption`:
 
 - Renders a **new line** below the F-UX-A `PORCIÓN` pill (or below the nutrient grid if no F-UX-A pill is present)
+- When both F-UX-A pill and F-UX-B line are present, they MUST be siblings inside a single container `<section aria-labelledby="portion-heading">` so screen readers group them as one logical unit (post-review a11y requirement from Gemini)
 - Layout slot: `<div role="note" aria-label="...">…</div>`
-- `aria-label` format: `"aproximadamente N pieceName, G gramos"` (MUST contain "aproximadamente")
+- `aria-label` format: `"aproximadamente N pieceName, G gramos"` or (pieces=null variant) `"aproximadamente G gramos"` — MUST contain `"aproximadamente"` in **every** render path (per_dish+pieces, per_dish+null, generic)
 - Visual style: secondary text color, smaller than the nutrient numbers, icon optional (TBD by `ui-ux-designer`)
+
+**Copy templates — exact strings to render:**
+
+| `source` | `pieces` | Rendered text | Example |
+|---|---|---|---|
+| `per_dish` | non-null | `{Term} ≈ ~{pieces} {pieceName} (≈ {grams} g)` | `Tapa ≈ ~2 croquetas (≈ 50 g)` |
+| `per_dish` | null | `{Term} ≈ {grams} g` | `Ración ≈ 250 g` |
+| `generic` | (always null) | `{Term} estándar: {gramsMin}–{gramsMax} g (estimado genérico)` | `Tapa estándar: 50–80 g (estimado genérico)` |
+
+**`pieceName` is stored literally — no runtime pluralization.** Seed data stores the exact string that will appear in the piece slot — plural form by default (since most raciones and tapas contain > 1 piece, e.g., `croquetas`, `gambas`, `aceitunas`). For single-piece servings, the analyst stores the singular form in the seed CSV (e.g., `croqueta` for a 1-croqueta pincho). The render layer is literal: `~{pieces} {pieceName}` — no `s`-appending logic, no irregular lookups, no pluralization code. Analyst intent captured once, rendered as-is. This is a deliberate simplification called out in cross-model review.
+
+**Term label rendering (the `{Term}` prefix):** uses the user-typed variant from `portionAssumption.termDisplay` (see Q6). Capitalized first letter, rest lowercase. Fallback to canonical `term` if `termDisplay` is missing (edge case, should not happen in practice).
+
+**Accessibility requirements (UI — tighter post-review):**
+
+1. `aria-label` on the portion line MUST contain `"aproximadamente"` in every render path (tested via `getByLabelText(/aproximadamente/)`)
+2. **Focus order** — the portion line appears AFTER the F-UX-A PORCIÓN pill in DOM order. When both are present, they MUST be siblings inside a container `<section aria-labelledby="portion-heading">` (hidden-visually heading for screen reader grouping).
+3. **Keyboard** — the line is passive (`role="note"`), not focusable. Tab order skips it.
+4. **Contrast** — the secondary text color MUST meet WCAG AA contrast ratio (≥ 4.5:1) against the card background in both light and dark themes. `ui-ux-designer` agent specifies the exact token during plan phase.
+5. **Test** — Testing Library assertions: `getByRole('note')`, `getByLabelText(/aproximadamente/)`, and (deferred to follow-up if not blocking v1) an `axe-core` contrast check on the rendered card.
 
 **`estimateFormatter.ts` (bot)** — current emoji line `📏 Porción detectada: tapa (50–80 g)` is enhanced:
 
@@ -326,12 +373,93 @@ The 1198 existing bot tests MUST continue to pass **byte-identical** output for 
 
 Quality gate: `npm test -w @foodxplorer/bot` must report **exactly `Tests: 1198 passed`** before the final commit. Any delta → STOP, reassess scope, do not commit.
 
+### Seed CSV pipeline hardening (MANDATORY — added after cross-model review)
+
+Both Codex and Gemini flagged that "silently skip unreviewed rows" is a good analyst-workflow rule but a terrible error-handling rule. The offline seed script (per Q3) MUST distinguish between the two cases:
+
+1. **Header validation** — assert the exact set of required columns exists (`dishId`, `term`, `grams`, `pieces`, `pieceName`, `confidence`, `notes`, `reviewed_by`). A missing or typo'd column → **fail loudly** with the column diff; do NOT proceed.
+2. **Row-level type validation** — for every row:
+   - `dishId` parses to a positive integer
+   - `term` is one of `{pintxo, tapa, media_racion, racion}`
+   - `grams` is a positive integer (> 0)
+   - `pieces` is null OR a positive integer (≥ 1)
+   - `pieceName` is null iff `pieces` is null
+   - `confidence` is one of `{high, medium, low}`
+   - `reviewed_by` is null OR a non-empty string
+   - Any row that fails ANY of these → **fail loudly** with the row number and the failing field; do NOT proceed.
+3. **Uniqueness constraint** — `(dishId, term)` pairs must be unique across the CSV. Duplicates → **fail loudly** with both row numbers; do NOT proceed.
+4. **Review gate (the ONLY silent path)** — rows where `reviewed_by == null` but ALL other validation passes are silently skipped. At the end, log:
+   ```
+   Seeded N rows. Skipped M unreviewed rows (reviewed_by == null). 0 errors.
+   ```
+5. **Idempotency** — re-running the seed script against the same CSV must produce the same DB state. Implementation: upsert by `(dishId, term)` within a transaction, or truncate+reseed if the script is used in a reset-style workflow. ADR candidate.
+
+Rationale: silent skipping is correct for the analyst workflow (incremental review of a large CSV is normal), but silent corruption of structural errors would let a typo'd column header produce an empty seed with no visible failure. The combination of (a) silent review-gate + (b) loud structural errors is the behavior the user needs.
+
+### F042 × F-UX-B clamp-to-1 known intentional behavior (post-review note)
+
+Per Q2, when `Math.round(basePieces × multiplier) = 0`, the clamp forces `1`. Example: `multiplier = 0.25` + `basePieces = 1` → displays `~1 croqueta (≈ 12.5 g)`. Gemini flagged that this is nutritionally imprecise on a **per-piece basis** (implying "1 piece = 12.5 g", which distorts the food's true density). This is intentional and locked per user decision.
+
+**Mitigation in documentation:**
+- `docs/specs/api-spec.yaml` documents the clamp under `portionAssumption.pieces` description as **known intentional behavior**
+- A unit test asserts the clamp fires for `multiplier ≤ 0.49` on small piece counts
+- The F042 nutrient scaling (kcal, macros, grams) is NOT affected — it remains mathematically accurate. The "distortion" is only on the "1 piece" display denominator, which the copy discipline (`~` and `aproximadamente`) communicates as approximate anyway.
+
 ### Documentation deliverables (mandatory before merge)
 
 1. **`docs/user-manual-web.md`** — new section on portion-term assumptions (how the card shows tapa/ración assumptions, what the ≈ and ~ symbols mean, what "estimado genérico" means)
 2. **`docs/specs/api-spec.yaml`** — add `portionAssumption` to `EstimateData` with the `source: "per_dish" | "generic"` discriminator and every presence rule from `superRefine`
 3. **`docs/project_notes/key_facts.md`** — note that `StandardPortion` is now in use (was flagged existing-but-unused in the F-UX-B analysis) and document the 3-tier fallback chain
 4. **`docs/project_notes/decisions.md`** — evaluate whether the fallback strategy warrants an ADR. Likely yes — **ADR-020 candidate**: "Per-dish portion assumptions with graceful degradation to F085 generic ranges". Title/scope subject to cross-model review.
+
+---
+
+## Cross-model spec review — 2026-04-12
+
+Two independent reviews of the v1 spec (before the fixes above were applied):
+
+- **Codex** (`codex exec` gpt-5-codex, 226-line response) — read the ticket file directly
+- **Gemini** (`gemini-2.5-pro`, 39-line response) — could not read the file due to workspace restrictions (`.gemini/settings.json` points to the wrong workspace root + was invoked from `/tmp`), reviewed from the prompt context only
+
+Both reviews produced useful findings. Gemini's lack of file access reduced the specificity of its findings (no line-number citations), but the overlap with Codex on key concerns validated them as load-bearing.
+
+### Consensus (both models agree)
+
+| # | Finding | Codex | Gemini | Arbitrated action |
+|---|---|---|---|---|
+| C1 | Copy-test regex `/~\d+ \w+ \(≈ \d+ g\)/` applied to EVERY render path contradicts the bot regression guarantee (which mandates byte-identical today's `tapa (50–80 g)` string containing neither `~` nor `≈`) | M1 | M1 (framed as bot fragility) | **Fixed in Red-flag mitigation #3.** Split tests by `source` branch: regex applies ONLY to `per_dish` outputs; `generic` bot path uses exact-string byte-identity test against a frozen snapshot. |
+| C2 | Seed CSV `reviewed_by` gate is correct for review workflow but silent-skip of structural errors (missing headers, duplicate keys, malformed rows) would hide corruption | M2 | M1 | **Fixed in new Seed CSV pipeline hardening subsection.** Loud fail on headers/types/duplicates, silent skip only for valid rows with `reviewed_by == null`. |
+| C3 | `EstimateDataSchema.portionAssumption` `superRefine` invariants are too loose — allow `gramsRange = [0, 0]` or reversed `[250, 150]`, and do not fully tie `pieces`/`pieceName`/`pieces >= 1` | M2 | M1 | **Fixed in tightened `superRefine` invariants.** Positive integer constraints, ordered ranges, full `pieces`/`pieceName` pairing invariant, derived `grams` from `gramsRange` when `source === 'generic'`. |
+| C4 | Priority-30 dish list has only `gazpacho` and `salmorejo` tagged `(sin pieces)`. Several other dishes on the list (`ensaladilla`, `pulpo a la gallega`, `jamón`, `queso manchego`, `tortilla`, `pan con tomate`, `chorizo`, `morcilla`, `tostas`) are ambiguous for piece semantics | M2 | M2 | **Fixed with new Countable vs. gram-only classification subsection under Q1.** Three buckets: strong-countable (19 dishes), user-tagged sin pieces (2), analyst-decides-at-seed-time (9) with default `pieces = null` when in doubt. User can override per-row in the CSV during review. Verbatim list still locked. |
+| C5 | Verification Plan does not cover the `pieces === null` render path explicitly (web + bot) | — | M2 | **Fixed in Verification Plan.** Explicit tests for `per_dish` + `pieces != null`, `per_dish` + `pieces == null`, and `generic` paths on both web and bot. |
+| C6 | UI accessibility spec only mandates `aria-label` content ("aproximadamente"), silent on focus order, color contrast, screen reader grouping between F-UX-A pill and F-UX-B line | P2 | P2 | **Fixed in UI accessibility requirements subsection.** Focus order, `aria-labelledby` grouping container, WCAG AA contrast requirement (tokens TBD by `ui-ux-designer` in plan phase), passive `role="note"` keyboard rule, test assertions. |
+
+### Disagreements (arbitrated inline)
+
+| # | Codex position | Gemini position | My arbitration |
+|---|---|---|---|
+| D1 | Tier 2 fallback applies ONLY to `media ración` + `ración` row. Any `tapa`/`pintxo` query that misses Tier 1 falls through directly to Tier 3 generic. | Expand Tier 2 to derive `tapa = ración × 0.25` and `pincho = ración × 0.15` when only a `ración` row exists. | **Codex wins.** Gemini's proposal reintroduces the exact global ratios that the analysis-phase consensus explicitly rejected (Explore + Codex + Gemini all agreed in the analysis: "per-dish lookup, not global multipliers"). Expanding Tier 2 would produce false precision for dishes where the ratio varies wildly (croquetas tapa = 25% pieces but jamón tapa = 10% weight). **Decision recorded in the Tier 2 non-rule note** with a counter metric so we can observe whether missing rows produce enough generic fallbacks to justify seeding more, rather than inventing ratios. |
+
+### Codex-unique findings
+
+| # | Finding | Severity | Action |
+|---|---|---|---|
+| CX1 | Red-flag mitigation #5 ("low-confidence weakening") promises weaker copy for low-confidence rows, but Out-of-Scope explicitly defers that exact behavior to a follow-up → internal inconsistency | M3 | **Fixed.** Mitigation #5 rewritten to state the `confidence` field ships but is NOT used for copy in v1, and the weakening rule is explicitly deferred. OOS note updated to reinforce. |
+
+### Gemini-unique findings
+
+| # | Finding | Severity | Action |
+|---|---|---|---|
+| GX1 | `pieceName` is in the schema but the spec does not explicitly state it flows through to the UI render path as a literal (no pluralization) | M2 | **Fixed in UI surfacing copy templates.** Explicit statement that seed data stores the exact string to render, no runtime pluralization logic, analyst captures intent literally in the CSV. |
+| GX2 | Clamp-to-1 behavior (`multiplier = 0.25, basePieces = 1 → ~1 croqueta (≈ 12.5 g)`) is nutritionally imprecise on a per-piece basis and will trigger QA bug reports unless documented as intentional | P1 | **Fixed in new clamp-to-1 known intentional behavior subsection.** Documented in `api-spec.yaml` deliverable (plan-phase). Unit test asserts clamp fires. Note that F042 nutrient scaling is unaffected — the distortion is only in the display denominator. |
+| GX3 | Specific `aria-labelledby` grouping suggestion to tie F-UX-A pill and F-UX-B line together for screen readers | P2 | **Accepted into UI accessibility requirements.** Container is `<section aria-labelledby="portion-heading">` with a visually-hidden heading. |
+
+### Final verdict (both models)
+
+- **Codex:** `APPROVE WITH CHANGES — the contradictions around testing/mitigation and the missing validation rules need to be resolved before implementation proceeds.`
+- **Gemini:** `APPROVE WITH CHANGES (Requires schema invariants, strict seed data validation, and expanding the (sin pieces) dish list before implementation).`
+
+All findings addressed inline in the spec above (Red-flag mitigation, Q1 classification, Semantic model Tier 2 non-rule, API contract `superRefine`, UI surfacing + a11y, Seed CSV hardening, F042 × F-UX-B clamp note, Verification plan, OOS). Spec v2 is the result.
 
 ---
 
@@ -344,26 +472,53 @@ Quality gate: `npm test -w @foodxplorer/bot` must report **exactly `Tests: 1198 
 - **Regional variations** (Andalusian, Catalan, Basque, etc.) beyond the `pincho`/`pintxo` display duality
 - **Dishes outside the 30-item priority catalog** — fall back to F085 generic
 - **Base macros (protein/carbs/fat)** in the card for F-UX-A's base row — already deferred
-- **Weakening copy for low-confidence rows** — field exists and ships, visual degradation is a follow-up
+- **Weakening copy for low-confidence rows** — field exists and ships, visual degradation is a follow-up (explicitly NOT a v1 mitigation; red-flag mitigation list updated to reflect this after cross-model review)
+- **Automated WCAG contrast check** in the Testing Library suite — deferred to a follow-up axe-core integration; v1 relies on `ui-ux-designer`-specified tokens + manual spot-check
+- **Runtime pluralization** of `pieceName` — seed data captures the analyst-chosen form literally; no pluralization logic ships
+- **Expanded Tier 2 fallback** to derive `tapa`/`pintxo` from `ración` via global ratios — explicitly rejected on arbitration (Gemini proposal, Codex + consensus override)
+- **`portionSizing` field deprecation** from the API response — kept in v1 alongside the new `portionAssumption` field for bot backwards-compatibility; deprecation is a follow-up when bot migration is complete
 
 ---
 
 ## Verification plan
 
-**Automated (in the implementation plan)**
-- Shared schema superRefine invariants: unit tests covering all legal + illegal combinations
-- API orchestrator: integration test exercising each of the 3 fallback tiers
-- Web `NutritionCard`: Testing Library assertions on rendered text AND `aria-label` (must contain `aproximadamente`)
-- Bot formatter: new branch tested, existing branches regression-tested (1198 count invariant)
-- Copy discipline regex: `/~\d+ [a-záéíóúñ]+ \(≈ \d+ g\)/` matched in every render path test
-- Seed pipeline: unreviewed CSV rows are skipped, reviewed rows produce exactly one DB row each
+**Automated (in the implementation plan — updated post-cross-model review)**
+
+- **Shared schema `superRefine` invariants** — unit tests covering every legal + illegal combination called out in the tightened invariant list above (`per_dish` with null `gramsRange`, `generic` with `[0,0]` range → must fail, `generic` with `[250, 150]` reversed → must fail, `pieces=2` with `pieceName=null` → must fail, etc.)
+- **API orchestrator** — integration tests exercising each of the 3 fallback tiers:
+  - Tier 1: seeded dish + matching term → `source: "per_dish"` with populated fields
+  - Tier 2: seeded dish with only `ración` row + `media ración` query → derived response with `notes: "derived from ración ×0.5"`
+  - Tier 2 non-rule: seeded dish with only `ración` row + `tapa` query → falls through to Tier 3 (assert the generic fallback + counter metric increment)
+  - Tier 3: unseeded dish → `source: "generic"` with F085 global range
+- **Web `NutritionCard` — tests split by render path:**
+  - `per_dish` + `pieces != null` → rendered text matches `/~\d+ [a-záéíóúñ]+ \(≈ \d+ g\)/`, `aria-label` matches `/aproximadamente/`
+  - `per_dish` + `pieces == null` → rendered text matches `/≈ \d+ g/` AND must NOT contain `~`, `aria-label` matches `/aproximadamente/`
+  - `generic` → rendered text equals exactly `{Term} estándar: {N}–{M} g (estimado genérico)`, `aria-label` matches `/aproximadamente/`
+  - F-UX-A + F-UX-B combined → both elements are siblings inside a `<section aria-labelledby="portion-heading">` container
+- **Bot `estimateFormatter` — tests split by render path:**
+  - `per_dish` + `pieces != null` → matches `/~\d+ [a-záéíóúñ]+, ≈ \d+ g/` (note bot uses comma, not parentheses)
+  - `per_dish` + `pieces == null` → matches `/≈ \d+ g/`, no `~`
+  - **`generic` → exact string equality test against a frozen snapshot of today's F085 output** (bot regression guarantee — 1198 tests byte-identical invariant). A new test suite `bot/__tests__/f-ux-b.generic-byte-identity.test.ts` asserts that for every dish NOT in the priority-30 seed, the rendered string matches the pre-F-UX-B output character-for-character.
+- **Copy-discipline regex coverage** — the regex is applied ONLY in the `per_dish` branch tests. The `generic` branch tests use exact-string equality. The split is explicit (correction from the internally contradictory v1 of the spec).
+- **Seed pipeline tests:**
+  - Header validation: malformed CSV header → script exits with column-diff error
+  - Row validation: row with `dishId = "abc"`, `grams = -1`, or `pieceName` set with `pieces = null` → script exits with row number + field
+  - Uniqueness: duplicate `(dishId, term)` rows → script exits with both row numbers
+  - Review gate: rows with `reviewed_by == null` are silently skipped, counts logged
+  - Idempotency: re-run against the same CSV produces the same DB state
+- **F042 × F-UX-B composition tests:**
+  - `multiplier = 1.5`, `basePieces = 8` → `displayedPieces = 12` (happy path)
+  - `multiplier = 0.25`, `basePieces = 1` → clamp-to-1 fires, `displayedPieces = 1` (clamp test with explicit assertion message)
+  - `multiplier = 1.0`, `basePieces = 0` (edge: should never happen per schema invariants, but test anyway) → schema rejects
 
 **Manual post-merge (user action)**
-- `/hablar` query: "ración grande de croquetas" → card shows `PORCIÓN GRANDE` pill + `Ración ≈ 12 croquetas (≈ 360 g)` line
-- `/hablar` query: "tapa de croquetas" → card shows no F-UX-A pill + `Tapa ≈ 2 croquetas (≈ 50 g)` line
+- `/hablar` query: "ración grande de croquetas" → card shows `PORCIÓN GRANDE` pill + `Ración ≈ ~12 croquetas (≈ 360 g)` line inside the grouped section
+- `/hablar` query: "tapa de croquetas" → card shows no F-UX-A pill + `Tapa ≈ ~2 croquetas (≈ 50 g)` line
+- `/hablar` query: "media ración de gazpacho" → card shows `Media ración ≈ 125 g` (pieces=null path, Tier 2 arithmetic with `pieces` staying null)
+- `/hablar` query: "tapa de gazpacho" → Tier 1 hit if seeded, else Tier 3 generic `Tapa estándar: 50–80 g (estimado genérico)` (Tier 2 does NOT apply)
 - `/hablar` query: "tapa de manchego curado" (not in priority-30) → card shows `Tapa estándar: 50–80 g (estimado genérico)`
-- Bot Telegram: same 3 queries → verify bot rendering matches expectations
-- Screen reader smoke test (macOS VoiceOver): navigate to the portion line → verify "aproximadamente" is spoken
+- Bot Telegram: same 5 queries → verify bot rendering matches expectations (and generic path is byte-identical to today's output on at least one un-seeded dish)
+- Screen reader smoke test (macOS VoiceOver): navigate to the portion line → verify "aproximadamente" is spoken on all three render paths
 
 ---
 
@@ -381,4 +536,4 @@ Quality gate: `npm test -w @foodxplorer/bot` must report **exactly `Tests: 1198 
 
 ---
 
-*Analysis complete, Spec written 2026-04-12. Awaiting cross-model spec review next.*
+*Analysis complete 2026-04-12. Spec v1 written 2026-04-12 (commit `5eb5e84`). Cross-model spec review (Codex + Gemini) run 2026-04-12 with 7 consensus findings + 1 disagreement arbitrated. Spec v2 (this revision) addresses all M1/M2/M3 findings inline + documents P1/P2 and the D1 disagreement. Awaiting user approval before plan phase.*
