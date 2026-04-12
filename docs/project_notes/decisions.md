@@ -27,7 +27,7 @@ Rules for picking the canonical target dish:
 - Prefer dishes with `source: "bedca"` or another Tier 1 source so nutrients are backed by official data.
 - Prefer servings that match what a Spanish user would actually be asking about ("vino" → Copa de vino tinto, "cerveza" → Cerveza lata in tercio semantics).
 - When the user's own wording in the bug report provides a literal preference ("un tercio de cerveza"), honor it.
-- Each disambiguation alias is claimed by **exactly one** dish — enforced by invariant test in `packages/api/src/__tests__/bug-prod-003.disambiguation.test.ts`.
+- **Scope of the "exactly one owner" invariant:** the rule that a term is claimed by exactly one dish applies **only to the disambiguation list** (the terms added under this ADR). It is NOT a universal codebase rule — the existing dataset already tolerates multi-owner aliases like `"manzanilla"` (Infusión de manzanilla + Copa de fino) and `"arroz con verduras"` (Paella de verduras + Arroz con verduras y huevo). Those are pre-existing data collisions logged as follow-up work in `bugs.md`, not invariants this ADR tries to enforce retroactively. The invariant test in `packages/api/src/__tests__/bug-prod-003.disambiguation.test.ts` only guards the terms this ADR added (`vino`, `cerveza`), so adding a new canonical disambiguation here requires adding its per-term uniqueness assertion to that file.
 
 **Alternatives Considered:**
 - **Ranking tweak (add `ts_rank()` to ORDER BY):** broad regression surface across all short queries. Not warranted for a handful of terms. Rejected.

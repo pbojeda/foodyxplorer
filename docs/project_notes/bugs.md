@@ -35,6 +35,8 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Status**: Fixed — PR #(pending). Cross-model reviewed spec by Codex + Gemini before implementation.
 - **Feature**: BUG-PROD-003 | **Found by**: user report (pipeline Issue 3) | **Severity**: P1
 - **Follow-up backlog (deferred, new ticket):** audit the other single-token Spanish food terms flagged by Codex/Gemini and add canonical aliases where the current L1 top match is a specialty variant. Candidates: `pan`, `leche`, `manzana`, `arroz`, `cafe`, `chocolate`, `jamon`, `queso`, `tostada`, `pollo`, `pescado`, `marisco`, `refresco`, `zumo`, `cava`.
+- **Follow-up backlog (pre-existing alias collisions, discovered during BUG-PROD-003 QA):** `"manzanilla"` is claimed by both `Infusión de manzanilla` and `Copa de fino` in `spanish-dishes.json`; `"arroz con verduras"` is claimed by both `Paella de verduras` and `Arroz con verduras y huevo`. Not touched in BUG-PROD-003 (scope discipline) but should be deduplicated in a follow-up PR since they produce non-deterministic L1 results for those queries.
+- **Note on Cerveza lata alcohol value (not a bug):** the `alcohol: 11.6` field on `Cerveza lata` in `spanish-dishes.json` uses `per_serving` basis (set by `packages/api/src/scripts/seedPhaseSpanishDishes.ts` when importing Spanish dish data). 11.6 g of ethanol in a 330 ml serving ≈ 3.52 g/100ml ≈ **4.4 % ABV**, which is within the normal range for a Spanish lager. Do not flag this as a data error in future reviews — the unit is grams per serving, not percent ABV. (Caught during BUG-PROD-003 code review; clarified by QA.)
 
 ### 2026-04-12 — BUG-PROD-002: Mobile photo button forces camera, no gallery option
 
