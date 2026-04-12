@@ -1,5 +1,6 @@
 // @foodxplorer/shared — Single source of truth for Zod schemas and derived types
 
+export * from './portion';
 export * from './schemas/enums';
 export * from './schemas/dataSource';
 export * from './schemas/food';

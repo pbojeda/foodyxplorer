@@ -238,6 +238,8 @@ Ejemplo: platos con menos de 300 calorías y más de 20g de proteína
 | GIF, BMP, TIFF | No |
 | PDF | No |
 
+**Modificadores de tamaño en tu consulta (F-UX-A):** si escribes "ración grande de paella", "paella pequeña", "croquetas doble", etc., la tarjeta mostrará una etiqueta amarilla (`PORCIÓN GRANDE`, `PORCIÓN MEDIA`, `×2.5`, …) debajo del nombre y un subtítulo `base: N kcal` bajo las calorías principales para que veas de un vistazo cuánto se ha escalado respecto a la ración normal. Los modificadores reconocidos son: `media`, `pequeña`, `mini`, `grande`, `xl`, `doble`, `triple`, `ración doble`, `media ración`, `extra grande`.
+
 ### Límite de tamaño
 
 **Máximo 10 MB por foto.** Si la foto es más grande, verás un error: "La foto es demasiado grande. Máximo 10 MB."

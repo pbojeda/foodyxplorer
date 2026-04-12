@@ -1,6 +1,7 @@
 // Formatter: two EstimateData → side-by-side MarkdownV2 comparison card.
 
 import type { EstimateData, EstimateNutrients } from '@foodxplorer/shared';
+import { formatPortionLabel } from '@foodxplorer/shared';
 import { escapeMarkdown } from './markdownUtils.js';
 import { formatEstimate } from './estimateFormatter.js';
 
@@ -12,14 +13,6 @@ const CONFIDENCE_MAP: Record<string, string> = {
   high: 'alta',
   medium: 'media',
   low: 'baja',
-};
-
-const PORTION_LABEL_MAP: Record<number, string> = {
-  0.5: 'media',
-  0.7: 'pequeña',
-  1.5: 'grande',
-  2.0: 'doble',
-  3.0: 'triple',
 };
 
 // ES → EN nutrient focus mapping.
@@ -214,12 +207,13 @@ export function formatComparison(
   }
 
   // Portion multiplier lines.
+  // F-UX-A: label sourced from @foodxplorer/shared formatPortionLabel helper.
   if (dataA.portionMultiplier !== 1.0) {
-    const label = PORTION_LABEL_MAP[dataA.portionMultiplier] ?? `×${dataA.portionMultiplier}`;
+    const label = formatPortionLabel(dataA.portionMultiplier);
     lines.push(`_Porción ${escapeMarkdown(nameA)}: ${escapeMarkdown(label)} \\(x${escapeMarkdown(String(dataA.portionMultiplier))}\\)_`);
   }
   if (dataB.portionMultiplier !== 1.0) {
-    const label = PORTION_LABEL_MAP[dataB.portionMultiplier] ?? `×${dataB.portionMultiplier}`;
+    const label = formatPortionLabel(dataB.portionMultiplier);
     lines.push(`_Porción ${escapeMarkdown(nameB)}: ${escapeMarkdown(label)} \\(x${escapeMarkdown(String(dataB.portionMultiplier))}\\)_`);
   }
 
