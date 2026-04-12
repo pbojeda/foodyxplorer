@@ -17,6 +17,19 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-04-12 — BUG-PROD-002: Mobile photo button forces camera, no gallery option
+
+- **Severity**: P2 (UX) | **Area**: packages/web / PhotoButton
+- **Issue**: On mobile, tapping the photo button at `/hablar` opened the native camera directly with no way to choose an existing photo from the gallery. The user manual §6 stated "En móvil: puedes elegir entre la cámara o la galería" but the actual UX forced the camera — the manual was aspirational, not factual.
+- **Root Cause**: `packages/web/src/components/PhotoButton.tsx:67` set `capture="environment"` on the hidden `<input type="file">`. On iOS Safari and Android Chrome, this attribute forces the browser to open the native camera app and bypass the default "Take Photo / Photo Library / Browse" action sheet. On iOS there is no in-camera "go to gallery" button, so the user has no way to reach existing photos short of cancelling and starting over.
+- **Solution**: Removed the `capture="environment"` attribute. With just `accept="image/jpeg,image/png,image/webp"` the browsers fall back to the native chooser: iOS shows "Tomar foto o vídeo / Foto de la fototeca / Seleccionar archivos"; Android shows "Cámara / Galería / Archivos". Desktop behavior is unchanged because `capture` is ignored on non-mobile browsers per the HTML spec.
+- **Prevention**:
+  - Any `capture=` attribute on a file input must be paired with a documented UX decision — it is a strong hint that *hides* the gallery option, not a helpful default.
+  - When a user manual describes "choose between camera and gallery", verify that the underlying input does NOT set `capture=`. Add an ESLint/test invariant if this keeps regressing.
+  - Test at the attribute level — the previous test (`expect(input).toHaveAttribute('capture', 'environment')`) locked in the *wrong* behavior. The new test asserts the attribute is absent.
+- **Status**: Fixed — PR #(pending). Simple ticket, one-line removal + test inversion.
+- **Feature**: BUG-PROD-002 | **Found by**: user report (pipeline Issue 2) | **Severity**: P2
+
 ### 2026-04-12 — BUG-PROD-001: Mobile photo upload always errors
 
 - **Severity**: P0 (Critical) | **Area**: packages/web / `/hablar` photo flow

@@ -62,10 +62,15 @@ describe('PhotoButton (active — F092)', () => {
     expect(input).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
   });
 
-  it('renders a hidden file input with capture="environment"', () => {
+  it('BUG-PROD-002: does NOT set capture="environment" so mobile browsers offer camera + gallery chooser', () => {
+    // With `capture="environment"`, iOS Safari and Android Chrome force open
+    // the native camera and hide the "Photo Library" option — users cannot
+    // pick an existing photo. Removing the attribute restores the default
+    // browser action sheet (Take Photo / Photo Library / Browse). Desktop
+    // ignores the attribute either way, so this is mobile-only behavior.
     render(<PhotoButton onFileSelect={jest.fn()} />);
     const input = document.querySelector('input[type="file"]');
-    expect(input).toHaveAttribute('capture', 'environment');
+    expect(input).not.toHaveAttribute('capture');
   });
 
   // ---------------------------------------------------------------------------
