@@ -1,7 +1,7 @@
 # BUG-PROD-004: `deploy-web` workflow is redundant with Vercel GitHub App
 
 **Feature:** BUG-PROD-004 | **Type:** CI/Infra-Cleanup | **Priority:** P2 (noise, not a blocker)
-**Status:** In Progress | **Branch:** bug/BUG-PROD-004-deploy-web-vercel-project-id
+**Status:** Ready for Merge | **Branch:** bug/BUG-PROD-004-deploy-web-vercel-project-id
 **Created:** 2026-04-12 | **Dependencies:** None
 
 ---
@@ -92,33 +92,33 @@ The first two commits are preserved as the investigation trail until squash-merg
 
 ## Acceptance Criteria
 
-- [ ] `.github/workflows/deploy-web.yml` is deleted
-- [ ] No other workflow files are touched (`ci.yml`, `deploy-landing.yml` untouched)
-- [ ] `key_facts.md` CI/CD list no longer mentions `deploy-web.yml`
-- [ ] `bugs.md` has the full reframed root cause + lesson learned
-- [ ] `product-tracker.md` Active Session reflects the pivot
-- [ ] `ci-success` rollup check is green on PR #111
-- [ ] `Vercel` check (GitHub App) is green on PR #111 and posts a preview URL comment
-- [ ] `deploy-preview` / `deploy-production` checks do not appear on PR #111 (workflow deleted)
+- [x] `.github/workflows/deploy-web.yml` is deleted
+- [x] No other workflow files are touched (`ci.yml`, `deploy-landing.yml` untouched)
+- [x] `key_facts.md` CI/CD list no longer mentions `deploy-web.yml`
+- [x] `bugs.md` has the full reframed root cause + lesson learned
+- [x] `product-tracker.md` Active Session reflects the pivot
+- [x] `ci-success` rollup check is green on PR #111
+- [x] `Vercel` check (GitHub App) is green on PR #111 and posts a preview URL comment
+- [x] `deploy-preview` / `deploy-production` checks do not appear on PR #111 (workflow deleted)
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] `ci-success` rollup check green on the PR
-- [ ] Tracker + bugs.md + key_facts.md updated
-- [ ] Follow-up tasks logged: `deploy-landing.yml` cleanup ticket; Vercel production branch investigation
+- [x] All acceptance criteria met
+- [x] `ci-success` rollup check green on the PR
+- [x] Tracker + bugs.md + key_facts.md updated
+- [x] Follow-up tasks logged: `deploy-landing.yml` cleanup ticket (task #7); Vercel production branch investigation (task #8)
 - [ ] Manual post-merge: user confirms the Vercel GitHub App still posts preview URL comments on future PRs (user action, not a gate)
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 3: Implementation (Simple — skip Steps 0/2)
-- [ ] Step 4: Quality gates (CI run is the gate — no local tests apply)
-- [ ] Step 5: code-review-specialist (Simple: qa-engineer optional, recommended for infra — will run)
+- [x] Step 1: Branch created, ticket generated, tracker updated
+- [x] Step 3: Implementation (Simple — skip Steps 0/2)
+- [x] Step 4: Quality gates (CI run is the gate — no local tests apply)
+- [x] Step 5: code-review-specialist (Simple tier; qa-engineer skipped — no code paths touched, only workflow deletion + docs)
 - [ ] Step 6: Ticket finalized, branch deleted, tracker updated (post-merge)
 
 ---
@@ -140,14 +140,14 @@ The first two commits are preserved as the investigation trail until squash-merg
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | (pending) |
-| 1. Mark all items | [ ] | (pending) |
-| 2. Verify product tracker | [ ] | (pending) |
-| 3. Update key_facts.md | [ ] | (pending) |
-| 4. Update decisions.md | [ ] | (pending) |
-| 5. Commit documentation | [ ] | (pending) |
-| 6. Verify clean working tree | [ ] | (pending) |
-| 7. Verify branch up to date | [ ] | (pending) |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan (with investigation history), AC, DoD, Workflow Checklist, Completion Log, Merge Checklist Evidence. Simple tier — no separate Plan phase. |
+| 1. Mark all items | [x] | Status → `Ready for Merge`. AC: 8/8. DoD: 4/5 (manual post-merge UX verification is user action). Workflow: Steps 1, 3, 4, 5 checked; Step 6 post-merge. |
+| 2. Verify product tracker | [x] | Active Session reflects the pivot at `docs/project_notes/product-tracker.md:13`. Pipeline Issue 4 row updated at line 25. |
+| 3. Update key_facts.md | [x] | `Infrastructure` section updated: removed `deploy-web.yml` from CI/CD list, added note that the Vercel GitHub App handles web deploys, explicitly flagged `deploy-landing.yml` as pending cleanup and `vars.VERCEL_PROJECT_ID` as retained-but-unused. |
+| 4. Update decisions.md | [x] | N/A — this cleanup documents a lesson (don't duplicate Vercel GH App), not an architecture decision. Logged in `bugs.md` prevention section instead. |
+| 5. Commit documentation | [x] | All docs committed with the workflow deletion in commit `c3312b2`. No separate docs commit needed (Simple tier). |
+| 6. Verify clean working tree | [x] | `git status` on branch: clean, no untracked/unstaged files (verified post-review). |
+| 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` → exit 0. Feature branch already contains all develop commits; no merge needed. |
 
 ---
 
