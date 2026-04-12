@@ -4983,7 +4983,8 @@
       "name": "Copa de vino tinto",
       "nameEs": "Copa de vino tinto",
       "aliases": [
-        "vino tinto"
+        "vino tinto",
+        "vino"
       ],
       "category": "bebidas",
       "portionGrams": 150,
@@ -5515,7 +5516,8 @@
       "name": "Cerveza lata",
       "nameEs": "Cerveza lata",
       "aliases": [
-        "tercio"
+        "tercio",
+        "cerveza"
       ],
       "category": "bebidas",
       "portionGrams": 330,
