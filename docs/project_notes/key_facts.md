@@ -58,11 +58,11 @@ Quick reference for project configuration, infrastructure details, and important
 
 ## Infrastructure
 
-- **CI/CD**: GitHub Actions (`ci.yml` with path-filtered jobs per package + `deploy-landing.yml` + `deploy-web.yml`)
+- **CI/CD**: GitHub Actions (`ci.yml` with path-filtered jobs per package + `deploy-landing.yml`). **Web package is deployed by the Vercel GitHub App (native integration), NOT by a custom GH Actions workflow** — `deploy-web.yml` was deleted in BUG-PROD-004 as redundant with the Vercel GitHub App, which was already deploying previews successfully on Vercel's own infrastructure. `deploy-landing.yml` is slated for the same cleanup in a follow-up ticket.
 - **CI jobs**: test-shared, test-api, test-bot, test-scraper, test-landing, test-web (dorny/paths-filter, shared changes trigger all dependent jobs)
 - **Hosting (API, early stage)**: Railway or Render (staging: develop, prod: main)
-- **Hosting (Landing)**: Vercel (auto-deploy: preview on PR, production on push to main)
-- **Hosting (Web)**: Vercel (auto-deploy: preview on PR, production on push to main). Separate project from landing. Secret: `VERCEL_PROJECT_ID_WEB`
+- **Hosting (Landing)**: Vercel (auto-deploy via Vercel GitHub App + custom `deploy-landing.yml` workflow pending cleanup)
+- **Hosting (Web)**: Vercel (deploy via Vercel GitHub App — preview on PR, production on push to main branch configured in Vercel project settings). Separate Vercel project from landing. `vars.VERCEL_PROJECT_ID` is kept on the `preview-web` / `production-web` GitHub environments but is unused after BUG-PROD-004.
 - **Landing domain**: nutrixplorer.com (Vercel, configured 2026-03-27)
 - **Error Tracking**: Sentry (free plan)
 - **Uptime**: UptimeRobot or Better Uptime (free plan)
