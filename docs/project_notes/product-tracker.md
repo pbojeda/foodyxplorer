@@ -8,11 +8,20 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-11
+**Last Updated:** 2026-04-12
 
-**Active Feature:** No active work
-**PM Session:** None active
-**Last Completed:** F094 — Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud. PR #93 squash-merged to develop (00f27f5). Recommendation: Option 12 (provisional — user must confirm before F091).
+**Active Feature:** BUG-PROD-001 — Mobile photo upload always errors (P0). Step 5/6 (Review). PR #103 open. Branch `bug/BUG-PROD-001-mobile-camera-error`. Standard complexity. Root cause: Vercel 4.5 MB Serverless Function body limit exceeded by mobile photos + error envelope mismatch in proxy route + missing upstream timeout. Fix: client-side image downscaling (canvas, 1600 px long edge, JPEG q0.82) + envelope normalization + `AbortSignal.timeout(65s)` + resize telemetry. 33 suites / 345 tests green. Review hardening done (H1/H2/P1/P2). Pending: merge checklist + /audit-merge + manual mobile verification post-merge.
+**PM Session:** None active (L5 single-ticket execution on 7 issues pipeline)
+**Last Completed:** QA-WEB-001 — exhaustive web testing (62 new tests, 13 bugs documented). PR #99 + PR #102 merged.
+
+**Pipeline — 7 production issues (2026-04-12):**
+1. Issue 1 — BUG-PROD-001 mobile camera error — **IN PROGRESS** (Step 5/6, PR #103 open)
+2. Issue 2 — BUG-PROD-002 mobile gallery picker — pending
+3. Issue 3 — BUG-PROD-003 vino/vinagre disambiguation — pending
+4. F-UX-A — size modifier display (grande/pequeña) — pending
+5. F-UX-B — spanish portion terms (pincho/tapa/ración) — pending, starts with deep cross-model analysis
+6. Issue 4 — BUG-PROD-004 deploy-web GitHub Actions — pending
+7. Issue 5 — BUG-PROD-005 Render excess minutes — pending (Blueprint not applied; services created manually, no buildFilter)
 
 **Phase B Audit Summary (2026-04-07 to 2026-04-08):**
 - Punto 1: Manuals updated (bot §20-23, API §20-21) ✓

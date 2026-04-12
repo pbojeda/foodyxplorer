@@ -17,6 +17,30 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-04-12 — BUG-PROD-001: Mobile photo upload always errors
+
+- **Severity**: P0 (Critical) | **Area**: packages/web / `/hablar` photo flow
+- **Issue**: On mobile, tapping the photo button, taking a photo, and tapping submit *always* resulted in a generic error. 100% reproducible on phone; desktop unverified but CI passing. Core `/hablar` feature completely non-functional for mobile users.
+- **Root Cause (primary)**: **Vercel Serverless Function platform body limit (~4.5 MB)** on the Node runtime. The `/api/analyze` Next.js Route Handler streams the multipart body upstream, but the platform layer rejects request bodies above ~4.5 MB *before* the function executes. Mobile camera photos are routinely 3–8 MB, so the rejection was deterministic. Both the client (`MAX_FILE_SIZE = 10 MB`) and the Fastify backend (`fastifyMultipart { fileSize: 10 MB }`) agreed on a 10 MB ceiling, masking the infrastructure ceiling. No test exercised real multipart bodies at the route handler level (all tests mocked `fetch`).
+- **Root Cause (compounding)**:
+  1. `route.ts:19` returned `{ error: 'CONFIG_ERROR' }` as a flat string, while `apiClient.ts` parsed `error.code` from an object — any proxy-level failure surfaced to the UI as a generic `API_ERROR` with no diagnostic code (this was already logged as BUG-QA-003).
+  2. Upstream `fetch()` had no `AbortSignal.timeout`, so backend hangs would stall until the Vercel function timeout fired with a non-JSON gateway response.
+  3. Vercel platform 413 returned an HTML body, making `response.json()` throw → client surfaced it as `PARSE_ERROR` → "formato inesperado" instead of the size-specific message.
+- **Solution**: Three-layer fix, all confined to `packages/web/`:
+  1. **Client-side canvas downscale** (`packages/web/src/lib/imageResize.ts`): `resizeImageForUpload(file)` caps the longest edge at 1600 px and re-encodes as JPEG q0.82, targeting 0.3–1.5 MB output. Small files (< 1.5 MB) pass through unchanged. Graceful fallback on any error (missing APIs, decode failure, zero-byte blob, re-encoded blob not smaller, `getContext` returning null). Wired into `HablarShell.executePhotoAnalysis`.
+  2. **Error envelope normalization** (`route.ts`): `CONFIG_ERROR`, `UPSTREAM_UNAVAILABLE`, and new `UPSTREAM_TIMEOUT` all emit `{ error: { code, message } }`. Resolves BUG-QA-003.
+  3. **Upstream timeout**: `AbortSignal.timeout(65_000)` on the upstream `Request`, matching the hard client timeout. `DOMException TimeoutError` → 504 `UPSTREAM_TIMEOUT`.
+  4. **413 non-JSON mapping** (`apiClient.ts`): `sendPhotoAnalysis` detects `status === 413` inside the JSON-parse catch and throws `PAYLOAD_TOO_LARGE` instead of `PARSE_ERROR`, so HablarShell's existing `PAYLOAD_TOO_LARGE` branch shows the size-specific message.
+  5. **Resize telemetry**: emits `photo_resize_ok` (success) and `photo_resize_fallback` (large file came back unchanged → silent fallback path). Gives a production signal for whether the fix is working.
+- **Prevention**:
+  - **Test real body sizes at the route handler boundary**, not just mocked fetch. Add an integration test that streams a multi-MB body through `/api/analyze` in CI.
+  - When introducing a client-side size limit, **compare against the tightest infrastructure limit in the request path**, not just the backend limit. Vercel's 4.5 MB platform body cap was the real ceiling here; both client and backend had 10 MB and looked internally consistent.
+  - **Error envelope shape must be a shared contract.** Consider a codegen or shared Zod schema so the proxy route and client parser cannot drift.
+  - **Every silent-fallback code path needs telemetry.** The resize util now emits `photo_resize_fallback` so we have a production signal, and we can alert on it.
+- **Status**: Fixed — PR #103 (squash merge to develop pending merge checklist). Test count: 33 suites / 345 tests (13 net new). Commits: `e42c102` (primary fix) + `01217fe` (review hardening).
+- **Feature**: BUG-PROD-001 | **Found by**: user report | **Severity**: P0
+- **Related bugs resolved**: BUG-QA-003 (CONFIG_ERROR envelope shape) is now fixed as a side effect of the envelope normalization.
+
 ### 2026-03-10 — BUG-01: Missing CHECK constraint on standard_portions.portion_grams
 
 - **Issue**: DB accepted `portion_grams = 0` and `portion_grams = -50` via raw SQL inserts. The Zod schema enforced `z.number().positive()` at the API layer, but the DB had no CHECK constraint. Any direct DB access (migrations, admin tools, raw SQL) could persist invalid portion sizes.

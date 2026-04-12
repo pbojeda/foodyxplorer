@@ -242,6 +242,8 @@ Ejemplo: platos con menos de 300 calorías y más de 20g de proteína
 
 **Máximo 10 MB por foto.** Si la foto es más grande, verás un error: "La foto es demasiado grande. Máximo 10 MB."
 
+**Optimización automática antes de subir:** desde 2026-04-12, las fotos de más de 1,5 MB se reescalan en el navegador antes de enviarlas (lado más largo ≤ 1600 px, JPEG calidad ~82). Esto asegura que fotos de móviles modernos (que pueden rondar los 4–8 MB) se queden holgadamente por debajo del límite de la infraestructura que hospeda la web. Las fotos pequeñas se envían sin modificar. Si tu navegador no soporta el reescalado, se envía el archivo original.
+
 ### Tiempo de procesamiento
 
 El análisis de fotos tarda más que una consulta de texto porque interviene un modelo de visión artificial. Normalmente tarda entre 5 y 15 segundos. El límite máximo de espera es de **65 segundos**.

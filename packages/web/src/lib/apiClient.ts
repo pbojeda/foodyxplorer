@@ -221,6 +221,16 @@ export async function sendPhotoAnalysis(
   try {
     json = await response.json();
   } catch {
+    // BUG-PROD-001: Vercel's own platform 413 returns an HTML body, not JSON.
+    // Detect the status before falling back to a generic PARSE_ERROR so the
+    // UI can surface the size-specific message instead of "formato inesperado".
+    if (response.status === 413) {
+      throw new ApiError(
+        'La foto es demasiado grande para subir.',
+        'PAYLOAD_TOO_LARGE',
+        413,
+      );
+    }
     throw new ApiError('La respuesta del servidor no es JSON válido.', 'PARSE_ERROR', response.status);
   }
 

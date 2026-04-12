@@ -78,11 +78,12 @@ describe('QA-WEB-001 route handler gaps', () => {
     }
   });
 
-  it('documents BUG-QA-003: CONFIG_ERROR body is { error: "CONFIG_ERROR" } string, not structured', async () => {
-    // Documents BUG-QA-003 — current behavior; update when structured error is implemented.
-    // route.ts:19 returns { error: 'CONFIG_ERROR' } (string value).
-    // apiClient.ts:136 expects { error: { code, message } } (object value).
-    // The mismatch means the client gets code: 'API_ERROR' instead of 'CONFIG_ERROR'.
+  it('BUG-QA-003 resolved: CONFIG_ERROR body is structured { error: { code, message } }', async () => {
+    // BUG-QA-003 — was: route.ts:19 returned { error: 'CONFIG_ERROR' } (string),
+    // while apiClient expected { error: { code, message } } (object). Fixed in
+    // BUG-PROD-001 as part of the envelope normalization for the mobile camera
+    // bugfix. This test now asserts the structured shape so the client parser
+    // can surface the specific code to the UI and metrics.
     delete process.env['API_KEY'];
     const { POST } = await import('../../app/api/analyze/route');
 
@@ -90,14 +91,17 @@ describe('QA-WEB-001 route handler gaps', () => {
 
     expect(response.status).toBe(500);
     const body = await response.json();
-    // Current (broken) behavior: error value is a string, not an object
-    expect(body).toEqual({ error: 'CONFIG_ERROR' });
-    // Confirm it is NOT the structured format that apiClient expects
-    expect(typeof body.error).toBe('string');
-    expect(body.error).not.toHaveProperty('code');
+    expect(body).toEqual({
+      error: {
+        code: 'CONFIG_ERROR',
+        message: expect.any(String),
+      },
+    });
+    expect(typeof body.error).toBe('object');
+    expect(body.error).toHaveProperty('code', 'CONFIG_ERROR');
   });
 
-  it('returns 500 CONFIG_ERROR when NEXT_PUBLIC_API_URL is missing', async () => {
+  it('returns structured CONFIG_ERROR envelope when NEXT_PUBLIC_API_URL is missing', async () => {
     delete process.env['NEXT_PUBLIC_API_URL'];
     const { POST } = await import('../../app/api/analyze/route');
 
@@ -105,7 +109,12 @@ describe('QA-WEB-001 route handler gaps', () => {
 
     expect(response.status).toBe(500);
     const body = await response.json();
-    expect(body).toEqual({ error: 'CONFIG_ERROR' });
+    expect(body).toEqual({
+      error: {
+        code: 'CONFIG_ERROR',
+        message: expect.any(String),
+      },
+    });
   });
 
   it('sends upstream request to a URL ending in /analyze/menu', async () => {
@@ -120,7 +129,7 @@ describe('QA-WEB-001 route handler gaps', () => {
     expect(upstreamRequest.url).toBe('http://localhost:3001/analyze/menu');
   });
 
-  it('returns 502 when upstream fetch throws TypeError (unreachable server)', async () => {
+  it('returns 502 with structured UPSTREAM_UNAVAILABLE when upstream fetch throws TypeError', async () => {
     global.fetch = jest.fn().mockRejectedValue(new TypeError('Failed to fetch'));
     const { POST } = await import('../../app/api/analyze/route');
 
@@ -128,7 +137,12 @@ describe('QA-WEB-001 route handler gaps', () => {
 
     expect(response.status).toBe(502);
     const body = await response.json();
-    expect(body).toEqual({ error: 'UPSTREAM_UNAVAILABLE' });
+    expect(body).toEqual({
+      error: {
+        code: 'UPSTREAM_UNAVAILABLE',
+        message: expect.any(String),
+      },
+    });
   });
 
   it('forwards Content-Type header (with multipart boundary) to upstream', async () => {
