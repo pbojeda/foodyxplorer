@@ -4,6 +4,7 @@
 // Pure presentational — no 'use client' needed.
 
 import type { EstimateData, ReverseSearchResult } from '@foodxplorer/shared';
+import { formatPortionLabel } from '@foodxplorer/shared';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { AllergenChip } from './AllergenChip';
 
@@ -71,19 +72,52 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
   const fats = Math.round(result.nutrients.fats);
   const hasAllergens = Array.isArray(allergens) && allergens.length > 0;
 
+  // F-UX-A — Portion modifier display
+  const portionMultiplier = estimateData.portionMultiplier;
+  const hasModifier = portionMultiplier !== 1.0;
+  const portionLabel = hasModifier ? formatPortionLabel(portionMultiplier) : '';
+  const pillLabel = hasModifier
+    ? portionLabel.startsWith('×')
+      ? portionLabel // unmapped fallback — show the raw multiplier
+      : `PORCIÓN ${portionLabel.toUpperCase()}`
+    : '';
+  const baseCalories =
+    hasModifier && estimateData.baseNutrients !== undefined
+      ? Math.round(estimateData.baseNutrients.calories)
+      : null;
+
+  const ariaLabel = hasModifier
+    ? baseCalories !== null
+      ? `${displayName}: ${kcal} calorías (${portionLabel}, base ${baseCalories})`
+      : `${displayName}: ${kcal} calorías (${portionLabel})`
+    : `${displayName}: ${kcal} calorías`;
+
   return (
     <article
       className="card-enter overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-soft md:p-5"
-      aria-label={`${displayName}: ${kcal} calorías`}
+      aria-label={ariaLabel}
     >
       <header className="flex items-start justify-between gap-3">
         <h2 className="text-lg font-bold text-slate-800">{displayName}</h2>
         <ConfidenceBadge level={result.confidenceLevel} />
       </header>
 
+      {hasModifier && (
+        <p className="mt-1.5" aria-hidden="true">
+          <span className="inline-block rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+            {pillLabel}
+          </span>
+        </p>
+      )}
+
       <div className="mt-3">
         <span className="text-[28px] font-extrabold leading-none text-brand-orange">{kcal}</span>
         <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">KCAL</p>
+        {baseCalories !== null && (
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            base: {baseCalories} kcal
+          </p>
+        )}
       </div>
 
       <div className="mt-3 flex gap-4">

@@ -226,6 +226,44 @@ export const EstimateDataSchema = z.object({
   uncertaintyRange: UncertaintyRangeSchema.optional(),
   /** F085 — Detected Spanish portion term with standard gram range. */
   portionSizing: PortionSizingSchema.optional(),
+  /**
+   * F-UX-A — Pre-multiplier nutrient row, only present when `portionMultiplier !== 1.0`.
+   * When present, `basePortionGrams` MUST also be present. The frontend renders
+   * a `base: {N} kcal` subtitle under the scaled calorie number so users can
+   * see both the normal serving and the estimation used for the calculation.
+   * Absence of this field means `portionMultiplier === 1.0` (no modifier).
+   */
+  baseNutrients: EstimateNutrientsSchema.optional(),
+  /**
+   * F-UX-A — Pre-multiplier portion grams, paired with `baseNutrients`. Same
+   * presence rule: both appear together when `portionMultiplier !== 1.0`,
+   * both absent when the multiplier is 1.0.
+   */
+  basePortionGrams: z.number().positive().nullable().optional(),
+}).superRefine((data, ctx) => {
+  // F-UX-A invariant: `baseNutrients` and `basePortionGrams` must either
+  // both be present or both be absent. They are a pair — callers never
+  // need one without the other.
+  const hasBase = data.baseNutrients !== undefined;
+  const hasGrams = data.basePortionGrams !== undefined;
+  if (hasBase !== hasGrams) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        'F-UX-A invariant: baseNutrients and basePortionGrams must both be present or both be absent',
+      path: ['baseNutrients'],
+    });
+  }
+  // And both are only meaningful when portionMultiplier !== 1.0 — if the
+  // multiplier is 1.0 the base equals the scaled value so there is no point.
+  if (hasBase && data.portionMultiplier === 1.0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        'F-UX-A invariant: baseNutrients is only allowed when portionMultiplier !== 1.0',
+      path: ['baseNutrients'],
+    });
+  }
 });
 
 export type EstimateData = z.infer<typeof EstimateDataSchema>;

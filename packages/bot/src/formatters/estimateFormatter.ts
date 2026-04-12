@@ -1,6 +1,7 @@
 // Formatter: EstimateData → MarkdownV2 string.
 
 import type { EstimateData } from '@foodxplorer/shared';
+import { formatPortionLabel } from '@foodxplorer/shared';
 import { escapeMarkdown, formatNutrient } from './markdownUtils.js';
 
 /** Format a numeric diff with explicit sign: "+5" or "-10" */
@@ -12,14 +13,6 @@ const CONFIDENCE_MAP: Record<string, string> = {
   high: 'alta',
   medium: 'media',
   low: 'baja',
-};
-
-const PORTION_LABEL_MAP: Record<number, string> = {
-  0.5: 'media',
-  0.7: 'pequeña',
-  1.5: 'grande',
-  2.0: 'doble',
-  3.0: 'triple',
 };
 
 /**
@@ -43,8 +36,15 @@ export function formatEstimate(data: EstimateData): string {
 
   // Portion modifier line — shown only when multiplier !== 1.0
   if (data.portionMultiplier !== 1.0) {
-    const label = PORTION_LABEL_MAP[data.portionMultiplier]
-      ?? `×${data.portionMultiplier}`;
+    // F-UX-A: canonical label now sourced from @foodxplorer/shared so the
+    // bot, API, and web all agree on the same Spanish vocabulary. The `×N`
+    // fallback for unmapped multipliers is also handled by the helper —
+    // but strip the leading "×" here because the legacy bot output format
+    // renders the raw multiplier separately in the "(x1.5)" trailing group.
+    const helperLabel = formatPortionLabel(data.portionMultiplier);
+    const label = helperLabel.startsWith('×')
+      ? helperLabel // unmapped → use the "×N" form directly, keep legacy shape
+      : helperLabel; // mapped word ("grande", "media", …)
     const portionLine = result.portionGrams !== null
       ? `Porción: ${escapeMarkdown(label)} \\(x${escapeMarkdown(String(data.portionMultiplier))}\\) — ${escapeMarkdown(String(result.portionGrams))} g`
       : `Porción: ${escapeMarkdown(label)} \\(x${escapeMarkdown(String(data.portionMultiplier))}\\)`;

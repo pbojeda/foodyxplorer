@@ -98,11 +98,13 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     hasExplicitBrand,
   });
 
-  // Step 6 — Apply portion multiplier
-  const scaledResult =
-    effectiveMultiplier !== 1 && routerResult.data.result !== null
-      ? applyPortionMultiplier(routerResult.data.result, effectiveMultiplier)
-      : routerResult.data.result;
+  // Step 6 — Apply portion multiplier (F-UX-A: capture base row before scaling
+  // so the frontend can display both the normal serving and the estimation used)
+  const baseResult = routerResult.data.result;
+  const shouldScale = effectiveMultiplier !== 1 && baseResult !== null;
+  const scaledResult = shouldScale
+    ? applyPortionMultiplier(baseResult, effectiveMultiplier)
+    : baseResult;
 
   // Step 7 — Assemble EstimateData (cachedAt: null — not from cache)
   const estimateData: EstimateData = {
@@ -110,6 +112,16 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     portionMultiplier: effectiveMultiplier,
     result: scaledResult,
     cachedAt: null,
+    // F-UX-A: pre-multiplier nutrients + portion grams, only attached when
+    // a modifier was actually applied AND the cascade produced a result.
+    // The Zod schema superRefine enforces both fields are paired and that
+    // they only appear when portionMultiplier !== 1.0.
+    ...(shouldScale && baseResult !== null
+      ? {
+          baseNutrients: baseResult.nutrients,
+          basePortionGrams: baseResult.portionGrams,
+        }
+      : {}),
     // F081: Health-Hacker tips for chain dishes (threshold on scaled calories)
     ...enrichWithTips(scaledResult),
     // F082: Nutritional substitution suggestions (food-name keyword matching)

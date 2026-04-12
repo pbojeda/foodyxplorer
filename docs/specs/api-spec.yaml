@@ -8044,6 +8044,27 @@ components:
             estimation method. Percentage varies from ±5% (high confidence,
             official data) to ±30% (low confidence, LLM estimation).
             Present when result is non-null; omitted when result is null.
+        baseNutrients:
+          $ref: '#/components/schemas/EstimateNutrients'
+          description: |
+            F-UX-A — Pre-multiplier nutrient row captured by the orchestrator
+            BEFORE `applyPortionMultiplier` scales the values. Frontend renders
+            a `base: N kcal` subtitle under the scaled KCAL figure so the user
+            can compare the normal serving against the estimation used.
+
+            Presence rules (enforced by Zod `superRefine`):
+            - ABSENT when `portionMultiplier === 1.0` (no modifier → no base).
+            - PRESENT (and paired with `basePortionGrams`) when `portionMultiplier !== 1.0`
+              AND the estimation cascade produced a non-null `result`.
+            - NEVER appears without `basePortionGrams` — the two fields are a pair.
+        basePortionGrams:
+          type: number
+          nullable: true
+          exclusiveMinimum: 0
+          description: |
+            F-UX-A — Pre-multiplier portion grams, paired with `baseNutrients`.
+            Same presence rule: absent when `portionMultiplier === 1.0`, present
+            (possibly null — inherited from the cascade row) otherwise.
 
     HealthHackerTip:
       type: object

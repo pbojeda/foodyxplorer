@@ -104,4 +104,115 @@ describe('NutritionCard', () => {
       expect(screen.queryByText('Aproximado')).not.toBeInTheDocument();
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // F-UX-A — Size modifier display
+  // ---------------------------------------------------------------------------
+
+  describe('F-UX-A — size modifier display', () => {
+    function dataWithModifier(
+      multiplier: number,
+      {
+        withBase = true,
+      }: { withBase?: boolean } = {},
+    ) {
+      const result = createEstimateResult({
+        nutrients: {
+          calories: 825, // 550 * 1.5
+          proteins: 37.5,
+          carbohydrates: 69,
+          sugars: 13.5,
+          fats: 42,
+          saturatedFats: 15,
+          fiber: 4.5,
+          salt: 3.3,
+          sodium: 1.32,
+          transFats: 0,
+          cholesterol: 0,
+          potassium: 0,
+          monounsaturatedFats: 0,
+          polyunsaturatedFats: 0,
+          alcohol: 0,
+          referenceBasis: 'per_serving',
+        },
+        portionGrams: 300,
+      });
+
+      const override: Partial<import('@foodxplorer/shared').EstimateData> = {
+        portionMultiplier: multiplier,
+        result,
+      };
+
+      if (withBase) {
+        override.baseNutrients = {
+          calories: 550,
+          proteins: 25,
+          carbohydrates: 46,
+          sugars: 9,
+          fats: 28,
+          saturatedFats: 10,
+          fiber: 3,
+          salt: 2.2,
+          sodium: 0.88,
+          transFats: 0,
+          cholesterol: 0,
+          potassium: 0,
+          monounsaturatedFats: 0,
+          polyunsaturatedFats: 0,
+          alcohol: 0,
+          referenceBasis: 'per_serving',
+        };
+        override.basePortionGrams = 200;
+      }
+
+      return createEstimateData(override);
+    }
+
+    it('does NOT render the modifier pill when portionMultiplier is 1.0', () => {
+      render(<NutritionCard estimateData={createEstimateData()} />);
+      expect(screen.queryByText(/PORCIÓN/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/base:/)).not.toBeInTheDocument();
+    });
+
+    it('renders PORCIÓN GRANDE pill for multiplier 1.5', () => {
+      render(<NutritionCard estimateData={dataWithModifier(1.5)} />);
+      expect(screen.getByText('PORCIÓN GRANDE')).toBeInTheDocument();
+    });
+
+    it('renders PORCIÓN MEDIA pill for multiplier 0.5', () => {
+      render(<NutritionCard estimateData={dataWithModifier(0.5, { withBase: false })} />);
+      expect(screen.getByText('PORCIÓN MEDIA')).toBeInTheDocument();
+    });
+
+    it('renders ×2.5 pill for unmapped multiplier', () => {
+      render(<NutritionCard estimateData={dataWithModifier(2.5, { withBase: false })} />);
+      expect(screen.getByText('×2.5')).toBeInTheDocument();
+    });
+
+    it('renders the base: N kcal subtitle when baseNutrients is present', () => {
+      render(<NutritionCard estimateData={dataWithModifier(1.5)} />);
+      expect(screen.getByText('base: 550 kcal')).toBeInTheDocument();
+    });
+
+    it('does NOT render the base subtitle when baseNutrients is absent (graceful degradation)', () => {
+      render(<NutritionCard estimateData={dataWithModifier(1.5, { withBase: false })} />);
+      expect(screen.getByText('PORCIÓN GRANDE')).toBeInTheDocument();
+      expect(screen.queryByText(/base:/)).not.toBeInTheDocument();
+    });
+
+    it('includes the modifier and base in the aria-label', () => {
+      render(<NutritionCard estimateData={dataWithModifier(1.5)} />);
+      const article = screen.getByRole('article');
+      expect(article).toHaveAttribute('aria-label', expect.stringContaining('grande'));
+      expect(article).toHaveAttribute('aria-label', expect.stringContaining('550'));
+    });
+
+    it('aria-label omits base when baseNutrients is absent', () => {
+      render(<NutritionCard estimateData={dataWithModifier(1.5, { withBase: false })} />);
+      const article = screen.getByRole('article');
+      expect(article).toHaveAttribute('aria-label', expect.stringContaining('grande'));
+      // Without base, the aria-label still mentions the modifier but not "base"
+      expect(article.getAttribute('aria-label')).not.toMatch(/base/);
+    });
+  });
 });
