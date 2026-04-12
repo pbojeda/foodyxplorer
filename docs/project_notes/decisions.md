@@ -17,6 +17,29 @@ Track important technical decisions with context, so future sessions understand 
 
 <!-- Add ADR entries below this line -->
 
+### ADR-019: Canonical Disambiguation Aliases for Culturally-Common Spanish Short-Form Terms (2026-04-12)
+
+**Context:** Ambiguous plain Spanish drink/food queries (`vino`, `cerveza`, …) were resolving to specialty variants instead of the culturally-common default serving. `level1Lookup.ftsDishMatch` in `packages/api/src/estimation/level1Lookup.ts` falls back to FTS (`to_tsvector('spanish', ...) @@ plainto_tsquery('spanish', ...)`) and orders by `priority_tier ASC, length(name_es) ASC LIMIT 1`. That tie-breaker (shortest name wins) is anti-correlated with cultural intent, because specialty items tend to have shorter names than the canonical defaults ("Manzanilla (vino)" wins over "Copa de vino tinto" by 1 char). See BUG-PROD-003 for the empirical trace.
+
+**Decision:** For culturally-common Spanish short-form food/drink terms, add the bare singular form as an **alias** on the preferred canonical dish in `packages/api/prisma/seed-data/spanish-dishes.json`. Strategy 1 (`exactDishMatch`, GIN-indexed `d.aliases @> ARRAY[${query}]`) hits first, bypassing the FTS tie-break entirely.
+
+Rules for picking the canonical target dish:
+- Prefer dishes with `source: "bedca"` or another Tier 1 source so nutrients are backed by official data.
+- Prefer servings that match what a Spanish user would actually be asking about ("vino" → Copa de vino tinto, "cerveza" → Cerveza lata in tercio semantics).
+- When the user's own wording in the bug report provides a literal preference ("un tercio de cerveza"), honor it.
+- Each disambiguation alias is claimed by **exactly one** dish — enforced by invariant test in `packages/api/src/__tests__/bug-prod-003.disambiguation.test.ts`.
+
+**Alternatives Considered:**
+- **Ranking tweak (add `ts_rank()` to ORDER BY):** broad regression surface across all short queries. Not warranted for a handful of terms. Rejected.
+- **Dedicated `canonical_aliases` table with priority field:** over-engineered for current volume (two terms). Reconsider if the backlog grows past ~20 canonical defaults. Follow-up work.
+- **LLM pre-dispatch disambiguation:** L4 LLM already exists but only runs when L1/L2/L3 all miss. Adding a pre-L1 LLM step would bloat latency and cost for a deterministic data fix.
+- **Telemetry-driven backfill script** (Codex suggestion): good idea, deferred as follow-up ticket. Would iterate every single-token Spanish noun and assert its top L1 match is not a specialty variant.
+
+**Consequences:**
+- **Pros:** Surgical, additive, zero-risk data change. Fully covered by existing GIN index. No schema migration. Rollback is to delete two JSON strings.
+- **Cons:** Manual curation per term — doesn't scale beyond ~20 items without the tooling follow-up. New dishes that collide with an existing canonical alias will need explicit disambiguation.
+- **Follow-up (captured in `bugs.md` BUG-PROD-003 entry):** audit the remaining ambiguous singletons flagged by Codex/Gemini — `pan`, `leche`, `manzana`, `arroz`, `cafe`, `chocolate`, `jamon`, `queso`, `tostada`, `pollo`, `pescado`, `marisco`, `refresco`, `zumo`, `cava`. Build a script that lists every single-token Spanish noun in the dataset lacking an alias path, then triage.
+
 ### ADR-000: Initial Stack and Architecture (2026-03-10)
 
 **Context:** Selecting the technology stack for a nutritional information platform focused on Spanish restaurants. The product needs: relational data with complex joins, vector similarity search (pgvector), real-time API, Telegram bot, and future web/mobile apps. Single founder with 20+ years Node.js experience.
