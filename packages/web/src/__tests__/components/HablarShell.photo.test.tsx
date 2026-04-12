@@ -41,13 +41,19 @@ jest.mock('../../lib/metrics', () => ({
   flushMetrics: jest.fn(),
 }));
 
+jest.mock('../../lib/imageResize', () => ({
+  resizeImageForUpload: jest.fn((file: File) => Promise.resolve(file)),
+}));
+
 import { HablarShell } from '../../components/HablarShell';
 import { sendPhotoAnalysis } from '../../lib/apiClient';
 import { ApiError } from '../../lib/apiClient';
 import { trackEvent } from '../../lib/metrics';
+import { resizeImageForUpload } from '../../lib/imageResize';
 
 const mockSendPhotoAnalysis = sendPhotoAnalysis as jest.Mock;
 const mockTrackEvent = trackEvent as jest.Mock;
+const mockResizeImageForUpload = resizeImageForUpload as jest.Mock;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -77,6 +83,55 @@ async function selectFile(file: File, { applyAccept = true }: { applyAccept?: bo
 describe('HablarShell — photo flow (F092)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default behaviour: resize is a passthrough (returns the same file).
+    mockResizeImageForUpload.mockImplementation((file: File) => Promise.resolve(file));
+  });
+
+  // ---------------------------------------------------------------------------
+  // BUG-PROD-001 — Client-side resize before upload
+  // ---------------------------------------------------------------------------
+
+  describe('BUG-PROD-001 — resize before upload', () => {
+    it('pipes the selected file through resizeImageForUpload before sendPhotoAnalysis', async () => {
+      mockSendPhotoAnalysis.mockResolvedValue(createMenuAnalysisResponse());
+      render(<HablarShell />);
+      const file = makeFile();
+
+      await selectFile(file);
+
+      await waitFor(() => {
+        expect(mockResizeImageForUpload).toHaveBeenCalledWith(file);
+      });
+    });
+
+    it('forwards the resized File (not the original) to sendPhotoAnalysis', async () => {
+      const original = makeFile('plate.jpg', 'image/jpeg', 1024);
+      const resized = new File([new Uint8Array(10)], 'plate.jpg', {
+        type: 'image/jpeg',
+      });
+      Object.defineProperty(resized, 'size', { value: 500_000 });
+      mockResizeImageForUpload.mockResolvedValue(resized);
+      mockSendPhotoAnalysis.mockResolvedValue(createMenuAnalysisResponse());
+
+      render(<HablarShell />);
+      await selectFile(original);
+
+      await waitFor(() => {
+        expect(mockSendPhotoAnalysis).toHaveBeenCalled();
+      });
+      const sentFile = mockSendPhotoAnalysis.mock.calls[0][0] as File;
+      expect(sentFile).toBe(resized);
+    });
+
+    it('does NOT call resizeImageForUpload when client-side validation rejects the file', async () => {
+      render(<HablarShell />);
+      const gif = makeFile('image.gif', 'image/gif');
+
+      await selectFile(gif, { applyAccept: false });
+
+      expect(mockResizeImageForUpload).not.toHaveBeenCalled();
+      expect(mockSendPhotoAnalysis).not.toHaveBeenCalled();
+    });
   });
 
   // ---------------------------------------------------------------------------

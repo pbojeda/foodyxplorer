@@ -9,6 +9,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ConversationMessageData, MenuAnalysisData } from '@foodxplorer/shared';
 import { getActorId } from '@/lib/actorId';
 import { sendMessage, sendPhotoAnalysis, ApiError } from '@/lib/apiClient';
+import { resizeImageForUpload } from '@/lib/imageResize';
 import { trackEvent, flushMetrics } from '@/lib/metrics';
 import { ConversationInput } from './ConversationInput';
 import { ResultsArea } from './ResultsArea';
@@ -155,7 +156,12 @@ export function HablarShell() {
 
     try {
       const actorId = getActorId();
-      const response = await sendPhotoAnalysis(file, actorId, controller.signal);
+      // Downscale before upload. Mobile photos routinely exceed the Vercel
+      // Serverless Function body limit (~4.5 MB). The resize utility is a
+      // no-op for files already below 1.5 MB and falls back gracefully on
+      // any error (see BUG-PROD-001).
+      const uploadFile = await resizeImageForUpload(file);
+      const response = await sendPhotoAnalysis(uploadFile, actorId, controller.signal);
 
       // Stale response guard
       if (controller.signal.aborted) return;

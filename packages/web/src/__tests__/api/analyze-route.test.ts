@@ -78,7 +78,7 @@ describe('POST /api/analyze Route Handler', () => {
   // Config error cases
   // ---------------------------------------------------------------------------
 
-  it('returns 500 CONFIG_ERROR when API_KEY env var is not set', async () => {
+  it('returns 500 with structured CONFIG_ERROR envelope when API_KEY env var is not set', async () => {
     delete process.env['API_KEY'];
     const { POST } = await import('../../app/api/analyze/route');
 
@@ -87,10 +87,15 @@ describe('POST /api/analyze Route Handler', () => {
 
     expect(response.status).toBe(500);
     const body = await response.json();
-    expect(body).toEqual({ error: 'CONFIG_ERROR' });
+    expect(body).toEqual({
+      error: {
+        code: 'CONFIG_ERROR',
+        message: expect.any(String),
+      },
+    });
   });
 
-  it('returns 500 CONFIG_ERROR when NEXT_PUBLIC_API_URL env var is not set', async () => {
+  it('returns 500 with structured CONFIG_ERROR envelope when NEXT_PUBLIC_API_URL env var is not set', async () => {
     delete process.env['NEXT_PUBLIC_API_URL'];
     const { POST } = await import('../../app/api/analyze/route');
 
@@ -99,7 +104,12 @@ describe('POST /api/analyze Route Handler', () => {
 
     expect(response.status).toBe(500);
     const body = await response.json();
-    expect(body).toEqual({ error: 'CONFIG_ERROR' });
+    expect(body).toEqual({
+      error: {
+        code: 'CONFIG_ERROR',
+        message: expect.any(String),
+      },
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -220,7 +230,7 @@ describe('POST /api/analyze Route Handler', () => {
   // Upstream unavailable
   // ---------------------------------------------------------------------------
 
-  it('returns 502 UPSTREAM_UNAVAILABLE when fetch to upstream throws', async () => {
+  it('returns 502 with structured UPSTREAM_UNAVAILABLE envelope when fetch throws', async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('connect ECONNREFUSED'));
     const { POST } = await import('../../app/api/analyze/route');
 
@@ -229,6 +239,54 @@ describe('POST /api/analyze Route Handler', () => {
 
     expect(response.status).toBe(502);
     const body = await response.json();
-    expect(body).toEqual({ error: 'UPSTREAM_UNAVAILABLE' });
+    expect(body).toEqual({
+      error: {
+        code: 'UPSTREAM_UNAVAILABLE',
+        message: expect.any(String),
+      },
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // BUG-PROD-001 — Upstream timeout
+  // ---------------------------------------------------------------------------
+
+  it('BUG-PROD-001: returns 504 with structured UPSTREAM_TIMEOUT envelope when fetch times out', async () => {
+    const timeoutErr = new DOMException(
+      'The operation was aborted due to timeout',
+      'TimeoutError',
+    );
+    global.fetch = jest.fn().mockRejectedValue(timeoutErr);
+    const { POST } = await import('../../app/api/analyze/route');
+
+    const req = makeMultipartRequest();
+    const response = await POST(req);
+
+    expect(response.status).toBe(504);
+    const body = await response.json();
+    expect(body).toEqual({
+      error: {
+        code: 'UPSTREAM_TIMEOUT',
+        message: expect.any(String),
+      },
+    });
+  });
+
+  it('BUG-PROD-001: attaches an AbortSignal to the upstream fetch call', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      body: '{}',
+      json: jest.fn().mockResolvedValue({}),
+      text: jest.fn().mockResolvedValue('{}'),
+    });
+    const { POST } = await import('../../app/api/analyze/route');
+
+    await POST(makeMultipartRequest());
+
+    const upstreamCall = (global.fetch as jest.Mock).mock.calls[0];
+    const upstreamRequest = upstreamCall[0] as Request;
+    expect(upstreamRequest.signal).toBeInstanceOf(AbortSignal);
   });
 });
