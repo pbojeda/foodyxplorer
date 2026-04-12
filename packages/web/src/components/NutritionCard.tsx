@@ -74,13 +74,12 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
 
   // F-UX-A — Portion modifier display
   const portionMultiplier = estimateData.portionMultiplier;
-  const hasModifier = portionMultiplier !== 1.0;
-  const portionLabel = hasModifier ? formatPortionLabel(portionMultiplier) : '';
-  const pillLabel = hasModifier
-    ? portionLabel.startsWith('×')
-      ? portionLabel // unmapped fallback — show the raw multiplier
-      : `PORCIÓN ${portionLabel.toUpperCase()}`
-    : '';
+  const portionLabel = formatPortionLabel(portionMultiplier); // empty when ≈1.0
+  const hasModifier = portionLabel !== '';
+  // Unify the pill vocabulary: mapped words are uppercased with the
+  // "PORCIÓN" prefix; unmapped `×N` values get the same prefix so the two
+  // states don't look like different components.
+  const pillLabel = hasModifier ? `PORCIÓN ${portionLabel.toUpperCase()}` : '';
   const baseCalories =
     hasModifier && estimateData.baseNutrients !== undefined
       ? Math.round(estimateData.baseNutrients.calories)

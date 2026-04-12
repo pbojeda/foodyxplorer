@@ -36,15 +36,12 @@ export function formatEstimate(data: EstimateData): string {
 
   // Portion modifier line — shown only when multiplier !== 1.0
   if (data.portionMultiplier !== 1.0) {
-    // F-UX-A: canonical label now sourced from @foodxplorer/shared so the
-    // bot, API, and web all agree on the same Spanish vocabulary. The `×N`
-    // fallback for unmapped multipliers is also handled by the helper —
-    // but strip the leading "×" here because the legacy bot output format
-    // renders the raw multiplier separately in the "(x1.5)" trailing group.
-    const helperLabel = formatPortionLabel(data.portionMultiplier);
-    const label = helperLabel.startsWith('×')
-      ? helperLabel // unmapped → use the "×N" form directly, keep legacy shape
-      : helperLabel; // mapped word ("grande", "media", …)
+    // F-UX-A: canonical label sourced from @foodxplorer/shared so bot, API
+    // and web all agree on the same Spanish vocabulary. The `×N` fallback
+    // for unmapped multipliers is also produced by the helper; the bot's
+    // legacy output format shows both the label and the raw multiplier
+    // inside the "(x1.5)" trailing group so the fallback looks correct too.
+    const label = formatPortionLabel(data.portionMultiplier);
     const portionLine = result.portionGrams !== null
       ? `Porción: ${escapeMarkdown(label)} \\(x${escapeMarkdown(String(data.portionMultiplier))}\\) — ${escapeMarkdown(String(result.portionGrams))} g`
       : `Porción: ${escapeMarkdown(label)} \\(x${escapeMarkdown(String(data.portionMultiplier))}\\)`;

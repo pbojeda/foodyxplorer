@@ -26,22 +26,37 @@ export const PORTION_LABEL_MAP: Readonly<Record<number, string>> = Object.freeze
 });
 
 /**
+ * Epsilon for near-1.0 detection. Multipliers within this band of 1.0 are
+ * treated as "no modifier" so a noisy float (e.g. `1.0000001` from JSON
+ * round-tripping or query coercion) cannot produce a degenerate "×1" pill.
+ * 0.001 is well below the granularity any real modifier pattern emits
+ * (the canonical map jumps by 0.2 at minimum between 0.5 and 0.7).
+ */
+const PORTION_NOOP_EPSILON = 0.001;
+
+/**
  * Format a portion multiplier as a Spanish label for UI display.
  *
- * - The no-op multiplier `1.0` returns an empty string. Callers can treat
- *   an empty result as "no modifier to display" without a separate guard.
+ * - Multipliers within `PORTION_NOOP_EPSILON` of 1.0 return an empty string
+ *   (caught by the same `=== 1.0` semantic the callers use — but tolerant
+ *   of IEEE 754 round-trip noise).
  * - Mapped values return the word (`"media"`, `"pequeña"`, `"grande"`,
- *   `"doble"`, `"triple"`).
+ *   `"doble"`, `"triple"`). Matching uses an epsilon tolerance so that
+ *   a noisy `0.50000001` still finds the canonical key.
  * - Unmapped values return a `×N` fallback string trimmed to one decimal
  *   (e.g. `1.25` → `"×1.25"`, `2.5` → `"×2.5"`).
  */
 export function formatPortionLabel(multiplier: number): string {
-  if (multiplier === 1.0) {
+  if (Math.abs(multiplier - 1.0) < PORTION_NOOP_EPSILON) {
     return '';
   }
-  const mapped = PORTION_LABEL_MAP[multiplier];
-  if (mapped !== undefined) {
-    return mapped;
+  // Canonical map lookup with epsilon tolerance so that IEEE 754 round-trip
+  // values (e.g. 0.500000001) still hit the canonical Spanish label.
+  for (const [keyStr, label] of Object.entries(PORTION_LABEL_MAP)) {
+    const key = Number(keyStr);
+    if (Math.abs(multiplier - key) < PORTION_NOOP_EPSILON) {
+      return label;
+    }
   }
   // Unmapped fallback — strip trailing ".0" and limit to 2 decimals.
   const normalized = Number.isInteger(multiplier)

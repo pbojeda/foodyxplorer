@@ -116,9 +116,15 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     // a modifier was actually applied AND the cascade produced a result.
     // The Zod schema superRefine enforces both fields are paired and that
     // they only appear when portionMultiplier !== 1.0.
+    //
+    // Defensive shallow clone: `baseResult.nutrients` is the same reference
+    // the cascade row owns. Any downstream mutation (future enrich functions,
+    // cache-write side effects) would otherwise alias into the base — and
+    // because the base is supposed to stay constant relative to the scaled
+    // row, that would be a silent data bug. Cloning here closes the door.
     ...(shouldScale && baseResult !== null
       ? {
-          baseNutrients: baseResult.nutrients,
+          baseNutrients: { ...baseResult.nutrients },
           basePortionGrams: baseResult.portionGrams,
         }
       : {}),

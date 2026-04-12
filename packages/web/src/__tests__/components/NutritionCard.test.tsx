@@ -184,9 +184,11 @@ describe('NutritionCard', () => {
       expect(screen.getByText('PORCIÓN MEDIA')).toBeInTheDocument();
     });
 
-    it('renders ×2.5 pill for unmapped multiplier', () => {
+    it('renders PORCIÓN ×2.5 pill for unmapped multiplier (unified prefix)', () => {
       render(<NutritionCard estimateData={dataWithModifier(2.5, { withBase: false })} />);
-      expect(screen.getByText('×2.5')).toBeInTheDocument();
+      // M2 review fix: unmapped labels also get the PORCIÓN prefix so the
+      // pill vocabulary is visually consistent between mapped and fallback.
+      expect(screen.getByText('PORCIÓN ×2.5')).toBeInTheDocument();
     });
 
     it('renders the base: N kcal subtitle when baseNutrients is present', () => {
