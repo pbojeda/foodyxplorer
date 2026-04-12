@@ -15,7 +15,7 @@
 **Last Completed:** QA-WEB-001 — exhaustive web testing (62 new tests, 13 bugs documented). PR #99 + PR #102 merged.
 
 **Pipeline — 7 production issues (2026-04-12):**
-1. Issue 1 — BUG-PROD-001 mobile camera error — **IN PROGRESS** (Step 2/6)
+1. Issue 1 — BUG-PROD-001 mobile camera error — **IN PROGRESS** (Step 5/6, PR #103 open)
 2. Issue 2 — BUG-PROD-002 mobile gallery picker — pending
 3. Issue 3 — BUG-PROD-003 vino/vinagre disambiguation — pending
 4. F-UX-A — size modifier display (grande/pequeña) — pending
