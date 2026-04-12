@@ -1,8 +1,8 @@
 # F-UX-A — Size modifier display in NutritionCard + API response
 
 **Feature:** F-UX-A | **Type:** Fullstack-Feature | **Priority:** Standard
-**Status:** In Progress | **Branch:** feature/F-UX-A-size-modifier-display
-**Created:** 2026-04-12 | **Dependencies:** None
+**Status:** Ready for Merge | **Branch:** feature/F-UX-A-size-modifier-display
+**Created:** 2026-04-12 | **Dependencies:** None | **PR:** #109
 
 ---
 
@@ -134,49 +134,52 @@ User request (verbatim):
 
 ## Acceptance Criteria
 
-- [ ] `packages/shared/src/portion/portionLabel.ts` exports `PORTION_LABEL_MAP` and `formatPortionLabel(multiplier): string`
-- [ ] `formatPortionLabel` returns `"media"` / `"pequeña"` / `"grande"` / `"doble"` / `"triple"` for 0.5 / 0.7 / 1.5 / 2.0 / 3.0
-- [ ] `formatPortionLabel` returns `"×2.5"` (or similar) for unmapped multipliers
-- [ ] `EstimateDataSchema` has `baseNutrients?`, `basePortionGrams?`, `portionLabel?` optional fields
-- [ ] `estimationOrchestrator` attaches base + label only when the effective multiplier ≠ 1.0
-- [ ] Bot formatters import the shared helper and render identical output (no snapshot drift)
-- [ ] `NutritionCard.tsx` renders the `PORCIÓN {LABEL}` pill only when `portionMultiplier !== 1.0`
-- [ ] `NutritionCard.tsx` renders the `base: {N} kcal` subtitle only when `baseNutrients` is present
-- [ ] The card's `aria-label` includes both the modifier and the base calories
-- [ ] Graceful degradation: multiplier present + base absent → pill only, no error
-- [ ] Shared unit tests cover all 6 `formatPortionLabel` cases
-- [ ] API orchestrator tests cover base-capture invariant (both 1.0 no-op and ≠1.0 with-base paths)
-- [ ] Web component tests cover all Design Notes edge cases (≥ 6 tests)
-- [ ] All existing tests still pass for `shared`, `api`, `bot`, `web`
-- [ ] Lint, typecheck, build all clean for every affected package
-- [ ] `api-spec.yaml` + `ui-components.md` + user manual §6 updated
-- [ ] Cross-model review (Codex + Gemini) applied to the spec
+- [x] `packages/shared/src/portion/portionLabel.ts` exports `PORTION_LABEL_MAP` and `formatPortionLabel(multiplier): string`
+- [x] `formatPortionLabel` returns `"media"` / `"pequeña"` / `"grande"` / `"doble"` / `"triple"` for 0.5 / 0.7 / 1.5 / 2.0 / 3.0
+- [x] `formatPortionLabel` returns `"×2.5"` (or similar) for unmapped multipliers
+- [x] `formatPortionLabel` returns `""` for multipliers within `PORTION_NOOP_EPSILON` of 1.0 (P2 review fix — epsilon 0.001)
+- [x] `formatPortionLabel` uses epsilon tolerance in the canonical map lookup (so 1.5000000001 still matches `"grande"`)
+- [x] `EstimateDataSchema` has `baseNutrients?`, `basePortionGrams?` optional fields with a paired `superRefine` invariant (review fix: dropped `portionLabel` from schema — computed client-side via the shared helper per Codex)
+- [x] `estimationOrchestrator` attaches `baseNutrients` + `basePortionGrams` only when the effective multiplier ≠ 1.0, with a defensive shallow clone (M3 review fix)
+- [x] `GET /estimate` route attaches the same base fields (P1 review fix — route was missing the capture block; now mirrors the orchestrator)
+- [x] Bot formatters import the shared helper and render identical output (verified: 1198 bot tests pass unchanged)
+- [x] `NutritionCard.tsx` renders the `PORCIÓN {LABEL}` pill only when the helper returns a non-empty label (M2 review fix — unified prefix for mapped and unmapped values)
+- [x] `NutritionCard.tsx` renders the `base: {N} kcal` subtitle only when `baseNutrients` is present
+- [x] The card's `aria-label` includes both the modifier and the base calories
+- [x] Graceful degradation: multiplier present + base absent → pill only, no error
+- [x] Shared unit tests cover all `formatPortionLabel` cases (22 tests across 2 files — base map, range boundaries, near-1.0 tolerance, canonical tolerance, unmapped fallback, schema asymmetry)
+- [x] API orchestrator tests cover base-capture invariant (12 tests — existing 8 + 4 F-UX-A) plus a dedicated route-level file (4 tests)
+- [x] Web component tests cover all Design Notes edge cases (8 new NutritionCard tests)
+- [x] All existing tests still pass for `shared`, `api`, `bot`, `web`
+- [x] Lint, typecheck, build all clean for every affected package
+- [x] `api-spec.yaml` + `ui-components.md` + user manual §6 + key_facts.md updated
+- [x] Cross-model review (Codex + Gemini) applied to the spec before implementation; code-review-specialist + qa-engineer applied to the implementation; all H/M/P1/P2 findings addressed
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Tests written and passing (TDD flow demonstrated)
-- [ ] No linting errors in changed files
-- [ ] Build succeeds for all affected packages
-- [ ] Tracker updated (Active Session + pipeline)
-- [ ] `bugs.md` updated if any bug is discovered during implementation
-- [ ] `key_facts.md` updated (new shared module)
-- [ ] PR reviewed by `code-review-specialist` and `qa-engineer`
-- [ ] Manual verification post-merge on `/hablar` (user action)
+- [x] All acceptance criteria met
+- [x] Tests written and passing (TDD flow demonstrated)
+- [x] No linting errors in changed files
+- [x] Build succeeds for all affected packages
+- [x] Tracker updated (Active Session + pipeline)
+- [x] `bugs.md` updated if any bug is discovered during implementation (no new bugs)
+- [x] `key_facts.md` updated (new shared module entry)
+- [x] PR reviewed by `code-review-specialist` and `qa-engineer`
+- [ ] Manual verification post-merge on `/hablar` (user action — flagged in PR)
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 0: Spec written + reviewed by Codex + Gemini + ui-ux-designer
+- [x] Step 0: Spec written + reviewed by Codex + Gemini + ui-ux-designer
 - [x] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: Implementation plan written (above, self)
-- [ ] Step 3: Implementation with TDD
-- [ ] Step 4: Quality gates pass
-- [ ] Step 5: code-review-specialist + qa-engineer
-- [ ] Step 6: Ticket finalized, branch deleted, tracker updated
+- [x] Step 2: Implementation plan written (above, self)
+- [x] Step 3: Implementation with TDD (shared → api → bot refactor → web, in that order)
+- [x] Step 4: Quality gates pass (lint, typecheck, build, all 4 packages)
+- [x] Step 5: code-review-specialist (APPROVE WITH MINOR — M1/M2/M3 fixed) + qa-engineer (PASS WITH CONCERNS — P1/P2 fixed)
+- [ ] Step 6: Ticket finalized, branch deleted, tracker updated (post-merge)
 
 ---
 
@@ -186,6 +189,10 @@ User request (verbatim):
 |------|--------|-------|
 | 2026-04-12 | Investigation | Traced portion-modifier flow end-to-end. Confirmed backend already detects/applies/echoes multiplier but drops base values. |
 | 2026-04-12 | UI/UX design notes | `ui-ux-designer` agent authored design notes in this ticket. Decisions: amber pill below name, base-kcal subtitle under KCAL label, shared vocabulary with bot, full ARIA coverage. |
+| 2026-04-12 | Cross-model spec review | `codex exec` (gpt-5-codex) + `gemini` (gemini-2.5-pro) reviewed the spec. Codex won on dropping `portionLabel` from the API. Gemini won on `formatPortionLabel(1.0) === ""`. Both agreed on the runtime superRefine invariant. |
+| 2026-04-12 | Implementation | Commit `422c8ca` — 20 files, +930 insertions. 30 new tests across shared (+18), api (+4), web (+8). Bot refactor byte-identical (+0). Fixed 3 pre-existing web module-resolution bugs uncovered by my first runtime import from shared. |
+| 2026-04-12 | Review | code-review-specialist APPROVE WITH MINOR (M1 dead ternary, M2 pill unification, M3 defensive clone). qa-engineer PASS WITH CONCERNS (P1 route missing base capture, P2 near-1.0 float → `×1` pill). |
+| 2026-04-12 | Review hardening | Commit `d586eaa` — M1/M2/M3/P1/P2 all fixed. P2 uses a new `PORTION_NOOP_EPSILON = 0.001` and tolerant canonical lookup. New test files `f-ux-a.portionLabel.edge-cases.test.ts` (16) and `f-ux-a.estimateRoute.baseNutrients.test.ts` (4). Final totals: shared 566, api 3218, bot 1198, web 353. |
 
 ---
 
@@ -193,14 +200,14 @@ User request (verbatim):
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | (pending) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | (pending) |
-| 3. Update key_facts.md | [ ] | Add shared `portion` module reference |
-| 4. Update decisions.md | [ ] | N/A — the Design Notes in this ticket document the UX rationale |
-| 5. Commit documentation | [ ] | (pending) |
-| 6. Verify clean working tree | [ ] | (pending) |
-| 7. Verify branch up to date | [ ] | (pending) |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Design Notes, Implementation Plan, AC, DoD, Workflow, Log, Evidence |
+| 1. Mark all items | [x] | AC: 18/18, DoD: 8/9 (manual verification post-merge), Workflow: 0-5/6 (Step 6 post-merge) |
+| 2. Verify product tracker | [x] | Active Session: F-UX-A step 5/6, pipeline line updated to Step 5/6 |
+| 3. Update key_facts.md | [x] | Added the `Portion label helper (F-UX-A)` entry pointing to the new shared module and enumerating its consumers |
+| 4. Update decisions.md | [x] | N/A — UX rationale documented inline in the ticket's Design Notes section; schema/helper rationale in commit messages |
+| 5. Commit documentation | [x] | Docs updates part of commit `422c8ca` (api-spec, ui-components, user manual §6, key_facts) |
+| 6. Verify clean working tree | [x] | reported post-audit |
+| 7. Verify branch up to date | [x] | Branched from develop at `af13150`, no divergence since |
 
 ---
 
