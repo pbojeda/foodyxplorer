@@ -10,7 +10,8 @@
 
 **Last Updated:** 2026-04-12
 
-**Active Feature:** BUG-PROD-003 — Ambiguous plain Spanish queries resolve to specialty items (P1 UX). Step 5/6 (Review). Branch `bug/BUG-PROD-003-vino-disambiguation`. Standard complexity + cross-model review (Codex + Gemini). Root cause: `level1Lookup.ftsDishMatch` falls back on `length(name_es) ASC` tie-breaker which is anti-correlated with cultural intent. Fix: add bare `vino`/`cerveza` aliases to `Copa de vino tinto` / `Cerveza lata` in `spanish-dishes.json`. Data-level invariant test locks in the fix. 185 suites / 3210 tests green. ADR-019 documents the canonical-aliases pattern.
+**Active Feature:** No active work. BUG-PROD-003 done — PR #107 squash-merged to develop at `a23fd3f` (2026-04-12). Next up: F-UX-A (size modifier display).
+**Last Completed:** BUG-PROD-003 — Ambiguous plain Spanish queries resolve to specialty items (P1 UX). Standard + cross-model review (Codex + Gemini consensus on tinto, split-then-resolved on cerveza). Fix: 2 alias additions in `spanish-dishes.json` (`vino` → Copa de vino tinto, `cerveza` → Cerveza lata). 10 new data-integrity tests. ADR-019 + BUG-PROD-003 bugs.md entry + follow-up backlog for pre-existing `manzanilla` / `arroz con verduras` alias collisions and ~15 other ambiguous singletons. 185 suites / 3210 tests green (+10 net new). **Pending user action:** manual verification on `/hablar` against the staging DB post-reseed.
 **Last Completed:** BUG-PROD-002 — Mobile photo button forces camera, no gallery option (P2). Simple tier one-line fix: deleted `capture="environment"` from `PhotoButton.tsx`. Test inverted to assert attribute absence. 33 suites / 345 tests still green. **Pending user action:** manual verification that mobile now shows the chooser (Take Photo / Library).
 **PM Session:** None active (L5 single-ticket execution on 7 issues pipeline)
 **Last Completed:** BUG-PROD-001 — Mobile photo upload always errors (P0). Primary root cause: Vercel 4.5 MB Serverless Function body limit exceeded by mobile photos. Fix: client-side canvas downscale (1600 px long edge, JPEG q0.82, 1.5 MB passthrough) + proxy error envelope normalization (resolves BUG-QA-003 as a side effect) + `AbortSignal.timeout(65s)` on upstream fetch + resize telemetry (`photo_resize_ok` / `photo_resize_fallback`) + Vercel platform 413 → `PAYLOAD_TOO_LARGE` mapping. 33 suites / 345 tests green (+20 net new). **Pending user action:** manual verification on a real mobile device — if it still fails, reopen and investigate secondary causes (Permissions-Policy, HEIC, upstream routing).
@@ -18,8 +19,8 @@
 **Pipeline — 7 production issues (2026-04-12):**
 1. Issue 1 — BUG-PROD-001 mobile camera error — **DONE** (PR #103, merge commit `a750f5e`)
 2. Issue 2 — BUG-PROD-002 mobile gallery picker — **DONE** (PR #105, merge commit `24e6d23`)
-3. Issue 3 — BUG-PROD-003 vino/vinagre disambiguation — **IN PROGRESS** (Step 5/6, PR pending)
-4. F-UX-A — size modifier display (grande/pequeña) — pending
+3. Issue 3 — BUG-PROD-003 vino/vinagre disambiguation — **DONE** (PR #107, merge commit `a23fd3f`)
+4. F-UX-A — size modifier display (grande/pequeña) — **NEXT**
 5. F-UX-B — spanish portion terms (pincho/tapa/ración) — pending, starts with deep cross-model analysis
 6. Issue 4 — BUG-PROD-004 deploy-web GitHub Actions — pending (confirmed `deploy-preview` fails on every PR due to missing `VERCEL_PROJECT_ID_WEB` secret → workflow needs to read env-scoped `vars.VERCEL_PROJECT_ID` instead; user already configured the var)
 7. Issue 5 — BUG-PROD-005 Render excess minutes — pending (user confirmed: Build Filters empty in Render dashboard → services were created manually, not via Blueprint → `render.yaml` `buildFilter` config is not being applied)
