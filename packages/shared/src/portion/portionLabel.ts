@@ -17,6 +17,41 @@
 //   - Callers MUST check `multiplier !== 1.0` before calling — the 1.0 case
 //     represents "no modifier applied" and has no user-facing label.
 
+// ---------------------------------------------------------------------------
+// F-UX-B — Canonical Spanish portion-term label map
+// ---------------------------------------------------------------------------
+
+/**
+ * Maps internal canonical DB keys for Spanish portion terms to their display
+ * labels. Used as a fallback when `portionAssumption.termDisplay` is absent.
+ *
+ * Both `pintxo` and `pincho` spellings are included so that either the Basque
+ * canonical key or the Castilian variant produces the correct label.
+ */
+const PORTION_TERM_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  pintxo: 'Pintxo',
+  pincho: 'Pincho',
+  tapa: 'Tapa',
+  media_racion: 'Media ración',
+  racion: 'Ración',
+});
+
+/**
+ * Format a canonical portion-term key as a Spanish display label.
+ *
+ * Returns the mapped Spanish label (e.g., `"media_racion"` → `"Media ración"`).
+ * Falls through to the original value for unknown keys (pass-through).
+ * Callers should prefer `portionAssumption.termDisplay` (the user's literal
+ * wording from their query) when available; use this helper only as a fallback.
+ */
+export function formatPortionTermLabel(term: string): string {
+  return PORTION_TERM_LABELS[term] ?? term;
+}
+
+// ---------------------------------------------------------------------------
+// F-UX-A — Canonical Spanish portion-size label map (multiplier-based)
+// ---------------------------------------------------------------------------
+
 export const PORTION_LABEL_MAP: Readonly<Record<number, string>> = Object.freeze({
   0.5: 'media',
   0.7: 'pequeña',

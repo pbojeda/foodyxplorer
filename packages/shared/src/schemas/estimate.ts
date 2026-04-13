@@ -200,6 +200,75 @@ export const PortionSizingSchema = z.object({
 export type PortionSizing = z.infer<typeof PortionSizingSchema>;
 
 // ---------------------------------------------------------------------------
+// F-UX-B — Per-dish portion assumption with 3-tier fallback chain
+// ---------------------------------------------------------------------------
+
+export const PortionAssumptionSchema = z.object({
+  /** Canonical DB key: 'pintxo' | 'tapa' | 'media_racion' | 'racion' */
+  term: z.enum(['pintxo', 'tapa', 'media_racion', 'racion']),
+  /** User-typed variant from the original query (e.g., "pincho" or "pintxo"). */
+  termDisplay: z.string().min(1),
+  /** Whether this assumption came from a DB row (per_dish) or the F085 generic map (generic). */
+  source: z.enum(['per_dish', 'generic']),
+  /** Post-F042-multiplier gram estimate. For generic: Math.round((gramsMin + gramsMax) / 2). */
+  grams: z.number().int().positive(),
+  /**
+   * Post-F042 piece count. null when basePieces × multiplier < 0.75 (low-multiplier fall-through)
+   * or when the dish is non-countable (gazpacho, salmorejo).
+   * Must be null when source === 'generic'.
+   */
+  pieces: z.number().int().min(1).nullable(),
+  /** Literal string from seed data — no runtime pluralization. null iff pieces is null. */
+  pieceName: z.string().min(1).nullable(),
+  /** Only present when source === 'generic' — the F085 global [gramsMin, gramsMax] range. */
+  gramsRange: z.tuple([z.number().int().positive(), z.number().int().positive()]).nullable(),
+  /** From seed data. null when source === 'generic'. */
+  confidence: z.enum(['high', 'medium', 'low']).nullable(),
+  /**
+   * Observability discriminator for Tier 3 fallbacks.
+   * - null when source === 'per_dish' (Tier 1 or Tier 2 hit)
+   * - 'no_row' when generic because no row exists for this (dishId, term)
+   * - 'tier2_rejected_tapa' / 'tier2_rejected_pintxo' when generic because a ración row
+   *   existed but Tier 2 refused to derive a ratio for tapa/pintxo queries.
+   * Consumed by structured logs / future analytics. Ignored by render layers.
+   */
+  fallbackReason: z.enum(['no_row', 'tier2_rejected_tapa', 'tier2_rejected_pintxo']).nullable(),
+}).superRefine((d, ctx) => {
+  function issue(message: string) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+  }
+
+  if (d.source === 'per_dish') {
+    if (d.gramsRange !== null) issue('gramsRange must be null for per_dish');
+    if (d.confidence === null) issue('confidence must be non-null for per_dish');
+    if (d.fallbackReason !== null) issue('fallbackReason must be null for per_dish');
+    if ((d.pieces === null) !== (d.pieceName === null)) {
+      issue('pieces and pieceName must both be null or both non-null');
+    }
+  }
+
+  if (d.source === 'generic') {
+    if (d.gramsRange === null) {
+      issue('gramsRange must be present for generic');
+    } else {
+      if (d.gramsRange[0] <= 0 || d.gramsRange[1] <= d.gramsRange[0]) {
+        issue('gramsRange must be [positiveMin, min < max]');
+      }
+      const derived = Math.round((d.gramsRange[0] + d.gramsRange[1]) / 2);
+      if (d.grams !== derived) {
+        issue(`grams must equal Math.round(gramsRange midpoint) = ${derived}`);
+      }
+    }
+    if (d.pieces !== null) issue('pieces must be null for generic');
+    if (d.pieceName !== null) issue('pieceName must be null for generic');
+    if (d.confidence !== null) issue('confidence must be null for generic');
+    if (d.fallbackReason === null) issue('fallbackReason must be non-null for generic');
+  }
+});
+
+export type PortionAssumption = z.infer<typeof PortionAssumptionSchema>;
+
+// ---------------------------------------------------------------------------
 // Data payload — full response body data
 // ---------------------------------------------------------------------------
 
@@ -226,6 +295,12 @@ export const EstimateDataSchema = z.object({
   uncertaintyRange: UncertaintyRangeSchema.optional(),
   /** F085 — Detected Spanish portion term with standard gram range. */
   portionSizing: PortionSizingSchema.optional(),
+  /**
+   * F-UX-B — Per-dish portion assumption with 3-tier fallback.
+   * Absent when no Spanish portion term was detected in the query.
+   * `source: 'per_dish'` = DB row found; `source: 'generic'` = F085 global range.
+   */
+  portionAssumption: PortionAssumptionSchema.optional(),
   /**
    * F-UX-A — Pre-multiplier nutrient row, only present when `portionMultiplier !== 1.0`.
    * When present, `basePortionGrams` MUST also be present. The frontend renders
