@@ -1,7 +1,7 @@
 # F-UX-B — Expose assumptions behind Spanish serving-size terms (pincho / tapa / media ración / ración)
 
 **Feature:** F-UX-B | **Type:** Fullstack-Feature | **Priority:** Standard
-**Status:** Ready for Merge — TDD complete, code-review + QA hardening complete, awaiting merge approval
+**Status:** Done — squash-merged 2026-04-13 (PR #113, commit `d8167d0`)
 **Created:** 2026-04-12 | **Dependencies:** F085 (portion term detection), F-UX-A (card metadata slot)
 
 ---
@@ -1445,7 +1445,7 @@ export function formatPortionTermLabel(term: string): string {
 - [x] Step 3: Implementation — 14 TDD commits (10 backend + 4 frontend) + 1 code-review-fix commit
 - [x] Step 4: Quality gates — lint, typecheck, build, test all green per package
 - [x] Step 5: code-review-specialist + qa-engineer + fixes (1 M1 + 4 M2 + 2 M3 + 1 P2)
-- [ ] Step 6: Ticket finalized, branch deleted, tracker updated (post-merge)
+- [x] Step 6: Ticket finalized, branch deleted, tracker updated (2026-04-13)
 
 ---
 
@@ -1469,7 +1469,9 @@ export function formatPortionTermLabel(term: string): string {
 | 2026-04-13 | TDD frontend implementation | `frontend-developer` agent — 4 commits `cdbd279`..`9b7ec4e`. F-UX-A tests preserved. |
 | 2026-04-13 | Step 5: code-review-specialist + qa-engineer | Parallel. Codex REJECT 6 findings (3 M1) + QA READY-WITH-FIXES 1 M1 blocker. All findings verified empirically against the code. |
 | 2026-04-13 | Code review fixes | Commit `d818033` — 1 M1 + 4 M2 + 2 M3 + 1 P2 inline. +22 tests. Bot 1198 baseline preserved (1221 = 1198 + 23). |
-| 2026-04-13 | Step 5: merge-checklist + audit | Actions 0–7 executed. Evidence table filled. Awaiting `/audit-merge` and merge approval. |
+| 2026-04-13 | Step 5: merge-checklist + audit | Actions 0–7 executed. Evidence table filled. `/audit-merge` 11/11 PASS. |
+| 2026-04-13 | Step 5: merge approval | User approved merge of PR #113 with detailed compliance audit summary. |
+| 2026-04-13 | Step 6: Merged | PR #113 squash-merged to `develop` at commit `d8167d0`. Branch `feature/F-UX-B-spanish-portion-terms` deleted local + remote. 51 files changed, +5755/-532. |
 
 ---
 
