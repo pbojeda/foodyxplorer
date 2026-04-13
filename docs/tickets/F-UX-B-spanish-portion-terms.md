@@ -607,4 +607,146 @@ All findings addressed inline in the spec above (Red-flag mitigation, Q1 classif
 
 ---
 
+## UI/UX design notes (ui-ux-designer, 2026-04-13)
+
+### 1. Visual hierarchy
+
+The card has three layers of nutritional information, from primary to tertiary:
+
+1. **Primary** — kcal number (`text-[28px] font-extrabold text-brand-orange`). The number the user asked for.
+2. **Secondary** — F-UX-A pill (`PORCIÓN GRANDE`) + F-UX-B portion-assumption line. Both qualify *what* is being measured.
+3. **Tertiary** — macros grid (proteins / carbs / fats), allergens, source footer.
+
+The F-UX-B line is secondary, not tertiary — it contextualizes the kcal number just as the F-UX-A pill does. It must be visible at a glance without competing with the kcal.
+
+**Default state (F-UX-B only, no F-UX-A pill):**
+```
+[Food name]                      [confidence badge]
+─────────────────────────────────────────────────
+428                                        ← kcal
+KCAL
+Tapa ≈ ~2 croquetas (≈ 50 g)             ← F-UX-B line
+─────────────────────────────────────────────────
+12g PROTEÍNAS  38g CARBOHIDRATOS  22g GRASAS
+```
+
+**Combined state (F-UX-A pill + F-UX-B line, both present):**
+```
+[Food name]                      [confidence badge]
+[PORCIÓN GRANDE]                             ← F-UX-A pill (amber)
+Ración ≈ ~12 croquetas (≈ 360 g)           ← F-UX-B line
+─────────────────────────────────────────────────
+856                                        ← kcal
+KCAL
+base: 428 kcal                             ← F-UX-A subtitle
+─────────────────────────────────────────────────
+24g PROTEÍNAS  76g CARBOHIDRATOS  44g GRASAS
+```
+
+### 2. Order of pill / subtitle / F-UX-B line
+
+When both F-UX-A and F-UX-B are present, order is: **PILL → F-UX-B line → kcal block (with `base:` subtitle inside it).**
+
+Rationale: the pill and the F-UX-B line are both portion qualifiers. They belong together, before the number. Splitting them around the kcal block (pill above, subtitle below) would be less confusing for screen readers and visually cohesive. The `base: N kcal` subtitle lives inside the kcal block because it qualifies the number, not the portion.
+
+### 3. Color + typography tokens
+
+| Element | Tailwind classes | Notes |
+|---|---|---|
+| F-UX-B line container | `mt-1 text-[12px] leading-snug` | Sits directly below the pill or header |
+| Term label (`Tapa`, `Ración`) | `font-semibold text-slate-600` | Slightly bolder than the rest of the line. `text-slate-600` (#475569) on `bg-white` = 5.9:1 — passes WCAG AA |
+| Piece/gram text (`≈ ~2 croquetas (≈ 50 g)`) | `font-normal text-slate-500` | `text-slate-500` (#64748B) on `bg-white` = 4.6:1 — passes AA at 12px bold-ish context (technically AA Large requires 3:1; AA normal requires 4.5:1 — this passes) |
+| `estimado genérico` qualifier | `italic text-slate-400` | Visibly weaker. `text-slate-400` (#94A3B8) on white = 3.3:1. Since this text is 12px italic, it falls below AA 4.5:1. **Use `text-slate-500` instead for AA compliance.** Keep `italic` for visual differentiation. |
+| Font size | `text-[12px]` | One step below `text-[11px]` badge labels. Does not compete with `text-lg` macro numbers. |
+| Line height | `leading-snug` (1.375) | Comfortable for 2-line wraps on mobile. |
+| Letter spacing | none (default) | The uppercase badge already handles tracking; this line uses natural prose spacing. |
+
+### 4. Icon treatment
+
+No icon. Rationale: the `≈` and `~` symbols in the copy are already semantic markers of approximation. Adding a scale icon or ruler emoji would add noise at 12px on a narrow mobile card, and the line sits close enough to the amber pill to inherit its context. The `role="note"` grouping handles screen reader semantics without an icon. If a future iteration adds a `confidence` visual signal, revisit then.
+
+### 5. Spacing
+
+| Gap | Value | Tailwind |
+|---|---|---|
+| After F-UX-A pill → F-UX-B line | 4px | `mt-1` on F-UX-B container |
+| After header (no pill) → F-UX-B line | 6px | `mt-1.5` on F-UX-B container (matches existing pill `mt-1.5`) |
+| After F-UX-B line → kcal block | 12px | `mt-3` on the kcal `<div>` — existing value, no change |
+| Horizontal padding | inherits card `p-4` / `md:p-5` | No extra indent; flush with card padding |
+
+The card is `p-4` (16px) on mobile and `md:p-5` (20px) on desktop. The F-UX-B line uses full card width — no additional horizontal inset.
+
+### 6. Responsive behavior
+
+The card is capped at ~360px mobile / ~480px desktop. Longest realistic line: `Media ración ≈ ~6 pimientos de padrón (≈ 120 g)` (~48 chars). At `text-[12px]` and ~320px usable width (360px − 2×16px padding), this wraps to two lines.
+
+**Rule: allow natural wrap, never truncate, never shrink font below 12px.** `leading-snug` (1.375) keeps the two-line wrap compact (approx 33px tall). No `truncate`, no `whitespace-nowrap`, no `text-[10px]` fallback. The card is designed for information density; a two-line secondary annotation is expected and fine.
+
+### 7. Animation / transition
+
+The existing card mounts with `card-enter` (a CSS animation class already on `<article>`). The F-UX-B line is inside the card — it appears as part of the card mount, no separate animation needed.
+
+If the line content changes in-place (same card, different query result updating state), match the approach F-UX-A uses: no explicit transition on the pill today, so no transition on the F-UX-B line either. Abrupt swap is acceptable — the card re-render is the user's signal of a new result. TBD — frontend-planner to confirm whether F-UX-A pill has a transition class that should be inherited.
+
+### 8. Empty state
+
+When `portionAssumption` is absent from the API response (e.g., raw ingredients like "100g de croquetas" — no portion term detected), the F-UX-B line **must not render at all**. No placeholder, no dashes, no `—`. The card looks exactly as it does today for these queries. This is a conditional render on `estimateData.portionAssumption !== undefined`.
+
+### 9. Accessibility — JSX skeleton
+
+```jsx
+{/* Portion section — wraps F-UX-A pill + F-UX-B line when either is present */}
+{(hasModifier || portionAssumption) && (
+  <section aria-labelledby="portion-heading" className="mt-1.5">
+    <h3 id="portion-heading" className="sr-only">Información de porción</h3>
+
+    {/* F-UX-A pill — existing, unchanged */}
+    {hasModifier && (
+      <p aria-hidden="true">
+        <span className="inline-block rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+          {pillLabel}
+        </span>
+      </p>
+    )}
+
+    {/* F-UX-B portion assumption line */}
+    {portionAssumption && (
+      <div
+        role="note"
+        aria-label={portionAssumptionAriaLabel}  // composed below
+        className="mt-1 text-[12px] leading-snug"
+      >
+        {/* rendered copy — see copy templates in spec */}
+      </div>
+    )}
+  </section>
+)}
+```
+
+**`aria-label` composition per render path** (all paths MUST contain `"aproximadamente"`):
+
+| Path | `aria-label` value |
+|---|---|
+| `per_dish` + `pieces != null` | `"aproximadamente {pieces} {pieceName}, unos {grams} gramos"` |
+| `per_dish` + `pieces == null` | `"aproximadamente {grams} gramos"` |
+| `generic` | `"aproximadamente entre {gramsMin} y {gramsMax} gramos, estimado genérico"` |
+
+Focus order: the `<section>` is not focusable. The `<div role="note">` is not focusable. Tab order is unchanged. The `sr-only` heading gives screen readers a landmark label without adding a tab stop.
+
+Deferred: `axe-core` contrast check on the rendered card — noted in OOS as a follow-up axe-core integration.
+
+### 10. Open questions for backend-planner / frontend-planner
+
+1. **Missing `termDisplay`** — the spec says fall back to canonical `term` if `termDisplay` is absent. Frontend-planner should confirm the fallback is a simple `portionAssumption.termDisplay ?? portionAssumption.term` and that the capitalisation helper (first-letter uppercase, rest lowercase) lives in a shared util, not inline in the component.
+
+2. **`gramsRange[0] === gramsRange[1]` in generic path** — the `superRefine` invariant requires `gramsMax > gramsMin`, so this should never reach the UI. Backend-planner to confirm the invariant is enforced before any render path is written for the `{N}–{M}` template.
+
+3. **`section` id collision** — `id="portion-heading"` is a hard-coded string. If two `NutritionCard` components appear on the same page (e.g., comparison view), both will share the same `id`, breaking the `aria-labelledby` link. Frontend-planner to decide: accept the risk (single-card pages are the norm), or generate a unique id per card instance (e.g., via `useId()`).
+
+4. **F-UX-A pill `mt-1.5` removal** — currently the pill is wrapped in `<p className="mt-1.5">` outside any section. When the section wrapper is introduced, that `mt-1.5` moves to the `<section>` itself. Frontend-planner to confirm no visual regression on the pill spacing when this restructure lands.
+
+5. **`card-enter` animation scope** — confirm whether `card-enter` triggers on every state change or only on initial mount. If it re-fires on in-place updates, the F-UX-B line will animate in/out on every query change, which may feel jittery. Frontend-planner to assess.
+
+---
+
 *Analysis complete 2026-04-12. Spec v1 written 2026-04-12 (commit `5eb5e84`). Cross-model spec review (Codex + Gemini) run 2026-04-12 with 7 consensus findings + 1 disagreement arbitrated. Spec v2 (this revision) addresses all M1/M2/M3 findings inline + documents P1/P2 and the D1 disagreement. Awaiting user approval before plan phase.*
