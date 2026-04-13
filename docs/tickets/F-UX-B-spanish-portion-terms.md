@@ -1,7 +1,7 @@
 # F-UX-B — Expose assumptions behind Spanish serving-size terms (pincho / tapa / media ración / ración)
 
 **Feature:** F-UX-B | **Type:** Fullstack-Feature | **Priority:** Standard
-**Status:** Spec v2.1 — user audit applied (GX2 fall-through + 3 clarifications), awaiting checkpoint approval before plan phase
+**Status:** Plan v1.1 — cross-model review fixes applied (3 M1 + 1 M2 + 3 M3 + 1 P2), awaiting user checkpoint before TDD phase
 **Created:** 2026-04-12 | **Dependencies:** F085 (portion term detection), F-UX-A (card metadata slot)
 
 ---
@@ -753,7 +753,20 @@ Deferred: `axe-core` contrast check on the rendered card — noted in OOS as a f
 
 ---
 
-## Frontend implementation plan (frontend-planner, 2026-04-13)
+## Frontend implementation plan (frontend-planner, 2026-04-13; plan v1.1 — cross-model review fixes 2026-04-13)
+
+### Plan structure index (M3-2 fix — agent template compliance per `.gemini/agents/frontend-planner.md:1-34`)
+
+The mandated sections from the frontend-planner template map to the numbered subsections below:
+
+| Template section | Lives in |
+|---|---|
+| **Existing Code to Reuse** | §1 (current `NutritionCard.tsx` structure preserved where possible; `MacroItem`, `ConfidenceBadge` untouched; F-UX-A pill markup unchanged), §3 (`formatPortionTermLabel` from `@foodxplorer/shared`, shared with bot), §8 (`EstimateData` type from `@foodxplorer/shared`) |
+| **Files to Create** | `packages/web/src/__tests__/components/NutritionCard.f-ux-b.test.tsx` |
+| **Files to Modify** | `packages/web/src/components/NutritionCard.tsx` (DOM restructure + `'use client'` + new `<section aria-labelledby>` + new `<div role="note">` + 2 helper functions), `docs/user-manual-web.md` (new "Información de porción" section) |
+| **Implementation Order** | §9 TDD table (5 frontend commits, gated on backend commit 1 shipping the shared schema + `formatPortionTermLabel` helper) |
+| **Testing Strategy** | §6 test matrix (5 tests: per_dish+pieces, per_dish+null, generic, combined F-UX-A+F-UX-B, empty state) + copy-discipline regex on T1 + `aria-label` matches `/aproximadamente/` on all per_dish + generic tests + existing 19 F-UX-A tests must stay green |
+| **Key Patterns** | Inline JSX (no subcomponent extraction), pure helper functions colocated with the component, `useId()` for unique aria-labelledby ids, `<span className="italic">` not `<em>` for visual-only italic (avoids screen-reader stress), import shared helper from `@foodxplorer/shared` rather than re-implementing locally (post-cross-model-review fix M1-1) |
 
 ### 1. Component restructure — before / after
 
@@ -824,7 +837,19 @@ switch (pa.source) {
 }
 ```
 
-**`{Term}` derivation:** `capitalize(pa.termDisplay ?? pa.term)` where `capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1)`. This one-liner lives inline in the helper. The `termDisplay ?? term` fallback resolves open question #1 from ui-ux-designer: no shared util needed — the fallback is trivial and card-local.
+**`{Term}` derivation — plan v1.1 fix for M1-1 (Codex cross-model review):** the previous draft proposed `capitalize(pa.termDisplay ?? pa.term)` inline, but a naive capitalize would render `'media_racion'` (canonical key) as `'Media_racion'` (broken). **New rule: use the shared helper `formatPortionTermLabel` from `@foodxplorer/shared`.** Implementation:
+
+```ts
+import { formatPortionTermLabel } from '@foodxplorer/shared';
+
+// Primary path: user's literal wording from termDisplay, first-letter uppercased
+// Fallback: canonical term mapped via the shared helper
+const termLabel = pa.termDisplay
+  ? pa.termDisplay.charAt(0).toUpperCase() + pa.termDisplay.slice(1)
+  : formatPortionTermLabel(pa.term);
+```
+
+This shares the exact same helper with the bot formatter (which also needs the fallback). The inline `capitalize` helper proposed in the v1.0 plan is rejected and removed. Rationale: (a) respects Q6 locked decision by surfacing `termDisplay` literally when present, (b) prevents the `Media_racion` bug on the fallback path, (c) centralizes the label map in one place so adding a new term requires a single edit.
 
 **`estimado genérico` styling:** a `<span className="italic">` wrapping the literal `estimado genérico` substring. The rest of the text renders as plain text nodes inside the `<div>`. Do not use `<em>` — `<em>` adds semantic stress emphasis that screen readers may announce; `<span className="italic">` is purely visual.
 
@@ -1005,29 +1030,45 @@ The `PortionAssumption` sub-type will be exported from `@foodxplorer/shared` as 
 
 ---
 
-## Backend implementation plan (backend-planner, 2026-04-13)
+## Backend implementation plan (backend-planner, 2026-04-13; plan v1.1 — cross-model review fixes 2026-04-13)
 
-### 1. Prisma migration — REPLACING migration (path c)
+### Plan structure index (M3-2 fix — agent template compliance per `.gemini/agents/backend-planner.md:1-34`)
+
+The mandated sections from the backend-planner template map to the numbered subsections below:
+
+| Template section | Lives in |
+|---|---|
+| **Existing Code to Reuse** | §1 (Prisma `StandardPortion` model exists but unused, replaced; F085 `PORTION_RULES` reused as Tier 3 source), §2 (`F-UX-A` `EstimateDataSchema` + `superRefine` pattern reused), §4 (`applyPortionMultiplier`, `detectPortionTerm`, `EstimateParams`), §5 (`escapeMarkdown`, F085 block guarded not edited) |
+| **Files to Create** | `packages/api/src/estimation/portionAssumption.ts`, `packages/api/src/scripts/generateStandardPortionCsv.ts`, `packages/api/src/scripts/seedStandardPortionCsv.ts`, `packages/api/prisma/seed-data/standard-portions.csv`, `packages/api/prisma/migrations/20260413180000_standard_portions_f-ux-b/migration.sql`, all the `__tests__/f-ux-b.*` files |
+| **Files to Modify** | `packages/api/prisma/schema.prisma`, `packages/shared/src/schemas/estimate.ts`, `packages/shared/src/schemas/standardPortion.ts` (rewrite), `packages/shared/src/schemas/enums.ts` (delete `PortionContextSchema`), `packages/shared/src/portion/portionLabel.ts`, `packages/shared/src/index.ts`, `packages/api/src/estimation/portionUtils.ts`, `packages/api/src/conversation/estimationOrchestrator.ts`, `packages/api/src/routes/estimate.ts`, `packages/bot/src/formatters/estimateFormatter.ts`, `packages/bot/src/formatters/comparisonFormatter.ts`, `packages/api/package.json` |
+| **Implementation Order** | §8 TDD table (9 commits, dependency-respecting) |
+| **Testing Strategy** | §2 (15 illegal schema combinations as table), §3 (seed pipeline tests), §4 (`computeDisplayPieces` boundary tests), §5 (orchestrator unit + integration tests for all 3 tiers), §5/§6 (bot snapshot baseline before formatter edits + per_dish branch tests) |
+| **Key Patterns** | F-UX-A's `baseNutrients`/`basePortionGrams` capture-before-scale pattern, `superRefine` invariant pattern, fail-loud-then-silent-gate seed validation pattern (spec v2.1 clarification 4), structural-guard-around-existing-block pattern for bot regression byte-identity, mirror-orchestrator-and-route pattern from F-UX-A P1 hardening |
+
+### 1. Prisma migration — REPLACING migration (path c), with shared schema cleanup (M1-2 fix)
 
 **Current `StandardPortion` shape** (`schema.prisma:208–227`): `id UUID PK`, `foodId UUID? FK→foods`, `foodGroup`, `context PortionContext enum`, `portionGrams Decimal`, `sourceId UUID FK→DataSources`, `notes`, `confidenceLevel ConfidenceLevel`, `description`, `isDefault bool`. Maps to `standard_portions`.
 
 **Spec shape**: `dishId UUID FK→dishes`, `term VARCHAR`, `grams INT`, `pieces INT?`, `pieceName VARCHAR?`, `confidence 'high'|'medium'|'low'` (new DB enum distinct from `ConfidenceLevel`), `notes`. Missing entirely: `foodId`, `context`, `portionGrams`, `sourceId`, `description`, `isDefault`. The shapes are fully incompatible.
 
-The table is **unused** (zero rows confirmed; no FK references from other tables — `standardPortions` relation only exists as a Prisma back-relation on `DataSource` and `Food`, both of which hold no FK column; confirmed by grep showing zero query-time references to `prisma.dataSource.standardPortions` or `prisma.food.standardPortions`).
+The table is **unused** (zero rows confirmed on dev DB; no FK references from other tables — `standardPortions` relation only exists as a Prisma back-relation on `DataSource` and `Food`, both of which hold no FK column; confirmed by grep showing zero query-time references to `prisma.dataSource.standardPortions` or `prisma.food.standardPortions`). Cross-model review verified the assumption by inspecting `packages/shared/src/schemas/standardPortion.ts:1-36` and `packages/shared/src/schemas/enums.ts:18-25`.
 
-**Path: drop and recreate.**
+**Path: drop and recreate. M1-2 fix: shared-schema cleanup MUST happen atomically in the same commit as the Prisma migration, because `packages/shared/src/schemas/standardPortion.ts` still declares the old shape and `packages/shared/src/schemas/enums.ts:18` still exports `PortionContextSchema`. Without explicit updates to both, the workspace will not compile after the Prisma enum drop.**
 
 | Item | Detail |
 |---|---|
 | Migration filename | `20260413180000_standard_portions_f-ux-b` |
-| SQL step 1 | `DROP TABLE standard_portions CASCADE` (removes orphaned indexes and the XOR CHECK constraint) |
+| **Pre-flight safety check (M2-1 fix, MUST run before any DROP)** | Before executing the migration: `psql $DATABASE_URL -c "SELECT COUNT(*) FROM standard_portions;"`. If count > 0, run `pg_dump --table standard_portions $DATABASE_URL > /tmp/standard_portions_backup_$(date +%Y%m%d_%H%M%S).sql` and ABORT the migration until the data is accounted for. Document the check as part of the migration RUN script header with the explicit comment: "Verify table is empty before drop. If not, backup via pg_dump before proceeding. The new v1 schema is incompatible with any existing seed data from the unused legacy table." |
+| SQL step 1 | `DROP TABLE standard_portions CASCADE` (removes orphaned indexes and the XOR CHECK constraint; only runs after the pre-flight safety check confirms zero rows OR backup has been taken) |
 | SQL step 2 | `CREATE TYPE portion_confidence AS ENUM ('high', 'medium', 'low')` |
 | SQL step 3 | `CREATE TABLE standard_portions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), dish_id UUID NOT NULL REFERENCES dishes(id) ON DELETE CASCADE, term VARCHAR(50) NOT NULL, grams INTEGER NOT NULL CHECK (grams > 0), pieces INTEGER CHECK (pieces >= 1), piece_name VARCHAR(100), confidence portion_confidence NOT NULL, notes TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), CONSTRAINT std_portions_pieces_name_pairing CHECK ((pieces IS NULL) = (piece_name IS NULL)), UNIQUE (dish_id, term))` |
+| SQL step 4 | `DROP TYPE IF EXISTS portion_context` (orphaned enum type — the old column was the only user of it) |
 | Prisma enum | `enum PortionConfidence { high medium low @@map("portion_confidence") }` |
 | Index | `@@unique([dishId, term])` in Prisma model maps to the UNIQUE constraint above; no extra `@@index` needed (standards: `@unique` already creates an index) |
-| schema.prisma changes | (a) Remove `standardPortions StandardPortion[]` back-relation from `DataSource` and `Food`; (b) remove `PortionContext` enum (only used by the old column — confirm with `grep -r "PortionContext" packages/` before drafting SQL); (c) add `PortionConfidence` enum; (d) replace `StandardPortion` model body; (e) add `standardPortions StandardPortion[]` back-relation on `Dish` model |
-| Client regen | `cd packages/api && npx prisma generate` |
-| Migration workflow | `prisma migrate dev --create-only --name standard_portions_f-ux-b` → hand-edit SQL → `prisma migrate deploy` |
+| `schema.prisma` changes | (a) Remove `standardPortions StandardPortion[]` back-relation from `DataSource` and `Food`; (b) remove `PortionContext` enum declaration; (c) add `PortionConfidence` enum; (d) replace `StandardPortion` model body with new shape (`dishId`, `term`, `grams`, `pieces`, `pieceName`, `confidence`, `notes`, `createdAt`, `updatedAt`, `@@unique([dishId, term])`); (e) add `standardPortions StandardPortion[]` back-relation on `Dish` model |
+| **Shared schema cleanup (M1-2 fix, MUST be in the same commit)** | (a) **Rewrite** `packages/shared/src/schemas/standardPortion.ts` — replace the entire file contents with the new shape: `{ id, dishId, term, grams, pieces, pieceName, confidence, notes, createdAt, updatedAt }`, using `z.string().uuid()` for IDs, `z.enum(['pintxo','tapa','media_racion','racion'])` for `term`, `z.number().int().positive()` for `grams`, `z.number().int().min(1).nullable()` for `pieces`, `z.string().min(1).nullable()` for `pieceName`, and a NEW `PortionConfidenceSchema = z.enum(['high','medium','low'])` for `confidence`. Delete the old `StandardPortionSchema`/`CreateStandardPortionSchema` exports. Export new `StandardPortionSchema`, `CreateStandardPortionSchema`, and `type StandardPortion = z.infer<...>`. (b) **Delete** `PortionContextSchema` and `PortionContext` type from `packages/shared/src/schemas/enums.ts:18-25` (verified lines). (c) **Grep-verify** no remaining callsites: `rg "PortionContext|PortionContextSchema" packages/` MUST return zero hits after the edit. (d) **Grep-check** `StandardPortion` consumers: `rg "StandardPortionSchema\|CreateStandardPortionSchema\|import.*StandardPortion" packages/` — update any callsites (expected: zero because the table was unused; confirm empirically). (e) **All five steps in the same commit** as the Prisma migration + schema.prisma edit to avoid an intermediate broken workspace state. |
+| Client regen | `cd packages/api && npx prisma generate` (part of the same commit) |
+| Migration workflow | `prisma migrate dev --create-only --name standard_portions_f-ux-b` → hand-edit SQL (add the `DROP TYPE portion_context` step and the pre-flight `SELECT COUNT(*)` comment block) → pre-flight check → `prisma migrate deploy` |
 
 ### 2. Shared schema extension
 
@@ -1100,7 +1141,15 @@ Legal combinations to assert `success === true`: `per_dish` with pieces set; `pe
 
 **Generator script** (offline, never invoked at query time):
 - Path: `packages/api/src/scripts/generateStandardPortionCsv.ts`
+- **Invocation (M3-1 fix, plan v1.1): wired as an npm script in `packages/api/package.json`**:
+  ```json
+  "scripts": {
+    "generate:standard-portions": "tsx src/scripts/generateStandardPortionCsv.ts"
+  }
+  ```
+  Discoverable via `npm run` listing in the api workspace. Invoke from repo root: `npm run generate:standard-portions -w @foodxplorer/api`. Backend-developer follows this exact command in commit 4 of the TDD order.
 - Reads `packages/api/prisma/seed-data/spanish-dishes.json`, filters to 30 priority dishes by `nameEs`
+- Resolves each priority dish to its UUID `dishes.id` (the CSV `dishId` column is a UUID, per M1-3 fix above)
 - Expands each dish × 4 terms = up to 120 rows
 - Skip-existing: never overwrites a row where `reviewed_by` is already set — safe to re-run as rows are reviewed incrementally
 - For strong-countable bucket: LLM prompt asking for `{grams, pieces, pieceName, confidence}` in JSON
@@ -1114,13 +1163,50 @@ Legal combinations to assert `success === true`: `per_dish` with pieces set; `pe
 - Path: `packages/api/src/scripts/seedStandardPortionCsv.ts`
 - Exports `seedStandardPortions(prisma: PrismaClient): Promise<void>`
 - Loads CSV from `packages/api/prisma/seed-data/standard-portions.csv` using `fs.readFileSync` + `new URL(...)` pattern (per memory: avoids Node16 import assertion issues)
+- **Top-of-file rollback documentation (G-P2-a fix, plan v1.1):** the file MUST start with this comment block so analysts find rollback procedure without hunting through `CONTRIBUTING.md`:
+  ```ts
+  /**
+   * F-UX-B Standard Portion seed script.
+   *
+   * Rollback procedure — to un-seed a specific row:
+   *   1. DELETE FROM standard_portions WHERE dish_id = $1 AND term = $2;
+   *   2. Clear reviewed_by in the source CSV row (empty the column, keep the row)
+   *   3. Re-run `npm run generate:standard-portions -w @foodxplorer/api` to regenerate
+   *      (the row is preserved as unreviewed, available for re-review)
+   *   4. Verify with `SELECT * FROM standard_portions WHERE dish_id = $1;` — should be empty
+   *
+   * For full table reset (rare, e.g., schema migration):
+   *   TRUNCATE standard_portions CASCADE;
+   *   then delete CSV rows entirely (do NOT just clear reviewed_by — the rows would
+   *   re-seed on next run if any have reviewed_by set).
+   *
+   * WARNING: Rollback in production must run in a maintenance window. Test the
+   * procedure on staging first. The seed pipeline does NOT delete rows on its own —
+   * it only upserts, so removing a row from the CSV is not enough to remove it from
+   * the DB.
+   *
+   * See also: CONTRIBUTING.md → "Data seeding" section.
+   */
+  ```
 
-**Validation order** (steps 1–3 fail-loud on ALL rows; step 4 is the only silent path):
+**Validation order** (steps 1–3 fail-loud on ALL rows; step 4 is the only silent path) — **M1-3 fix applied: `dishId` is a UUID string, not a positive int** (`packages/api/prisma/schema.prisma:323` confirms `dishes.id` is `String @id @default(uuid()) @db.Uuid`):
 1. **Header validation**: assert exact column set; diff-error + `process.exit(1)` on mismatch
-2. **Row-level types** (every row regardless of `reviewed_by`): `dishId` → positive int; `term` → `{pintxo,tapa,media_racion,racion}`; `grams` → positive int; `pieces` → null or int ≥ 1; `pieceName` null iff `pieces` null; `confidence` → `{high,medium,low}`; `reviewed_by` null or non-empty string — any failure exits with row number + field + `reviewed_by` status
+2. **Row-level types** (every row regardless of `reviewed_by`):
+   - `dishId` → `z.string().uuid()` (NOT positive int — fixed in plan v1.1 after Codex M1-3). Error message: `"row N: dishId '{value}' is not a valid UUID"`
+   - `term` → `z.enum(['pintxo','tapa','media_racion','racion'])`
+   - `grams` → `z.number().int().positive()` (parsed from CSV string via `z.coerce.number().int().positive()`)
+   - `pieces` → null or `z.number().int().min(1)` (parsed via `z.preprocess(v => v === '' ? null : Number(v), z.number().int().min(1).nullable())`)
+   - `pieceName` → `z.string().min(1).nullable()`, paired-null invariant: `pieceName === null` iff `pieces === null` enforced via `superRefine`
+   - `confidence` → `z.enum(['high','medium','low'])`
+   - `reviewed_by` → `z.string().min(1).nullable()` (empty CSV cell → null)
+   - Any failure exits with row number + field name + `reviewed_by` status (so analyst knows whether the bad row was reviewed or not)
 3. **Uniqueness**: `(dishId, term)` unique across all rows; duplicate exits with both row numbers
 4. **Review gate** (after 1–3 pass): seed only `reviewed_by != null` rows; silently skip others; log summary: `Seeded N rows. Skipped M unreviewed rows (reviewed_by == null). 0 errors.`
 5. **Idempotency**: upsert by `(dishId, term)` in a transaction
+
+**Test fixtures** use real UUIDs generated via `randomUUID()` from `node:crypto` (per-test) or hardcoded fixed UUIDs for snapshot stability. Example malformed-row test: `dishId = 'abc'` → error message `"row 5: dishId 'abc' is not a valid UUID (reviewed_by: pbojeda)"`.
+
+**Generator script (`generateStandardPortionCsv.ts`) MUST emit valid UUIDs**, not integers — when reading `spanish-dishes.json` and looking up the dish ID for each priority dish name, use `dishes.id` directly (already a UUID string). The CSV column header is `dishId` not `dish_id` (camelCase per the validator); rows look like `"550e8400-e29b-41d4-a716-446655440000,tapa,50,2,croqueta,high,,pbojeda"`.
 
 **CSV committed to git**: YES — the generator template plus a minimal CSV with 1–2 reviewed example rows to make the pipeline immediately testable.
 
@@ -1244,7 +1330,32 @@ Each test invokes `formatEstimate(mockData)` with a mocked `EstimateData` where 
 
 ### 6. Open questions from UI/UX designer — backend answers
 
-**OQ1 (`termDisplay` fallback)**: confirmed — `portionAssumption.termDisplay ?? portionAssumption.term` is the correct fallback. The capitalisation helper (`capitaliseFirstLetter`) should be added to `packages/shared/src/portion/portionLabel.ts` alongside the existing F-UX-A helper and exported from `packages/shared/src/index.ts`. Frontend-planner can import it from `@foodxplorer/shared`.
+**OQ1 (`termDisplay` fallback) — plan v1.1 fix for M1-1 (Codex cross-model review)**: `portionAssumption.termDisplay ?? portionAssumption.term` is the correct fallback but **`capitalize(s)` is not sufficient**: when `termDisplay` is missing and the fallback is the canonical `term` key (e.g., `'media_racion'`), a naive capitalize produces `'Media_racion'` — wrong. The helper MUST map canonical keys to the correct Spanish display labels.
+
+**Shared helper (v1.1):** `formatPortionTermLabel(term: string): string` in `packages/shared/src/portion/portionLabel.ts` (alongside the existing F-UX-A helper), exported from `packages/shared/src/index.ts`. Implementation:
+
+```ts
+const PORTION_TERM_LABELS: Record<string, string> = {
+  pintxo: 'Pintxo',
+  pincho: 'Pincho',
+  tapa: 'Tapa',
+  media_racion: 'Media ración',
+  racion: 'Ración',
+};
+
+export function formatPortionTermLabel(term: string): string {
+  return PORTION_TERM_LABELS[term] ?? term;
+}
+```
+
+**Usage contract:**
+- **Primary source:** the API response's `portionAssumption.termDisplay` field — set by the orchestrator from the user's literal query (per Q6 locked decision: if the user typed `pincho` → `termDisplay = 'pincho'`; if they typed `pintxo` → `termDisplay = 'pintxo'`). The UI capitalizes the first letter of `termDisplay` and renders it as-is.
+- **Fallback:** when `termDisplay` is missing (edge case — backend always sets it in practice), the UI calls `formatPortionTermLabel(portionAssumption.term)` which maps the canonical internal key to the correct Spanish label.
+- **Both web and bot import the helper** from `@foodxplorer/shared`. The frontend plan's previous "inline `capitalize` helper" is rejected and removed per v1.1 fix.
+
+**Tests:**
+- Unit tests for `formatPortionTermLabel` covering all 5 keys + unknown-key passthrough: `packages/shared/src/portion/__tests__/portionLabel.test.ts` (extends the existing F-UX-A test file).
+- Web + bot render-path tests exercise the fallback: a test case where `portionAssumption.termDisplay` is undefined asserts the card/bot renders `Media ración` (not `Media_racion`).
 
 **OQ2 (`gramsRange[0] === gramsRange[1]`)**: confirmed — the `superRefine` invariant enforces `gramsMax > gramsMin` (strict inequality). `[X, X]` is rejected at `safeParse` time. The UI `{N}–{M}` template will never receive equal bounds. No UI guard needed.
 
@@ -1263,18 +1374,17 @@ Each test invokes `formatEstimate(mockData)` with a mocked `EstimateData` where 
 
 | # | Commit | Files touched |
 |---|---|---|
-| 1 | shared schema + illegal-combination tests | `packages/shared/src/schemas/estimate.ts`, `packages/shared/src/__tests__/f-ux-b.portionAssumption.test.ts` |
+| 1 | shared schema + `formatPortionTermLabel` helper + tests for both | `packages/shared/src/schemas/estimate.ts`, `packages/shared/src/portion/portionLabel.ts`, `packages/shared/src/index.ts`, `packages/shared/src/__tests__/f-ux-b.portionAssumption.test.ts`, `packages/shared/src/portion/__tests__/portionLabel.test.ts` |
 | 2 | `computeDisplayPieces` util + boundary tests | `packages/api/src/estimation/portionUtils.ts`, `packages/api/src/__tests__/f-ux-b.portionUtils.test.ts` |
-| 3 | Prisma migration + client regen | `schema.prisma`, migration SQL file, `packages/api/src/generated/` |
-| 4 | Seed CSV pipeline | `seedStandardPortionCsv.ts`, `generateStandardPortionCsv.ts`, `standard-portions.csv` (2 example reviewed rows), `f-ux-b.seedStandardPortionCsv.test.ts` |
+| 3 | Prisma migration + shared schema cleanup + client regen (M1-2 fix: ALL in one commit) | `packages/api/prisma/schema.prisma`, migration SQL file, `packages/shared/src/schemas/standardPortion.ts` (rewrite), `packages/shared/src/schemas/enums.ts` (delete `PortionContextSchema`), any callsites found via grep, `packages/api/src/generated/` |
+| 4 | Seed CSV pipeline | `seedStandardPortionCsv.ts` (with rollback comment block), `generateStandardPortionCsv.ts`, `packages/api/prisma/seed-data/standard-portions.csv` (2 example reviewed rows with UUIDs), `f-ux-b.seedStandardPortionCsv.test.ts`, `packages/api/package.json` (new `generate:standard-portions` script) |
 | 5 | Orchestrator resolution + unit tests | `portionAssumption.ts` (new), `estimationOrchestrator.ts`, `routes/estimate.ts`, `f-ux-b.portionAssumption.unit.test.ts` |
 | 6 | Integration test (real DB, all 3 tiers) | `f-ux-b.estimateRoute.portionAssumption.integration.test.ts` |
 | 7 | Bot snapshot baseline (commit BEFORE formatter changes) | `f-ux-b.generic-byte-identity.test.ts`, `.snap` file |
-| 8 | Bot formatter + per_dish tests | `estimateFormatter.ts`, `comparisonFormatter.ts`, `f-ux-b.estimateFormatter.perDish.test.ts` |
-| 9 | `capitaliseFirstLetter` shared util | `packages/shared/src/portion/portionLabel.ts`, `packages/shared/src/index.ts` |
-| 10 | API spec + docs + ADR-020 | `api-spec.yaml`, `user-manual-web.md`, `key_facts.md`, `decisions.md` |
+| 8 | Bot formatter + per_dish tests (imports `formatPortionTermLabel` from shared) | `estimateFormatter.ts`, `comparisonFormatter.ts`, `f-ux-b.estimateFormatter.perDish.test.ts` |
+| 9 | API spec + docs + ADR-020 + CONTRIBUTING.md rollback section | `api-spec.yaml`, `user-manual-web.md`, `key_facts.md`, `decisions.md`, `CONTRIBUTING.md` |
 
-**Expected commit count**: 10. **Rough effort**: 2.5–3 days backend (migration + orchestrator + seed pipeline are the heavy parts; bot formatter and docs are lighter).
+**Expected commit count**: 9 (was 10 in v1.0 — `formatPortionTermLabel` moved from its own commit 9 into commit 1 alongside the shared schema so both web and bot can import it from their first commit). **Rough effort**: 2.5–3 days backend (migration + orchestrator + seed pipeline are the heavy parts; bot formatter and docs are lighter).
 
 ### 9. Risks and open questions
 
@@ -1287,4 +1397,4 @@ Each test invokes `formatEstimate(mockData)` with a mocked `EstimateData` where 
 | `dishId` extraction from cascade result | `dishId` is set from `scaledResult?.entityId` only when `entityType === 'dish'`. Food-level matches return `dishId = null` → `resolvePortionAssumption` returns `{}` → no `portionAssumption` field. This is correct behaviour. Add a unit test asserting absence of `portionAssumption` when `entityType === 'food'`. |
 | Cache key staleness | The existing cache key does not include a portion-term dimension. A generic-path response cached before the seed CSV ships could be served stale after seeding adds a Tier 1 row. Mitigation: the seed script is offline and requires a deploy + cache flush to take effect anyway. No code change needed — document as a deployment note. |
 
-**Open question for user**: `generateStandardPortionCsv.ts` invokes `codex exec` / gemini. Recommend wiring as `npm run generate:standard-portions` in `packages/api/package.json` for discoverability. Confirm preferred invocation pattern before implementation commit 4.
+**RESOLVED in plan v1.1 (M3-1 fix):** `generateStandardPortionCsv.ts` is wired as `npm run generate:standard-portions -w @foodxplorer/api`. See the Generator script subsection above for the package.json entry. No remaining open questions for the user on this plan.
