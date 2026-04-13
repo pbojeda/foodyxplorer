@@ -168,12 +168,28 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     const detectedTerm = detectPortionTerm(portionDetectionQuery);
     const dishId =
       scaledResult?.entityType === 'dish' ? scaledResult.entityId : null;
+
+    // media_racion double-count guard: F042 extracts multiplier=0.5 from 'media ración'
+    // in the user query; Tier 2 also applies ×0.5 (its definition of half-ración).
+    // When coming via conversation path (originalQuery defined), pass multiplier=1.0 so
+    // Tier 2 only applies the inherent ×0.5 — the nutrient scaling from F042 is handled
+    // separately by applyPortionMultiplier upstream.
+    // For GET /estimate with explicit portionMultiplier (originalQuery absent), pass the
+    // full effectiveMultiplier so that e.g. 'media ración grande' (multiplier=1.5) scales
+    // the Tier 2 result correctly: grams = racion.grams × 0.5 × 1.5.
+    const isMediaRacion =
+      detectedTerm !== null &&
+      (detectedTerm.term.toLowerCase() === 'media ración' ||
+        detectedTerm.term.toLowerCase() === 'media racion');
+    const portionMultiplierForAssumption =
+      originalQuery !== undefined && isMediaRacion ? 1.0 : effectiveMultiplier;
+
     const { portionAssumption } = await resolvePortionAssumption(
       prisma,
       dishId,
       detectedTerm,
       portionDetectionQuery,
-      effectiveMultiplier,
+      portionMultiplierForAssumption,
       logger as Parameters<typeof resolvePortionAssumption>[5],
     );
     if (portionAssumption !== undefined) {

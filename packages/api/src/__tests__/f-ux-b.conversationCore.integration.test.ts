@@ -314,18 +314,20 @@ describe('F-UX-B BUG-PROD-006 — portionAssumption via processMessage() (ADR-02
   });
 
   describe('Tier 2 — media_racion arithmetic from ración row', () => {
-    it('media ración de croquetas → per_dish, term=media_racion', async () => {
-      // F042 extracts multiplier=0.5 from 'media ración', which is also passed
-      // to resolvePortionAssumption. Tier 2 applies racion×0.5×effectiveMultiplier.
-      // Primary assertion: portionAssumption IS resolved (wiring fix verified).
+    it('media ración de croquetas → per_dish, term=media_racion, grams=100, pieces=4', async () => {
+      // Tier 2: racion row (200g/8pc) × 0.5 = 100g/4pc.
+      // F042 extracts portionMultiplier=0.5 from 'media ración'; Tier 2 does NOT
+      // further apply this multiplier (that would double-count the halving).
       const result = await processMessage(buildRequest('media ración de croquetas'));
 
       expect(result.intent).toBe('estimation');
       const pa = result.estimation?.portionAssumption;
-      expect(pa).toBeDefined();                        // ← RED: portionAssumption absent
+      expect(pa).toBeDefined();
       expect(pa?.source).toBe('per_dish');
       expect(pa?.term).toBe('media_racion');
       expect(pa?.termDisplay).toBe('media ración');
+      expect(pa?.grams).toBe(100);
+      expect(pa?.pieces).toBe(4);
       expect(pa?.fallbackReason).toBeNull();
     });
   });

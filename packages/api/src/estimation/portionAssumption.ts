@@ -186,13 +186,18 @@ export async function resolvePortionAssumption(
     });
 
     if (racionRow !== null) {
+      // Tier 2 computes the inherent half-portion and applies `multiplier` for any
+      // additional F042 size modifier (e.g. 'media ración grande' → multiplier=1.5
+      // → grams = racion.grams × 0.5 × 1.5). For the conversation path where F042
+      // extracts multiplier=0.5 from 'media ración' itself, the orchestrator passes
+      // portionMultiplierForAssumption=1.0 here to avoid double-counting the halving.
       const basePiecesHalf = racionRow.pieces !== null ? racionRow.pieces * 0.5 : null;
       const displayPieces = computeDisplayPieces(
         basePiecesHalf !== null ? basePiecesHalf * multiplier : null,
       );
 
-      // M2b guard — see Tier 1 comment. Same rationale: grams × 0.5 × multiplier
-      // can round to 0 for extreme edge cases; clamp to at least 1 g.
+      // M2b guard — see Tier 1 comment. grams × 0.5 × multiplier can only round to 0
+      // for extreme edge cases (grams=1, multiplier=0.1 → 0.05 → Math.round → 0). Clamp to 1.
       const portionAssumption: PortionAssumption = {
         term: 'media_racion',
         termDisplay,
