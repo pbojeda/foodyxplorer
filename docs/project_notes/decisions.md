@@ -599,3 +599,29 @@ Analysis in `docs/research/product-evolution-analysis-2026-03-31.md` Section 17,
 - (+) Clean separation: client metrics (F112) vs server metrics (F029)
 - (+) sendBeacon ready for F113 backend integration
 - (-) Metrics only visible in browser localStorage until F113 ships
+
+### ADR-020: Per-Dish Portion Assumptions with Graceful Degradation to F085 Generic Ranges (2026-04-13)
+
+**Context:** F085's global gram ranges (`tapa=50–80g`) are dish-agnostic. The user asked for per-dish serving data so the bot and UI can show "~2 croquetas (≈50g)" for a tapa of croquetas vs "≈80ml" for a tapa of gazpacho. The existing `StandardPortion` table was present in the schema but unused and had an incompatible shape (foodId-based, not dish-based).
+
+**Decision:** Replace the legacy `StandardPortion` table with a new per-dish shape (`dishId`, `term`, `grams`, `pieces?`, `pieceName?`, `confidence`). Seed it offline via an analyst-reviewed CSV pipeline (no runtime LLM cost). Wire `resolvePortionAssumption` into both `routes/estimate.ts` and `estimationOrchestrator.ts` for parity. Use a 3-tier fallback chain at query time: Tier 1 (DB lookup), Tier 2 (media_racion×0.5 arithmetic from ración row), Tier 3 (F085 global range).
+
+**Cross-model review (Codex + Gemini + self-review) identified and resolved:**
+- M1-1: `formatPortionTermLabel` helper needed for canonical key → Spanish label mapping
+- M1-2: Shared schema cleanup (PortionContextSchema deletion) must be atomic with migration
+- M1-3: CSV `dishId` column must be UUID string (not integer)
+- M2-1: Pre-flight safety check before DROP TABLE (backup if rows present)
+- M3-1/M3-2: npm script wiring + agent template compliance
+
+**Tier 2 non-rule (spec §3.2):** Tier 2 does NOT apply to tapa/pintxo queries even when a ración row exists. Rationale: `tapa = ración × 0.25` would be false precision masquerading as data. Tapa and pintxo always degrade to Tier 3 generic.
+
+**Low-multiplier fall-through:** When `basePieces × multiplier < 0.75`, pieces is set to null (not rounded to 1). Rationale: 0.6 of a croqueta is not a meaningful UI element. The 0.75 threshold was chosen as the smallest value that rounds to 1 without conveying false precision.
+
+**Consequences:**
+- (+) Per-dish data covers 30 priority Spanish tapas with pieces + pieceName
+- (+) Zero runtime LLM cost — seed pipeline is fully offline
+- (+) Transparent degradation: Tier 3 output is byte-identical to pre-F-UX-B F085 output
+- (+) Bot 1205 tests remain green; generic path preserved by structural guard
+- (-) Per-dish coverage limited to reviewed priority-30 dishes until analyst expands CSV
+- (-) Cache key doesn't include portion-term dimension — stale cache after seeding requires deploy + cache flush (documented as deployment note)
+- (-) `StandardPortion` shape from prior unused table is fully incompatible; data migration is a clean drop-and-recreate

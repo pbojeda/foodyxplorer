@@ -19,14 +19,12 @@ export const EstimationMethod = {
   llm: "llm",
 } as const;
 export type EstimationMethod = (typeof EstimationMethod)[keyof typeof EstimationMethod];
-export const PortionContext = {
-  main_course: "main_course",
-  side_dish: "side_dish",
-  dessert: "dessert",
-  starter: "starter",
-  snack: "snack",
+export const PortionConfidence = {
+  high: "high",
+  medium: "medium",
+  low: "low",
 } as const;
-export type PortionContext = (typeof PortionContext)[keyof typeof PortionContext];
+export type PortionConfidence = (typeof PortionConfidence)[keyof typeof PortionConfidence];
 export const FoodType = {
   generic: "generic",
   branded: "branded",
