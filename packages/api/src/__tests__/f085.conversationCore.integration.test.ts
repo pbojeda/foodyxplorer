@@ -233,6 +233,7 @@ function buildRequest(text: string): ConversationRequest {
     actorId: ACTOR_ID,
     db,
     redis: {} as ConversationRequest['redis'],
+    prisma,
     chainSlugs: ['fc-conv-core-test'],
     chains: [{ chainSlug: 'fc-conv-core-test', name: 'FC ConvCore Test Restaurant', nameEs: null }],
     logger: { info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn() },

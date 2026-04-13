@@ -32,6 +32,11 @@ export interface EstimateParams {
   chainSlug?: string;
   restaurantId?: string;
   portionMultiplier?: number;
+  /** BUG-PROD-006: Pre-F042/F078 query for portion term detection.
+   *  When provided, F085 and F-UX-B detection use this instead of the
+   *  stripped `query`. Omit for callers without F042/F078 processing
+   *  (e.g., GET /estimate route) — falls back to `query`. */
+  originalQuery?: string;
   db: Kysely<DB>;
   /** F-UX-B: Prisma client for standardPortions lookup (optional — skips portion assumption when absent). */
   prisma?: PrismaClient;
@@ -65,6 +70,7 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     chainSlug,
     restaurantId,
     portionMultiplier: rawMultiplier,
+    originalQuery,
     db,
     prisma,
     openAiApiKey,
@@ -77,9 +83,18 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
 
   // Step 1 & 2 — Build cache key from normalized query
   const normalizedQuery = query.replace(/\s+/g, ' ').trim().toLowerCase();
+  // BUG-PROD-006: use pre-F042/F078 query for portion detection when available.
+  const portionDetectionQuery = originalQuery ?? query;
+  const normalizedPortionQuery = portionDetectionQuery.replace(/\s+/g, ' ').trim().toLowerCase();
+  // Include normalizedPortionQuery in cache key only when different from normalizedQuery.
+  // Prevents 'tapa de croquetas' (portionSizing=tapa) and 'croquetas' (portionSizing=null)
+  // from sharing a cache hit.
+  const portionKeySuffix = normalizedPortionQuery !== normalizedQuery
+    ? `:${normalizedPortionQuery}`
+    : '';
   const cacheKey = buildKey(
     'estimate',
-    `${normalizedQuery}:${chainSlug ?? ''}:${restaurantId ?? ''}:${effectiveMultiplier}`,
+    `${normalizedQuery}:${chainSlug ?? ''}:${restaurantId ?? ''}:${effectiveMultiplier}${portionKeySuffix}`,
   );
 
   // Step 3 — Cache check (fail-open)
@@ -141,22 +156,23 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     ...enrichWithAllergens(scaledResult),
     // F084: Calorie uncertainty range based on confidence + estimation method
     ...enrichWithUncertainty(scaledResult),
-    // F085: Spanish portion term context from query
-    ...enrichWithPortionSizing(query),
+    // F085: Spanish portion term context from query (BUG-PROD-006: use pre-F078 originalQuery)
+    ...enrichWithPortionSizing(portionDetectionQuery),
   };
 
   // F-UX-B: Resolve per-dish portion assumption (3-tier fallback chain).
   // Runs after enrichWithPortionSizing so portionSizing is already on estimateData.
   // Only executes when prisma is available; silently skips otherwise.
   if (prisma !== undefined) {
-    const detectedTerm = detectPortionTerm(query);
+    // BUG-PROD-006: use pre-F042/F078 originalQuery for portion term detection.
+    const detectedTerm = detectPortionTerm(portionDetectionQuery);
     const dishId =
       scaledResult?.entityType === 'dish' ? scaledResult.entityId : null;
     const { portionAssumption } = await resolvePortionAssumption(
       prisma,
       dishId,
       detectedTerm,
-      query,
+      portionDetectionQuery,
       effectiveMultiplier,
       logger as Parameters<typeof resolvePortionAssumption>[5],
     );

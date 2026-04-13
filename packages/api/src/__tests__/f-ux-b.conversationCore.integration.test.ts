@@ -266,7 +266,7 @@ function buildRequest(text: string): ConversationRequest {
     actorId: ACTOR_ID,
     db,
     redis: {} as ConversationRequest['redis'],
-    // prisma intentionally absent in Commit 1 — added in Commit 3 GREEN fix
+    prisma,
     chainSlugs: ['fd-conv-core-test'],
     chains: [{ chainSlug: 'fd-conv-core-test', name: 'FD ConvCore Test Restaurant', nameEs: null }],
     logger: { info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn() },

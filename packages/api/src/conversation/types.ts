@@ -4,6 +4,7 @@
 
 import type { Kysely } from 'kysely';
 import type { Redis } from 'ioredis';
+import type { PrismaClient } from '@prisma/client';
 import type { DB } from '../generated/kysely-types.js';
 import type { Level4LookupFn } from '../estimation/engineRouter.js';
 
@@ -75,4 +76,7 @@ export interface ConversationRequest {
   legacyChainSlug?: string;
   /** Legacy chainName from bot:state (optional fallback). */
   legacyChainName?: string;
+  /** F-UX-B / BUG-PROD-006: Prisma client for per-dish portion lookup.
+   *  Optional — when absent, portionAssumption resolution is silently skipped. */
+  prisma?: PrismaClient;
 }
