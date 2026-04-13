@@ -750,3 +750,255 @@ Deferred: `axe-core` contrast check on the rendered card — noted in OOS as a f
 ---
 
 *Analysis complete 2026-04-12. Spec v1 written 2026-04-12 (commit `5eb5e84`). Cross-model spec review (Codex + Gemini) run 2026-04-12 with 7 consensus findings + 1 disagreement arbitrated. Spec v2 (this revision) addresses all M1/M2/M3 findings inline + documents P1/P2 and the D1 disagreement. Awaiting user approval before plan phase.*
+
+---
+
+## Frontend implementation plan (frontend-planner, 2026-04-13)
+
+### 1. Component restructure — before / after
+
+**Current DOM order (NutritionCard.tsx lines 94–142):**
+```
+<article>
+  <header>  ← dish name + ConfidenceBadge
+  <p mt-1.5>  ← F-UX-A pill (conditional)
+  <div mt-3>  ← kcal + KCAL label + base subtitle (conditional)
+  <div mt-3>  ← macro grid
+  <div mt-3>  ← allergens (conditional)
+  <footer>    ← source (conditional)
+</article>
+```
+
+**Target DOM order (ui-ux-designer decision — PILL → F-UX-B line → kcal block):**
+```
+<article>
+  <header>   ← unchanged
+  <section aria-labelledby="portion-heading-{id}" mt-1.5>  ← NEW wrapper (conditional: hasModifier || portionAssumption)
+    <h3 id="portion-heading-{id}" className="sr-only">Información de porción</h3>
+    <p aria-hidden="true">  ← F-UX-A pill (unchanged markup, moved inside section)
+    <div role="note" aria-label={...} mt-1>  ← NEW F-UX-B line (conditional: portionAssumption)
+  </section>
+  <div mt-3>  ← kcal + KCAL label + base subtitle (base subtitle stays here)
+  <div mt-3>  ← macro grid (unchanged)
+  <div mt-3>  ← allergens (unchanged)
+  <footer>    ← source (unchanged)
+</article>
+```
+
+**Elements that move:**
+- Lines 104–110 (F-UX-A `<p className="mt-1.5">` pill wrapper) → moves inside `<section>`. The `mt-1.5` migrates from the `<p>` to the `<section>` itself (first item inside section has no top margin; section gets `mt-1.5`).
+- Lines 115–119 (`base: N kcal` subtitle) stays in the kcal `<div>` — it qualifies the kcal number, not the portion. No move needed.
+
+**Visual regression check for F-UX-A after restructure:** all existing F-UX-A assertions (`screen.getByText('PORCIÓN GRANDE')`, `screen.getByText('base: 550 kcal')`, macro values) use `getByText` / `getByRole` — none rely on DOM order or structural parent selectors. The restructure is safe without test changes. Confirm by running `npm test -w @foodxplorer/web` after step 4 of the TDD order below.
+
+**Snapshot risk:** grep confirms no `.snap` files for `NutritionCard` in `packages/web`. No snapshot breakage.
+
+**`card-enter` animation scope:** `card-enter` is on `<article>`. The card is fully re-rendered on each new query result (parent component replaces the whole card). It does not re-fire within a stable card instance. No jitter risk for the F-UX-B line.
+
+---
+
+### 2. F-UX-B line: inline JSX block, not a separate file
+
+**Decision: inline JSX inside `NutritionCard.tsx`, not a separate component file.**
+
+Rationale: `portionAssumption` is consumed nowhere else in the codebase. A separate `NutritionCard.PortionAssumption.tsx` would be a single-consumer file that adds indirection with no reuse benefit. The copy-rendering logic (3 branches, one helper function) is compact enough to live inline. The `<section aria-labelledby>` wrapper spans both F-UX-A pill and F-UX-B line, so the wrapper necessarily lives in the card — splitting the inner `<div role="note">` into a subcomponent would require prop-drilling `portionAssumption` + `ariaLabel` anyway.
+
+**Testability:** the new test file tests the card as a whole, which is the right level of isolation for a purely presentational component. No unit-testing benefit from extracting.
+
+---
+
+### 3. Copy rendering logic
+
+**Helper function** `buildPortionAssumptionText(pa: PortionAssumption): string` — extract as a pure function near the top of the component module (below the `MacroItem` subcomponent or in a colocated util), not inline in JSX. This makes it trivially unit-testable and keeps the JSX readable.
+
+**Branch selection: `switch` on `pa.source`**, with a nested ternary for `pieces` inside the `per_dish` branch:
+
+```
+switch (pa.source) {
+  case 'per_dish':
+    return pa.pieces !== null
+      ? `{Term} ≈ ~{pa.pieces} {pa.pieceName} (≈ {pa.grams} g)`
+      : `{Term} ≈ {pa.grams} g`
+  case 'generic':
+    return `{Term} estándar: {pa.gramsRange![0]}–{pa.gramsRange![1]} g (estimado genérico)`
+}
+```
+
+**`{Term}` derivation:** `capitalize(pa.termDisplay ?? pa.term)` where `capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1)`. This one-liner lives inline in the helper. The `termDisplay ?? term` fallback resolves open question #1 from ui-ux-designer: no shared util needed — the fallback is trivial and card-local.
+
+**`estimado genérico` styling:** a `<span className="italic">` wrapping the literal `estimado genérico` substring. The rest of the text renders as plain text nodes inside the `<div>`. Do not use `<em>` — `<em>` adds semantic stress emphasis that screen readers may announce; `<span className="italic">` is purely visual.
+
+**`aria-label` composition** — a second pure helper `buildPortionAssumptionAriaLabel(pa: PortionAssumption): string`:
+
+| Path | aria-label |
+|---|---|
+| `per_dish` + `pieces != null` | `"aproximadamente {pa.pieces} {pa.pieceName}, unos {pa.grams} gramos"` |
+| `per_dish` + `pieces == null` | `"aproximadamente {pa.grams} gramos"` |
+| `generic` | `"aproximadamente entre {pa.gramsRange![0]} y {pa.gramsRange![1]} gramos, estimado genérico"` |
+
+---
+
+### 4. Accessibility implementation
+
+**`<section>` id collision (open question #3):** the card appears one at a time on the `/hablar` page today, but the spec's Out-of-Scope lists comparison view as future work, so duplicate `id` is a latent risk. **Decision: use React 18's `useId()` hook** to generate a stable, unique-per-instance id suffix. This requires `'use client'` on the component — see §8 below.
+
+```jsx
+const sectionId = useId(); // e.g. ":r0:"
+const headingId = `portion-heading-${sectionId}`;
+```
+
+**JSX wrapper (when `hasModifier || portionAssumption`):**
+```jsx
+<section aria-labelledby={headingId} className="mt-1.5">
+  <h3 id={headingId} className="sr-only">Información de porción</h3>
+  {hasModifier && <p aria-hidden="true">…pill…</p>}
+  {portionAssumption && (
+    <div role="note" aria-label={buildPortionAssumptionAriaLabel(portionAssumption)}
+         className={portionAssumption ? 'mt-1 text-[12px] leading-snug' : ''}>
+      …copy…
+    </div>
+  )}
+</section>
+```
+
+**F-UX-A pill inside the wrapper:** yes — ui-ux-designer JSX skeleton (lines 703–710 of ticket) explicitly places the F-UX-A pill inside the `<section>`. Both are portion qualifiers; grouping is intentional.
+
+**Focus order:** `<section>` and `<div role="note">` are both non-interactive. No `tabIndex`. Tab order is unchanged. Confirmed by code review; no automated test needed for this property in v1.
+
+**`axe-core`:** deferred, noted in OOS.
+
+---
+
+### 5. Empty state
+
+Guard at the top of the `portionAssumption` render block:
+```jsx
+{portionAssumption && (
+  <div role="note" ...>...</div>
+)}
+```
+
+The outer `<section>` wrapper itself is also conditional: `{(hasModifier || portionAssumption) && <section>…</section>}`. If neither is present, no section renders — identical DOM to today's F-UX-A baseline for plain queries.
+
+Test: `expect(screen.queryByRole('note')).not.toBeInTheDocument()` when `createEstimateData()` has no `portionAssumption` field (the default fixture already lacks it).
+
+---
+
+### 6. Test plan
+
+**New file:** `packages/web/src/__tests__/components/NutritionCard.f-ux-b.test.tsx`
+
+**Test fixtures (concrete mock objects):**
+
+```ts
+// Path A — per_dish, pieces non-null
+const paPerDishWithPieces = {
+  term: 'tapa', termDisplay: 'tapa', source: 'per_dish' as const,
+  grams: 50, pieces: 2, pieceName: 'croquetas',
+  gramsRange: null, confidence: 'high' as const, fallbackReason: null,
+};
+
+// Path B — per_dish, pieces null
+const paPerDishNoPieces = {
+  term: 'racion', termDisplay: 'ración', source: 'per_dish' as const,
+  grams: 250, pieces: null, pieceName: null,
+  gramsRange: null, confidence: 'medium' as const, fallbackReason: null,
+};
+
+// Path C — generic
+const paGeneric = {
+  term: 'tapa', termDisplay: 'tapa', source: 'generic' as const,
+  grams: 65, pieces: null, pieceName: null,
+  gramsRange: [50, 80] as [number, number],
+  confidence: null, fallbackReason: 'no_row' as const,
+};
+```
+
+**Test matrix:**
+
+| # | Fixture | Assertion |
+|---|---|---|
+| T1 | `paPerDishWithPieces` | Text contains `~2 croquetas (≈ 50 g)`; `aria-label` matches `/aproximadamente/` |
+| T2 | `paPerDishNoPieces` | Text contains `≈ 250 g`; text does NOT contain `~`; `aria-label` matches `/aproximadamente/` |
+| T3 | `paGeneric` | Text contains `Tapa estándar: 50–80 g`; `<span class="italic">` wrapping `estimado genérico` present; `aria-label` matches `/aproximadamente/` |
+| T4 | Combined (F-UX-A `multiplier=1.5` + `paPerDishWithPieces`) | Both `getByText('PORCIÓN GRANDE')` and `getByRole('note')` exist; both are inside a `<section>` (`closest('section')`) |
+| T5 | No `portionAssumption` (default `createEstimateData()`) | `queryByRole('note')` is null |
+
+**Copy-discipline regex (T1 only — `per_dish` + pieces path):**
+```ts
+expect(screen.getByRole('note').textContent).toMatch(/~\d+ [a-záéíóúñ]+ \(≈ \d+ g\)/);
+```
+
+**Existing F-UX-A test file:** `packages/web/src/__tests__/components/NutritionCard.test.tsx` — **no changes required**. All assertions use `getByText`/`getByRole`; none depend on DOM hierarchy. The `mt-1.5` class migration from `<p>` to `<section>` is invisible to these tests. Run as regression after DOM restructure; expect all 19 existing tests to pass.
+
+---
+
+### 7. Tailwind tokens
+
+| Element | Classes | Contrast (light / dark) |
+|---|---|---|
+| F-UX-B container | `mt-1 text-[12px] leading-snug` | — |
+| Term label (`Tapa`, `Ración`) | `font-semibold text-slate-600` | 5.9:1 on white — AA pass |
+| Piece/gram text | `font-normal text-slate-500` | 4.6:1 on white — AA pass |
+| `estimado genérico` `<span>` | `italic text-slate-500` | 4.6:1 — AA pass (NOT slate-400; ui-ux-designer corrected this) |
+| Section `mt` (no pill above) | `mt-1.5` | — |
+| Section `mt` (after pill) | pill is first child, no gap class needed on siblings | — |
+
+**Dark theme:** the card uses `bg-white` with no dark variant in the current markup. Dark mode tokens (`dark:text-slate-300`, `dark:text-slate-400`) are listed in ui-ux-designer notes but the card has no `dark:bg-*` class today — applying dark-mode text tokens without a dark background would be premature. **Decision: omit `dark:` variants in v1** (matching F-UX-A's approach — the existing pill uses no dark variant either). Track as a follow-up alongside any future dark-mode card background work.
+
+**`sm:` / `md:` breakpoints:** none. The card itself uses `p-4 md:p-5` but the F-UX-B line inherits card padding. No breakpoint tweaks on the line itself. `leading-snug` handles the two-line wrap at 320px mobile width as documented by ui-ux-designer.
+
+---
+
+### 8. Type wiring
+
+**`portionAssumption` TS type:** imported from `@foodxplorer/shared` after the backend-planner extends `EstimateDataSchema`. Import path: `import type { EstimateData } from '@foodxplorer/shared'` — no new import needed; `portionAssumption` is a field on `EstimateData` itself. The component already imports `EstimateData` at line 6.
+
+The `PortionAssumption` sub-type will be exported from `@foodxplorer/shared` as `z.infer<typeof PortionAssumptionSchema>`. Use `EstimateData['portionAssumption']` for the local variable type to avoid a separate import: `const portionAssumption = estimateData.portionAssumption` — TypeScript infers `PortionAssumption | undefined` from the field type.
+
+**`NutritionCardProps` diff:** no change to the union type. `portionAssumption` lives on `EstimateData` directly; the card reads it from `estimateData.portionAssumption`. No new prop needed.
+
+**`useId` directive:** `NutritionCard.tsx` currently has no `'use client'` directive (line 4 comment confirms this). Adding `useId()` requires `'use client'`. This is a **breaking change in server-render context** — confirm the card is consumed client-side. The `/hablar` page is a client page (it uses Zustand state + event handlers). The card renders inside it and is already effectively client-side. Add `'use client'` at line 1 of `NutritionCard.tsx`.
+
+**No `any` or `unknown` workarounds.** The Zod schema provides full type inference. The `gramsRange` non-null assertion (`pa.gramsRange![0]`) is safe because the `generic` branch is only entered when `source === 'generic'`, and the `superRefine` invariant guarantees `gramsRange` is non-null in that branch. Document with an inline comment: `// superRefine guarantees gramsRange is non-null when source === 'generic'`.
+
+---
+
+### 9. TDD implementation order
+
+**Dependency gate:** the `PortionAssumptionSchema` type must be exported from `@foodxplorer/shared` before the web type import compiles. Backend lands shared schema first; frontend unblocked after.
+
+| Commit | Content | Status |
+|---|---|---|
+| 1 | Add `PortionAssumptionSchema` + `portionAssumption` field to `EstimateDataSchema` in `packages/shared` (backend ticket); export type | Backend |
+| 2 | New test file `NutritionCard.f-ux-b.test.tsx` with all 5 tests + fixtures — all RED | Frontend |
+| 3 | Add `'use client'`; DOM restructure (move pill into `<section>`, `useId` wiring); run existing tests — all GREEN, new tests still RED | Frontend |
+| 4 | Add F-UX-B `<div role="note">` block with copy helpers (`buildPortionAssumptionText`, `buildPortionAssumptionAriaLabel`) — new tests go GREEN | Frontend |
+| 5 | Update `packages/web/src/__tests__/fixtures.ts` fixture comment (no functional change needed — `portionAssumption` is optional so existing fixtures remain valid) | Frontend |
+| 6 | Update `docs/user-manual-web.md` portion-term assumptions section | Frontend |
+
+**Estimated commits: 5 frontend commits** (commits 2–6 above). Effort: ~3–4h including test authoring.
+
+**Final quality gate:** `npm test -w @foodxplorer/web` → 34 suites / 358+ tests (33 existing + 1 new suite with 5+ new tests), all green.
+
+---
+
+### 10. Risks and open questions resolved
+
+**Risks:**
+
+| Risk | Mitigation |
+|---|---|
+| DOM restructure breaks F-UX-A tests | Verified: all existing tests use `getByText`/`getByRole`; no DOM-order dependency. Run suite after commit 3 to confirm. |
+| `'use client'` on `NutritionCard` breaks RSC consumers | `/hablar` page is already client-side (Zustand + handlers). No other consumers found via `grep`. Low risk; confirm with a quick grep before commit 3. |
+| `gramsRange[0] === gramsRange[1]` renders `50–50 g` | Resolved by spec invariant: `superRefine` enforces `gramsMax > gramsMin`. This degenerate state is rejected at schema parse time. No UI guard needed. |
+| `termDisplay` missing from API response | Resolved: `capitalize(pa.termDisplay ?? pa.term)` fallback in the helper. |
+| Dark mode contrast | Resolved: omit dark variants in v1, matching F-UX-A precedent. Track as follow-up. |
+
+**Open questions — resolved here:**
+
+1. **`termDisplay` fallback** — `pa.termDisplay ?? pa.term`, capitalized. No shared util, inline in `buildPortionAssumptionText`. Closed.
+2. **`gramsRange[0] === gramsRange[1]` degenerate** — impossible per `superRefine`. Backend-planner to confirm the invariant is enforced before this UI code is written. Closed.
+3. **`section` id collision** — resolved with `useId()`. Requires `'use client'` on `NutritionCard`. Closed.
+4. **F-UX-A `mt-1.5` migration** — `mt-1.5` moves from `<p>` to `<section>`. Visual regression confirmed safe (no test assertions on spacing classes). Closed.
+5. **`card-enter` animation** — fires on article mount only; no jitter risk for in-place F-UX-B updates. Closed.
