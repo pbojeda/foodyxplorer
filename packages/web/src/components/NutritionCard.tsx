@@ -1,10 +1,12 @@
+'use client';
 // NutritionCard — primary result unit for nutriXplorer.
 // Renders a dish's nutritional information in a styled card.
 // Accepts either EstimateData (standard) or ReverseSearchResult (filter results).
-// Pure presentational — no 'use client' needed.
+// Requires 'use client' for useId() (portion section heading id, unique per card instance).
 
+import { useId } from 'react';
 import type { EstimateData, ReverseSearchResult } from '@foodxplorer/shared';
-import { formatPortionLabel } from '@foodxplorer/shared';
+import { formatPortionLabel, formatPortionTermLabel } from '@foodxplorer/shared';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { AllergenChip } from './AllergenChip';
 
@@ -21,6 +23,11 @@ interface NutritionCardReverseProps {
 type NutritionCardProps = NutritionCardEstimateProps | NutritionCardReverseProps;
 
 export function NutritionCard({ estimateData, reverseResult }: NutritionCardProps) {
+  // Unique id per card instance for aria-labelledby (prevents duplicate ids in
+  // multi-card pages like comparison view). Requires 'use client'.
+  const instanceId = useId();
+  const portionHeadingId = `portion-heading-${instanceId}`;
+
   // ReverseSearchResult rendering — simplified card (no badge, no source)
   if (reverseResult) {
     const displayName = reverseResult.nameEs ?? reverseResult.name;
@@ -85,6 +92,9 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
       ? Math.round(estimateData.baseNutrients.calories)
       : null;
 
+  // F-UX-B — Per-dish portion assumption
+  const portionAssumption = estimateData.portionAssumption;
+
   const ariaLabel = hasModifier
     ? baseCalories !== null
       ? `${displayName}: ${kcal} calorías (${portionLabel}, base ${baseCalories})`
@@ -101,12 +111,22 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
         <ConfidenceBadge level={result.confidenceLevel} />
       </header>
 
-      {hasModifier && (
-        <p className="mt-1.5" aria-hidden="true">
-          <span className="inline-block rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800">
-            {pillLabel}
-          </span>
-        </p>
+      {/* Portion section — wraps F-UX-A pill + F-UX-B line when either is present */}
+      {(hasModifier || portionAssumption) && (
+        <section aria-labelledby={portionHeadingId} className="mt-1.5">
+          <h3 id={portionHeadingId} className="sr-only">Información de porción</h3>
+
+          {/* F-UX-A pill — moved inside section, mt-1.5 now on section itself */}
+          {hasModifier && (
+            <p aria-hidden="true">
+              <span className="inline-block rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+                {pillLabel}
+              </span>
+            </p>
+          )}
+
+          {/* F-UX-B portion assumption line — placeholder, rendered in next commit */}
+        </section>
       )}
 
       <div className="mt-3">
