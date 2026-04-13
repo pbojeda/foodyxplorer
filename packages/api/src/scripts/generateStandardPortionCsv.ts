@@ -21,6 +21,7 @@
 
 import { readFileSync, writeFileSync, existsSync, appendFileSync } from 'fs';
 import path from 'path';
+import { parseCsvLine } from './seedStandardPortionCsv.js';
 
 // ---------------------------------------------------------------------------
 // Priority dish list (30 dishes, verbatim from spec Q1 — do not reorder)
@@ -130,16 +131,21 @@ export async function generateStandardPortionCsv(opts?: {
   const data = JSON.parse(raw) as SpanishDishesData;
   const dishes = data.dishes;
 
-  // Load existing CSV to detect already-reviewed rows (skip-existing logic)
+  // Load existing CSV to detect already-reviewed rows (skip-existing logic).
+  // Uses the shared RFC 4180 parser from seedStandardPortionCsv.ts to correctly
+  // handle commas embedded in quoted fields (M2-A fix). The previous naive
+  // `line.split(',')` implementation would misalign columns on any cell with a
+  // comma and falsely detect a reviewed row as unreviewed (or vice versa).
   const existingReviewed = new Set<string>(); // key = `${dishId}:${term}`
   if (existsSync(outputPath)) {
     const existing = readFileSync(outputPath, 'utf-8');
-    const lines = existing.split('\n').filter((l) => l.trim() !== '' && !l.startsWith('dishId'));
+    const lines = existing.replace(/\r\n/g, '\n').split('\n')
+      .filter((l) => l.trim() !== '' && !l.startsWith('dishId'));
     for (const line of lines) {
-      const cols = line.split(',');
-      const dishId = cols[0]?.trim();
-      const term = cols[1]?.trim();
-      const reviewedBy = cols[7]?.trim();
+      const cols = parseCsvLine(line);
+      const dishId = cols[0];
+      const term = cols[1];
+      const reviewedBy = cols[7];
       if (dishId && term && reviewedBy) {
         existingReviewed.add(`${dishId}:${term}`);
       }
@@ -205,8 +211,17 @@ export async function generateStandardPortionCsv(opts?: {
   console.log(`Written to: ${outputPath}`);
 }
 
-// CLI entrypoint — always runs when invoked via tsx directly
-generateStandardPortionCsv().catch((e: unknown) => {
-  console.error(e);
-  process.exit(1);
-});
+// CLI entrypoint — only runs when invoked directly (P2-1 guard: prevents the
+// generator from firing on module import, which would happen if any test
+// imports matchesPriorityName/isSinPieces from this file).
+//
+// CommonJS-compatible direct-invocation check (the api package builds to CJS,
+// so import.meta.url is not available). `process.argv[1]` is the script being
+// executed; if our filename appears there we know we were invoked directly.
+const isDirectInvocation = process.argv[1]?.includes('generateStandardPortionCsv') ?? false;
+if (isDirectInvocation) {
+  generateStandardPortionCsv().catch((e: unknown) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

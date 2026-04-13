@@ -119,12 +119,20 @@ describe('F-UX-B formatter — per_dish with pieces', () => {
     expect(output).toContain('Porción detectada');
   });
 
-  it('termDisplay "tapa" → rendered as "tapa" (user literal wording)', () => {
+  it('termDisplay "tapa" → rendered as "Tapa" (capitalized via shared formatPortionDisplayLabel)', () => {
+    // Plan v1.1 + Codex M3-2: the bot now uses the shared `formatPortionDisplayLabel`
+    // helper which capitalizes the first letter of `termDisplay`. Same input
+    // 'tapa' produces 'Tapa' in BOTH bot and web (was inconsistent pre-M3-2).
     const data = makeEstimateData({
       portionAssumption: perDishWithPieces({ termDisplay: 'tapa' }),
     });
     const output = formatEstimate(data);
-    expect(output).toContain('tapa');
+    expect(output).toContain('Tapa');
+    // Document the case sensitivity: bare lowercase 'tapa' should NOT appear
+    // as a standalone word — only as the substring of the dish name 'Tapa de croquetas'
+    // if any. Use a stricter check on the Porción line.
+    const portionLine = output.split('\n').find((l) => l.includes('Porción detectada'));
+    expect(portionLine).toContain('Tapa');
   });
 
   it('termDisplay absent → formatPortionTermLabel fallback for canonical key', () => {
@@ -193,10 +201,12 @@ describe('F-UX-B formatter — per_dish without pieces (grams-only)', () => {
     expect(portionLine).not.toContain('~');
   });
 
-  it('termDisplay "ración" → rendered as "ración"', () => {
+  it('termDisplay "ración" → rendered as "Ración" (capitalized via shared formatPortionDisplayLabel)', () => {
+    // Plan v1.1 + Codex M3-2: capitalized via shared helper, same as web.
     const data = makeEstimateData({ portionAssumption: perDishNoPieces() });
     const output = formatEstimate(data);
-    expect(output).toContain('ración');
+    const portionLine = output.split('\n').find((l) => l.includes('Porción detectada'));
+    expect(portionLine).toContain('Ración');
   });
 
   it('fall-through pieces (pieces=null from computeDisplayPieces) matches same output as native null-pieces dish', () => {

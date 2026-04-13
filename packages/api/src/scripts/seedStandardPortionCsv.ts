@@ -231,18 +231,89 @@ export async function seedFromParsedRows(
 // ---------------------------------------------------------------------------
 
 /**
+ * Parse a single CSV line into an array of fields, honoring RFC 4180 quoting.
+ *
+ * - Handles commas inside quoted fields: `a,"b,c",d` → `['a', 'b,c', 'd']`
+ * - Handles escaped quotes inside quoted fields: `a,"b""c",d` → `['a', 'b"c', 'd']`
+ * - Trims unquoted fields; leaves quoted fields untrimmed internally (leading/
+ *   trailing whitespace inside quotes is preserved)
+ *
+ * Exported for unit testing. Code review (M2-A) found that the previous
+ * `line.split(',')` implementation broke silently on any future `notes` or
+ * `pieceName` cell that contained a comma — the columns would shift and
+ * `reviewed_by` would be mis-read, potentially seeding unreviewed rows as
+ * reviewed. This parser eliminates that class of bug.
+ */
+export function parseCsvLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') {
+          current += '"';
+          i++; // skip escaped quote
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += ch;
+      }
+    } else {
+      if (ch === ',') {
+        fields.push(current.trim());
+        current = '';
+      } else if (ch === '"' && current.trim() === '') {
+        inQuotes = true;
+        current = ''; // drop any leading whitespace
+      } else {
+        current += ch;
+      }
+    }
+  }
+  fields.push(inQuotes ? current : current.trim());
+  return fields;
+}
+
+/**
  * Parse a raw CSV string into an array of row objects keyed by header columns.
- * Handles empty lines and CRLF line endings.
+ *
+ * Handles:
+ * - Empty lines
+ * - CRLF (Windows) and LF (Unix) line endings
+ * - UTF-8 BOM (stripped via .trim() on the split fields)
+ * - Quoted fields with embedded commas and escaped quotes (per RFC 4180)
+ *
+ * Throws a clear error if ANY row has a different column count from the
+ * header — this is the loud failure Codex asked for in M2-A. A row that has
+ * too few or too many columns after parsing is a structural error, not a
+ * data error, and must halt the seed pipeline.
  */
 export function parseCsvString(csvContent: string): { header: string[]; rows: RawCsvRow[] } {
   const lines = csvContent.replace(/\r\n/g, '\n').split('\n').filter((l) => l.trim() !== '');
   if (lines.length === 0) return { header: [], rows: [] };
 
-  const header = lines[0]!.split(',').map((h) => h.trim());
+  const header = parseCsvLine(lines[0]!);
+  const expectedColumnCount = header.length;
   const rows: RawCsvRow[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i]!.split(',').map((v) => v.trim());
+    const values = parseCsvLine(lines[i]!);
+
+    // M2-A fix: loud failure on column-count mismatch. The previous version
+    // silently padded or dropped fields, which meant a typo or unescaped
+    // comma in any cell would misalign the row without any visible error.
+    if (values.length !== expectedColumnCount) {
+      throw new Error(
+        `row ${i + 1}: malformed CSV row — expected ${expectedColumnCount} columns ` +
+          `(${header.join(', ')}) but got ${values.length}. ` +
+          `Did you embed an unquoted comma in a cell? Quote the cell as "...,..." to include commas.`,
+      );
+    }
+
     const row: RawCsvRow = {};
     for (let j = 0; j < header.length; j++) {
       row[header[j]!] = values[j] ?? '';

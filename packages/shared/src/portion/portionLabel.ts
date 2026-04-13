@@ -48,6 +48,31 @@ export function formatPortionTermLabel(term: string): string {
   return PORTION_TERM_LABELS[term] ?? term;
 }
 
+/**
+ * Format a portion-term **display** label, unifying the
+ * `termDisplay` (user-typed) and `term` (canonical fallback) cases.
+ *
+ * Contract:
+ * - If `termDisplay` is a non-empty string → capitalize its first letter,
+ *   keep the rest as-is. This honours user wording per Q6 (e.g., user typed
+ *   `"pincho"` → renders `"Pincho"`; user typed `"pintxo"` → `"Pintxo"`).
+ * - Otherwise → fall back to `formatPortionTermLabel(term)` which maps the
+ *   canonical key (e.g., `"media_racion"`) to the correct Spanish label
+ *   (`"Media ración"`).
+ *
+ * **Why a single helper instead of inline capitalize per package:** the web
+ * NutritionCard previously inlined the capitalize logic while the bot
+ * formatter passed `termDisplay` raw. Same `termDisplay` value rendered
+ * differently in web vs bot. Codex cross-model code review M3-2 caught this.
+ * Both packages now call this helper, eliminating drift.
+ */
+export function formatPortionDisplayLabel(termDisplay: string | null | undefined, term: string): string {
+  if (typeof termDisplay === 'string' && termDisplay.length > 0) {
+    return termDisplay.charAt(0).toUpperCase() + termDisplay.slice(1);
+  }
+  return formatPortionTermLabel(term);
+}
+
 // ---------------------------------------------------------------------------
 // F-UX-A — Canonical Spanish portion-size label map (multiplier-based)
 // ---------------------------------------------------------------------------

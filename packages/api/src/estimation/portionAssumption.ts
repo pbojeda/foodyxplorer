@@ -49,11 +49,20 @@ function normalizeToCanonicalTerm(term: string): 'pintxo' | 'tapa' | 'media_raci
 /**
  * Extract the user's literal term wording from the original query.
  * Falls back to the F085 canonical term string if not found.
+ *
+ * **Ordering matters — longest match first.** A substring check for 'ración'
+ * BEFORE 'ración para compartir' would return the shorter wrong answer.
+ * QA found this as M2a: "ración para compartir de gambas" was producing
+ * termDisplay='ración' instead of 'ración para compartir'.
  */
 function extractTermDisplay(originalQuery: string, portionSizing: PortionSizing): string {
   const lower = originalQuery.toLowerCase();
 
-  // Check for user-typed variants in order of specificity
+  // Check for user-typed variants in order of specificity (longest first).
+  // Multi-word terms MUST be checked before their substring variants.
+  if (lower.includes('ración para compartir') || lower.includes('racion para compartir')) {
+    return 'ración para compartir';
+  }
   if (lower.includes('media ración') || lower.includes('media racion')) return 'media ración';
   if (lower.includes('ración') || lower.includes('racion')) return 'ración';
   if (lower.includes('pintxo')) return 'pintxo';
@@ -127,11 +136,16 @@ export async function resolvePortionAssumption(
   const termDisplay = extractTermDisplay(originalQuery, detectedTerm);
   const canonicalTerm = normalizeToCanonicalTerm(detectedTerm.term);
 
-  // Unhandled terms (bocadillo, plato, etc.) — not in the canonical set,
-  // Tier 3 generic only (no DB lookup makes sense for these)
-  if (canonicalTerm === null) {
-    return buildGenericResult(detectedTerm, termDisplay, 'no_row');
-  }
+  // Unhandled F085 terms (bocadillo, plato, ración para compartir, etc.) are
+  // OUT OF SCOPE for F-UX-B per the spec — F-UX-B covers the 4 canonical terms
+  // only (pintxo, tapa, media_racion, racion). For unhandled terms we return
+  // no portionAssumption at all; the existing F085 `portionSizing` field on
+  // the response still renders via the legacy bot/web code paths.
+  //
+  // QA found this as M2a/M2-B: previously we fell through to buildGenericResult
+  // with a dead `'tapa'` canonical fallback, silently coercing ración-para-compartir
+  // to term='tapa'. Now we correctly drop to the pre-F-UX-B behavior for these.
+  if (canonicalTerm === null) return {};
 
   // -----------------------------------------------------------------------
   // Tier 1 — Exact DB lookup for (dishId, canonicalTerm)
@@ -144,11 +158,16 @@ export async function resolvePortionAssumption(
     const scaledPiecesRaw = tier1Row.pieces !== null ? tier1Row.pieces * multiplier : null;
     const displayPieces = computeDisplayPieces(scaledPiecesRaw);
 
+    // M2b guard: Math.round(grams * multiplier) can produce 0 for extreme edge
+    // cases (e.g. grams=1 × multiplier=0.1 → 0.1 → Math.round → 0). The schema
+    // enforces `grams > 0`, so emitting 0 would make the response invalid.
+    // Clamp to at least 1 g at the display boundary — the nutrient math was
+    // already scaled correctly by F042 upstream.
     const portionAssumption: PortionAssumption = {
       term: canonicalTerm,
       termDisplay,
       source: 'per_dish',
-      grams: Math.round(tier1Row.grams * multiplier),
+      grams: Math.max(1, Math.round(tier1Row.grams * multiplier)),
       pieces: displayPieces,
       pieceName: displayPieces !== null ? tier1Row.pieceName : null,
       gramsRange: null,
@@ -172,11 +191,13 @@ export async function resolvePortionAssumption(
         basePiecesHalf !== null ? basePiecesHalf * multiplier : null,
       );
 
+      // M2b guard — see Tier 1 comment. Same rationale: grams × 0.5 × multiplier
+      // can round to 0 for extreme edge cases; clamp to at least 1 g.
       const portionAssumption: PortionAssumption = {
         term: 'media_racion',
         termDisplay,
         source: 'per_dish',
-        grams: Math.round(racionRow.grams * 0.5 * multiplier),
+        grams: Math.max(1, Math.round(racionRow.grams * 0.5 * multiplier)),
         pieces: displayPieces,
         pieceName: displayPieces !== null ? racionRow.pieceName : null,
         gramsRange: null,
@@ -189,7 +210,9 @@ export async function resolvePortionAssumption(
 
   // -----------------------------------------------------------------------
   // Tier 3 — F085 generic fallback
-  // Tier 2 non-rule: tapa/pintxo NEVER derive from ración (explicit rejection)
+  // Tier 2 non-rule: tapa/pintxo NEVER derive from ración (explicit rejection).
+  // Only reachable here with canonicalTerm ∈ {pintxo, tapa, media_racion, racion}
+  // because unhandled terms returned {} earlier.
   // -----------------------------------------------------------------------
   const fallbackReason = await determineFallbackReason(prisma, dishId, canonicalTerm);
 
@@ -198,27 +221,34 @@ export async function resolvePortionAssumption(
     'F-UX-B: Tier 3 generic fallback',
   );
 
-  return buildGenericResult(detectedTerm, termDisplay, fallbackReason);
+  return buildGenericResult(detectedTerm, canonicalTerm, termDisplay, fallbackReason);
 }
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Build a Tier 3 generic `portionAssumption` response.
+ *
+ * IMPORTANT: `canonicalTerm` is NOT re-derived here — it's passed by the
+ * caller, which is guaranteed to have a valid canonical term (otherwise the
+ * caller would have returned {} earlier for unhandled F085 terms). This was
+ * M2-B in the Codex code review: the previous version re-called
+ * `normalizeToCanonicalTerm` and fell through to a dead `'tapa'` fallback
+ * branch, silently coercing unhandled terms to `'tapa'`.
+ */
 function buildGenericResult(
   detectedTerm: PortionSizing,
+  canonicalTerm: 'pintxo' | 'tapa' | 'media_racion' | 'racion',
   termDisplay: string,
   fallbackReason: 'no_row' | 'tier2_rejected_tapa' | 'tier2_rejected_pintxo',
 ): ResolvePortionAssumptionResult {
   const { gramsMin, gramsMax } = detectedTerm;
   const midpoint = Math.round((gramsMin + gramsMax) / 2);
 
-  const canonicalTerm = normalizeToCanonicalTerm(detectedTerm.term);
-  // For unhandled terms (bocadillo etc.), default to the term string as-is
-  const term = canonicalTerm ?? ('tapa' as const); // should not happen in practice
-
   const portionAssumption: PortionAssumption = {
-    term: canonicalTerm ?? term,
+    term: canonicalTerm,
     termDisplay,
     source: 'generic',
     grams: midpoint,

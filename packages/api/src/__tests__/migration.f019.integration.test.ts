@@ -89,7 +89,8 @@ describe('embeddingWriter', () => {
     await prisma.dish.deleteMany({ where: { id: DISH_ID } });
     await prisma.restaurant.deleteMany({ where: { id: REST_ID } });
     await prisma.foodNutrient.deleteMany({ where: { foodId: FOOD_ID } });
-    await prisma.standardPortion.deleteMany({ where: { foodId: FOOD_ID } });
+    // standardPortion cleanup removed: F-UX-B migration replaced standard_portions
+    // shape — it links to dishes (not foods), no foodId column to filter on.
     await prisma.food.deleteMany({ where: { id: FOOD_ID } });
     await prisma.dataSource.deleteMany({ where: { id: SRC_ID } });
 

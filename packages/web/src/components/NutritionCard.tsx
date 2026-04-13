@@ -6,7 +6,7 @@
 
 import React, { useId } from 'react';
 import type { EstimateData, PortionAssumption, ReverseSearchResult } from '@foodxplorer/shared';
-import { formatPortionLabel, formatPortionTermLabel } from '@foodxplorer/shared';
+import { formatPortionLabel, formatPortionDisplayLabel } from '@foodxplorer/shared';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { AllergenChip } from './AllergenChip';
 
@@ -177,14 +177,14 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
 
 /**
  * Derive the display label for the portion term.
- * Primary: user's literal wording from termDisplay (first-letter uppercased).
- * Fallback: canonical term mapped via the shared helper (handles 'media_racion' → 'Media ración').
+ *
+ * Delegates to the shared `formatPortionDisplayLabel` helper which unifies the
+ * web and bot rendering paths (Codex code review M3-2: previously the web did
+ * inline `capitalize(termDisplay)` while the bot passed termDisplay raw,
+ * producing different output for the same input).
  */
 function getTermLabel(pa: PortionAssumption): string {
-  if (pa.termDisplay) {
-    return pa.termDisplay.charAt(0).toUpperCase() + pa.termDisplay.slice(1);
-  }
-  return formatPortionTermLabel(pa.term);
+  return formatPortionDisplayLabel(pa.termDisplay, pa.term);
 }
 
 /**

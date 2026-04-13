@@ -1,7 +1,7 @@
 // Formatter: EstimateData → MarkdownV2 string.
 
 import type { EstimateData } from '@foodxplorer/shared';
-import { formatPortionLabel, formatPortionTermLabel } from '@foodxplorer/shared';
+import { formatPortionLabel, formatPortionDisplayLabel } from '@foodxplorer/shared';
 import { escapeMarkdown, formatNutrient } from './markdownUtils.js';
 
 /** Format a numeric diff with explicit sign: "+5" or "-10" */
@@ -110,10 +110,15 @@ export function formatEstimate(data: EstimateData): string {
   // F-UX-B: per-dish portion assumption (Tier 1 or Tier 2 derived)
   if (data.portionAssumption && data.portionAssumption.source === 'per_dish') {
     const pa = data.portionAssumption;
-    const termLabel = escapeMarkdown(pa.termDisplay ?? formatPortionTermLabel(pa.term));
+    // M3-2 fix: use the shared display-label helper for parity with the web
+    // NutritionCard. Both packages now produce the same capitalized output
+    // for the same termDisplay input.
+    const termLabel = escapeMarkdown(formatPortionDisplayLabel(pa.termDisplay, pa.term));
     let portionLine: string;
     if (pa.pieces !== null && pa.pieceName !== null) {
-      portionLine = `📏 *Porción detectada:* ${termLabel} \\(~${pa.pieces} ${escapeMarkdown(pa.pieceName)}, ≈ ${pa.grams} g\\)`;
+      // `~` is a MarkdownV2 reserved strikethrough delimiter and MUST be escaped as `\~`.
+      // QA found this as M1 blocker: unescaped `~` crashes the Telegram Bot API (400 Bad Request).
+      portionLine = `📏 *Porción detectada:* ${termLabel} \\(\\~${pa.pieces} ${escapeMarkdown(pa.pieceName)}, ≈ ${pa.grams} g\\)`;
     } else {
       portionLine = `📏 *Porción detectada:* ${termLabel} \\(≈ ${pa.grams} g\\)`;
     }
