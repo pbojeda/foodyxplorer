@@ -1,7 +1,7 @@
 # F-UX-B — Expose assumptions behind Spanish serving-size terms (pincho / tapa / media ración / ración)
 
 **Feature:** F-UX-B | **Type:** Fullstack-Feature | **Priority:** Standard
-**Status:** Plan v1.1 — cross-model review fixes applied (3 M1 + 1 M2 + 3 M3 + 1 P2), awaiting user checkpoint before TDD phase
+**Status:** Ready for Merge — TDD complete, code-review + QA hardening complete, awaiting merge approval
 **Created:** 2026-04-12 | **Dependencies:** F085 (portion term detection), F-UX-A (card metadata slot)
 
 ---
@@ -1398,3 +1398,90 @@ export function formatPortionTermLabel(term: string): string {
 | Cache key staleness | The existing cache key does not include a portion-term dimension. A generic-path response cached before the seed CSV ships could be served stale after seeding adds a Tier 1 row. Mitigation: the seed script is offline and requires a deploy + cache flush to take effect anyway. No code change needed — document as a deployment note. |
 
 **RESOLVED in plan v1.1 (M3-1 fix):** `generateStandardPortionCsv.ts` is wired as `npm run generate:standard-portions -w @foodxplorer/api`. See the Generator script subsection above for the package.json entry. No remaining open questions for the user on this plan.
+
+---
+
+## Acceptance Criteria
+
+- [x] **Schema** — `EstimateDataSchema.portionAssumption` (optional) added with all 9 fields including `fallbackReason` discriminator + `superRefine` invariants covering 15 illegal combinations
+- [x] **Migration** — Prisma `StandardPortion` model rewritten + atomic shared schema cleanup (rewrite `standardPortion.ts`, delete `PortionContextSchema` from `enums.ts`, grep-verified zero residual callsites) + pre-flight safety check + DROP TYPE portion_context
+- [x] **Shared helper** — `formatPortionTermLabel` + `formatPortionDisplayLabel` (M3-2 unification) in `packages/shared/src/portion/portionLabel.ts`, exported via barrel
+- [x] **Orchestrator** — `resolvePortionAssumption` with 3-tier fallback chain (Tier 1 exact lookup, Tier 2 media_racion×0.5, Tier 3 F085 generic) + `determineFallbackReason` + low-multiplier `computeDisplayPieces` fall-through (threshold 0.75) + Math.max(1, ...) grams guard
+- [x] **Mirror parity** — orchestrator AND `routes/estimate.ts` both call `resolvePortionAssumption` (F-UX-A P1 hardening pattern)
+- [x] **Bot formatter** — new `per_dish` branch above guarded F085 block (byte-identity preserved on `generic` path), MarkdownV2 `\~` escaping (M1 fix), uses shared `formatPortionDisplayLabel`
+- [x] **Web NutritionCard** — DOM restructure with `<section aria-labelledby>` + `useId()` + `'use client'` + `<div role="note">` + `formatPortionDisplayLabel` + 3 render paths (per_dish + pieces, per_dish + null, generic) + empty state
+- [x] **Seed CSV pipeline** — RFC 4180 parseCsvLine parser (M2-A fix) + validation order (header → row types → uniqueness → review gate) + UUID dishId validator (M1-3 fix) + rollback comment block (G-P2-a) + npm script (M3-1 fix) + `dishId` UUID generation
+- [x] **Tests added** — 88 new tests across the workspace (shared +30, api +52, bot +23, web +5) plus the 22 added during code-review hardening = 110 total. ZERO regressions. Bot 1198 baseline preserved.
+- [x] **Copy discipline** — `~` and `≈` symbols on per_dish + pieces; `≈` only on per_dish + null; aria-label contains `aproximadamente` on every render path
+- [x] **Documentation** — `docs/specs/api-spec.yaml` updated, `docs/user-manual-web.md` "Información de porción" section, `docs/project_notes/key_facts.md` 3-tier fallback documented, **ADR-020** ("Per-dish portion assumptions with graceful degradation"), `CONTRIBUTING.md` data seeding rollback section
+- [x] **Cross-model review** — Spec review (Codex+Gemini) v1→v2.1 with 7 consensus + 1 disagreement arbitrated; Plan review (Codex+Gemini) v1.0→v1.1 with 3 M1 + 1 M2 + 3 M3 + 1 P2 fixes; Code review (code-review-specialist) + QA (qa-engineer) post-implementation with 1 M1 + 4 M2 + 2 M3 + 1 P2 fixes
+- [x] **Bot regression guarantee** — 1198 baseline preserved (1221 = 1198 + 23 new). Generic branch byte-identity verified via 7-query `toMatchSnapshot` golden file
+
+---
+
+## Definition of Done
+
+- [x] All AC met
+- [x] All quality gates green: lint, typecheck, build, test (across shared, api, bot, web)
+- [x] Bot regression invariant: 1198 baseline preserved
+- [x] Cross-model spec review (Codex + Gemini) executed and arbitrated
+- [x] Cross-model plan review (Codex + Gemini) executed and arbitrated
+- [x] code-review-specialist agent ran post-implementation
+- [x] qa-engineer agent ran post-implementation
+- [x] All M1/M2 findings from BOTH reviewers fixed inline
+- [x] M3/P2 deferrals explicitly listed in the merge commit message and the Risks subsection
+- [x] **ADR-020** committed
+- [x] Tracker + bugs.md + key_facts.md updated
+- [ ] Manual post-merge: user runs the 5 smoke-test queries on `/hablar` (per QA report manual checklist) — user action, not a gate
+- [ ] Manual post-merge: user runs the seed CSV pipeline against the dev DB to verify the example rows seed correctly — user action, not a gate
+
+---
+
+## Workflow Checklist
+
+- [x] Step 0: Spec — written, cross-model reviewed (Codex + Gemini), v1 → v2 → v2.1
+- [x] Step 1: Branch created, ticket generated (analysis phase committed `5159ce1`), tracker updated
+- [x] Step 2: Plan — ui-ux-designer + backend-planner + frontend-planner + cross-model reviewed (Codex + Gemini), v1.0 → v1.1
+- [x] Step 3: Implementation — 14 TDD commits (10 backend + 4 frontend) + 1 code-review-fix commit
+- [x] Step 4: Quality gates — lint, typecheck, build, test all green per package
+- [x] Step 5: code-review-specialist + qa-engineer + fixes (1 M1 + 4 M2 + 2 M3 + 1 P2)
+- [ ] Step 6: Ticket finalized, branch deleted, tracker updated (post-merge)
+
+---
+
+## Completion Log
+
+| Date | Action | Notes |
+|------|--------|-------|
+| 2026-04-12 | Analysis phase complete | Cross-model: Explore + Codex + Gemini analysis committed `5159ce1`. 7 open questions Q1–Q7 surfaced. |
+| 2026-04-12 | User decisions Q1–Q7 locked | All 7 Option A. 30-priority-dish list verbatim, fall-through scaling, offline CSV review-gated, new line below F-UX-A pill, `~N X (≈ G g)` copy, dual `pincho`/`pintxo` detect store as `pintxo`, F085 generic fallback. |
+| 2026-04-12 | Spec v1 written | Commit `5eb5e84`. |
+| 2026-04-12 | Cross-model spec review | Codex + Gemini parallel. 7 consensus findings + 1 disagreement arbitrated (D1 Tier 2 stays media_racion only — Codex wins). |
+| 2026-04-12 | Spec v2 fixes applied | Commit `2238a5c` — addresses all M1/M2/M3 findings inline. |
+| 2026-04-12 | User audit of v2 → 5 corrections | GX2 fall-through (was clamp-to-1), fallbackReason as API field, seed CSV validation order, bot snapshot mechanism, BUG-DEV-GEMINI-CONFIG follow-up ticket. |
+| 2026-04-12 | Spec v2.1 committed | Commit `f04ba45` + `8f7f868`. APPROVED by user. |
+| 2026-04-13 | sdd-devflow v0.16.7 upgrade | Fixes BUG-DEV-GEMINI-CONFIG (`.gemini/settings.json` model field). User ran `npx create-sdd-project@0.16.7 --upgrade`. Ticket closed at `25eb76f`. |
+| 2026-04-13 | UI/UX design notes | `ui-ux-designer` agent — commit `9444c5c`. ASCII mockups, WCAG AA tokens, JSX skeleton, 10 OQs for planners. |
+| 2026-04-13 | Backend + frontend plans | Parallel `backend-planner` + `frontend-planner` agents. Commits `1aafb72` + `9087718`. |
+| 2026-04-13 | Cross-model plan review | Codex + Gemini parallel from project root (first review post v0.16.7 fix — both cited project context files, fix verified). Codex REJECT with 3 M1 verified empirically; Gemini APPROVE WITH CHANGES with 3 lower-severity findings. |
+| 2026-04-13 | Plan v1.1 fixes applied | Commit `fd2d57a` + `8f7f868` — all M1 + M2 + M3 + P2 fixes inline. APPROVED by user. |
+| 2026-04-13 | TDD backend implementation | `backend-developer` agent — 10 commits `5d1bbbb`..`f14f6cf`. Bot regression invariant met. |
+| 2026-04-13 | TDD frontend implementation | `frontend-developer` agent — 4 commits `cdbd279`..`9b7ec4e`. F-UX-A tests preserved. |
+| 2026-04-13 | Step 5: code-review-specialist + qa-engineer | Parallel. Codex REJECT 6 findings (3 M1) + QA READY-WITH-FIXES 1 M1 blocker. All findings verified empirically against the code. |
+| 2026-04-13 | Code review fixes | Commit `d818033` — 1 M1 + 4 M2 + 2 M3 + 1 P2 inline. +22 tests. Bot 1198 baseline preserved (1221 = 1198 + 23). |
+| 2026-04-13 | Step 5: merge-checklist + audit | Actions 0–7 executed. Evidence table filled. Awaiting `/audit-merge` and merge approval. |
+
+---
+
+## Merge Checklist Evidence
+
+| Action | Done | Evidence |
+|--------|:----:|----------|
+| 0. Validate ticket structure | [x] | Sections verified: User request, Spec — final design (v2.1), User decisions Q1–Q7, Red-flag mitigation, Cross-model spec review, UI/UX design notes, Backend implementation plan v1.1, Frontend implementation plan v1.1, Out of scope, Verification plan, AC, DoD, Workflow Checklist, Completion Log, Merge Checklist Evidence. Ticket is 1424+ lines, structured by phase. |
+| 1. Mark all items | [x] | Status → `Ready for Merge`. AC: 13/13. DoD: 11/13 (2 items are user-action manual post-merge verification). Workflow Checklist: Steps 0,1,2,3,4,5 checked; Step 6 post-merge. |
+| 2. Verify product tracker | [x] | Active Session reflects F-UX-B in Step 5 → Ready for Merge (will be updated to step 6 post-merge in tracker-sync PR). Pipeline F-UX-B row marked as in-progress at step 5/6. |
+| 3. Update key_facts.md | [x] | Updated as part of backend commit 9 (`aa10c3f`): `StandardPortion` model now in active use (was previously flagged existing-but-unused), 3-tier fallback chain documented (Tier 1 per-dish DB → Tier 2 media_racion×0.5 arithmetic → Tier 3 F085 generic), portion canonical terms enumerated (`pintxo`, `tapa`, `media_racion`, `racion`). |
+| 4. Update decisions.md | [x] | **ADR-020** ("Per-dish portion assumptions with graceful degradation to F085 generic ranges") committed in `aa10c3f`. Documents the per-dish data model, the 3-tier fallback chain, the rejection of global ratios for tapa/pintxo from ración, and the offline review-gated CSV pipeline. |
+| 5. Commit documentation | [x] | All docs committed inline with implementation (per-package README updates none needed). API spec, user manual, key_facts, decisions, CONTRIBUTING all in commit `aa10c3f`. |
+| 6. Verify clean working tree | [x] | `git status` clean (verified post-d818033 commit). |
+| 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` → exit 0 (UP TO DATE). Feature branch already contains all develop commits via the `744870c` upgrade rebase + subsequent develop activity captured. |
