@@ -6,34 +6,22 @@
 ## Project Structure
 
 ```
-foodXPlorer/
-├── packages/
-│   ├── api/           ← Fastify API (Prisma + Kysely + PostgreSQL + pgvector)
-│   │   └── src/
-│   ├── bot/           ← Telegram bot (node-telegram-bot-api)
-│   │   └── src/
-│   └── shared/        ← Zod schemas = single source of truth for types
-│       └── src/schemas/
-├── scripts/           ← DB init, seed scripts, utilities
-├── docs/
-│   ├── specs/         ← Epics, features, schema specs
-│   │   ├── epics/
-│   │   ├── features/
-│   │   └── schema/
-│   ├── tickets/       ← Auto-generated tickets (SDD workflow)
-│   └── project_notes/ ← Institutional memory
-├── initialDoc/        ← PRD, Plan Maestro, DB diagram (reference only)
-├── ai-specs/          ← SDD agent specs and standards
-└── docker-compose.yml ← PostgreSQL 16 + pgvector + Redis
+project/
+├── ai-specs/   
+├── docs/   
+├── initialDoc/   
+├── packages/   
+├── scripts/   
+└── docs/        ← Documentation
 ```
 
-## Project Context — foodXPlorer
+**Critical**: NEVER install dependencies in the root directory.
 
-- **What**: Open source platform for nutritional information of restaurant dishes in Spain
-- **Stack**: Node.js + TypeScript, Fastify, Prisma + Kysely, PostgreSQL 16 + pgvector, Redis, Zod
-- **Phase**: Phase 1 — MVP (Bot + API + DB). 4 epics: E001 Infrastructure, E002 Data Ingestion, E003 Estimation Engine, E004 Telegram Bot + API
-- **Monorepo**: npm workspaces (`packages/api`, `packages/bot`, `packages/shared`)
-- **Key principle**: The DB is the product. The estimation engine calculates, the LLM only interprets/formats.
+| Action | Correct | Wrong |
+|--------|---------|-------|
+| Install backend dep | `cd backend && npm install pkg` | `npm install pkg` |
+| Run backend tests | `cd backend && npm test` | `npm test` |
+| Install frontend dep | `cd frontend && npm install pkg` | `npm install pkg` |
 
 ## Project Memory
 
@@ -42,7 +30,7 @@ Institutional knowledge lives in `docs/project_notes/`:
 - **product-tracker.md** — Feature backlog, **Active Session** (current feature, next actions, open questions), completion log
 - **bugs.md** — Bug log with solutions and prevention notes
 - **decisions.md** — Architectural Decision Records (ADRs)
-- **key_facts.md** — Project configuration, ports, URLs, branching strategy, naming conventions
+- **key_facts.md** — Project configuration, ports, URLs, branching strategy
 
 ## Session Recovery
 
@@ -54,14 +42,13 @@ After context loss, new session, or context compaction — BEFORE continuing wor
 
 ## Anti-Patterns (Avoid)
 
-- Installing dependencies in root directory (use workspaces: `-w @foodxplorer/api`)
+- Installing dependencies in root directory
 - Skipping approvals at configured autonomy level
 - Using `any` type without justification
 - Creating files when existing ones can be extended
 - Adding features not explicitly requested
 - Committing without updating ticket acceptance criteria
 - Forgetting to update product tracker's Active Session after step changes
-- Using LLM for nutritional calculations (motor calculates, LLM interprets)
 
 ## Automated Hooks (Claude Code)
 
@@ -87,6 +74,6 @@ Skills orchestrate multi-step workflows. Invoke by telling the AI assistant what
 ## Standards References
 
 - [Base Standards](./ai-specs/specs/base-standards.mdc) — Constitution, methodology, workflow, agents
-- [Backend Standards](./ai-specs/specs/backend-standards.mdc) — Backend patterns (Fastify, Prisma, Kysely)
+- [Backend Standards](./ai-specs/specs/backend-standards.mdc) — Backend patterns ()
 - [Frontend Standards](./ai-specs/specs/frontend-standards.mdc) — Frontend patterns (Next.js)
 - [Documentation Standards](./ai-specs/specs/documentation-standards.mdc) — Doc guidelines
