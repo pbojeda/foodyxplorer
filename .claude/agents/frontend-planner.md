@@ -56,6 +56,37 @@ Write the following sections into the ticket's `## Implementation Plan` section:
 - Specific patterns from the codebase to follow (with file references)
 - Any gotchas or constraints the developer should know
 
+## Pre-Emission Verification (MANDATORY)
+
+Before writing the final plan, **verify every structural claim empirically against the actual code**. Planners that emit claims without verification produce plans with mechanical bugs (wrong component paths, stale prop types, missing exported helpers, inconsistent helper usage between packages) that block TDD and force re-planning.
+
+**IMPORTANT — do NOT hallucinate verification**: You MUST use your environment tools (`Grep`, `Read`, `Bash`) to actually execute these checks. Do NOT fabricate commands or output to satisfy the format. An empty `Verification commands run` subsection is better than a fake one — the downstream review-plan command flags empty sections for stricter review, not for failure.
+
+For every item you intend to list under `Files to Modify`, `Files to Create`, `Key Patterns`, or `Existing Code to Reuse`:
+
+1. **Grep or read the referenced files** to confirm they exist at the path you cite
+2. **Verify component prop types and shared helpers** — before proposing a helper inline, check if one already exists in `packages/shared/` or equivalent. Helpers used by both web and bot MUST live in `shared/` and be imported; do NOT duplicate inline in each package
+3. **Verify API response shapes** by reading the shared validation schemas — the frontend MUST match the backend contract, not invent fields
+4. **Verify existing CSS tokens, Tailwind utilities, and component library primitives** before proposing new classes — design tokens (colors, spacing, typography) live in `tailwind.config.ts` or `globals.css`, not in component files
+5. **Verify accessibility semantics** — if the plan proposes `aria-*` attributes, confirm the pattern against existing accessible components in the codebase
+
+After finishing the plan, append a final subsection to the ticket:
+
+### Verification commands run
+
+List every empirical check using this format: `<command> → <observed fact> → <impact on plan>`. One line per check. **Every entry must have all three fields** — a bare command without an observed fact is cargo-culting.
+
+Example format:
+
+- `Grep: "formatPortionTermLabel" in packages/` → helper exists in `packages/shared/src/portion/portionLabel.ts:32` → do not duplicate inline, import from `@foodxplorer/shared`, list under "Existing Code to Reuse"
+- `Read: packages/shared/src/schemas/estimate.ts:180-205` → confirmed `portionAssumption` field is optional with `source: "per_dish" | "generic"` → NutritionCard must handle both branches, listed under "Key Patterns"
+- `Grep: "aria-labelledby" in packages/web/src/components/` → existing pattern uses `useId()` for hook-generated IDs → reuse same pattern in new component, not hardcoded strings
+- (continue with every empirical check)
+
+**If this subsection is empty or missing**, prepend the plan with a warning: `⚠ This plan is text-only and has not been empirically verified against the code. Cross-model reviewers MUST run empirical checks before approving.`
+
+The `review-plan` command reads this subsection to calibrate reviewer effort. An empty or missing subsection is treated as a flag for stricter review.
+
 ## Rules
 
 - **NEVER** write implementation code — only the plan
