@@ -1,0 +1,5 @@
+dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
+00000000-0000-e073-0007-00000000001a,tapa,50,2,croquetas,high,Tapa estándar de croquetas de jamón (2 unidades ~25g cada una),pbojeda
+00000000-0000-e073-0007-00000000001a,racion,200,8,croquetas,high,Ración completa de croquetas de jamón (8 unidades ~25g cada una),pbojeda
+00000000-0000-e073-0007-00000000001b,tapa,80,,,medium,Tapa de patatas bravas — gram-only (continuous serving),pbojeda
+00000000-0000-e073-0007-00000000001b,racion,250,,,medium,Ración de patatas bravas — analyst review pending,
