@@ -625,3 +625,19 @@ Analysis in `docs/research/product-evolution-analysis-2026-03-31.md` Section 17,
 - (-) Per-dish coverage limited to reviewed priority-30 dishes until analyst expands CSV
 - (-) Cache key doesn't include portion-term dimension — stale cache after seeding requires deploy + cache flush (documented as deployment note)
 - (-) `StandardPortion` shape from prior unused table is fully incompatible; data migration is a clean drop-and-recreate
+
+### ADR-021: Full-flow integration tests required for conversation pipeline features (2026-04-13)
+
+**Context:** BUG-PROD-006 revealed that F085 (`portionSizing`) and F-UX-B (`portionAssumption`) were non-functional on the primary user path (`POST /conversation/message`) despite all unit and component tests passing. Root causes: (1) `prisma` not threaded through `ConversationRequest`; (2) F078-stripped query used for portion detection. Every existing test bypassed the full flow — they called `resolvePortionAssumption()` or `enrichWithPortionSizing()` directly with hardcoded inputs.
+
+**Decision:** Any new feature that adds data to the conversation response payload MUST have at least one integration test that calls `processMessage()` end-to-end (real DB, mocked Redis/cache). The test must assert the new field is present in `result.estimation` (or wherever the field lives on the response). Unit tests on the lowest-level resolver function alone are insufficient — they cannot catch wiring regressions where the resolver is never called.
+
+**Concretely:** `f-ux-b.conversationCore.integration.test.ts` and `f085.conversationCore.integration.test.ts` serve as the canonical examples. Both call `processMessage()` with real Prisma on the test DB, mock `runEstimationCascade` to control which dish is returned, and assert on `estimation.portionAssumption` / `estimation.portionSizing`.
+
+**Cross-model review (Codex + Gemini):** Both models independently identified the structural test coverage gap during plan review. Codex flagged it as M1 (structural miss, not just a test quality issue). Gemini confirmed the "resolvePortionAssumption directly" pattern is insufficient.
+
+**Consequences:**
+- (+) Wiring regressions (dependency not threaded, wrong variable passed) are caught before production
+- (+) End-to-end test doubles as smoke test for the full orchestration path
+- (-) Integration tests are slower (real DB) and require the test DB to be running
+- (-) Mocking `runEstimationCascade` introduces an abstraction boundary — tests don't cover cascade correctness, only the wiring from processMessage to resolvePortionAssumption
