@@ -1,7 +1,7 @@
 // Formatter: EstimateData → MarkdownV2 string.
 
 import type { EstimateData } from '@foodxplorer/shared';
-import { formatPortionLabel } from '@foodxplorer/shared';
+import { formatPortionLabel, formatPortionTermLabel } from '@foodxplorer/shared';
 import { escapeMarkdown, formatNutrient } from './markdownUtils.js';
 
 /** Format a numeric diff with explicit sign: "+5" or "-10" */
@@ -107,8 +107,24 @@ export function formatEstimate(data: EstimateData): string {
     lines.push(`_\\(orientativo — verificar con el establecimiento\\)_`);
   }
 
-  // F085: Portion sizing context
-  if (data.portionSizing) {
+  // F-UX-B: per-dish portion assumption (Tier 1 or Tier 2 derived)
+  if (data.portionAssumption && data.portionAssumption.source === 'per_dish') {
+    const pa = data.portionAssumption;
+    const termLabel = escapeMarkdown(pa.termDisplay ?? formatPortionTermLabel(pa.term));
+    let portionLine: string;
+    if (pa.pieces !== null && pa.pieceName !== null) {
+      portionLine = `📏 *Porción detectada:* ${termLabel} \\(~${pa.pieces} ${escapeMarkdown(pa.pieceName)}, ≈ ${pa.grams} g\\)`;
+    } else {
+      portionLine = `📏 *Porción detectada:* ${termLabel} \\(≈ ${pa.grams} g\\)`;
+    }
+    lines.push('');
+    lines.push(portionLine);
+  }
+
+  // F085: Portion sizing context — render only when no per_dish assumption is present.
+  // When portionAssumption.source === 'generic', the portionSizing line still renders
+  // (byte-identical to pre-F-UX-B output, preserving snapshot golden files).
+  if (data.portionSizing && (!data.portionAssumption || data.portionAssumption.source === 'generic')) {
     const ps = data.portionSizing;
     const gramsLabel = ps.gramsMin === ps.gramsMax
       ? `${ps.gramsMin} g`

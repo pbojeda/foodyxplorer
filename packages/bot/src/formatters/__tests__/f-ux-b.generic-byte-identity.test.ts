@@ -72,11 +72,11 @@ function makeGenericEstimateData(
       portionGrams: null,
       nutrients: baseNutrients(),
       confidenceLevel: 'low' as const,
-      estimationMethod: 'llm_estimated' as const,
+      estimationMethod: 'llm' as const,
       source: {
         id: '00000000-0000-f-ux-b-4000-000000000002',
         name: 'LLM',
-        type: 'llm_generated' as const,
+        type: 'estimated' as const,
         url: null,
       },
       similarityDistance: null,
