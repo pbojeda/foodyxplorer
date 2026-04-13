@@ -1002,3 +1002,289 @@ The `PortionAssumption` sub-type will be exported from `@foodxplorer/shared` as 
 3. **`section` id collision** — resolved with `useId()`. Requires `'use client'` on `NutritionCard`. Closed.
 4. **F-UX-A `mt-1.5` migration** — `mt-1.5` moves from `<p>` to `<section>`. Visual regression confirmed safe (no test assertions on spacing classes). Closed.
 5. **`card-enter` animation** — fires on article mount only; no jitter risk for in-place F-UX-B updates. Closed.
+
+---
+
+## Backend implementation plan (backend-planner, 2026-04-13)
+
+### 1. Prisma migration — REPLACING migration (path c)
+
+**Current `StandardPortion` shape** (`schema.prisma:208–227`): `id UUID PK`, `foodId UUID? FK→foods`, `foodGroup`, `context PortionContext enum`, `portionGrams Decimal`, `sourceId UUID FK→DataSources`, `notes`, `confidenceLevel ConfidenceLevel`, `description`, `isDefault bool`. Maps to `standard_portions`.
+
+**Spec shape**: `dishId UUID FK→dishes`, `term VARCHAR`, `grams INT`, `pieces INT?`, `pieceName VARCHAR?`, `confidence 'high'|'medium'|'low'` (new DB enum distinct from `ConfidenceLevel`), `notes`. Missing entirely: `foodId`, `context`, `portionGrams`, `sourceId`, `description`, `isDefault`. The shapes are fully incompatible.
+
+The table is **unused** (zero rows confirmed; no FK references from other tables — `standardPortions` relation only exists as a Prisma back-relation on `DataSource` and `Food`, both of which hold no FK column; confirmed by grep showing zero query-time references to `prisma.dataSource.standardPortions` or `prisma.food.standardPortions`).
+
+**Path: drop and recreate.**
+
+| Item | Detail |
+|---|---|
+| Migration filename | `20260413180000_standard_portions_f-ux-b` |
+| SQL step 1 | `DROP TABLE standard_portions CASCADE` (removes orphaned indexes and the XOR CHECK constraint) |
+| SQL step 2 | `CREATE TYPE portion_confidence AS ENUM ('high', 'medium', 'low')` |
+| SQL step 3 | `CREATE TABLE standard_portions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), dish_id UUID NOT NULL REFERENCES dishes(id) ON DELETE CASCADE, term VARCHAR(50) NOT NULL, grams INTEGER NOT NULL CHECK (grams > 0), pieces INTEGER CHECK (pieces >= 1), piece_name VARCHAR(100), confidence portion_confidence NOT NULL, notes TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), CONSTRAINT std_portions_pieces_name_pairing CHECK ((pieces IS NULL) = (piece_name IS NULL)), UNIQUE (dish_id, term))` |
+| Prisma enum | `enum PortionConfidence { high medium low @@map("portion_confidence") }` |
+| Index | `@@unique([dishId, term])` in Prisma model maps to the UNIQUE constraint above; no extra `@@index` needed (standards: `@unique` already creates an index) |
+| schema.prisma changes | (a) Remove `standardPortions StandardPortion[]` back-relation from `DataSource` and `Food`; (b) remove `PortionContext` enum (only used by the old column — confirm with `grep -r "PortionContext" packages/` before drafting SQL); (c) add `PortionConfidence` enum; (d) replace `StandardPortion` model body; (e) add `standardPortions StandardPortion[]` back-relation on `Dish` model |
+| Client regen | `cd packages/api && npx prisma generate` |
+| Migration workflow | `prisma migrate dev --create-only --name standard_portions_f-ux-b` → hand-edit SQL → `prisma migrate deploy` |
+
+### 2. Shared schema extension
+
+**File**: `packages/shared/src/schemas/estimate.ts`
+
+Add `PortionAssumptionSchema` above `EstimateDataSchema`. The `term` field uses the canonical DB keys (`media_racion`, `racion`, not display strings). The Zod schema:
+
+```
+PortionAssumptionSchema = z.object({
+  term: z.enum(['pintxo', 'tapa', 'media_racion', 'racion']),
+  termDisplay: z.string().min(1),
+  source: z.enum(['per_dish', 'generic']),
+  grams: z.number().int().positive(),
+  pieces: z.number().int().min(1).nullable(),
+  pieceName: z.string().min(1).nullable(),
+  gramsRange: z.tuple([z.number().int().positive(), z.number().int().positive()]).nullable(),
+  confidence: z.enum(['high', 'medium', 'low']).nullable(),
+  fallbackReason: z.enum(['no_row', 'tier2_rejected_tapa', 'tier2_rejected_pintxo']).nullable(),
+}).superRefine((d, ctx) => {
+  // per_dish branch
+  if (d.source === 'per_dish') {
+    if (d.gramsRange !== null) issue('gramsRange must be null for per_dish')
+    if (d.confidence === null) issue('confidence must be non-null for per_dish')
+    if (d.fallbackReason !== null) issue('fallbackReason must be null for per_dish')
+    if ((d.pieces === null) !== (d.pieceName === null)) issue('pieces and pieceName must both be null or both non-null')
+  }
+  // generic branch
+  if (d.source === 'generic') {
+    if (d.gramsRange === null) issue('gramsRange must be present for generic')
+    else {
+      if (d.gramsRange[0] <= 0 || d.gramsRange[1] <= d.gramsRange[0]) issue('gramsRange must be [positiveMin, min < max]')
+      const derived = Math.round((d.gramsRange[0] + d.gramsRange[1]) / 2)
+      if (d.grams !== derived) issue(`grams must equal Math.round(gramsRange midpoint) = ${derived}`)
+    }
+    if (d.pieces !== null) issue('pieces must be null for generic')
+    if (d.pieceName !== null) issue('pieceName must be null for generic')
+    if (d.confidence !== null) issue('confidence must be null for generic')
+    if (d.fallbackReason === null) issue('fallbackReason must be non-null for generic')
+  }
+})
+```
+
+Add `portionAssumption: PortionAssumptionSchema.optional()` to `EstimateDataSchema` (alongside the existing F-UX-A fields). Export `PortionAssumptionSchema` and `type PortionAssumption = z.infer<typeof PortionAssumptionSchema>` from the file and re-export from `packages/shared/src/index.ts`.
+
+**Test file**: `packages/shared/src/__tests__/f-ux-b.portionAssumption.test.ts` (Vitest, following `f-ux-a.estimate.schema.test.ts` as template).
+
+Illegal combinations — each must return `safeParse().success === false`:
+
+| # | Scenario |
+|---|---|
+| I1 | `per_dish` + `gramsRange: [50, 80]` (must be null) |
+| I2 | `per_dish` + `confidence: null` |
+| I3 | `per_dish` + `fallbackReason: 'no_row'` |
+| I4 | `per_dish` + `pieces: 2, pieceName: null` |
+| I5 | `per_dish` + `pieces: null, pieceName: 'croqueta'` |
+| I6 | `per_dish` + `pieces: 0` (min 1) |
+| I7 | `generic` + `pieces: 2` (must be null) |
+| I8 | `generic` + `pieceName: 'croqueta'` (must be null) |
+| I9 | `generic` + `confidence: 'high'` (must be null) |
+| I10 | `generic` + `fallbackReason: null` |
+| I11 | `generic` + `gramsRange: [0, 80]` (gramsMin must be > 0) |
+| I12 | `generic` + `gramsRange: [250, 150]` (must be ordered ascending) |
+| I13 | `generic` + `gramsRange: [50, 80]`, `grams: 99` (must equal `Math.round(65)=65`) |
+| I14 | `generic` + `gramsRange: null` |
+| I15 | `generic` + `gramsRange: [50, 50]` (gramsMax must be strictly > gramsMin) |
+
+Legal combinations to assert `success === true`: `per_dish` with pieces set; `per_dish` with pieces null (gazpacho path); `generic` with `gramsRange: [50, 80]` and `grams: 65`; `portionAssumption` absent from `EstimateDataSchema` payload.
+
+### 3. Seed CSV pipeline
+
+**Generator script** (offline, never invoked at query time):
+- Path: `packages/api/src/scripts/generateStandardPortionCsv.ts`
+- Reads `packages/api/prisma/seed-data/spanish-dishes.json`, filters to 30 priority dishes by `nameEs`
+- Expands each dish × 4 terms = up to 120 rows
+- Skip-existing: never overwrites a row where `reviewed_by` is already set — safe to re-run as rows are reviewed incrementally
+- For strong-countable bucket: LLM prompt asking for `{grams, pieces, pieceName, confidence}` in JSON
+- For sin-pieces bucket (gazpacho, salmorejo): hard-codes `pieces=null, pieceName=null`; LLM prompt asks only for `{grams, confidence}`
+- For analyst-decides bucket: sends strong-countable prompt to LLM but writes `pieces=null` in the CSV output by default regardless of LLM answer; analyst overrides by editing CSV manually
+- Output: appends to `packages/api/prisma/seed-data/standard-portions.csv` (committed to git)
+
+**CSV header**: `dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by`
+
+**Seed script** (runs standalone or called from `seed.ts`):
+- Path: `packages/api/src/scripts/seedStandardPortionCsv.ts`
+- Exports `seedStandardPortions(prisma: PrismaClient): Promise<void>`
+- Loads CSV from `packages/api/prisma/seed-data/standard-portions.csv` using `fs.readFileSync` + `new URL(...)` pattern (per memory: avoids Node16 import assertion issues)
+
+**Validation order** (steps 1–3 fail-loud on ALL rows; step 4 is the only silent path):
+1. **Header validation**: assert exact column set; diff-error + `process.exit(1)` on mismatch
+2. **Row-level types** (every row regardless of `reviewed_by`): `dishId` → positive int; `term` → `{pintxo,tapa,media_racion,racion}`; `grams` → positive int; `pieces` → null or int ≥ 1; `pieceName` null iff `pieces` null; `confidence` → `{high,medium,low}`; `reviewed_by` null or non-empty string — any failure exits with row number + field + `reviewed_by` status
+3. **Uniqueness**: `(dishId, term)` unique across all rows; duplicate exits with both row numbers
+4. **Review gate** (after 1–3 pass): seed only `reviewed_by != null` rows; silently skip others; log summary: `Seeded N rows. Skipped M unreviewed rows (reviewed_by == null). 0 errors.`
+5. **Idempotency**: upsert by `(dishId, term)` in a transaction
+
+**CSV committed to git**: YES — the generator template plus a minimal CSV with 1–2 reviewed example rows to make the pipeline immediately testable.
+
+**Test file**: `packages/api/src/scripts/__tests__/f-ux-b.seedStandardPortionCsv.test.ts`
+
+Scenarios: valid CSV seeds correctly; malformed header exits with diff; `dishId="abc"` exits with row+field; `grams=-1` exits; `pieces=2, pieceName=null` exits; duplicate `(dishId, term)` exits with both row numbers; `reviewed_by=null` rows silently skipped with correct summary counts; empty CSV logs `Seeded 0 rows. Skipped 0 unreviewed rows. 0 errors.`; re-run of same CSV produces identical DB state.
+
+### 4. Orchestrator 3-tier resolution
+
+**New file**: `packages/api/src/estimation/portionAssumption.ts`
+
+Exports:
+- `resolvePortionAssumption(prisma, dishId, detectedTerm, originalQuery, multiplier, logger?): Promise<{ portionAssumption?: PortionAssumption }>`
+- `computeDisplayPieces(scaledPieces: number | null): number | null` (pure, export for unit testing)
+
+`computeDisplayPieces` lives in `packages/api/src/estimation/portionUtils.ts` alongside `applyPortionMultiplier` (pure utility, no Prisma dependency). `resolvePortionAssumption` imports it.
+
+**Pseudocode — branching logic**:
+
+```
+if detectedTerm is null OR dishId is null → return {}
+
+termDisplay = extractTermDisplay(originalQuery, detectedTerm.term)
+canonicalTerm = normalizeToCanonicalTerm(detectedTerm.term)
+  // 'media ración' → 'media_racion', 'ración' → 'racion', 'pincho'/'pintxo' → 'pintxo', 'tapa' → 'tapa'
+
+// Tier 1 — exact DB lookup
+row = await prisma.standardPortion.findUnique({ where: { dishId_term: { dishId, term: canonicalTerm } } })
+if row:
+  scaledPieces = row.pieces !== null ? row.pieces * multiplier : null
+  displayPieces = computeDisplayPieces(scaledPieces)
+  return { portionAssumption: { term: canonicalTerm, termDisplay, source: 'per_dish',
+    grams: Math.round(row.grams * multiplier), pieces: displayPieces,
+    pieceName: displayPieces !== null ? row.pieceName : null,
+    gramsRange: null, confidence: row.confidence, fallbackReason: null } }
+
+// Tier 2 — media_racion arithmetic ONLY
+if canonicalTerm === 'media_racion':
+  racionRow = await prisma.standardPortion.findUnique({ where: { dishId_term: { dishId, term: 'racion' } } })
+  if racionRow:
+    basePieces = racionRow.pieces !== null ? racionRow.pieces * 0.5 : null
+    displayPieces = computeDisplayPieces(basePieces)
+    return { portionAssumption: { term: 'media_racion', termDisplay, source: 'per_dish',
+      grams: Math.round(racionRow.grams * 0.5 * multiplier), pieces: displayPieces,
+      pieceName: displayPieces !== null ? racionRow.pieceName : null,
+      gramsRange: null, confidence: racionRow.confidence,
+      fallbackReason: null } }   // notes field omitted — not in API schema; annotate in logs
+
+// Tier 3 — F085 generic
+fallbackReason = await determineFallbackReason(prisma, dishId, canonicalTerm)
+  // checks if a 'racion' row exists for this dish; returns 'tier2_rejected_tapa' |
+  // 'tier2_rejected_pintxo' | 'no_row' accordingly
+logger?.info({ dishId, term: canonicalTerm, fallbackReason }, 'F-UX-B: Tier 3 generic fallback')
+midpoint = Math.round((detectedTerm.gramsMin + detectedTerm.gramsMax) / 2)
+return { portionAssumption: { term: canonicalTerm, termDisplay, source: 'generic',
+  grams: midpoint, pieces: null, pieceName: null,
+  gramsRange: [detectedTerm.gramsMin, detectedTerm.gramsMax],
+  confidence: null, fallbackReason } }
+```
+
+**`determineFallbackReason`** — helper async function inside `portionAssumption.ts`, exported for unit testing. Executes one `findUnique` for `{ dishId, term: 'racion' }`. Returns the discriminator enum value.
+
+**Low-multiplier fall-through lives in `computeDisplayPieces`** (in `portionUtils.ts`): `null` if `scaledPieces === null || scaledPieces < 0.75`; else `Math.max(1, Math.round(scaledPieces))`. NOT in `applyPortionMultiplier` — keeps that function pure for nutrients only.
+
+**Call-site integration** in BOTH `packages/api/src/conversation/estimationOrchestrator.ts` and `packages/api/src/routes/estimate.ts`:
+- Import `resolvePortionAssumption` from `../estimation/portionAssumption.js`
+- `dishId = (scaledResult?.entityType === 'dish') ? scaledResult.entityId : null`
+- `detectedTerm = detectPortionTerm(query)` — reuse existing call already computed for F085
+- Add to the `estimateData` assembly spread: `...(await resolvePortionAssumption(prisma, dishId, detectedTerm, query, effectiveMultiplier, logger))`
+- Both files need `prisma` in scope — orchestrator already receives it via `EstimateParams`; route already has it via `opts.prisma`. No signature changes needed.
+
+**Pino log**: emitted inline inside `resolvePortionAssumption` on the Tier 3 path. Structured JSON shape: `{ dishId, term: canonicalTerm, fallbackReason, feature: 'F-UX-B' }`.
+
+**Test files**:
+- `packages/api/src/__tests__/f-ux-b.portionAssumption.unit.test.ts` — mocked Prisma; covers Tier1 hit, Tier2 hit, Tier2 non-rule (tapa query + ración row → Tier3), Tier3 no_row, `computeDisplayPieces` 6 boundary cases, `determineFallbackReason` 3 paths
+- `packages/api/src/__tests__/f-ux-b.estimateRoute.portionAssumption.integration.test.ts` — real test DB; seeds 1 dish with a `ración` row; exercises all 3 tiers via actual HTTP requests
+
+### 5. Bot formatter enhancement
+
+**File**: `packages/bot/src/formatters/estimateFormatter.ts`
+
+Current F085 block is at lines 111–118. Add a new block ABOVE it:
+
+```
+// F-UX-B: per-dish portion assumption
+if (data.portionAssumption && data.portionAssumption.source === 'per_dish') {
+  const pa = data.portionAssumption;
+  let portionLine: string;
+  if (pa.pieces !== null) {
+    portionLine = `📏 *Porción detectada:* ${escapeMarkdown(pa.termDisplay)} \\(~${pa.pieces} ${escapeMarkdown(pa.pieceName!)}, ≈ ${pa.grams} g\\)`;
+  } else {
+    portionLine = `📏 *Porción detectada:* ${escapeMarkdown(pa.termDisplay)} \\(≈ ${pa.grams} g\\)`;
+  }
+  lines.push('');
+  lines.push(portionLine);
+}
+// F085 block: render only when no per_dish assumption (or no portionAssumption at all)
+if (data.portionSizing && (!data.portionAssumption || data.portionAssumption.source === 'generic')) {
+  // ... existing lines 111-118 code, UNCHANGED ...
+}
+```
+
+The existing F085 block body is not edited — only a guard condition is added around it. This structural guarantee preserves byte-identity on the generic path.
+
+**`comparisonFormatter.ts`**: apply identical treatment — add the per_dish branch guard above the equivalent F085 rendering block. Bot comparison tests (currently inside the 1198) must remain green.
+
+**New snapshot test file**: `packages/bot/src/formatters/__tests__/f-ux-b.generic-byte-identity.test.ts`
+
+The 7 snapshot queries (all targeting un-seeded dishes → guaranteed Tier 3 generic):
+1. `"tapa de paella"` — paella not in priority-30
+2. `"media ración de gambas al horno"` — "al horno" variant not seeded
+3. `"ración de lentejas"` — not in priority-30
+4. `"tapa de solomillo"` — not in priority-30
+5. `"pintxo de txipiron"` — unambiguous un-seeded Basque spelling
+6. `"ración de cocido"` — not in priority-30
+7. `"tapa de manchego curado"` — "curado" variant not seeded
+
+Each test invokes `formatEstimate(mockData)` with a mocked `EstimateData` where `portionAssumption.source === 'generic'` (or `portionSizing` present without `portionAssumption`). Compared via `expect(output).toMatchSnapshot()`.
+
+**Snapshot creation rule**: run `npm test -w @foodxplorer/bot -- --testPathPattern=f-ux-b.generic-byte-identity` ONCE against the pre-change formatter (before any F-UX-B formatter edits). Commit the `.snap` file. Subsequent commits must not modify the snap unless the generic path intentionally changes (requires a documented decision).
+
+### 6. Open questions from UI/UX designer — backend answers
+
+**OQ1 (`termDisplay` fallback)**: confirmed — `portionAssumption.termDisplay ?? portionAssumption.term` is the correct fallback. The capitalisation helper (`capitaliseFirstLetter`) should be added to `packages/shared/src/portion/portionLabel.ts` alongside the existing F-UX-A helper and exported from `packages/shared/src/index.ts`. Frontend-planner can import it from `@foodxplorer/shared`.
+
+**OQ2 (`gramsRange[0] === gramsRange[1]`)**: confirmed — the `superRefine` invariant enforces `gramsMax > gramsMin` (strict inequality). `[X, X]` is rejected at `safeParse` time. The UI `{N}–{M}` template will never receive equal bounds. No UI guard needed.
+
+**OQ3–5**: frontend-planner scope, no backend action needed.
+
+### 7. Documentation deliverables
+
+| File | Addition |
+|---|---|
+| `docs/specs/api-spec.yaml` | Add `portionAssumption` object under `EstimateData` with all 9 fields, `source` discriminator enum, `fallbackReason` enum with 3 values, description on `pieces` field: "null when `basePieces × multiplier < 0.75` to avoid false precision on display; see F-UX-B spec" |
+| `docs/user-manual-web.md` | New section "Información de porción estimada" (~150 words): explain the `~N X (≈ G g)` line, meaning of `~` (aproximadamente N unidades) and `≈` (aproximadamente G gramos), meaning of "estimado genérico" (no dato específico para este plato), that only the top-30 canonical tapas have per-dish data |
+| `docs/project_notes/key_facts.md` | Add note: `StandardPortion` model now in active use for F-UX-B per-dish portion assumptions (previously unused); shape `(dishId, term, grams, pieces?, pieceName?, confidence, notes)`; 3-tier fallback: Tier1=DB lookup by `(dishId,term)`, Tier2=media_racion×0.5 from ración row, Tier3=F085 global range |
+| `docs/project_notes/decisions.md` | **ADR-020**: "Per-dish portion assumptions with graceful degradation to F085 generic ranges". Problem: F085's global gram ranges (`tapa=50–80g`) are dish-agnostic; they lose the semantic difference between `tapa de croquetas` (2 units, ~50g) and `tapa de gazpacho` (continuous, ~120g). Decision: `StandardPortion` DB table seeded offline via LLM + analyst-reviewed CSV, 3-tier runtime fallback, zero runtime LLM cost. Consequences: per-dish data covers only 30 priority dishes in v1; others degrade transparently to Tier 3; the seed pipeline introduces a review-gate CSV workflow; `StandardPortion` shape is fully replaced from its prior unused form; bot 1198 tests remain byte-identical on the generic path. |
+
+### 8. TDD implementation order
+
+| # | Commit | Files touched |
+|---|---|---|
+| 1 | shared schema + illegal-combination tests | `packages/shared/src/schemas/estimate.ts`, `packages/shared/src/__tests__/f-ux-b.portionAssumption.test.ts` |
+| 2 | `computeDisplayPieces` util + boundary tests | `packages/api/src/estimation/portionUtils.ts`, `packages/api/src/__tests__/f-ux-b.portionUtils.test.ts` |
+| 3 | Prisma migration + client regen | `schema.prisma`, migration SQL file, `packages/api/src/generated/` |
+| 4 | Seed CSV pipeline | `seedStandardPortionCsv.ts`, `generateStandardPortionCsv.ts`, `standard-portions.csv` (2 example reviewed rows), `f-ux-b.seedStandardPortionCsv.test.ts` |
+| 5 | Orchestrator resolution + unit tests | `portionAssumption.ts` (new), `estimationOrchestrator.ts`, `routes/estimate.ts`, `f-ux-b.portionAssumption.unit.test.ts` |
+| 6 | Integration test (real DB, all 3 tiers) | `f-ux-b.estimateRoute.portionAssumption.integration.test.ts` |
+| 7 | Bot snapshot baseline (commit BEFORE formatter changes) | `f-ux-b.generic-byte-identity.test.ts`, `.snap` file |
+| 8 | Bot formatter + per_dish tests | `estimateFormatter.ts`, `comparisonFormatter.ts`, `f-ux-b.estimateFormatter.perDish.test.ts` |
+| 9 | `capitaliseFirstLetter` shared util | `packages/shared/src/portion/portionLabel.ts`, `packages/shared/src/index.ts` |
+| 10 | API spec + docs + ADR-020 | `api-spec.yaml`, `user-manual-web.md`, `key_facts.md`, `decisions.md` |
+
+**Expected commit count**: 10. **Rough effort**: 2.5–3 days backend (migration + orchestrator + seed pipeline are the heavy parts; bot formatter and docs are lighter).
+
+### 9. Risks and open questions
+
+| Risk | Mitigation |
+|---|---|
+| Bot regression (byte-identity) | Snapshot test committed BEFORE formatter edits (commit 7). The F085 block body is structurally unchanged — only a guard is added. 1198 tests must all pass before commit 8 merges. |
+| `StandardPortion` back-relation removal from `DataSource`/`Food` | Zero query-time references confirmed by grep. Removal is schema-only. Must be atomic with migration to avoid Prisma client generation errors on `prisma generate`. |
+| `PortionContext` enum removal | Only used by old `standard_portions.context` column. Safe to drop. Developer must grep `PortionContext` across all packages before drafting SQL to confirm no other reference. |
+| Seed CSV rollback | If analyst marks a row reviewed then wants to undo: clearing `reviewed_by` in CSV + re-running seed does NOT delete the already-seeded DB row (upsert skips it silently). Analyst must run `DELETE FROM standard_portions WHERE dish_id = ? AND term = ?` manually, or use a `seed:standard-portions:reset` npm script (truncate + reseed). Document this rule in the seed script header comment. |
+| `dishId` extraction from cascade result | `dishId` is set from `scaledResult?.entityId` only when `entityType === 'dish'`. Food-level matches return `dishId = null` → `resolvePortionAssumption` returns `{}` → no `portionAssumption` field. This is correct behaviour. Add a unit test asserting absence of `portionAssumption` when `entityType === 'food'`. |
+| Cache key staleness | The existing cache key does not include a portion-term dimension. A generic-path response cached before the seed CSV ships could be served stale after seeding adds a Tier 1 row. Mitigation: the seed script is offline and requires a deploy + cache flush to take effect anyway. No code change needed — document as a deployment note. |
+
+**Open question for user**: `generateStandardPortionCsv.ts` invokes `codex exec` / gemini. Recommend wiring as `npm run generate:standard-portions` in `packages/api/package.json` for discoverability. Confirm preferred invocation pattern before implementation commit 4.
