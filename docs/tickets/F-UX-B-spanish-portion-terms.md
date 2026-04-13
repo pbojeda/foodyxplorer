@@ -1,7 +1,7 @@
 # F-UX-B — Expose assumptions behind Spanish serving-size terms (pincho / tapa / media ración / ración)
 
 **Feature:** F-UX-B | **Type:** Fullstack-Feature | **Priority:** Standard
-**Status:** Spec v2 — cross-model review complete, awaiting user approval before plan phase
+**Status:** Spec v2.1 — user audit applied (GX2 fall-through + 3 clarifications), awaiting checkpoint approval before plan phase
 **Created:** 2026-04-12 | **Dependencies:** F085 (portion term detection), F-UX-A (card metadata slot)
 
 ---
