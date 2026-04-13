@@ -26,9 +26,10 @@
 6. F-UX-B — spanish portion terms (pincho/tapa/ración) — **NEXT** (branch `feature/F-UX-B-spanish-portion-terms` at commit `06fc653` has committed analysis + Q1–Q7 user decisions locked in; resume with rebase on develop then spec phase)
 7. Issue 5 — BUG-PROD-005 Render excess minutes — pending (user confirmed: Build Filters empty in Render dashboard → services were created manually, not via Blueprint → `render.yaml` `buildFilter` config is not being applied)
 
-**Follow-up backlog (from BUG-PROD-004, documented in `bugs.md` lines 37–38):**
-- **Follow-up 1** — delete `.github/workflows/deploy-landing.yml` (same Vercel GitHub App redundancy, same fix: delete). Separate ticket, Simple tier, no cross-model review needed.
-- **Follow-up 2** — investigate Vercel production URL not auto-promoting from `develop`. User sees "Promote to Production" button in Vercel dashboard. Most likely cause: Production Branch in Vercel project settings = `main` (correct for gitflow) and user was expecting `develop` to auto-promote. Needs dashboard confirmation before any action.
+**Follow-up backlog:**
+- **Follow-up 1** (BUG-PROD-004) — delete `.github/workflows/deploy-landing.yml` (same Vercel GitHub App redundancy, same fix: delete). Separate ticket, Simple tier, no cross-model review needed. Context: `bugs.md` lines 37–38.
+- **Follow-up 2** (BUG-PROD-004) — investigate Vercel production URL not auto-promoting from `develop`. User sees "Promote to Production" button in Vercel dashboard. Most likely cause: Production Branch in Vercel project settings = `main` (correct for gitflow) and user was expecting `develop` to auto-promote. Needs dashboard confirmation before any action. Context: `bugs.md` lines 37–38.
+- **Follow-up 3** (F-UX-B spec-v2.1, dev-infra, BUG-DEV-GEMINI-CONFIG) — `.gemini/settings.json` uses obsolete string-form `model` field; current Gemini CLI expects object. Degrades cross-model reviews — Gemini had to be invoked from `/tmp` during F-UX-B spec review, losing workspace file access. Stub ticket at `docs/tickets/BUG-DEV-GEMINI-CONFIG.md`. Simple tier, fix BEFORE next feature that needs cross-model review to avoid repeating the workaround.
 
 **Phase B Audit Summary (2026-04-07 to 2026-04-08):**
 - Punto 1: Manuals updated (bot §20-23, API §20-21) ✓

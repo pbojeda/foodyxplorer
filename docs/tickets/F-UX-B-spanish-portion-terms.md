@@ -188,11 +188,24 @@ The verbatim user list is locked (not re-ordered, not substituted). Cross-model 
 
 When a size modifier (F042 `portionMultiplier`) is present together with a portion term (F085) backed by a `StandardPortion` row with `pieces != null`:
 
-- `displayedPieces = Math.round(basePieces × multiplier)`
-- **Clamp minimum 1** — if rounding produces `0` (e.g., `Math.round(2 × 0.3)`), use `1` instead so we never render "0 croquetas"
-- **Document the edge case** in tests: near-zero multiplier × small piece count → clamp activates; assert the assertion message explains why
+- `scaledPieces = basePieces × multiplier` (float, not yet rounded)
+- **Low-multiplier fall-through (updated spec v2.1 after user review of GX2):** if `scaledPieces < 0.75`, do **NOT** render pieces at all — fall through to the existing `pieces === null` render path, which shows only grams + nutrients. Rationale: rounding 0.5 pieces up to 1 and displaying `~1 croqueta (25 kcal)` creates a false semantic mismatch (user reads "1 croqueta = 25 kcal" when the truth is "0.5 croquetas = 25 kcal"). The `~`/`≈` symbols mitigate gram imprecision but cannot mitigate a wrong unit count. Dropping pieces entirely is better than lying with a clamped `1`.
+- **High enough to round normally:** if `scaledPieces >= 0.75`, `displayedPieces = Math.max(1, Math.round(scaledPieces))`. The `Math.max(1, …)` guard still protects against exactly-zero edge cases (e.g., `basePieces = 0` via data bug), but the practical floor is now 0.75, which rounds to 1 and is close enough to the user's mental model (you can legitimately display `~1` when the real value is 0.8 of a piece).
 
-Example: `ración grande de croquetas` with base 8 croquetas × 1.5 = `~12 croquetas (≈ 360 g)` on the card.
+**Threshold table:**
+
+| `basePieces` | `multiplier` | `scaledPieces` | Action | Rendered |
+|---:|---:|---:|---|---|
+| 8 | 1.5 | 12.0 | round → 12 | `~12 croquetas (≈ 360 g)` |
+| 2 | 0.5 | 1.0 | round → 1 | `~1 croqueta (≈ 25 g)` |
+| 2 | 0.4 | 0.8 | round → 1 (≥ 0.75) | `~1 croqueta (≈ 20 g)` |
+| 2 | 0.3 | 0.6 | **fall-through** (< 0.75) | `≈ 15 g` (no pieces) |
+| 1 | 0.25 | 0.25 | **fall-through** (< 0.75) | `≈ 12.5 g` (no pieces) |
+| 8 | 0.05 | 0.4 | **fall-through** (< 0.75) | `≈ 12 g` (no pieces) |
+
+**Key property:** the fall-through **reuses the existing `pieces === null` render path** — no new conditional branches in UI or bot, no new copy template, no new schema field. The orchestrator decides at build time whether to include `pieces` in the `portionAssumption` response object, and the render layer does what it already does for `pieces === null`. Zero new casuistry downstream.
+
+Example: `ración grande de croquetas` with base 8 croquetas × 1.5 = `~12 croquetas (≈ 360 g)` on the card (normal round path).
 
 ### Q3 — LLM backfill: **OFFLINE SCRIPT → CSV → REVIEW → SEED**
 
@@ -286,7 +299,8 @@ When a user query contains a portion term (F085 detection is unchanged):
 
 1. **Tier 1 — per-dish lookup.** Query `StandardPortion` by `(dishId, term)`. If hit, build `portionAssumption` with `source: "per_dish"` and all fields populated from the row.
 2. **Tier 2 — ración × 0.5 arithmetic for `media ración` ONLY.** If and only if the user typed `media ración` AND a `ración` row exists for the dish AND no explicit `media_racion` row exists for that dish, derive `grams = ración.grams × 0.5` and `pieces = Math.round(ración.pieces × 0.5)` (clamped to 1). `source: "per_dish"`, `notes: "derived from ración ×0.5"`.
-   - **Explicit non-rule (added after cross-model review — Gemini proposed expanding Tier 2 to `tapa = ración × 0.25` and `pincho = ración × 0.15`, rejected on arbitration):** Tier 2 does NOT apply to `tapa` / `pintxo` queries even when a `ración` row exists. The whole point of the per-dish data model is to reject global ratios — `tapa = ración × 0.25` is exactly the kind of false precision the analysis phase rejected via Explore + Codex + Gemini consensus. Any `tapa`/`pintxo` query that misses Tier 1 falls through directly to Tier 3 generic. Log a counter metric (`portionAssumption.tier2_rejected_as_tapa_or_pintxo`) so we can see whether missing per-dish rows cause user-visible "estimado genérico" copy often enough to justify seeding more rows.
+   - **Explicit non-rule (added after cross-model review — Gemini proposed expanding Tier 2 to `tapa = ración × 0.25` and `pincho = ración × 0.15`, rejected on arbitration):** Tier 2 does NOT apply to `tapa` / `pintxo` queries even when a `ración` row exists. The whole point of the per-dish data model is to reject global ratios — `tapa = ración × 0.25` is exactly the kind of false precision the analysis phase rejected via Explore + Codex + Gemini consensus. Any `tapa`/`pintxo` query that misses Tier 1 falls through directly to Tier 3 generic.
+   - **Observability (spec v2.1, clarified after user review):** when a `tapa`/`pintxo` query falls through to Tier 3 *because* only a `ración` row existed (not because the dish is unseeded entirely), the orchestrator sets a discriminator field on the response so it can be captured by structured logging downstream. **Implementation: API response field `portionAssumption.fallbackReason: "no_row" | "tier2_rejected_tapa" | "tier2_rejected_pintxo" | null`.** `null` when `source === 'per_dish'`. `"no_row"` when no row exists for this dish at all. `"tier2_rejected_tapa"` / `"tier2_rejected_pintxo"` when a `ración` row exists but the user asked for a term Tier 2 refuses to derive. The API consumer (web, bot) ignores this field for rendering — it's consumed by structured logs / future analytics. Backend emits a structured log line per response with this field, standard Pino JSON shape. **NOT a DB column, NOT an in-memory counter, NOT a batch metric** — just a response-level discriminator that drops into whatever log pipeline already exists. `backend-planner` wires the log emission; `frontend-planner` confirms the field is ignored by render layers.
 3. **Tier 3 — F085 generic fallback.** Any portion term query that fails Tier 1 and is not eligible for Tier 2 (per above) → return the current F085 global range `{ gramsMin, gramsMax }` with `source: "generic"`, `pieces: null`, `pieceName: null`. UI renders the weaker copy.
 
 F042 `portionMultiplier` composes on top of the resolved assumption (per Q2). The multiplier applies to both `nutrients` (F-UX-A's existing behavior) AND `portionAssumption.grams/pieces` (new).
@@ -297,14 +311,20 @@ New optional field on `EstimateData`:
 
 ```ts
 portionAssumption?: {
-  term: string,                // 'pintxo' | 'tapa' | 'media ración' | 'ración' — display key
+  term: string,                // 'pintxo' | 'tapa' | 'media ración' | 'ración' — canonical key
   termDisplay: string,         // user-typed variant (e.g., "pincho" or "pintxo") for UI rendering
   source: 'per_dish' | 'generic',
   grams: number,               // post-F042-multiplier
-  pieces: number | null,       // post-F042-multiplier with clamp-to-1
-  pieceName: string | null,    // singular form
+  pieces: number | null,       // post-F042 fall-through: null when basePieces×multiplier<0.75
+  pieceName: string | null,    // literal string from seed data, no runtime pluralization
   gramsRange: [number, number] | null,  // only when source === 'generic' (from F085 global map)
-  confidence: 'high' | 'medium' | 'low' | null  // null when source === 'generic'
+  confidence: 'high' | 'medium' | 'low' | null,  // null when source === 'generic'
+  fallbackReason: 'no_row' | 'tier2_rejected_tapa' | 'tier2_rejected_pintxo' | null
+  // null when source === 'per_dish' AND Tier 1 or Tier 2 hit cleanly
+  // 'no_row' when source === 'generic' because no row existed for (dishId, term)
+  // 'tier2_rejected_*' when source === 'generic' because a ración row existed but the
+  //   query asked for a term Tier 2 refuses to derive via arithmetic
+  // consumed by backend structured logs (Pino JSON), ignored by web/bot render layers
 }
 ```
 
@@ -314,14 +334,16 @@ portionAssumption?: {
   - `grams` MUST be a positive integer (> 0)
   - `gramsRange` MUST be null
   - `confidence` MUST be one of `'high' | 'medium' | 'low'` (non-null)
-  - `pieces` is null OR a positive integer (≥ 1, clamp-to-1 enforced upstream)
+  - `pieces` is null OR a positive integer (≥ 1, low-multiplier fall-through enforced upstream: if `basePieces × multiplier < 0.75` the orchestrator returns `pieces: null`)
   - `pieceName` is null iff `pieces` is null
+  - `fallbackReason` MUST be null
 - **`source === 'generic'` branch:**
   - `gramsRange` MUST be present as `[gramsMin, gramsMax]` with `gramsMin > 0`, `gramsMax > gramsMin`, both **integers**
   - `grams` MUST equal `Math.round((gramsMin + gramsMax) / 2)` (derived, not free-form)
   - `pieces` MUST be null
   - `pieceName` MUST be null
   - `confidence` MUST be null
+  - `fallbackReason` MUST be one of `'no_row' | 'tier2_rejected_tapa' | 'tier2_rejected_pintxo'` (non-null)
 - **Cross-branch:** the `pieces`/`pieceName` pairing invariant always holds (null iff null, non-null iff non-null). Never `pieces = 2` with `pieceName = null`.
 
 Rationale for tightening: cross-model review found the original invariants allowed `gramsRange = [0, 0]` or `[250, 150]` (reversed), which would pass type validation but render nonsense copy at runtime. The positive-ordered-integer constraint catches CSV slips or data-entry errors at seed/response time.
@@ -373,12 +395,14 @@ The 1198 existing bot tests MUST continue to pass **byte-identical** output for 
 
 Quality gate: `npm test -w @foodxplorer/bot` must report **exactly `Tests: 1198 passed`** before the final commit. Any delta → STOP, reassess scope, do not commit.
 
-### Seed CSV pipeline hardening (MANDATORY — added after cross-model review)
+### Seed CSV pipeline hardening (MANDATORY — added after cross-model review, clarified spec v2.1)
 
-Both Codex and Gemini flagged that "silently skip unreviewed rows" is a good analyst-workflow rule but a terrible error-handling rule. The offline seed script (per Q3) MUST distinguish between the two cases:
+Both Codex and Gemini flagged that "silently skip unreviewed rows" is a good analyst-workflow rule but a terrible error-handling rule. The offline seed script (per Q3) MUST distinguish between the two cases — **and the validation passes run against ALL rows, reviewed or not.** The silent-skip is a workflow gate, not a quality gate.
 
-1. **Header validation** — assert the exact set of required columns exists (`dishId`, `term`, `grams`, `pieces`, `pieceName`, `confidence`, `notes`, `reviewed_by`). A missing or typo'd column → **fail loudly** with the column diff; do NOT proceed.
-2. **Row-level type validation** — for every row:
+**Validation order (per CSV run):**
+
+1. **Header validation (whole-file, fail-loud)** — assert the exact set of required columns exists (`dishId`, `term`, `grams`, `pieces`, `pieceName`, `confidence`, `notes`, `reviewed_by`). A missing or typo'd column → **fail loudly** with the column diff; do NOT proceed to any row.
+2. **Row-level type validation (every row, reviewed or not, fail-loud)** — for every row in the CSV:
    - `dishId` parses to a positive integer
    - `term` is one of `{pintxo, tapa, media_racion, racion}`
    - `grams` is a positive integer (> 0)
@@ -386,24 +410,51 @@ Both Codex and Gemini flagged that "silently skip unreviewed rows" is a good ana
    - `pieceName` is null iff `pieces` is null
    - `confidence` is one of `{high, medium, low}`
    - `reviewed_by` is null OR a non-empty string
-   - Any row that fails ANY of these → **fail loudly** with the row number and the failing field; do NOT proceed.
-3. **Uniqueness constraint** — `(dishId, term)` pairs must be unique across the CSV. Duplicates → **fail loudly** with both row numbers; do NOT proceed.
-4. **Review gate (the ONLY silent path)** — rows where `reviewed_by == null` but ALL other validation passes are silently skipped. At the end, log:
+   - Any row that fails ANY of these → **fail loudly** with row number + failing field + `reviewed_by` status (so the analyst knows whether this was a structural error in an unreviewed row or in a reviewed row).
+   - **Critical (spec v2.1 clarification):** a malformed row with `reviewed_by == null` still halts the run. We do NOT want a typo in an unreviewed row to disappear silently — the unreviewed rows will eventually become reviewed, and a bug planted now would poison the pipeline later. The only silent gate is at Step 4 below, AFTER structural validation has passed.
+3. **Uniqueness constraint (whole-file, fail-loud)** — `(dishId, term)` pairs must be unique across the CSV. Duplicates → **fail loudly** with both row numbers.
+4. **Review gate — the ONLY silent path, applied AFTER structural validation passes** — once all rows have passed header, type, and uniqueness validation, the script partitions them by `reviewed_by`:
+   - `reviewed_by != null` → seeded
+   - `reviewed_by == null` → silently skipped (not seeded, not logged per-row)
+   At the end, log a single summary line:
    ```
    Seeded N rows. Skipped M unreviewed rows (reviewed_by == null). 0 errors.
    ```
+   If M > 0, this is a workflow signal to the analyst (there are still rows to review), NOT an error.
 5. **Idempotency** — re-running the seed script against the same CSV must produce the same DB state. Implementation: upsert by `(dishId, term)` within a transaction, or truncate+reseed if the script is used in a reset-style workflow. ADR candidate.
 
-Rationale: silent skipping is correct for the analyst workflow (incremental review of a large CSV is normal), but silent corruption of structural errors would let a typo'd column header produce an empty seed with no visible failure. The combination of (a) silent review-gate + (b) loud structural errors is the behavior the user needs.
+**Rationale (spec v2.1 emphasis):** silent skipping is correct for the analyst workflow (incremental review of a large CSV is normal over days/weeks). Silent corruption of structural errors would let a typo'd column header produce an empty seed with no visible failure. The combination of (a) structural validation on ALL rows regardless of review status + (b) silent review-gate as the last step = the behavior the user needs. The order is important: validate first, gate second.
 
-### F042 × F-UX-B clamp-to-1 known intentional behavior (post-review note)
+### F042 × F-UX-B low-multiplier pieces fall-through (spec v2.1)
 
-Per Q2, when `Math.round(basePieces × multiplier) = 0`, the clamp forces `1`. Example: `multiplier = 0.25` + `basePieces = 1` → displays `~1 croqueta (≈ 12.5 g)`. Gemini flagged that this is nutritionally imprecise on a **per-piece basis** (implying "1 piece = 12.5 g", which distorts the food's true density). This is intentional and locked per user decision.
+**Problem addressed:** an earlier draft of this spec documented a hard `clamp-to-1` on `Math.round(basePieces × multiplier) = 0`. Cross-model review (Gemini GX2) flagged that clamping to `1` creates a false semantic mismatch: the nutrient values are correctly scaled (`25 kcal` for `base 2 croquetas × multiplier 0.25`) but the displayed piece count reads `1`, so the user's mental model becomes `"1 croqueta = 25 kcal"` when the truth is `"0.5 croquetas = 25 kcal"`. The `~`/`≈` symbols can communicate gram imprecision but cannot rescue a wrong unit denominator. User agreed on the spec-v2 review and the fix became:
 
-**Mitigation in documentation:**
-- `docs/specs/api-spec.yaml` documents the clamp under `portionAssumption.pieces` description as **known intentional behavior**
-- A unit test asserts the clamp fires for `multiplier ≤ 0.49` on small piece counts
-- The F042 nutrient scaling (kcal, macros, grams) is NOT affected — it remains mathematically accurate. The "distortion" is only on the "1 piece" display denominator, which the copy discipline (`~` and `aproximadamente`) communicates as approximate anyway.
+**Rule (definitive):**
+
+- `scaledPieces = basePieces × multiplier`
+- **If `scaledPieces < 0.75`** → drop pieces from the response. The orchestrator returns `portionAssumption` with `pieces: null` and `pieceName: null`. The render path is the existing `per_dish` + `pieces === null` path: `{Term} ≈ {grams} g` on the card, `📏 Porción detectada: {term} (≈ {grams} g)` in the bot.
+- **If `scaledPieces >= 0.75`** → `displayedPieces = Math.max(1, Math.round(scaledPieces))`. The `Math.max(1, …)` guard is defensive against data bugs (e.g., `basePieces = 0`); in normal operation `scaledPieces >= 0.75` always rounds to at least 1.
+- Nutrient scaling (kcal, macros, grams) is **unaffected** — F042 continues to scale nutrients by the exact multiplier regardless of the piece-display decision. The fall-through only suppresses the piece-count rendering, not the nutrient math.
+
+**Why 0.75 and not 0.5:** rounding `0.5` up to `1` still produces the same false precision on a per-piece basis. `0.75` is the smallest value that rounds to `1` without noticeably lying — the user sees `~1 croqueta` when the real count is 3/4 of a piece, which the `~` qualifier honestly communicates as "approximately one". At `0.74` we're asserting "approximately one" for something that's closer to half, which the qualifier cannot rescue.
+
+**Why reuse the `pieces === null` path:**
+
+- Zero new render branches in web or bot
+- Zero new schema fields (the field already exists and is nullable per the baseline invariants)
+- The `pieces === null` render path was already going to ship for gazpacho/salmorejo/etc., so we're not introducing a new code path — we're reusing one that's already tested
+- Symmetric with generic fallback (Tier 3) which also renders gram-only
+
+**Test coverage:**
+
+- Unit test: `multiplier = 0.3, basePieces = 2 → scaledPieces = 0.6 < 0.75 → pieces dropped, response has pieces=null, pieceName=null, grams and nutrients still scaled by 0.3`
+- Unit test: `multiplier = 0.4, basePieces = 2 → scaledPieces = 0.8 >= 0.75 → pieces = 1`
+- Unit test: `multiplier = 0.5, basePieces = 2 → scaledPieces = 1.0 → pieces = 1`
+- Unit test: `multiplier = 1.5, basePieces = 8 → pieces = 12` (happy path regression)
+- Rendering test (web + bot): fall-through case produces the same output as a natively-null dish (e.g., gazpacho), validated via snapshot or contains-check
+- Threshold boundary test: `scaledPieces = 0.749999 → fall-through`, `scaledPieces = 0.75 → rounds to 1`
+
+**Documentation in `api-spec.yaml` deliverable:** `portionAssumption.pieces` description explicitly states "null when `basePieces × multiplier < 0.75`, to avoid false precision on display" so API consumers know the semantics.
 
 ### Documentation deliverables (mandatory before merge)
 
@@ -451,7 +502,7 @@ Both reviews produced useful findings. Gemini's lack of file access reduced the 
 | # | Finding | Severity | Action |
 |---|---|---|---|
 | GX1 | `pieceName` is in the schema but the spec does not explicitly state it flows through to the UI render path as a literal (no pluralization) | M2 | **Fixed in UI surfacing copy templates.** Explicit statement that seed data stores the exact string to render, no runtime pluralization logic, analyst captures intent literally in the CSV. |
-| GX2 | Clamp-to-1 behavior (`multiplier = 0.25, basePieces = 1 → ~1 croqueta (≈ 12.5 g)`) is nutritionally imprecise on a per-piece basis and will trigger QA bug reports unless documented as intentional | P1 | **Fixed in new clamp-to-1 known intentional behavior subsection.** Documented in `api-spec.yaml` deliverable (plan-phase). Unit test asserts clamp fires. Note that F042 nutrient scaling is unaffected — the distortion is only in the display denominator. |
+| GX2 | Clamp-to-1 behavior (`multiplier = 0.25, basePieces = 1 → ~1 croqueta (≈ 12.5 g)`) is nutritionally imprecise on a per-piece basis and will trigger QA bug reports unless documented as intentional | P1 → **M1 after user checkpoint on spec v2** | **Spec v2.1 upgrade: fix changed from "document as intentional" to "eliminate the semantic mismatch entirely."** User agreed on the spec-v2 checkpoint that the `~`/`≈` qualifiers protect gram imprecision but cannot rescue a wrong unit denominator — clamping `0.5 croquetas` to `~1 croqueta` still tells the user "1 piece = 25 kcal" when the truth is "0.5 pieces = 25 kcal". **New rule: low-multiplier pieces fall-through.** If `basePieces × multiplier < 0.75`, drop pieces entirely and render the existing `pieces === null` path (grams + nutrients only). Reuses the null render path that already ships for gazpacho/salmorejo, zero new casuistry. Threshold 0.75 chosen because it's the smallest value that rounds to 1 without noticeably lying. Q2 rewritten with the new rule + threshold table, "F042 × F-UX-B" subsection renamed "low-multiplier pieces fall-through" with full rationale, test plan replaced clamp tests with fall-through tests, `api-spec.yaml` deliverable documents the threshold. |
 | GX3 | Specific `aria-labelledby` grouping suggestion to tie F-UX-A pill and F-UX-B line together for screen readers | P2 | **Accepted into UI accessibility requirements.** Container is `<section aria-labelledby="portion-heading">` with a visually-hidden heading. |
 
 ### Final verdict (both models)
@@ -498,7 +549,22 @@ All findings addressed inline in the spec above (Red-flag mitigation, Q1 classif
 - **Bot `estimateFormatter` — tests split by render path:**
   - `per_dish` + `pieces != null` → matches `/~\d+ [a-záéíóúñ]+, ≈ \d+ g/` (note bot uses comma, not parentheses)
   - `per_dish` + `pieces == null` → matches `/≈ \d+ g/`, no `~`
-  - **`generic` → exact string equality test against a frozen snapshot of today's F085 output** (bot regression guarantee — 1198 tests byte-identical invariant). A new test suite `bot/__tests__/f-ux-b.generic-byte-identity.test.ts` asserts that for every dish NOT in the priority-30 seed, the rendered string matches the pre-F-UX-B output character-for-character.
+  - **`generic` → Jest snapshot test with checked-in golden files** (bot regression guarantee, clarified spec v2.1). New test file `packages/bot/src/formatters/__tests__/f-ux-b.generic-byte-identity.test.ts` with a companion `__snapshots__/f-ux-b.generic-byte-identity.test.ts.snap` directory checked into git. Mechanism:
+    - The test runs a list of representative queries targeting dishes NOT in the priority-30 seed (so they MUST hit Tier 3 generic)
+    - For each query, the test invokes `estimateFormatter.format(...)` with a mocked API response representing Tier 3 generic output
+    - The rendered string is compared via `toMatchSnapshot()` against the checked-in golden file
+    - **The golden files are generated ONCE from current (pre-F-UX-B) formatter output at the start of implementation, committed to git, and treated as immutable.** Any future PR that modifies them triggers snapshot failures until the author explicitly updates the golden (with a code review on the diff).
+    - Uses `toMatchSnapshot()`, NOT `toMatchInlineSnapshot()` — external file on purpose so the golden strings live next to test code and are reviewable as a unit.
+  - **Explicit query list for the snapshot suite (queries targeting un-seeded dishes, chosen to cover the term and pieces-modifier axis):**
+    1. `"tapa de paella"` — paella is not in the priority-30, tapa term, expect `tapa (50–80 g)`
+    2. `"pincho de pulpo"` — pulpo IS in the priority-30 but listed under analyst-decides; for this test we use a different spelling `"pulpo gallego"` or an un-seeded alias to guarantee Tier 3
+    3. `"media ración de gambas al horno"` — specifically "al horno" (not "al ajillo", which IS in the priority-30)
+    4. `"ración de lentejas"` — lentejas not in the priority-30, ración term
+    5. `"tapa de solomillo"` — solomillo not in the priority-30
+    6. `"pintxo de txipiron"` — unambiguous un-seeded dish using Basque spelling of the query
+    7. `"ración de cocido"` — cocido not in the priority-30
+  - **Snapshot creation rule:** the snapshots are generated by running the test suite ONCE against the current formatter BEFORE any F-UX-B formatter changes land. The resulting `.snap` file is committed as part of the first F-UX-B implementation commit. Subsequent commits must not modify it unless the bot formatter's `generic` path intentionally changes — and any such change requires a documented decision in `bugs.md` or `decisions.md`.
+  - **Rationale for snapshot (not regex/contains):** regex and contains-checks would let subtle bugs slip through (extra whitespace, wrong emoji, wrong punctuation). Byte-for-byte equality is the only way to enforce the 1198-test regression invariant. Snapshots are the standard Jest mechanism for this and are reviewable in diffs.
 - **Copy-discipline regex coverage** — the regex is applied ONLY in the `per_dish` branch tests. The `generic` branch tests use exact-string equality. The split is explicit (correction from the internally contradictory v1 of the spec).
 - **Seed pipeline tests:**
   - Header validation: malformed CSV header → script exits with column-diff error
@@ -506,10 +572,15 @@ All findings addressed inline in the spec above (Red-flag mitigation, Q1 classif
   - Uniqueness: duplicate `(dishId, term)` rows → script exits with both row numbers
   - Review gate: rows with `reviewed_by == null` are silently skipped, counts logged
   - Idempotency: re-run against the same CSV produces the same DB state
-- **F042 × F-UX-B composition tests:**
-  - `multiplier = 1.5`, `basePieces = 8` → `displayedPieces = 12` (happy path)
-  - `multiplier = 0.25`, `basePieces = 1` → clamp-to-1 fires, `displayedPieces = 1` (clamp test with explicit assertion message)
-  - `multiplier = 1.0`, `basePieces = 0` (edge: should never happen per schema invariants, but test anyway) → schema rejects
+- **F042 × F-UX-B composition tests (spec v2.1 — fall-through replaces clamp-to-1):**
+  - `multiplier = 1.5`, `basePieces = 8` → `scaledPieces = 12.0 → pieces = 12` (happy path)
+  - `multiplier = 0.5`, `basePieces = 2` → `scaledPieces = 1.0 → pieces = 1` (normal round, at the threshold)
+  - `multiplier = 0.4`, `basePieces = 2` → `scaledPieces = 0.8 ≥ 0.75 → pieces = 1` (round up legitimately)
+  - `multiplier = 0.3`, `basePieces = 2` → `scaledPieces = 0.6 < 0.75 → **pieces dropped** (response has `pieces: null`, `pieceName: null`, grams and nutrients still scaled by 0.3)`
+  - `multiplier = 0.25`, `basePieces = 1` → `scaledPieces = 0.25 < 0.75 → **pieces dropped**`
+  - Threshold boundary test: `scaledPieces = 0.749999 → pieces dropped`, `scaledPieces = 0.75 → pieces = 1`
+  - Render regression: fall-through render output MUST match a natively-null dish's output (e.g., gazpacho) byte-for-byte, validated via snapshot or `toEqual` assertion on the rendered string
+  - `multiplier = 1.0`, `basePieces = 0` (edge: should never happen per schema invariants — seed pipeline rejects `pieces = 0`) → schema `superRefine` rejects at build time
 
 **Manual post-merge (user action)**
 - `/hablar` query: "ración grande de croquetas" → card shows `PORCIÓN GRANDE` pill + `Ración ≈ ~12 croquetas (≈ 360 g)` line inside the grouped section
