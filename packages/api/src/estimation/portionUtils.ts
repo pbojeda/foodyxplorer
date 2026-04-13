@@ -1,9 +1,40 @@
-// Pure utility for applying a portion multiplier to an EstimateResult.
+// Pure utilities for portion-related calculations.
+//
+// - computeDisplayPieces  — F-UX-B low-multiplier fall-through (spec v2.1)
+// - applyPortionMultiplier — F042 nutrient/grams scaling (kept pure, unmodified)
 //
 // Extracted from routes/estimate.ts (F070) so both the GET /estimate route
 // and EstimationOrchestrator can import it without duplication.
 
 import type { EstimateResult, EstimateNutrients } from '@foodxplorer/shared';
+
+// ---------------------------------------------------------------------------
+// computeDisplayPieces (F-UX-B)
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a scaled piece count into the displayable integer, applying the
+ * low-multiplier fall-through rule from spec v2.1.
+ *
+ * Rule:
+ *  - `scaledPieces === null`              → null  (non-countable dish)
+ *  - `scaledPieces < 0.75`               → null  (fall-through: avoid false precision)
+ *  - `scaledPieces >= 0.75`              → Math.max(1, Math.round(scaledPieces))
+ *
+ * The 0.75 threshold is the smallest value that rounds to 1 without
+ * noticeably lying — displaying ~1 for 0.8 of a piece is acceptable, but
+ * displaying ~1 for 0.5 of a piece is not. The Math.max(1, ...) guard is
+ * defensive against data bugs (basePieces = 0 would be rejected by the seed
+ * schema, but we protect at this boundary anyway).
+ *
+ * This function lives here (portionUtils) — NOT inside applyPortionMultiplier,
+ * which stays a pure nutrient/grams scaler with no piece-display responsibility.
+ */
+export function computeDisplayPieces(scaledPieces: number | null): number | null {
+  if (scaledPieces === null) return null;
+  if (scaledPieces < 0.75) return null;
+  return Math.max(1, Math.round(scaledPieces));
+}
 
 // ---------------------------------------------------------------------------
 // Constants

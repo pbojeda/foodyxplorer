@@ -15,15 +15,6 @@ export const EstimationMethodSchema = z.enum([
 ]);
 export type EstimationMethod = z.infer<typeof EstimationMethodSchema>;
 
-export const PortionContextSchema = z.enum([
-  'main_course',
-  'side_dish',
-  'dessert',
-  'starter',
-  'snack',
-]);
-export type PortionContext = z.infer<typeof PortionContextSchema>;
-
 export const FoodTypeSchema = z.enum(['generic', 'branded', 'composite']);
 export type FoodType = z.infer<typeof FoodTypeSchema>;
 

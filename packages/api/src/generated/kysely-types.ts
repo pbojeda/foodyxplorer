@@ -9,7 +9,7 @@ import type {
   DataSourceType,
   ConfidenceLevel,
   EstimationMethod,
-  PortionContext,
+  PortionConfidence,
   FoodType,
   NutrientReferenceBasis,
   DishAvailability,
@@ -250,15 +250,13 @@ export type Restaurant = {
 };
 export type StandardPortion = {
   id: string;
-  food_id: string | null;
-  food_group: string | null;
-  context: PortionContext;
-  portion_grams: string;
-  source_id: string;
+  dish_id: string;
+  term: string;
+  grams: number;
+  pieces: number | null;
+  piece_name: string | null;
+  confidence: PortionConfidence;
   notes: string | null;
-  confidence_level: ConfidenceLevel;
-  description: string;
-  is_default: Generated<boolean>;
   created_at: Generated<Timestamp>;
   updated_at: Timestamp;
 };

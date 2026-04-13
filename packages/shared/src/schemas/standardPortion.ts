@@ -1,17 +1,26 @@
+// F-UX-B — Standard portion schema (per-dish serving assumption).
+//
+// Replaces the legacy shape (foodId/context/portionGrams/sourceId) with the
+// per-dish portion assumption model: dishId, term, grams, pieces, pieceName,
+// confidence, notes. See ADR-020.
+
 import { z } from 'zod';
-import { ConfidenceLevelSchema, PortionContextSchema } from './enums';
+
+export const PortionConfidenceSchema = z.enum(['high', 'medium', 'low']);
+export type PortionConfidence = z.infer<typeof PortionConfidenceSchema>;
+
+export const PortionTermSchema = z.enum(['pintxo', 'tapa', 'media_racion', 'racion']);
+export type PortionTerm = z.infer<typeof PortionTermSchema>;
 
 export const StandardPortionSchema = z.object({
   id: z.string().uuid(),
-  foodId: z.string().uuid().nullable(),
-  foodGroup: z.string().max(100).nullable(),
-  context: PortionContextSchema,
-  portionGrams: z.number().positive(),
-  sourceId: z.string().uuid(),
+  dishId: z.string().uuid(),
+  term: PortionTermSchema,
+  grams: z.number().int().positive(),
+  pieces: z.number().int().min(1).nullable(),
+  pieceName: z.string().min(1).nullable(),
+  confidence: PortionConfidenceSchema,
   notes: z.string().nullable().optional(),
-  confidenceLevel: ConfidenceLevelSchema,
-  description: z.string().min(1).max(255),
-  isDefault: z.boolean(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -21,16 +30,14 @@ export const CreateStandardPortionSchema = StandardPortionSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-}).extend({
-  isDefault: z.boolean().default(false),
-}).refine(
-  (data) =>
-    (data.foodId !== null && data.foodGroup === null) ||
-    (data.foodId === null && data.foodGroup !== null),
-  {
-    message:
-      'Exactly one of foodId or foodGroup must be set (XOR constraint)',
-    path: ['foodId'],
-  },
-);
+}).superRefine((data, ctx) => {
+  // pieces and pieceName must both be null or both non-null
+  if ((data.pieces === null) !== (data.pieceName === null)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'pieces and pieceName must both be null or both non-null',
+      path: ['pieces'],
+    });
+  }
+});
 export type CreateStandardPortion = z.infer<typeof CreateStandardPortionSchema>;

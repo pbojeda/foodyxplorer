@@ -1,7 +1,7 @@
 // Formatter: EstimateData → MarkdownV2 string.
 
 import type { EstimateData } from '@foodxplorer/shared';
-import { formatPortionLabel } from '@foodxplorer/shared';
+import { formatPortionLabel, formatPortionDisplayLabel } from '@foodxplorer/shared';
 import { escapeMarkdown, formatNutrient } from './markdownUtils.js';
 
 /** Format a numeric diff with explicit sign: "+5" or "-10" */
@@ -107,8 +107,29 @@ export function formatEstimate(data: EstimateData): string {
     lines.push(`_\\(orientativo — verificar con el establecimiento\\)_`);
   }
 
-  // F085: Portion sizing context
-  if (data.portionSizing) {
+  // F-UX-B: per-dish portion assumption (Tier 1 or Tier 2 derived)
+  if (data.portionAssumption && data.portionAssumption.source === 'per_dish') {
+    const pa = data.portionAssumption;
+    // M3-2 fix: use the shared display-label helper for parity with the web
+    // NutritionCard. Both packages now produce the same capitalized output
+    // for the same termDisplay input.
+    const termLabel = escapeMarkdown(formatPortionDisplayLabel(pa.termDisplay, pa.term));
+    let portionLine: string;
+    if (pa.pieces !== null && pa.pieceName !== null) {
+      // `~` is a MarkdownV2 reserved strikethrough delimiter and MUST be escaped as `\~`.
+      // QA found this as M1 blocker: unescaped `~` crashes the Telegram Bot API (400 Bad Request).
+      portionLine = `📏 *Porción detectada:* ${termLabel} \\(\\~${pa.pieces} ${escapeMarkdown(pa.pieceName)}, ≈ ${pa.grams} g\\)`;
+    } else {
+      portionLine = `📏 *Porción detectada:* ${termLabel} \\(≈ ${pa.grams} g\\)`;
+    }
+    lines.push('');
+    lines.push(portionLine);
+  }
+
+  // F085: Portion sizing context — render only when no per_dish assumption is present.
+  // When portionAssumption.source === 'generic', the portionSizing line still renders
+  // (byte-identical to pre-F-UX-B output, preserving snapshot golden files).
+  if (data.portionSizing && (!data.portionAssumption || data.portionAssumption.source === 'generic')) {
     const ps = data.portionSizing;
     const gramsLabel = ps.gramsMin === ps.gramsMax
       ? `${ps.gramsMin} g`

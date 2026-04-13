@@ -7,6 +7,7 @@
 // route handler's responsibility.
 
 import type { Kysely } from 'kysely';
+import type { PrismaClient } from '@prisma/client';
 import type { Logger } from './types.js';
 import type { EstimateData } from '@foodxplorer/shared';
 import type { DB } from '../generated/kysely-types.js';
@@ -19,7 +20,8 @@ import { enrichWithTips } from '../estimation/healthHacker.js';
 import { enrichWithSubstitutions } from '../estimation/substitutions.js';
 import { enrichWithAllergens } from '../estimation/allergenDetector.js';
 import { enrichWithUncertainty } from '../estimation/uncertaintyCalculator.js';
-import { enrichWithPortionSizing } from '../estimation/portionSizing.js';
+import { enrichWithPortionSizing, detectPortionTerm } from '../estimation/portionSizing.js';
+import { resolvePortionAssumption } from '../estimation/portionAssumption.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,6 +33,8 @@ export interface EstimateParams {
   restaurantId?: string;
   portionMultiplier?: number;
   db: Kysely<DB>;
+  /** F-UX-B: Prisma client for standardPortions lookup (optional — skips portion assumption when absent). */
+  prisma?: PrismaClient;
   openAiApiKey?: string;
   level4Lookup?: Level4LookupFn;
   chainSlugs: string[];
@@ -62,6 +66,7 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     restaurantId,
     portionMultiplier: rawMultiplier,
     db,
+    prisma,
     openAiApiKey,
     level4Lookup,
     chainSlugs,
@@ -139,6 +144,26 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     // F085: Spanish portion term context from query
     ...enrichWithPortionSizing(query),
   };
+
+  // F-UX-B: Resolve per-dish portion assumption (3-tier fallback chain).
+  // Runs after enrichWithPortionSizing so portionSizing is already on estimateData.
+  // Only executes when prisma is available; silently skips otherwise.
+  if (prisma !== undefined) {
+    const detectedTerm = detectPortionTerm(query);
+    const dishId =
+      scaledResult?.entityType === 'dish' ? scaledResult.entityId : null;
+    const { portionAssumption } = await resolvePortionAssumption(
+      prisma,
+      dishId,
+      detectedTerm,
+      query,
+      effectiveMultiplier,
+      logger as Parameters<typeof resolvePortionAssumption>[5],
+    );
+    if (portionAssumption !== undefined) {
+      estimateData.portionAssumption = portionAssumption;
+    }
+  }
 
   // Step 8 — Cache write (with cachedAt timestamp)
   const dataToCache: EstimateData = {

@@ -308,82 +308,21 @@ describe('FoodNutrient — new columns', () => {
 // StandardPortion — new columns (description, isDefault)
 // ---------------------------------------------------------------------------
 
-describe('StandardPortion — new columns', () => {
-  const SRC = 'fd000000-0003-4000-a000-000000000001';
-  const FOOD = 'fd000000-0003-4000-a000-000000000002';
-
-  beforeAll(async () => {
-    await prisma.standardPortion.deleteMany({ where: { sourceId: SRC } });
-    await prisma.food.deleteMany({ where: { sourceId: SRC } });
-    await prisma.dataSource.deleteMany({ where: { id: SRC } });
-    await prisma.dataSource.create({ data: { id: SRC, name: 'F001b-Portion-Src', type: 'official' } });
-    await prisma.food.create({
-      data: {
-        id: FOOD, name: 'F001b Portion Food', nameEs: 'Alimento Porción F001b',
-        aliases: [], sourceId: SRC, confidenceLevel: 'low',
-      },
-    });
-  });
-
-  afterAll(async () => {
-    await prisma.standardPortion.deleteMany({ where: { sourceId: SRC } });
-    await prisma.food.deleteMany({ where: { sourceId: SRC } });
-    await prisma.dataSource.deleteMany({ where: { id: SRC } });
-  });
-
-  it('inserts with description and isDefault: true, reads them back', async () => {
-    const sp = await prisma.standardPortion.create({
-      data: {
-        foodId: FOOD,
-        foodGroup: null,
-        context: 'main_course',
-        portionGrams: 150,
-        sourceId: SRC,
-        confidenceLevel: 'high',
-        description: '1 chicken breast (150g)',
-        isDefault: true,
-      },
-    });
-
-    expect(sp.description).toBe('1 chicken breast (150g)');
-    expect(sp.isDefault).toBe(true);
-
-    await prisma.standardPortion.delete({ where: { id: sp.id } });
-  });
-
-  it('description is required — fails with raw SQL insert omitting it', async () => {
-    await expect(
-      prisma.$executeRaw`
-        INSERT INTO standard_portions
-          (id, food_id, food_group, context, portion_grams, source_id, confidence_level, created_at, updated_at)
-        VALUES
-          (gen_random_uuid(), ${FOOD}::uuid, NULL,
-           'main_course'::"portion_context", 100,
-           ${SRC}::uuid, 'low'::"confidence_level",
-           NOW(), NOW())
-      `,
-    ).rejects.toThrow();
-  });
-
-  it('isDefault defaults to false when not specified', async () => {
-    const sp = await prisma.standardPortion.create({
-      data: {
-        foodId: FOOD,
-        foodGroup: null,
-        context: 'snack',
-        portionGrams: 30,
-        sourceId: SRC,
-        confidenceLevel: 'low',
-        description: 'A small snack',
-        // isDefault omitted
-      },
-    });
-
-    expect(sp.isDefault).toBe(false);
-
-    await prisma.standardPortion.delete({ where: { id: sp.id } });
-  });
-});
+// REMOVED: StandardPortion — new columns tests.
+// The legacy `standard_portions` table (foodId/foodGroup/context PortionContext
+// enum/portionGrams/sourceId/description/isDefault) was DROPPED and recreated
+// with the F-UX-B v1 shape (dishId/term/grams/pieces/pieceName/confidence
+// PortionConfidence enum/notes) in migration 20260413180000. All columns and
+// methods this block exercised (`portionGrams`, `foodGroup`, `context`,
+// `description`, `isDefault`, `confidenceLevel`, the `food` relation, the
+// `portion_context` PG enum) no longer exist on the F-UX-B branch.
+//
+// Per code review M3-3, the tests are removed rather than skipped because:
+// (a) the schema they assert is gone — there is nothing to re-validate,
+// (b) `prisma.standardPortion.create({...})` would no longer typecheck even
+//     under .skip,
+// (c) the new shape is exercised by `f-ux-b.estimateRoute.portionAssumption.integration.test.ts`.
+// See ADR-020 for the full migration rationale.
 
 // ---------------------------------------------------------------------------
 // Recipe — CRUD and constraints

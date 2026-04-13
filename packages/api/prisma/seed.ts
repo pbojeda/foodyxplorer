@@ -198,69 +198,16 @@ async function main(): Promise<void> {
   console.log('FoodNutrients created for all foods');
 
   // ---------------------------------------------------------------------------
-  // StandardPortions
+  // StandardPortions — F-UX-B per-dish portion assumptions
   // ---------------------------------------------------------------------------
-  await prisma.standardPortion.upsert({
-    where: { id: '00000000-0000-0000-0003-000000000001' },
-    update: {
-      description: '1 chicken breast (150g)',
-      isDefault: true,
-    },
-    create: {
-      id: '00000000-0000-0000-0003-000000000001',
-      foodId: foodChicken.id,
-      foodGroup: null,
-      context: 'main_course',
-      portionGrams: 150,
-      sourceId: dataSource.id,
-      notes: 'Typical main course serving of chicken breast',
-      confidenceLevel: 'high',
-      description: '1 chicken breast (150g)',
-      isDefault: true,
-    },
-  });
-
-  await prisma.standardPortion.upsert({
-    where: { id: '00000000-0000-0000-0003-000000000002' },
-    update: {
-      description: '1 side serving of rice (80g)',
-      isDefault: true,
-    },
-    create: {
-      id: '00000000-0000-0000-0003-000000000002',
-      foodId: foodRice.id,
-      foodGroup: null,
-      context: 'side_dish',
-      portionGrams: 80,
-      sourceId: dataSource.id,
-      notes: 'Standard side dish serving of rice',
-      confidenceLevel: 'medium',
-      description: '1 side serving of rice (80g)',
-      isDefault: true,
-    },
-  });
-
-  await prisma.standardPortion.upsert({
-    where: { id: '00000000-0000-0000-0003-000000000003' },
-    update: {
-      description: 'Default side portion for cereals (75g)',
-      isDefault: false,
-    },
-    create: {
-      id: '00000000-0000-0000-0003-000000000003',
-      foodId: null,
-      foodGroup: 'Cereals',
-      context: 'side_dish',
-      portionGrams: 75,
-      sourceId: dataSource.id,
-      notes: 'Default side dish portion for cereal food group',
-      confidenceLevel: 'low',
-      description: 'Default side portion for cereals (75g)',
-      isDefault: false,
-    },
-  });
-
-  console.log('StandardPortions created');
+  // NOTE: Legacy Phase 1 standard portion rows (chicken/rice/cereals with
+  // context/portionGrams/foodId fields) have been removed as part of F-UX-B.
+  // The StandardPortion model now stores per-dish portion assumptions for
+  // Spanish serving terms (pintxo/tapa/media ración/ración) instead.
+  // Standard portions are now seeded via the separate CSV pipeline:
+  //   npm run seed:standard-portions -w @foodxplorer/api
+  // See packages/api/src/scripts/seedStandardPortionCsv.ts and ADR-020.
+  console.log('StandardPortions: seeded via CSV pipeline (see seedStandardPortionCsv.ts)');
 
   // ---------------------------------------------------------------------------
   // Composite food: Chicken and rice bowl
@@ -722,42 +669,11 @@ export async function seedPhase2(client: PrismaClient): Promise<void> {
   });
   console.log('SR Legacy DataSource upserted.');
 
-  // Step D — Upsert group-level StandardPortions (14 rows)
-  const standardPortions = [
-    { id: '00000000-0000-0000-0009-000000000001', foodGroup: 'Vegetables',    context: 'side_dish',   portionGrams: 80,  description: 'Standard vegetable side portion (80g)' },
-    { id: '00000000-0000-0000-0009-000000000002', foodGroup: 'Fruits',        context: 'snack',       portionGrams: 120, description: 'Standard fruit portion (120g)' },
-    { id: '00000000-0000-0000-0009-000000000003', foodGroup: 'Meat',          context: 'main_course', portionGrams: 150, description: 'Standard meat main course portion (150g)' },
-    { id: '00000000-0000-0000-0009-000000000004', foodGroup: 'Poultry',       context: 'main_course', portionGrams: 150, description: 'Standard poultry main course portion (150g)' },
-    { id: '00000000-0000-0000-0009-000000000005', foodGroup: 'Fish',          context: 'main_course', portionGrams: 150, description: 'Standard fish main course portion (150g)' },
-    { id: '00000000-0000-0000-0009-000000000006', foodGroup: 'Dairy',         context: 'snack',       portionGrams: 125, description: 'Standard dairy portion (125g)' },
-    { id: '00000000-0000-0000-0009-000000000007', foodGroup: 'Eggs',          context: 'main_course', portionGrams: 55,  description: 'Standard egg portion (55g, ~1 large egg)' },
-    { id: '00000000-0000-0000-0009-000000000008', foodGroup: 'Legumes',       context: 'side_dish',   portionGrams: 80,  description: 'Standard legume side portion (80g)' },
-    { id: '00000000-0000-0000-0009-000000000009', foodGroup: 'Cereals',       context: 'side_dish',   portionGrams: 75,  description: 'Standard cereal side portion (75g, dry)' },
-    { id: '00000000-0000-0000-0009-000000000010', foodGroup: 'Nuts',          context: 'snack',       portionGrams: 30,  description: 'Standard nut snack portion (30g)' },
-    { id: '00000000-0000-0000-0009-000000000011', foodGroup: 'Fats and oils', context: 'snack',       portionGrams: 10,  description: 'Standard fat/oil portion (10g)' },
-    { id: '00000000-0000-0000-0009-000000000012', foodGroup: 'Sweets',        context: 'dessert',     portionGrams: 50,  description: 'Standard sweet dessert portion (50g)' },
-    { id: '00000000-0000-0000-0009-000000000013', foodGroup: 'Snacks',        context: 'snack',       portionGrams: 30,  description: 'Standard snack portion (30g)' },
-    { id: '00000000-0000-0000-0009-000000000014', foodGroup: 'Beverages',     context: 'snack',       portionGrams: 200, description: 'Standard beverage portion (200ml)' },
-  ] as const;
-
-  for (const sp of standardPortions) {
-    await client.standardPortion.upsert({
-      where: { id: sp.id },
-      update: { description: sp.description },
-      create: {
-        id: sp.id,
-        foodId: null,
-        foodGroup: sp.foodGroup,
-        context: sp.context,
-        portionGrams: sp.portionGrams,
-        sourceId: srLegacySourceId,
-        confidenceLevel: 'high',
-        description: sp.description,
-        isDefault: false,
-      },
-    });
-  }
-  console.log('Phase 2: 14 group-level StandardPortions upserted.');
+  // Step D — StandardPortions: F-UX-B replaced group-level USDA portions with
+  // per-dish portion assumptions. Standard portions are now seeded via the CSV
+  // pipeline: npm run seed:standard-portions -w @foodxplorer/api
+  // See packages/api/src/scripts/seedStandardPortionCsv.ts and ADR-020.
+  console.log('Phase 2: StandardPortions seeded via CSV pipeline (see seedStandardPortionCsv.ts).');
 
   // Step E — Batch processing loop (50 foods per batch)
   const batches = chunk(foods, 50);

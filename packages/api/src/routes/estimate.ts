@@ -18,7 +18,6 @@ import {
   EstimateQuerySchema,
   type EstimateQuery,
   type EstimateData,
-  type EstimateResult,
 } from '@foodxplorer/shared';
 import type { DB } from '../generated/kysely-types.js';
 import { runEstimationCascade } from '../estimation/engineRouter.js';
@@ -32,7 +31,8 @@ import { enrichWithTips } from '../estimation/healthHacker.js';
 import { enrichWithSubstitutions } from '../estimation/substitutions.js';
 import { enrichWithAllergens } from '../estimation/allergenDetector.js';
 import { enrichWithUncertainty } from '../estimation/uncertaintyCalculator.js';
-import { enrichWithPortionSizing } from '../estimation/portionSizing.js';
+import { enrichWithPortionSizing, detectPortionTerm } from '../estimation/portionSizing.js';
+import { resolvePortionAssumption } from '../estimation/portionAssumption.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -227,6 +227,25 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         // F085: Spanish portion term context from query
         ...enrichWithPortionSizing(query),
       };
+
+      // F-UX-B: Resolve per-dish portion assumption (3-tier fallback chain).
+      // Runs after enrichWithPortionSizing so portionSizing is already on estimateData.
+      {
+        const detectedTerm = detectPortionTerm(query);
+        const dishId =
+          scaledResult?.entityType === 'dish' ? scaledResult.entityId : null;
+        const { portionAssumption } = await resolvePortionAssumption(
+          prisma,
+          dishId,
+          detectedTerm,
+          query,
+          effectiveMultiplier,
+          request.log,
+        );
+        if (portionAssumption !== undefined) {
+          estimateData.portionAssumption = portionAssumption;
+        }
+      }
 
       // --- Cache write (with cachedAt timestamp) ---
       const dataToCache: EstimateData = {

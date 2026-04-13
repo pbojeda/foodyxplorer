@@ -6,7 +6,6 @@ import {
   DataSourceTypeSchema,
   ConfidenceLevelSchema,
   EstimationMethodSchema,
-  PortionContextSchema,
   FoodTypeSchema,
   NutrientReferenceBasisSchema,
   DishAvailabilitySchema,
@@ -94,18 +93,7 @@ describe('EstimationMethodSchema', () => {
   });
 });
 
-describe('PortionContextSchema', () => {
-  it('accepts all valid values', () => {
-    const valid = ['main_course', 'side_dish', 'dessert', 'starter', 'snack'] as const;
-    for (const v of valid) {
-      expect(PortionContextSchema.parse(v)).toBe(v);
-    }
-  });
-
-  it('rejects an invalid string', () => {
-    expect(() => PortionContextSchema.parse('beverage')).toThrow();
-  });
-});
+// PortionContextSchema removed in F-UX-B (enum dropped from DB and shared schemas).
 
 describe('FoodTypeSchema', () => {
   it('accepts all valid values', () => {
@@ -399,93 +387,71 @@ describe('FoodNutrientSchema', () => {
 });
 
 // ---------------------------------------------------------------------------
-// StandardPortion schemas — XOR constraint
+// StandardPortion schemas — F-UX-B per-dish portion assumptions (replaces legacy XOR schema)
 // ---------------------------------------------------------------------------
 
-const validPortionWithFood = {
-  foodId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-  foodGroup: null,
-  context: 'main_course' as const,
-  portionGrams: 150,
-  sourceId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-  confidenceLevel: 'medium' as const,
-  description: '1 serving',
-  isDefault: false,
+const validCreatePortion = {
+  dishId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+  term: 'tapa' as const,
+  grams: 50,
+  pieces: 2,
+  pieceName: 'croquetas',
+  confidence: 'high' as const,
+  notes: null,
 };
 
-describe('CreateStandardPortionSchema — XOR constraint', () => {
-  it('passes when only foodId is set', () => {
-    const result = CreateStandardPortionSchema.parse(validPortionWithFood);
-    expect(result.foodId).toBe('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
-    expect(result.foodGroup).toBeNull();
+describe('CreateStandardPortionSchema — F-UX-B per-dish shape', () => {
+  it('passes with pieces + pieceName both set', () => {
+    const result = CreateStandardPortionSchema.parse(validCreatePortion);
+    expect(result.dishId).toBe('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+    expect(result.pieces).toBe(2);
+    expect(result.pieceName).toBe('croquetas');
   });
 
-  it('passes when only foodGroup is set', () => {
+  it('passes with pieces + pieceName both null (non-countable dish)', () => {
     const result = CreateStandardPortionSchema.parse({
-      ...validPortionWithFood,
-      foodId: null,
-      foodGroup: 'Cereales',
+      ...validCreatePortion,
+      pieces: null,
+      pieceName: null,
     });
-    expect(result.foodGroup).toBe('Cereales');
-    expect(result.foodId).toBeNull();
+    expect(result.pieces).toBeNull();
+    expect(result.pieceName).toBeNull();
   });
 
-  it('fails when both foodId and foodGroup are null', () => {
+  it('fails when pieces is set but pieceName is null', () => {
     expect(() =>
       CreateStandardPortionSchema.parse({
-        ...validPortionWithFood,
-        foodId: null,
-        foodGroup: null,
+        ...validCreatePortion,
+        pieceName: null,
       }),
     ).toThrow();
   });
 
-  it('fails when both foodId and foodGroup are set', () => {
+  it('fails when pieces is null but pieceName is set', () => {
     expect(() =>
       CreateStandardPortionSchema.parse({
-        ...validPortionWithFood,
-        foodId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-        foodGroup: 'Cereales',
+        ...validCreatePortion,
+        pieces: null,
+        pieceName: 'croqueta',
       }),
     ).toThrow();
   });
 
-  it('accepts optional notes field', () => {
-    const result = CreateStandardPortionSchema.parse({
-      ...validPortionWithFood,
-      notes: 'Plato principal típico',
-    });
-    expect(result.notes).toBe('Plato principal típico');
-  });
-
-  it('fails when portionGrams is negative', () => {
+  it('fails when grams is 0', () => {
     expect(() =>
-      CreateStandardPortionSchema.parse({
-        ...validPortionWithFood,
-        portionGrams: -10,
-      }),
+      CreateStandardPortionSchema.parse({ ...validCreatePortion, grams: 0 }),
     ).toThrow();
   });
 
-  it('fails when description is empty string', () => {
+  it('fails when pieces is 0 (min 1)', () => {
     expect(() =>
-      CreateStandardPortionSchema.parse({
-        ...validPortionWithFood,
-        description: '',
-      }),
+      CreateStandardPortionSchema.parse({ ...validCreatePortion, pieces: 0 }),
     ).toThrow();
   });
 
-  it('passes when isDefault is omitted (defaults to false)', () => {
-    const { isDefault: _isDefault, ...withoutIsDefault } = validPortionWithFood;
-    const result = CreateStandardPortionSchema.parse(withoutIsDefault);
-    expect(result.isDefault).toBe(false);
-  });
-
-  it('requires description — fails when omitted', () => {
-    const { description: _desc, ...withoutDescription } = validPortionWithFood;
+  it('fails with invalid term', () => {
     expect(() =>
-      CreateStandardPortionSchema.parse(withoutDescription),
+      CreateStandardPortionSchema.parse({ ...validCreatePortion, term: 'bocadillo' }),
     ).toThrow();
   });
 });
@@ -493,7 +459,7 @@ describe('CreateStandardPortionSchema — XOR constraint', () => {
 describe('StandardPortionSchema', () => {
   it('passes with all fields including id and timestamps', () => {
     const result = StandardPortionSchema.parse({
-      ...validPortionWithFood,
+      ...validCreatePortion,
       id: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       createdAt: new Date(),
       updatedAt: new Date(),

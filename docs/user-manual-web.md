@@ -666,4 +666,38 @@ La tarjeta del plato aparecerá con el mensaje "Sin datos nutricionales disponib
 
 ---
 
+## Información de porción estimada (F-UX-B)
+
+Cuando tu consulta incluye un término de ración español ("tapa", "ración", "media ración", "pintxo"), la tarjeta de nutrición muestra una línea de estimación de porción.
+
+### Formatos de la línea de porción
+
+| Formato | Ejemplo | Significado |
+|---------|---------|-------------|
+| `~N unidad (≈ G g)` | `~2 croquetas (≈ 50 g)` | Dato específico del plato: N unidades contables y G gramos estimados |
+| `≈ G g` | `≈ 125 g` | Dato específico del plato sin conteo de unidades (p.ej. gazpacho, líquidos) |
+| `Tapa estándar: 50–80 g (estimado genérico)` | — | Sin dato específico: se usa el rango genérico del término |
+
+### Qué significa cada símbolo
+
+- **`~`** (tilde): "aproximadamente N unidades". Indica un conteo de piezas estimado para ese plato concreto.
+- **`≈`** (aproximadamente igual): "aproximadamente G gramos". El peso en gramos es una estimación basada en datos reales de porciones típicas de ese plato.
+- **`estimado genérico`**: No hay datos específicos para ese plato. La estimación usa el rango estándar del término de ración (igual para todos los platos).
+
+### Cobertura de datos específicos
+
+En la versión actual, los datos específicos por plato cubren los **30 platos de tapas más populares** de España (croquetas, patatas bravas, gambas al ajillo, tortilla, etc.). Para el resto de platos, la aplicación usa el rango genérico correspondiente al término detectado.
+
+Los datos se actualizan periódicamente mediante un proceso de revisión manual por parte del equipo.
+
+### Interacción con modificadores de porción (F-UX-A)
+
+Si tu consulta incluye tanto un término de ración como un modificador de tamaño ("grande", "doble", etc.), la tarjeta puede mostrar ambas líneas:
+- La píldora de modificador (ej. `PORCIÓN GRANDE`) indica el factor de escala aplicado a los nutrientes.
+- La línea de porción estimada muestra las unidades y gramos ajustados al modificador.
+
+Ejemplo: "ración grande de croquetas" → `PORCIÓN GRANDE ×1.5` + `~12 croquetas (≈ 300 g)`
+
+---
+
 *Manual generado contra el código fuente de packages/web. Para contribuir o reportar errores: github.com/pbojeda/foodyxplorer*

@@ -92,59 +92,16 @@ describe('Embedding column — type and dimension verification', () => {
 });
 
 // ---------------------------------------------------------------------------
-// BUG-01: portionGrams has NO DB-level CHECK constraint
-// Spec intent: portionGrams must be positive (Zod enforces z.number().positive()).
-// The migration has NO CHECK (portion_grams > 0) — zero and negative values can be
-// inserted directly, bypassing all application validation.
+// REMOVED: BUG-01 standard_portions.portionGrams CHECK tests.
+// The legacy `standard_portions` table (with portion_grams Decimal column,
+// food_id FK, food_group, context portion_context enum, etc.) was DROPPED and
+// recreated with the F-UX-B v1 shape (dish_id/term/grams INT/pieces/...) in
+// migration 20260413180000. The new schema uses `grams INTEGER NOT NULL CHECK
+// (grams > 0)` which enforces the positive-grams invariant at the DB level by
+// design; F-UX-B's seedStandardPortionCsv tests cover this. The legacy
+// portionGrams column no longer exists.
+// Per code review M3-3: removed not skipped because the schema is gone.
 // ---------------------------------------------------------------------------
-
-describe('StandardPortion — portionGrams missing DB CHECK (BUG-01)', () => {
-  const SRC = 'ec000000-0002-4000-a000-000000000001';
-  const FOOD = 'ec000000-0002-4000-a000-000000000002';
-
-  beforeAll(async () => {
-    await prisma.standardPortion.deleteMany({ where: { sourceId: SRC } });
-    await prisma.food.deleteMany({ where: { sourceId: SRC } });
-    await prisma.dataSource.deleteMany({ where: { id: SRC } });
-    await prisma.dataSource.create({ data: { id: SRC, name: 'EC-Portion-Src', type: 'estimated' } });
-    await prisma.food.create({
-      data: {
-        id: FOOD, name: 'EC Portion Food', nameEs: 'Alimento EC Porcion',
-        aliases: [], sourceId: SRC, confidenceLevel: 'low',
-      },
-    });
-  });
-
-  afterAll(async () => {
-    await prisma.standardPortion.deleteMany({ where: { sourceId: SRC } });
-    await prisma.food.deleteMany({ where: { sourceId: SRC } });
-    await prisma.dataSource.deleteMany({ where: { id: SRC } });
-  });
-
-  it('DB rejects portionGrams = 0 via CHECK constraint', async () => {
-    await expect(prisma.$executeRaw`
-      INSERT INTO standard_portions
-        (id, food_id, food_group, context, portion_grams, source_id, confidence_level, description, created_at, updated_at)
-      VALUES
-        (gen_random_uuid(), ${FOOD}::uuid, NULL,
-         'snack'::"portion_context", 0.00,
-         ${SRC}::uuid, 'low'::"confidence_level",
-         'Test portion', NOW(), NOW())
-    `).rejects.toThrow();
-  });
-
-  it('DB rejects portionGrams = -50 via CHECK constraint', async () => {
-    await expect(prisma.$executeRaw`
-      INSERT INTO standard_portions
-        (id, food_id, food_group, context, portion_grams, source_id, confidence_level, description, created_at, updated_at)
-      VALUES
-        (gen_random_uuid(), ${FOOD}::uuid, NULL,
-         'snack'::"portion_context", -50.00,
-         ${SRC}::uuid, 'low'::"confidence_level",
-         'Test portion', NOW(), NOW())
-    `).rejects.toThrow();
-  });
-});
 
 // ---------------------------------------------------------------------------
 // Calories boundary values — exact inclusive boundaries not tested by developer
@@ -523,46 +480,13 @@ describe('Referential integrity — FK behavior', () => {
     await prisma.dataSource.delete({ where: { id: auxSrc.id } });
   });
 
-  it('BUG-02: ON DELETE SET NULL on standard_portions.food_id can violate XOR CHECK', async () => {
-    // Scenario: a standard_portion references a food (food_id set, food_group null).
-    // When the food is deleted, FK action sets food_id = NULL.
-    // Now both food_id and food_group are NULL, which violates the XOR CHECK constraint.
-    // PostgreSQL evaluates the CHECK after SET NULL, so the delete SHOULD fail.
-    // If it does NOT fail, data corruption is possible (both fields become NULL).
-
-    const tempSrc = await prisma.dataSource.create({
-      data: { name: 'EC-FK-TempSrc', type: 'estimated' },
-    });
-    const tempFood = await prisma.food.create({
-      data: {
-        name: 'EC FK Temp Food', nameEs: 'Alimento EC FK Temp',
-        aliases: [], sourceId: tempSrc.id, confidenceLevel: 'low',
-      },
-    });
-
-    const sp = await prisma.standardPortion.create({
-      data: {
-        foodId: tempFood.id, foodGroup: null,
-        context: 'snack', portionGrams: 10,
-        sourceId: SRC, confidenceLevel: 'low',
-        description: 'Test portion',
-      },
-    });
-    expect(sp.foodId).not.toBeNull();
-    expect(sp.foodGroup).toBeNull();
-
-    // Deleting tempFood triggers ON DELETE SET NULL on sp.food_id.
-    // After SET NULL: food_id=NULL, food_group=NULL → XOR CHECK violated.
-    // PostgreSQL should reject this with a constraint violation.
-    await expect(
-      prisma.food.delete({ where: { id: tempFood.id } }),
-    ).rejects.toThrow();
-
-    // Cleanup (sp and tempFood still exist since the delete was rejected)
-    await prisma.standardPortion.delete({ where: { id: sp.id } });
-    await prisma.food.delete({ where: { id: tempFood.id } });
-    await prisma.dataSource.delete({ where: { id: tempSrc.id } });
-  });
+  // REMOVED: BUG-02 standard_portions.food_id ON DELETE SET NULL × XOR CHECK test.
+  // The legacy `standard_portions` table linked to `foods.id` and had the XOR
+  // CHECK constraint on (food_id, food_group). The F-UX-B migration replaced
+  // the table to link to `dishes.id` ON DELETE CASCADE, removing the food_id
+  // column entirely along with the XOR constraint and food_group. The bug class
+  // this test covered no longer applies because the FK direction and cascade
+  // semantics are different. Per code review M3-3.
 });
 
 // ---------------------------------------------------------------------------
