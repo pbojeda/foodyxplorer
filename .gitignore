@@ -66,3 +66,9 @@ tmp/
 
 # Crawlee storage (written by htmlFetcher — redirected to os.tmpdir() at runtime but guard here too)
 storage/
+
+# sdd-devflow upgrade backups (ignored — kept locally for recovery only)
+.sdd-backup/
+
+# sdd-devflow provenance tracking (local-only, content-addressable hashes)
+.sdd-meta.json
