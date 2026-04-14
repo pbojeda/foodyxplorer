@@ -24,8 +24,9 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 // Hoisted mock references (must be before vi.mock calls)
 // ---------------------------------------------------------------------------
 
-const { mockCascade } = vi.hoisted(() => ({
+const { mockCascade, mockCacheSet } = vi.hoisted(() => ({
   mockCascade: vi.fn(),
+  mockCacheSet: vi.fn().mockResolvedValue(undefined),
 }));
 
 // ---------------------------------------------------------------------------
@@ -40,7 +41,7 @@ vi.mock('../conversation/contextManager.js', () => ({
 vi.mock('../lib/cache.js', () => ({
   buildKey: (_entity: string, id: string) => `fxp:estimate:${id}`,
   cacheGet: vi.fn().mockResolvedValue(null),
-  cacheSet: vi.fn().mockResolvedValue(undefined),
+  cacheSet: mockCacheSet,
 }));
 
 vi.mock('../estimation/engineRouter.js', () => ({
@@ -88,6 +89,20 @@ const DN_CROQUETAS   = 'fd000000-00fd-4000-a000-000000000004';
 const ACTOR_ID = 'fd000000-00fd-4000-a000-000000000099';
 
 // ---------------------------------------------------------------------------
+// BUG-PROD-007 extension — fe000000-00fe- prefix (independent fixture space)
+// ---------------------------------------------------------------------------
+
+const FE_SRC_ID         = 'fe000000-00fe-4000-a000-000000000001';
+const FE_REST_ID        = 'fe000000-00fe-4000-a000-000000000002';
+const FE_DISH_CROQUETAS = 'fe000000-00fe-4000-a000-000000000003';
+const FE_DN_CROQUETAS   = 'fe000000-00fe-4000-a000-000000000004';
+const FE_DISH_TORTILLA  = 'fe000000-00fe-4000-a000-000000000005';
+const FE_DN_TORTILLA    = 'fe000000-00fe-4000-a000-000000000006';
+const FE_DISH_PAELLA    = 'fe000000-00fe-4000-a000-000000000007';
+const FE_DN_PAELLA      = 'fe000000-00fe-4000-a000-000000000008';
+const FE_ACTOR_ID       = 'fe000000-00fe-4000-a000-000000000099';
+
+// ---------------------------------------------------------------------------
 // Cascade mock helpers
 // ---------------------------------------------------------------------------
 
@@ -116,6 +131,30 @@ function makeDishResult(entityId: string): EstimateResult {
   };
 }
 
+// BUG-PROD-007: FE-prefix dish result factory (multi-dish comparison/menu tests)
+function makeDishResultFE(
+  entityId: string,
+  name: string,
+  chainSlug: string,
+  restaurantId: string,
+  sourceId: string,
+): EstimateResult {
+  return {
+    entityType: 'dish',
+    entityId,
+    name,
+    nameEs: name,
+    restaurantId,
+    chainSlug,
+    portionGrams: 200,
+    nutrients: MOCK_NUTRIENTS,
+    confidenceLevel: 'high',
+    estimationMethod: 'official',
+    source: { id: sourceId, name: 'FE-ConvCore-Test-Src', type: 'official', url: 'https://example.com' },
+    similarityDistance: null,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Setup / Teardown
 // ---------------------------------------------------------------------------
@@ -126,6 +165,21 @@ async function cleanFixtures(): Promise<void> {
   await prisma.dish.deleteMany({ where: { id: DISH_CROQUETAS } });
   await prisma.restaurant.deleteMany({ where: { id: REST_ID } });
   await prisma.dataSource.deleteMany({ where: { id: SRC_ID } });
+}
+
+async function cleanFixturesFE(): Promise<void> {
+  // FK-safe reverse order: standardPortion → dishNutrient → dish → restaurant → dataSource
+  await prisma.standardPortion.deleteMany({
+    where: { dishId: { in: [FE_DISH_CROQUETAS, FE_DISH_TORTILLA, FE_DISH_PAELLA] } },
+  });
+  await prisma.dishNutrient.deleteMany({
+    where: { dishId: { in: [FE_DISH_CROQUETAS, FE_DISH_TORTILLA, FE_DISH_PAELLA] } },
+  });
+  await prisma.dish.deleteMany({
+    where: { id: { in: [FE_DISH_CROQUETAS, FE_DISH_TORTILLA, FE_DISH_PAELLA] } },
+  });
+  await prisma.restaurant.deleteMany({ where: { id: FE_REST_ID } });
+  await prisma.dataSource.deleteMany({ where: { id: FE_SRC_ID } });
 }
 
 beforeAll(async () => {
@@ -243,8 +297,137 @@ beforeAll(async () => {
   });
 });
 
+// BUG-PROD-007: second lifecycle pair for FE_* fixtures (comparison + menu path tests).
+// Overrides mockCascade with a multi-dish router for FE fixtures (croquetas/tortilla/paella).
+beforeAll(async () => {
+  mockCascade.mockImplementation(async (opts: { query: string }) => {
+    const q = opts.query.toLowerCase();
+
+    if (q.includes('croqueta')) {
+      return {
+        levelHit: 1,
+        data: {
+          query: opts.query, chainSlug: null,
+          level1Hit: true, level2Hit: false, level3Hit: false, level4Hit: false,
+          matchType: 'exact_dish',
+          result: makeDishResultFE(FE_DISH_CROQUETAS, 'Croquetas de jamón', 'fe-conv-core-test', FE_REST_ID, FE_SRC_ID),
+          cachedAt: null, yieldAdjustment: null,
+        },
+      };
+    }
+    if (q.includes('tortilla')) {
+      return {
+        levelHit: 1,
+        data: {
+          query: opts.query, chainSlug: null,
+          level1Hit: true, level2Hit: false, level3Hit: false, level4Hit: false,
+          matchType: 'exact_dish',
+          result: makeDishResultFE(FE_DISH_TORTILLA, 'Tortilla española', 'fe-conv-core-test', FE_REST_ID, FE_SRC_ID),
+          cachedAt: null, yieldAdjustment: null,
+        },
+      };
+    }
+    if (q.includes('paella')) {
+      return {
+        levelHit: 1,
+        data: {
+          query: opts.query, chainSlug: null,
+          level1Hit: true, level2Hit: false, level3Hit: false, level4Hit: false,
+          matchType: 'exact_dish',
+          result: makeDishResultFE(FE_DISH_PAELLA, 'Paella valenciana', 'fe-conv-core-test', FE_REST_ID, FE_SRC_ID),
+          cachedAt: null, yieldAdjustment: null,
+        },
+      };
+    }
+
+    // Fulfilled miss (no dish found)
+    return {
+      levelHit: null,
+      data: {
+        query: opts.query, chainSlug: null,
+        level1Hit: false, level2Hit: false, level3Hit: false, level4Hit: false,
+        matchType: null, result: null, cachedAt: null,
+      },
+    };
+  });
+
+  await cleanFixturesFE();
+
+  await prisma.dataSource.create({
+    data: { id: FE_SRC_ID, name: 'FE-ConvCore-Test-Src', type: 'official' },
+  });
+
+  await prisma.restaurant.create({
+    data: { id: FE_REST_ID, name: 'FE ConvCore Test Restaurant', chainSlug: 'fe-conv-core-test' },
+  });
+
+  const dishData = [
+    { id: FE_DISH_CROQUETAS, dnId: FE_DN_CROQUETAS, name: 'Croquetas de jamón' },
+    { id: FE_DISH_TORTILLA, dnId: FE_DN_TORTILLA, name: 'Tortilla española' },
+    { id: FE_DISH_PAELLA, dnId: FE_DN_PAELLA, name: 'Paella valenciana' },
+  ];
+
+  for (const d of dishData) {
+    await prisma.dish.create({
+      data: {
+        id: d.id, name: d.name, nameEs: d.name, nameSourceLocale: 'es',
+        restaurantId: FE_REST_ID, sourceId: FE_SRC_ID,
+        confidenceLevel: 'high', estimationMethod: 'scraped', availability: 'available',
+      },
+    });
+    await prisma.dishNutrient.create({
+      data: {
+        id: d.dnId, dishId: d.id, sourceId: FE_SRC_ID,
+        confidenceLevel: 'high', estimationMethod: 'scraped',
+        calories: 300, proteins: 10, carbohydrates: 20, sugars: 1,
+        fats: 15, saturatedFats: 4, fiber: 1, salt: 0.8, sodium: 320,
+        referenceBasis: 'per_serving',
+      },
+    });
+  }
+
+  // standardPortion rows for FE fixtures (F-UX-B requires DB-backed portion lookups)
+  // FE_DISH_CROQUETAS: tapa (50g/2pc) + racion (200g/8pc)
+  await prisma.standardPortion.create({
+    data: {
+      dishId: FE_DISH_CROQUETAS, term: 'tapa', grams: 50, pieces: 2,
+      pieceName: 'croquetas', confidence: 'high', notes: 'BUG-PROD-007 fixture',
+    },
+  });
+  await prisma.standardPortion.create({
+    data: {
+      dishId: FE_DISH_CROQUETAS, term: 'racion', grams: 200, pieces: 8,
+      pieceName: 'croquetas', confidence: 'high', notes: 'BUG-PROD-007 fixture',
+    },
+  });
+  // FE_DISH_TORTILLA: tapa (60g/1pc) — distinct grams for concrete assertion
+  await prisma.standardPortion.create({
+    data: {
+      dishId: FE_DISH_TORTILLA, term: 'tapa', grams: 60, pieces: 1,
+      pieceName: 'porción', confidence: 'high', notes: 'BUG-PROD-007 fixture',
+    },
+  });
+  // FE_DISH_PAELLA: racion (200g/null pieces) — Tier 2 media_racion × 0.5 = 100g
+  await prisma.standardPortion.create({
+    data: {
+      dishId: FE_DISH_PAELLA, term: 'racion', grams: 200, pieces: null,
+      pieceName: null, confidence: 'high', notes: 'BUG-PROD-007 fixture',
+    },
+  });
+});
+
+// First afterAll — cleans FD_* fixtures only (data teardown, no disconnect)
 afterAll(async () => {
   await cleanFixtures();
+});
+
+// Second afterAll — cleans FE_* fixtures only (data teardown, no disconnect)
+afterAll(async () => {
+  await cleanFixturesFE();
+});
+
+// Module-level afterAll — single disconnect point, runs AFTER both data cleanups
+afterAll(async () => {
   await prisma.$disconnect();
   await pool.end();
 });
@@ -269,6 +452,19 @@ function buildRequest(text: string): ConversationRequest {
     prisma,
     chainSlugs: ['fd-conv-core-test'],
     chains: [{ chainSlug: 'fd-conv-core-test', name: 'FD ConvCore Test Restaurant', nameEs: null }],
+    logger: { info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn() },
+  };
+}
+
+function buildRequestFE(text: string): ConversationRequest {
+  return {
+    text,
+    actorId: FE_ACTOR_ID,
+    db,
+    redis: {} as ConversationRequest['redis'],
+    prisma,
+    chainSlugs: ['fe-conv-core-test'],
+    chains: [{ chainSlug: 'fe-conv-core-test', name: 'FE ConvCore Test Restaurant', nameEs: null }],
     logger: { info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn() },
   };
 }
@@ -382,5 +578,143 @@ describe('F-UX-B BUG-PROD-006 — portionAssumption via processMessage() (ADR-02
       expect(result.intent).toBe('estimation');
       expect(result.estimation?.portionAssumption).toBeUndefined();
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BUG-PROD-007 — comparison path (RED until Commit 3 patches conversationCore.ts)
+// ---------------------------------------------------------------------------
+
+describe('BUG-PROD-007 — comparison path', () => {
+  it('AC3 — dishA portionAssumption tapa/50g (compara tapa de croquetas vs tapa de tortilla)', async () => {
+    const result = await processMessage(buildRequestFE('compara tapa de croquetas vs tapa de tortilla'));
+
+    expect(result.intent).toBe('comparison');
+    const pa = result.comparison?.dishA.portionAssumption;
+    expect(pa).toBeDefined();                           // ← RED until fix
+    expect(pa?.source).toBe('per_dish');
+    expect(pa?.term).toBe('tapa');
+    expect(pa?.grams).toBe(50);
+  });
+
+  it('AC4 — dishB portionAssumption tapa/60g (compara tapa de croquetas vs tapa de tortilla)', async () => {
+    const result = await processMessage(buildRequestFE('compara tapa de croquetas vs tapa de tortilla'));
+
+    expect(result.intent).toBe('comparison');
+    const pa = result.comparison?.dishB.portionAssumption;
+    expect(pa).toBeDefined();                           // ← RED until fix
+    expect(pa?.source).toBe('per_dish');
+    expect(pa?.term).toBe('tapa');
+    expect(pa?.grams).toBe(60);
+  });
+
+  it('AC5 — mixed terms per side: pintxo vs racion (compara pincho de tortilla vs ración de croquetas)', async () => {
+    const result = await processMessage(buildRequestFE('compara pincho de tortilla vs ración de croquetas'));
+
+    expect(result.intent).toBe('comparison');
+    // dishA: 'pincho de tortilla' → canonicalized to 'pintxo'
+    expect(result.comparison?.dishA.portionAssumption?.term).toBe('pintxo'); // ← RED until fix
+    // dishB: 'ración de croquetas' → 'racion'
+    expect(result.comparison?.dishB.portionAssumption?.term).toBe('racion'); // ← RED until fix
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BUG-PROD-007 — menu path (RED until Commit 4 patches conversationCore.ts)
+// ---------------------------------------------------------------------------
+
+describe('BUG-PROD-007 — menu path', () => {
+  it('AC7 — both items: tapa + media_racion Tier 2 (menú del día: tapa de croquetas, media ración de paella)', async () => {
+    // menú del día: X, Y form (colon + comma) → clean splitMenuItems slices
+    const result = await processMessage(
+      buildRequestFE('menú del día: tapa de croquetas, media ración de paella'),
+    );
+
+    expect(result.intent).toBe('menu_estimation');
+    const items = result.menuEstimation?.items;
+    expect(items).toBeDefined();
+    expect(items?.length).toBeGreaterThanOrEqual(2);
+
+    // item[0]: tapa de croquetas → portionAssumption tapa/50g (FE_DISH_CROQUETAS standardPortion)
+    const pa0 = items?.[0]?.estimation.portionAssumption;
+    expect(pa0).toBeDefined();                          // ← RED until fix
+    expect(pa0?.term).toBe('tapa');
+
+    // item[1]: media ración de paella → Tier 2 media_racion × 0.5 = 100g
+    const pa1 = items?.[1]?.estimation.portionAssumption;
+    expect(pa1).toBeDefined();                          // ← RED until fix
+    expect(pa1?.term).toBe('media_racion');
+    expect(pa1?.grams).toBe(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BUG-PROD-007 — solo-path regression guards (GREEN from start — AC9/AC10/AC11)
+//
+// These tests assert behaviors that BUG-PROD-006 already established via the
+// solo-dish estimate() call at conversationCore.ts:356-367 (originalQuery: trimmed).
+// They MUST be GREEN the moment they are committed — a RED result signals a prior
+// regression, NOT work this ticket should fix.
+// Uses existing fd- fixtures and buildRequest() (solo-dish path only).
+// ---------------------------------------------------------------------------
+
+describe('BUG-PROD-007 — solo-path regression guards', () => {
+  it('AC9 — pintxo de croquetas → portionAssumption.term === pintxo (canonical)', async () => {
+    // pintxo is the canonical stored term; detectPortionTerm handles 'pintxo' directly
+    const result = await processMessage(buildRequest('pintxo de croquetas'));
+
+    expect(result.intent).toBe('estimation');
+    expect(result.estimation?.portionAssumption?.term).toBe('pintxo');
+  });
+
+  it('AC10 — pincho de croquetas → portionAssumption.term === pintxo (alias canonicalization)', async () => {
+    // 'pincho' is an alias — detectPortionTerm maps it to canonical 'pintxo'
+    const result = await processMessage(buildRequest('pincho de croquetas'));
+
+    expect(result.intent).toBe('estimation');
+    expect(result.estimation?.portionAssumption?.term).toBe('pintxo');
+  });
+
+  it('AC11 — media ración grande de croquetas → portionAssumption.grams === 100 (F042 compound wins, grande dropped)', async () => {
+    // F042 matches 'media ración' compound first; 'grande' modifier is silently dropped.
+    // Tier 2: racion row (200g) × 0.5 = 100g. Accepted behavior per spec.
+    const result = await processMessage(buildRequest('media ración grande de croquetas'));
+
+    expect(result.intent).toBe('estimation');
+    expect(result.estimation?.portionAssumption?.grams).toBe(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BUG-PROD-007 — cache key regression guard (GREEN from start — AC12)
+//
+// Spies on the mocked lib/cache.cacheSet to confirm that 'tapa de croquetas'
+// and 'croquetas' produce DIFFERENT cache keys thanks to portionKeySuffix
+// (estimationOrchestrator.ts:92-98). This test is GREEN immediately; a RED
+// result means the portionKeySuffix logic in the orchestrator has regressed.
+// Uses buildRequestFE() so the FE_DISH_CROQUETAS cascade route handles both queries.
+// ---------------------------------------------------------------------------
+
+describe('BUG-PROD-007 — cache key regression guard', () => {
+  it('AC12 — portion-aware cache key disambiguation (tapa de croquetas vs croquetas)', async () => {
+    // Reset spy call history before this test
+    mockCacheSet.mockClear();
+
+    // First call: 'tapa de croquetas' — portionKeySuffix appended (portionDetectionQuery differs)
+    await processMessage(buildRequestFE('tapa de croquetas'));
+    // Second call: 'croquetas' — no portionKeySuffix (query === portionDetectionQuery)
+    await processMessage(buildRequestFE('croquetas'));
+
+    expect(mockCacheSet).toHaveBeenCalledTimes(2);
+
+    const keyFirst = mockCacheSet.mock.calls[0]?.[0] as string;
+    const keySecond = mockCacheSet.mock.calls[1]?.[0] as string;
+
+    // Keys must differ — portionKeySuffix distinguishes them
+    expect(keyFirst).not.toBe(keySecond);
+    // First key includes the normalized 'tapa de croquetas' suffix
+    expect(keyFirst).toContain('tapa de croquetas');
+    // Second key does NOT contain the 'tapa de croquetas' suffix
+    expect(keySecond).not.toContain('tapa de croquetas');
   });
 });
