@@ -32,6 +32,11 @@ export interface EstimateParams {
   chainSlug?: string;
   restaurantId?: string;
   portionMultiplier?: number;
+  /** BUG-PROD-006: Pre-F042/F078 query for portion term detection.
+   *  When provided, F085 and F-UX-B detection use this instead of the
+   *  stripped `query`. Omit for callers without F042/F078 processing
+   *  (e.g., GET /estimate route) — falls back to `query`. */
+  originalQuery?: string;
   db: Kysely<DB>;
   /** F-UX-B: Prisma client for standardPortions lookup (optional — skips portion assumption when absent). */
   prisma?: PrismaClient;
@@ -65,6 +70,7 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     chainSlug,
     restaurantId,
     portionMultiplier: rawMultiplier,
+    originalQuery,
     db,
     prisma,
     openAiApiKey,
@@ -77,9 +83,18 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
 
   // Step 1 & 2 — Build cache key from normalized query
   const normalizedQuery = query.replace(/\s+/g, ' ').trim().toLowerCase();
+  // BUG-PROD-006: use pre-F042/F078 query for portion detection when available.
+  const portionDetectionQuery = originalQuery ?? query;
+  const normalizedPortionQuery = portionDetectionQuery.replace(/\s+/g, ' ').trim().toLowerCase();
+  // Include normalizedPortionQuery in cache key only when different from normalizedQuery.
+  // Prevents 'tapa de croquetas' (portionSizing=tapa) and 'croquetas' (portionSizing=null)
+  // from sharing a cache hit.
+  const portionKeySuffix = normalizedPortionQuery !== normalizedQuery
+    ? `:${normalizedPortionQuery}`
+    : '';
   const cacheKey = buildKey(
     'estimate',
-    `${normalizedQuery}:${chainSlug ?? ''}:${restaurantId ?? ''}:${effectiveMultiplier}`,
+    `${normalizedQuery}:${chainSlug ?? ''}:${restaurantId ?? ''}:${effectiveMultiplier}${portionKeySuffix}`,
   );
 
   // Step 3 — Cache check (fail-open)
@@ -141,23 +156,40 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     ...enrichWithAllergens(scaledResult),
     // F084: Calorie uncertainty range based on confidence + estimation method
     ...enrichWithUncertainty(scaledResult),
-    // F085: Spanish portion term context from query
-    ...enrichWithPortionSizing(query),
+    // F085: Spanish portion term context from query (BUG-PROD-006: use pre-F078 originalQuery)
+    ...enrichWithPortionSizing(portionDetectionQuery),
   };
 
   // F-UX-B: Resolve per-dish portion assumption (3-tier fallback chain).
   // Runs after enrichWithPortionSizing so portionSizing is already on estimateData.
   // Only executes when prisma is available; silently skips otherwise.
   if (prisma !== undefined) {
-    const detectedTerm = detectPortionTerm(query);
+    // BUG-PROD-006: use pre-F042/F078 originalQuery for portion term detection.
+    const detectedTerm = detectPortionTerm(portionDetectionQuery);
     const dishId =
       scaledResult?.entityType === 'dish' ? scaledResult.entityId : null;
+
+    // media_racion double-count guard: F042 extracts multiplier=0.5 from 'media ración'
+    // in the user query; Tier 2 also applies ×0.5 (its definition of half-ración).
+    // When coming via conversation path (originalQuery defined), pass multiplier=1.0 so
+    // Tier 2 only applies the inherent ×0.5 — the nutrient scaling from F042 is handled
+    // separately by applyPortionMultiplier upstream.
+    // For GET /estimate with explicit portionMultiplier (originalQuery absent), pass the
+    // full effectiveMultiplier so that e.g. 'media ración grande' (multiplier=1.5) scales
+    // the Tier 2 result correctly: grams = racion.grams × 0.5 × 1.5.
+    const isMediaRacion =
+      detectedTerm !== null &&
+      (detectedTerm.term.toLowerCase() === 'media ración' ||
+        detectedTerm.term.toLowerCase() === 'media racion');
+    const portionMultiplierForAssumption =
+      originalQuery !== undefined && isMediaRacion ? 1.0 : effectiveMultiplier;
+
     const { portionAssumption } = await resolvePortionAssumption(
       prisma,
       dishId,
       detectedTerm,
-      query,
-      effectiveMultiplier,
+      portionDetectionQuery,
+      portionMultiplierForAssumption,
       logger as Parameters<typeof resolvePortionAssumption>[5],
     );
     if (portionAssumption !== undefined) {

@@ -1487,3 +1487,9 @@ export function formatPortionTermLabel(term: string): string {
 | 5. Commit documentation | [x] | All docs committed inline with implementation (per-package README updates none needed). API spec, user manual, key_facts, decisions, CONTRIBUTING all in commit `aa10c3f`. |
 | 6. Verify clean working tree | [x] | `git status` clean (verified post-d818033 commit). |
 | 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` → exit 0 (UP TO DATE). Feature branch already contains all develop commits via the `744870c` upgrade rebase + subsequent develop activity captured. |
+
+---
+
+## Postscript — BUG-PROD-006 (2026-04-14)
+
+F-UX-B was merged as done (PR #113, commit `d8167d0`) but was non-functional on `POST /conversation/message` for several hours until BUG-PROD-006 fixed the wiring. Root cause: (1) `prisma` was never threaded through `ConversationRequest` — the `if (prisma !== undefined)` guard in `estimationOrchestrator.ts` always skipped portionAssumption resolution from the conversation path; (2) the F078-stripped query (`'croquetas'`) was used for F085/F-UX-B portion term detection instead of the original user text (`'tapa de croquetas'`), causing detection to always return null for F078-covered terms. A third bug (Tier 2 `media_racion` double-counting: F042 extracted `portionMultiplier=0.5` from `'media ración'`, and Tier 2 also applied ×0.5, yielding 50g instead of the spec-required 100g) was discovered by the qa-engineer post-fix and resolved in the same sprint. See `docs/tickets/BUG-PROD-006-f085-fux-b-conversation-wiring.md` and ADR-021 in `decisions.md`.

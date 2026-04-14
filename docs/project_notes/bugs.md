@@ -849,3 +849,15 @@ The user explicitly requires human review for the 2 production errors (`menuForm
 - **Solution**: Add `&& (value as Record<string, unknown>)['data'] !== null` to both guards.
 - **Prevention**: Always check `!== null` alongside `typeof === 'object'`.
 - **Status**: Open | **Found by**: QA-WEB-001 qa-engineer | **Evidence**: `apiClient.qa-web-001.test.ts`
+
+### 2026-04-13 — BUG-PROD-006: F085 + F-UX-B not populated via /conversation/message (M1)
+
+- **Severity**: M1 (production blocker — portionSizing and portionAssumption always null on primary user path)
+- **Area**: Conversation pipeline wiring (conversationCore → estimationOrchestrator)
+- **Issue**: `portionSizing` (F085) and `portionAssumption` (F-UX-B) were null for all canonical Spanish portion terms (tapa, pincho, pintxo, ración, media ración) when queried via `POST /conversation/message` → `/hablar` web and Telegram bot. F-UX-B was merged as done (PR #113) but was effectively non-functional.
+- **Root Cause (Bug 1 — primary)**: `prisma` was never added to `ConversationRequest` and never passed from the conversation route to `processMessage()`. The orchestrator's `if (prisma !== undefined)` guard was always false → `resolvePortionAssumption` never executed.
+- **Root Cause (Bug 2 — secondary)**: F085 (`enrichWithPortionSizing`) and F-UX-B (`detectPortionTerm`) were called with the F078-stripped query ('croquetas') instead of the original user text ('tapa de croquetas'). Portion terms were stripped BEFORE detection.
+- **Solution**: (1) Add `prisma?: PrismaClient` to `ConversationRequest`; pass `prisma` from both `processMessage()` calls in `routes/conversation.ts`. (2) Add `originalQuery?: string` to `EstimateParams`; pass `originalQuery: trimmed` (pre-F042/F078) from `conversationCore.ts`; use `portionDetectionQuery = originalQuery ?? query` in orchestrator for F085/F-UX-B calls. (3) Update cache key to include `normalizedPortionQuery` when different from `normalizedQuery` to prevent cache collisions.
+- **Prevention**: ADR-021 — integration tests for conversation pipeline features MUST call `processMessage()` end-to-end, not just the resolver functions directly. Tests: `f-ux-b.conversationCore.integration.test.ts`, `f085.conversationCore.integration.test.ts`.
+- **Commit**: 2225818
+- **Status**: Fixed | **Branch**: bug/BUG-PROD-006-f085-fux-b-conversation-wiring

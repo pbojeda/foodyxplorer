@@ -50,6 +50,7 @@ export async function processMessage(
     actorId,
     db,
     redis,
+    prisma,
     openAiApiKey,
     level4Lookup,
     chainSlugs,
@@ -348,15 +349,21 @@ export async function processMessage(
   // Inject context fallback only when query has no explicit chainSlug
   const effectiveChainSlug = explicitSlug ?? effectiveContext?.chainSlug;
 
+  if (prisma === undefined) {
+    logger.warn({}, 'BUG-PROD-006: prisma absent from ConversationRequest — portionAssumption will not resolve');
+  }
+
   const estimationResult = await estimate({
     query: extractedQuery,
     chainSlug: effectiveChainSlug,
     portionMultiplier,
     db,
+    prisma,
     openAiApiKey,
     level4Lookup,
     chainSlugs,
     logger,
+    originalQuery: trimmed,
   });
 
   // Track whether context was injected (no explicit slug in query)
