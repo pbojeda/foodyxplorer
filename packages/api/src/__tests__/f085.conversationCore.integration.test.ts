@@ -271,6 +271,11 @@ beforeAll(async () => {
 // BUG-PROD-007: second lifecycle pair for FF_* fixtures (comparison + menu path tests).
 // Overrides mockCascade with a multi-dish router for FF fixtures, including the
 // AC8 sentinel path that forces a rejected promise.
+// NOTE: this override is global — FC tests above also run against this router.
+// They still pass because FC assertions only check F085 static-lookup fields
+// (portionSizing.term / gramsMin / gramsMax) which are independent of the returned
+// dish entity. If a future FC test asserts on entityId/restaurantId/chainSlug, it
+// will silently resolve to FF fixtures — route by actor/chain if that's not desired.
 beforeAll(async () => {
   mockCascade.mockImplementation(async (opts: { query: string }) => {
     const q = opts.query.toLowerCase();

@@ -697,7 +697,9 @@ describe('BUG-PROD-007 — solo-path regression guards', () => {
 
 describe('BUG-PROD-007 — cache key regression guard', () => {
   it('AC12 — portion-aware cache key disambiguation (tapa de croquetas vs croquetas)', async () => {
-    // Reset spy call history before this test
+    // Load-bearing: mockCacheSet accumulates calls across the whole file (15 prior
+    // tests). This clear is mandatory — the toHaveBeenCalledTimes(2) assertion below
+    // counts only this test's two processMessage() invocations.
     mockCacheSet.mockClear();
 
     // First call: 'tapa de croquetas' — portionKeySuffix appended (portionDetectionQuery differs)
