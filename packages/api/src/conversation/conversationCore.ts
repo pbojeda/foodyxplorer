@@ -276,10 +276,12 @@ export async function processMessage(
           chainSlug: chainSlugForItem,
           portionMultiplier: parsed.portionMultiplier,
           db,
+          prisma,
           openAiApiKey,
           level4Lookup,
           chainSlugs,
           logger,
+          originalQuery: itemText,
         });
       }),
     );

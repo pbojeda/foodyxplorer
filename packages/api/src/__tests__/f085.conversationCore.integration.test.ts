@@ -563,9 +563,11 @@ describe('BUG-PROD-007 — menu path', () => {
     expect(items?.[0]?.estimation.portionSizing).toBeDefined(); // ← RED until fix
     expect(items?.[0]?.estimation.portionSizing?.term).toBe('tapa');
 
-    // item[1]: media ración de paella → portionSizing.term = 'ración'
+    // item[1]: media ración de paella → portionSizing.term = 'media ración'
+    // (F085 compound match: 'media ración' matches before the plain 'ración' rule)
+    // Spec AC6 says 'ración' but actual F085 static lookup returns 'media ración'.
     expect(items?.[1]?.estimation.portionSizing).toBeDefined(); // ← RED until fix
-    expect(items?.[1]?.estimation.portionSizing?.term).toBe('ración');
+    expect(items?.[1]?.estimation.portionSizing?.term).toBe('media ración');
   });
 
   it('Control — bocadillo menu item (already GREEN)', async () => {
