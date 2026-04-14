@@ -799,7 +799,7 @@ For `processMessage` integration tests, the seeded dish must be discoverable by 
 - [x] Step 4: `production-code-validator` (audit) — 5445 tests, typecheck clean, build clean, no new lint errors
 - [x] Step 5: `code-review-specialist` executed — APPROVE WITH MINOR CHANGES (no blockers; comparison/menu paths follow-up tracked)
 - [x] Step 5: `qa-engineer` executed — no new blockers post Bug 3 fix; all 12 integration tests verified GREEN
-- [ ] Step 6: Ticket updated with final metrics, branch deleted (post-merge)
+- [x] Step 6: Merged to develop at `6b117c9`. Branch deleted. Tracker updated. Follow-up ticket needed for comparison/menu paths (same Bug 1+2 class).
 
 ---
 
