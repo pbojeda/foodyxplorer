@@ -200,20 +200,24 @@ export async function processMessage(
         chainSlug: chainSlugA,
         portionMultiplier: parsedA.portionMultiplier,
         db,
+        prisma,
         openAiApiKey,
         level4Lookup,
         chainSlugs,
         logger,
+        originalQuery: dishAText,
       }),
       estimate({
         query: parsedB.query,
         chainSlug: chainSlugB,
         portionMultiplier: parsedB.portionMultiplier,
         db,
+        prisma,
         openAiApiKey,
         level4Lookup,
         chainSlugs,
         logger,
+        originalQuery: dishBText,
       }),
     ]);
 
@@ -272,10 +276,12 @@ export async function processMessage(
           chainSlug: chainSlugForItem,
           portionMultiplier: parsed.portionMultiplier,
           db,
+          prisma,
           openAiApiKey,
           level4Lookup,
           chainSlugs,
           logger,
+          originalQuery: itemText,
         });
       }),
     );
@@ -350,7 +356,7 @@ export async function processMessage(
   const effectiveChainSlug = explicitSlug ?? effectiveContext?.chainSlug;
 
   if (prisma === undefined) {
-    logger.warn({}, 'BUG-PROD-006: prisma absent from ConversationRequest — portionAssumption will not resolve');
+    logger.debug({}, 'BUG-PROD-006: prisma absent from ConversationRequest — portionAssumption will not resolve');
   }
 
   const estimationResult = await estimate({
