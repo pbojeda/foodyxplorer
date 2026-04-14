@@ -1,7 +1,7 @@
 # BUG-PROD-007: comparison + menu paths missing `prisma` and `originalQuery`
 
 **Feature:** BUG-PROD-007 | **Type:** Backend-Bugfix | **Priority:** M2 (Degraded UX — comparison and menu responses show null portionSizing / portionAssumption)
-**Status:** Spec v3 + Plan v2 (second cross-model round) | **Branch:** bugfix/BUG-PROD-007-comparison-menu-wiring
+**Status:** Ready for Merge | **Branch:** bugfix/BUG-PROD-007-comparison-menu-wiring | **PR:** https://github.com/pbojeda/foodyxplorer/pull/120
 **Created:** 2026-04-14 | **Dependencies:** BUG-PROD-006 (merged ✓), F085 (done ✓), F-UX-B (done ✓)
 
 ---
@@ -891,18 +891,69 @@ The following are explicitly excluded from this PR (per spec):
 
 ---
 
+## Workflow Checklist
+
+- [x] **Step 0 — Triage & Branch.** Standard tier confirmed, `bugfix/BUG-PROD-007-comparison-menu-wiring` created from `develop`
+- [x] **Step 1 — Spec.** v1 drafted by spec-creator, revised through v3 after two cross-model rounds
+- [x] **Step 2 — Spec review.** Gemini APPROVED + Codex REVISE 4 IMPORTANT → Spec v2; second round: Gemini APPROVED + Codex REVISE 1 CRITICAL + 3 IMPORTANT + 1 SUGGESTION → Spec v3
+- [x] **Step 3 — Plan.** v1 drafted by backend-planner, revised to v2 after plan review (same divergence: Codex found 5 empirical bugs Gemini missed)
+- [x] **Step 4 — Implementation (TDD).** 6 commits (2 RED test, 2 GREEN fix, 1 chore logger, 1 docs bugs.md). 26/26 BUG-PROD-007 integration tests GREEN. Solo-path regression guards + cache-key spy GREEN from start (committed inside commit 2).
+- [x] **Step 5 — Code review + QA.** code-review-specialist APPROVE + 3 NITs (2 addressed inline). qa-engineer PASS WITH FOLLOW-UPS + 1 IMPORTANT (AC8 sentinel hardened inline so the `toBeUndefined()` guard exclusively exercises the `nullEstimateData` branch).
+- [x] **Step 5.1 — PR opened.** PR #120 to `develop`, CI `ci-success` PASS, `test-api` PASS (3m58s), Vercel preview deployed, mergeStateStatus CLEAN
+- [ ] **Step 6 — Merge.** Pending user approval + squash to `develop`
+
+---
+
+## Acceptance Criteria
+
+All 13 ACs defined in the Spec table are verified by the 26 BUG-PROD-007 tests in `packages/api/src/__tests__/f085.conversationCore.integration.test.ts` (11) and `packages/api/src/__tests__/f-ux-b.conversationCore.integration.test.ts` (15).
+
+- [x] **AC1** — `compara tapa de croquetas vs tapa de tortilla` → `dishA.portionSizing.term === 'tapa'` (f085)
+- [x] **AC2** — same query → `dishB.portionSizing.term === 'tapa'` (f085)
+- [x] **AC3** — same query → `dishA.portionAssumption.source === 'per_dish'`, `term === 'tapa'`, `grams === 50` (f-ux-b)
+- [x] **AC4** — same query → `dishB.portionAssumption.source === 'per_dish'`, `term === 'tapa'`, `grams === 60` (f-ux-b)
+- [x] **AC5** — `compara pincho de tortilla vs ración de croquetas` → `dishA.portionAssumption.term === 'pintxo'`, `dishB.portionAssumption.term === 'racion'` (f-ux-b)
+- [x] **AC6** — `menú del día: tapa de croquetas, media ración de paella` → `items[0].portionSizing.term === 'tapa'`, `items[1].portionSizing.term === 'media ración'` (PORTION_RULES compound wins longest-first) (f085)
+- [x] **AC7** — same menu query → `items[0].portionAssumption.term === 'tapa'`, `items[1].portionAssumption.term === 'media_racion'`, `grams === 100` (Tier 2 against paella's `racion` 200g × 0.5) (f-ux-b)
+- [x] **AC8** — `compara tapa de croquetas vs tapa de plato-desconocido-xyz` (mock throws for sentinel) → dishA portionSizing defined, dishB portionSizing + portionAssumption `toBeUndefined()`. Hardened after QA to exclusively exercise the `nullEstimateData` branch (sentinel slice contains `'tapa'` so fulfilled-miss path would populate portionSizing, failing the assertion) (f085)
+- [x] **AC9** — `pintxo de croquetas` (solo-path regression guard, GREEN from start) → `portionAssumption.term === 'pintxo'` (f-ux-b)
+- [x] **AC10** — `pincho de croquetas` (solo-path regression guard, GREEN from start) → `portionAssumption.term === 'pintxo'` (alias → canonical) (f-ux-b)
+- [x] **AC11** — `media ración grande de croquetas` (solo-path regression guard, GREEN from start) → `portionAssumption.grams === 100` (F042 compound wins, `'grande'` dropped) (f-ux-b)
+- [x] **AC12** — `processMessage('tapa de croquetas')` then `processMessage('croquetas')` → `mockCacheSet` spy called twice with distinct cache keys; first contains `'tapa de croquetas'`, second does not. Genuine regression guard exercising `estimationOrchestrator.ts:92-98` `portionKeySuffix` logic end-to-end (f-ux-b)
+- [x] **AC13** — `conversationCore.ts:359` now reads `logger.debug(` — verified manually + git diff
+
+---
+
+## Definition of Done
+
+- [x] All 13 ACs implemented and verified by automated tests (26/26 GREEN)
+- [x] Production code changes are minimal and surgical (8 lines in `conversationCore.ts`, 3 call sites + 1 logger level)
+- [x] No changes to `estimationOrchestrator.ts`, `portionAssumption.ts`, Zod schemas, Prisma migrations, or `nullEstimateData` shape
+- [x] No regressions on existing BUG-PROD-006 tests (f-ux-b + f085 integration, unit tests, route tests — all green)
+- [x] TDD commit granularity respected: RED commits precede GREEN commits, each commit is independently revertable
+- [x] Two rounds of cross-model spec + plan review, all findings arbitrated and addressed
+- [x] code-review-specialist APPROVE (3 NITs, 2 addressed inline)
+- [x] qa-engineer PASS WITH FOLLOW-UPS (1 IMPORTANT AC8 hardening addressed inline)
+- [x] `docs/project_notes/bugs.md` updated with BUG-PROD-007 entry (root cause per call site + prevention)
+- [x] `docs/project_notes/product-tracker.md` Active Session refreshed to reflect current workflow step
+- [x] PR opened to `develop` with full review trail in description
+- [x] CI `ci-success` + `test-api` checks green on PR #120
+- [x] Merge Checklist Evidence filled with empirical evidence per row
+
+---
+
 ## Merge Checklist Evidence
 
 | Check | Evidence |
 |-------|----------|
-| Branch builds clean | |
-| All tests pass (unit + integration) | |
-| Extended integration describe blocks RED before fix, GREEN after | |
-| `logger.warn` downgraded to `logger.debug` at line 353 | |
-| AC9–AC12 scope ampliado verified | |
-| No regressions on solo-dish path (BUG-PROD-006 tests still green) | |
-| PR description references BUG-PROD-007 | |
-| `ci-success` check passes | |
+| Branch builds clean | `npx vitest run packages/api/src/__tests__/f085.conversationCore.integration.test.ts packages/api/src/__tests__/f-ux-b.conversationCore.integration.test.ts` → 26/26 passed, 510ms. CI `test-api` ran the full API suite in 3m58s and PASSed on PR #120. |
+| All tests pass (unit + integration) | PR #120 CI `test-api` PASS (runs full api workspace: unit + integration for packages/api). 2 extended integration files locally verified 26/26. No regressions on BUG-PROD-006 tests (f-ux-b, f085, estimateRoute, portionAssumption unit, orchestrator unit — all green per QA sweep). |
+| Extended integration describe blocks RED before fix, GREEN after | Commit sequence on branch: `3104efd` (test RED f085), `0b32002` (test RED f-ux-b + GREEN regression guards for AC9/10/11/12), `1c09bb3` (fix comparison → AC1/2/3/4/5/8 GREEN), `c84cb86` (fix menu → AC6/7 GREEN). Each commit is revertable and CI could run per-commit. |
+| `logger.warn` downgraded to `logger.debug` at line 353 | Commit `ad5e633`. Verified: `conversationCore.ts:359` now reads `logger.debug({}, 'BUG-PROD-006: prisma absent from ConversationRequest — portionAssumption will not resolve');`. Unreachable from any internal call site after the fix; retained as low-noise documentation. |
+| AC9–AC12 scope ampliado verified | `describe('BUG-PROD-007 — solo-path regression guards')` and `describe('BUG-PROD-007 — cache key regression guard')` in `f-ux-b.conversationCore.integration.test.ts`. GREEN from Commit 2 onward. AC12 spy verifies `mockCacheSet.mock.calls[0][0]` contains `'tapa de croquetas'` while `mock.calls[1][0]` does not — exercises `estimationOrchestrator.ts:92-98` end-to-end. |
+| No regressions on solo-dish path (BUG-PROD-006 tests still green) | Existing `F085 BUG-PROD-006 —` and `F-UX-B BUG-PROD-006 —` describe blocks continue to pass (part of the 26/26). QA engineer also ran `f-ux-b.estimateRoute.portionAssumption.integration.test.ts` (9/9), `f-ux-b.portionAssumption.unit.test.ts` (15), `f-ux-b.portionAssumption.edge-cases.test.ts` (8), `f070.estimationOrchestrator.unit.test.ts` (12), `f085.portion-sizing.unit.test.ts` (26), `f070.conversationCore.unit.test.ts` (17), `f070.entityExtractor.unit.test.ts` (41) — all green. |
+| PR description references BUG-PROD-007 | PR #120 title: `fix(BUG-PROD-007): wire prisma + originalQuery into comparison and menu estimate() call sites`. Body includes full review trail, test plan checklist, and file inventory. |
+| `ci-success` check passes | `gh pr view 120 --json statusCheckRollup` shows `ci-success: SUCCESS`, `test-api: SUCCESS`, `test-bot/landing/scraper/shared/web: SKIPPED` (path filters correct), `Vercel: SUCCESS`, `Vercel Preview Comments: SUCCESS`, `changes: SUCCESS`. `mergeStateStatus: CLEAN`, `mergeable: MERGEABLE`. |
 
 ---
 
@@ -935,3 +986,49 @@ The following are explicitly excluded from this PR (per spec):
   - `cascade mock` strategy documents the `throw` branch for AC8 sentinel.
   - Verification commands updated to reflect the new commit ordering.
 - **Result:** 5/5 findings addressed. Spec v3 + Plan v2 ready for implementation.
+
+### Implementation — 2026-04-14
+
+- **Agent:** backend-developer (delegated)
+- **Branch:** `bugfix/BUG-PROD-007-comparison-menu-wiring`
+- **Commits (6, per the Plan v2 sequence):**
+  1. `3104efd` — `test(BUG-PROD-007)`: extend f085 integration with comparison + menu RED cases
+  2. `0b32002` — `test(BUG-PROD-007)`: extend f-ux-b integration with comparison/menu RED + solo-path/cache-key regression GREEN blocks
+  3. `1c09bb3` — `fix(BUG-PROD-007)`: wire prisma + per-side originalQuery into comparison path
+  4. `c84cb86` — `fix(BUG-PROD-007)`: wire prisma + per-item originalQuery into menu path
+  5. `ad5e633` — `chore(BUG-PROD-007)`: downgrade logger.warn → logger.debug
+  6. `5f6ec8e` — `docs(BUG-PROD-007)`: add BUG-PROD-007 entry to bugs.md
+- **Production diff:** 8 lines in `conversationCore.ts` across 4 edit points (2 × comparison `estimate()` calls, 1 × menu `estimate()` call, 1 × logger level). Zero refactors. Zero schema changes. Zero new files.
+- **Test diff:** +340 lines in `f-ux-b.conversationCore.integration.test.ts`, +293 lines in `f085.conversationCore.integration.test.ts`. Extensions only — existing BUG-PROD-006 describe blocks untouched.
+- **Deviation from plan:** 1 item. AC6 spec originally expected `items[1].portionSizing.term === 'ración'` for `'media ración de paella'`. Empirical read of `PORTION_RULES` at `estimation/portionSizing.ts:42` showed `'media ración'` as a compound entry matched longest-first, so the actual term is `'media ración'`. The implementer asserted the correct value and flagged the deviation; the spec was updated in commit `98aecd8` to match reality. F-UX-B's parallel canonicalization (`portionAssumption.term === 'media_racion'` in Tier 2) agrees that `'media ración'` is a distinct term from `'ración'` — no deeper consistency issue.
+- **Result:** 6 commits, all 26 BUG-PROD-007 tests GREEN (11 f085 + 15 f-ux-b).
+
+### Code review — 2026-04-14
+
+- **Agent:** code-review-specialist (delegated)
+- **Verdict:** APPROVE — ready for QA and PR
+- **Findings:** 0 BLOCKERS, 0 IMPORTANT, 3 NITs
+  1. **[NIT]** The BUG-PROD-007 `beforeAll` in f085 silently overrides `mockCascade` for the FC describe block above. FC tests still pass because they only assert on F085 static-lookup fields (independent of returned entity), but this is fragile if a future FC test asserts on `entityId`/`restaurantId`. Addressed inline in commit `7dfa0e5` with an explanatory comment.
+  2. **[NIT]** The `mockCacheSet.mockClear()` in the AC12 test is load-bearing — the spy accumulates calls across the whole file, and removing the clear would break `toHaveBeenCalledTimes(2)`. Addressed inline in commit `7dfa0e5` with a "mandatory, load-bearing" comment.
+  3. **[NIT]** `logger.debug` downgrade is correct as implemented — the warn guard is now structurally unreachable from any internal call site, and integration tests cover all three paths. No code change needed; comment-only documentation already present in the guard.
+- **Regression check:** 26/26 green locally, no existing BUG-PROD-006 tests affected.
+- **Commit:** `7dfa0e5` (NIT comments)
+
+### QA — 2026-04-14
+
+- **Agent:** qa-engineer (delegated)
+- **Verdict:** PASS WITH FOLLOW-UPS
+- **Findings:** 0 BLOCKERS, 1 IMPORTANT, 1 NIT
+  1. **[IMPORTANT]** AC8 was not a genuine regression guard for the `nullEstimateData` branch. The original sentinel `'plato-desconocido-xyz'` contained no portion term, so both the `throw` path and the (hypothetical) fulfilled-miss path would produce `portionSizing: undefined`, and the `toBeUndefined()` assertion couldn't discriminate between them. **Fix (inline):** changed the dishB slice to `'tapa de plato-desconocido-xyz'`. The word `'tapa'` means that on a fulfilled-miss path `enrichWithPortionSizing` would populate `portionSizing.term === 'tapa'`, making the `toBeUndefined()` assertion fail — exclusively flagging the regression of the rejected/`nullEstimateData` branch. Commit `ba6bd55`.
+  2. **[NIT]** `product-tracker.md` Active Session was stale (still at "Spec v2 ready, backend-planner next"). **Fix (inline):** refreshed in the same commit `ba6bd55` to reflect current step (implementation complete + code-review APPROVE + QA PASS).
+- **Regression sweep:** ran 26 BUG-PROD-007 integration tests + 9 estimateRoute + 15 portionAssumption unit + 8 portionAssumption edge + 12 orchestrator unit + 26 f085 portion-sizing unit + 17 f070 conversationCore unit + 41 f070 entityExtractor unit — all green.
+- **Commits:** `ba6bd55` (AC8 hardening + tracker refresh)
+
+### Merge Checklist Audit — 2026-04-14
+
+- **Skill:** `/audit-merge`
+- **External audit:** User ran an independent pre-audit via external agent prior to `/audit-merge` — APPROVE with 3 gaps flagged (status field, empty evidence table, missing Completion Log entries). All 3 gaps filled by this audit.
+- **Sections added during audit:** `## Workflow Checklist`, `## Acceptance Criteria`, `## Definition of Done` (previously absent at top level — ACs existed only inside the Spec table).
+- **Merge Checklist Evidence table:** 8/8 rows filled with empirical evidence (commit SHAs, test counts, CI check names, PR URL, `gh pr view` output).
+- **Status transition:** `Spec v3 + Plan v2` → `Ready for Merge`.
+- **Compliance:** PASS (see Audit Report below).
