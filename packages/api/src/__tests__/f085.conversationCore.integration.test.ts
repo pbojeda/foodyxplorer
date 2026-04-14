@@ -517,8 +517,16 @@ describe('BUG-PROD-007 — comparison path', () => {
   it('AC8 — rejected side hits nullEstimateData fallback (sentinel throws)', async () => {
     // Mock throws for 'plato-desconocido-xyz' → Promise.allSettled captures 'rejected'
     // → conversationCore builds nullEstimateData for dishB → portionSizing absent.
+    //
+    // The dishB slice 'tapa de plato-desconocido-xyz' contains 'tapa' on purpose:
+    // this makes the test a GENUINE regression guard for the nullEstimateData branch.
+    // If the mock were mistakenly changed from `throw` to `return { result: null }`,
+    // `enrichWithPortionSizing('tapa de plato-desconocido-xyz')` would populate
+    // `portionSizing.term = 'tapa'` (fulfilled-miss path), and the `toBeUndefined()`
+    // assertion below would fail — exclusively flagging the regression of the
+    // rejected/nullEstimateData branch.
     const result = await processMessage(
-      buildRequestFF('compara tapa de croquetas vs plato-desconocido-xyz'),
+      buildRequestFF('compara tapa de croquetas vs tapa de plato-desconocido-xyz'),
     );
 
     expect(result.intent).toBe('comparison');
