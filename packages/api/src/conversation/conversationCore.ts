@@ -356,7 +356,7 @@ export async function processMessage(
   const effectiveChainSlug = explicitSlug ?? effectiveContext?.chainSlug;
 
   if (prisma === undefined) {
-    logger.warn({}, 'BUG-PROD-006: prisma absent from ConversationRequest — portionAssumption will not resolve');
+    logger.debug({}, 'BUG-PROD-006: prisma absent from ConversationRequest — portionAssumption will not resolve');
   }
 
   const estimationResult = await estimate({
