@@ -28,9 +28,9 @@ Update the global specification files in `docs/specs/` AND the ticket's `## Spec
 - Ensure consistency with `ai-specs/specs/frontend-standards.mdc`
 
 ### Data Model Specifications
-- Update validation schemas (if shared workspace exists)
+- Update Zod schemas in `shared/src/schemas/` (if shared workspace exists)
 - Define entity schemas, relationships, constraints
-- Ensure consistency between validation schemas and API spec
+- Ensure consistency between Zod schemas and API spec
 
 ### Ticket Spec Section
 - Write a summary of all spec changes into the ticket's `## Spec` section

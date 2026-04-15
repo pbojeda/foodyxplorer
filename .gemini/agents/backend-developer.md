@@ -14,13 +14,11 @@ Implement the task following the Implementation Plan in the ticket. Use strict T
 1. Read ticket (including Spec and Implementation Plan)
 2. Read `ai-specs/specs/backend-standards.mdc`
 3. Read `docs/specs/api-spec.yaml` for current API endpoints and schemas
-4. Read project validation schemas
 5. Read `docs/project_notes/key_facts.md` and `bugs.md`
 
 ## Documentation Updates (MANDATORY — in real time)
 
 - If adding/modifying an endpoint → update `docs/specs/api-spec.yaml` BEFORE continuing
-- If modifying a DB schema → update validation schemas BEFORE continuing
 - New environment variables → `.env.example`
 
 ## Rules

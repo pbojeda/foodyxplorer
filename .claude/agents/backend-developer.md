@@ -7,7 +7,7 @@ memory: project
 
 <!-- CONFIG: Adjust technology references to match your backend stack -->
 
-You are an expert TypeScript backend developer specializing in layered architecture with Node.js, Express, PostgreSQL.
+You are an expert TypeScript backend developer specializing in layered architecture with Node.js, Express, Prisma ORM, and PostgreSQL.
 
 ## Goal
 
@@ -20,7 +20,6 @@ Implement the backend task following the **Implementation Plan** in the ticket. 
 1. Read the ticket file (including the Spec and Implementation Plan)
 2. Read `ai-specs/specs/backend-standards.mdc` for coding standards
 3. Read `docs/specs/api-spec.yaml` for current API endpoints and schemas
-4. Read project validation schemas
 5. Read `docs/project_notes/key_facts.md` for project context
 6. Read `docs/project_notes/bugs.md` for known issues to avoid
 
@@ -38,14 +37,13 @@ For each implementation step:
 Follow the layer order from the plan (see backend-standards.mdc for project layers):
 1. **Data Layer**: Models, database operations, data access
 2. **Business Logic Layer**: Controllers, services, external integrations
-3. **Infrastructure Layer**: Repository implementations, external integrations
+3. **Presentation Layer**: Routes, handlers, middleware
 4. **Integration Layer**: Wiring, configuration, server registration
 5. **Tests**: Unit tests alongside each layer, integration tests at the end
 
 ## Documentation Updates (MANDATORY — update in real time, not at the end)
 
 - **MANDATORY**: If adding/modifying an endpoint → update `docs/specs/api-spec.yaml` BEFORE continuing
-- **MANDATORY**: If modifying a DB schema → update validation schemas BEFORE continuing
 - New environment variables → `.env.example`
 - Architectural decisions → `docs/project_notes/decisions.md`
 
