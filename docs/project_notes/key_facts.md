@@ -58,10 +58,10 @@ Quick reference for project configuration, infrastructure details, and important
 
 ## Infrastructure
 
-- **CI/CD**: GitHub Actions (`ci.yml` with path-filtered jobs per package + `deploy-landing.yml`). **Web package is deployed by the Vercel GitHub App (native integration), NOT by a custom GH Actions workflow** — `deploy-web.yml` was deleted in BUG-PROD-004 as redundant with the Vercel GitHub App, which was already deploying previews successfully on Vercel's own infrastructure. `deploy-landing.yml` is slated for the same cleanup in a follow-up ticket.
+- **CI/CD**: GitHub Actions (`ci.yml` with path-filtered jobs per package — sole workflow). **Both web AND landing packages are deployed by the Vercel GitHub App (native integration), NOT by custom GH Actions workflows** — `deploy-web.yml` was deleted in BUG-PROD-004 (PR #111) and `deploy-landing.yml` was deleted in BUG-PROD-004-FU1 (this ticket) as redundant with the Vercel GitHub App, which was already deploying previews successfully on Vercel's own infrastructure.
 - **CI jobs**: test-shared, test-api, test-bot, test-scraper, test-landing, test-web (dorny/paths-filter, shared changes trigger all dependent jobs)
 - **Hosting (API, early stage)**: Railway or Render (staging: develop, prod: main)
-- **Hosting (Landing)**: Vercel (auto-deploy via Vercel GitHub App + custom `deploy-landing.yml` workflow pending cleanup)
+- **Hosting (Landing)**: Vercel (auto-deploy via Vercel GitHub App — native integration, no custom GH Actions workflow as of BUG-PROD-004-FU1)
 - **Hosting (Web)**: Vercel (deploy via Vercel GitHub App — preview on PR, production on push to main branch configured in Vercel project settings). Separate Vercel project from landing. `vars.VERCEL_PROJECT_ID` is kept on the `preview-web` / `production-web` GitHub environments but is unused after BUG-PROD-004.
 - **Landing domain**: nutrixplorer.com (Vercel, configured 2026-03-27)
 - **Error Tracking**: Sentry (free plan)
