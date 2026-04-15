@@ -1,7 +1,7 @@
 # BUG-PROD-004-FU1: Delete redundant deploy-landing.yml workflow
 
 **Feature:** BUG-PROD-004-FU1 | **Type:** Infra-Bugfix | **Priority:** Low
-**Status:** Ready for Merge | **Branch:** bugfix/BUG-PROD-004-followup-1-delete-deploy-landing
+**Status:** Done | **Branch:** bugfix/BUG-PROD-004-followup-1-delete-deploy-landing (deleted)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-15 | **Dependencies:** BUG-PROD-004 (PR #111, merged)
 
@@ -75,7 +75,7 @@ N/A — Simple task (single-file deletion, no code changes, no tests affected).
 - [x] Step 3: Workflow file deleted + `key_facts.md` stale reference updated inline
 - [x] Step 4: Quality gates — no code affected (zero `.ts`/`.tsx`/`.js` diff); local `npm test/lint/build` skipped as non-informative for a pure workflow-file deletion; PR CI is the real oracle
 - [x] Step 5: PR #123 opened, `code-review-specialist` skipped (Simple tier, infra-only, no code paths)
-- [ ] Step 6: Ticket updated with final state, branch deleted — pending post-merge
+- [x] Step 6: Ticket updated with final state, branch deleted (local + remote), `bugs.md` BUG-PROD-004 Follow-up 1 marked DONE with PR #123 + merge commit `2f021c1`, tracker Active Session cleared
 
 ---
 
@@ -92,6 +92,12 @@ N/A — Simple task (single-file deletion, no code changes, no tests affected).
 | 2026-04-15 | Branch pushed | `origin/bugfix/BUG-PROD-004-followup-1-delete-deploy-landing` |
 | 2026-04-15 | PR #123 opened | Target: `develop`. Vercel GH App checks firing on PR (pass + pending). |
 | 2026-04-15 | Step 5 checklist | Actions 0-8 executed. Branch up-to-date with `origin/develop`. Ready for `/audit-merge`. |
+| 2026-04-15 | Commit `e808459` | `docs(BUG-PROD-004-FU1): restructure DoD — move post-merge actions to Step 6 block` (audit-merge check #3 fix) |
+| 2026-04-15 | Self-review | Verified `ci.yml` has zero `deploy-landing` references. Initial check against legacy branch protection (`gh api repos/.../branches/develop/protection`) returned 404, but that only queries the legacy API — `develop` is actually protected via GitHub **rulesets** (newer mechanism), confirmed empirically when a later direct push was rejected with `GH013: Required status check "ci-success" is expected. Changes must be made through a pull request.` User chose direct squash-merge on the feature PR without external audit (Simple tier, infra-only). |
+| 2026-04-15 | `/audit-merge` | 11/11 PASS. All compliance checks clean. |
+| 2026-04-15 | CI green | 10/10 checks: `ci-success` pass, `test-api` 4m9s, `test-bot` 1m26s, `test-landing` 1m17s, `test-scraper` 1m12s, `test-shared` 1m17s, `test-web` 1m47s, `Vercel` pass, `Vercel Preview Comments` pass, `changes` 7s. |
+| 2026-04-15 | Squash-merged | PR #123 → `develop` at merge commit `2f021c1` (3 commits squashed into 1). Branch deleted local + remote via `--delete-branch`. |
+| 2026-04-15 | Step 6 housekeeping | Ticket Status → `Done`, `bugs.md` BUG-PROD-004 Follow-up 1 → DONE, tracker Active Session cleared |
 
 ---
 
