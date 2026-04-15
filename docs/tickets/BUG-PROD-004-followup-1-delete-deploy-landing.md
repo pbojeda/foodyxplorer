@@ -53,10 +53,17 @@ N/A — Simple task (single-file deletion, no code changes, no tests affected).
 
 - [x] File deleted
 - [x] Grep for `deploy-landing` returns only expected references (bugs.md history, this ticket, tracker entries, context prompts)
+- [x] `key_facts.md` Infrastructure + Hosting (Landing) sections updated inline (no stale references)
 - [x] `git status` clean after commit
-- [x] PR opened (#123)
-- [ ] squash-merged to `develop`, branch deleted local + remote — pending user approval
-- [ ] `bugs.md` BUG-PROD-004 entry updated: Follow-up 1 → DONE with PR link — pending post-merge (Step 6)
+- [x] PR opened (#123) targeting `develop`
+- [x] Merge Checklist Evidence filled (8/8)
+
+**Post-merge (Step 6) actions — tracked in Completion Log, not DoD:**
+
+- squash-merge to `develop` (pending user approval)
+- delete branch local + remote
+- update `bugs.md` BUG-PROD-004 entry → Follow-up 1 DONE with PR link
+- update tracker Active Session → step `6/6 Done` → clear
 
 ---
 
@@ -95,7 +102,7 @@ N/A — Simple task (single-file deletion, no code changes, no tests affected).
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan (N/A Simple), Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence. |
-| 1. Mark all items | [x] | AC: 4/4, DoD: 4/6 (2 post-merge items: squash + bugs.md update — pending Step 6), Workflow: 4/5 + Step 6 post-merge. Status → `Ready for Merge`. |
+| 1. Mark all items | [x] | AC: 4/4, DoD: 6/6 (post-merge actions moved out of DoD into a separate Step 6 block), Workflow: 4/5 (Step 6 post-merge). Status → `Ready for Merge`. |
 | 2. Verify product tracker | [x] | Active Session updated to `5/6 (Review)` with PR #123 + commit `1918b5a`. No Features table row (Simple follow-up tracked in Active Session only). |
 | 3. Update key_facts.md | [x] | Infrastructure section: removed `deploy-landing.yml` from CI/CD list, updated prose to note BOTH web AND landing are now handled by Vercel GH App. Hosting (Landing) section: removed "+ custom deploy-landing.yml workflow pending cleanup" clause. Committed inline in `1918b5a`. |
 | 4. Update decisions.md | [x] | N/A — Simple tier, no ADR required. |
