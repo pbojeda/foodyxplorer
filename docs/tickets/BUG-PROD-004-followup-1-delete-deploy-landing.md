@@ -1,7 +1,7 @@
 # BUG-PROD-004-FU1: Delete redundant deploy-landing.yml workflow
 
 **Feature:** BUG-PROD-004-FU1 | **Type:** Infra-Bugfix | **Priority:** Low
-**Status:** Done | **Branch:** bugfix/BUG-PROD-004-followup-1-delete-deploy-landing (deleted)
+**Status:** Reverted (see BUG-PROD-004-FU1-REVERT ticket) | **Branch:** bugfix/BUG-PROD-004-followup-1-delete-deploy-landing (deleted)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-15 | **Dependencies:** BUG-PROD-004 (PR #111, merged)
 
@@ -98,6 +98,7 @@ N/A — Simple task (single-file deletion, no code changes, no tests affected).
 | 2026-04-15 | CI green | 10/10 checks: `ci-success` pass, `test-api` 4m9s, `test-bot` 1m26s, `test-landing` 1m17s, `test-scraper` 1m12s, `test-shared` 1m17s, `test-web` 1m47s, `Vercel` pass, `Vercel Preview Comments` pass, `changes` 7s. |
 | 2026-04-15 | Squash-merged | PR #123 → `develop` at merge commit `2f021c1` (3 commits squashed into 1). Branch deleted local + remote via `--delete-branch`. |
 | 2026-04-15 | Step 6 housekeeping | Ticket Status → `Done`, `bugs.md` BUG-PROD-004 Follow-up 1 → DONE, tracker Active Session cleared |
+| 2026-04-15 | **REVERTED** | Immediately after Step 6, during Task 2 (Vercel production branch investigation) the user reported that the `nutrixplorer` Vercel project is NOT Git-connected. Empirical check of `deploy-landing.yml` run history showed successful production deploys on push to `main` (last: 2026-04-11) with target URL `nutrixplorer-qo8us7dzi-pbojedas-projects.vercel.app` aliased to `www.nutrixplorer.com`. The workflow was the sole landing deploy mechanism. Deletion is a P1 deploy regression. Reverted via BUG-PROD-004-FU1-REVERT hotfix PR. Full post-mortem in `bugs.md` 2026-04-15 entry. |
 
 ---
 
