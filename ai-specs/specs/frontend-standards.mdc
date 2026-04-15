@@ -1,40 +1,32 @@
 ---
 description: Frontend development standards, best practices, and conventions. Covers component architecture, state management, UI/UX guidelines, and testing practices.
-globs: ["frontend/**/*.{ts,tsx}", "frontend/tsconfig.json", "frontend/jest.config.*", "frontend/package.json"]
+globs: ["**/*.{ts,tsx,js,jsx}", "!node_modules/**"]
 alwaysApply: true
 ---
 
-<!-- CONFIG: This file defaults to Next.js/React/Tailwind/Radix UI/Zustand. Adjust for your stack. -->
+<!-- TODO: Review and adjust the sections below to match your project's conventions. -->
+<!-- This file was generated from project analysis by create-sdd-project --init. -->
 
 # Frontend Standards
 
 ## Technology Stack
 
-- **Framework**: Next.js (App Router) with React
-- **Language**: TypeScript (strict mode)
-- **Styling**: Tailwind CSS
-- **Components**: Radix UI primitives (shadcn/ui pattern)
-- **State Management**: Zustand (client-side state)
-- **Testing**: Jest + React Testing Library (unit), Playwright (e2e)
+- **Framework**: Next.js
+- **Language**: JavaScript
+- **Styling**: CSS
+- **Testing**: Not configured
+
 
 ## Project Structure
 
 ```
-frontend/
-├── app/                   # Next.js App Router pages
-│   ├── layout.tsx         # Root layout
-│   ├── page.tsx           # Home page
-│   └── (routes)/          # Route groups
-├── components/            # UI components
-│   ├── ui/                # Primitive UI components (Button, Input, etc.)
-│   └── (features)/        # Feature-specific components
-├── lib/                   # Utilities and services
-│   ├── api/               # API client and types
-│   └── utils.ts           # General utilities
-├── stores/                # Zustand stores
-├── public/                # Static assets
-└── __tests__/             # Test utilities and fixtures
+project/
+├── initialDoc/
+├── packages/
+├── scripts/
 ```
+
+<!-- TODO: Expand the structure above with your key subdirectories. -->
 
 ## Naming Conventions
 

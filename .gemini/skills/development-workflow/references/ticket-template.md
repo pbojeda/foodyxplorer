@@ -19,7 +19,7 @@
 
 ### Data Model Changes (if applicable)
 
-[Schema changes needed. Update validation schemas if applicable.]
+[Schema changes needed. Update Zod schemas in `shared/src/schemas/` if applicable.]
 
 ### UI Changes (if applicable)
 
