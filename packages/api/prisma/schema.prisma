@@ -49,14 +49,12 @@ enum EstimationMethod {
   @@map("estimation_method")
 }
 
-enum PortionContext {
-  main_course
-  side_dish
-  dessert
-  starter
-  snack
+enum PortionConfidence {
+  high
+  medium
+  low
 
-  @@map("portion_context")
+  @@map("portion_confidence")
 }
 
 enum FoodType {
@@ -129,12 +127,11 @@ model DataSource {
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
-  foods            Food[]
-  foodNutrients    FoodNutrient[]
-  standardPortions StandardPortion[]
-  recipes          Recipe[]
-  dishes           Dish[]
-  dishNutrients    DishNutrient[]
+  foods         Food[]
+  foodNutrients FoodNutrient[]
+  recipes       Recipe[]
+  dishes        Dish[]
+  dishNutrients DishNutrient[]
 
   @@map("data_sources")
 }
@@ -158,9 +155,8 @@ model Food {
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
   source             DataSource        @relation(fields: [sourceId], references: [id])
-  foodNutrients      FoodNutrient[]
-  standardPortions   StandardPortion[]
-  recipe             Recipe?
+  foodNutrients     FoodNutrient[]
+  recipe            Recipe?
   recipeIngredients  RecipeIngredient[]
   dishes             Dish[]
   dishIngredients    DishIngredient[]
@@ -205,24 +201,26 @@ model FoodNutrient {
   @@map("food_nutrients")
 }
 
+/// F-UX-B — Per-dish portion assumption for Spanish serving terms (pintxo/tapa/media ración/ración).
+/// Populated offline via LLM + analyst-reviewed CSV seed pipeline.
+/// See ADR-020 and packages/api/src/scripts/seedStandardPortionCsv.ts.
 model StandardPortion {
-  id              String          @id @default(uuid()) @db.Uuid
-  foodId          String?         @map("food_id") @db.Uuid
-  foodGroup       String?         @map("food_group") @db.VarChar(100)
-  context         PortionContext
-  portionGrams    Decimal         @map("portion_grams") @db.Decimal(8, 2)
-  sourceId        String          @map("source_id") @db.Uuid
-  notes           String?         @db.Text
-  confidenceLevel ConfidenceLevel @map("confidence_level")
-  description     String          @db.VarChar(255)
-  isDefault       Boolean         @default(false) @map("is_default")
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  id        String            @id @default(uuid()) @db.Uuid
+  dishId    String            @map("dish_id") @db.Uuid
+  term      String            @db.VarChar(50)
+  grams     Int
+  pieces    Int?
+  pieceName String?           @map("piece_name") @db.VarChar(100)
+  confidence PortionConfidence
+  notes     String?           @db.Text
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
 
-  food   Food?      @relation(fields: [foodId], references: [id])
-  source DataSource @relation(fields: [sourceId], references: [id])
+  dish Dish @relation(fields: [dishId], references: [id], onDelete: Cascade)
 
-  // XOR constraint enforced via raw SQL CHECK in migration — not expressible in Prisma
+  // pieces and pieceName must both be null or both non-null (enforced via SQL CHECK constraint)
+  // UNIQUE (dish_id, term) enforced via SQL UNIQUE constraint (see migration SQL)
+  @@unique([dishId, term])
   @@map("standard_portions")
 }
 
@@ -349,6 +347,7 @@ model Dish {
   cookingMethods        DishCookingMethod[]
   categories            DishDishCategory[]
   missedQueryTrackings  MissedQueryTracking[]
+  standardPortions      StandardPortion[]
 
   // Partial indexes (food_id WHERE NOT NULL, FTS, aliases GIN) defined in raw SQL migration only
   @@index([restaurantId])

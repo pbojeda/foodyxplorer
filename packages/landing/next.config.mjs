@@ -1,4 +1,3 @@
-// touch: verify Vercel GitHub App connection to nutrixplorer project (2026-04-15, BUG-PROD-004-FU2 prod path)
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,

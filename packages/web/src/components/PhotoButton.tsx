@@ -59,12 +59,15 @@ export function PhotoButton({ onFileSelect, isLoading = false }: PhotoButtonProp
         </svg>
       </button>
 
-      {/* Hidden file input — owned here so PhotoButton is self-contained */}
+      {/* Hidden file input — owned here so PhotoButton is self-contained.
+          No `capture` attribute: on mobile, browsers show a chooser with
+          both "Take Photo" and "Photo Library" options. With `capture`
+          set, iOS Safari / Android Chrome bypass the chooser and open
+          the camera directly, hiding gallery access (BUG-PROD-002). */}
       <input
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        capture="environment"
         onChange={handleFileChange}
         hidden
         aria-hidden="true"

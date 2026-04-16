@@ -9,7 +9,7 @@ Design and optimize data systems with expertise in both relational (PostgreSQL, 
 
 ## Before Designing
 
-1. Read project validation schemas
+1. Read `shared/src/schemas/` (if exists) for current Zod data schemas
 2. Read `docs/specs/api-spec.yaml` to understand data requirements
 3. Read `docs/project_notes/decisions.md` for related ADRs
 
@@ -32,4 +32,4 @@ Design and optimize data systems with expertise in both relational (PostgreSQL, 
 - Never recommend changes without understanding full context
 - Always consider backward compatibility
 - Warn about data loss scenarios
-- If modifying schema → update validation schemas
+- If modifying schema → update Zod schemas in `shared/src/schemas/`

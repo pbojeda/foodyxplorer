@@ -17,6 +17,29 @@ Track important technical decisions with context, so future sessions understand 
 
 <!-- Add ADR entries below this line -->
 
+### ADR-019: Canonical Disambiguation Aliases for Culturally-Common Spanish Short-Form Terms (2026-04-12)
+
+**Context:** Ambiguous plain Spanish drink/food queries (`vino`, `cerveza`, …) were resolving to specialty variants instead of the culturally-common default serving. `level1Lookup.ftsDishMatch` in `packages/api/src/estimation/level1Lookup.ts` falls back to FTS (`to_tsvector('spanish', ...) @@ plainto_tsquery('spanish', ...)`) and orders by `priority_tier ASC, length(name_es) ASC LIMIT 1`. That tie-breaker (shortest name wins) is anti-correlated with cultural intent, because specialty items tend to have shorter names than the canonical defaults ("Manzanilla (vino)" wins over "Copa de vino tinto" by 1 char). See BUG-PROD-003 for the empirical trace.
+
+**Decision:** For culturally-common Spanish short-form food/drink terms, add the bare singular form as an **alias** on the preferred canonical dish in `packages/api/prisma/seed-data/spanish-dishes.json`. Strategy 1 (`exactDishMatch`, GIN-indexed `d.aliases @> ARRAY[${query}]`) hits first, bypassing the FTS tie-break entirely.
+
+Rules for picking the canonical target dish:
+- Prefer dishes with `source: "bedca"` or another Tier 1 source so nutrients are backed by official data.
+- Prefer servings that match what a Spanish user would actually be asking about ("vino" → Copa de vino tinto, "cerveza" → Cerveza lata in tercio semantics).
+- When the user's own wording in the bug report provides a literal preference ("un tercio de cerveza"), honor it.
+- **Scope of the "exactly one owner" invariant:** the rule that a term is claimed by exactly one dish applies **only to the disambiguation list** (the terms added under this ADR). It is NOT a universal codebase rule — the existing dataset already tolerates multi-owner aliases like `"manzanilla"` (Infusión de manzanilla + Copa de fino) and `"arroz con verduras"` (Paella de verduras + Arroz con verduras y huevo). Those are pre-existing data collisions logged as follow-up work in `bugs.md`, not invariants this ADR tries to enforce retroactively. The invariant test in `packages/api/src/__tests__/bug-prod-003.disambiguation.test.ts` only guards the terms this ADR added (`vino`, `cerveza`), so adding a new canonical disambiguation here requires adding its per-term uniqueness assertion to that file.
+
+**Alternatives Considered:**
+- **Ranking tweak (add `ts_rank()` to ORDER BY):** broad regression surface across all short queries. Not warranted for a handful of terms. Rejected.
+- **Dedicated `canonical_aliases` table with priority field:** over-engineered for current volume (two terms). Reconsider if the backlog grows past ~20 canonical defaults. Follow-up work.
+- **LLM pre-dispatch disambiguation:** L4 LLM already exists but only runs when L1/L2/L3 all miss. Adding a pre-L1 LLM step would bloat latency and cost for a deterministic data fix.
+- **Telemetry-driven backfill script** (Codex suggestion): good idea, deferred as follow-up ticket. Would iterate every single-token Spanish noun and assert its top L1 match is not a specialty variant.
+
+**Consequences:**
+- **Pros:** Surgical, additive, zero-risk data change. Fully covered by existing GIN index. No schema migration. Rollback is to delete two JSON strings.
+- **Cons:** Manual curation per term — doesn't scale beyond ~20 items without the tooling follow-up. New dishes that collide with an existing canonical alias will need explicit disambiguation.
+- **Follow-up (captured in `bugs.md` BUG-PROD-003 entry):** audit the remaining ambiguous singletons flagged by Codex/Gemini — `pan`, `leche`, `manzana`, `arroz`, `cafe`, `chocolate`, `jamon`, `queso`, `tostada`, `pollo`, `pescado`, `marisco`, `refresco`, `zumo`, `cava`. Build a script that lists every single-token Spanish noun in the dataset lacking an alias path, then triage.
+
 ### ADR-000: Initial Stack and Architecture (2026-03-10)
 
 **Context:** Selecting the technology stack for a nutritional information platform focused on Spanish restaurants. The product needs: relational data with complex joins, vector similarity search (pgvector), real-time API, Telegram bot, and future web/mobile apps. Single founder with 20+ years Node.js experience.
@@ -576,3 +599,45 @@ Analysis in `docs/research/product-evolution-analysis-2026-03-31.md` Section 17,
 - (+) Clean separation: client metrics (F112) vs server metrics (F029)
 - (+) sendBeacon ready for F113 backend integration
 - (-) Metrics only visible in browser localStorage until F113 ships
+
+### ADR-020: Per-Dish Portion Assumptions with Graceful Degradation to F085 Generic Ranges (2026-04-13)
+
+**Context:** F085's global gram ranges (`tapa=50–80g`) are dish-agnostic. The user asked for per-dish serving data so the bot and UI can show "~2 croquetas (≈50g)" for a tapa of croquetas vs "≈80ml" for a tapa of gazpacho. The existing `StandardPortion` table was present in the schema but unused and had an incompatible shape (foodId-based, not dish-based).
+
+**Decision:** Replace the legacy `StandardPortion` table with a new per-dish shape (`dishId`, `term`, `grams`, `pieces?`, `pieceName?`, `confidence`). Seed it offline via an analyst-reviewed CSV pipeline (no runtime LLM cost). Wire `resolvePortionAssumption` into both `routes/estimate.ts` and `estimationOrchestrator.ts` for parity. Use a 3-tier fallback chain at query time: Tier 1 (DB lookup), Tier 2 (media_racion×0.5 arithmetic from ración row), Tier 3 (F085 global range).
+
+**Cross-model review (Codex + Gemini + self-review) identified and resolved:**
+- M1-1: `formatPortionTermLabel` helper needed for canonical key → Spanish label mapping
+- M1-2: Shared schema cleanup (PortionContextSchema deletion) must be atomic with migration
+- M1-3: CSV `dishId` column must be UUID string (not integer)
+- M2-1: Pre-flight safety check before DROP TABLE (backup if rows present)
+- M3-1/M3-2: npm script wiring + agent template compliance
+
+**Tier 2 non-rule (spec §3.2):** Tier 2 does NOT apply to tapa/pintxo queries even when a ración row exists. Rationale: `tapa = ración × 0.25` would be false precision masquerading as data. Tapa and pintxo always degrade to Tier 3 generic.
+
+**Low-multiplier fall-through:** When `basePieces × multiplier < 0.75`, pieces is set to null (not rounded to 1). Rationale: 0.6 of a croqueta is not a meaningful UI element. The 0.75 threshold was chosen as the smallest value that rounds to 1 without conveying false precision.
+
+**Consequences:**
+- (+) Per-dish data covers 30 priority Spanish tapas with pieces + pieceName
+- (+) Zero runtime LLM cost — seed pipeline is fully offline
+- (+) Transparent degradation: Tier 3 output is byte-identical to pre-F-UX-B F085 output
+- (+) Bot 1205 tests remain green; generic path preserved by structural guard
+- (-) Per-dish coverage limited to reviewed priority-30 dishes until analyst expands CSV
+- (-) Cache key doesn't include portion-term dimension — stale cache after seeding requires deploy + cache flush (documented as deployment note)
+- (-) `StandardPortion` shape from prior unused table is fully incompatible; data migration is a clean drop-and-recreate
+
+### ADR-021: Full-flow integration tests required for conversation pipeline features (2026-04-13)
+
+**Context:** BUG-PROD-006 revealed that F085 (`portionSizing`) and F-UX-B (`portionAssumption`) were non-functional on the primary user path (`POST /conversation/message`) despite all unit and component tests passing. Root causes: (1) `prisma` not threaded through `ConversationRequest`; (2) F078-stripped query used for portion detection. Every existing test bypassed the full flow — they called `resolvePortionAssumption()` or `enrichWithPortionSizing()` directly with hardcoded inputs.
+
+**Decision:** Any new feature that adds data to the conversation response payload MUST have at least one integration test that calls `processMessage()` end-to-end (real DB, mocked Redis/cache). The test must assert the new field is present in `result.estimation` (or wherever the field lives on the response). Unit tests on the lowest-level resolver function alone are insufficient — they cannot catch wiring regressions where the resolver is never called.
+
+**Concretely:** `f-ux-b.conversationCore.integration.test.ts` and `f085.conversationCore.integration.test.ts` serve as the canonical examples. Both call `processMessage()` with real Prisma on the test DB, mock `runEstimationCascade` to control which dish is returned, and assert on `estimation.portionAssumption` / `estimation.portionSizing`.
+
+**Cross-model review (Codex + Gemini):** Both models independently identified the structural test coverage gap during plan review. Codex flagged it as M1 (structural miss, not just a test quality issue). Gemini confirmed the "resolvePortionAssumption directly" pattern is insufficient.
+
+**Consequences:**
+- (+) Wiring regressions (dependency not threaded, wrong variable passed) are caught before production
+- (+) End-to-end test doubles as smoke test for the full orchestration path
+- (-) Integration tests are slower (real DB) and require the test DB to be running
+- (-) Mocking `runEstimationCascade` introduces an abstraction boundary — tests don't cover cascade correctness, only the wiring from processMessage to resolvePortionAssumption

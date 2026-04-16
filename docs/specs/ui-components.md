@@ -981,14 +981,27 @@ Primary result display unit. One card per resolved dish/food item.
 
 **Sections:**
 - Header row: `name` (text-lg font-bold text-slate-800) + `<ConfidenceBadge confidence={confidence}>` (right)
+- **Portion modifier pill (F-UX-A):** conditional — rendered only when `estimateData.portionMultiplier !== 1.0`. A rounded-full amber pill (`bg-amber-100 text-amber-800 border-amber-200`, `text-[11px] font-semibold uppercase tracking-wide`, `px-2 py-0.5`) placed on its own line below the header row. Label copy:
+  - 0.5 → `PORCIÓN MEDIA`
+  - 0.7 → `PORCIÓN PEQUEÑA`
+  - 1.5 → `PORCIÓN GRANDE`
+  - 2.0 → `RACIÓN DOBLE` (rendered as `PORCIÓN DOBLE` by the current mapping; adjust copy in a future revision if needed)
+  - 3.0 → `RACIÓN TRIPLE` (rendered as `PORCIÓN TRIPLE`)
+  - unmapped → `×{N}` (e.g. `×2.5`)
+  - Label source: `formatPortionLabel` in `@foodxplorer/shared/portion/portionLabel.ts` — single source of truth for bot, API, and web.
 - Calorie block: `calories` in `text-[28px] font-extrabold text-brand-orange` + "KCAL" label
-- Macros row: Proteínas (brand-green) / Carbohidratos (amber) / Grasas (slate) — each `value text-lg font-bold` + `label text-[11px] uppercase`
+- **Base calories subtitle (F-UX-A):** conditional — rendered only when `estimateData.baseNutrients !== undefined` (which implies `portionMultiplier !== 1.0`). Text: `base: {baseCalories} kcal` in `text-[11px] text-slate-400`, directly under the KCAL label. Graceful degradation: if the backend does not ship `baseNutrients` (older cached responses), the subtitle is omitted but the pill still renders.
+- Macros row: Proteínas (brand-green) / Carbohidratos (amber) / Grasas (slate) — each `value text-lg font-bold` + `label text-[11px] uppercase`. Only the scaled macros are shown; base macros are explicitly out of scope for F-UX-A (see ticket `docs/tickets/F-UX-A-size-modifier-display.md`).
 - Allergens row: conditional, `flex flex-wrap gap-1.5`, `<AllergenChip>` per item
 - Source footer: `border-t border-slate-100 text-[11px] text-slate-400`
 
-**Animation:** CSS `card-enter` class (defined in `globals.css`). Uses `animationDelay: ${index * 0.08}s` inline style for stagger.
+**Animation:** CSS `card-enter` class (defined in `globals.css`). Uses `animationDelay: ${index * 0.08}s` inline style for stagger. The portion pill and base subtitle do NOT animate independently — they fade in as part of the card enter so the user perceives them as integral card content.
 
-**Accessibility:** `<article aria-label="{name}: {calories} calorías">`
+**Accessibility:**
+- Baseline: `<article aria-label="{name}: {calories} calorías">`
+- F-UX-A: when a modifier is active, the label extends to `"{name}: {calories} calorías ({portionLabel}, base {baseCalories})"` so a single screen-reader announcement carries the full context. When `baseNutrients` is absent, the base clause is dropped: `"{name}: {calories} calorías ({portionLabel})"`.
+- The pill itself is `aria-hidden="true"` (decorative — its content is already in the article label).
+- The base subtitle is NOT `aria-hidden` — it carries unique information and reads in natural document order.
 
 ### ConfidenceBadge
 

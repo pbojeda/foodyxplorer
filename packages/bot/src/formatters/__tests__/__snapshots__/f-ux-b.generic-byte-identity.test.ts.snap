@@ -1,0 +1,120 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`F-UX-B — generic branch byte-identity (snapshot baseline, pre-formatter) > 1. tapa de paella — paella not in priority-30 1`] = `
+"*Plato genérico*
+
+🔥 Calorías: 250 kcal
+🥩 Proteínas: 12 g
+🍞 Carbohidratos: 20 g
+🧈 Grasas: 12 g
+🌾 Fibra: 1 g
+🫙 Grasas saturadas: 3 g
+🧂 Sodio: 320 mg
+🧂 Sal: 0\\.8 g
+
+📏 *Porción detectada:* tapa \\(50\\-80 g\\)
+
+_Confianza: baja_"
+`;
+
+exports[`F-UX-B — generic branch byte-identity (snapshot baseline, pre-formatter) > 2. media ración de gambas al horno — "al horno" variant not seeded 1`] = `
+"*Plato genérico*
+
+🔥 Calorías: 250 kcal
+🥩 Proteínas: 12 g
+🍞 Carbohidratos: 20 g
+🧈 Grasas: 12 g
+🌾 Fibra: 1 g
+🫙 Grasas saturadas: 3 g
+🧂 Sodio: 320 mg
+🧂 Sal: 0\\.8 g
+
+📏 *Porción detectada:* media ración \\(100\\-125 g\\)
+
+_Confianza: baja_"
+`;
+
+exports[`F-UX-B — generic branch byte-identity (snapshot baseline, pre-formatter) > 3. ración de lentejas — lentejas not in priority-30 1`] = `
+"*Plato genérico*
+
+🔥 Calorías: 250 kcal
+🥩 Proteínas: 12 g
+🍞 Carbohidratos: 20 g
+🧈 Grasas: 12 g
+🌾 Fibra: 1 g
+🫙 Grasas saturadas: 3 g
+🧂 Sodio: 320 mg
+🧂 Sal: 0\\.8 g
+
+📏 *Porción detectada:* ración \\(200\\-250 g\\)
+
+_Confianza: baja_"
+`;
+
+exports[`F-UX-B — generic branch byte-identity (snapshot baseline, pre-formatter) > 4. tapa de solomillo — solomillo not in priority-30 1`] = `
+"*Plato genérico*
+
+🔥 Calorías: 250 kcal
+🥩 Proteínas: 12 g
+🍞 Carbohidratos: 20 g
+🧈 Grasas: 12 g
+🌾 Fibra: 1 g
+🫙 Grasas saturadas: 3 g
+🧂 Sodio: 320 mg
+🧂 Sal: 0\\.8 g
+
+📏 *Porción detectada:* tapa \\(50\\-80 g\\)
+
+_Confianza: baja_"
+`;
+
+exports[`F-UX-B — generic branch byte-identity (snapshot baseline, pre-formatter) > 5. pintxo de txipiron — unambiguous un-seeded Basque spelling 1`] = `
+"*Plato genérico*
+
+🔥 Calorías: 250 kcal
+🥩 Proteínas: 12 g
+🍞 Carbohidratos: 20 g
+🧈 Grasas: 12 g
+🌾 Fibra: 1 g
+🫙 Grasas saturadas: 3 g
+🧂 Sodio: 320 mg
+🧂 Sal: 0\\.8 g
+
+📏 *Porción detectada:* pintxo \\(30\\-60 g\\)
+
+_Confianza: baja_"
+`;
+
+exports[`F-UX-B — generic branch byte-identity (snapshot baseline, pre-formatter) > 6. ración de cocido — cocido not in priority-30 1`] = `
+"*Plato genérico*
+
+🔥 Calorías: 250 kcal
+🥩 Proteínas: 12 g
+🍞 Carbohidratos: 20 g
+🧈 Grasas: 12 g
+🌾 Fibra: 1 g
+🫙 Grasas saturadas: 3 g
+🧂 Sodio: 320 mg
+🧂 Sal: 0\\.8 g
+
+📏 *Porción detectada:* ración \\(200\\-250 g\\)
+
+_Confianza: baja_"
+`;
+
+exports[`F-UX-B — generic branch byte-identity (snapshot baseline, pre-formatter) > 7. tapa de manchego curado — "curado" variant not seeded 1`] = `
+"*Plato genérico*
+
+🔥 Calorías: 250 kcal
+🥩 Proteínas: 12 g
+🍞 Carbohidratos: 20 g
+🧈 Grasas: 12 g
+🌾 Fibra: 1 g
+🫙 Grasas saturadas: 3 g
+🧂 Sodio: 320 mg
+🧂 Sal: 0\\.8 g
+
+📏 *Porción detectada:* tapa \\(50\\-80 g\\)
+
+_Confianza: baja_"
+`;

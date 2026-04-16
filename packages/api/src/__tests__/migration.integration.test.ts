@@ -367,25 +367,15 @@ describe('Food — UNIQUE constraint (external_id, source_id)', () => {
   });
 });
 
-describe('StandardPortion — XOR CHECK constraint', () => {
-  it('fails when both foodId and foodGroup are set', async () => {
-    await expect(
-      prisma.$executeRaw`
-        INSERT INTO standard_portions (id, food_id, food_group, context, portion_grams, source_id, confidence_level, description, created_at, updated_at)
-        VALUES (gen_random_uuid(), ${FOOD_ID_1}::uuid, 'Vegetables', 'side_dish'::"portion_context", 100, ${SOURCE_ID}::uuid, 'low'::"confidence_level", 'Test portion', NOW(), NOW())
-      `,
-    ).rejects.toThrow();
-  });
-
-  it('fails when both foodId and foodGroup are null', async () => {
-    await expect(
-      prisma.$executeRaw`
-        INSERT INTO standard_portions (id, food_id, food_group, context, portion_grams, source_id, confidence_level, description, created_at, updated_at)
-        VALUES (gen_random_uuid(), NULL, NULL, 'side_dish'::"portion_context", 100, ${SOURCE_ID}::uuid, 'low'::"confidence_level", 'Test portion', NOW(), NOW())
-      `,
-    ).rejects.toThrow();
-  });
-});
+// REMOVED: StandardPortion XOR CHECK constraint tests.
+// The legacy `standard_portions` table (with food_id/food_group/context/portion_grams
+// columns + XOR CHECK + portion_context enum) was DROPPED and recreated with the
+// F-UX-B v1 shape (dish_id/term/grams/pieces/...) in migration 20260413180000.
+// The XOR constraint, the foodGroup column, the portion_context enum, and the
+// food_id/food_group XOR semantics no longer exist on this branch. Per code
+// review M3-3, removing rather than skipping these tests is the cleaner choice
+// because the schema they assert is gone from develop. See ADR-020 + bugs.md
+// BUG-DEV-GEMINI-CONFIG follow-up notes for the F-UX-B context.
 
 // ---------------------------------------------------------------------------
 // Index / search tests

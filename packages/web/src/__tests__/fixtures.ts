@@ -65,6 +65,9 @@ export function createEstimateResult(
 // ---------------------------------------------------------------------------
 
 export function createEstimateData(overrides: Partial<EstimateData> = {}): EstimateData {
+  // `portionAssumption` (F-UX-B) is an optional field on EstimateData — absent by default
+  // so the card renders no <div role="note"> for plain queries. Pass via `overrides` to
+  // exercise the portion-assumption render paths in F-UX-B tests.
   return {
     query: 'big mac',
     chainSlug: 'mcdonalds-es',

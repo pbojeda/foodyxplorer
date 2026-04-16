@@ -17,13 +17,17 @@ export type MetricEvent =
   | 'query_retry'
   | 'photo_sent'
   | 'photo_success'
-  | 'photo_error';
+  | 'photo_error'
+  | 'photo_resize_ok'
+  | 'photo_resize_fallback';
 
 export interface MetricPayload {
   intent?: string;
   responseTimeMs?: number;
   errorCode?: string;
   dishCount?: number;
+  originalKB?: number;
+  resizedKB?: number;
 }
 
 export interface MetricsSnapshot {

@@ -18,7 +18,6 @@ import {
   EstimateQuerySchema,
   type EstimateQuery,
   type EstimateData,
-  type EstimateResult,
 } from '@foodxplorer/shared';
 import type { DB } from '../generated/kysely-types.js';
 import { runEstimationCascade } from '../estimation/engineRouter.js';
@@ -32,7 +31,8 @@ import { enrichWithTips } from '../estimation/healthHacker.js';
 import { enrichWithSubstitutions } from '../estimation/substitutions.js';
 import { enrichWithAllergens } from '../estimation/allergenDetector.js';
 import { enrichWithUncertainty } from '../estimation/uncertaintyCalculator.js';
-import { enrichWithPortionSizing } from '../estimation/portionSizing.js';
+import { enrichWithPortionSizing, detectPortionTerm } from '../estimation/portionSizing.js';
+import { resolvePortionAssumption } from '../estimation/portionAssumption.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -192,15 +192,30 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
       levelHit = routerResult.levelHit !== null ? LEVEL_MAP[routerResult.levelHit] : null;
 
       // --- Apply portion multiplier ---
-      const scaledResult = (effectiveMultiplier !== 1 && routerResult.data.result !== null)
-        ? applyPortionMultiplier(routerResult.data.result, effectiveMultiplier)
-        : routerResult.data.result;
+      // F-UX-A: capture the base row BEFORE scaling so the response can
+      // include pre-multiplier nutrients alongside the scaled ones, keeping
+      // parity with the `estimationOrchestrator.estimate()` path that serves
+      // `/conversation/message`. Both public endpoints must produce the
+      // same shape for the same query.
+      const baseResult = routerResult.data.result;
+      const shouldScale = effectiveMultiplier !== 1 && baseResult !== null;
+      const scaledResult = shouldScale
+        ? applyPortionMultiplier(baseResult, effectiveMultiplier)
+        : baseResult;
 
       const estimateData: EstimateData = {
         ...routerResult.data,
         portionMultiplier: effectiveMultiplier,
         result: scaledResult,
         cachedAt: null,
+        // F-UX-A: paired base fields, shallow-cloned to avoid aliasing the
+        // cascade row. Only attached when scaling was actually applied.
+        ...(shouldScale && baseResult !== null
+          ? {
+              baseNutrients: { ...baseResult.nutrients },
+              basePortionGrams: baseResult.portionGrams,
+            }
+          : {}),
         // F081: Health-Hacker tips for chain dishes (threshold on scaled calories)
         ...enrichWithTips(scaledResult),
         // F082: Nutritional substitution suggestions (food-name keyword matching)
@@ -212,6 +227,25 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         // F085: Spanish portion term context from query
         ...enrichWithPortionSizing(query),
       };
+
+      // F-UX-B: Resolve per-dish portion assumption (3-tier fallback chain).
+      // Runs after enrichWithPortionSizing so portionSizing is already on estimateData.
+      {
+        const detectedTerm = detectPortionTerm(query);
+        const dishId =
+          scaledResult?.entityType === 'dish' ? scaledResult.entityId : null;
+        const { portionAssumption } = await resolvePortionAssumption(
+          prisma,
+          dishId,
+          detectedTerm,
+          query,
+          effectiveMultiplier,
+          request.log,
+        );
+        if (portionAssumption !== undefined) {
+          estimateData.portionAssumption = portionAssumption;
+        }
+      }
 
       // --- Cache write (with cachedAt timestamp) ---
       const dataToCache: EstimateData = {

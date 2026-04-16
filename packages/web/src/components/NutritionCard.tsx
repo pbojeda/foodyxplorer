@@ -1,9 +1,12 @@
+'use client';
 // NutritionCard — primary result unit for nutriXplorer.
 // Renders a dish's nutritional information in a styled card.
 // Accepts either EstimateData (standard) or ReverseSearchResult (filter results).
-// Pure presentational — no 'use client' needed.
+// Requires 'use client' for useId() (portion section heading id, unique per card instance).
 
-import type { EstimateData, ReverseSearchResult } from '@foodxplorer/shared';
+import React, { useId } from 'react';
+import type { EstimateData, PortionAssumption, ReverseSearchResult } from '@foodxplorer/shared';
+import { formatPortionLabel, formatPortionDisplayLabel } from '@foodxplorer/shared';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { AllergenChip } from './AllergenChip';
 
@@ -20,6 +23,11 @@ interface NutritionCardReverseProps {
 type NutritionCardProps = NutritionCardEstimateProps | NutritionCardReverseProps;
 
 export function NutritionCard({ estimateData, reverseResult }: NutritionCardProps) {
+  // Unique id per card instance for aria-labelledby (prevents duplicate ids in
+  // multi-card pages like comparison view). Requires 'use client'.
+  const instanceId = useId();
+  const portionHeadingId = `portion-heading-${instanceId}`;
+
   // ReverseSearchResult rendering — simplified card (no badge, no source)
   if (reverseResult) {
     const displayName = reverseResult.nameEs ?? reverseResult.name;
@@ -71,19 +79,73 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
   const fats = Math.round(result.nutrients.fats);
   const hasAllergens = Array.isArray(allergens) && allergens.length > 0;
 
+  // F-UX-A — Portion modifier display
+  const portionMultiplier = estimateData.portionMultiplier;
+  const portionLabel = formatPortionLabel(portionMultiplier); // empty when ≈1.0
+  const hasModifier = portionLabel !== '';
+  // Unify the pill vocabulary: mapped words are uppercased with the
+  // "PORCIÓN" prefix; unmapped `×N` values get the same prefix so the two
+  // states don't look like different components.
+  const pillLabel = hasModifier ? `PORCIÓN ${portionLabel.toUpperCase()}` : '';
+  const baseCalories =
+    hasModifier && estimateData.baseNutrients !== undefined
+      ? Math.round(estimateData.baseNutrients.calories)
+      : null;
+
+  // F-UX-B — Per-dish portion assumption
+  const portionAssumption = estimateData.portionAssumption;
+
+  const ariaLabel = hasModifier
+    ? baseCalories !== null
+      ? `${displayName}: ${kcal} calorías (${portionLabel}, base ${baseCalories})`
+      : `${displayName}: ${kcal} calorías (${portionLabel})`
+    : `${displayName}: ${kcal} calorías`;
+
   return (
     <article
       className="card-enter overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-soft md:p-5"
-      aria-label={`${displayName}: ${kcal} calorías`}
+      aria-label={ariaLabel}
     >
       <header className="flex items-start justify-between gap-3">
         <h2 className="text-lg font-bold text-slate-800">{displayName}</h2>
         <ConfidenceBadge level={result.confidenceLevel} />
       </header>
 
+      {/* Portion section — wraps F-UX-A pill + F-UX-B line when either is present */}
+      {(hasModifier || portionAssumption) && (
+        <section aria-labelledby={portionHeadingId} className="mt-1.5">
+          <h3 id={portionHeadingId} className="sr-only">Información de porción</h3>
+
+          {/* F-UX-A pill — moved inside section, mt-1.5 now on section itself */}
+          {hasModifier && (
+            <p aria-hidden="true">
+              <span className="inline-block rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+                {pillLabel}
+              </span>
+            </p>
+          )}
+
+          {/* F-UX-B portion assumption line */}
+          {portionAssumption && (
+            <div
+              role="note"
+              aria-label={buildPortionAssumptionAriaLabel(portionAssumption)}
+              className="mt-1 text-[12px] leading-snug"
+            >
+              {renderPortionAssumptionContent(portionAssumption)}
+            </div>
+          )}
+        </section>
+      )}
+
       <div className="mt-3">
         <span className="text-[28px] font-extrabold leading-none text-brand-orange">{kcal}</span>
         <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">KCAL</p>
+        {baseCalories !== null && (
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            base: {baseCalories} kcal
+          </p>
+        )}
       </div>
 
       <div className="mt-3 flex gap-4">
@@ -107,6 +169,76 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
       )}
     </article>
   );
+}
+
+// ---------------------------------------------------------------------------
+// F-UX-B helpers — pure functions colocated with the component
+// ---------------------------------------------------------------------------
+
+/**
+ * Derive the display label for the portion term.
+ *
+ * Delegates to the shared `formatPortionDisplayLabel` helper which unifies the
+ * web and bot rendering paths (Codex code review M3-2: previously the web did
+ * inline `capitalize(termDisplay)` while the bot passed termDisplay raw,
+ * producing different output for the same input).
+ */
+function getTermLabel(pa: PortionAssumption): string {
+  return formatPortionDisplayLabel(pa.termDisplay, pa.term);
+}
+
+/**
+ * Render the visible text content for the portion assumption line.
+ * Returns a React node (plain string for per_dish paths, JSX for generic).
+ * Uses <span className="italic"> (not <em>) for "estimado genérico" — purely
+ * visual italic to avoid screen-reader stress-emphasis announcement.
+ */
+function renderPortionAssumptionContent(pa: PortionAssumption): React.ReactNode {
+  const term = getTermLabel(pa);
+  switch (pa.source) {
+    case 'per_dish':
+      return pa.pieces !== null ? (
+        <>
+          <span className="font-semibold text-slate-600">{term} ≈ </span>
+          <span className="font-normal text-slate-500">~{pa.pieces} {pa.pieceName} (≈ {pa.grams} g)</span>
+        </>
+      ) : (
+        <>
+          <span className="font-semibold text-slate-600">{term} ≈ </span>
+          <span className="font-normal text-slate-500">{pa.grams} g</span>
+        </>
+      );
+    case 'generic': {
+      // superRefine guarantees gramsRange is non-null when source === 'generic'
+      const [min, max] = pa.gramsRange!;
+      return (
+        <>
+          <span className="font-semibold text-slate-600">{term} estándar: </span>
+          <span className="font-normal text-slate-500">{min}–{max} g (</span>
+          <span className="italic text-slate-500">estimado genérico</span>
+          <span className="font-normal text-slate-500">)</span>
+        </>
+      );
+    }
+  }
+}
+
+/**
+ * Build the aria-label for the portion assumption note element.
+ * MUST contain "aproximadamente" in every render path.
+ */
+function buildPortionAssumptionAriaLabel(pa: PortionAssumption): string {
+  switch (pa.source) {
+    case 'per_dish':
+      return pa.pieces !== null
+        ? `aproximadamente ${pa.pieces} ${pa.pieceName}, unos ${pa.grams} gramos`
+        : `aproximadamente ${pa.grams} gramos`;
+    case 'generic': {
+      // superRefine guarantees gramsRange is non-null when source === 'generic'
+      const [min, max] = pa.gramsRange!;
+      return `aproximadamente entre ${min} y ${max} gramos, estimado genérico`;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

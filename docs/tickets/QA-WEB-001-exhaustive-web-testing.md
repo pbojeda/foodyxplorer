@@ -1,7 +1,7 @@
 # QA-WEB-001: Exhaustive Testing — packages/web
 
 **Feature:** QA-WEB-001 | **Type:** Frontend-QA | **Priority:** High
-**Status:** Ready for Merge | **Branch:** qa/QA-WEB-001-exhaustive-web-testing
+**Status:** Done | **Branch:** qa/QA-WEB-001-exhaustive-web-testing (deleted)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-11 | **Dependencies:** F090, F092, F093 (all done)
 
@@ -415,7 +415,7 @@ Estimated tests: **~4**
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed — APPROVED WITH NOTES (2 Medium fixed)
 - [x] Step 5: `qa-engineer` executed — VERIFIED WITH NOTES (BUG-QA-013 added, F-020 comment fixed)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -429,6 +429,7 @@ Estimated tests: **~4**
 | 2026-04-11 | Step 3: Implement | frontend-developer created 6 test files, 62 new tests. All 325 tests passing. |
 | 2026-04-11 | Step 4: Finalize | production-code-validator: READY (zero issues). Lint clean. Typecheck clean. Findings: 0 P0, 3 P1, 8 P2. |
 | 2026-04-11 | Step 5: Review | code-review-specialist: APPROVED WITH NOTES (2M fixed: empty waitFor, if/else assertions). qa-engineer: VERIFIED WITH NOTES (BUG-QA-013 added — null data guard gap, F-020 comment clarified). PR #99. |
+| 2026-04-12 | Step 6: Complete | PR #99 squash-merged to develop (66bf939). PR #101 merged develop → main. Branches deleted. 13 bugs registered in bugs.md. |
 
 ---
 

@@ -229,6 +229,87 @@ describe('EstimationOrchestrator.estimate()', () => {
   });
 
   // -------------------------------------------------------------------------
+  // F-UX-A: base-nutrients capture (multiplier !== 1)
+  // -------------------------------------------------------------------------
+
+  describe('F-UX-A — base nutrients capture', () => {
+    it('attaches baseNutrients + basePortionGrams when multiplier !== 1.0', async () => {
+      mockRunEstimationCascade.mockResolvedValueOnce(ROUTER_L1_HIT);
+
+      const result = await estimate({
+        query: 'big mac',
+        portionMultiplier: 1.5,
+        db: mockDb,
+        redis: mockRedis,
+        chainSlugs: [],
+        logger: mockLogger,
+      });
+
+      expect(result.baseNutrients).toBeDefined();
+      expect(result.basePortionGrams).toBeDefined();
+      // The base values must be the PRE-multiplier row from the cascade
+      expect(result.baseNutrients?.calories).toBe(550);
+      expect(result.basePortionGrams).toBe(215);
+      // The scaled values are still in `result.result`
+      expect(result.result?.nutrients.calories).toBeGreaterThan(550);
+    });
+
+    it('OMITS baseNutrients + basePortionGrams when multiplier === 1.0 (no modifier)', async () => {
+      mockRunEstimationCascade.mockResolvedValueOnce(ROUTER_L1_HIT);
+
+      const result = await estimate({
+        query: 'big mac',
+        portionMultiplier: 1,
+        db: mockDb,
+        redis: mockRedis,
+        chainSlugs: [],
+        logger: mockLogger,
+      });
+
+      expect(result.baseNutrients).toBeUndefined();
+      expect(result.basePortionGrams).toBeUndefined();
+    });
+
+    it('OMITS baseNutrients when the cascade misses (result is null)', async () => {
+      mockRunEstimationCascade.mockResolvedValueOnce(ROUTER_TOTAL_MISS);
+
+      const result = await estimate({
+        query: 'unknown',
+        portionMultiplier: 2,
+        db: mockDb,
+        redis: mockRedis,
+        chainSlugs: [],
+        logger: mockLogger,
+      });
+
+      expect(result.result).toBeNull();
+      expect(result.baseNutrients).toBeUndefined();
+      expect(result.basePortionGrams).toBeUndefined();
+    });
+
+    it('base values are an exact copy of the cascade row — nutrients do not reflect the multiplier', async () => {
+      mockRunEstimationCascade.mockResolvedValueOnce(ROUTER_L1_HIT);
+
+      const result = await estimate({
+        query: 'big mac',
+        portionMultiplier: 3,
+        db: mockDb,
+        redis: mockRedis,
+        chainSlugs: [],
+        logger: mockLogger,
+      });
+
+      // Every base nutrient must equal the original cascade nutrient
+      expect(result.baseNutrients?.calories).toBe(BASE_NUTRIENTS.calories);
+      expect(result.baseNutrients?.proteins).toBe(BASE_NUTRIENTS.proteins);
+      expect(result.baseNutrients?.fats).toBe(BASE_NUTRIENTS.fats);
+      expect(result.baseNutrients?.carbohydrates).toBe(BASE_NUTRIENTS.carbohydrates);
+      // And the scaled result must NOT equal the base
+      expect(result.result?.nutrients.calories).not.toBe(BASE_NUTRIENTS.calories);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Portion multiplier = 1 → NOT applied (result unchanged)
   // -------------------------------------------------------------------------
 

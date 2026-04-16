@@ -21,7 +21,7 @@
         "./src/*"
       ],
       "@foodxplorer/shared": [
-        "../../shared/src/index.ts"
+        "../shared/src/index.ts"
       ]
     },
     "plugins": [

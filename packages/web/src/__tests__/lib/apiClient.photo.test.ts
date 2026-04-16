@@ -9,6 +9,50 @@ jest.mock('../../lib/actorId', () => ({
 import { sendPhotoAnalysis, ApiError } from '../../lib/apiClient';
 import { createMenuAnalysisResponse } from '../fixtures';
 
+// ---------------------------------------------------------------------------
+// BUG-PROD-001 — 413 HTML body should map to PAYLOAD_TOO_LARGE, not PARSE_ERROR
+// ---------------------------------------------------------------------------
+
+describe('sendPhotoAnalysis — BUG-PROD-001 413 HTML body handling', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('maps a 413 with non-JSON body to ApiError(PAYLOAD_TOO_LARGE)', async () => {
+    // Vercel's own platform request-body limit returns an HTML error page with
+    // status 413 — response.json() throws. Previously this surfaced as
+    // PARSE_ERROR → generic "formato inesperado" toast. Now it must surface
+    // as PAYLOAD_TOO_LARGE so HablarShell shows the size-specific message.
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 413,
+      headers: new Headers({ 'Content-Type': 'text/html' }),
+      json: jest.fn().mockRejectedValue(new SyntaxError('Unexpected token < in JSON')),
+    });
+    const file = new File([new Uint8Array(1)], 'big.jpg', { type: 'image/jpeg' });
+
+    await expect(sendPhotoAnalysis(file, 'actor-uuid-413')).rejects.toMatchObject({
+      code: 'PAYLOAD_TOO_LARGE',
+      status: 413,
+    });
+  });
+
+  it('still throws PARSE_ERROR on a non-413 status with non-JSON body', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      headers: new Headers({ 'Content-Type': 'text/html' }),
+      json: jest.fn().mockRejectedValue(new SyntaxError('Unexpected token < in JSON')),
+    });
+    const file = new File([new Uint8Array(1)], 'ok.jpg', { type: 'image/jpeg' });
+
+    await expect(sendPhotoAnalysis(file, 'actor-uuid-502')).rejects.toMatchObject({
+      code: 'PARSE_ERROR',
+      status: 502,
+    });
+  });
+});
+
 const MOCK_ACTOR_ID = 'photo-actor-uuid-0001';
 
 // ---------------------------------------------------------------------------

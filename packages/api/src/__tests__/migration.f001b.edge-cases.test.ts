@@ -520,73 +520,14 @@ describe('Seed data correctness — chicken cholesterol = 85 (spec requirement)'
 // DB — description backfill: COALESCE logic — pre-migration rows get correct values
 // ---------------------------------------------------------------------------
 
-describe('Migration backfill — description COALESCE(notes, Standard portion) correctness', () => {
-  const SRC = 'ae000004-0001-4000-a000-000000000001';
-  const FOOD = 'ae000004-0001-4000-a000-000000000002';
-
-  beforeAll(async () => {
-    await prisma.standardPortion.deleteMany({ where: { sourceId: SRC } });
-    await prisma.food.deleteMany({ where: { sourceId: SRC } });
-    await prisma.dataSource.deleteMany({ where: { id: SRC } });
-    await prisma.dataSource.create({ data: { id: SRC, name: 'QA-Backfill-Src', type: 'official' } });
-    await prisma.food.create({
-      data: {
-        id: FOOD, name: 'QA Backfill Food', nameEs: 'QA Relleno',
-        aliases: [], sourceId: SRC, confidenceLevel: 'low',
-      },
-    });
-  });
-
-  afterAll(async () => {
-    await prisma.standardPortion.deleteMany({ where: { sourceId: SRC } });
-    await prisma.food.deleteMany({ where: { sourceId: SRC } });
-    await prisma.dataSource.deleteMany({ where: { id: SRC } });
-  });
-
-  it('new StandardPortion with notes gets correct description (backfill already applied; new inserts require explicit description)', async () => {
-    // Post-migration, the column is NOT NULL — all new inserts must supply description explicitly.
-    // We verify that inserting with an explicit description (simulating a seeded row) works correctly.
-    const sp = await prisma.standardPortion.create({
-      data: {
-        foodId: FOOD,
-        foodGroup: null,
-        context: 'snack',
-        portionGrams: 30,
-        sourceId: SRC,
-        confidenceLevel: 'low',
-        notes: 'A meaningful note',
-        description: 'A meaningful note', // must match what COALESCE would have produced
-        isDefault: false,
-      },
-    });
-    expect(sp.description).toBe('A meaningful note');
-    expect(sp.notes).toBe('A meaningful note');
-    await prisma.standardPortion.delete({ where: { id: sp.id } });
-  });
-
-  it('all current standard_portions have description derived from non-empty string (global invariant)', async () => {
-    type Row = { count: bigint };
-    const rows = await prisma.$queryRaw<Row[]>`
-      SELECT COUNT(*)::bigint AS count
-      FROM standard_portions
-      WHERE description IS NULL OR description = ''
-    `;
-    expect(Number(rows[0]?.count)).toBe(0);
-  });
-
-  it('standard_portions with notes = Standard portion as fallback are non-empty (COALESCE fallback guard)', async () => {
-    // Any row where notes was NULL at migration time would have gotten 'Standard portion'
-    // verify no row has an empty or null description regardless
-    type Row = { total: bigint; without_desc: bigint };
-    const rows = await prisma.$queryRaw<Row[]>`
-      SELECT
-        COUNT(*)::bigint AS total,
-        COUNT(*) FILTER (WHERE description IS NULL OR trim(description) = '')::bigint AS without_desc
-      FROM standard_portions
-    `;
-    expect(Number(rows[0]?.without_desc)).toBe(0);
-  });
-});
+// REMOVED: Migration backfill — description COALESCE tests.
+// The legacy `standard_portions.description` column (with the F001b backfill
+// migration that populated it from `notes` via COALESCE) was DROPPED entirely
+// in F-UX-B migration 20260413180000. The new `standard_portions` shape has
+// only `notes TEXT` (nullable), no `description`, no `isDefault`, no
+// `foodGroup`, no `context`, no `portionGrams`, no `food_id` — the columns
+// these tests asserted no longer exist and `prisma.standardPortion` no longer
+// accepts these fields. Per code review M3-3.
 
 // ---------------------------------------------------------------------------
 // DB — barcode column: VARCHAR(50) enforced at DB level

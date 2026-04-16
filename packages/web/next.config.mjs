@@ -1,6 +1,22 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // F-UX-A: `@foodxplorer/shared` ships raw TypeScript with Node16-style
+  // `.js` imports. Next.js must transpile it through its own TS pipeline so
+  // those imports resolve to the real `.ts` files in packages/shared/src.
+  transpilePackages: ['@foodxplorer/shared'],
+  webpack: (config) => {
+    // Shared package ships raw TypeScript using Node16-style `.js` suffixes on
+    // intra-package imports. Tell webpack's resolver that a `.js` request in
+    // a TypeScript context must fall back to the corresponding `.ts` / `.tsx`
+    // source file. Without this, `import './schemas/enums.js'` from shared
+    // fails at webpack module resolution even though it succeeds at tsc.
+    config.resolve.extensionAlias = {
+      ...(config.resolve.extensionAlias ?? {}),
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+    };
+    return config;
+  },
   images: {
     remotePatterns: [],
   },

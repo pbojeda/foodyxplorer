@@ -8037,6 +8037,23 @@ components:
             F085 — Detected Spanish portion term with standard gram range.
             Present when the query contains a recognized portion term
             (e.g., "media ración", "tapa", "pintxo"). Informational only.
+        portionAssumption:
+          $ref: '#/components/schemas/PortionAssumption'
+          description: |
+            F-UX-B — Per-dish portion assumption resolved via 3-tier fallback chain.
+            Present when the query contains a recognized Spanish portion term AND
+            the matched entity is a dish (entityType='dish'). Absent for food-level
+            matches or queries with no portion term.
+
+            Tier 1 (source='per_dish'): exact DB row for (dishId, term) — populated
+            for the 30 priority dishes in standard_portions.
+            Tier 2 (source='per_dish', term='media_racion'): derived from ración row
+            via ×0.5 arithmetic. Does NOT apply to tapa/pintxo queries.
+            Tier 3 (source='generic'): F085 global gram range midpoint. fallbackReason
+            indicates why ('no_row', 'tier2_rejected_tapa', 'tier2_rejected_pintxo').
+
+            The `pieces` field is null when basePieces × multiplier < 0.75 to avoid
+            false precision on display (see F-UX-B spec §4).
         uncertaintyRange:
           $ref: '#/components/schemas/UncertaintyRange'
           description: |
@@ -8044,6 +8061,27 @@ components:
             estimation method. Percentage varies from ±5% (high confidence,
             official data) to ±30% (low confidence, LLM estimation).
             Present when result is non-null; omitted when result is null.
+        baseNutrients:
+          $ref: '#/components/schemas/EstimateNutrients'
+          description: |
+            F-UX-A — Pre-multiplier nutrient row captured by the orchestrator
+            BEFORE `applyPortionMultiplier` scales the values. Frontend renders
+            a `base: N kcal` subtitle under the scaled KCAL figure so the user
+            can compare the normal serving against the estimation used.
+
+            Presence rules (enforced by Zod `superRefine`):
+            - ABSENT when `portionMultiplier === 1.0` (no modifier → no base).
+            - PRESENT (and paired with `basePortionGrams`) when `portionMultiplier !== 1.0`
+              AND the estimation cascade produced a non-null `result`.
+            - NEVER appears without `basePortionGrams` — the two fields are a pair.
+        basePortionGrams:
+          type: number
+          nullable: true
+          exclusiveMinimum: 0
+          description: |
+            F-UX-A — Pre-multiplier portion grams, paired with `baseNutrients`.
+            Same presence rule: absent when `portionMultiplier === 1.0`, present
+            (possibly null — inherited from the cascade row) otherwise.
 
     HealthHackerTip:
       type: object
@@ -8147,6 +8185,99 @@ components:
           type: string
           description: Human-readable description in Spanish.
           example: "Media ración estándar española"
+
+    PortionAssumption:
+      type: object
+      description: |
+        F-UX-B — Per-dish portion assumption. Discriminated by `source`:
+        - `per_dish` (Tier 1 or Tier 2): gramsRange is null, confidence is non-null,
+          fallbackReason is null. pieces and pieceName are paired (both null or both non-null).
+        - `generic` (Tier 3): gramsRange is present, grams equals midpoint, pieces/pieceName/
+          confidence are all null, fallbackReason is non-null.
+      required:
+        - term
+        - termDisplay
+        - source
+        - grams
+        - pieces
+        - pieceName
+        - gramsRange
+        - confidence
+        - fallbackReason
+      properties:
+        term:
+          type: string
+          enum: [pintxo, tapa, media_racion, racion]
+          description: Canonical DB key for the portion term.
+          example: "tapa"
+        termDisplay:
+          type: string
+          minLength: 1
+          description: |
+            User's literal wording from the query (e.g. "pincho" if user typed "pincho",
+            "pintxo" if user typed "pintxo"). Preserves user's spelling intent.
+          example: "tapa"
+        source:
+          type: string
+          enum: [per_dish, generic]
+          description: |
+            'per_dish' — assumption comes from a per-dish DB row or Tier 2 arithmetic.
+            'generic' — no per-dish data; assumption is the F085 global gram range midpoint.
+        grams:
+          type: integer
+          exclusiveMinimum: 0
+          description: |
+            Estimated grams for this portion (scaled by portionMultiplier).
+            For generic source: equals Math.round((gramsMin + gramsMax) / 2).
+          example: 50
+        pieces:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: |
+            Estimated piece count for this portion, or null when:
+            - No piece data in DB (e.g. gazpacho).
+            - basePieces × multiplier < 0.75 (fall-through to avoid false precision).
+            Always null for source='generic'.
+          example: 2
+        pieceName:
+          type: string
+          minLength: 1
+          nullable: true
+          description: |
+            Spanish name of the countable unit (e.g. "croquetas"). Null iff pieces is null.
+          example: "croquetas"
+        gramsRange:
+          type: array
+          items:
+            type: integer
+            exclusiveMinimum: 0
+          minItems: 2
+          maxItems: 2
+          nullable: true
+          description: |
+            [gramsMin, gramsMax] from F085 global portion rules. Present iff source='generic'.
+            Null for source='per_dish'.
+          example: [50, 80]
+        confidence:
+          type: string
+          enum: [high, medium, low]
+          nullable: true
+          description: |
+            Confidence of the per-dish portion data. Non-null for source='per_dish'.
+            Always null for source='generic'.
+          example: "high"
+        fallbackReason:
+          type: string
+          enum: [no_row, tier2_rejected_tapa, tier2_rejected_pintxo]
+          nullable: true
+          description: |
+            Why Tier 3 was reached. Non-null for source='generic'.
+            - 'no_row': no ración row exists for this dish.
+            - 'tier2_rejected_tapa': ración row exists but Tier 2 doesn't apply to tapa queries.
+            - 'tier2_rejected_pintxo': ración row exists but Tier 2 doesn't apply to pintxo queries.
+            Always null for source='per_dish'.
+          example: "no_row"
 
     UncertaintyRange:
       type: object
