@@ -1,7 +1,7 @@
 # BUG-PROD-007: comparison + menu paths missing `prisma` and `originalQuery`
 
 **Feature:** BUG-PROD-007 | **Type:** Backend-Bugfix | **Priority:** M2 (Degraded UX — comparison and menu responses show null portionSizing / portionAssumption)
-**Status:** Ready for Merge | **Branch:** bugfix/BUG-PROD-007-comparison-menu-wiring | **PR:** https://github.com/pbojeda/foodyxplorer/pull/120
+**Status:** Done | **Branch:** bugfix/BUG-PROD-007-comparison-menu-wiring (deleted) | **PR:** https://github.com/pbojeda/foodyxplorer/pull/120 (merged at `aab85f0`, 2026-04-14)
 **Created:** 2026-04-14 | **Dependencies:** BUG-PROD-006 (merged ✓), F085 (done ✓), F-UX-B (done ✓)
 
 ---
@@ -900,7 +900,7 @@ The following are explicitly excluded from this PR (per spec):
 - [x] **Step 4 — Implementation (TDD).** 6 commits (2 RED test, 2 GREEN fix, 1 chore logger, 1 docs bugs.md). 26/26 BUG-PROD-007 integration tests GREEN. Solo-path regression guards + cache-key spy GREEN from start (committed inside commit 2).
 - [x] **Step 5 — Code review + QA.** code-review-specialist APPROVE + 3 NITs (2 addressed inline). qa-engineer PASS WITH FOLLOW-UPS + 1 IMPORTANT (AC8 sentinel hardened inline so the `toBeUndefined()` guard exclusively exercises the `nullEstimateData` branch).
 - [x] **Step 5.1 — PR opened.** PR #120 to `develop`, CI `ci-success` PASS, `test-api` PASS (3m58s), Vercel preview deployed, mergeStateStatus CLEAN
-- [ ] **Step 6 — Merge.** Pending user approval + squash to `develop`
+- [x] **Step 6 — Merge.** Squash-merged to `develop` at `aab85f0` (PR #120, 2026-04-14). Branch deleted post-merge (neither local nor remote reference present as of 2026-04-16 audit). Tracker + bugs.md synced inline in the same squash commit (`docs/project_notes/product-tracker.md` Active Session + Pipeline Complete list, `docs/project_notes/bugs.md` entry at line 876). Post-merge ticket finalize handled in tracker-sync PR `chore/tracker-sync-bug-prod-007-finalize`.
 
 ---
 
@@ -1032,3 +1032,18 @@ All 13 ACs defined in the Spec table are verified by the 26 BUG-PROD-007 tests i
 - **Merge Checklist Evidence table:** 8/8 rows filled with empirical evidence (commit SHAs, test counts, CI check names, PR URL, `gh pr view` output).
 - **Status transition:** `Spec v3 + Plan v2` → `Ready for Merge`.
 - **Compliance:** PASS (see Audit Report below).
+
+### Merge — 2026-04-14
+
+- **Squash commit:** `aab85f0` on `develop` (PR #120)
+- **Files merged:** 6 files, +1684/-7 lines (`conversationCore.ts` 8-line diff + 2 integration test extensions +633 lines + ticket file +1034 lines + `bugs.md` entry + tracker sync)
+- **Branch deletion:** `bugfix/BUG-PROD-007-comparison-menu-wiring` deleted via `gh pr merge --squash --delete-branch`
+- **Post-merge CI on `develop`:** green (next commit `dae4968` docs-only, no regressions introduced by the merge)
+- **Cycle closed:** 26/26 BUG-PROD-007 integration tests GREEN, no BUG-PROD-006 regressions, solo/comparison/menu paths all wired with `prisma` + `originalQuery`, `logger.warn` downgraded to `logger.debug`.
+
+### Post-merge Step 6 housekeeping — 2026-04-16
+
+- **Context:** External audit (2026-04-16) flagged that the ticket file was frozen at `Ready for Merge` state post-PR #120 squash. Status field, Step 6 checkbox, and Completion Log merge entry were never updated after the actual merge — the same class of gap that BUG-PROD-004-FU1-RETRY needed PR #130 to close. BUG-PROD-007 was merged 2026-04-14, one day before the preventive rule v2 for split-cycle / post-merge housekeeping was strengthened in `bugs.md` during the BUG-PROD-004-FU1 cycle, so this ticket predates the process improvement.
+- **PR:** `chore/tracker-sync-bug-prod-007-finalize`
+- **Changes:** ticket file only — Status `Ready for Merge` → `Done`, Step 6 `[ ]` → `[x]` with merge commit reference, two new Completion Log entries (Merge + this housekeeping).
+- **No code changes, no additional tests, no tracker or bugs.md updates needed** — both were already synced inline during the original PR #120 squash.
