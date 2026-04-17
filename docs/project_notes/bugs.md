@@ -937,6 +937,14 @@ The user explicitly requires human review for the 2 production errors (`menuForm
 - **Prevention**: Always check `!== null` alongside `typeof === 'object'`.
 - **Status**: Open | **Found by**: QA-WEB-001 qa-engineer | **Evidence**: `apiClient.qa-web-001.test.ts`
 
+### 2026-04-17 — BUG-PROD-009: standard_portions seeded with 6 wrong dishId mappings
+
+- **Root cause**: `matchesPriorityName` in `generateStandardPortionCsv.ts` used `.includes()` substring match + `Array.find` first-match. Short names (`jamón`, `tortilla`, `cocido`) resolved to the first JSON-order dish containing the word, not the canonical dish. `jamón` → Bocadillo de jamón york (`...0015`), `tortilla` → Pincho de tortilla (`...0007`), `cocido` → Bocadillo de jamón york (`...0015` again via alias), `chorizo` → Lentejas estofadas (`...0044`), `chuletón` → Entrecot de ternera (`...0069`), `arroz` → Arroz negro (`...0084`).
+- **Fix**: Replaced `matchesPriorityName` (removed, not deprecated) with explicit `PRIORITY_DISH_MAP: Record<string, string>` (39 entries). Added fail-hard `validatePriorityDishMap` function: throws on duplicate dishIds or dishIds absent from `spanish-dishes.json`. Regenerated CSV with corrected mappings + researched values. Production migration: DELETE rows for wrong dishIds (`...0015`, `...0007`, `...0069`, `...0084`) + re-seed.
+- **Impact**: 160 rows in `standard_portions` on dev + prod (pre-fix). 3 actively wrong mappings (jamón → bocadillo, tortilla → pincho, cocido → bocadillo). Tier 1 lookups for those dishIds were returning template `grams=50` instead of no result (worse than Tier 3 fallback). Queries for "ración de entrecot" returning 50g template from chuletón row.
+- **Ticket**: BUG-PROD-009
+- **ADR**: ADR-022
+
 ### 2026-04-14 — BUG-PROD-007: comparison + menu paths missing prisma + originalQuery (M2)
 
 - **Severity**: M2 (degraded UX — portionSizing and portionAssumption absent for all comparison and menu queries)

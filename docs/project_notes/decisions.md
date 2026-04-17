@@ -636,6 +636,16 @@ Analysis in `docs/research/product-evolution-analysis-2026-03-31.md` Section 17,
 
 **Cross-model review (Codex + Gemini):** Both models independently identified the structural test coverage gap during plan review. Codex flagged it as M1 (structural miss, not just a test quality issue). Gemini confirmed the "resolvePortionAssumption directly" pattern is insufficient.
 
+---
+
+### ADR-022: Explicit map over heuristic matcher for seed-time dish resolution (2026-04-17)
+
+**Date:** 2026-04-17
+**Status:** Accepted
+**Context:** The `generateStandardPortionCsv.ts` generator used `matchesPriorityName` (substring `.includes()` + `Array.find` first-match) to resolve human-readable priority names to `dishId` values from `spanish-dishes.json`. This produced 6 wrong mappings in the generated CSV, 3 of which were confirmed wrong in production (PR #139). Short priority names like `jamón`, `tortilla`, `cocido` reliably resolved to the wrong dish because the first JSON-order match was a dish that contained the word as a substring rather than the dish that IS the concept.
+**Decision:** Replace the heuristic with an explicit `PRIORITY_DISH_MAP: Record<string, string>` keyed by priority name, valued by the canonical `dishId`. Add fail-hard validation: duplicate dishIds in the map throw before any output; dishIds absent from `spanish-dishes.json` throw before any output. Priority names with no canonical dish are simply omitted from the map (they produce no CSV rows and fall through to Tier 3 at runtime). The heuristic helpers (`matchesPriorityName`, `normalizeName`) are removed entirely — not deprecated — per Codex M1 finding that dead code in the module invites reuse and future drift. A follow-up ticket (F114) will add the missing canonical dishes.
+**Consequences:** The generator no longer auto-discovers new dishes when `spanish-dishes.json` is extended; a curator must explicitly add an entry to `PRIORITY_DISH_MAP`. This is desirable — the map is a curation artifact, not a search result. 9 priority names currently omitted: `chorizo`, `chuletón`, `arroz`, `bocadillo`, `pintxos`, `alitas de pollo`, `zamburiñas`, `berberechos`, `tostas`.
+
 **Consequences:**
 - (+) Wiring regressions (dependency not threaded, wrong variable passed) are caught before production
 - (+) End-to-end test doubles as smoke test for the full orchestration path
