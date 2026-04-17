@@ -46,8 +46,8 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Issue**: Photo upload in `/hablar` returns "No he podido identificar el plato" but Render logs show `"error":{}` — the actual OpenAI rejection reason is invisible. Response time ~600ms confirms immediate rejection by OpenAI.
 - **Root Cause**: OpenAI SDK throws `APIError` subclasses whose custom properties (`status`, `code`, `type`) are non-enumerable. Pino's `JSON.stringify()` skips non-enumerable properties, producing `{}`. All 6 catch blocks in `openaiClient.ts` suffered from this.
 - **Solution**: Added `serializeOpenAIError(error)` helper that extracts `message`, `name`, `status`, `code`, `type` into a plain object. Applied to all 6 error logging sites. TDD: 3 tests (RED→GREEN).
-- **Prevention**: Always use `serializeOpenAIError()` when logging caught errors from OpenAI SDK calls. Never log raw `{ error }` for third-party SDK errors.
-- **Status**: Fixed. Deploy to prod pending — will reveal actual OpenAI rejection reason.
+- **Prevention**: (1) Always use `serializeOpenAIError()` when logging caught errors from OpenAI SDK calls. (2) `redactSecrets()` strips `sk-proj-*`, `sk-*`, `key_*` patterns from all logged messages — prevents API key leakage even when SDK embeds credentials in error text. (3) Never log raw `{ error }` for third-party SDK errors.
+- **Status**: Fixed + hardened with secret redaction. Root cause was a newline in `OPENAI_API_KEY` env var on Render prod. Key rotated 2026-04-17.
 - **Feature**: BUG-PROD-008-FU1 | **Found by**: release smoke testing (2026-04-17) | **Severity**: High
 
 ### 2026-04-17 — Seed CLI runner missing entrypoint — `npm run seed:standard-portions` was a silent no-op
