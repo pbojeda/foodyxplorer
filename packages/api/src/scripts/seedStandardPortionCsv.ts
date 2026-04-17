@@ -363,3 +363,26 @@ export async function runSeedFromCsv(
   const summary = await seedFromParsedRows(prisma, toSeed, toSkip);
   log.info(summary.message);
 }
+
+// ---------------------------------------------------------------------------
+// CLI entrypoint — only runs when invoked directly (mirrors
+// generateStandardPortionCsv.ts pattern). CommonJS-compatible
+// direct-invocation check.
+// ---------------------------------------------------------------------------
+
+const isDirectInvocation = process.argv[1]?.includes('seedStandardPortionCsv') ?? false;
+if (isDirectInvocation) {
+  void import('@prisma/client').then(async ({ PrismaClient }) => {
+    const { resolve } = await import('path');
+    const prisma = new PrismaClient();
+    const csvPath = process.argv[2] ?? resolve(process.cwd(), 'prisma/seed-data/standard-portions.csv');
+    try {
+      await runSeedFromCsv(csvPath, prisma);
+    } catch (e: unknown) {
+      console.error(e);
+      process.exit(1);
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
+}

@@ -58,10 +58,31 @@ const PRIORITY_DISH_NAMES = [
   'champiñones al ajillo',
   'pimientos de padrón',
   'tostas',
+  'paella',
+  'lentejas',
+  'ensalada',
+  'cocido',
+  'fabada',
+  'huevos fritos',
+  'chuletón',
+  'merluza',
+  'fideuà',
+  'pisto',
+  'flamenquín',
+  'sopa de ajo',
+  'churros',
+  'crema catalana',
+  'tarta de queso',
+  'potaje',
+  'arroz',
+  'bocadillo',
 ] as const;
 
 // Dishes explicitly tagged "sin pieces" by the user
-const SIN_PIECES_NAMES = new Set(['gazpacho', 'salmorejo']);
+const SIN_PIECES_NAMES = new Set([
+  'gazpacho', 'salmorejo', 'lentejas', 'cocido', 'fabada',
+  'sopa de ajo', 'potaje', 'pisto', 'crema catalana', 'arroz', 'ensalada',
+]);
 
 const TERMS = ['pintxo', 'tapa', 'media_racion', 'racion'] as const;
 
