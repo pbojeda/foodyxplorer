@@ -33,6 +33,10 @@ Production evidence: `{"level":40,"error":{},"msg":"OpenAI vision call failed"}`
 - [x] **AC5**: Unit test — non-Error values (string, null, undefined)
 - [x] **AC6**: TypeScript compiles cleanly
 - [x] **AC7**: No test regressions
+- [x] **AC8**: `redactSecrets()` strips `sk-proj-*`, `sk-*`, `key_*` patterns from error messages
+- [x] **AC9**: Multiple key formats redacted in a single message
+- [x] **AC10**: Messages without secrets pass through unchanged
+- [x] **AC11**: Non-Error values also sanitized
 
 ## Definition of Done
 
@@ -61,3 +65,4 @@ Production evidence: `{"level":40,"error":{},"msg":"OpenAI vision call failed"}`
 | TDD GREEN | 2026-04-17 | Helper implemented + 6 call sites. 3/3 PASS |
 | Validate | 2026-04-17 | tsc clean, production-code-validator PASS |
 | Document | 2026-04-17 | bugs.md + ticket updated |
+| Hardening | 2026-04-17 | Added `redactSecrets()` — strips API keys from log messages. TDD: 4 new tests (AC8-AC11) RED→GREEN |
