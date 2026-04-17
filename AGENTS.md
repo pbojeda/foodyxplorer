@@ -88,5 +88,5 @@ Skills orchestrate multi-step workflows. Invoke by telling the AI assistant what
 
 - [Base Standards](./ai-specs/specs/base-standards.mdc) — Constitution, methodology, workflow, agents
 - [Backend Standards](./ai-specs/specs/backend-standards.mdc) — Backend patterns (Fastify, Prisma, Kysely)
-- [Frontend Standards](./ai-specs/specs/frontend-standards.mdc) — Frontend patterns (Next.js)
+- [Frontend Standards](./ai-specs/specs/frontend-standards.mdc) — Frontend patterns (Next.js, Tailwind CSS)
 - [Documentation Standards](./ai-specs/specs/documentation-standards.mdc) — Doc guidelines

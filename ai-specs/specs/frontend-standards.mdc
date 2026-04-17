@@ -12,9 +12,9 @@ alwaysApply: true
 ## Technology Stack
 
 - **Framework**: Next.js
-- **Language**: JavaScript
-- **Styling**: CSS
-- **Testing**: Not configured
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Testing**: Jest
 
 
 ## Project Structure
