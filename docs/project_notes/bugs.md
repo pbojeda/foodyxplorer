@@ -40,6 +40,16 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Status**: Auth fixed 2026-04-17. Vision analysis investigation pending (BUG-PROD-008-FU1).
 - **Feature**: BUG-PROD-008 | **Found by**: release smoke testing (2026-04-16) | **Severity**: P2
 
+### 2026-04-17 — BUG-PROD-008-FU1: OpenAI Vision errors logged as empty objects — blind error logging blocks diagnosis
+
+- **Severity**: High (blocks diagnosis of vision failure) | **Area**: `packages/api/src/lib/openaiClient.ts`
+- **Issue**: Photo upload in `/hablar` returns "No he podido identificar el plato" but Render logs show `"error":{}` — the actual OpenAI rejection reason is invisible. Response time ~600ms (real vision calls take 3-8s) confirms immediate rejection by OpenAI, but without the error details we cannot diagnose whether it's a 401 (invalid key), 403 (no model access), 429 (rate limit), or 400 (bad request).
+- **Root Cause**: OpenAI SDK throws `APIError` subclasses whose custom properties (`status`, `code`, `type`) are non-enumerable. Pino's default JSON serializer calls `JSON.stringify()` which skips non-enumerable properties, producing `{}`. The pattern `logger?.warn({ error }, 'OpenAI vision call failed')` at 6 catch sites in `openaiClient.ts` all suffered from this.
+- **Solution**: Added `serializeOpenAIError(error)` helper that extracts `message`, `name`, `status`, `code`, `type` into a plain object. Applied to all 6 error logging sites (callChatCompletion ×2, callVisionCompletion ×2, callWhisperTranscription ×2). TDD: 3 tests (OpenAI-style error with non-enumerable props, plain Error, non-Error values).
+- **Prevention**: (1) Always use `serializeOpenAIError()` when logging caught errors from OpenAI SDK calls. (2) Never log raw `{ error }` for third-party SDK errors — their Error subclasses may have non-enumerable properties.
+- **Status**: Fixed. Next step: deploy to prod, reproduce photo upload, read actual error from logs to diagnose the underlying vision failure.
+- **Feature**: BUG-PROD-008-FU1 | **Found by**: release smoke testing (2026-04-17) | **Severity**: High
+
 ### 2026-04-17 — Seed CLI runner missing entrypoint — `npm run seed:standard-portions` was a silent no-op
 
 - **Severity**: P3 (dev tooling, no prod impact until seeding needed) | **Area**: `packages/api/src/scripts/seedStandardPortionCsv.ts`
