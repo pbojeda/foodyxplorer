@@ -65,18 +65,36 @@ export function isRetryableError(error: unknown): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// redactSecrets — strip API keys and tokens from log messages.
+//
+// Matches common secret patterns: sk-proj-..., sk-..., key_... followed by
+// alphanumeric/dash/underscore runs. Replaces with a fixed placeholder so
+// the log is still useful for diagnosis without leaking credentials.
+// (BUG-PROD-008-FU1 hardening: the original TypeError message included the
+// full OPENAI_API_KEY in the header value.)
+// ---------------------------------------------------------------------------
+
+const SECRET_PATTERN = /\b(sk-proj-|sk-|key_)[A-Za-z0-9_-]{6,}/g;
+const REDACTED = 'sk-***REDACTED***';
+
+export function redactSecrets(text: string): string {
+  return text.replace(SECRET_PATTERN, REDACTED);
+}
+
+// ---------------------------------------------------------------------------
 // serializeOpenAIError — extract loggable fields from OpenAI SDK errors.
 //
 // OpenAI SDK errors are Error subclasses whose custom properties (status,
 // code, type) are non-enumerable, so pino's default serializer outputs `{}`.
 // This helper extracts the useful fields into a plain object that pino can
-// serialize correctly. (BUG-PROD-008-FU1)
+// serialize correctly. All string fields are sanitized via redactSecrets()
+// to prevent API key leakage in logs. (BUG-PROD-008-FU1)
 // ---------------------------------------------------------------------------
 
 export function serializeOpenAIError(error: unknown): Record<string, unknown> {
   if (error instanceof Error) {
     const obj: Record<string, unknown> = {
-      message: error.message,
+      message: redactSecrets(error.message),
       name: error.name,
     };
     if ('status' in error) obj['status'] = (error as Record<string, unknown>)['status'];
@@ -84,7 +102,7 @@ export function serializeOpenAIError(error: unknown): Record<string, unknown> {
     if ('type' in error) obj['type'] = (error as Record<string, unknown>)['type'];
     return obj;
   }
-  return { raw: String(error) };
+  return { raw: redactSecrets(String(error)) };
 }
 
 // ---------------------------------------------------------------------------
