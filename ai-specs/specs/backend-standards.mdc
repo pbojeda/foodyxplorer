@@ -11,21 +11,32 @@ alwaysApply: true
 
 ## Technology Stack
 
-- **Runtime**: Node.js with JavaScript
+- **Runtime**: Node.js with TypeScript
 - **Framework**: Fastify
 - **ORM**: Prisma (PostgreSQL)
-- **Testing**: Not configured
+- **Testing**: Vitest
 
 
 ## Architecture — Custom
 
 ```
 project/
-├── ai-specs/
-├── docs/
-├── initialDoc/
-├── packages/
-└── scripts/
+├── __tests__/
+├── analyze/
+├── calculation/
+├── config/
+├── conversation/
+├── embeddings/
+├── errors/
+├── estimation/
+├── generated/
+├── ingest/
+├── lib/
+├── plugins/
+├── quality/
+├── routes/
+├── scripts/
+└── utils/
 ```
 
 <!-- TODO: Add layer rules that match your project's architecture. -->
