@@ -9,6 +9,7 @@
 //   isWhisperHallucination(text)         — detects known Whisper hallucination strings (F075)
 //   WHISPER_HALLUCINATIONS               — ReadonlySet of known bad Whisper outputs (F075)
 //   callOpenAIEmbeddingsOnce(...)        — single text embedding via OpenAI (for recipe resolveIngredient)
+//   serializeOpenAIError(error)          — extract loggable fields from OpenAI SDK errors (BUG-PROD-008-FU1)
 //
 // Both resolveIngredient.ts (L4-A) and parseRecipeFreeForm.ts import from here.
 // level4Lookup.ts imports from here too (replaces its local copy).
@@ -61,6 +62,29 @@ export function isRetryableError(error: unknown): boolean {
     }
   }
   return false;
+}
+
+// ---------------------------------------------------------------------------
+// serializeOpenAIError — extract loggable fields from OpenAI SDK errors.
+//
+// OpenAI SDK errors are Error subclasses whose custom properties (status,
+// code, type) are non-enumerable, so pino's default serializer outputs `{}`.
+// This helper extracts the useful fields into a plain object that pino can
+// serialize correctly. (BUG-PROD-008-FU1)
+// ---------------------------------------------------------------------------
+
+export function serializeOpenAIError(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    const obj: Record<string, unknown> = {
+      message: error.message,
+      name: error.name,
+    };
+    if ('status' in error) obj['status'] = (error as Record<string, unknown>)['status'];
+    if ('code' in error) obj['code'] = (error as Record<string, unknown>)['code'];
+    if ('type' in error) obj['type'] = (error as Record<string, unknown>)['type'];
+    return obj;
+  }
+  return { raw: String(error) };
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +145,7 @@ export async function callChatCompletion(
     } catch (error) {
       if (!isRetryableError(error)) {
         // Non-retryable (e.g. 400) — log and return null immediately (no retry)
-        logger?.warn({ error }, 'OpenAI chat call failed');
+        logger?.warn({ error: serializeOpenAIError(error) }, 'OpenAI chat call failed');
         return null;
       }
 
@@ -135,7 +159,7 @@ export async function callChatCompletion(
   }
 
   // Exhausted retries
-  logger?.warn({ error: lastError }, 'OpenAI chat call failed');
+  logger?.warn({ error: serializeOpenAIError(lastError) }, 'OpenAI chat call failed');
   return null;
 }
 
@@ -202,7 +226,7 @@ export async function callVisionCompletion(
       return content;
     } catch (error) {
       if (!isRetryableError(error)) {
-        logger?.warn({ error }, 'OpenAI vision call failed');
+        logger?.warn({ error: serializeOpenAIError(error) }, 'OpenAI vision call failed');
         return null;
       }
 
@@ -216,7 +240,7 @@ export async function callVisionCompletion(
   }
 
   // Exhausted retries
-  logger?.warn({ error: lastError }, 'OpenAI vision call failed');
+  logger?.warn({ error: serializeOpenAIError(lastError) }, 'OpenAI vision call failed');
   return null;
 }
 
@@ -295,7 +319,7 @@ export async function callWhisperTranscription(
       return response.text;
     } catch (error) {
       if (!isRetryableError(error)) {
-        logger?.warn({ error }, 'Whisper transcription failed');
+        logger?.warn({ error: serializeOpenAIError(error) }, 'Whisper transcription failed');
         return null;
       }
 
@@ -307,7 +331,7 @@ export async function callWhisperTranscription(
     }
   }
 
-  logger?.warn({ error: lastError }, 'Whisper transcription failed');
+  logger?.warn({ error: serializeOpenAIError(lastError) }, 'Whisper transcription failed');
   return null;
 }
 
