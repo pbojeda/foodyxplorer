@@ -644,10 +644,17 @@ Analysis in `docs/research/product-evolution-analysis-2026-03-31.md` Section 17,
 **Status:** Accepted
 **Context:** The `generateStandardPortionCsv.ts` generator used `matchesPriorityName` (substring `.includes()` + `Array.find` first-match) to resolve human-readable priority names to `dishId` values from `spanish-dishes.json`. This produced 6 wrong mappings in the generated CSV, 3 of which were confirmed wrong in production (PR #139). Short priority names like `jamón`, `tortilla`, `cocido` reliably resolved to the wrong dish because the first JSON-order match was a dish that contained the word as a substring rather than the dish that IS the concept.
 **Decision:** Replace the heuristic with an explicit `PRIORITY_DISH_MAP: Record<string, string>` keyed by priority name, valued by the canonical `dishId`. Add fail-hard validation: duplicate dishIds in the map throw before any output; dishIds absent from `spanish-dishes.json` throw before any output. Priority names with no canonical dish are simply omitted from the map (they produce no CSV rows and fall through to Tier 3 at runtime). The heuristic helpers (`matchesPriorityName`, `normalizeName`) are removed entirely — not deprecated — per Codex M1 finding that dead code in the module invites reuse and future drift. A follow-up ticket (F114) will add the missing canonical dishes.
-**Consequences:** The generator no longer auto-discovers new dishes when `spanish-dishes.json` is extended; a curator must explicitly add an entry to `PRIORITY_DISH_MAP`. This is desirable — the map is a curation artifact, not a search result. 9 priority names currently omitted: `chorizo`, `chuletón`, `arroz`, `bocadillo`, `pintxos`, `alitas de pollo`, `zamburiñas`, `berberechos`, `tostas`.
+**Alternatives Considered:**
+- **Option A — Stricter heuristic matcher**: keep matcher function; rank exact `nameEs` > exact alias > whole-token (word-boundary regex) > substring; add deny-list for generic head tokens. **Rejected**: still encodes business semantics in string heuristics; 3 missing canonical dishes (`chorizo`/`chuletón`/`arroz`) would still fail.
+- **Option B — Manual CSV patch**: edit ~6 rows by hand, leave generator bug untouched. **Rejected**: fragile; next `npm run generate:standard-portions` reintroduces the bugs.
+- **Option D — Explicit map + expand JSON in same ticket**: add missing canonical dishes + map + regenerate all at once. **Rejected** (deferred to F114): coupling data enhancement with bugfix delays the urgent data-integrity fix and adds risk surface.
+- **Option E — Redesign feature**: rewrite the F-UX-B feature architecture. **Rejected**: overkill; the schema works, only the matcher is wrong.
+
+Cross-model consensus: both Codex and Gemini independently recommended Option C ("explicit map over smart matcher") with the rationale that this is seed-time curation (determinism > cleverness), not runtime fuzzy matching.
 
 **Consequences:**
-- (+) Wiring regressions (dependency not threaded, wrong variable passed) are caught before production
-- (+) End-to-end test doubles as smoke test for the full orchestration path
-- (-) Integration tests are slower (real DB) and require the test DB to be running
-- (-) Mocking `runEstimationCascade` introduces an abstraction boundary — tests don't cover cascade correctness, only the wiring from processMessage to resolvePortionAssumption
+- (+) Map is auditable row-by-row in code review.
+- (+) Fail-hard validation catches future misconfiguration before any output.
+- (+) Eliminates silent false-positive dishId mappings — the worst class of data bug.
+- (-) Generator no longer auto-discovers new dishes when `spanish-dishes.json` is extended; a curator must explicitly add an entry to `PRIORITY_DISH_MAP`. This is desirable — the map is a curation artifact, not a search result.
+- 9 priority names currently omitted: `chorizo`, `chuletón`, `arroz`, `bocadillo`, `pintxos`, `alitas de pollo`, `zamburiñas`, `berberechos`, `tostas`. Follow-up ticket **F114** will add `Chuletón de buey`, `Chorizo ibérico embutido`, and `Arroz blanco cocido` canonical entries.

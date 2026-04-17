@@ -16,7 +16,7 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-000000000021,media_racion,75,18,aceituna,medium,mitad de racion,pbojeda
 00000000-0000-e073-0007-000000000021,racion,150,35,aceituna,medium,cuenco compartir,pbojeda
 00000000-0000-e073-0007-000000000022,pintxo,20,,,medium,loncha sobre pan 15-25g (Jamón ibérico),pbojeda
-00000000-0000-e073-0007-000000000022,tapa,60,,,medium,plato tapa 50-70g (Beridico),pbojeda
+00000000-0000-e073-0007-000000000022,tapa,60,,,medium,plato tapa 50-70g (Jamón ibérico),pbojeda
 00000000-0000-e073-0007-000000000022,media_racion,80,,,medium,70-90g típico,pbojeda
 00000000-0000-e073-0007-000000000022,racion,120,,,medium,100-150g (multiple sources),pbojeda
 00000000-0000-e073-0007-000000000023,pintxo,25,1,taco,medium,taco/cuña pequeña,pbojeda

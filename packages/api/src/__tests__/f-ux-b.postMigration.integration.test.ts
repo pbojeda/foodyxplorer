@@ -88,10 +88,25 @@ function makeFixtureCsvContent(dishIds: string[]): string {
 // ---------------------------------------------------------------------------
 
 async function cleanFixtures(): Promise<void> {
-  await prisma.standardPortion.deleteMany({ where: { dishId: { in: ALL_FIXTURE_DISH_IDS } } });
-  await prisma.dish.deleteMany({ where: { id: { in: ALL_FIXTURE_DISH_IDS } } });
-  await prisma.restaurant.deleteMany({ where: { id: REST_ID } });
-  await prisma.dataSource.deleteMany({ where: { id: SRC_ID } });
+  // Safety gate: only DELETE rows that carry the BUG-009-fixture- name marker.
+  // Protects against accidental data loss if the test DB ever gets seeded with
+  // the real Spanish dishes at these same UUIDs (e.g., via F073 `db:seed`).
+  // Code-review M2 (2026-04-17): reviewer flagged this class of risk explicitly.
+  const fixtureDishes = await prisma.dish.findMany({
+    where: {
+      id: { in: ALL_FIXTURE_DISH_IDS },
+      name: { startsWith: 'BUG-009-fixture-' },
+    },
+    select: { id: true },
+  });
+  const fixtureIds = fixtureDishes.map((d) => d.id);
+
+  if (fixtureIds.length > 0) {
+    await prisma.standardPortion.deleteMany({ where: { dishId: { in: fixtureIds } } });
+    await prisma.dish.deleteMany({ where: { id: { in: fixtureIds } } });
+  }
+  await prisma.restaurant.deleteMany({ where: { id: REST_ID, name: 'BUG-009 Integration Test Restaurant' } });
+  await prisma.dataSource.deleteMany({ where: { id: SRC_ID, name: 'BUG-009-post-migration-test-src' } });
 }
 
 beforeAll(async () => {

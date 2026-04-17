@@ -33,6 +33,16 @@
 -- completion (~2-5 seconds), queries briefly hit Tier 3 fallback. Run in a low-traffic
 -- window (early morning Madrid time).
 
+-- Pre-flight identity check (QA M3 — BUG-PROD-009): prints the current database
+-- name and row count so the operator confirms they are connected to the intended
+-- environment before any DELETE runs. Abort the psql session (Ctrl-C) if the
+-- output doesn't match expectations.
+\echo '==> BUG-PROD-009 migration pre-flight check'
+SELECT current_database() AS db_name,
+       current_user       AS db_user,
+       inet_server_addr() AS db_host,
+       (SELECT COUNT(*) FROM standard_portions) AS standard_portions_rowcount_before;
+
 BEGIN;
 
 -- Remove all rows at dishIds the new PRIORITY_DISH_MAP no longer targets.

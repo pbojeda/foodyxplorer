@@ -937,6 +937,16 @@ The user explicitly requires human review for the 2 production errors (`menuForm
 - **Prevention**: Always check `!== null` alongside `typeof === 'object'`.
 - **Status**: Open | **Found by**: QA-WEB-001 qa-engineer | **Evidence**: `apiClient.qa-web-001.test.ts`
 
+### 2026-04-17 — BUG-PROD-009 QA M2 finding: skip-existing parser without column-count guard (fixed inline in PR #152)
+
+- **Severity**: M2 latent pre-fix — activated in an unquoted-comma-in-notes scenario not present in current committed CSV | **Area**: `packages/api/src/scripts/generateStandardPortionCsv.ts`
+- **Issue (pre-fix)**: skip-existing loader used `parseCsvLine(line)` per-row and read `cols[7]` as `reviewed_by`. `parseCsvLine` splits on all unquoted commas. An unquoted comma in `notes` shifted columns: `cols[7]` became empty → `if (dishId && term && reviewedBy)` failed → row NOT added to `existingReviewed` → on re-run the generator emitted a template row alongside the analyst's researched row (silent duplication).
+- **Root cause**: bare `parseCsvLine` (per-line, index-based) has no column-count guard. `parseCsvString` already existed in the same module but wasn't being used by the generator's skip-existing path.
+- **Fix applied inline in this PR**: replaced the skip-existing block with `parseCsvString(existing)` and read `row['reviewed_by']` by header name. Malformed existing CSV now throws loudly (RFC 4180 column mismatch) instead of silently corrupting the skip-set. Import changed from `parseCsvLine` to `parseCsvString`.
+- **Prevention**: EC4 + EC4b tests in `BUG-PROD-009.generateStandardPortionCsv.edge-cases.test.ts` assert (1) unquoted comma in notes throws loudly; (2) properly-quoted comma is handled correctly without duplicating.
+- **Status**: Fixed in PR #152 (same PR as the main BUG-PROD-009 mapping fix).
+- **Found by**: qa-engineer review 2026-04-17 | **Severity**: M2 pre-fix → 0 post-fix
+
 ### 2026-04-17 — BUG-PROD-009: standard_portions seeded with 6 wrong dishId mappings
 
 - **Root cause**: `matchesPriorityName` in `generateStandardPortionCsv.ts` used `.includes()` substring match + `Array.find` first-match. Short names (`jamón`, `tortilla`, `cocido`) resolved to the first JSON-order dish containing the word, not the canonical dish. `jamón` → Bocadillo de jamón york (`...0015`), `tortilla` → Pincho de tortilla (`...0007`), `cocido` → Bocadillo de jamón york (`...0015` again via alias), `chorizo` → Lentejas estofadas (`...0044`), `chuletón` → Entrecot de ternera (`...0069`), `arroz` → Arroz negro (`...0084`).

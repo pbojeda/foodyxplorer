@@ -21,7 +21,7 @@
 
 import { readFileSync, writeFileSync, existsSync, appendFileSync } from 'fs';
 import path from 'path';
-import { parseCsvLine } from './seedStandardPortionCsv.js';
+import { parseCsvString } from './seedStandardPortionCsv.js';
 
 // ---------------------------------------------------------------------------
 // Explicit priority dish map (BUG-PROD-009) — 39 entries
@@ -183,20 +183,24 @@ export async function generateStandardPortionCsv(opts?: {
   validatePriorityDishMap(PRIORITY_DISH_MAP, knownDishIds);
 
   // Load existing CSV to detect already-reviewed rows (skip-existing logic).
-  // Uses the shared RFC 4180 parser from seedStandardPortionCsv.ts to correctly
-  // handle commas embedded in quoted fields (M2-A fix).
+  // Uses `parseCsvString` from seedStandardPortionCsv.ts — it parses by header
+  // column NAME (not index) AND throws on column-count mismatch, preventing the
+  // class of bug QA found (BUG-PROD-009 EC4): an unquoted comma in `notes` would
+  // previously shift cols[7] and silently misread `reviewed_by`, causing the
+  // generator to re-emit a template row that overwrites the analyst's work on
+  // re-run. Structural failure is louder and safer than silent column drift.
   const existingReviewed = new Set<string>(); // key = `${dishId}:${term}`
   if (existsSync(outputPath)) {
     const existing = readFileSync(outputPath, 'utf-8');
-    const lines = existing.replace(/\r\n/g, '\n').split('\n')
-      .filter((l) => l.trim() !== '' && !l.startsWith('dishId'));
-    for (const line of lines) {
-      const cols = parseCsvLine(line);
-      const dishId = cols[0];
-      const term = cols[1];
-      const reviewedBy = cols[7];
-      if (dishId && term && reviewedBy) {
-        existingReviewed.add(`${dishId}:${term}`);
+    if (existing.trim() !== '') {
+      const { rows } = parseCsvString(existing);
+      for (const row of rows) {
+        const dishId = row['dishId'];
+        const term = row['term'];
+        const reviewedBy = row['reviewed_by']?.trim() ?? '';
+        if (dishId && term && reviewedBy !== '') {
+          existingReviewed.add(`${dishId}:${term}`);
+        }
       }
     }
   }
