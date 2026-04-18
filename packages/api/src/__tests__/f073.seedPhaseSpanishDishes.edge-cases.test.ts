@@ -318,18 +318,20 @@ describe('F073 seed edge cases — Dish upsert count and fields', () => {
     prisma = buildMockPrisma();
   });
 
-  it('upserts exactly 250 dishes', async () => {
+  it('upserts exactly 252 dishes', async () => {
+    // F114: count updated 250 → 252 (Chuletón de buey + Chorizo ibérico embutido added)
     await seedPhaseSpanishDishes(prisma as never);
 
     const dishUpserts = prisma._calls.filter((c) => c.model === 'dish');
-    expect(dishUpserts).toHaveLength(250);
+    expect(dishUpserts).toHaveLength(252);
   });
 
-  it('upserts exactly 250 DishNutrients', async () => {
+  it('upserts exactly 252 DishNutrients', async () => {
+    // F114: count updated 250 → 252 (Chuletón de buey + Chorizo ibérico embutido added)
     await seedPhaseSpanishDishes(prisma as never);
 
     const nutrientUpserts = prisma._calls.filter((c) => c.model === 'dishNutrient');
-    expect(nutrientUpserts).toHaveLength(250);
+    expect(nutrientUpserts).toHaveLength(252);
   });
 
   it('all Dish create blocks include nameSourceLocale=es', async () => {
