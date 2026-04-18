@@ -1,8 +1,8 @@
 # BUG-PROD-009: standard-portions CSV generator maps 6 priority names to semantically wrong dishIds
 
 **Feature:** BUG-PROD-009 | **Type:** Backend-Bugfix | **Priority:** High
-**Status:** In Progress | **Branch:** bugfix/BUG-PROD-009-portion-csv-dishid-mapping
-**Created:** 2026-04-17 | **Dependencies:** None (F-UX-B already shipped PR #113; this fixes post-release data integrity)
+**Status:** Done (code merged 2026-04-18; prod DB migration pending user execution per section 7 runbook) | **Branch:** `bugfix/BUG-PROD-009-portion-csv-dishid-mapping` (deleted post-merge)
+**Created:** 2026-04-17 | **Merged:** 2026-04-18 `942ab35` (PR #152, squash) | **Dependencies:** None
 
 ---
 
@@ -538,7 +538,7 @@ Add entry:
 - [x] Step 4: `production-code-validator` executed — APPROVE, 0 blockers (74k tokens, 35 tool uses). Quality gates: tests 3297/3297 green, build green, lint clean on our files
 - [x] Step 5: `code-review-specialist` executed — APPROVE WITH NITS (71k tokens, 38 tool uses). 4 M2 + 5 M3 findings, all M2s addressed inline
 - [x] Step 5: `qa-engineer` executed — PASS WITH FOLLOW-UPS (84k tokens, 48 tool uses). 1 M2 latent bug found (skip-existing parser without column-count guard) — **fixed inline** in this PR via `parseCsvString` refactor. 9 edge-case tests committed (EC1-EC8 + EC4b quoted-comma) — all 10 green post-fix
-- [ ] Step 6: Ticket updated with final metrics, branch deleted (after merge)
+- [x] Step 6: Ticket updated with final metrics (code change DONE); remote branch deleted via `gh pr merge --squash --delete-branch`; local branch auto-removed post-merge. **Prod DB migration pending user execution** — runbook in section 7 "Production environment (maintenance window — POST-MERGE)" of the Implementation Plan. Tracker Active Session advanced to F114.
 
 ---
 
@@ -556,6 +556,10 @@ Add entry:
 | 2026-04-17 | code-review-specialist | APPROVE WITH NITS. 4 M2 (all addressed inline): ADR-022 had a duplicated Consequences block from ADR-021 (fixed); ADR-022 missing Alternatives Considered section (added); integration test fixture dishIds used real prod UUIDs without name marker safety (added `BUG-009-fixture-` gate in cleanFixtures); CSV typo `(Beridico)` → `(Jamón ibérico)` (fixed). 5 M3 nits deferred or ignored per reviewer guidance. |
 | 2026-04-17 | qa-engineer | PASS WITH FOLLOW-UPS. 1 M2 latent bug found: skip-existing parser used `parseCsvLine` per-row without column-count guard — unquoted comma in notes would shift `cols[7]` causing silent template re-emission. **Fixed inline**: refactored to `parseCsvString` (header-name lookup + column-count guard). 9 edge-case tests added (EC1-EC8 + EC4b quoted-comma variant). 2 M3 observations: I4 excluded from default vitest (EC8 unit test covers equivalent logic) + SQL had no DATABASE_URL pre-flight (added `\echo` + `SELECT current_database()` guard). |
 | 2026-04-17 | Post-review fixes committed | 1 commit `fbbc136` addressing all M2s + M3s from code-review + QA. All 3297 API tests green post-fix. Build green. PR #152 updated. |
+| 2026-04-18 | External user audit | APPROVE FOR MERGE. Zero gaps. 16/16 AC, 9/9 DoD, 7/7 Merge Evidence. |
+| 2026-04-18 | PR #152 squash-merged to develop | Merge commit `942ab35` at 2026-04-18T08:03:52Z. Remote branch auto-deleted via `--delete-branch`. Local branch pruned post-merge (already not present). |
+| 2026-04-18 | Step 6 tracker close | Active Session advanced from BUG-PROD-009 → F114. Workflow checklist Step 6 marked done. Ticket Status → "Done (code merged; prod DB migration pending user execution)". |
+| 2026-04-18 | **PENDING — user action** | Prod DB migration per section 7 runbook. Required: pg_dump backup → psql DELETE script → npm run seed:standard-portions (DATABASE_URL=prod) → smoke test `/estimate?query=una+ración+de+jamón`. Recommended low-traffic window (early morning Madrid). AC9/AC11/AC16 remain open until confirmed. |
 
 ---
 
