@@ -14,6 +14,9 @@
  * substring + Array.find) with explicit PRIORITY_DISH_MAP. Added fail-hard
  * validation: throws on duplicate dishIds or dishIds absent from spanish-dishes.json.
  *
+ * F114 (2026-04-17): Extended PRIORITY_DISH_MAP with 3 new keys (chuletón, chorizo,
+ * arroz). Reinstated 'arroz' in SIN_PIECES_NAMES. Map now has 42 entries (168 rows).
+ *
  * NOTE: This script is OFFLINE only — never invoked at query time.
  *       LLM backfill is intentionally offline (zero runtime LLM cost).
  *       The reviewed_by column is left empty; the analyst fills it after review.
@@ -28,9 +31,8 @@ import { parseCsvString } from './seedStandardPortionCsv.js';
 // Keys: human-readable priority name (used for template notes)
 // Values: canonical dishId from spanish-dishes.json
 //
-// Omitted (no canonical dish in spanish-dishes.json; tracked in F114):
-//   chorizo, chuletón, arroz, bocadillo, pintxos, alitas de pollo,
-//   zamburiñas, berberechos, tostas
+// Omitted (no canonical dish in spanish-dishes.json; consider F115+):
+//   bocadillo, pintxos, alitas de pollo, zamburiñas, berberechos, tostas
 // ---------------------------------------------------------------------------
 
 export const PRIORITY_DISH_MAP: Record<string, string> = {
@@ -73,13 +75,18 @@ export const PRIORITY_DISH_MAP: Record<string, string> = {
   'crema catalana':        '00000000-0000-e073-0007-0000000000ae',
   'tarta de queso':        '00000000-0000-e073-0007-0000000000ad',
   'potaje':                '00000000-0000-e073-0007-00000000004e',
+  'chuletón':              '00000000-0000-e073-0007-0000000000fb',  // F114: new Chuletón de buey
+  'chorizo':               '00000000-0000-e073-0007-0000000000fc',  // F114: new Chorizo ibérico embutido
+  'arroz':                 '00000000-0000-e073-0007-0000000000e5',  // F114: reuses existing Arroz blanco
 };
 
 // Dishes explicitly tagged "sin pieces" — no countable unit, liquid/bulk style.
-// arroz and bocadillo removed (no longer in PRIORITY_DISH_MAP per BUG-PROD-009).
+// arroz reinstated by F114: Arroz blanco cocido is a bulk side dish, no piece count.
+// bocadillo remains excluded (no canonical dishId yet).
 const SIN_PIECES_NAMES = new Set([
   'gazpacho', 'salmorejo', 'lentejas', 'cocido', 'fabada',
   'sopa de ajo', 'potaje', 'pisto', 'crema catalana', 'ensalada',
+  'arroz',   // F114: Arroz blanco cocido — bulk side dish, no piece count
 ]);
 
 const TERMS = ['pintxo', 'tapa', 'media_racion', 'racion'] as const;
