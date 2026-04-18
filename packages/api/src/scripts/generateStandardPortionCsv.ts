@@ -27,7 +27,7 @@ import path from 'path';
 import { parseCsvString } from './seedStandardPortionCsv.js';
 
 // ---------------------------------------------------------------------------
-// Explicit priority dish map (BUG-PROD-009) — 39 entries
+// Explicit priority dish map (BUG-PROD-009 + F114) — 42 entries
 // Keys: human-readable priority name (used for template notes)
 // Values: canonical dishId from spanish-dishes.json
 //

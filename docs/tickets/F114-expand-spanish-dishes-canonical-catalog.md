@@ -471,7 +471,7 @@ POST /conversation/message { "message": "¿cuántas calorías tiene un arroz neg
 
 10. **Semantic routing verification** — Run the smoke tests from §6 against the dev DB. Confirm:
     - "chuletón" routes to `...0000000000fb`, NOT `...000000000069`.
-    - "arroz negro" still routes to its specific entry, NOT `...0000000000fd`.
+    - "arroz negro" still routes to its specific entry (`...0000000000084`), NOT the modified generic `Arroz blanco` at `...0000000000e5`.
 
 11. **Integration test** (optional) — If embedding test infrastructure is available, write and run `f114.embeddingRouting.integration.test.ts`. Otherwise mark as `it.skip` with reference to §6 manual procedure.
 
@@ -488,7 +488,7 @@ POST /conversation/message { "message": "¿cuántas calorías tiene un arroz neg
 | **dishId collision** — `...0000000000fb/fc` already in use | Low | Confirmed: last used ID is `...0000000000fa`. Only 2 new IDs needed (arroz reuses existing `...0e5`). Grep again before writing. |
 | **Entrecot alias removal breaks pre-existing queries for "chuletón"** | Low-Medium | Before F114, "chuletón" queries hit Entrecot via L1/L2 alias → returned entrecot nutrients (wrong cut but close calorically). Post-F114, those queries hit the new Chuletón de buey via alias. Net improvement. No breakage. |
 | **Embedding routing miss** — Chuletón still resolves to Entrecot after regen | Medium | The alias list includes "chuletón" explicitly; embedding is generated from `name` + `nameEs` + `aliases` concatenation. If the embedding space puts entrecot and chuletón too close, add more differentiating aliases (e.g. "txuleta vasca", "buey asado a la brasa") to push the vector further. Verify with §6 smoke test before merging. |
-| **Arroz blanco absorbs specific rice queries** — "arroz negro" resolves to generic arroz | Medium | The specific rice dishes (arroz negro, paella, etc.) have their own embeddings already present in the DB. The generic "Arroz blanco cocido" should NOT displace them because cosine similarity will favor specificity. Verify with §6 smoke test ("arroz negro" must not return `...0000000000fd`). If it does, add negative aliases or remove "arroz negro" from the generic arroz alias list. |
+| **Arroz blanco (...0e5) absorbs specific rice queries** — "arroz negro" resolves to generic arroz | Medium | The specific rice dishes (arroz negro `...0084`, paella `...0083`, etc.) have their own embeddings already present in the DB. The modified generic `Arroz blanco` should NOT displace them because cosine similarity will favor specificity. Verify with §6 smoke test ("arroz negro" must not return `...0000000000e5`). If it does, add negative aliases or remove `"arroz"` from the generic arroz alias list. |
 | **Alias collision — "chorizo" swallowed by existing Bocadillo de chorizo** | Low | After F114, `chorizo` key in `PRIORITY_DISH_MAP` → `...0000000000fc` (Chorizo embutido). The embedding for "una tapa de chorizo" should match the new embutido entry. Bocadillo de chorizo has "bocadillo" in its name/aliases which should maintain its distinct embedding. Verify with smoke test. |
 | **`source: "usda"` rejected by validator** | Low — but easy to miss | `validateSpanishDishes` only allows `"bedca"` or `"recipe"`. If USDA is the nutrient source, use `source: "recipe"` and document the actual source in the Completion Log. |
 | **Minimum count validation** — adding 2 entries to a 250-entry file brings total to 252. Check `validateSpanishDishes.ts` for any hardcoded expected count (the existing `>= 250` or similar). | Low | Confirm no hardcoded count assertion during Step 1 (RED phase). |
@@ -504,7 +504,15 @@ The following steps require direct access to `DATABASE_URL_PROD` (Render product
    ```bash
    DATABASE_URL=<prod_session_pooler_url> npm run seed -w @foodxplorer/api
    ```
-   Verify: `SELECT count(*) FROM dishes WHERE id IN ('<fb>', '<fc>', '<fd>')` returns 3.
+   Verify (2 new dishes; arroz reuses existing `...0e5` — it's already in prod):
+   ```sql
+   SELECT count(*) FROM dishes
+     WHERE id IN (
+       '00000000-0000-e073-0007-0000000000fb',  -- Chuletón de buey (new)
+       '00000000-0000-e073-0007-0000000000fc'   -- Chorizo ibérico embutido (new)
+     );
+   -- Expected: 2
+   ```
 
 2. **Seed standard_portions prod**:
    The seed script should include the CSV loader. Confirm the 12 new rows are inserted into `standard_portions`. If the seed script does not auto-load CSV rows, run the CSV seeder separately:

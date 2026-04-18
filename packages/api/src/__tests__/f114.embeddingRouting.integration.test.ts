@@ -1,24 +1,34 @@
 // F114 — Integration tests for embedding-based semantic routing
 //
-// MANDATORY per Gemini M1 + Codex M2 — verifies that after embedding regeneration:
-//   F114-I1: "chuletón" resolves to Chuletón de buey (...fb), NOT Entrecot de ternera (...069)
-//   F114-I2: "arroz negro" still resolves to specific Arroz negro (...084), NOT generic Arroz blanco (...0e5)
+// Two tiers of tests:
 //
-// PREREQUISITE: pgvector test DB must have embeddings for the F114-affected dishes.
-//   Run BEFORE these tests:
-//     DATABASE_URL=<test_db_url> npm run seed -w @foodxplorer/api
-//     DATABASE_URL=<test_db_url> OPENAI_API_KEY=<key> npm run embeddings:generate -w @foodxplorer/api
+//   Tier A — STRUCTURAL checks (require `ENABLE_EMBEDDING_INTEGRATION_TESTS=true`):
+//     A1: Chuletón de buey (...fb) has a non-null embedding.
+//     A2: Entrecot de ternera (...069) aliases no longer contain "chuletón" (F114 data cleanup).
+//     A3: Arroz negro (...084) and Arroz blanco (...0e5) both have non-null embeddings.
+//     A4: Arroz blanco (...0e5) aliases contain all 4 expected values (after F114 modification).
 //
-// If infrastructure is not ready, tests are skipped with a clear TODO.
-// Tests run when the env var ENABLE_EMBEDDING_INTEGRATION_TESTS=true is set.
+//   Tier B — TRUE ROUTING checks (additionally require `OPENAI_API_KEY`):
+//     B1: Embedding search for "una ración de chuletón" returns Chuletón de buey (...fb) as
+//         the top match, with rank(entrecot) > rank(chuletón).
+//     B2: Embedding search for "arroz negro" returns Arroz negro (...084) as the top match,
+//         NOT generic Arroz blanco (...0e5).
 //
-// Manual smoke-test procedure (section 6 of ticket F114):
-//   SELECT id, name, 1 - (embedding <=> $1::vector) AS similarity
-//   FROM dishes WHERE embedding IS NOT NULL ORDER BY embedding <=> $1::vector LIMIT 5;
-//   Expected row 1 for "chuletón" query: dish_id = ...0000000000fb
+// Tier B fulfils AC7's "mandatory routing assertion" by embedding the query at test time
+// via the same `callOpenAIEmbeddings` client used by the pipeline, then running pgvector
+// cosine nearest-neighbor against `dishes.embedding`.
+//
+// PREREQUISITES for both tiers:
+//   DATABASE_URL=<test_db_url> npm run seed -w @foodxplorer/api
+//   DATABASE_URL=<test_db_url> OPENAI_API_KEY=<key> npm run embeddings:generate -w @foodxplorer/api
+//
+// Gating (documented in CONTRIBUTING.md "Integration tests — embedding routing"):
+//   Tier A runs when:  ENABLE_EMBEDDING_INTEGRATION_TESTS=true
+//   Tier B runs when:  ENABLE_EMBEDDING_INTEGRATION_TESTS=true AND OPENAI_API_KEY is set
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
+import { callOpenAIEmbeddings } from '../embeddings/embeddingClient.js';
 
 // ---------------------------------------------------------------------------
 // Dish IDs under test
@@ -34,6 +44,7 @@ const ARROZ_BLANCO_ID = '00000000-0000-e073-0007-0000000000e5'; // Modified: Arr
 // ---------------------------------------------------------------------------
 
 const INFRA_READY = process.env['ENABLE_EMBEDDING_INTEGRATION_TESTS'] === 'true';
+const OPENAI_READY = INFRA_READY && typeof process.env['OPENAI_API_KEY'] === 'string' && process.env['OPENAI_API_KEY'].length > 0;
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -69,49 +80,72 @@ afterAll(async () => {
 // F114-I1: "chuletón" embedding search → Chuletón de buey, NOT Entrecot
 // ---------------------------------------------------------------------------
 
-describe('F114-I1: Embedding routing — "chuletón" resolves to Chuletón de buey', () => {
+describe('F114-I1 Tier A (structural): Chuletón dish + Entrecot alias cleanup present in DB', () => {
   it.skipIf(!INFRA_READY)(
-    'top embedding match for "chuletón" is ...fb (Chuletón), NOT ...069 (Entrecot)',
+    'A1: Chuletón de buey (...fb) has a non-null embedding after seed+regen',
     async () => {
-      // TODO (ENABLE_EMBEDDING_INTEGRATION_TESTS): This test requires:
-      //   1. pgvector test DB with F114 dishes seeded
-      //   2. Embeddings regenerated for all 4 affected dishIds (fb, fc, 0e5, 069)
-      //   3. A way to embed a query string at test time (OpenAI or mock embedder)
-      //
-      // Until step 3 is available in CI, this test is skipped.
-      // See manual verification in F114 §6:
-      //   SELECT id, name, 1-(embedding <=> $1::vector) AS similarity
-      //   FROM dishes WHERE embedding IS NOT NULL ORDER BY embedding <=> $1::vector LIMIT 5;
-      //
-      // For now, at minimum verify the new dish exists with a non-null embedding:
       const result = await prisma.$queryRaw<Array<{ id: string; has_embedding: boolean }>>`
         SELECT id, (embedding IS NOT NULL) AS has_embedding
         FROM dishes
         WHERE id = ${CHULETON_ID}::uuid
       `;
-
       expect(result).toHaveLength(1);
       expect(result[0]?.['has_embedding']).toBe(true);
-      // Full semantic routing test requires embedded query vector — see TODO above.
-      // When available, assert:
-      //   topMatchId === CHULETON_ID
-      //   topMatchId !== ENTRECOT_ID
     },
   );
 
   it.skipIf(!INFRA_READY)(
-    'Entrecot de ternera (...069) does NOT have "chuletón" alias (alias removed by F114)',
+    'A2: Entrecot de ternera (...069) aliases no longer contain "chuletón" (F114 cleanup)',
     async () => {
-      // Verify the alias removal at DB level (after seed)
       const result = await prisma.$queryRaw<Array<{ id: string; aliases: string[] }>>`
         SELECT id, aliases
         FROM dishes
         WHERE id = ${ENTRECOT_ID}::uuid
       `;
-
       expect(result).toHaveLength(1);
       expect(result[0]?.['aliases'] ?? []).not.toContain('chuletón');
     },
+  );
+});
+
+describe('F114-I1 Tier B (routing): "chuletón" query embedding resolves to Chuletón de buey', () => {
+  it.skipIf(!OPENAI_READY)(
+    'B1: top pgvector match for embed("una ración de chuletón") is ...fb, rank(entrecot) > rank(chuletón)',
+    async () => {
+      // Embed the query string at test time via the same client the pipeline uses.
+      const [queryVector] = await callOpenAIEmbeddings(['una ración de chuletón'], {
+        apiKey: process.env['OPENAI_API_KEY']!,
+      });
+      expect(queryVector).toBeDefined();
+      expect(queryVector!.length).toBeGreaterThan(0);
+
+      const vectorLiteral = `[${queryVector!.join(',')}]`;
+      // pgvector cosine distance — lowest distance = closest match
+      const ranked = await prisma.$queryRawUnsafe<Array<{ id: string; distance: number }>>(
+        `SELECT id::text AS id, embedding <=> $1::vector AS distance
+         FROM dishes
+         WHERE embedding IS NOT NULL
+         ORDER BY embedding <=> $1::vector
+         LIMIT 10`,
+        vectorLiteral,
+      );
+
+      expect(ranked.length).toBeGreaterThan(0);
+      const chuletonRank = ranked.findIndex((r) => r.id === CHULETON_ID);
+      const entrecotRank = ranked.findIndex((r) => r.id === ENTRECOT_ID);
+
+      // Chuletón must be present in the top-10; must rank ahead of Entrecot.
+      expect(chuletonRank, 'Chuletón de buey must be in top-10 for "chuletón" query').toBeGreaterThanOrEqual(0);
+      if (entrecotRank >= 0) {
+        expect(
+          chuletonRank,
+          'Chuletón must rank ahead of Entrecot (AC7 core assertion)',
+        ).toBeLessThan(entrecotRank);
+      }
+      // Strictest form: #1 result is Chuletón.
+      expect(ranked[0]?.id, 'Top result must be Chuletón de buey').toBe(CHULETON_ID);
+    },
+    60_000,
   );
 });
 
@@ -119,37 +153,31 @@ describe('F114-I1: Embedding routing — "chuletón" resolves to Chuletón de bu
 // F114-I2: "arroz negro" still routes to Arroz negro, NOT generic Arroz blanco
 // ---------------------------------------------------------------------------
 
-describe('F114-I2: Embedding routing — "arroz negro" resolves to specific Arroz negro, not generic Arroz blanco', () => {
+describe('F114-I2 Tier A (structural): Arroz negro + Arroz blanco present with embeddings', () => {
   it.skipIf(!INFRA_READY)(
-    'Arroz negro (...084) and Arroz blanco (...0e5) both exist with embeddings',
+    'A3: both Arroz negro (...084) and Arroz blanco (...0e5) have non-null embeddings',
     async () => {
-      // TODO (ENABLE_EMBEDDING_INTEGRATION_TESTS): Full routing test.
-      // Verify both dishes exist and have embeddings as a precondition.
       const result = await prisma.$queryRaw<Array<{ id: string; name: string; has_embedding: boolean }>>`
         SELECT id, name, (embedding IS NOT NULL) AS has_embedding
         FROM dishes
         WHERE id IN (${ARROZ_NEGRO_ID}::uuid, ${ARROZ_BLANCO_ID}::uuid)
         ORDER BY name
       `;
-
       expect(result).toHaveLength(2);
       for (const row of result) {
         expect(row['has_embedding'], `${row['name']} must have embedding`).toBe(true);
       }
-      // Full semantic routing test:
-      // assert: embedding search for "arroz negro" → top result is ARROZ_NEGRO_ID, not ARROZ_BLANCO_ID
     },
   );
 
   it.skipIf(!INFRA_READY)(
-    'Arroz blanco (...0e5) has the 4 new aliases in the DB (after seed)',
+    'A4: Arroz blanco (...0e5) aliases contain all 4 expected values (post-F114)',
     async () => {
       const result = await prisma.$queryRaw<Array<{ id: string; aliases: string[] }>>`
         SELECT id, aliases
         FROM dishes
         WHERE id = ${ARROZ_BLANCO_ID}::uuid
       `;
-
       expect(result).toHaveLength(1);
       const aliases: string[] = result[0]?.['aliases'] ?? [];
       expect(aliases).toContain('guarnición de arroz');
@@ -157,5 +185,31 @@ describe('F114-I2: Embedding routing — "arroz negro" resolves to specific Arro
       expect(aliases).toContain('arroz cocido');
       expect(aliases).toContain('arroz hervido');
     },
+  );
+});
+
+describe('F114-I2 Tier B (routing): "arroz negro" query embedding resolves to specific Arroz negro', () => {
+  it.skipIf(!OPENAI_READY)(
+    'B2: top pgvector match for embed("arroz negro") is ...084, NOT generic Arroz blanco (...0e5)',
+    async () => {
+      const [queryVector] = await callOpenAIEmbeddings(['arroz negro'], {
+        apiKey: process.env['OPENAI_API_KEY']!,
+      });
+      expect(queryVector).toBeDefined();
+
+      const vectorLiteral = `[${queryVector!.join(',')}]`;
+      const ranked = await prisma.$queryRawUnsafe<Array<{ id: string; distance: number }>>(
+        `SELECT id::text AS id, embedding <=> $1::vector AS distance
+         FROM dishes
+         WHERE embedding IS NOT NULL
+         ORDER BY embedding <=> $1::vector
+         LIMIT 10`,
+        vectorLiteral,
+      );
+
+      expect(ranked[0]?.id, 'Top result must be the specific Arroz negro, not generic Arroz blanco').toBe(ARROZ_NEGRO_ID);
+      expect(ranked[0]?.id).not.toBe(ARROZ_BLANCO_ID);
+    },
+    60_000,
   );
 });

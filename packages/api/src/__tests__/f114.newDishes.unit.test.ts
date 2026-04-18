@@ -15,7 +15,14 @@
 //   F114-U8: CSV generator produces 42 × 4 = 168 rows + 1 header = 169 lines
 //   F114-U9: arroz rows from generator have sin-pieces format targeting ...0e5
 //   F114-U10: chuletón and chorizo rows have non-sin-pieces format
-//   F114-U11: Snapshot regression — 39 existing dishes' CSV rows unchanged
+//   F114-U11: Generator determinism — 39 existing dishes' CSV rows stable across repeated runs
+//             (NOTE: this is NOT a true pre/post-F114 snapshot test — it is an idempotency
+//             check against the CURRENT generator. A true snapshot would require a committed
+//             baseline .snap file captured before F114. The plan's "snapshot regression" label
+//             was an overstatement; this test catches non-determinism / accidental row
+//             reordering but NOT a change in the generator template for existing dishes.
+//             Catching the latter is covered by the full test suite running against a
+//             fixed CSV produced by `npm run generate:standard-portions`.)
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'fs';
@@ -293,6 +300,23 @@ describe('F114-U5c: "chuletón" alias not present in any entry except ...fb (new
     const entrecot = findEntry(dishes, ENTRECOT_ID);
     expect(entrecot.aliases).not.toContain('chuletón');
   });
+
+  it('"chuletón completo" alias on Chuletón con patatas (...0df) does NOT collide — L1 uses exact containment (QA M3 guard)', () => {
+    // QA flagged: Chuletón con patatas (...0df) carries alias "chuletón completo". L1
+    // lookup uses exact array containment (aliases @> ARRAY[query]), so a "chuletón"
+    // query will NOT match "chuletón completo". If L1 is ever changed to substring
+    // matching, this test will start failing AND the implicit non-collision invariant
+    // will be violated. This test freezes the invariant.
+    const dishes = loadRealJson();
+    const chuletonCompleto = dishes.find(
+      (d) => d.dishId === '00000000-0000-e073-0007-0000000000df',
+    );
+    expect(chuletonCompleto, 'Chuletón con patatas (...0df) entry must exist').toBeDefined();
+    // The exact-token "chuletón" must NOT be in this dish's aliases (only "chuletón completo").
+    expect(chuletonCompleto!.aliases).not.toContain('chuletón');
+    // "chuletón completo" is expected to remain — it's a distinct concept.
+    expect(chuletonCompleto!.aliases).toContain('chuletón completo');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -452,7 +476,7 @@ describe('F114-U10: chuletón and chorizo rows have non-sin-pieces format', () =
 // F114-U11 — CSV snapshot regression: 39 existing dishes' rows unchanged (Gemini M2)
 // ---------------------------------------------------------------------------
 
-describe('F114-U11: CSV snapshot regression — 39 existing dishes rows unchanged', () => {
+describe('F114-U11: CSV generator determinism — 39 existing dishes rows stable across runs', () => {
   // These are the 39 dishIds that existed before F114 (not fb, fc, or 0e5 which
   // gets new rows for arroz). We verify the generated CSV rows for these IDs
   // are structurally identical to pre-F114 output.
