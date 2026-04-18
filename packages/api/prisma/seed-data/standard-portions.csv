@@ -1,161 +1,157 @@
 dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
-00000000-0000-e073-0007-00000000001a,pintxo,50,,,medium,template: croquetas pintxo,pbojeda
-00000000-0000-e073-0007-00000000001a,tapa,50,,,medium,template: croquetas tapa,pbojeda
-00000000-0000-e073-0007-00000000001a,media_racion,50,,,medium,template: croquetas media_racion,pbojeda
-00000000-0000-e073-0007-00000000001a,racion,50,,,medium,template: croquetas racion,pbojeda
-00000000-0000-e073-0007-00000000001b,pintxo,50,,,medium,template: patatas bravas pintxo,pbojeda
-00000000-0000-e073-0007-00000000001b,tapa,50,,,medium,template: patatas bravas tapa,pbojeda
-00000000-0000-e073-0007-00000000001b,media_racion,50,,,medium,template: patatas bravas media_racion,pbojeda
-00000000-0000-e073-0007-00000000001b,racion,50,,,medium,template: patatas bravas racion,pbojeda
-00000000-0000-e073-0007-00000000001e,pintxo,50,,,medium,template: gambas al ajillo pintxo,pbojeda
-00000000-0000-e073-0007-00000000001e,tapa,50,,,medium,template: gambas al ajillo tapa,pbojeda
-00000000-0000-e073-0007-00000000001e,media_racion,50,,,medium,template: gambas al ajillo media_racion,pbojeda
-00000000-0000-e073-0007-00000000001e,racion,50,,,medium,template: gambas al ajillo racion,pbojeda
-00000000-0000-e073-0007-000000000021,pintxo,50,,,medium,template: aceitunas pintxo,pbojeda
-00000000-0000-e073-0007-000000000021,tapa,50,,,medium,template: aceitunas tapa,pbojeda
-00000000-0000-e073-0007-000000000021,media_racion,50,,,medium,template: aceitunas media_racion,pbojeda
-00000000-0000-e073-0007-000000000021,racion,50,,,medium,template: aceitunas racion,pbojeda
-00000000-0000-e073-0007-000000000015,pintxo,50,,,medium,template: jamón pintxo,pbojeda
-00000000-0000-e073-0007-000000000015,tapa,50,,,medium,template: jamón tapa,pbojeda
-00000000-0000-e073-0007-000000000015,media_racion,50,,,medium,template: jamón media_racion,pbojeda
-00000000-0000-e073-0007-000000000015,racion,50,,,medium,template: jamón racion,pbojeda
-00000000-0000-e073-0007-000000000023,pintxo,50,,,medium,template: queso manchego pintxo,pbojeda
-00000000-0000-e073-0007-000000000023,tapa,50,,,medium,template: queso manchego tapa,pbojeda
-00000000-0000-e073-0007-000000000023,media_racion,50,,,medium,template: queso manchego media_racion,pbojeda
-00000000-0000-e073-0007-000000000023,racion,50,,,medium,template: queso manchego racion,pbojeda
-00000000-0000-e073-0007-000000000020,pintxo,50,,,medium,template: boquerones pintxo,pbojeda
-00000000-0000-e073-0007-000000000020,tapa,50,,,medium,template: boquerones tapa,pbojeda
-00000000-0000-e073-0007-000000000020,media_racion,50,,,medium,template: boquerones media_racion,pbojeda
-00000000-0000-e073-0007-000000000020,racion,50,,,medium,template: boquerones racion,pbojeda
-00000000-0000-e073-0007-00000000001d,pintxo,50,,,medium,template: calamares pintxo,pbojeda
-00000000-0000-e073-0007-00000000001d,tapa,50,,,medium,template: calamares tapa,pbojeda
-00000000-0000-e073-0007-00000000001d,media_racion,50,,,medium,template: calamares media_racion,pbojeda
-00000000-0000-e073-0007-00000000001d,racion,50,,,medium,template: calamares racion,pbojeda
-00000000-0000-e073-0007-000000000028,pintxo,50,,,medium,template: chopitos pintxo,pbojeda
-00000000-0000-e073-0007-000000000028,tapa,50,,,medium,template: chopitos tapa,pbojeda
-00000000-0000-e073-0007-000000000028,media_racion,50,,,medium,template: chopitos media_racion,pbojeda
-00000000-0000-e073-0007-000000000028,racion,50,,,medium,template: chopitos racion,pbojeda
-00000000-0000-e073-0007-000000000024,pintxo,50,,,medium,template: ensaladilla pintxo,pbojeda
-00000000-0000-e073-0007-000000000024,tapa,50,,,medium,template: ensaladilla tapa,pbojeda
-00000000-0000-e073-0007-000000000024,media_racion,50,,,medium,template: ensaladilla media_racion,pbojeda
-00000000-0000-e073-0007-000000000024,racion,50,,,medium,template: ensaladilla racion,pbojeda
-00000000-0000-e073-0007-000000000007,pintxo,50,,,medium,template: tortilla pintxo,pbojeda
-00000000-0000-e073-0007-000000000007,tapa,50,,,medium,template: tortilla tapa,pbojeda
-00000000-0000-e073-0007-000000000007,media_racion,50,,,medium,template: tortilla media_racion,pbojeda
-00000000-0000-e073-0007-000000000007,racion,50,,,medium,template: tortilla racion,pbojeda
-00000000-0000-e073-0007-00000000003d,pintxo,50,,,medium,template: pan con tomate pintxo,pbojeda
-00000000-0000-e073-0007-00000000003d,tapa,50,,,medium,template: pan con tomate tapa,pbojeda
-00000000-0000-e073-0007-00000000003d,media_racion,50,,,medium,template: pan con tomate media_racion,pbojeda
-00000000-0000-e073-0007-00000000003d,racion,50,,,medium,template: pan con tomate racion,pbojeda
-00000000-0000-e073-0007-000000000044,pintxo,50,,,medium,template: chorizo pintxo,pbojeda
-00000000-0000-e073-0007-000000000044,tapa,50,,,medium,template: chorizo tapa,pbojeda
-00000000-0000-e073-0007-000000000044,media_racion,50,,,medium,template: chorizo media_racion,pbojeda
-00000000-0000-e073-0007-000000000044,racion,50,,,medium,template: chorizo racion,pbojeda
-00000000-0000-e073-0007-00000000002a,pintxo,50,,,medium,template: morcilla pintxo,pbojeda
-00000000-0000-e073-0007-00000000002a,tapa,50,,,medium,template: morcilla tapa,pbojeda
-00000000-0000-e073-0007-00000000002a,media_racion,50,,,medium,template: morcilla media_racion,pbojeda
-00000000-0000-e073-0007-00000000002a,racion,50,,,medium,template: morcilla racion,pbojeda
-00000000-0000-e073-0007-000000000025,pintxo,50,,,medium,template: pulpo a la gallega pintxo,pbojeda
-00000000-0000-e073-0007-000000000025,tapa,50,,,medium,template: pulpo a la gallega tapa,pbojeda
-00000000-0000-e073-0007-000000000025,media_racion,50,,,medium,template: pulpo a la gallega media_racion,pbojeda
-00000000-0000-e073-0007-000000000025,racion,50,,,medium,template: pulpo a la gallega racion,pbojeda
-00000000-0000-e073-0007-000000000042,pintxo,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000042,tapa,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000042,media_racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000042,racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000043,pintxo,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000043,tapa,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000043,media_racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000043,racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000062,pintxo,50,,,medium,template: albóndigas pintxo,pbojeda
-00000000-0000-e073-0007-000000000062,tapa,50,,,medium,template: albóndigas tapa,pbojeda
-00000000-0000-e073-0007-000000000062,media_racion,50,,,medium,template: albóndigas media_racion,pbojeda
-00000000-0000-e073-0007-000000000062,racion,50,,,medium,template: albóndigas racion,pbojeda
-00000000-0000-e073-0007-0000000000f1,pintxo,50,,,medium,template: empanadillas pintxo,pbojeda
-00000000-0000-e073-0007-0000000000f1,tapa,50,,,medium,template: empanadillas tapa,pbojeda
-00000000-0000-e073-0007-0000000000f1,media_racion,50,,,medium,template: empanadillas media_racion,pbojeda
-00000000-0000-e073-0007-0000000000f1,racion,50,,,medium,template: empanadillas racion,pbojeda
-00000000-0000-e073-0007-000000000029,pintxo,50,,,medium,template: mejillones pintxo,pbojeda
-00000000-0000-e073-0007-000000000029,tapa,50,,,medium,template: mejillones tapa,pbojeda
-00000000-0000-e073-0007-000000000029,media_racion,50,,,medium,template: mejillones media_racion,pbojeda
-00000000-0000-e073-0007-000000000029,racion,50,,,medium,template: mejillones racion,pbojeda
-00000000-0000-e073-0007-000000000034,pintxo,50,,,medium,template: navajas pintxo,pbojeda
-00000000-0000-e073-0007-000000000034,tapa,50,,,medium,template: navajas tapa,pbojeda
-00000000-0000-e073-0007-000000000034,media_racion,50,,,medium,template: navajas media_racion,pbojeda
-00000000-0000-e073-0007-000000000034,racion,50,,,medium,template: navajas racion,pbojeda
-00000000-0000-e073-0007-000000000035,pintxo,50,,,medium,template: sepia pintxo,pbojeda
-00000000-0000-e073-0007-000000000035,tapa,50,,,medium,template: sepia tapa,pbojeda
-00000000-0000-e073-0007-000000000035,media_racion,50,,,medium,template: sepia media_racion,pbojeda
-00000000-0000-e073-0007-000000000035,racion,50,,,medium,template: sepia racion,pbojeda
-00000000-0000-e073-0007-00000000003b,pintxo,50,,,medium,template: rabas pintxo,pbojeda
-00000000-0000-e073-0007-00000000003b,tapa,50,,,medium,template: rabas tapa,pbojeda
-00000000-0000-e073-0007-00000000003b,media_racion,50,,,medium,template: rabas media_racion,pbojeda
-00000000-0000-e073-0007-00000000003b,racion,50,,,medium,template: rabas racion,pbojeda
-00000000-0000-e073-0007-000000000026,pintxo,50,,,medium,template: champiñones al ajillo pintxo,pbojeda
-00000000-0000-e073-0007-000000000026,tapa,50,,,medium,template: champiñones al ajillo tapa,pbojeda
-00000000-0000-e073-0007-000000000026,media_racion,50,,,medium,template: champiñones al ajillo media_racion,pbojeda
-00000000-0000-e073-0007-000000000026,racion,50,,,medium,template: champiñones al ajillo racion,pbojeda
-00000000-0000-e073-0007-00000000001f,pintxo,50,,,medium,template: pimientos de padrón pintxo,pbojeda
-00000000-0000-e073-0007-00000000001f,tapa,50,,,medium,template: pimientos de padrón tapa,pbojeda
-00000000-0000-e073-0007-00000000001f,media_racion,50,,,medium,template: pimientos de padrón media_racion,pbojeda
-00000000-0000-e073-0007-00000000001f,racion,50,,,medium,template: pimientos de padrón racion,pbojeda
-00000000-0000-e073-0007-000000000083,pintxo,50,,,medium,template: paella pintxo,pbojeda
-00000000-0000-e073-0007-000000000083,tapa,50,,,medium,template: paella tapa,pbojeda
-00000000-0000-e073-0007-000000000083,media_racion,50,,,medium,template: paella media_racion,pbojeda
-00000000-0000-e073-0007-000000000083,racion,50,,,medium,template: paella racion,pbojeda
-00000000-0000-e073-0007-000000000049,pintxo,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000049,tapa,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000049,media_racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000049,racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000045,pintxo,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000045,tapa,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000045,media_racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000045,racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-00000000007e,pintxo,50,,,medium,template: huevos fritos pintxo,pbojeda
-00000000-0000-e073-0007-00000000007e,tapa,50,,,medium,template: huevos fritos tapa,pbojeda
-00000000-0000-e073-0007-00000000007e,media_racion,50,,,medium,template: huevos fritos media_racion,pbojeda
-00000000-0000-e073-0007-00000000007e,racion,50,,,medium,template: huevos fritos racion,pbojeda
-00000000-0000-e073-0007-000000000069,pintxo,50,,,medium,template: chuletón pintxo,pbojeda
-00000000-0000-e073-0007-000000000069,tapa,50,,,medium,template: chuletón tapa,pbojeda
-00000000-0000-e073-0007-000000000069,media_racion,50,,,medium,template: chuletón media_racion,pbojeda
-00000000-0000-e073-0007-000000000069,racion,50,,,medium,template: chuletón racion,pbojeda
-00000000-0000-e073-0007-000000000061,pintxo,50,,,medium,template: merluza pintxo,pbojeda
-00000000-0000-e073-0007-000000000061,tapa,50,,,medium,template: merluza tapa,pbojeda
-00000000-0000-e073-0007-000000000061,media_racion,50,,,medium,template: merluza media_racion,pbojeda
-00000000-0000-e073-0007-000000000061,racion,50,,,medium,template: merluza racion,pbojeda
-00000000-0000-e073-0007-000000000089,pintxo,50,,,medium,template: fideuà pintxo,pbojeda
-00000000-0000-e073-0007-000000000089,tapa,50,,,medium,template: fideuà tapa,pbojeda
-00000000-0000-e073-0007-000000000089,media_racion,50,,,medium,template: fideuà media_racion,pbojeda
-00000000-0000-e073-0007-000000000089,racion,50,,,medium,template: fideuà racion,pbojeda
-00000000-0000-e073-0007-00000000004b,pintxo,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-00000000004b,tapa,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-00000000004b,media_racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-00000000004b,racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-0000000000f2,pintxo,50,,,medium,template: flamenquín pintxo,pbojeda
-00000000-0000-e073-0007-0000000000f2,tapa,50,,,medium,template: flamenquín tapa,pbojeda
-00000000-0000-e073-0007-0000000000f2,media_racion,50,,,medium,template: flamenquín media_racion,pbojeda
-00000000-0000-e073-0007-0000000000f2,racion,50,,,medium,template: flamenquín racion,pbojeda
-00000000-0000-e073-0007-000000000047,pintxo,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000047,tapa,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000047,media_racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000047,racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000003,pintxo,50,,,medium,template: churros pintxo,pbojeda
-00000000-0000-e073-0007-000000000003,tapa,50,,,medium,template: churros tapa,pbojeda
-00000000-0000-e073-0007-000000000003,media_racion,50,,,medium,template: churros media_racion,pbojeda
-00000000-0000-e073-0007-000000000003,racion,50,,,medium,template: churros racion,pbojeda
-00000000-0000-e073-0007-0000000000ae,pintxo,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-0000000000ae,tapa,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-0000000000ae,media_racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-0000000000ae,racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-0000000000ad,pintxo,50,,,medium,template: tarta de queso pintxo,pbojeda
-00000000-0000-e073-0007-0000000000ad,tapa,50,,,medium,template: tarta de queso tapa,pbojeda
-00000000-0000-e073-0007-0000000000ad,media_racion,50,,,medium,template: tarta de queso media_racion,pbojeda
-00000000-0000-e073-0007-0000000000ad,racion,50,,,medium,template: tarta de queso racion,pbojeda
-00000000-0000-e073-0007-00000000004e,pintxo,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-00000000004e,tapa,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-00000000004e,media_racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-00000000004e,racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000084,pintxo,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000084,tapa,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000084,media_racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
-00000000-0000-e073-0007-000000000084,racion,200,,,medium,sin pieces — gazpacho/salmorejo style,pbojeda
+00000000-0000-e073-0007-00000000001a,pintxo,30,1,croqueta,medium,25-35g/ud estándar hostelería,pbojeda
+00000000-0000-e073-0007-00000000001a,tapa,120,4,croqueta,medium,4 uds/tapa,pbojeda
+00000000-0000-e073-0007-00000000001a,media_racion,180,6,croqueta,medium,6 uds media ración,pbojeda
+00000000-0000-e073-0007-00000000001a,racion,360,12,croqueta,medium,12 uds ración completa,pbojeda
+00000000-0000-e073-0007-00000000001b,pintxo,40,,,medium,cazuelita; Glovo/DaP,pbojeda
+00000000-0000-e073-0007-00000000001b,tapa,100,,,high,FEN: 100g/persona,pbojeda
+00000000-0000-e073-0007-00000000001b,media_racion,175,,,medium,~50% de racion,pbojeda
+00000000-0000-e073-0007-00000000001b,racion,350,,,high,300-400g estándar barra,pbojeda
+00000000-0000-e073-0007-00000000001e,pintxo,30,3,gamba,high,peladas; 3 gambas sobre pan,pbojeda
+00000000-0000-e073-0007-00000000001e,tapa,70,8,gamba,high,peladas; FatSecret,pbojeda
+00000000-0000-e073-0007-00000000001e,media_racion,120,14,gamba,medium,peladas ~half racion,pbojeda
+00000000-0000-e073-0007-00000000001e,racion,240,28,gamba,high,peeled from 500g shell-on,pbojeda
+00000000-0000-e073-0007-000000000021,pintxo,15,3,aceituna,high,3 olivas/palillo ~5g,pbojeda
+00000000-0000-e073-0007-000000000021,tapa,50,12,aceituna,high,10-12 manzanilla,pbojeda
+00000000-0000-e073-0007-000000000021,media_racion,75,18,aceituna,medium,mitad de racion,pbojeda
+00000000-0000-e073-0007-000000000021,racion,150,35,aceituna,medium,cuenco compartir,pbojeda
+00000000-0000-e073-0007-000000000022,pintxo,20,,,medium,loncha sobre pan 15-25g (Jamón ibérico),pbojeda
+00000000-0000-e073-0007-000000000022,tapa,60,,,medium,plato tapa 50-70g (Jamón ibérico),pbojeda
+00000000-0000-e073-0007-000000000022,media_racion,80,,,medium,70-90g típico,pbojeda
+00000000-0000-e073-0007-000000000022,racion,120,,,medium,100-150g (multiple sources),pbojeda
+00000000-0000-e073-0007-000000000023,pintxo,25,1,taco,medium,taco/cuña pequeña,pbojeda
+00000000-0000-e073-0007-000000000023,tapa,70,,,medium,tabla formato 60-80g,pbojeda
+00000000-0000-e073-0007-000000000023,media_racion,100,,,medium,media tabla queso,pbojeda
+00000000-0000-e073-0007-000000000023,racion,180,,,medium,tabla 150-200g,pbojeda
+00000000-0000-e073-0007-000000000020,pintxo,40,2,boquerón,medium,2 fritos o vinagre,pbojeda
+00000000-0000-e073-0007-000000000020,tapa,100,6,boquerón,high,100g tapa std (tuchef.es),pbojeda
+00000000-0000-e073-0007-000000000020,media_racion,130,8,boquerón,medium,~half racion,pbojeda
+00000000-0000-e073-0007-000000000020,racion,220,14,boquerón,high,ración vinagre/fritos,pbojeda
+00000000-0000-e073-0007-00000000001d,pintxo,40,,,low,bocadillo mini/pincho,pbojeda
+00000000-0000-e073-0007-00000000001d,tapa,120,,,medium,romana 100-140g,pbojeda
+00000000-0000-e073-0007-00000000001d,media_racion,180,,,medium,170-200g,pbojeda
+00000000-0000-e073-0007-00000000001d,racion,320,,,medium,300-350g (Consumer: 500g crudo),pbojeda
+00000000-0000-e073-0007-000000000028,pintxo,40,,,low,puñado sobre pan,pbojeda
+00000000-0000-e073-0007-000000000028,tapa,100,,,medium,andaluces ~100-120g,pbojeda
+00000000-0000-e073-0007-000000000028,media_racion,150,,,medium,mitad nueva racion,pbojeda
+00000000-0000-e073-0007-000000000028,racion,220,,,medium,150-200g típico (OKDiario),pbojeda
+00000000-0000-e073-0007-000000000024,pintxo,40,,,medium,sobre rebanada (Donostia),pbojeda
+00000000-0000-e073-0007-000000000024,tapa,120,,,high,cazuela; varias fuentes,pbojeda
+00000000-0000-e073-0007-000000000024,media_racion,175,,,medium,~50% de racion,pbojeda
+00000000-0000-e073-0007-000000000024,racion,300,,,high,200-300g compartir,pbojeda
+00000000-0000-e073-0007-00000000001c,pintxo,60,1,cuña,high,pincho mini; Palacios,pbojeda
+00000000-0000-e073-0007-00000000001c,tapa,100,1,cuña,high,cuña clásica bar,pbojeda
+00000000-0000-e073-0007-00000000001c,media_racion,180,3,cuña,medium,3 cuñas compartir,pbojeda
+00000000-0000-e073-0007-00000000001c,racion,360,6,cuña,medium,entera 6-8 cuñas,pbojeda
+00000000-0000-e073-0007-00000000003d,pintxo,40,1,rebanada,high,1 rebanada rústica,pbojeda
+00000000-0000-e073-0007-00000000003d,tapa,80,2,rebanada,high,2 tostadas,pbojeda
+00000000-0000-e073-0007-00000000003d,media_racion,120,3,rebanada,medium,3 rebanadas,pbojeda
+00000000-0000-e073-0007-00000000003d,racion,200,5,rebanada,medium,plato compartir,pbojeda
+00000000-0000-e073-0007-00000000002a,pintxo,30,1,rodaja,high,rodaja 27-30g (Embutidos Ríos),pbojeda
+00000000-0000-e073-0007-00000000002a,tapa,90,3,rodaja,high,3 rodajas Burgos,pbojeda
+00000000-0000-e073-0007-00000000002a,media_racion,140,5,rodaja,medium,5 rodajas,pbojeda
+00000000-0000-e073-0007-00000000002a,racion,250,8,rodaja,medium,8 rodajas ~31g c/u,pbojeda
+00000000-0000-e073-0007-000000000025,pintxo,50,,,high,cocido; tapa de palillo,pbojeda
+00000000-0000-e073-0007-000000000025,tapa,100,,,high,cocido; estándar de barra,pbojeda
+00000000-0000-e073-0007-000000000025,media_racion,130,,,high,cocido; mitad racion,pbojeda
+00000000-0000-e073-0007-000000000025,racion,220,,,high,cocido; 150-250g (Consumer),pbojeda
+00000000-0000-e073-0007-000000000042,pintxo,50,,,high,chupito 45-60ml (gazpacho),pbojeda
+00000000-0000-e073-0007-000000000042,tapa,180,,,high,vasito/cuenco pequeño,pbojeda
+00000000-0000-e073-0007-000000000042,media_racion,230,,,medium,~mitad racion,pbojeda
+00000000-0000-e073-0007-000000000042,racion,350,,,high,cuenco 300-350ml,pbojeda
+00000000-0000-e073-0007-000000000043,pintxo,60,,,high,chupito; más denso (salmorejo),pbojeda
+00000000-0000-e073-0007-000000000043,tapa,180,,,high,vasito individual,pbojeda
+00000000-0000-e073-0007-000000000043,media_racion,220,,,medium,~mitad racion,pbojeda
+00000000-0000-e073-0007-000000000043,racion,350,,,high,Majao: 200-250ml,pbojeda
+00000000-0000-e073-0007-000000000062,pintxo,45,1,albóndiga,high,1 ud 40-60g,pbojeda
+00000000-0000-e073-0007-000000000062,tapa,135,3,albóndiga,high,3-4 uds en salsa,pbojeda
+00000000-0000-e073-0007-000000000062,media_racion,180,4,albóndiga,medium,~50% racion,pbojeda
+00000000-0000-e073-0007-000000000062,racion,300,6,albóndiga,high,6 uds/300g,pbojeda
+00000000-0000-e073-0007-0000000000f1,pintxo,35,1,empanadilla,medium,1 ud 30-40g (Hacendado 50g),pbojeda
+00000000-0000-e073-0007-0000000000f1,tapa,140,4,empanadilla,medium,4 uds plato tapa,pbojeda
+00000000-0000-e073-0007-0000000000f1,media_racion,210,6,empanadilla,medium,6 uds media,pbojeda
+00000000-0000-e073-0007-0000000000f1,racion,350,10,empanadilla,medium,10 uds compartir (mini format),pbojeda
+00000000-0000-e073-0007-000000000029,pintxo,25,2,mejillón,medium,carne only; tigre style,pbojeda
+00000000-0000-e073-0007-000000000029,tapa,80,6,mejillón,medium,carne ~30% de 250g cáscara,pbojeda
+00000000-0000-e073-0007-000000000029,media_racion,150,12,mejillón,high,carne ~500g cáscara mitad,pbojeda
+00000000-0000-e073-0007-000000000029,racion,300,24,mejillón,high,carne 1kg cáscara ~30%,pbojeda
+00000000-0000-e073-0007-000000000034,pintxo,30,1,navaja,medium,carne; poco habitual pintxo,pbojeda
+00000000-0000-e073-0007-000000000034,tapa,90,6,navaja,medium,carne ~40% cáscara,pbojeda
+00000000-0000-e073-0007-000000000034,media_racion,130,8,navaja,high,carne mitad 1kg cáscara,pbojeda
+00000000-0000-e073-0007-000000000034,racion,260,16,navaja,high,carne 25-30 pz/1kg cáscara,pbojeda
+00000000-0000-e073-0007-000000000035,pintxo,40,,,medium,poco habitual; bocado,pbojeda
+00000000-0000-e073-0007-000000000035,tapa,100,,,high,~mitad porción principal,pbojeda
+00000000-0000-e073-0007-000000000035,media_racion,130,,,high,Consumer Eroski medio plato,pbojeda
+00000000-0000-e073-0007-000000000035,racion,230,,,high,200-250g/plato (Infobae),pbojeda
+00000000-0000-e073-0007-00000000003b,pintxo,45,,,low,cucurucho mini cántabro,pbojeda
+00000000-0000-e073-0007-00000000003b,tapa,130,,,medium,tapa 120-140g,pbojeda
+00000000-0000-e073-0007-00000000003b,media_racion,200,,,medium,cántabras,pbojeda
+00000000-0000-e073-0007-00000000003b,racion,350,,,medium,320-380g (Compesca),pbojeda
+00000000-0000-e073-0007-000000000026,pintxo,40,3,champiñón,medium,pincho bocado,pbojeda
+00000000-0000-e073-0007-000000000026,tapa,120,8,champiñón,high,cazuela clásica,pbojeda
+00000000-0000-e073-0007-000000000026,media_racion,175,12,champiñón,medium,~50% racion,pbojeda
+00000000-0000-e073-0007-000000000026,racion,300,20,champiñón,high,200-300g 1kg=4 raciones,pbojeda
+00000000-0000-e073-0007-00000000001f,pintxo,20,5,pimiento,medium,bocado ~4g/pimiento,pbojeda
+00000000-0000-e073-0007-00000000001f,tapa,100,25,pimiento,high,200g=2 pers,pbojeda
+00000000-0000-e073-0007-00000000001f,media_racion,150,35,pimiento,medium,plato 2 pers,pbojeda
+00000000-0000-e073-0007-00000000001f,racion,250,60,pimiento,high,compartir,pbojeda
+00000000-0000-e073-0007-000000000083,pintxo,50,,,low,poco habitual; cata,pbojeda
+00000000-0000-e073-0007-000000000083,tapa,150,,,medium,ración pequeña,pbojeda
+00000000-0000-e073-0007-000000000083,media_racion,180,,,medium,mitad racion cocida,pbojeda
+00000000-0000-e073-0007-000000000083,racion,300,,,high,250-300g cocida/pax,pbojeda
+00000000-0000-e073-0007-000000000044,pintxo,80,,,low,cuchara degustación (lentejas),pbojeda
+00000000-0000-e073-0007-000000000044,tapa,180,,,medium,cazuelita,pbojeda
+00000000-0000-e073-0007-000000000044,media_racion,250,,,high,mitad compartida,pbojeda
+00000000-0000-e073-0007-000000000044,racion,450,,,high,plato principal,pbojeda
+00000000-0000-e073-0007-000000000049,pintxo,40,,,medium,montadito verdura (ensalada),pbojeda
+00000000-0000-e073-0007-000000000049,tapa,120,,,high,5al día ~140g,pbojeda
+00000000-0000-e073-0007-000000000049,media_racion,180,,,high,mitad compartida,pbojeda
+00000000-0000-e073-0007-000000000049,racion,300,,,high,plato principal,pbojeda
+00000000-0000-e073-0007-000000000046,pintxo,90,,,low,chupito sopa (cocido madrileño),pbojeda
+00000000-0000-e073-0007-000000000046,tapa,200,,,low,poco habitual,pbojeda
+00000000-0000-e073-0007-000000000046,media_racion,280,,,medium,mitad familiar,pbojeda
+00000000-0000-e073-0007-000000000046,racion,500,,,high,tres vuelcos generoso,pbojeda
+00000000-0000-e073-0007-000000000045,pintxo,80,,,low,cazuelita aperitivo (fabada),pbojeda
+00000000-0000-e073-0007-000000000045,tapa,180,,,medium,cazuela barro individual,pbojeda
+00000000-0000-e073-0007-000000000045,media_racion,250,,,high,Pascompan porción ligera,pbojeda
+00000000-0000-e073-0007-000000000045,racion,420,,,high,restaurante 400-420g,pbojeda
+00000000-0000-e073-0007-00000000007e,pintxo,30,1,huevo,medium,huevo de codorniz,pbojeda
+00000000-0000-e073-0007-00000000007e,tapa,130,1,huevo,high,1 huevo+chorizo/patatas,pbojeda
+00000000-0000-e073-0007-00000000007e,media_racion,230,2,huevo,high,2 huevos+guarnición,pbojeda
+00000000-0000-e073-0007-00000000007e,racion,400,3,huevo,medium,3 huevos+chorizo+patatas,pbojeda
+00000000-0000-e073-0007-000000000061,pintxo,50,,,low,poco habitual; bocado,pbojeda
+00000000-0000-e073-0007-000000000061,tapa,120,,,medium,filete pequeño 80-120g,pbojeda
+00000000-0000-e073-0007-000000000061,media_racion,130,,,high,mitad filete 200g,pbojeda
+00000000-0000-e073-0007-000000000061,racion,200,,,high,150-200g (Congalsa),pbojeda
+00000000-0000-e073-0007-000000000089,pintxo,50,,,low,poco habitual; cata,pbojeda
+00000000-0000-e073-0007-000000000089,tapa,150,,,medium,ración pequeña,pbojeda
+00000000-0000-e073-0007-000000000089,media_racion,180,,,medium,mitad racion cocida,pbojeda
+00000000-0000-e073-0007-000000000089,racion,300,,,high,100g secos=~300g/pax,pbojeda
+00000000-0000-e073-0007-00000000004b,pintxo,40,,,medium,cucharita/tostada (pisto),pbojeda
+00000000-0000-e073-0007-00000000004b,tapa,100,,,high,tapa/guarnición 125g std,pbojeda
+00000000-0000-e073-0007-00000000004b,media_racion,150,,,high,Wetaca 250g racion,pbojeda
+00000000-0000-e073-0007-00000000004b,racion,280,,,high,plato principal,pbojeda
+00000000-0000-e073-0007-0000000000f2,pintxo,50,1,rodaja,medium,1 rodaja,pbojeda
+00000000-0000-e073-0007-0000000000f2,tapa,140,1,flamenquín,high,1 ud 130-150g,pbojeda
+00000000-0000-e073-0007-0000000000f2,media_racion,210,2,flamenquín,medium,1.5-2 uds,pbojeda
+00000000-0000-e073-0007-0000000000f2,racion,420,3,flamenquín,high,3 uds/compartir,pbojeda
+00000000-0000-e073-0007-000000000047,pintxo,60,,,high,chupito caldoso (sopa de ajo),pbojeda
+00000000-0000-e073-0007-000000000047,tapa,180,,,medium,cuenco individual pequeño,pbojeda
+00000000-0000-e073-0007-000000000047,media_racion,200,,,medium,mitad plato con huevo,pbojeda
+00000000-0000-e073-0007-000000000047,racion,300,,,high,250ml caldo+pan+huevo,pbojeda
+00000000-0000-e073-0007-000000000003,pintxo,25,1,churro,low,1 ud 20-30g,pbojeda
+00000000-0000-e073-0007-000000000003,tapa,80,3,churro,medium,3 uds desayuno,pbojeda
+00000000-0000-e073-0007-000000000003,media_racion,120,5,churro,medium,5 uds chocolatería,pbojeda
+00000000-0000-e073-0007-000000000003,racion,200,8,churro,medium,6-10 uds (Churrería La Gloria),pbojeda
+00000000-0000-e073-0007-0000000000ae,pintxo,40,,,medium,cucharilla postre (crema cat.),pbojeda
+00000000-0000-e073-0007-0000000000ae,tapa,80,,,medium,mini-cazuelita,pbojeda
+00000000-0000-e073-0007-0000000000ae,media_racion,100,,,high,Hacendado 97g/ración,pbojeda
+00000000-0000-e073-0007-0000000000ae,racion,180,,,high,cazuelita 11.5cm,pbojeda
+00000000-0000-e073-0007-0000000000ad,pintxo,40,,,low,poco habitual; mini-bocado,pbojeda
+00000000-0000-e073-0007-0000000000ad,tapa,80,,,medium,porción pequeña,pbojeda
+00000000-0000-e073-0007-0000000000ad,media_racion,90,,,medium,mitad cuña estándar,pbojeda
+00000000-0000-e073-0007-0000000000ad,racion,130,,,high,La Viña porción 130g,pbojeda
+00000000-0000-e073-0007-00000000004e,pintxo,80,,,low,cuchara degustación (potaje),pbojeda
+00000000-0000-e073-0007-00000000004e,tapa,180,,,medium,cazuelita caldosa,pbojeda
+00000000-0000-e073-0007-00000000004e,media_racion,250,,,high,mitad compartida,pbojeda
+00000000-0000-e073-0007-00000000004e,racion,450,,,high,cuaresmal (UCM),pbojeda

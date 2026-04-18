@@ -1,6 +1,6 @@
 # BUG-PROD-008-FU1 — OpenAI Vision errors logged as empty objects
 
-**Status:** Ready for Merge
+**Status:** Done
 **Type:** Bug (follow-up to BUG-PROD-008)
 **Severity:** High
 **Path:** B (Standard)
@@ -45,7 +45,7 @@ Production evidence: `{"level":40,"error":{},"msg":"OpenAI vision call failed"}`
 - [x] TypeScript clean
 - [x] `bugs.md` updated
 - [x] PR created to develop
-- [ ] PR synced to main
+- [x] PR synced to main (PR #147 serialization + PR #151 redaction)
 
 ## Workflow Checklist
 
@@ -54,7 +54,7 @@ Production evidence: `{"level":40,"error":{},"msg":"OpenAI vision call failed"}`
 - [x] Step 3: Branch + TDD (RED → GREEN)
 - [x] Step 4: Validate (production-code-validator PASS)
 - [x] Step 5: Document + commit + PR
-- [ ] Step 6: Deploy + verify logs
+- [x] Step 6: Deploy + verify logs (prod verified 2026-04-17, key rotated)
 
 ## Completion Log
 
@@ -66,3 +66,4 @@ Production evidence: `{"level":40,"error":{},"msg":"OpenAI vision call failed"}`
 | Validate | 2026-04-17 | tsc clean, production-code-validator PASS |
 | Document | 2026-04-17 | bugs.md + ticket updated |
 | Hardening | 2026-04-17 | Added `redactSecrets()` — strips API keys from log messages. TDD: 4 new tests (AC8-AC11) RED→GREEN |
+| Prod verified | 2026-04-17 | Error serialization shows `message`, `name`, `status` fields. Root cause identified: newline in `OPENAI_API_KEY` env var → `TypeError: invalid header value`. Key rotated. After fix: vision call succeeds (HTTP 200, ~4-6s, `gpt-4o-mini`, 25535 prompt tokens). PRs #144, #147 (serialization), #148, #151 (redaction) all merged to develop + main. |
