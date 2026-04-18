@@ -1,9 +1,9 @@
 # F114: Expand Spanish canonical dishes JSON — add Chuletón, Chorizo embutido, Arroz blanco
 
 **Feature:** F114 | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/F114-expand-spanish-dishes
+**Status:** Ready for Merge | **Branch:** `feature/F114-expand-spanish-dishes` | **PR:** #156
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
-**Created:** 2026-04-17 | **Dependencies:** BUG-PROD-009 (explicit-map generator must land first so new entries can be mapped correctly)
+**Created:** 2026-04-17 | **Dependencies:** BUG-PROD-009 merged at `942ab35` (2026-04-18)
 
 ---
 
@@ -613,6 +613,12 @@ The following steps require direct access to `DATABASE_URL_PROD` (Render product
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-17 | Ticket created | Split from BUG-PROD-009 to separate the bug-fix (mapping) from the data enhancement (new canonical dishes). Recommended by cross-model consult (Codex + Gemini) to avoid delaying the urgent mapping fix. |
+| 2026-04-18 | Plan v1 → v2 | backend-planner produced initial plan. Cross-model review (Codex + Gemini) + empirical JSON audit surfaced 3 critical findings: (a) Arroz blanco already exists at `...0e5` → reuse, don't duplicate; (b) `dishes.embedding` column vs non-existent `dish_embeddings` table — SQL verification queries corrected; (c) `chuletón` alias already on Entrecot (`...0069`) → must be removed in same commit. Plan v2 reduces from 3 new entries to 2 new + 2 modified. Mandatory embedding routing test (Gemini M1 + Codex M2). Added map-key substring collision test + salt/sodium sanity + alias-uniqueness invariant tests. |
+| 2026-04-18 | Implementation (backend-developer) | 5 atomic commits: seed (2 new dishes + Entrecot alias removal + Arroz aliases extension), generator (PRIORITY_DISH_MAP 39→42, SIN_PIECES_NAMES adds `arroz`), CSV regeneration (168 rows total, 12 new with researched values), tests (21 unit + 5 integration stubs + U7b/EC8/EC6/f073 updates), key_facts (250→252). Dev DB seeded + embeddings regenerated. 3318 tests passing, 0 regressions. |
+| 2026-04-18 | production-code-validator | APPROVE (0 blockers). 8 validation categories clean: JSON integrity, generator, CSV integrity, test coverage, docs, commit hygiene, regressions, risks. |
+| 2026-04-18 | code-review-specialist | APPROVE WITH NITS. 1 M2 + 4 M3. M2-1 (U11 idempotency vs true snapshot — clarified via rename + header note); M3-1 (integration test misleading — addressed via Tier A/B split + docstring); M3-3 stale "39 entries" comment (fixed); M3-2 alias ordering (kept, no convention); M3-4 commit trailer convention (kept for PR consistency). |
+| 2026-04-18 | qa-engineer | PASS WITH FOLLOW-UPS. 2 M2 + 3 M3. M2 integration test doesn't really test routing (fixed: added Tier B with real OpenAI embed + pgvector top-match assertion); M2 ticket §9 phantom `...fd` dishId (fixed: corrected to `...0e5` + used explicit SQL); M3 U11 rename (done); M3 no "chuletón completo" non-collision test (added in U5c); M3 ENABLE_EMBEDDING_INTEGRATION_TESTS undocumented (added to CONTRIBUTING.md). |
+| 2026-04-18 | Post-review fixes | 1 commit `eadb2ac` addressing all review + QA findings. 22 F114 unit tests pass (+1 new chuletón completo guard). Integration test split into Tier A (structural) + Tier B (true routing via OpenAI + pgvector). CONTRIBUTING.md documents the env gates. CI green. |
 
 ---
 
@@ -622,14 +628,14 @@ The following steps require direct access to `DATABASE_URL_PROD` (Render product
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/11, DoD: _/8, Workflow: _/8 |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: Spanish canonical dishes catalog |
-| 4. Update decisions.md | [ ] | N/A (no architectural decision; follows ADR from BUG-PROD-009) |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/develop |
+| 0. Validate ticket structure | [x] | 7 sections present: Spec, Implementation Plan (9 subsections + Risks), Acceptance Criteria (12), Definition of Done (8), Workflow Checklist (8), Completion Log (8 entries), Merge Checklist Evidence. |
+| 1. Mark all items | [x] | AC: 11/11 (AC10 remains open post-merge as prod rollout is user-executed); DoD: 8/8; Workflow: 7/8 (Step 6 post-merge). |
+| 2. Verify product tracker | [x] | Active Session: "F114 step 5/6" pre-merge. Will update to "None / post-merge prod rollout queued" in Step 6. |
+| 3. Update key_facts.md | [x] | Cocina Española row: 250 → 252; source breakdown 46→47 bedca, 204→205 recipe; F114 footnote with dishIds. |
+| 4. Update decisions.md | [x] | N/A — no new ADR needed (ADR-022 from BUG-PROD-009 covers the explicit-map pattern; F114 only extends it). |
+| 5. Commit documentation | [x] | Commits: `b58347f` (key_facts), `eadb2ac` (CONTRIBUTING Integration tests section) + 2 earlier ticket plan v2 commits. |
+| 6. Verify clean working tree | [x] | `git status`: 2 untracked runtime artifacts only (`.claude/scheduled_tasks.lock`, `packages/landing/.gitignore`). |
+| 7. Verify branch up to date | [x] | Rebased onto `origin/develop` at `06c683a`. Post-review fixes pushed as `eadb2ac`. CI green (`ci-success` + `test-api` pass; Vercel deployments pass). |
 
 ---
 
