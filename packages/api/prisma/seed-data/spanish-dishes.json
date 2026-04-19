@@ -2717,9 +2717,7 @@
       "nutrientId": "00000000-0000-e073-0008-000000000069",
       "name": "Entrecot de ternera",
       "nameEs": "Entrecot de ternera",
-      "aliases": [
-        "chuletón"
-      ],
+      "aliases": [],
       "category": "segundos",
       "portionGrams": 250,
       "confidenceLevel": "medium",
@@ -5962,7 +5960,10 @@
       "name": "Arroz blanco",
       "nameEs": "Arroz blanco",
       "aliases": [
-        "guarnición de arroz"
+        "guarnición de arroz",
+        "arroz",
+        "arroz cocido",
+        "arroz hervido"
       ],
       "category": "guarniciones",
       "portionGrams": 150,
@@ -6526,6 +6527,66 @@
         "fiber": 2.5,
         "salt": 1.0,
         "sodium": 0.4
+      }
+    },
+    {
+      "externalId": "CE-251",
+      "dishId": "00000000-0000-e073-0007-0000000000fb",
+      "nutrientId": "00000000-0000-e073-0008-0000000000fb",
+      "name": "Chuletón de buey",
+      "nameEs": "Chuletón de buey",
+      "aliases": [
+        "chuletón",
+        "chuletón vasco",
+        "txuleta",
+        "txuletón",
+        "chuletón de ternera"
+      ],
+      "category": "segundos",
+      "portionGrams": 700,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 280,
+        "proteins": 21,
+        "carbohydrates": 0,
+        "sugars": 0,
+        "fats": 22,
+        "saturatedFats": 9,
+        "fiber": 0,
+        "salt": 0.18,
+        "sodium": 0.07
+      }
+    },
+    {
+      "externalId": "CE-252",
+      "dishId": "00000000-0000-e073-0007-0000000000fc",
+      "nutrientId": "00000000-0000-e073-0008-0000000000fc",
+      "name": "Chorizo ibérico embutido",
+      "nameEs": "Chorizo ibérico embutido",
+      "aliases": [
+        "chorizo ibérico",
+        "chorizo embutido",
+        "chorizo",
+        "chorizo curado",
+        "chorizo de bellota"
+      ],
+      "category": "tapas",
+      "portionGrams": 180,
+      "confidenceLevel": "high",
+      "estimationMethod": "official",
+      "source": "bedca",
+      "nutrients": {
+        "calories": 468,
+        "proteins": 24,
+        "carbohydrates": 2,
+        "sugars": 0.5,
+        "fats": 40,
+        "saturatedFats": 15,
+        "fiber": 0,
+        "salt": 2.40,
+        "sodium": 0.94
       }
     }
   ]
