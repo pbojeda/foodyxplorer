@@ -44,3 +44,41 @@ Then delete affected CSV rows entirely. WARNING: run in a maintenance window. Th
 ```
 redis-cli -u $REDIS_URL FLUSHDB
 ```
+
+## Integration tests — embedding routing (F114+)
+
+Some integration tests verify semantic routing via pgvector cosine similarity against the `dishes.embedding` column. These tests are gated behind env vars because they require seeded data + embedding regeneration (expensive, not suitable for default CI).
+
+**Two tiers of tests:**
+
+- **Tier A (structural)** — verify that F114-affected dishes have non-null embeddings in the test DB, and that F114 data modifications landed correctly (alias removal from Entrecot, alias extension on Arroz blanco). Runs when:
+  ```
+  ENABLE_EMBEDDING_INTEGRATION_TESTS=true
+  ```
+- **Tier B (true routing)** — embed a query string at test time (OpenAI call) and assert the top pgvector match is the expected dishId. Fulfils acceptance criteria that require "true routing assertion, not just existence check." Runs when BOTH env vars are set:
+  ```
+  ENABLE_EMBEDDING_INTEGRATION_TESTS=true
+  OPENAI_API_KEY=<valid_key>
+  ```
+
+**Prerequisites before running:**
+
+```
+DATABASE_URL=<test_db_url> npm run seed -w @foodxplorer/api
+DATABASE_URL=<test_db_url> OPENAI_API_KEY=<key> npm run embeddings:generate -w @foodxplorer/api
+```
+
+**Example — run F114 routing tests locally:**
+
+```bash
+export ENABLE_EMBEDDING_INTEGRATION_TESTS=true
+export OPENAI_API_KEY=sk-...
+export DATABASE_URL_TEST=postgresql://...
+npx vitest run --config packages/api/vitest.config.integration.ts -t "F114"
+```
+
+If Tier B tests fail (top match is NOT the expected dishId), investigate:
+1. Has the embedding been regenerated AFTER the alias changes on the dish entries?
+2. Is there an older alias still present in the JSON that is now a false match?
+3. Is the OpenAI embedding model aligned with the one the pipeline uses?
+

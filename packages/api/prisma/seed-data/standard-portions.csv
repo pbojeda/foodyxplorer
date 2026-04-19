@@ -155,3 +155,15 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-00000000004e,tapa,180,,,medium,cazuelita caldosa,pbojeda
 00000000-0000-e073-0007-00000000004e,media_racion,250,,,high,mitad compartida,pbojeda
 00000000-0000-e073-0007-00000000004e,racion,450,,,high,cuaresmal (UCM),pbojeda
+00000000-0000-e073-0007-0000000000fb,pintxo,60,,,medium,small cut/taco format; pintxo de chuletón raro — brocheta/taco proxy,pbojeda
+00000000-0000-e073-0007-0000000000fb,tapa,150,,,medium,small individual serving; half-taco equivalent,pbojeda
+00000000-0000-e073-0007-0000000000fb,media_racion,350,,,medium,shared half-portion; institutional est,pbojeda
+00000000-0000-e073-0007-0000000000fb,racion,700,,,medium,full bone-in ración (edible ~70% of ~1kg raw bone-in),pbojeda
+00000000-0000-e073-0007-0000000000fc,pintxo,20,4,rodaja,high,4 small slices ~5g/slice; standard pintxo bar serving,pbojeda
+00000000-0000-e073-0007-0000000000fc,tapa,60,12,rodaja,high,12 slices; typical charcuterie plate portion,pbojeda
+00000000-0000-e073-0007-0000000000fc,media_racion,100,20,rodaja,high,20 slices; medium charcuterie board,pbojeda
+00000000-0000-e073-0007-0000000000fc,racion,180,36,rodaja,high,full racion; BEDCA-derived weight cross-referenced,pbojeda
+00000000-0000-e073-0007-0000000000e5,pintxo,50,,,medium,small side scoop (~50g cooked rice),pbojeda
+00000000-0000-e073-0007-0000000000e5,tapa,100,,,medium,side portion; casual bar context,pbojeda
+00000000-0000-e073-0007-0000000000e5,media_racion,150,,,high,half-racion side; UCM/SENC standard — matches portionGrams default,pbojeda
+00000000-0000-e073-0007-0000000000e5,racion,250,,,high,full side ración; SENC 200-250g cooked range,pbojeda

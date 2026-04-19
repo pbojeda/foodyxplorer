@@ -147,8 +147,8 @@ describe('generateStandardPortionCsv (file I/O)', () => {
     // spanish-dishes.json; we just need a fixture with all 39 real dishIds.
     // For this test, we provide only 3 and also patch the map via a test-friendly
     // re-export. The simplest approach: provide a minimal spanish-dishes.json
-    // that contains ALL 39 dishIds from PRIORITY_DISH_MAP.
-    // We'll populate the fixture with dummy dishes for the other 36 not under test.
+    // that contains ALL 42 dishIds from PRIORITY_DISH_MAP (39 original + 3 added by F114).
+    // We'll populate the fixture with dummy dishes for the other 39 not under test.
     // This avoids needing to modify the generator's testability interface.
 
     const ALL_DISH_IDS = [
@@ -191,6 +191,9 @@ describe('generateStandardPortionCsv (file I/O)', () => {
       '00000000-0000-e073-0007-0000000000ae', // crema catalana
       '00000000-0000-e073-0007-0000000000ad', // tarta de queso
       '00000000-0000-e073-0007-00000000004e', // potaje
+      '00000000-0000-e073-0007-0000000000fb', // chuletón de buey (F114)
+      '00000000-0000-e073-0007-0000000000fc', // chorizo ibérico embutido (F114)
+      '00000000-0000-e073-0007-0000000000e5', // arroz blanco (F114 reused)
     ];
 
     writeFileSync(
@@ -206,8 +209,8 @@ describe('generateStandardPortionCsv (file I/O)', () => {
     const content = readFileSync(outputPath, 'utf-8');
     const lines = content.replace(/\r\n/g, '\n').split('\n').filter((l) => l.trim() !== '');
 
-    // 1 header + 39 dishes × 4 terms = 157 lines
-    expect(lines).toHaveLength(157);
+    // 1 header + 42 dishes × 4 terms = 169 lines (F114: was 157 with 39 dishes)
+    expect(lines).toHaveLength(169);
     expect(lines[0]).toBe('dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by');
 
     // All rows for CROQUETAS_ID must appear
@@ -234,7 +237,7 @@ describe('generateStandardPortionCsv (file I/O)', () => {
     ].join('\n') + '\n';
     writeFileSync(outputPath, existingCsv, 'utf-8');
 
-    // Fixture with only croquetas + gazpacho + one dummy for each other map entry
+    // Fixture with croquetas + all other 42 map entries (F114: was 39 dishes)
     const ALL_DISH_IDS = [
       '00000000-0000-e073-0007-00000000001a', // croquetas
       '00000000-0000-e073-0007-00000000001b', '00000000-0000-e073-0007-00000000001e',
@@ -256,6 +259,9 @@ describe('generateStandardPortionCsv (file I/O)', () => {
       '00000000-0000-e073-0007-0000000000f2', '00000000-0000-e073-0007-000000000047',
       '00000000-0000-e073-0007-000000000003', '00000000-0000-e073-0007-0000000000ae',
       '00000000-0000-e073-0007-0000000000ad', '00000000-0000-e073-0007-00000000004e',
+      '00000000-0000-e073-0007-0000000000fb', // chuletón de buey (F114)
+      '00000000-0000-e073-0007-0000000000fc', // chorizo ibérico embutido (F114)
+      '00000000-0000-e073-0007-0000000000e5', // arroz blanco (F114 reused)
     ];
 
     writeFileSync(
@@ -270,13 +276,11 @@ describe('generateStandardPortionCsv (file I/O)', () => {
     const lines = content.replace(/\r\n/g, '\n').split('\n').filter((l) => l.trim() !== '');
 
     // Header (1) + 2 pre-existing reviewed + 2 new template rows for croquetas (media_racion, racion)
-    // + 4 rows × 38 other dishes = 2 + (39 × 4) - 2 = 156 new lines + 1 header = total 157 + 2 pre-existing
-    // Wait: 2 pre-existing rows are HEADERS-stripped, then 2 more for croquetas unreviewed
-    // + 4 × 38 for other dishes = 2 + 2 + 152 = 156 data rows + 1 header = 157 lines
-    // Actually: the pre-existing file has header + 2 rows. Generator appends new rows.
-    // It skips the 2 reviewed ones (pintxo, tapa), generates (media_racion, racion) for croquetas.
-    // So total = header(1) + 2(existing) + 2(croquetas new) + 38×4(others) = 157 lines total.
-    expect(lines).toHaveLength(157);
+    // + 4 rows × 41 other dishes = 2 + 2 + 164 = 168 data rows + 1 header = 169 lines total.
+    // (F114: was 157 lines with 39 dishes; now 169 with 42 dishes)
+    // Generator skips the 2 reviewed croquetas rows (pintxo, tapa),
+    // generates (media_racion, racion) for croquetas + 4×41 for the other 41 dishes.
+    expect(lines).toHaveLength(169);
 
     // The 2 pre-existing reviewed rows are untouched
     const pintxoLine = lines.find(
@@ -325,6 +329,9 @@ describe('generateStandardPortionCsv (file I/O)', () => {
       '00000000-0000-e073-0007-0000000000f2', '00000000-0000-e073-0007-000000000047',
       '00000000-0000-e073-0007-000000000003', '00000000-0000-e073-0007-0000000000ae',
       '00000000-0000-e073-0007-0000000000ad', '00000000-0000-e073-0007-00000000004e',
+      '00000000-0000-e073-0007-0000000000fb', // chuletón de buey (F114)
+      '00000000-0000-e073-0007-0000000000fc', // chorizo ibérico embutido (F114)
+      '00000000-0000-e073-0007-0000000000e5', // arroz blanco (F114 reused)
     ];
 
     writeFileSync(
@@ -382,6 +389,9 @@ describe('generateStandardPortionCsv (file I/O)', () => {
       '00000000-0000-e073-0007-000000000047', '00000000-0000-e073-0007-000000000003',
       '00000000-0000-e073-0007-0000000000ae', '00000000-0000-e073-0007-0000000000ad',
       '00000000-0000-e073-0007-00000000004e',
+      '00000000-0000-e073-0007-0000000000fb', // chuletón de buey (F114)
+      '00000000-0000-e073-0007-0000000000fc', // chorizo ibérico embutido (F114)
+      '00000000-0000-e073-0007-0000000000e5', // arroz blanco (F114 reused)
     ];
 
     writeFileSync(
@@ -431,8 +441,9 @@ describe('isSinPieces', () => {
     }
   });
 
-  it('U7b: arroz and bocadillo are NOT in SIN_PIECES_NAMES (removed per BUG-PROD-009)', () => {
-    expect(isSinPieces('arroz')).toBe(false);
+  it('U7b: arroz IS in SIN_PIECES_NAMES (reinstated by F114 — Arroz blanco cocido dishId created); bocadillo is NOT', () => {
+    // arroz reinstated in SIN_PIECES_NAMES by F114 after Arroz blanco cocido dishId was created.
+    expect(isSinPieces('arroz')).toBe(true);
     expect(isSinPieces('bocadillo')).toBe(false);
   });
 });

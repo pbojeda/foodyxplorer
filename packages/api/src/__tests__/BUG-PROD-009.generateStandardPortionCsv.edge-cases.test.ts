@@ -20,9 +20,9 @@
 //        → generator writes all 39 × 4 = 156 rows, does not crash on empty-but-valid CSV
 //   EC7: parseCsvString — truncated mid-row (fewer columns than header)
 //        → throws with clear column-count mismatch message (seed pipeline safeguard)
-//   EC8: I4 coverage gap — verify omitted priority NAMES ('chorizo', 'chuletón', 'arroz')
-//        do not appear as key strings in the notes column of the generated CSV
-//        (I4 checks by dishId; this checks by priority-name substring in notes)
+//   EC8: I4 coverage gap — verify still-omitted priority NAMES (bocadillo, pintxos, etc.)
+//        do not appear as key strings in the notes column of the generated CSV.
+//        F114: chorizo/chuletón/arroz removed from omitted list — they are now in map.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'fs';
@@ -55,8 +55,9 @@ afterEach(() => {
   dirsToClean.length = 0;
 });
 
-// Full list of all 39 dishIds in PRIORITY_DISH_MAP — needed to build a valid fixture
-// that passes validatePriorityDishMap without unknown-dishId errors.
+// Full list of all 42 dishIds in PRIORITY_DISH_MAP (post-F114) — needed to build a valid
+// fixture that passes validatePriorityDishMap without unknown-dishId errors.
+// F114 added 3 entries: chuletón (...fb), chorizo (...fc), arroz (...0e5 reused).
 const ALL_MAP_DISH_IDS = [
   '00000000-0000-e073-0007-00000000001a', // croquetas
   '00000000-0000-e073-0007-00000000001b', // patatas bravas
@@ -97,6 +98,9 @@ const ALL_MAP_DISH_IDS = [
   '00000000-0000-e073-0007-0000000000ae', // crema catalana
   '00000000-0000-e073-0007-0000000000ad', // tarta de queso
   '00000000-0000-e073-0007-00000000004e', // potaje
+  '00000000-0000-e073-0007-0000000000fb', // chuletón de buey (F114)
+  '00000000-0000-e073-0007-0000000000fc', // chorizo ibérico embutido (F114)
+  '00000000-0000-e073-0007-0000000000e5', // arroz blanco (F114 reused)
 ];
 
 function writeAllMapDishes(dataDir: string): void {
@@ -285,7 +289,8 @@ describe('EC5: skip-existing — invalid UUID row with reviewed_by still gets sk
 // ---------------------------------------------------------------------------
 
 describe('EC6: generateStandardPortionCsv — header-only existing CSV does not crash', () => {
-  it('produces 39 × 4 = 156 data rows when existing CSV has header but no data rows', async () => {
+  it('produces 42 × 4 = 168 data rows when existing CSV has header but no data rows', async () => {
+    // F114: was 39 × 4 = 156 rows; now 42 × 4 = 168 rows (3 new map entries added).
     const dataDir = makeTempDir();
     dirsToClean.push(dataDir);
     const outputPath = path.join(dataDir, 'output.csv');
@@ -298,8 +303,8 @@ describe('EC6: generateStandardPortionCsv — header-only existing CSV does not 
 
     const content = readFileSync(outputPath, 'utf-8');
     const rawLines = content.replace(/\r\n/g, '\n').split('\n').filter((l) => l.trim() !== '');
-    // 1 header + 156 data rows
-    expect(rawLines).toHaveLength(157);
+    // 1 header + 168 data rows (F114: was 157 = 1 + 156)
+    expect(rawLines).toHaveLength(169);
     expect(rawLines[0]).toBe('dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by');
   });
 });
@@ -339,12 +344,14 @@ describe('EC7: parseCsvString — truncated mid-row throws clearly', () => {
 // ---------------------------------------------------------------------------
 // EC8 — I4 coverage gap: omitted priority names must not appear in notes column
 // I4 (integration test) checks by dishId. This test checks that the STRING
-// 'chorizo', 'chuletón', and 'arroz' do not appear as priority-name prefixes
-// in the notes column of the generated CSV (template notes format: "template: <name> <term>").
+// for STILL-omitted names does not appear as a "template: <name>" prefix in notes.
+// F114 update: 'chorizo', 'chuletón', 'arroz' are NOW in PRIORITY_DISH_MAP and WILL
+// appear in notes — they are removed from the omittedNames array below.
+// Remaining omitted: bocadillo, pintxos, alitas de pollo, zamburiñas, berberechos, tostas.
 // ---------------------------------------------------------------------------
 
-describe('EC8: omitted priority name strings must not appear in generated notes', () => {
-  it('generated CSV notes do not contain "template: chorizo", "template: chuletón", or "template: arroz"', async () => {
+describe('EC8: still-omitted priority name strings must not appear in generated notes', () => {
+  it('generated CSV notes do not contain template: bocadillo/pintxos/alitas de pollo/zamburiñas/berberechos/tostas', async () => {
     const dataDir = makeTempDir();
     dirsToClean.push(dataDir);
     const outputPath = path.join(dataDir, 'output.csv');
@@ -354,9 +361,9 @@ describe('EC8: omitted priority name strings must not appear in generated notes'
 
     const content = readFileSync(outputPath, 'utf-8');
 
-    // These omitted names must never appear as a "template: <name>" prefix in notes
-    const omittedNames = ['chorizo', 'chuletón', 'arroz', 'bocadillo', 'pintxos',
-      'alitas de pollo', 'zamburiñas', 'berberechos', 'tostas'];
+    // F114: 'chorizo', 'chuletón', 'arroz' REMOVED from this list — they are now mapped.
+    // Remaining omitted names (no canonical dishId, tracked for F115+):
+    const omittedNames = ['bocadillo', 'pintxos', 'alitas de pollo', 'zamburiñas', 'berberechos', 'tostas'];
 
     for (const name of omittedNames) {
       expect(
