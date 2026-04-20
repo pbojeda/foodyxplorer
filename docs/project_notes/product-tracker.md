@@ -8,11 +8,13 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-20 (BUG-PROD-009 + F114 rolled out end-to-end on prod + dev)
+**Last Updated:** 2026-04-20 (BUG-PROD-011 implemented + merged to both develop and main)
 
-**Active Feature:** None. BUG-PROD-009 + F114 both complete. Next priorities (no urgency): (a) Exhaustive manual prod testing on 3 surfaces (web + bot + landing); (b) BUG-PROD-008 refinement (OpenAI vision "no he podido identificar el plato"); (c) F116 CI + lint cleanup (backlog).
+**Active Feature:** None. BUG-PROD-011 complete (code merged). Pending: user re-seeds dev+prod DBs (deferred to tomorrow).
 
-**Last Completed — 2026-04-20 rollouts**: Both BUG-PROD-009 prod migration and F114 full rollout executed end-to-end in one session (Opus assistant).
+**Last Completed — 2026-04-20 BUG-PROD-011**: Nutrients not scaled to portionAssumption.grams. Fixed: API now scales result.nutrients × (portionAssumption.grams / result.portionGrams) when source='per_dish' and grams differ. 7 atomic commits, squash-merged to develop (PR #169), synced to main (PR #170). PRs #168 (merge-back pre) and #171 (merge-back post) keep gitflow parity. All CI green. Frontend (NutritionCard AC17) and bot (estimateFormatter AC18) updated for ratio-only base display. ADR-020 amended. 10 new unit tests + 8 updated schema tests. enrichWithUncertainty reordered to execute AFTER scaling.
+
+**Previous — 2026-04-20 rollouts**: Both BUG-PROD-009 prod migration and F114 full rollout executed end-to-end in one session (Opus assistant).
 
 - **BUG-PROD-009**: Code merged 2026-04-18 `942ab35`. PROD DB migration was executed by user in an intermediate session (156 rows, 0 ghosts — confirmed at start of 2026-04-20 session). **DEV DB migration had never run** — discovered when check showed 172 rows + 16 ghosts on `ikardk` (dev). Fixed inline 2026-04-20: DELETE 16 ghosts → 156 rows.
 - **F114**: Code merged 2026-04-19 `3a59237`. DB rollout on both environments executed 2026-04-20:
