@@ -48,6 +48,20 @@ export function formatEstimate(data: EstimateData): string {
     lines.push(portionLine);
   }
 
+  // BUG-PROD-011 / AC18: show base reference when portionRatio was applied
+  // (multiplier=1.0 but portionAssumption.grams differed from dish.portionGrams).
+  if (
+    data.portionMultiplier === 1.0 &&
+    data.baseNutrients !== undefined &&
+    data.portionAssumption?.source === 'per_dish' &&
+    data.result?.portionGrams !== null
+  ) {
+    const basePortionLine = data.basePortionGrams != null
+      ? `Referencia base: ${escapeMarkdown(String(data.basePortionGrams))} g → ${escapeMarkdown(String(Math.round(data.baseNutrients.calories)))} kcal`
+      : `Referencia base: ${escapeMarkdown(String(Math.round(data.baseNutrients.calories)))} kcal`;
+    lines.push(basePortionLine);
+  }
+
   lines.push(
     '',
     data.uncertaintyRange

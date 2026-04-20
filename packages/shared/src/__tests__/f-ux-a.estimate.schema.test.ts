@@ -86,7 +86,7 @@ describe('F-UX-A — EstimateDataSchema invariants', () => {
     }
   });
 
-  it('rejects baseNutrients when portionMultiplier is 1.0 (no modifier)', () => {
+  it('rejects baseNutrients when portionMultiplier is 1.0 and no portionRatio applied', () => {
     const result = EstimateDataSchema.safeParse({
       ...baseDataWithMultiplier(1.0),
       baseNutrients: baseNutrients(),
@@ -94,7 +94,77 @@ describe('F-UX-A — EstimateDataSchema invariants', () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues.some((i) => /only allowed when portionMultiplier !== 1.0/.test(i.message))).toBe(true);
+      expect(result.error.issues.some((i) => /only allowed when portionMultiplier !== 1.0 or portionRatio applied/.test(i.message))).toBe(true);
     }
+  });
+
+  it('BUG-PROD-011: accepts baseNutrients when portionMultiplier is 1.0 but portionRatio applied', () => {
+    const resultPayload = {
+      entityId: '00000000-0000-0000-0000-000000000001',
+      entityType: 'dish' as const,
+      name: 'Croquetas',
+      nameEs: 'Croquetas',
+      restaurantId: null,
+      chainSlug: null,
+      portionGrams: 360,
+      confidenceLevel: 'high' as const,
+      estimationMethod: 'official' as const,
+      source: { id: '00000000-0000-0000-0000-000000000099', name: 'Test', type: 'official' as const, url: null },
+      similarityDistance: null,
+      nutrients: baseNutrients(),
+    };
+    const result = EstimateDataSchema.safeParse({
+      ...baseDataWithMultiplier(1.0),
+      result: resultPayload,
+      baseNutrients: baseNutrients(),
+      basePortionGrams: 120,
+      portionAssumption: {
+        term: 'racion',
+        termDisplay: 'ración',
+        source: 'per_dish',
+        grams: 360,
+        pieces: 12,
+        pieceName: 'croquetas',
+        gramsRange: null,
+        confidence: 'high',
+        fallbackReason: null,
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('BUG-PROD-011: rejects baseNutrients when multiplier=1.0 and portionAssumption is generic (not per_dish)', () => {
+    const resultPayload = {
+      entityId: '00000000-0000-0000-0000-000000000001',
+      entityType: 'dish' as const,
+      name: 'Croquetas',
+      nameEs: 'Croquetas',
+      restaurantId: null,
+      chainSlug: null,
+      portionGrams: 360,
+      confidenceLevel: 'high' as const,
+      estimationMethod: 'official' as const,
+      source: { id: '00000000-0000-0000-0000-000000000099', name: 'Test', type: 'official' as const, url: null },
+      similarityDistance: null,
+      nutrients: baseNutrients(),
+    };
+    const result = EstimateDataSchema.safeParse({
+      ...baseDataWithMultiplier(1.0),
+      result: resultPayload,
+      baseNutrients: baseNutrients(),
+      basePortionGrams: 120,
+      portionAssumption: {
+        term: 'racion',
+        termDisplay: 'ración',
+        source: 'generic',
+        grams: 360,
+        pieces: null,
+        pieceName: null,
+        gramsRange: [200, 400],
+        confidence: null,
+        fallbackReason: 'no_row',
+      },
+    });
+    expect(result.success).toBe(false);
   });
 });

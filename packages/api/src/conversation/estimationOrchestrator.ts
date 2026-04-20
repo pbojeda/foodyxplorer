@@ -15,7 +15,7 @@ import type { Level4LookupFn } from '../estimation/engineRouter.js';
 import { runEstimationCascade } from '../estimation/engineRouter.js';
 import { detectExplicitBrand } from '../estimation/brandDetector.js';
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
-import { applyPortionMultiplier } from '../estimation/portionUtils.js';
+import { applyPortionMultiplier, applyPortionAssumptionScaling } from '../estimation/portionUtils.js';
 import { enrichWithTips } from '../estimation/healthHacker.js';
 import { enrichWithSubstitutions } from '../estimation/substitutions.js';
 import { enrichWithAllergens } from '../estimation/allergenDetector.js';
@@ -127,7 +127,7 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     : baseResult;
 
   // Step 7 — Assemble EstimateData (cachedAt: null — not from cache)
-  const estimateData: EstimateData = {
+  let estimateData: EstimateData = {
     ...routerResult.data,
     portionMultiplier: effectiveMultiplier,
     result: scaledResult,
@@ -135,7 +135,7 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     // F-UX-A: pre-multiplier nutrients + portion grams, only attached when
     // a modifier was actually applied AND the cascade produced a result.
     // The Zod schema superRefine enforces both fields are paired and that
-    // they only appear when portionMultiplier !== 1.0.
+    // they only appear when portionMultiplier !== 1.0 OR portionRatio applied.
     //
     // Defensive shallow clone: `baseResult.nutrients` is the same reference
     // the cascade row owns. Any downstream mutation (future enrich functions,
@@ -154,8 +154,6 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
     ...enrichWithSubstitutions(scaledResult),
     // F083: Allergen detection from food/dish name keywords
     ...enrichWithAllergens(scaledResult),
-    // F084: Calorie uncertainty range based on confidence + estimation method
-    ...enrichWithUncertainty(scaledResult),
     // F085: Spanish portion term context from query (BUG-PROD-006: use pre-F078 originalQuery)
     ...enrichWithPortionSizing(portionDetectionQuery),
   };
@@ -192,10 +190,31 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
       portionMultiplierForAssumption,
       logger as Parameters<typeof resolvePortionAssumption>[5],
     );
+
     if (portionAssumption !== undefined) {
       estimateData.portionAssumption = portionAssumption;
+
+      // BUG-PROD-011: scale nutrients + portionGrams to match portionAssumption.grams
+      // when a per_dish assumption was resolved and grams differ from result.
+      if (scaledResult !== null) {
+        const portionScaled = applyPortionAssumptionScaling(scaledResult, portionAssumption);
+        if (portionScaled !== null) {
+          estimateData.result = portionScaled;
+          // baseNutrients always sourced from cascade's raw baseResult (pre-any-scaling).
+          // Defensive shallow clone prevents aliasing between base and scaled rows.
+          // Non-null assertion safe: scaledResult !== null implies baseResult !== null
+          // (scaledResult is either baseResult itself or applyPortionMultiplier(baseResult,...))
+          estimateData.baseNutrients = { ...baseResult!.nutrients };
+          estimateData.basePortionGrams = baseResult!.portionGrams;
+        }
+      }
     }
   }
+
+  // F084: Uncertainty range — MUST run after portionAssumption scaling (AC13).
+  // enrichWithUncertainty depends on result.nutrients.calories; if called before
+  // scaling, it would compute a range against pre-ratio calories.
+  estimateData = { ...estimateData, ...enrichWithUncertainty(estimateData.result) };
 
   // Step 8 — Cache write (with cachedAt timestamp)
   const dataToCache: EstimateData = {
