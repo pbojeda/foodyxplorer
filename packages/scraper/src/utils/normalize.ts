@@ -127,10 +127,10 @@ export function normalizeNutrients(
   if (!carbohydratesRaw.present) return null;
   if (!fatsRaw.present) return null;
 
-  let calories = clampToZero(caloriesRaw.value, 'calories');
-  let proteins = clampToZero(proteinsRaw.value, 'proteins');
-  let carbohydrates = clampToZero(carbohydratesRaw.value, 'carbohydrates');
-  let fats = clampToZero(fatsRaw.value, 'fats');
+  const calories = clampToZero(caloriesRaw.value, 'calories');
+  const proteins = clampToZero(proteinsRaw.value, 'proteins');
+  const carbohydrates = clampToZero(carbohydratesRaw.value, 'carbohydrates');
+  const fats = clampToZero(fatsRaw.value, 'fats');
 
   // Calorie sanity check
   if (calories > 9000) {

@@ -1039,7 +1039,6 @@ class TestScraperForEdgeCases extends BaseScraper {
       error: Error;
     }) => Promise<void>,
   ): PlaywrightCrawler {
-    const self = this;
     const mockCrawler = {
       async run(requests?: Array<{ url: string; userData?: Record<string, unknown> }>): Promise<void> {
         const reqs = requests ?? [];
