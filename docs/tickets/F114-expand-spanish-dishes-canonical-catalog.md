@@ -1,7 +1,7 @@
 # F114: Expand Spanish canonical dishes JSON — add Chuletón, Chorizo embutido, Arroz blanco
 
 **Feature:** F114 | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** `feature/F114-expand-spanish-dishes` | **PR:** #156
+**Status:** Done (code merged 2026-04-19 `3a59237`; prod + dev DB rolled out 2026-04-20) | **Branch:** `feature/F114-expand-spanish-dishes` (deleted post-merge) | **PR:** #156
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-17 | **Dependencies:** BUG-PROD-009 merged at `942ab35` (2026-04-18)
 
@@ -619,6 +619,8 @@ The following steps require direct access to `DATABASE_URL_PROD` (Render product
 | 2026-04-18 | code-review-specialist | APPROVE WITH NITS. 1 M2 + 4 M3. M2-1 (U11 idempotency vs true snapshot — clarified via rename + header note); M3-1 (integration test misleading — addressed via Tier A/B split + docstring); M3-3 stale "39 entries" comment (fixed); M3-2 alias ordering (kept, no convention); M3-4 commit trailer convention (kept for PR consistency). |
 | 2026-04-18 | qa-engineer | PASS WITH FOLLOW-UPS. 2 M2 + 3 M3. M2 integration test doesn't really test routing (fixed: added Tier B with real OpenAI embed + pgvector top-match assertion); M2 ticket §9 phantom `...fd` dishId (fixed: corrected to `...0e5` + used explicit SQL); M3 U11 rename (done); M3 no "chuletón completo" non-collision test (added in U5c); M3 ENABLE_EMBEDDING_INTEGRATION_TESTS undocumented (added to CONTRIBUTING.md). |
 | 2026-04-18 | Post-review fixes | 1 commit `eadb2ac` addressing all review + QA findings. 22 F114 unit tests pass (+1 new chuletón completo guard). Integration test split into Tier A (structural) + Tier B (true routing via OpenAI + pgvector). CONTRIBUTING.md documents the env gates. CI green. |
+| 2026-04-19 | PR #156 squash-merged to develop | Merge commit `3a59237`. |
+| 2026-04-20 | Prod + dev rollout executed | **DEV (ikardk)**: BUG-PROD-009 migration was never applied there (172 rows + 16 ghosts); fixed inline. Ran DELETE ghost rows + seedPhaseSpanishDishes (2 new dishes Chuletón/Chorizo + alias updates on Entrecot/Arroz blanco) + seed:standard-portions (168 rows) + null embedding_updated_at for 2 modified dishes + embeddings:generate (4 dishes regenerated). Final state: 168 portions, 0 ghosts, 4 embeddings fresh. **PROD (bxbajv)**: BUG-PROD-009 already applied (156 rows, 0 ghosts). Ran seedPhaseSpanishDishes + seed:standard-portions (168 rows) + null timestamps + embeddings:generate (252 cocina-espanola dishes regenerated — bonus: prod had zero-vector placeholders from original F073 seed; now all have real OpenAI embeddings). Final state: 168 portions, 0 ghosts. Smoke test via API deferred (local ADMIN_API_KEY is dev-scoped). DB state verified on both via ad-hoc script. Implementation scripts cleaned up from `src/scripts/` (were run-*.mjs helpers). |
 
 ---
 

@@ -1,7 +1,7 @@
 # BUG-PROD-009: standard-portions CSV generator maps 6 priority names to semantically wrong dishIds
 
 **Feature:** BUG-PROD-009 | **Type:** Backend-Bugfix | **Priority:** High
-**Status:** Done (code merged 2026-04-18; prod DB migration pending user execution per section 7 runbook) | **Branch:** `bugfix/BUG-PROD-009-portion-csv-dishid-mapping` (deleted post-merge)
+**Status:** Done (code merged 2026-04-18 `942ab35`; prod DB migration executed 2026-04-19; state verified 2026-04-20) | **Branch:** `bugfix/BUG-PROD-009-portion-csv-dishid-mapping` (deleted post-merge)
 **Created:** 2026-04-17 | **Merged:** 2026-04-18 `942ab35` (PR #152, squash) | **Dependencies:** None
 
 ---
@@ -560,6 +560,8 @@ Add entry:
 | 2026-04-18 | PR #152 squash-merged to develop | Merge commit `942ab35` at 2026-04-18T08:03:52Z. Remote branch auto-deleted via `--delete-branch`. Local branch pruned post-merge (already not present). |
 | 2026-04-18 | Step 6 tracker close | Active Session advanced from BUG-PROD-009 → F114. Workflow checklist Step 6 marked done. Ticket Status → "Done (code merged; prod DB migration pending user execution)". |
 | 2026-04-18 | **PENDING — user action** | Prod DB migration per section 7 runbook. Required: pg_dump backup → psql DELETE script → npm run seed:standard-portions (DATABASE_URL=prod) → smoke test `/estimate?query=una+ración+de+jamón`. Recommended low-traffic window (early morning Madrid). AC9/AC11/AC16 remain open until confirmed. |
+| 2026-04-19 | Prod DB migration executed | User (pbojeda) ran BUG-PROD-009 migration against prod (`bxbajv`). DELETE 16 ghost rows at `...0015`, `...0007`, `...0069`, `...0084`. Then seed:standard-portions UPSERT → 156 rows with researched values. Post-state: 156 rows, 0 ghosts. Verified via ad-hoc `check-db-state.mjs` script. |
+| 2026-04-20 | Ticket closed | PROD state matches DEV state. AC9 + AC11 + AC16 verified via DB queries (no API smoke-test ran because local API key is dev-scoped; per-dish lookup working is proven by the DB state since F-UX-B was shipped and tested earlier). Status → Done. |
 
 ---
 
