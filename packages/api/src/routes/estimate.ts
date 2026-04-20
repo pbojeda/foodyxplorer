@@ -26,7 +26,7 @@ import { detectExplicitBrand, loadChainSlugs } from '../estimation/brandDetector
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 import { config } from '../config.js';
 import { writeQueryLog } from '../lib/queryLogger.js';
-import { applyPortionMultiplier } from '../estimation/portionUtils.js';
+import { applyPortionMultiplier, applyPortionAssumptionScaling } from '../estimation/portionUtils.js';
 import { enrichWithTips } from '../estimation/healthHacker.js';
 import { enrichWithSubstitutions } from '../estimation/substitutions.js';
 import { enrichWithAllergens } from '../estimation/allergenDetector.js';
@@ -203,7 +203,7 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         ? applyPortionMultiplier(baseResult, effectiveMultiplier)
         : baseResult;
 
-      const estimateData: EstimateData = {
+      let estimateData: EstimateData = {
         ...routerResult.data,
         portionMultiplier: effectiveMultiplier,
         result: scaledResult,
@@ -222,8 +222,6 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         ...enrichWithSubstitutions(scaledResult),
         // F083: Allergen detection from food/dish name keywords
         ...enrichWithAllergens(scaledResult),
-        // F084: Calorie uncertainty range based on confidence + estimation method
-        ...enrichWithUncertainty(scaledResult),
         // F085: Spanish portion term context from query
         ...enrichWithPortionSizing(query),
       };
@@ -244,8 +242,22 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
         );
         if (portionAssumption !== undefined) {
           estimateData.portionAssumption = portionAssumption;
+
+          // BUG-PROD-011: scale nutrients + portionGrams to match portionAssumption.grams
+          if (scaledResult !== null) {
+            const portionScaled = applyPortionAssumptionScaling(scaledResult, portionAssumption);
+            if (portionScaled !== null) {
+              estimateData.result = portionScaled;
+              // baseNutrients from cascade's raw baseResult (pre-any-scaling)
+              estimateData.baseNutrients = { ...baseResult!.nutrients };
+              estimateData.basePortionGrams = baseResult!.portionGrams;
+            }
+          }
         }
       }
+
+      // F084: Uncertainty range — after portionAssumption scaling (BUG-PROD-011 AC13)
+      estimateData = { ...estimateData, ...enrichWithUncertainty(estimateData.result) };
 
       // --- Cache write (with cachedAt timestamp) ---
       const dataToCache: EstimateData = {
