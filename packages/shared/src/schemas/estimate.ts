@@ -329,13 +329,20 @@ export const EstimateDataSchema = z.object({
       path: ['baseNutrients'],
     });
   }
-  // And both are only meaningful when portionMultiplier !== 1.0 — if the
-  // multiplier is 1.0 the base equals the scaled value so there is no point.
-  if (hasBase && data.portionMultiplier === 1.0) {
+  // baseNutrients is meaningful when portionMultiplier !== 1.0 (F-UX-A) OR
+  // when a portionAssumption ratio was applied (BUG-PROD-011: portionAssumption
+  // scaling sets baseNutrients even with multiplier=1.0 because the dish's
+  // portionGrams differs from the portionAssumption grams).
+  const portionRatioApplied =
+    data.portionAssumption?.source === 'per_dish' &&
+    data.result?.portionGrams != null &&
+    data.basePortionGrams != null &&
+    data.result.portionGrams !== data.basePortionGrams;
+  if (hasBase && data.portionMultiplier === 1.0 && !portionRatioApplied) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message:
-        'F-UX-A invariant: baseNutrients is only allowed when portionMultiplier !== 1.0',
+        'F-UX-A invariant: baseNutrients is only allowed when portionMultiplier !== 1.0 or portionRatio applied',
       path: ['baseNutrients'],
     });
   }
