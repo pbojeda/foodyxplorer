@@ -6,7 +6,7 @@
 // Extracted from routes/estimate.ts (F070) so both the GET /estimate route
 // and EstimationOrchestrator can import it without duplication.
 
-import type { EstimateResult, EstimateNutrients } from '@foodxplorer/shared';
+import type { EstimateResult, EstimateNutrients, PortionAssumption } from '@foodxplorer/shared';
 
 // ---------------------------------------------------------------------------
 // computeDisplayPieces (F-UX-B)
@@ -58,6 +58,40 @@ export const NUMERIC_NUTRIENT_KEYS: ReadonlyArray<keyof Omit<EstimateNutrients, 
     'polyunsaturatedFats',
     'alcohol',
   ];
+
+// ---------------------------------------------------------------------------
+// applyPortionAssumptionScaling (BUG-PROD-011)
+// ---------------------------------------------------------------------------
+
+/**
+ * Scale nutrients and portionGrams by the ratio portionAssumption.grams / result.portionGrams.
+ * Returns the scaled result, or `null` when no scaling is needed:
+ *  - source is not 'per_dish' (Tier 3 generic remains label-only)
+ *  - result.portionGrams is null (no base to ratio against)
+ *  - grams are equal (ratio=1, no scaling needed)
+ *
+ * Pure function — does not mutate the input result.
+ */
+export function applyPortionAssumptionScaling(
+  result: EstimateResult,
+  portionAssumption: PortionAssumption,
+): EstimateResult | null {
+  if (portionAssumption.source !== 'per_dish') return null;
+  if (result.portionGrams === null) return null;
+  if (portionAssumption.grams === result.portionGrams) return null;
+
+  const ratio = portionAssumption.grams / result.portionGrams;
+  const scaledNutrients = { ...result.nutrients };
+  for (const key of NUMERIC_NUTRIENT_KEYS) {
+    scaledNutrients[key] = Math.round(scaledNutrients[key] * ratio * 100) / 100;
+  }
+
+  return {
+    ...result,
+    portionGrams: portionAssumption.grams,
+    nutrients: scaledNutrients,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // applyPortionMultiplier
