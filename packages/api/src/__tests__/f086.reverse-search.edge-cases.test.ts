@@ -18,7 +18,7 @@ vi.mock('kysely', async () => {
     sql: new Proxy(
       function sqlTag() { /* no-op */ },
       {
-        apply(_target: unknown, _thisArg: unknown, args: unknown[]) {
+        apply(_target: unknown, _thisArg: unknown, _args: unknown[]) {
           return {
             execute: async (db: { _rows: Record<string, unknown>[] }) => ({
               rows: db._rows ?? [],

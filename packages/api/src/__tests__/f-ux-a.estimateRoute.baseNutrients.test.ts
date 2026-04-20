@@ -49,7 +49,7 @@ vi.mock('../lib/cache.js', () => ({
 // ---------------------------------------------------------------------------
 
 import { estimate } from '../conversation/estimationOrchestrator.js';
-import type { EstimateData, EstimateResult } from '@foodxplorer/shared';
+import type { EstimateResult } from '@foodxplorer/shared';
 
 // ---------------------------------------------------------------------------
 // Fixtures

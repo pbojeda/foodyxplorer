@@ -95,8 +95,6 @@ class TestScraper extends BaseScraper {
     requestHandler: (ctx: { page: Page; request: { url: string; userData: Record<string, unknown> } }) => Promise<void>,
     failedRequestHandler: (ctx: { request: { url: string }; error: Error }) => Promise<void>,
   ): PlaywrightCrawler {
-    const self = this;
-
     // Duck-typed mock — only `run()` is used by BaseScraper.
     // Accepts a requests array parameter, matching the real Crawlee API.
     const mockCrawler = {

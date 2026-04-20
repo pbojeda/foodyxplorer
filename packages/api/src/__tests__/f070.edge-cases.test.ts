@@ -166,7 +166,7 @@ const ROUTER_L1_HIT = {
   },
 };
 
-const ROUTER_MISS = {
+const _ROUTER_MISS = {
   levelHit: null as null,
   data: {
     query: 'unknown', chainSlug: null,

@@ -52,11 +52,8 @@ describe('seedPhaseBedca integration', () => {
 
     const ds = await db.dataSource.findUnique({ where: { id: BEDCA_SOURCE_UUID } });
     expect(ds).not.toBeNull();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null above
     expect(ds!.type).toBe('official');
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null above
     expect(ds!.priorityTier).toBe(1);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null above
     expect(ds!.name).toContain('BEDCA');
   });
 
@@ -74,9 +71,7 @@ describe('seedPhaseBedca integration', () => {
 
     const oliveOil = foods.find((f) => f.externalId === 'BEDCA-1');
     expect(oliveOil).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null above
     expect(oliveOil!.nameEs).toBe('Aceite de oliva virgen extra');
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null above
     expect(oliveOil!.name).toBe('Extra virgin olive oil');
   });
 
@@ -98,15 +93,11 @@ describe('seedPhaseBedca integration', () => {
     expect(oliveOilFood).not.toBeNull();
 
     const oliveOilNutrients = await db.foodNutrient.findFirst({
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null above
       where: { foodId: oliveOilFood!.id, sourceId: BEDCA_SOURCE_UUID },
     });
     expect(oliveOilNutrients).not.toBeNull();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null above
     expect(Number(oliveOilNutrients!.calories)).toBeCloseTo(884, 0);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null above
     expect(Number(oliveOilNutrients!.fats)).toBeCloseTo(99.9, 0);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null above
     expect(Number(oliveOilNutrients!.salt)).toBe(0);
   });
 

@@ -101,8 +101,9 @@ export async function reverseSearchDishes(
 
   const rows = result.rows as ReverseSearchRow[];
 
-  const chainName = rows.length > 0 ? rows[0]!.chain_name : (params.chainName ?? chainSlug);
-  const totalMatches = rows.length > 0 ? Number(rows[0]!.total_matches) : 0;
+  const firstRow = rows[0];
+  const chainName = firstRow ? firstRow.chain_name : (params.chainName ?? chainSlug);
+  const totalMatches = firstRow ? Number(firstRow.total_matches) : 0;
 
   const results: ReverseSearchResult[] = rows.map((row) => {
     const calories = toNum(row.calories);

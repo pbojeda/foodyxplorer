@@ -100,13 +100,13 @@ export function validateOffProduct(product: OffProduct): OffValidationResult {
   }
 
   // 6. Negative macronutrient check — corrupt data
-  if (hasProteins && n.proteins_100g! < 0) {
+  if (hasProteins && (n.proteins_100g ?? 0) < 0) {
     reasons.push(`Negative proteins value: ${n.proteins_100g}`);
   }
-  if (hasCarbs && n.carbohydrates_100g! < 0) {
+  if (hasCarbs && (n.carbohydrates_100g ?? 0) < 0) {
     reasons.push(`Negative carbohydrates value: ${n.carbohydrates_100g}`);
   }
-  if (hasFats && n.fat_100g! < 0) {
+  if (hasFats && (n.fat_100g ?? 0) < 0) {
     reasons.push(`Negative fats value: ${n.fat_100g}`);
   }
 

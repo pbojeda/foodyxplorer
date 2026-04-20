@@ -37,7 +37,9 @@ function splitMenuItems(raw: string): string[] {
   // When commas ARE present, ` y ` inside items is part of dish names (e.g., "arroz y verduras").
   if (items.length === 1) {
     // No commas: try splitting on ` y ` / ` más ` to get 2 items
-    const conjSplit = splitOnFinalConjunction(items[0]!);
+    const first = items[0];
+    if (!first) throw new Error('items array unexpectedly empty after split — invariant violated');
+    const conjSplit = splitOnFinalConjunction(first);
     if (conjSplit) {
       items = conjSplit;
     }
