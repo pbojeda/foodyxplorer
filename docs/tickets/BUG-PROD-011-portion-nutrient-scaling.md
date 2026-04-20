@@ -1,10 +1,11 @@
 # BUG-PROD-011 — Nutrients not scaled to portionAssumption.grams
 
-**Status:** Spec v2 (cross-model reviewed, ready for planning)
+**Status:** Done
 **Type:** Bug (architectural)
 **Severity:** P0 (misleading nutritional data displayed to users)
 **Path:** B (Standard) — escalated from bug-workflow due to architectural scope
-**Branch:** TBD (post-plan)
+**Branch:** `bugfix/BUG-PROD-011-portion-nutrient-scaling` (merged, deleted)
+**PRs:** #169 (develop), #170 (main sync), #168/#171 (merge-backs)
 **Affects:** All queries with a portion term (tapa/pintxo/media_racion/racion) where `standard_portions.grams ≠ dish.portionGrams`
 
 ---
