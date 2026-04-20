@@ -87,8 +87,15 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
   // "PORCIÓN" prefix; unmapped `×N` values get the same prefix so the two
   // states don't look like different components.
   const pillLabel = hasModifier ? `PORCIÓN ${portionLabel.toUpperCase()}` : '';
+  // AC17: show base calories when portionMultiplier applied (hasModifier) OR
+  // when a portionRatio was applied by BUG-PROD-011 scaling (baseNutrients present
+  // even with multiplier=1.0 because portionAssumption.grams differed from dish.portionGrams).
+  const hasPortionRatio =
+    !hasModifier &&
+    estimateData.baseNutrients !== undefined &&
+    estimateData.portionAssumption?.source === 'per_dish';
   const baseCalories =
-    hasModifier && estimateData.baseNutrients !== undefined
+    (hasModifier || hasPortionRatio) && estimateData.baseNutrients !== undefined
       ? Math.round(estimateData.baseNutrients.calories)
       : null;
 
@@ -99,7 +106,9 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
     ? baseCalories !== null
       ? `${displayName}: ${kcal} calorías (${portionLabel}, base ${baseCalories})`
       : `${displayName}: ${kcal} calorías (${portionLabel})`
-    : `${displayName}: ${kcal} calorías`;
+    : baseCalories !== null
+      ? `${displayName}: ${kcal} calorías (base ${baseCalories})`
+      : `${displayName}: ${kcal} calorías`;
 
   return (
     <article
