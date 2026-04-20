@@ -17,6 +17,16 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-04-20 — BUG-PROD-010: F114 seed nutrients stored per-100g instead of per-portionGrams
+
+- **Severity**: P0 (wrong calorie data displayed to users — Chuletón showed 280 kcal for 700g serving, real value 1960) | **Area**: `packages/api/prisma/seed-data/spanish-dishes.json`
+- **Issue**: Chuletón de buey (`...fb`) and Chorizo ibérico embutido (`...fc`) added in F114 had nutrients from BEDCA/USDA per-100g but `portionGrams` set to full serving weight (700g, 180g). The `DishNutrient` convention is `referenceBasis = per_serving` — nutrients must be pre-scaled to `portionGrams`. Result: API returned 280 kcal for a 700g ribeye (40 kcal/100g — impossible).
+- **Root Cause**: F114 implementation copied per-100g source values directly without multiplying by `portionGrams/100`. The 250 existing dishes were correctly seeded (verified with croquetas: portionGrams=120, calories=290 → 242 kcal/100g matches BEDCA).
+- **Solution**: Multiplied all nutrient fields by the scaling factor: Chuletón ×7.0 (calories 280→1960, proteins 21→147, fats 22→154), Chorizo ×1.8 (calories 468→842, proteins 24→43, fats 40→72). Added regression test verifying no dish with portionGrams>100 exceeds 950 kcal/100g density.
+- **Prevention**: (1) Regression test `BUG-PROD-010.nutrientScaling.test.ts` catches future per-100g data in large-portion dishes. (2) When adding dishes: always verify `nutrients.calories / (portionGrams/100)` yields a reasonable per-100g figure before committing.
+- **Status**: Fixed. Re-seed dev+prod required post-merge.
+- **Feature**: BUG-PROD-010 | **Found by**: smoke testing (2026-04-20) | **Severity**: P0
+
 ### 2026-04-17 — RELEASE-INCIDENT-001: Supabase transaction pooler resets `search_path` to empty, breaking all Prisma/Kysely queries
 
 - **Severity**: P1 (all estimation queries failed on prod for ~2 hours post-release) | **Area**: Supabase pooler config / `DATABASE_URL` env var on Render
