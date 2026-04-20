@@ -31,6 +31,7 @@ function cleanJsonSchema(obj: unknown): unknown {
   const record = obj as Record<string, unknown>;
   for (const key of Object.keys(record)) {
     if (record[key] === null || record[key] === undefined || key.startsWith('_')) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- intentional schema cleanup of unknown keys
       delete record[key];
     } else if (typeof record[key] === 'object') {
       cleanJsonSchema(record[key]);

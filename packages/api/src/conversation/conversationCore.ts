@@ -297,7 +297,8 @@ export async function processMessage(
 
     // Build items array — rejected promises become null-result EstimateData
     const items = menuItems.map((query, i) => {
-      const result = menuResults[i]!;
+      const result = menuResults[i];
+      if (!result) throw new Error(`menuResults missing index ${i} — allSettled contract violated`);
       const estimation: EstimateData = result.status === 'fulfilled'
         ? result.value
         : {

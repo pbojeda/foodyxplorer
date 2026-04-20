@@ -115,8 +115,8 @@ const PORTION_RULES: PortionRule[] = [
 function matchesAsWord(text: string, pattern: string): boolean {
   const idx = text.indexOf(pattern);
   if (idx === -1) return false;
-  const before = idx === 0 || /\s/.test(text[idx - 1]!);
-  const after = idx + pattern.length >= text.length || /\s/.test(text[idx + pattern.length]!);
+  const before = idx === 0 || /\s/.test(text[idx - 1] ?? '');
+  const after = idx + pattern.length >= text.length || /\s/.test(text[idx + pattern.length] ?? '');
   return before && after;
 }
 

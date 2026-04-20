@@ -9,7 +9,7 @@
 // They test the function signatures and option passing, not actual DB queries
 // (integration tests with DB are in the existing f020/f038 test files).
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { detectExplicitBrand } from '../estimation/brandDetector.js';
 
 // ---------------------------------------------------------------------------

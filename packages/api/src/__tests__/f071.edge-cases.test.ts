@@ -104,7 +104,6 @@ describe('parseBedcaFoods — edge cases', () => {
 
     // Only the valid food_id=42 row should appear
     expect(foods).toHaveLength(1);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(foods[0]!.foodId).toBe(42);
   });
 
@@ -126,10 +125,8 @@ describe('parseBedcaFoods — edge cases', () => {
 
     const foods = parseBedcaFoods(xml);
     expect(foods).toHaveLength(1);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const calorieEntry = foods[0]!.nutrients.find((n) => n.nutrientId === 208);
     expect(calorieEntry).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(calorieEntry!.value).toBeNull();
   });
 

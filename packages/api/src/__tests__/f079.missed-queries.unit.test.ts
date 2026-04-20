@@ -588,7 +588,7 @@ describe('F079 — 404 error handling', () => {
 
   it('findUnique is outside try/catch block (404 not swallowed as 500)', () => {
     // The findUnique + 404 throw must appear BEFORE the try block
-    const findUniquePos = routeSource.indexOf('findUnique');
+    const _findUniquePos = routeSource.indexOf('findUnique');
     const notFoundPos = routeSource.indexOf("'NOT_FOUND'");
     // Find the try block that wraps the update
     const updateTryPos = routeSource.indexOf('try {', notFoundPos);

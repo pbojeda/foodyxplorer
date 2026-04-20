@@ -57,7 +57,8 @@ export async function registerActorRateLimit(
     if (!actorId) return; // No actor = no limit check (shouldn't happen)
 
     const hasApiKey = request.apiKeyContext !== undefined;
-    const limit = DAILY_LIMITS[bucket]!;
+    const limit = DAILY_LIMITS[bucket];
+    if (limit === undefined) throw new Error(`No daily limit configured for bucket: ${bucket}`);
     const dateKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     const redisKey = `actor:limit:${actorId}:${dateKey}:${bucket}`;
 

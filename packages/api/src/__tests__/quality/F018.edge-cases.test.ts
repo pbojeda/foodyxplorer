@@ -320,7 +320,6 @@ describe('assembleReport() — chainSummary edge cases', () => {
       if (!chainMap.has(slug)) {
         chainMap.set(slug, { totalDishes: 0, dishesWithoutNutrients: 0, ghostRowCount: 0, caloriesAboveThreshold: 0, totalDuplicateDishes: 0 });
       }
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return chainMap.get(slug)!;
     };
 

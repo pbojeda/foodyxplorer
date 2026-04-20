@@ -80,7 +80,7 @@ const meta = {
   restaurantId: 'a1b2c3d4-0000-4000-a000-000000000002',
 };
 
-const defaultRetryPolicy = {
+const _defaultRetryPolicy = {
   maxRetries: 3,
   backoffMs: 1000,
   backoffMultiplier: 2,
@@ -1039,7 +1039,6 @@ class TestScraperForEdgeCases extends BaseScraper {
       error: Error;
     }) => Promise<void>,
   ): PlaywrightCrawler {
-    const self = this;
     const mockCrawler = {
       async run(requests?: Array<{ url: string; userData?: Record<string, unknown> }>): Promise<void> {
         const reqs = requests ?? [];

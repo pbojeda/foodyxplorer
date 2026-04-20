@@ -49,15 +49,15 @@ function loadFixture(name: string): string {
 }
 
 let productPageHtml: string;
-let productPageNoJsonldHtml: string;
-let menuPageHtml: string;
-let blockedPageHtml: string;
+let _productPageNoJsonldHtml: string;
+let _menuPageHtml: string;
+let _blockedPageHtml: string;
 
 beforeAll(() => {
   productPageHtml = loadFixture('product-page.html');
-  productPageNoJsonldHtml = loadFixture('product-page-no-jsonld.html');
-  menuPageHtml = loadFixture('menu-page.html');
-  blockedPageHtml = loadFixture('product-blocked.html');
+  _productPageNoJsonldHtml = loadFixture('product-page-no-jsonld.html');
+  _menuPageHtml = loadFixture('menu-page.html');
+  _blockedPageHtml = loadFixture('product-blocked.html');
 });
 
 // ---------------------------------------------------------------------------
@@ -346,7 +346,7 @@ describe('McDonaldsEsScraper', () => {
         locator: vi.fn().mockReturnValue({
           click: vi.fn().mockRejectedValue(new Error('Cookie banner not present')),
         } as unknown as Locator),
-        $eval: vi.fn().mockImplementation((selector: string, fn: (el: Element) => unknown) => {
+        $eval: vi.fn().mockImplementation((selector: string, _fn: (el: Element) => unknown) => {
           if (selector === 'h1.cmp-product-details-main__heading') {
             return Promise.resolve('McRoyal Deluxe');
           }
