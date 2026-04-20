@@ -39,7 +39,8 @@ export function validateSpanishDishes(dishes: SpanishDishEntry[]): ValidationRes
   const seenNutrientIds = new Set<string>();
 
   for (let i = 0; i < dishes.length; i++) {
-    const entry = dishes[i]!;
+    const entry = dishes[i];
+    if (!entry) throw new Error(`dishes[${i}] unexpectedly undefined — array length invariant violated`);
     const prefix = `[${i}] ${entry.externalId ?? '(missing)'}`;
 
     // Duplicate externalId

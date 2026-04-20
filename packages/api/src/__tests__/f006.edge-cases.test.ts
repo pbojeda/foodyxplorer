@@ -87,7 +87,6 @@ describe('validateSeedData — empty-string Spanish name is a blocking error', (
   it('treats an empty-string value in nameEsMap as missing', () => {
     const foods = makeValidFoods(500);
     const map = makeValidNameEsMap(foods);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- validated: array has 500 elements
     const firstFood = foods[0]!;
     // Override the first entry with an empty string (not an absent key)
     map[String(firstFood.fdcId)] = '';
@@ -106,7 +105,6 @@ describe('validateSeedData — empty-string Spanish name is a blocking error', (
 describe('validateSeedData — negative nutrient values', () => {
   it('returns valid:false for a negative protein value', () => {
     const foods = makeValidFoods(500);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- validated: array has 500 elements
     const badFood = foods[0]!;
     foods[0] = makeFood(badFood.fdcId, {
       nutrients: { ...badFood.nutrients, proteins: -1 },
@@ -122,7 +120,6 @@ describe('validateSeedData — negative nutrient values', () => {
 
   it('returns valid:false for a negative sodium value', () => {
     const foods = makeValidFoods(500);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- validated: array has 500 elements
     const badFood = foods[0]!;
     foods[0] = makeFood(badFood.fdcId, {
       nutrients: { ...badFood.nutrients, sodium: -0.001 },
@@ -138,7 +135,6 @@ describe('validateSeedData — negative nutrient values', () => {
 
   it('returns valid:false for a negative calories value', () => {
     const foods = makeValidFoods(500);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- validated: array has 500 elements
     const badFood = foods[0]!;
     foods[0] = makeFood(badFood.fdcId, {
       nutrients: { ...badFood.nutrients, calories: -10 },
@@ -194,7 +190,6 @@ describe('validateSeedData — empty array', () => {
 describe('validateSeedData — calorie boundary values', () => {
   it('does NOT emit [WARN] for calories exactly 900 (boundary)', () => {
     const foods = makeValidFoods(500);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- validated: array has 500 elements
     const firstFood = foods[0]!;
     foods[0] = makeFood(firstFood.fdcId, {
       nutrients: { ...firstFood.nutrients, calories: 900 },
@@ -208,7 +203,6 @@ describe('validateSeedData — calorie boundary values', () => {
 
   it('emits [WARN] for calories exactly 901 (one above max)', () => {
     const foods = makeValidFoods(500);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- validated: array has 500 elements
     const firstFood = foods[0]!;
     foods[0] = makeFood(firstFood.fdcId, {
       nutrients: { ...firstFood.nutrients, calories: 901 },
@@ -225,7 +219,6 @@ describe('validateSeedData — calorie boundary values', () => {
     // However, such entries WILL fail the DB CHECK constraint (calories <= 900)
     // at write time. This test confirms the current validator design.
     const foods = makeValidFoods(500);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- validated: array has 500 elements
     const firstFood = foods[0]!;
     foods[0] = makeFood(firstFood.fdcId, {
       nutrients: { ...firstFood.nutrients, calories: 950 },
@@ -268,7 +261,6 @@ describe('validateSeedData — multiple missing nutrient fields', () => {
 describe('validateSeedData — whitespace-only Spanish name', () => {
   it('returns valid:false for a whitespace-only nameEs value', () => {
     const foods = makeValidFoods(500);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- validated: array has 500 elements
     const firstFood = foods[0]!;
     const map = makeValidNameEsMap(foods);
     map[String(firstFood.fdcId)] = '   '; // whitespace-only

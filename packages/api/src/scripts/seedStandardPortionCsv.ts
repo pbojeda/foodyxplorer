@@ -102,7 +102,8 @@ export function validateCsvRows(rows: RawCsvRow[]): RowValidationResult {
   const seenKeys = new Map<string, number>(); // key = `${dishId}:${term}` → row number
 
   for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]!;
+    const row = rows[i];
+    if (!row) throw new Error(`validateCsvRows: rows[${i}] unexpectedly undefined — array length invariant violated`);
     const rowNum = i + 1;
     const reviewedBy = row['reviewed_by']?.trim() ?? '';
 
@@ -199,8 +200,8 @@ export async function seedFromParsedRows(
     await prisma.standardPortion.upsert({
       where: {
         dishId_term: {
-          dishId: row['dishId']!,
-          term: row['term']!,
+          dishId: row['dishId'] ?? '',
+          term: row['term'] ?? '',
         },
       },
       update: {
@@ -211,8 +212,8 @@ export async function seedFromParsedRows(
         notes,
       },
       create: {
-        dishId: row['dishId']!,
-        term: row['term']!,
+        dishId: row['dishId'] ?? '',
+        term: row['term'] ?? '',
         grams: Number(row['grams']),
         pieces,
         pieceName,
@@ -296,12 +297,12 @@ export function parseCsvString(csvContent: string): { header: string[]; rows: Ra
   const lines = csvContent.replace(/\r\n/g, '\n').split('\n').filter((l) => l.trim() !== '');
   if (lines.length === 0) return { header: [], rows: [] };
 
-  const header = parseCsvLine(lines[0]!);
+  const header = parseCsvLine(lines[0] ?? '');
   const expectedColumnCount = header.length;
   const rows: RawCsvRow[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const values = parseCsvLine(lines[i]!);
+    const values = parseCsvLine(lines[i] ?? '');
 
     // M2-A fix: loud failure on column-count mismatch. The previous version
     // silently padded or dropped fields, which meant a typo or unescaped
@@ -316,7 +317,7 @@ export function parseCsvString(csvContent: string): { header: string[]; rows: Ra
 
     const row: RawCsvRow = {};
     for (let j = 0; j < header.length; j++) {
-      row[header[j]!] = values[j] ?? '';
+      row[header[j] ?? ''] = values[j] ?? '';
     }
     rows.push(row);
   }

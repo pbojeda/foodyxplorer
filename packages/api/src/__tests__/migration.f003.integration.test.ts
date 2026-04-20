@@ -54,7 +54,6 @@ describe('pgvector IVFFlat index properties', () => {
       SELECT indexdef FROM pg_indexes WHERE indexname = ${indexname}
     `;
     expect(rows).toHaveLength(1);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- length asserted above
     return rows[0]!.indexdef;
   };
 
@@ -171,7 +170,6 @@ describe('Cosine similarity query', () => {
     expect(results.length).toBeGreaterThanOrEqual(1);
     const match = results.find(r => r.id === FOOD_ID);
     expect(match).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined above
     expect(match!.distance).toBeCloseTo(0, 5);
   });
 
@@ -187,7 +185,6 @@ describe('Cosine similarity query', () => {
     expect(results.length).toBeGreaterThanOrEqual(1);
     const match = results.find(r => r.id === DISH_ID);
     expect(match).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined above
     expect(match!.distance).toBeCloseTo(0, 5);
   });
 

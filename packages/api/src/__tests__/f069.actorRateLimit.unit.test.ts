@@ -2,7 +2,7 @@
 //
 // Tests for per-actor daily rate limiting logic.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Mock Redis
@@ -15,7 +15,7 @@ function createMockRedis(currentCount: number = 0) {
   };
 }
 
-function createFailingRedis() {
+function _createFailingRedis() {
   return {
     incr: vi.fn().mockRejectedValue(new Error('ECONNREFUSED')),
     expire: vi.fn().mockRejectedValue(new Error('ECONNREFUSED')),

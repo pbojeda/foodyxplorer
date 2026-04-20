@@ -360,7 +360,8 @@ export async function runTranslateDishNames(
   let totalCostTokens = 0;
 
   for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
-    const batch = batches[batchIdx]!;
+    const batch = batches[batchIdx];
+    if (!batch) throw new Error(`batches[${batchIdx}] unexpectedly undefined — array length invariant violated`);
     const names = batch.map((d) => d.name);
     console.log(
       `[translate-dish-names] Translating batch ${batchIdx + 1}/${batches.length} (${names.length} names)...`,
@@ -434,7 +435,8 @@ export async function runTranslateDishNames(
 
     // Write translated dishes
     for (let i = 0; i < batch.length; i++) {
-      const dish = batch[i]!;
+      const dish = batch[i];
+      if (!dish) throw new Error(`batch[${i}] unexpectedly undefined — array length invariant violated`);
       const translatedName = parsed[i];
 
       if (typeof translatedName !== 'string') {

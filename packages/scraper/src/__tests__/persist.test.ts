@@ -300,12 +300,12 @@ describe('persistDishUtil', () => {
     mockFindFirst.mockResolvedValueOnce(null);
     mockCreate.mockResolvedValueOnce({ id: 'new-dish-id' });
 
-    const { PrismaClient, Prisma } = await import('@prisma/client');
+    const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
     await persistDishUtil(prisma, dish);
 
     const upsertCall = mockNutrientUpsert.mock.calls[0]?.[0] as {
-      create: { calories: InstanceType<typeof Prisma.Decimal> };
+      create: { calories: { toString(): string } };
     };
     // Should be an instance of the Decimal mock
     expect(upsertCall.create.calories).toBeDefined();

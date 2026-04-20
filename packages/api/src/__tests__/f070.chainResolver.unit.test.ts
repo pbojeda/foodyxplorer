@@ -140,7 +140,7 @@ describe('resolveChain — Tier 4 (substring)', () => {
 describe('resolveChain — ambiguous', () => {
   it('returns "ambiguous" when multiple chains match in the winning tier', () => {
     // Both mcdonalds-es and mcdonalds-pt share prefix "mcdonalds"
-    const result = resolveChain('mcdonalds', AMBIGUOUS_CHAINS);
+    const _result = resolveChain('mcdonalds', AMBIGUOUS_CHAINS);
     // May match exact name for mcdonalds-es in tier 2 (apostrophe stripped)
     // but if both match the same tier, it's ambiguous
     // With the actual test data, "mcdonalds" tier-2-normalizes to match mcdonalds-es only

@@ -12,7 +12,7 @@ const MAX_BACKOFF_MS = 30_000;
 /**
  * Returns true when the error should trigger a retry attempt.
  */
-function isTransient(error: unknown): boolean {
+function _isTransient(error: unknown): boolean {
   if (error instanceof ScraperNetworkError) return true;
   if (error instanceof Error) {
     const msg = error.message;

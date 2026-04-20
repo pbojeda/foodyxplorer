@@ -193,28 +193,18 @@ describe('parseBedcaFoods', () => {
 
     const olive = foods.find((f) => f.foodId === 1);
     expect(olive).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(olive!.nameEs).toBe('Aceite de oliva virgen extra');
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(olive!.nameEn).toBe('Extra virgin olive oil');
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(olive!.foodGroupEs).toBe('Aceites y grasas');
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(olive!.foodGroupEn).toBe('Fats and oils');
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(olive!.nutrients).toHaveLength(2);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(olive!.nutrients).toContainEqual({ nutrientId: 208, value: 884.0 });
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(olive!.nutrients).toContainEqual({ nutrientId: 203, value: 0.0 });
 
     const rice = foods.find((f) => f.foodId === 2);
     expect(rice).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(rice!.nutrients).toHaveLength(2);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(rice!.nutrients).toContainEqual({ nutrientId: 208, value: 130.0 });
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(rice!.nutrients).toContainEqual({ nutrientId: 205, value: 28.2 });
   });
 
@@ -223,11 +213,8 @@ describe('parseBedcaFoods', () => {
 
     expect(Array.isArray(foods)).toBe(true);
     expect(foods).toHaveLength(1);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(foods[0]!.foodId).toBe(5);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(foods[0]!.nameEs).toBe('Leche entera');
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(foods[0]!.nutrients).toHaveLength(1);
   });
 
@@ -235,9 +222,7 @@ describe('parseBedcaFoods', () => {
     const foods = parseBedcaFoods(MISSING_ENGLISH_NAME_XML);
 
     expect(foods).toHaveLength(1);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(foods[0]!.nameEs).toBe('Gazpacho');
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(foods[0]!.nameEn).toBe('Gazpacho'); // fallback to nameEs
   });
 
@@ -245,7 +230,6 @@ describe('parseBedcaFoods', () => {
     const foods = parseBedcaFoods(MISSING_ENGLISH_NAME_XML);
 
     // foodGroupEn was empty in XML — should be empty string, not crash
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(foods[0]!.foodGroupEn).toBe('');
   });
 
@@ -253,10 +237,8 @@ describe('parseBedcaFoods', () => {
     const foods = parseBedcaFoods(NULL_NUTRIENT_VALUE_XML);
 
     expect(foods).toHaveLength(1);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     const nullNutrient = foods[0]!.nutrients.find((n) => n.nutrientId === 262);
     expect(nullNutrient).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(nullNutrient!.value).toBeNull();
   });
 
@@ -264,9 +246,7 @@ describe('parseBedcaFoods', () => {
     const foods = parseBedcaFoods(NO_NUTRIENTS_XML);
 
     expect(foods).toHaveLength(1);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(foods[0]!.foodId).toBe(999);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(foods[0]!.nutrients).toHaveLength(0);
   });
 
@@ -293,18 +273,13 @@ describe('parseBedcaNutrientIndex', () => {
 
     const energy = index.find((n) => n.tagname === 'ENERC_KCAL');
     expect(energy).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(energy!.nutrientId).toBe(208);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(energy!.name).toBe('Energy');
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(energy!.unit).toBe('kcal');
 
     const sodium = index.find((n) => n.tagname === 'NA');
     expect(sodium).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(sodium!.nutrientId).toBe(307);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(sodium!.unit).toBe('mg');
   });
 
@@ -313,7 +288,6 @@ describe('parseBedcaNutrientIndex', () => {
 
     expect(Array.isArray(index)).toBe(true);
     expect(index).toHaveLength(1);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted defined/non-null above
     expect(index[0]!.tagname).toBe('ENERC_KCAL');
   });
 
