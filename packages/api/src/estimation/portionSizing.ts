@@ -102,6 +102,66 @@ const PORTION_RULES: PortionRule[] = [
     gramsMax: 200,
     description: 'Caña de cerveza (200 ml)',
   },
+
+  // --- F-DRINK: compound drink portion terms (longest-first before bare copa/vaso) ---
+  {
+    patterns: ['copa de vino', 'copita de vino'],
+    term: 'copa vino',
+    gramsMin: 120,
+    gramsMax: 150,
+    description: 'Copa de vino estándar (120-150 ml)',
+  },
+  {
+    patterns: ['copa de cava'],
+    term: 'copa cava',
+    gramsMin: 100,
+    gramsMax: 150,
+    description: 'Copa de cava (100-150 ml)',
+  },
+  {
+    patterns: ['vaso de agua'],
+    term: 'vaso agua',
+    gramsMin: 200,
+    gramsMax: 250,
+    description: 'Vaso de agua (200-250 ml)',
+  },
+
+  // --- F-DRINK: single drink portion terms ---
+  {
+    patterns: ['copa'],
+    term: 'copa',
+    gramsMin: 120,
+    gramsMax: 150,
+    description: 'Copa estándar (vino/cava, 120-150 ml)',
+  },
+  {
+    patterns: ['tercio'],
+    term: 'tercio',
+    gramsMin: 330,
+    gramsMax: 330,
+    description: 'Tercio de cerveza (330 ml)',
+  },
+  {
+    patterns: ['botellín'],
+    term: 'botellín',
+    gramsMin: 250,
+    gramsMax: 250,
+    description: 'Botellín de cerveza (250 ml)',
+  },
+  {
+    patterns: ['botella'],
+    term: 'botella',
+    gramsMin: 330,
+    gramsMax: 750,
+    description: 'Botella estándar (330 ml cerveza / 750 ml vino)',
+  },
+  {
+    patterns: ['vaso'],
+    term: 'vaso',
+    gramsMin: 150,
+    gramsMax: 200,
+    description: 'Vaso estándar (150-200 ml)',
+  },
 ];
 
 // ---------------------------------------------------------------------------
