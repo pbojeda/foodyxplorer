@@ -38,12 +38,46 @@ export function HablarShell() {
   const [isVoiceOverlayOpen, setIsVoiceOverlayOpen] = useState(false);
   const [budgetCapActive, setBudgetCapActive] = useState(false);
   const [voiceError, setVoiceError] = useState<VoiceErrorCode | null>(null);
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem('hablar_voice');
+    } catch {
+      return null;
+    }
+  });
+  const [ttsEnabled, setTtsEnabled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      return localStorage.getItem('hablar_tts_enabled') !== 'false';
+    } catch {
+      return true;
+    }
+  });
   const actorIdRef = useRef<string>('');
   if (!actorIdRef.current && typeof window !== 'undefined') {
     actorIdRef.current = getActorId();
   }
   const voiceSession = useVoiceSession(actorIdRef.current);
-  const tts = useTtsPlayback();
+  const tts = useTtsPlayback({ enabled: ttsEnabled, voiceName: selectedVoiceName });
+
+  const handleVoiceSelect = useCallback((name: string) => {
+    setSelectedVoiceName(name);
+    try {
+      localStorage.setItem('hablar_voice', name);
+    } catch {
+      // localStorage unavailable — fall back to in-memory state for this session
+    }
+  }, []);
+
+  const handleTtsToggle = useCallback((enabled: boolean) => {
+    setTtsEnabled(enabled);
+    try {
+      localStorage.setItem('hablar_tts_enabled', String(enabled));
+    } catch {
+      // localStorage unavailable — fall back to in-memory state for this session
+    }
+  }, []);
 
   // Ref to track the current in-flight AbortController for stale request guard
   const currentRequestRef = useRef<AbortController | null>(null);
@@ -401,6 +435,18 @@ export function HablarShell() {
           trackEvent('voice_start');
           setVoiceError(null);
           setIsVoiceOverlayOpen(true);
+          // Gate first-time mic access behind the pre-permission screen
+          // (consistent with the tap path). If consent wasn't granted yet,
+          // the overlay will show the privacy screen and the user completes
+          // via the "Permitir micrófono" button.
+          let hasConsent = true;
+          try {
+            hasConsent = Boolean(localStorage.getItem('hablar_mic_consented'));
+          } catch {
+            // localStorage unavailable — err on the safe side and wait for consent tap
+            hasConsent = false;
+          }
+          if (!hasConsent) return;
           startVoiceRecording();
         }}
         onVoiceHoldEnd={(cancelled: boolean) => {
@@ -422,6 +468,10 @@ export function HablarShell() {
         onClose={closeVoiceOverlay}
         onStartRecording={startVoiceRecording}
         onStopRecording={stopVoiceRecording}
+        selectedVoiceName={selectedVoiceName}
+        ttsEnabled={ttsEnabled}
+        onVoiceSelect={handleVoiceSelect}
+        onTtsToggle={handleTtsToggle}
       />
     </div>
   );

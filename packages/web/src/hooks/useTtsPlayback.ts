@@ -61,6 +61,13 @@ export function selectBestVoice(
 // Hook
 // ---------------------------------------------------------------------------
 
+export interface UseTtsPlaybackOptions {
+  /** Controlled override; if provided, takes precedence over localStorage default. */
+  enabled?: boolean;
+  /** Controlled override; if provided, takes precedence over localStorage default. */
+  voiceName?: string | null;
+}
+
 export interface UseTtsPlaybackReturn {
   play: (text: string) => void;
   cancel: () => void;
@@ -69,13 +76,18 @@ export interface UseTtsPlaybackReturn {
   ttsEnabled: boolean;
 }
 
-export function useTtsPlayback(): UseTtsPlaybackReturn {
+export function useTtsPlayback(options: UseTtsPlaybackOptions = {}): UseTtsPlaybackReturn {
+  const { enabled: enabledOverride, voiceName: voiceNameOverride } = options;
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const enabledOverrideRef = useRef<boolean | undefined>(enabledOverride);
+
+  // Keep override mirror in sync so `play` always reads the latest value
+  enabledOverrideRef.current = enabledOverride;
 
   // Read TTS enabled preference from localStorage
-  function getTtsEnabled(): boolean {
+  function getStoredTtsEnabled(): boolean {
     try {
       const val = localStorage.getItem('hablar_tts_enabled');
       if (val === null) return true; // default: enabled
@@ -85,7 +97,8 @@ export function useTtsPlayback(): UseTtsPlaybackReturn {
     }
   }
 
-  const [ttsEnabled] = useState<boolean>(getTtsEnabled);
+  const [storedTtsEnabled] = useState<boolean>(getStoredTtsEnabled);
+  const ttsEnabled = enabledOverride ?? storedTtsEnabled;
 
   // Read preferred voice name from localStorage
   function getStoredVoiceName(): string | null {
@@ -96,11 +109,11 @@ export function useTtsPlayback(): UseTtsPlaybackReturn {
     }
   }
 
-  function updateVoice() {
+  function updateVoice(preferredName?: string | null) {
     if (typeof speechSynthesis === 'undefined') return;
     const voices = speechSynthesis.getVoices();
-    const storedName = getStoredVoiceName();
-    const best = selectBestVoice(voices, storedName);
+    const name = preferredName !== undefined ? preferredName : getStoredVoiceName();
+    const best = selectBestVoice(voices, name);
     voiceRef.current = best;
     setSelectedVoice(best);
   }
@@ -109,11 +122,11 @@ export function useTtsPlayback(): UseTtsPlaybackReturn {
     if (typeof speechSynthesis === 'undefined') return;
 
     // Initial population (non-iOS — getVoices() may return list synchronously)
-    updateVoice();
+    updateVoice(voiceNameOverride);
 
     // iOS: voices only available after voiceschanged event
     const handleVoicesChanged = () => {
-      updateVoice();
+      updateVoice(voiceNameOverride);
     };
 
     speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
@@ -121,11 +134,12 @@ export function useTtsPlayback(): UseTtsPlaybackReturn {
       speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [voiceNameOverride]);
 
   const play = useCallback(
     (text: string) => {
-      if (!getTtsEnabled()) return;
+      const enabled = enabledOverrideRef.current ?? getStoredTtsEnabled();
+      if (!enabled) return;
       if (typeof speechSynthesis === 'undefined') return;
 
       const utterance = new SpeechSynthesisUtterance(text);

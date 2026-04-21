@@ -49,9 +49,11 @@ export function VoicePickerDrawer({
       setVoices(spanishVoices);
     }
 
-    // Auto-select best voice on first load (when no selection exists)
-    if (!didAutoSelectRef.current && allVoices.length > 0) {
-      const best = selectBestVoice(allVoices, selectedVoiceName);
+    // Auto-select best voice on first load (only when no selection exists yet).
+    // If the user already has a selectedVoiceName (from prior session or just picked
+    // one), don't overwrite it — that would be a redundant write on every drawer open.
+    if (!didAutoSelectRef.current && allVoices.length > 0 && !selectedVoiceName) {
+      const best = selectBestVoice(allVoices, null);
       if (best) {
         didAutoSelectRef.current = true;
         onVoiceSelect(best.name);

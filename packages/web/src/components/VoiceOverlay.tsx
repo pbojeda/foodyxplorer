@@ -146,6 +146,7 @@ export function VoiceOverlay({
       role="dialog"
       aria-modal="true"
       aria-live="polite"
+      aria-label="Búsqueda por voz"
       className="fixed inset-0 z-50 flex flex-col bg-white"
     >
       {/* Dismiss button (initial focus target) */}

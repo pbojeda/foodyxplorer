@@ -1528,7 +1528,7 @@ Parent component spec: `docs/specs/hablar-design-guidelines.md` §4.2, §4.8, §
 | `getUserMedia` `NotAllowedError` | `'mic_permission'` | Overlay toast, 3s, then idle |
 | `getUserMedia` `NotFoundError` / `NotReadableError` | `'mic_hardware'` | Overlay toast, 2.5s, then idle |
 | 429 `RATE_LIMIT_EXCEEDED` (voice bucket) | `'rate_limit'` | ResultsArea ErrorState, no retry |
-| 429 `IP_VOICE_LIMIT_EXCEEDED` | `'ip_rate_limit'` | ResultsArea ErrorState, no retry |
+| 429 `IP_VOICE_LIMIT_EXCEEDED` | `'ip_limit'` | ResultsArea ErrorState, no retry |
 | 502 `TRANSCRIPTION_FAILED` | `'whisper_failure'` | ResultsArea ErrorState, retry button |
 | network / timeout | `'network'` | ResultsArea ErrorState, retry button |
 | 503 `VOICE_BUDGET_EXHAUSTED` | `'budget_cap'` | ResultsArea ErrorState (budget-cap variant), set `budgetCapActive = true` |
