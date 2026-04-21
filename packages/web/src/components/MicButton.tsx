@@ -70,7 +70,7 @@ export function MicButton({
   const isHoldRef = useRef(false);
   const isDownRef = useRef(false);
 
-  const isDisabled = state === 'processing' || state === 'uploading';
+  const isDisabled = state === 'processing';
 
   const sizeClasses = size === 'lg'
     ? 'w-20 h-20'

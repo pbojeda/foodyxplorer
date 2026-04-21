@@ -4,6 +4,7 @@
 // Handles: text input, Enter-to-submit, Shift+Enter newline, disabled during loading.
 
 import { useRef, useEffect } from 'react';
+import type { VoiceState } from '@/types/voice';
 import { SubmitButton } from './SubmitButton';
 import { MicButton } from './MicButton';
 import { PhotoButton } from './PhotoButton';
@@ -16,6 +17,12 @@ interface ConversationInputProps {
   isLoading: boolean;
   isPhotoLoading?: boolean;
   inlineError: string | null;
+  // F091 voice props (optional — defaults keep backwards compatibility with tests)
+  onVoiceTap?: () => void;
+  onVoiceHoldStart?: () => void;
+  onVoiceHoldEnd?: (cancelled: boolean) => void;
+  voiceState?: VoiceState;
+  budgetCapActive?: boolean;
 }
 
 export function ConversationInput({
@@ -26,6 +33,11 @@ export function ConversationInput({
   isLoading,
   isPhotoLoading = false,
   inlineError,
+  onVoiceTap,
+  onVoiceHoldStart,
+  onVoiceHoldEnd,
+  voiceState,
+  budgetCapActive,
 }: ConversationInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -71,7 +83,13 @@ export function ConversationInput({
           aria-label="Escribe tu consulta"
         />
         <PhotoButton onFileSelect={onPhotoSelect} isLoading={isPhotoLoading} />
-        <MicButton />
+        <MicButton
+          onTap={onVoiceTap}
+          onHoldStart={onVoiceHoldStart}
+          onHoldEnd={onVoiceHoldEnd}
+          state={voiceState}
+          budgetCapActive={budgetCapActive}
+        />
         {showSubmit && (
           <SubmitButton onSubmit={onSubmit} isLoading={isLoading} />
         )}

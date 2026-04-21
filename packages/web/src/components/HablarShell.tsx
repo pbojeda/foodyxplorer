@@ -3,16 +3,21 @@
 // HablarShell — top-level client orchestrator for /hablar.
 // Manages all page state: query, loading, results, error, inlineError.
 // F092: adds photo analysis flow with executePhotoAnalysis.
+// F091: adds voice flow (VoiceOverlay + useVoiceSession + TTS playback).
 // Uses useRef<AbortController | null> for stale request guard (both text and photo flows).
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ConversationMessageData, MenuAnalysisData } from '@foodxplorer/shared';
+import type { VoiceBudgetData, VoiceErrorCode, VoiceState } from '@/types/voice';
 import { getActorId } from '@/lib/actorId';
 import { sendMessage, sendPhotoAnalysis, ApiError } from '@/lib/apiClient';
 import { resizeImageForUpload } from '@/lib/imageResize';
 import { trackEvent, flushMetrics } from '@/lib/metrics';
+import { useVoiceSession } from '@/hooks/useVoiceSession';
+import { useTtsPlayback } from '@/hooks/useTtsPlayback';
 import { ConversationInput } from './ConversationInput';
 import { ResultsArea } from './ResultsArea';
+import { VoiceOverlay } from './VoiceOverlay';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const VALID_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -29,6 +34,17 @@ export function HablarShell() {
   const [photoMode, setPhotoMode] = useState<'idle' | 'analyzing'>('idle');
   const [photoResults, setPhotoResults] = useState<MenuAnalysisData | null>(null);
 
+  // Voice state (F091)
+  const [isVoiceOverlayOpen, setIsVoiceOverlayOpen] = useState(false);
+  const [budgetCapActive, setBudgetCapActive] = useState(false);
+  const [voiceError, setVoiceError] = useState<VoiceErrorCode | null>(null);
+  const actorIdRef = useRef<string>('');
+  if (!actorIdRef.current && typeof window !== 'undefined') {
+    actorIdRef.current = getActorId();
+  }
+  const voiceSession = useVoiceSession(actorIdRef.current);
+  const tts = useTtsPlayback();
+
   // Ref to track the current in-flight AbortController for stale request guard
   const currentRequestRef = useRef<AbortController | null>(null);
 
@@ -38,6 +54,91 @@ export function HablarShell() {
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
   }, []);
+
+  // Fetch voice budget on mount — fail-open on error (F091)
+  useEffect(() => {
+    const baseUrl = process.env['NEXT_PUBLIC_API_URL'];
+    if (!baseUrl) return;
+    const controller = new AbortController();
+    fetch(`${baseUrl}/health/voice-budget`, { signal: controller.signal })
+      .then((r) => (r.ok ? (r.json() as Promise<VoiceBudgetData>) : null))
+      .then((data) => {
+        if (data?.exhausted) setBudgetCapActive(true);
+      })
+      .catch(() => {
+        // Fail-open: budget unknown → allow voice (API enforces the cap)
+      });
+    return () => controller.abort();
+  }, []);
+
+  // Sync voice session results → HablarShell results + speak summary via TTS (F091)
+  useEffect(() => {
+    if (voiceSession.state === 'done' && voiceSession.lastResponse) {
+      const data = voiceSession.lastResponse.data;
+      setResults(data);
+      setError(null);
+      setInlineError(null);
+      setPhotoResults(null);
+      setIsVoiceOverlayOpen(false);
+      setVoiceError(null);
+      trackEvent('voice_success', { intent: data.intent });
+
+      // Speak a short summary — presentation layer only; engine already
+      // calculated the numbers (ADR-001).
+      if (data.intent === 'estimation' && data.estimation?.result) {
+        const result = data.estimation.result;
+        const name = result.nameEs ?? result.name ?? 'este plato';
+        const kcal = Math.round(result.nutrients.calories);
+        tts.play(`${name} tiene aproximadamente ${kcal} kilocalorías.`);
+      }
+    }
+  }, [voiceSession.state, voiceSession.lastResponse, tts]);
+
+  // Sync voice errors → UI error code (F091)
+  useEffect(() => {
+    if (voiceSession.state === 'error' && voiceSession.error) {
+      const code = voiceSession.error.code as VoiceErrorCode;
+      setVoiceError(code);
+      trackEvent('voice_error', { errorCode: voiceSession.error.code });
+      // Budget exhaustion from a failed voice call → disable future voice
+      if (code === 'budget_cap') {
+        setBudgetCapActive(true);
+      }
+    }
+  }, [voiceSession.state, voiceSession.error]);
+
+  const openVoiceOverlay = useCallback(() => {
+    if (budgetCapActive) return;
+    trackEvent('voice_start');
+    setVoiceError(null);
+    setIsVoiceOverlayOpen(true);
+  }, [budgetCapActive]);
+
+  const closeVoiceOverlay = useCallback(() => {
+    voiceSession.cancel();
+    setIsVoiceOverlayOpen(false);
+    setVoiceError(null);
+  }, [voiceSession]);
+
+  const startVoiceRecording = useCallback(() => {
+    void voiceSession.start();
+  }, [voiceSession]);
+
+  const stopVoiceRecording = useCallback(() => {
+    voiceSession.stop();
+  }, [voiceSession]);
+
+  // Map VoiceSessionState → UI VoiceState for the overlay
+  const uiVoiceState: VoiceState =
+    voiceSession.state === 'recording'
+      ? 'listening'
+      : voiceSession.state === 'uploading'
+      ? 'processing'
+      : voiceSession.state === 'error'
+      ? 'error'
+      : voiceSession.state === 'done'
+      ? 'results'
+      : 'idle';
 
   const executeQuery = useCallback(async (text: string) => {
     if (!text.trim()) return;
@@ -294,6 +395,33 @@ export function HablarShell() {
         isLoading={isLoading}
         isPhotoLoading={photoMode === 'analyzing'}
         inlineError={inlineError}
+        onVoiceTap={openVoiceOverlay}
+        onVoiceHoldStart={() => {
+          if (budgetCapActive) return;
+          trackEvent('voice_start');
+          setVoiceError(null);
+          setIsVoiceOverlayOpen(true);
+          startVoiceRecording();
+        }}
+        onVoiceHoldEnd={(cancelled: boolean) => {
+          if (cancelled) {
+            closeVoiceOverlay();
+          } else {
+            stopVoiceRecording();
+          }
+        }}
+        voiceState={uiVoiceState}
+        budgetCapActive={budgetCapActive}
+      />
+
+      {/* Voice overlay — F091 */}
+      <VoiceOverlay
+        isOpen={isVoiceOverlayOpen}
+        voiceState={uiVoiceState}
+        errorCode={voiceError}
+        onClose={closeVoiceOverlay}
+        onStartRecording={startVoiceRecording}
+        onStopRecording={stopVoiceRecording}
       />
     </div>
   );
