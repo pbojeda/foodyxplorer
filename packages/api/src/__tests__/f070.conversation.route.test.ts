@@ -429,7 +429,7 @@ describe('POST /conversation/message (F070)', () => {
   // Rate limit bucket mapping — /conversation/message shares 'queries' bucket
   // -------------------------------------------------------------------------
 
-  it('rate limit exceeded → 429 ACTOR_RATE_LIMIT_EXCEEDED', async () => {
+  it('rate limit exceeded → 429 RATE_LIMIT_EXCEEDED', async () => {
     // Simulate count above the 50/day limit
     mockRedisIncr.mockResolvedValue(51);
 
@@ -448,7 +448,7 @@ describe('POST /conversation/message (F070)', () => {
 
     expect(response.statusCode).toBe(429);
     const body = response.json<{ success: false; error: { code: string } }>();
-    expect(body.error.code).toBe('ACTOR_RATE_LIMIT_EXCEEDED');
+    expect(body.error.code).toBe('RATE_LIMIT_EXCEEDED');
   });
 
   // -------------------------------------------------------------------------
