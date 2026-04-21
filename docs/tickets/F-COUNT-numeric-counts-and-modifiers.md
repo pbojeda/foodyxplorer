@@ -389,7 +389,7 @@ Note: `entry.regex.exec(text)` not `regex.test(text)` — exec needed to capture
 |------|--------|-------|
 | 2026-04-21 | Ticket created | Spec based on QA battery 2026-04-21 Categories 5 + 6 (32 target NULLs: 20 numeric + 12 extended modifiers) |
 | 2026-04-21 | Implementation Plan written | Option A tagged-union PatternEntry, 20 TDD steps, 21 AC test matrix |
-| 2026-04-21 | TDD implementation complete | 56 new tests (3533 total vs 3477 baseline), 0 regressions. Commit: TBD |
+| 2026-04-21 | TDD implementation complete | 56 new tests (3533 total vs 3477 baseline), 0 regressions. Commit: `85bf1e9` |
 
 ---
 
