@@ -4469,7 +4469,8 @@ paths:
         voice request.
 
         Returns the budget data from Redis key `budget:voice:current-month`
-        (updated by the budget monitor cron, not by individual requests).
+        (updated by the in-process accumulator on every successful Whisper call — no cron,
+        atomic via Redis Lua script read-modify-write).
         If the key is absent (Redis miss), returns `{ exhausted: false, spendEur: 0 }`.
 
         **Auth:** No API key required. IP-rate-limited at 60 req/min (shared IP limit).
@@ -5567,8 +5568,9 @@ paths:
 
         **Monthly budget cap (F091):** When the project-level Whisper spend exceeds the
         €100/month hard cap, this endpoint returns 503 with code `VOICE_BUDGET_EXHAUSTED`.
-        The budget state is read from Redis key `budget:voice:exhausted` (set by the
-        budget monitor cron). All tiers including admin are blocked when the cap is active.
+        The budget state is read from Redis key `budget:voice:current-month` (updated by the
+        in-process accumulator on every successful Whisper call — no cron, atomic via Lua script).
+        All tiers including admin are blocked when the cap is active.
 
         **Duration source change (F091 bug fix):** The `duration` field in the multipart
         body was previously trusted as-is (billing vulnerability). F091 adds server-side
@@ -5601,7 +5603,8 @@ paths:
                   format: binary
                   description: |
                     Audio file. Accepted MIME types: audio/ogg, audio/mpeg, audio/mp4,
-                    audio/wav, audio/webm. Max 10 MB (handled by @fastify/multipart).
+                    audio/webm. Max 10 MB (handled by @fastify/multipart).
+                    Note: audio/wav is NOT accepted (browsers never produce WAV; F091).
                 duration:
                   type: number
                   description: |
@@ -5661,7 +5664,7 @@ paths:
           description: |
             Validation error. Sub-cases:
             - `audio` file part is missing from the multipart body.
-            - MIME type is not one of: audio/ogg, audio/mpeg, audio/mp4, audio/wav, audio/webm.
+            - MIME type is not one of: audio/ogg, audio/mpeg, audio/mp4, audio/webm.
             - `duration` field is missing or not a number.
             - `duration` exceeds 120 seconds.
           content:
