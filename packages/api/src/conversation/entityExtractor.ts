@@ -590,6 +590,15 @@ export const SERVING_FORMAT_PATTERNS: readonly RegExp[] = [
   /^raciones\s+de\s+/i,
   /^raci[oó]n\s+de\s+/i,
   /^ca[ñn]as?\s+de\s+/i,
+  // F-DRINK-FU1 (2026-04-21): strip drink containers before L1 so queries like
+  // "un tercio de cerveza" / "una botella de vino tinto" resolve to "cerveza" / "vino tinto".
+  // portionSizing still detects the drink portion term (tercio/botella/copa/vaso) via its
+  // own PORTION_RULES independent of this SERVING strip.
+  /^tercios?\s+de\s+/i,
+  /^botellas?\s+de\s+/i,
+  /^botell[ií]n(?:es)?\s+de\s+/i,
+  /^copas?\s+de\s+/i,
+  /^vasos?\s+de\s+/i,
 ];
 
 // Article/determiner stripping — applied once after prefix step.

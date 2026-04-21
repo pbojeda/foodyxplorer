@@ -198,15 +198,19 @@ describe('F-MORPH edge: "pocos" adjective vs "poco de" container', () => {
 //         with strict toBe equality (not just "not empty").
 // ---------------------------------------------------------------------------
 
-describe('F-MORPH edge: AC15 strict equality on vaso de vino', () => {
-  it('EC11: "un vaso de vino" → exact string "vaso de vino" (strict toBe)', () => {
+// F-DRINK-FU1 (2026-04-21) added `vaso de` to SERVING_FORMAT_PATTERNS so the
+// full pipeline now strips the container. F-MORPH's CONTAINER_PATTERNS still
+// does NOT include vaso de (boundary preserved) — the strip happens at the
+// SERVING layer. Updated tests document the new contract.
+describe('F-MORPH + F-DRINK-FU1: vaso de strip occurs at SERVING layer', () => {
+  it('EC11: "un vaso de vino" → "vino" (stripped by F-DRINK-FU1 SERVING)', () => {
     const result = extractFoodQuery('un vaso de vino');
-    expect(result.query).toBe('vaso de vino');
+    expect(result.query).toBe('vino');
   });
 
-  it('EC11b: "un vaso de vino tinto" → exact string "vaso de vino tinto" (strict toBe)', () => {
+  it('EC11b: "un vaso de vino tinto" → "vino tinto" (stripped)', () => {
     const result = extractFoodQuery('un vaso de vino tinto');
-    expect(result.query).toBe('vaso de vino tinto');
+    expect(result.query).toBe('vino tinto');
   });
 });
 
