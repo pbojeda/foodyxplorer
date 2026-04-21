@@ -430,8 +430,8 @@ describe('POST /conversation/message (F070)', () => {
   // -------------------------------------------------------------------------
 
   it('rate limit exceeded → 429 RATE_LIMIT_EXCEEDED', async () => {
-    // Simulate count above the 50/day limit
-    mockRedisIncr.mockResolvedValue(51);
+    // Simulate count above the free tier 100/day limit (F-TIER: was 50, now 100)
+    mockRedisIncr.mockResolvedValue(101);
 
     const app = await buildApp();
 
