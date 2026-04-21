@@ -41,7 +41,8 @@ type ReqWithContext = { apiKeyContext?: ApiKeyContext; ip?: string };
 
 /**
  * Dynamic max for @fastify/rate-limit.
- * Returns 30 (anonymous), 100 (free), or 1000 (pro).
+ * Returns 1000 (pro), 100 (free), or 30 (anonymous).
+ * Admin tier is excluded via allowList — never reaches this function.
  */
 export function getRateLimitMax(req: ReqWithContext): number {
   if (req.apiKeyContext?.tier === 'pro') return 1000;
@@ -84,8 +85,9 @@ export async function registerRateLimit(
       'x-ratelimit-reset': true,
       'retry-after': true,
     },
-    // Exempt /health and all admin routes from rate limiting
+    // Exempt /health, admin routes, and admin-tier API keys from rate limiting
     allowList: (req: FastifyRequest) => {
+      if (req.apiKeyContext?.tier === 'admin') return true;
       const url = req.routeOptions.url ?? '';
       return (
         url === '/health' ||
