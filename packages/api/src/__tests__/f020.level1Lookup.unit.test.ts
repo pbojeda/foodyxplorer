@@ -192,8 +192,10 @@ describe('level1Lookup', () => {
       .mockResolvedValueOnce({ rows: [] })    // strategy 1 miss
       .mockResolvedValueOnce({ rows: [MOCK_DISH_ROW] }); // strategy 2 hit
 
+    // BUG-PROD-012: scope options (chainSlug) skip the Tier≥1 pre-cascade so this
+    // test exercises the (intended) unfiltered cascade path, not the inverse-cascade pass.
     const db = buildMockDb() as never;
-    const result = await level1Lookup(db, 'hamburguesa grande', {});
+    const result = await level1Lookup(db, 'hamburguesa grande', { chainSlug: 'mcdonalds-es' });
 
     expect(result).not.toBeNull();
     expect(result?.matchType).toBe('fts_dish');
@@ -210,8 +212,10 @@ describe('level1Lookup', () => {
       .mockResolvedValueOnce({ rows: [] })    // strategy 2 miss
       .mockResolvedValueOnce({ rows: [MOCK_FOOD_ROW] }); // strategy 3 hit
 
+    // BUG-PROD-012: scope options (chainSlug) skip the Tier≥1 pre-cascade so this
+    // test exercises the (intended) unfiltered cascade path.
     const db = buildMockDb() as never;
-    const result = await level1Lookup(db, 'Chicken Breast', {});
+    const result = await level1Lookup(db, 'Chicken Breast', { chainSlug: 'mcdonalds-es' });
 
     expect(result).not.toBeNull();
     expect(result?.matchType).toBe('exact_food');
@@ -228,8 +232,9 @@ describe('level1Lookup', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [MOCK_FOOD_ROW] });
 
+    // BUG-PROD-012: chainSlug scope skips the Tier≥1 pre-cascade
     const db = buildMockDb() as never;
-    const result = await level1Lookup(db, 'Chicken Breast', {});
+    const result = await level1Lookup(db, 'Chicken Breast', { chainSlug: 'mcdonalds-es' });
 
     expect(result).not.toBeNull();
     const n = result?.result.nutrients;
@@ -253,8 +258,10 @@ describe('level1Lookup', () => {
       .mockResolvedValueOnce({ rows: [] })    // strategy 3 miss
       .mockResolvedValueOnce({ rows: [MOCK_FOOD_ROW] }); // strategy 4 hit
 
+    // BUG-PROD-012: scope options (chainSlug) skip the Tier≥1 pre-cascade so this
+    // test exercises the (intended) unfiltered cascade path.
     const db = buildMockDb() as never;
-    const result = await level1Lookup(db, 'pollo', {});
+    const result = await level1Lookup(db, 'pollo', { chainSlug: 'mcdonalds-es' });
 
     expect(result).not.toBeNull();
     expect(result?.matchType).toBe('fts_food');
@@ -273,7 +280,9 @@ describe('level1Lookup', () => {
     const result = await level1Lookup(db, 'something completely unknown', {});
 
     expect(result).toBeNull();
-    expect(mockExecuteQuery).toHaveBeenCalledTimes(4);
+    // BUG-PROD-012: unscoped, non-branded queries run the Tier≥1 pre-cascade first
+    // (4 strategy calls), then fall through to the unfiltered cascade (4 more calls) = 8 total.
+    expect(mockExecuteQuery).toHaveBeenCalledTimes(8);
   });
 
   // -------------------------------------------------------------------------

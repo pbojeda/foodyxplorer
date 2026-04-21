@@ -271,7 +271,8 @@ describe('Section B — level1Lookup unit edge cases (real implementation)', () 
       const db = buildMockDb() as never;
       const result = await level1Lookup(db, 'Big   Mac', {});
       expect(result).toBeNull();
-      expect(mockExecuteQuery).toHaveBeenCalledTimes(4);
+      // BUG-PROD-012: unscoped, non-branded all-miss = 8 calls (4 Tier≥1 pass + 4 unfiltered pass).
+      expect(mockExecuteQuery).toHaveBeenCalledTimes(8);
     });
 
     it('trims leading/trailing whitespace — all 4 strategies execute without error', async () => {
@@ -279,7 +280,8 @@ describe('Section B — level1Lookup unit edge cases (real implementation)', () 
       const db = buildMockDb() as never;
       const result = await level1Lookup(db, '  pollo a la brasa  ', {});
       expect(result).toBeNull();
-      expect(mockExecuteQuery).toHaveBeenCalledTimes(4);
+      // BUG-PROD-012: unscoped, non-branded all-miss = 8 calls (4 Tier≥1 pass + 4 unfiltered pass).
+      expect(mockExecuteQuery).toHaveBeenCalledTimes(8);
     });
 
     it('handles Unicode query with Spanish accents without throwing', async () => {

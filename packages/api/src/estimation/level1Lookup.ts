@@ -13,6 +13,14 @@
 // When hasExplicitBrand=true, first attempt filters to Tier 0 only; falls through
 // to unfiltered cascade if no Tier 0 match found.
 //
+// BUG-PROD-012: Inverse cascade for non-branded queries.
+// When hasExplicitBrand=false AND no chainSlug/restaurantId scope is set,
+// first attempt filters to Tier≥1 only (exclude scraped chain PDFs); falls through
+// to unfiltered cascade if no Tier≥1 match found. This ensures generic Spanish
+// queries (e.g. "tortilla", "jamón") prefer cocina-española/BEDCA over chain PDFs.
+// When chainSlug or restaurantId is set, skip the Tier≥1 pre-cascade so the scope
+// clause continues to constrain results (AC6 guard).
+//
 // See: ADR-001 (confidence strategy), ADR-000 (Kysely for complex queries),
 //      ADR-015 (provenance graph, priority tier)
 
@@ -40,6 +48,7 @@ async function exactDishMatch(
   normalizedQuery: string,
   options: Level1LookupOptions,
   tierFilter?: number,
+  minTier?: number,
 ): Promise<DishQueryRow | undefined> {
   const { restaurantId, chainSlug } = options;
 
@@ -51,7 +60,9 @@ async function exactDishMatch(
 
   const tierClause = tierFilter !== undefined
     ? sql`AND ds.priority_tier = ${tierFilter}`
-    : sql``;
+    : minTier !== undefined
+      ? sql`AND ds.priority_tier >= ${minTier}`
+      : sql``;
 
   const result = await sql<DishQueryRow>`
     WITH ranked_dn AS (
@@ -114,6 +125,7 @@ async function ftsDishMatch(
   normalizedQuery: string,
   options: Level1LookupOptions,
   tierFilter?: number,
+  minTier?: number,
 ): Promise<DishQueryRow | undefined> {
   const { restaurantId, chainSlug } = options;
 
@@ -125,7 +137,9 @@ async function ftsDishMatch(
 
   const tierClause = tierFilter !== undefined
     ? sql`AND ds.priority_tier = ${tierFilter}`
-    : sql``;
+    : minTier !== undefined
+      ? sql`AND ds.priority_tier >= ${minTier}`
+      : sql``;
 
   const result = await sql<DishQueryRow>`
     WITH ranked_dn AS (
@@ -186,10 +200,13 @@ async function exactFoodMatch(
   db: Kysely<DB>,
   normalizedQuery: string,
   tierFilter?: number,
+  minTier?: number,
 ): Promise<FoodQueryRow | undefined> {
   const tierClause = tierFilter !== undefined
     ? sql`AND ds.priority_tier = ${tierFilter}`
-    : sql``;
+    : minTier !== undefined
+      ? sql`AND ds.priority_tier >= ${minTier}`
+      : sql``;
 
   const result = await sql<FoodQueryRow>`
     WITH ranked_fn AS (
@@ -247,10 +264,13 @@ async function ftsFoodMatch(
   db: Kysely<DB>,
   normalizedQuery: string,
   tierFilter?: number,
+  minTier?: number,
 ): Promise<FoodQueryRow | undefined> {
   const tierClause = tierFilter !== undefined
     ? sql`AND ds.priority_tier = ${tierFilter}`
-    : sql``;
+    : minTier !== undefined
+      ? sql`AND ds.priority_tier >= ${minTier}`
+      : sql``;
 
   const result = await sql<FoodQueryRow>`
     WITH ranked_fn AS (
@@ -461,33 +481,43 @@ export async function offFallbackFoodMatch(
 
 /**
  * Run the 4-strategy cascade with optional tier filtering.
+ *
+ * @param tierFilter - Equality predicate: `AND ds.priority_tier = tierFilter`
+ * @param minTier    - Lower-bound predicate: `AND ds.priority_tier >= minTier`
+ *
+ * `tierFilter` and `minTier` are mutually exclusive; passing both throws.
  */
 async function runCascade(
   db: Kysely<DB>,
   normalizedQuery: string,
   options: Level1LookupOptions,
   tierFilter?: number,
+  minTier?: number,
 ): Promise<Level1Result | null> {
+  if (tierFilter !== undefined && minTier !== undefined) {
+    throw new Error('runCascade: tierFilter and minTier are mutually exclusive');
+  }
+
   // Strategy 1: exact dish
-  const exactDishRow = await exactDishMatch(db, normalizedQuery, options, tierFilter);
+  const exactDishRow = await exactDishMatch(db, normalizedQuery, options, tierFilter, minTier);
   if (exactDishRow !== undefined) {
     return { matchType: 'exact_dish', result: mapDishRowToResult(exactDishRow), rawFoodGroup: null };
   }
 
   // Strategy 2: FTS dish
-  const ftsDishRow = await ftsDishMatch(db, normalizedQuery, options, tierFilter);
+  const ftsDishRow = await ftsDishMatch(db, normalizedQuery, options, tierFilter, minTier);
   if (ftsDishRow !== undefined) {
     return { matchType: 'fts_dish', result: mapDishRowToResult(ftsDishRow), rawFoodGroup: null };
   }
 
   // Strategy 3: exact food (no chain scope)
-  const exactFoodRow = await exactFoodMatch(db, normalizedQuery, tierFilter);
+  const exactFoodRow = await exactFoodMatch(db, normalizedQuery, tierFilter, minTier);
   if (exactFoodRow !== undefined) {
     return { matchType: 'exact_food', result: mapFoodRowToResult(exactFoodRow), rawFoodGroup: exactFoodRow.food_group };
   }
 
   // Strategy 4: FTS food (no chain scope)
-  const ftsFoodRow = await ftsFoodMatch(db, normalizedQuery, tierFilter);
+  const ftsFoodRow = await ftsFoodMatch(db, normalizedQuery, tierFilter, minTier);
   if (ftsFoodRow !== undefined) {
     return { matchType: 'fts_food', result: mapFoodRowToResult(ftsFoodRow), rawFoodGroup: ftsFoodRow.food_group };
   }
@@ -507,6 +537,14 @@ async function runCascade(
  *
  * When hasExplicitBrand=true (F068): first pass filters to Tier 0 only.
  * If no Tier 0 match → falls through to normal (unfiltered) cascade.
+ *
+ * When hasExplicitBrand=false AND no chainSlug/restaurantId scope is set
+ * (BUG-PROD-012): first pass filters to Tier≥1 only (excludes scraped chain PDFs),
+ * so official Spanish data (cocina-española / BEDCA) wins over chain FTS matches.
+ * If no Tier≥1 match → falls through to normal (unfiltered) cascade so chain-only
+ * terms (e.g. "frappuccino") are still found via Tier 0 rather than returning null.
+ * When chainSlug or restaurantId is set, skip the Tier≥1 pre-cascade so the scope
+ * clause continues to constrain results to the selected restaurant.
  *
  * Throws with code='DB_UNAVAILABLE' on database errors.
  *
@@ -542,11 +580,26 @@ export async function level1Lookup(
 
     // F068: Branded query → try Tier 0 first (existing behavior)
     if (options.hasExplicitBrand === true) {
-      const tier0Result = await runCascade(db, normalizedQuery, options, 0);
+      const tier0Result = await runCascade(db, normalizedQuery, options, /* tierFilter= */ 0);
       if (tier0Result !== null) {
         return tier0Result;
       }
       // Fall through to unfiltered cascade
+    }
+
+    // BUG-PROD-012: Non-branded, unscoped query → try Tier≥1 first to prefer
+    // official Spanish data (cocina-española / BEDCA) over scraped chain PDFs.
+    // Skip when chainSlug/restaurantId is set so the scope clause wins (AC6 guard).
+    if (
+      options.hasExplicitBrand !== true &&
+      options.chainSlug === undefined &&
+      options.restaurantId === undefined
+    ) {
+      const tier1PlusResult = await runCascade(db, normalizedQuery, options, /* tierFilter= */ undefined, /* minTier= */ 1);
+      if (tier1PlusResult !== null) {
+        return tier1PlusResult;
+      }
+      // Fall through to unfiltered cascade (AC5: chain-only terms like "frappuccino")
     }
 
     // Normal cascade (ordered by priority_tier)
