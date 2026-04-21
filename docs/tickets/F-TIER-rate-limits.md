@@ -1,6 +1,6 @@
 # F-TIER — Tier-aware daily rate limits + admin bypass
 
-**Status:** Spec
+**Status:** Done
 **Type:** Feature (Standard)
 **Priority:** High (blocks QA testing + F091 voice integration)
 **Branch:** `feature/F-tier-rate-limits`

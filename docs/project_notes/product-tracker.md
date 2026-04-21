@@ -8,9 +8,9 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-20 (BUG-PROD-011 implemented + merged to both develop and main)
+**Last Updated:** 2026-04-21 (F-TIER merged to develop, PR #173)
 
-**Active Feature:** None. BUG-PROD-011 complete (code merged). Pending: user re-seeds dev+prod DBs (deferred to tomorrow).
+**Active Feature:** None. F-TIER complete on develop. Pending: Render redeploy (auto), then admin key usable on dev. Prod migration + sync deferred.
 
 **Last Completed — 2026-04-20 BUG-PROD-011**: Nutrients not scaled to portionAssumption.grams. Fixed: API now scales result.nutrients × (portionAssumption.grams / result.portionGrams) when source='per_dish' and grams differ. 7 atomic commits, squash-merged to develop (PR #169), synced to main (PR #170). PRs #168 (merge-back pre) and #171 (merge-back post) keep gitflow parity. All CI green. Frontend (NutritionCard AC17) and bot (estimateFormatter AC18) updated for ratio-only base display. ADR-020 amended. 10 new unit tests + 8 updated schema tests. enrichWithUncertainty reordered to execute AFTER scaling.
 
