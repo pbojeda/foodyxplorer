@@ -8,9 +8,11 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-21 (F-TIER merged to develop, PR #173)
+**Last Updated:** 2026-04-21 (F091 Step 5/6 Review — awaiting merge approval)
 
-**Active Feature:** None. F-TIER complete on develop. Pending: Render redeploy (auto), then admin key usable on dev. Prod migration + sync deferred.
+**Active Feature:** **F091 — Async Push-to-Talk Voice in /hablar** (Standard, Fullstack). Step 5/6 Review. PR [#180](https://github.com/pbojeda/foodyxplorer/pull/180) targeting `develop`. Branch `feature/F091-async-push-to-talk-voice` in worktree `/Users/pb/Developer/FiveGuays/foodXPlorer-f091`. PM session `pm-f91` (L5 Autonomous). 22 commits + 2 doc commits. Backend 9 TDD commits (+106 api tests), frontend 13 commits (+92 web tests). production-code-validator VERDICT READY (99/100). code-review-specialist flagged 4 critical + 10 important — all critical + 3 important fixed in `9103810`. qa-engineer flagged 1 critical (AC22 per-IP cap float bypass) + 3 important (AC23/AC25/AC15) — all fixed in `a76d6ae`. Quality gates green: api 3493/3493, web 450/450, lint 0, build clean. Merge Checklist actions 0-8 complete, action 9 (`/audit-merge`) running.
+
+**Previous — F-TIER merged 2026-04-21** (PR #173): tier-aware rate limits + admin bypass. Render redeploy pending, then admin key usable on dev. Prod migration + sync deferred.
 
 **Last Completed — 2026-04-20 BUG-PROD-011**: Nutrients not scaled to portionAssumption.grams. Fixed: API now scales result.nutrients × (portionAssumption.grams / result.portionGrams) when source='per_dish' and grams differ. 7 atomic commits, squash-merged to develop (PR #169), synced to main (PR #170). PRs #168 (merge-back pre) and #171 (merge-back post) keep gitflow parity. All CI green. Frontend (NutritionCard AC17) and bot (estimateFormatter AC18) updated for ratio-only base display. ADR-020 amended. 10 new unit tests + 8 updated schema tests. enrichWithUncertainty reordered to execute AFTER scaling.
 
@@ -274,7 +276,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
 | F090 | Web Assistant: Shell + Text Mode (/hablar) | frontend | done | 6/6 | Standard. **Creates new `packages/web` package** (separate from landing). Next.js route /hablar. ConversationCore integration. Text input → JSON response → NutritionCard UI. Design: see hablar-design-guidelines.md. 119 tests, next build passes. |
-| F091 | Web Assistant: Async Voice (STT → Core → TTS) | frontend | pending | — | Standard. Push-to-talk UX. Async, not realtime. **GATE: before starting, confirm voice architecture choice with user** — F094 recommends Option 12 (F075 STT + SpeechSynthesis TTS) but decision is provisional |
+| F091 | Web Assistant: Async Voice (STT → Core → TTS) | fullstack | in-progress | 5/6 | Standard. Option 12 (F075 Whisper STT + browser SpeechSynthesis TTS). PR #180. Budget €100/mo + per-IP 30min/day cap. Code-review + QA complete, all blockers fixed. Awaiting merge approval |
 | F092 | Web Assistant: Plate Photo Upload | frontend | done | 6/6 | Standard. PR #90 squash-merged (4c1553a). 263 tests. Code review: APPROVED WITH NOTES. QA: VERIFIED (23 edge-case tests) |
 | F093 | Web Assistant: Landing Integration + Analytics | frontend | done | 6/6 | Standard. PR #89 squash-merged (cb1b0fc). 737 landing + 167 web tests. Code review: APPROVED WITH NOTES. QA: VERIFIED (21 edge-case tests). |
 | F094 | Voice Spike: Evaluate Browser-Side STT/TTS vs Cloud | research | done | 6/6 | Research. PR #93 squash-merged (00f27f5). Decision doc: `docs/specs/voice-architecture-decision.md` (800 lines, 13 options). Provisional recommendation: Option 12 (F075 STT + SpeechSynthesis TTS). Cross-model review: Gemini + Codex both approve. **GATE: user must confirm architecture choice before F091 starts.** Also fixed: CI rollup job (`ci-success`) for docs-only PR mergeability. |
