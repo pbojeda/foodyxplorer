@@ -273,7 +273,9 @@ describe('level1Lookup', () => {
     const result = await level1Lookup(db, 'something completely unknown', {});
 
     expect(result).toBeNull();
-    expect(mockExecuteQuery).toHaveBeenCalledTimes(4);
+    // BUG-PROD-012: unscoped, non-branded queries run the Tier≥1 pre-cascade first
+    // (4 strategy calls), then fall through to the unfiltered cascade (4 more calls) = 8 total.
+    expect(mockExecuteQuery).toHaveBeenCalledTimes(8);
   });
 
   // -------------------------------------------------------------------------
