@@ -3,7 +3,7 @@
 // ConversationInput — fixed-bottom input bar for the /hablar shell.
 // Handles: text input, Enter-to-submit, Shift+Enter newline, disabled during loading.
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, type Ref } from 'react';
 import type { VoiceState } from '@/types/voice';
 import { SubmitButton } from './SubmitButton';
 import { MicButton } from './MicButton';
@@ -23,6 +23,8 @@ interface ConversationInputProps {
   onVoiceHoldEnd?: (cancelled: boolean) => void;
   voiceState?: VoiceState;
   budgetCapActive?: boolean;
+  /** F091 — exposed so HablarShell can restore focus when the overlay closes (AC15). */
+  micButtonRef?: Ref<HTMLButtonElement>;
 }
 
 export function ConversationInput({
@@ -38,6 +40,7 @@ export function ConversationInput({
   onVoiceHoldEnd,
   voiceState,
   budgetCapActive,
+  micButtonRef,
 }: ConversationInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -84,6 +87,7 @@ export function ConversationInput({
         />
         <PhotoButton onFileSelect={onPhotoSelect} isLoading={isPhotoLoading} />
         <MicButton
+          ref={micButtonRef}
           onTap={onVoiceTap}
           onHoldStart={onVoiceHoldStart}
           onHoldEnd={onVoiceHoldEnd}

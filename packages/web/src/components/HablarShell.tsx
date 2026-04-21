@@ -81,6 +81,8 @@ export function HablarShell() {
 
   // Ref to track the current in-flight AbortController for stale request guard
   const currentRequestRef = useRef<AbortController | null>(null);
+  // Ref to the input-bar MicButton so we can restore focus on overlay close (AC15)
+  const micButtonRef = useRef<HTMLButtonElement>(null);
 
   // Flush metrics on page unload
   useEffect(() => {
@@ -128,15 +130,29 @@ export function HablarShell() {
     }
   }, [voiceSession.state, voiceSession.lastResponse, tts]);
 
-  // Sync voice errors → UI error code (F091)
+  // Sync voice errors → UI error code (F091).
+  // Persistent errors (rate limit, IP limit, budget cap, Whisper failure, network)
+  // get promoted to ResultsArea as an ErrorState and close the overlay. Transient
+  // errors (mic_permission, mic_hardware, empty_transcription, tts_unavailable)
+  // stay in the overlay as auto-dismissing toasts.
   useEffect(() => {
     if (voiceSession.state === 'error' && voiceSession.error) {
       const code = voiceSession.error.code as VoiceErrorCode;
       setVoiceError(code);
       trackEvent('voice_error', { errorCode: voiceSession.error.code });
-      // Budget exhaustion from a failed voice call → disable future voice
       if (code === 'budget_cap') {
         setBudgetCapActive(true);
+      }
+      const isPersistent =
+        code === 'budget_cap' ||
+        code === 'rate_limit' ||
+        code === 'ip_limit' ||
+        code === 'whisper_failure' ||
+        code === 'network';
+      if (isPersistent) {
+        setIsVoiceOverlayOpen(false);
+        // Focus return to the input-bar MicButton (AC15)
+        requestAnimationFrame(() => micButtonRef.current?.focus());
       }
     }
   }, [voiceSession.state, voiceSession.error]);
@@ -152,7 +168,11 @@ export function HablarShell() {
     voiceSession.cancel();
     setIsVoiceOverlayOpen(false);
     setVoiceError(null);
+    // Return focus to the input-bar mic button (AC15 / WCAG 2.4.3)
+    requestAnimationFrame(() => micButtonRef.current?.focus());
   }, [voiceSession]);
+
+  const clearVoiceError = useCallback(() => setVoiceError(null), []);
 
   const startVoiceRecording = useCallback(() => {
     void voiceSession.start();
@@ -418,6 +438,8 @@ export function HablarShell() {
         onRetry={handleRetry}
         isPhotoLoading={photoMode === 'analyzing'}
         photoResults={photoResults}
+        voiceError={voiceError}
+        onVoiceRetry={clearVoiceError}
       />
 
       {/* Fixed bottom input */}
@@ -458,6 +480,7 @@ export function HablarShell() {
         }}
         voiceState={uiVoiceState}
         budgetCapActive={budgetCapActive}
+        micButtonRef={micButtonRef}
       />
 
       {/* Voice overlay — F091 */}

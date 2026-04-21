@@ -97,11 +97,15 @@ export async function incrementVoiceSeconds(
   const today = dateKey ?? new Date().toISOString().slice(0, 10);
   const key = `${VOICE_IP_KEY_PREFIX}${today}:${ip}`;
 
+  // Redis INCRBY requires an integer. parseAudioDuration returns floats
+  // (e.g. 10.734s). Round UP so short clips still count as ≥ 1s.
+  const incrementBy = Math.max(1, Math.ceil(durationSec));
+
   try {
-    const newValue = await redis.incrby(key, durationSec);
-    // Only set TTL on first increment — when newValue equals the duration
-    // that was just added (meaning the key was created by this call)
-    if (newValue === durationSec) {
+    const newValue = await redis.incrby(key, incrementBy);
+    // Only set TTL on first increment — when newValue equals the amount
+    // we just added (meaning the key was created by this call).
+    if (newValue === incrementBy) {
       await redis.expire(key, 86400);
     }
   } catch {

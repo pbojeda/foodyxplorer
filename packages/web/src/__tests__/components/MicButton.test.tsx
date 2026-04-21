@@ -222,3 +222,37 @@ describe('MicButton — budget cap', () => {
     );
   });
 });
+
+describe('MicButton — forwardRef (AC15 focus return)', () => {
+  it('forwards the ref to the underlying button element', () => {
+    const ref = React.createRef<HTMLButtonElement>();
+    render(
+      <MicButton
+        ref={ref}
+        state="idle"
+        onTap={jest.fn()}
+        onHoldStart={jest.fn()}
+        onHoldEnd={jest.fn()}
+      />
+    );
+    expect(ref.current).not.toBeNull();
+    expect(ref.current?.tagName).toBe('BUTTON');
+  });
+
+  it('ref-focused button is the same element as getByRole("button")', () => {
+    const ref = React.createRef<HTMLButtonElement>();
+    render(
+      <MicButton
+        ref={ref}
+        state="idle"
+        onTap={jest.fn()}
+        onHoldStart={jest.fn()}
+        onHoldEnd={jest.fn()}
+      />
+    );
+    const byRole = screen.getByRole('button');
+    expect(ref.current).toBe(byRole);
+    ref.current?.focus();
+    expect(document.activeElement).toBe(byRole);
+  });
+});

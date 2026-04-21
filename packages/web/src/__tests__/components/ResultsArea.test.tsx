@@ -28,11 +28,85 @@ describe('ResultsArea', () => {
       expect(screen.getByRole('button', { name: /Intentar de nuevo/i })).toBeInTheDocument();
     });
 
-    it('CardGrid region exposes aria-live=polite for screen-reader updates (F091)', () => {
+    it('CardGrid region exposes aria-live=polite and aria-atomic=false for screen-reader updates (F091)', () => {
       const results = createConversationMessageData('estimation');
       render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
       const region = screen.getByRole('region', { name: /Resultados de la consulta/i });
       expect(region).toHaveAttribute('aria-live', 'polite');
+      expect(region).toHaveAttribute('aria-atomic', 'false');
+    });
+  });
+
+  describe('voice error variants (F091)', () => {
+    it('renders persistent ErrorState with budget-cap copy when voiceError="budget_cap"', () => {
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          voiceError="budget_cap"
+        />,
+      );
+      expect(screen.getByText(/temporalmente desactivada este mes/i)).toBeInTheDocument();
+    });
+
+    it('renders persistent ErrorState with rate-limit copy when voiceError="rate_limit"', () => {
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          voiceError="rate_limit"
+        />,
+      );
+      expect(screen.getByText(/límite de búsquedas por voz por hoy/i)).toBeInTheDocument();
+    });
+
+    it('renders persistent ErrorState with IP-limit copy when voiceError="ip_limit"', () => {
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          voiceError="ip_limit"
+        />,
+      );
+      expect(screen.getByText(/límite diario de voz desde esta red/i)).toBeInTheDocument();
+    });
+
+    it('invokes onVoiceRetry when the retry button is tapped on a recoverable voice error', () => {
+      const onVoiceRetry = jest.fn();
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          voiceError="network"
+          onVoiceRetry={onVoiceRetry}
+        />,
+      );
+      const retryBtn = screen.getByRole('button', { name: /Intentar de nuevo/i });
+      retryBtn.click();
+      expect(onVoiceRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores transient voiceError codes — they stay in the overlay (not in ResultsArea)', () => {
+      const results = createConversationMessageData('estimation');
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={results}
+          onRetry={() => {}}
+          error={null}
+          voiceError="mic_permission"
+        />,
+      );
+      expect(screen.getByText('Big Mac')).toBeInTheDocument();
+      expect(screen.queryByText(/temporalmente desactivada/i)).not.toBeInTheDocument();
     });
   });
 

@@ -53,14 +53,17 @@ export interface MicButtonProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function MicButton({
-  onTap,
-  onHoldStart,
-  onHoldEnd,
-  state = 'idle',
-  budgetCapActive = false,
-  size = 'md',
-}: MicButtonProps) {
+export const MicButton = React.forwardRef<HTMLButtonElement, MicButtonProps>(function MicButton(
+  {
+    onTap,
+    onHoldStart,
+    onHoldEnd,
+    state = 'idle',
+    budgetCapActive = false,
+    size = 'md',
+  },
+  ref,
+) {
   const pressStartTimeRef = useRef<number>(0);
   const pressStartXRef = useRef<number>(0);
   const lastXRef = useRef<number>(0);
@@ -200,6 +203,7 @@ export function MicButton({
 
   return (
     <button
+      ref={ref}
       type="button"
       disabled={isDisabled}
       aria-label={
@@ -235,4 +239,4 @@ export function MicButton({
       {budgetCapActive && <VoiceBudgetBadge />}
     </button>
   );
-}
+});
