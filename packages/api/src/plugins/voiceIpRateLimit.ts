@@ -44,11 +44,13 @@ export function getClientIp(
 
   if (typeof xff === 'string' && xff.trim().length > 0) {
     // Take first IP from comma-separated list (closest to client)
-    return xff.split(',')[0]!.trim();
+    const first = xff.split(',')[0];
+    if (first !== undefined) return first.trim();
   }
 
   if (Array.isArray(xff) && xff.length > 0) {
-    return xff[0]!.trim();
+    const first = xff[0];
+    if (first !== undefined) return first.trim();
   }
 
   return request.ip;
@@ -125,7 +127,7 @@ export async function registerVoiceIpRateLimit(
   app: FastifyInstance,
   { redis }: PluginOptions,
 ): Promise<void> {
-  app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.addHook('onRequest', async (request: FastifyRequest, _reply: FastifyReply) => {
     // Only apply to the voice audio endpoint
     if (request.routeOptions.url !== '/conversation/audio') return;
 
@@ -159,8 +161,8 @@ export async function registerVoiceIpRateLimit(
 /** Compute next-day midnight UTC ISO string from a YYYY-MM-DD date key */
 function computeMidnightUtc(dateKey: string): string {
   const parts = dateKey.split('-').map(Number);
-  const y = parts[0]!;
-  const m = parts[1]! - 1;
-  const d = parts[2]!;
+  const y = parts[0] ?? 1970;
+  const m = (parts[1] ?? 1) - 1;
+  const d = parts[2] ?? 1;
   return new Date(Date.UTC(y, m, d + 1)).toISOString();
 }

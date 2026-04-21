@@ -148,6 +148,11 @@ function parseMvhdBox(buffer: Buffer, start: number): number | null {
 // WebM / EBML parser — Segment > Info > Duration
 // ---------------------------------------------------------------------------
 
+/** Read a single byte from buffer safely (returns 0 on out-of-bounds) */
+function b(buf: Buffer, i: number): number {
+  return buf[i] ?? 0;
+}
+
 /**
  * Read an EBML vint from the buffer at the given offset.
  * Returns { value, length } where length is the byte width of the vint.
@@ -156,7 +161,7 @@ function parseMvhdBox(buffer: Buffer, start: number): number | null {
 function readVint(buffer: Buffer, offset: number): { value: number; length: number } | null {
   if (offset >= buffer.length) return null;
 
-  const first = buffer[offset]!;
+  const first = b(buffer, offset);
 
   if (first & 0x80) {
     // 1-byte vint
@@ -164,23 +169,25 @@ function readVint(buffer: Buffer, offset: number): { value: number; length: numb
   } else if (first & 0x40) {
     // 2-byte vint
     if (offset + 2 > buffer.length) return null;
-    return { value: ((first & 0x3F) << 8) | buffer[offset + 1]!, length: 2 };
+    const b1 = b(buffer, offset + 1);
+    return { value: ((first & 0x3F) << 8) | b1, length: 2 };
   } else if (first & 0x20) {
     // 3-byte vint
     if (offset + 3 > buffer.length) return null;
+    const b1 = b(buffer, offset + 1);
+    const b2 = b(buffer, offset + 2);
     return {
-      value: ((first & 0x1F) << 16) | (buffer[offset + 1]! << 8) | buffer[offset + 2]!,
+      value: ((first & 0x1F) << 16) | (b1 << 8) | b2,
       length: 3,
     };
   } else if (first & 0x10) {
     // 4-byte vint
     if (offset + 4 > buffer.length) return null;
+    const b1 = b(buffer, offset + 1);
+    const b2 = b(buffer, offset + 2);
+    const b3 = b(buffer, offset + 3);
     return {
-      value:
-        ((first & 0x0F) << 24) |
-        (buffer[offset + 1]! << 16) |
-        (buffer[offset + 2]! << 8) |
-        buffer[offset + 3]!,
+      value: ((first & 0x0F) << 24) | (b1 << 16) | (b2 << 8) | b3,
       length: 4,
     };
   }
@@ -197,29 +204,25 @@ function readVint(buffer: Buffer, offset: number): { value: number; length: numb
 function readEbmlId(buffer: Buffer, offset: number): { id: number; length: number } | null {
   if (offset >= buffer.length) return null;
 
-  const first = buffer[offset]!;
+  const first = b(buffer, offset);
 
   if (first & 0x80) {
     return { id: first, length: 1 };
   } else if (first & 0x40) {
     if (offset + 2 > buffer.length) return null;
-    return { id: (first << 8) | buffer[offset + 1]!, length: 2 };
+    const b1 = b(buffer, offset + 1);
+    return { id: (first << 8) | b1, length: 2 };
   } else if (first & 0x20) {
     if (offset + 3 > buffer.length) return null;
-    return {
-      id: (first << 16) | (buffer[offset + 1]! << 8) | buffer[offset + 2]!,
-      length: 3,
-    };
+    const b1 = b(buffer, offset + 1);
+    const b2 = b(buffer, offset + 2);
+    return { id: (first << 16) | (b1 << 8) | b2, length: 3 };
   } else if (first & 0x10) {
     if (offset + 4 > buffer.length) return null;
-    return {
-      id:
-        (first << 24) |
-        (buffer[offset + 1]! << 16) |
-        (buffer[offset + 2]! << 8) |
-        buffer[offset + 3]!,
-      length: 4,
-    };
+    const b1 = b(buffer, offset + 1);
+    const b2 = b(buffer, offset + 2);
+    const b3 = b(buffer, offset + 3);
+    return { id: (first << 24) | (b1 << 16) | (b2 << 8) | b3, length: 4 };
   }
 
   return null;
@@ -385,11 +388,13 @@ function parseMp3XingDuration(buffer: Buffer): number | null {
   if (buffer.length < 8) return null;
 
   // Verify MP3 sync word: first 11 bits must be 1
-  if ((buffer[0]! & 0xFF) !== 0xFF) return null;
-  if ((buffer[1]! & 0xE0) !== 0xE0) return null;
+  const byte0 = b(buffer, 0);
+  const byte1 = b(buffer, 1);
+  if ((byte0 & 0xFF) !== 0xFF) return null;
+  if ((byte1 & 0xE0) !== 0xE0) return null;
 
   // Parse frame header byte 1 (index 1)
-  const header1 = buffer[1]!;
+  const header1 = byte1;
   // MPEG version: bits 3-4 of byte 1 (after sync)
   //   00 = MPEG 2.5, 10 = MPEG 2, 11 = MPEG 1
   const mpegVersionBits = (header1 >> 3) & 0x03;
@@ -397,7 +402,7 @@ function parseMp3XingDuration(buffer: Buffer): number | null {
 
   // Channel mode from byte 3: bits 6-7
   //   00=stereo, 01=joint stereo, 10=dual, 11=mono
-  const header3 = buffer[3]!;
+  const header3 = b(buffer, 3);
   const channelMode = (header3 >> 6) & 0x03;
   const isMono = channelMode === 0x03;
 
@@ -425,7 +430,7 @@ function parseMp3XingDuration(buffer: Buffer): number | null {
   const frameCount = buffer.readUInt32BE(xingOffset + 8);
 
   // Determine sample rate from byte 2, bits 2-3
-  const header2 = buffer[2]!;
+  const header2 = b(buffer, 2);
   const sampleRateBits = (header2 >> 2) & 0x03;
   const sampleRateTable: Record<number, Record<number, number>> = {
     0x03: { 0x00: 44100, 0x01: 48000, 0x02: 32000 }, // MPEG1
