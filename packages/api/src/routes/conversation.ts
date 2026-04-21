@@ -262,11 +262,11 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
   // POST /conversation/audio — Multipart audio upload → Whisper → processMessage
   // -------------------------------------------------------------------------
 
+  // audio/wav omitted: browsers never produce WAV and we have no RIFF duration parser (F091)
   const ALLOWED_AUDIO_MIME_TYPES = new Set([
     'audio/ogg',
     'audio/mpeg',
     'audio/mp4',
-    'audio/wav',
     'audio/webm',
   ]);
 
@@ -323,7 +323,7 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
       // Step 3: Guard — unsupported MIME type
       if (!ALLOWED_AUDIO_MIME_TYPES.has(audioMimeType)) {
         throw Object.assign(
-          new Error(`Unsupported audio MIME type: ${audioMimeType}. Allowed: audio/ogg, audio/mpeg, audio/mp4, audio/wav, audio/webm`),
+          new Error(`Unsupported audio MIME type: ${audioMimeType}. Allowed: audio/ogg, audio/mpeg, audio/mp4, audio/webm`),
           { code: 'VALIDATION_ERROR' },
         );
       }

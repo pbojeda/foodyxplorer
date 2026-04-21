@@ -33,7 +33,7 @@ vi.mock('../embeddings/embeddingClient.js', () => ({
   callOpenAIEmbeddings: vi.fn(),
 }));
 
-import { callWhisperTranscription, isWhisperHallucination, WHISPER_HALLUCINATIONS } from '../lib/openaiClient.js';
+import { callWhisperTranscription, isWhisperHallucination, WHISPER_HALLUCINATIONS, mimeTypeToFilename } from '../lib/openaiClient.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -78,6 +78,8 @@ describe('callWhisperTranscription', () => {
     const file = callArgs?.['file'] as File;
     expect(file).toBeInstanceOf(File);
     expect(file.type).toBe(FAKE_MIME_TYPE);
+    // filename must be derived from MIME type — not hardcoded 'audio.ogg' (F091 AC19)
+    expect(file.name).toBe('audio.ogg');
   });
 
   it('returns null immediately when apiKey is undefined (no API call)', async () => {
@@ -155,6 +157,46 @@ describe('callWhisperTranscription', () => {
     const logCall = logger.info.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(typeof logCall?.['audioTranscriptionMs']).toBe('number');
   });
+
+  it('derives filename audio.webm when mimeType is audio/webm (F091 AC19)', async () => {
+    mockCreate.mockResolvedValue(makeTranscriptionResponse('text'));
+
+    await callWhisperTranscription(FAKE_API_KEY, FAKE_AUDIO_BUFFER, 'audio/webm');
+
+    const callArgs = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
+    const file = callArgs?.['file'] as File;
+    expect(file.name).toBe('audio.webm');
+  });
+
+  it('derives filename audio.mp4 when mimeType is audio/mp4 (F091 AC19)', async () => {
+    mockCreate.mockResolvedValue(makeTranscriptionResponse('text'));
+
+    await callWhisperTranscription(FAKE_API_KEY, FAKE_AUDIO_BUFFER, 'audio/mp4');
+
+    const callArgs = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
+    const file = callArgs?.['file'] as File;
+    expect(file.name).toBe('audio.mp4');
+  });
+
+  it('derives filename audio.mp3 when mimeType is audio/mpeg (F091 AC19)', async () => {
+    mockCreate.mockResolvedValue(makeTranscriptionResponse('text'));
+
+    await callWhisperTranscription(FAKE_API_KEY, FAKE_AUDIO_BUFFER, 'audio/mpeg');
+
+    const callArgs = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
+    const file = callArgs?.['file'] as File;
+    expect(file.name).toBe('audio.mp3');
+  });
+
+  it('derives filename audio.webm when mimeType has codec param (audio/webm;codecs=opus) (F091 AC19)', async () => {
+    mockCreate.mockResolvedValue(makeTranscriptionResponse('text'));
+
+    await callWhisperTranscription(FAKE_API_KEY, FAKE_AUDIO_BUFFER, 'audio/webm;codecs=opus');
+
+    const callArgs = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
+    const file = callArgs?.['file'] as File;
+    expect(file.name).toBe('audio.webm');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -204,5 +246,43 @@ describe('isWhisperHallucination', () => {
 
   it('WHISPER_HALLUCINATIONS set contains exactly 8 entries', () => {
     expect(WHISPER_HALLUCINATIONS.size).toBe(8);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: mimeTypeToFilename (F091 AC19)
+// ---------------------------------------------------------------------------
+
+describe('mimeTypeToFilename', () => {
+  it('maps audio/ogg → audio.ogg', () => {
+    expect(mimeTypeToFilename('audio/ogg')).toBe('audio.ogg');
+  });
+
+  it('maps audio/webm → audio.webm', () => {
+    expect(mimeTypeToFilename('audio/webm')).toBe('audio.webm');
+  });
+
+  it('maps audio/mp4 → audio.mp4', () => {
+    expect(mimeTypeToFilename('audio/mp4')).toBe('audio.mp4');
+  });
+
+  it('maps audio/mpeg → audio.mp3', () => {
+    expect(mimeTypeToFilename('audio/mpeg')).toBe('audio.mp3');
+  });
+
+  it('maps audio/webm;codecs=opus → audio.webm (strips codec parameter)', () => {
+    expect(mimeTypeToFilename('audio/webm;codecs=opus')).toBe('audio.webm');
+  });
+
+  it('maps audio/ogg; codecs=opus → audio.ogg (strips codec parameter with space)', () => {
+    expect(mimeTypeToFilename('audio/ogg; codecs=opus')).toBe('audio.ogg');
+  });
+
+  it('maps unknown MIME type → audio.bin (fallback)', () => {
+    expect(mimeTypeToFilename('audio/x-custom')).toBe('audio.bin');
+  });
+
+  it('maps empty string → audio.bin (fallback)', () => {
+    expect(mimeTypeToFilename('')).toBe('audio.bin');
   });
 });
