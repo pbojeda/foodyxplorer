@@ -53,15 +53,10 @@ export interface MicButtonProps {
 // Component
 // ---------------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/no-empty-function
-const noop = () => {};
-// eslint-disable-next-line @typescript-eslint/no-empty-function
-const noopBool = (_cancelled: boolean) => {};
-
 export function MicButton({
-  onTap = noop,
-  onHoldStart = noop,
-  onHoldEnd = noopBool,
+  onTap,
+  onHoldStart,
+  onHoldEnd,
   state = 'idle',
   budgetCapActive = false,
   size = 'md',
@@ -113,7 +108,7 @@ export function MicButton({
       holdTimerRef.current = setTimeout(() => {
         if (isDownRef.current) {
           isHoldRef.current = true;
-          onHoldStart();
+          onHoldStart?.();
         }
       }, 200);
 
@@ -153,11 +148,9 @@ export function MicButton({
       const cancelled = isHoldRef.current && accumulated < -80;
 
       if (isHoldRef.current) {
-        // Was in hold mode
-        onHoldEnd(cancelled);
+        onHoldEnd?.(cancelled);
       } else {
-        // Was a tap (< 200ms)
-        onTap();
+        onTap?.();
       }
 
       isHoldRef.current = false;
@@ -173,7 +166,7 @@ export function MicButton({
       if (isHoldRef.current && accumulated < -80) {
         isDownRef.current = false;
         clearTimers();
-        onHoldEnd(true);
+        onHoldEnd?.(true);
         isHoldRef.current = false;
       }
     },
@@ -183,10 +176,9 @@ export function MicButton({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLButtonElement>) => {
       if (e.key === 'Escape' && isHoldRef.current && isDownRef.current) {
-        // Cancel hold-to-record via keyboard (per spec §3.3)
         isDownRef.current = false;
         clearTimers();
-        onHoldEnd(true);
+        onHoldEnd?.(true);
         isHoldRef.current = false;
       }
     },
@@ -210,8 +202,11 @@ export function MicButton({
     <button
       type="button"
       disabled={isDisabled}
-      aria-label="Buscar por voz"
-      aria-description={budgetCapActive ? 'Búsqueda por voz temporalmente desactivada' : undefined}
+      aria-label={
+        budgetCapActive
+          ? 'Buscar por voz — temporalmente desactivada'
+          : 'Buscar por voz'
+      }
       className={baseClasses}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

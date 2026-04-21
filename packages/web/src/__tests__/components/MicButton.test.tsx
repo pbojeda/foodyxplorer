@@ -205,7 +205,7 @@ describe('MicButton — budget cap', () => {
     expect(document.querySelector('[data-testid="voice-budget-badge"]')).not.toBeNull();
   });
 
-  it('sets aria-description when budgetCapActive=true', () => {
+  it('sets aria-label reflecting the disabled state when budgetCapActive=true', () => {
     render(
       <MicButton
         state="idle"
@@ -217,8 +217,8 @@ describe('MicButton — budget cap', () => {
     );
     const button = screen.getByRole('button');
     expect(button).toHaveAttribute(
-      'aria-description',
-      'Búsqueda por voz temporalmente desactivada'
+      'aria-label',
+      'Buscar por voz — temporalmente desactivada'
     );
   });
 });
