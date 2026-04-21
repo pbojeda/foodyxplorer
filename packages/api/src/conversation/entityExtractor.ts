@@ -400,6 +400,39 @@ export function extractComparisonQuery(text: string): ParsedComparison | null {
 // least one hyphen. Identical to the regex used in commands/estimar.ts.
 const CHAIN_SLUG_REGEX = /^[a-z0-9-]+-[a-z0-9-]+$/;
 
+// F-NLP (spec §Decision 1): Conversational wrapper patterns — Spanish past-tense
+// self-reference, intent-to-eat, and extended info-request wrappers. Applied BEFORE
+// PREFIX_PATTERNS so that extended-nutrient requests (e.g., "cuánta proteína tiene")
+// are stripped before the narrower "cuántas calorías" patterns get a chance to fire.
+// The nutrient alternation in pattern 10 explicitly excludes `calor[ií]as` to stay
+// disjoint from PREFIX_PATTERNS[0]. All patterns: `^`-anchored, `i` flag, longest-first.
+// Single pass: first match wins. Intent-to-eat requires `me` (pattern 7) to stay
+// disjoint from Category D ("voy a pedir una receta" → non-food, must NOT strip).
+export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
+  // 1. Past-tense + object pronoun: "me he tomado/bebido/comido/..." — longest form
+  /^me\s+he\s+(?:tomado|bebido|comido|cenado|desayunado|almorzado|merendado)\s+/i,
+  // 2. Past-tense impersonal with temporal marker + pronoun: "anoche me cené ..."
+  /^(?:ayer|anoche|anteayer|hoy|esta\s+ma[nñ]ana|esta\s+noche)\s+me\s+(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|beb[ií])\s+/i,
+  // 3. Past-tense impersonal without pronoun: "anoche cené ..."
+  /^(?:ayer|anoche|anteayer|hoy|esta\s+ma[nñ]ana|esta\s+noche)\s+(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|beb[ií])\s+/i,
+  // 4. "he + participle" bare (with optional hoy): "he desayunado ..." / "hoy he comido ..."
+  /^(?:hoy\s+)?he\s+(?:tomado|bebido|comido|cenado|desayunado|almorzado|merendado)\s+/i,
+  // 5. "acabo de + infinitive": "acabo de comer ..."
+  /^acabo\s+de\s+(?:comer|tomar|beber|cenar|desayunar|almorzar|merendar)\s+/i,
+  // 6. "para + meal + tuve/comí/tomé": "para cenar tuve ..."
+  /^para\s+(?:cenar|desayunar|comer|almorzar|merendar)\s+(?:tuve|com[ií]|tom[eé])\s+/i,
+  // 7. Intent-to-eat (me voy a pedir / me pido): "me voy a pedir ..." / "me pido ..."
+  /^me\s+(?:voy\s+a\s+(?:pedir|comer|tomar|beber)|pido)\s+/i,
+  // 8. "quiero saber / necesito saber" + nutrient phrase: "quiero saber las calorías de ..."
+  /^(?:quiero|necesito)\s+saber\s+(?:las?\s+|los?\s+)?(?:calor[ií]as?|nutrientes|informaci[oó]n\s+nutricional|valores?\s+nutricionales?)\s+(?:de[l]?\s+)?/i,
+  // 9. "cuánto engorda [un/una] ...": "cuánto engorda una ración de croquetas"
+  /^cu[aá]nto\s+engorda\s+(?:un[ao]?\s+)?/i,
+  // 10. "cuánta/cuántos + nutrient + tiene/hay en/lleva/contiene [article]"
+  /^cu[aá]nt[ao]s?\s+(?:prote[ií]nas?|grasas?|carbohidratos?|hidratos?|fibra|sodio|sal|az[uú]car)\s+(?:tiene[n]?|hay\s+en|lleva|contiene)\s+(?:un[ao]?\s+|el\s+|la\s+|del?\s+|al\s+)?/i,
+  // 11. "necesito [saber] los nutrientes de[l]"
+  /^necesito\s+(?:saber\s+)?(?:los?\s+|las?\s+)?(?:nutrientes|valores\s+nutricionales?|calor[ií]as?)\s+(?:de[l]?\s+)?/i,
+];
+
 // Prefix patterns applied in order — longest/most-specific first.
 // Single pass: first match wins. All patterns use the `i` flag.
 export const PREFIX_PATTERNS: readonly RegExp[] = [
@@ -458,7 +491,18 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
     }
   }
 
-  // Step 2 — Prefix stripping (single pass, first match wins)
+  // Step 2a — F-NLP: Conversational wrapper stripping (single pass, first match wins).
+  // Runs before PREFIX_PATTERNS so that extended info-request and past-tense wrappers
+  // are stripped cleanly before the narrower prefix patterns are attempted.
+  for (const pattern of CONVERSATIONAL_WRAPPER_PATTERNS) {
+    const stripped = remainder.replace(pattern, '');
+    if (stripped !== remainder) {
+      remainder = stripped;
+      break;
+    }
+  }
+
+  // Step 2b — Prefix stripping (single pass, first match wins)
   for (const pattern of PREFIX_PATTERNS) {
     const stripped = remainder.replace(pattern, '');
     if (stripped !== remainder) {
