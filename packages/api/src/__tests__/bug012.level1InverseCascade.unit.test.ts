@@ -250,8 +250,7 @@ describe('BUG-012 — Level 1 inverse cascade', () => {
 
   describe('BUG-012 — AC3: pintxo de tortilla → cocina-española', () => {
     it('returns Tier 1 result for partial FTS match over Tier 0 chain result', async () => {
-      // Tier≥1 pre-cascade: strategy 1+2 dish miss, strategy 3 exact food miss, strategy 4 FTS food returns Tier 1 food row
-      // Actually test FTS dish match for this one: strategy 1 misses, strategy 2 returns Tier 1 row
+      // Tier≥1 pre-cascade: strategy 1 (exact dish) misses, strategy 2 (FTS dish) returns Tier 1 cocina-española row.
       mockExecuteQuery
         .mockResolvedValueOnce({ rows: [] })                                  // pass1/strategy1: exact dish — miss
         .mockResolvedValueOnce({ rows: [MOCK_COCINA_ESPANOLA_TORTILLA_ROW] }); // pass1/strategy2: FTS dish — Tier 1 hit
@@ -322,13 +321,52 @@ describe('BUG-012 — Level 1 inverse cascade', () => {
   // AC6 — chainSlug scope overrides tier pre-filter
   // -------------------------------------------------------------------------
 
+  // -------------------------------------------------------------------------
+  // AC7 — Branded fallthrough: hasExplicitBrand=true, Tier 0 miss → unfiltered
+  // Regression guard: must NOT enter Step 3 even when F068 Tier-0 cascade misses.
+  // -------------------------------------------------------------------------
+
+  describe('BUG-012 — AC7 (regression): branded fallthrough must not enter Tier≥1 pre-cascade', () => {
+    it('hasExplicitBrand=true + Tier-0 all-miss → unfiltered cascade only (8 calls, not 12)', async () => {
+      // F068 Tier-0-first cascade: 4 misses.
+      // Must fall through to unfiltered cascade (4 more strategies) — NOT to Step 3 Tier≥1 pre-cascade.
+      // Total = 8 calls. If Step 3 were erroneously entered it would be 12.
+      mockExecuteQuery
+        .mockResolvedValueOnce({ rows: [] })  // tier0/strategy1 miss
+        .mockResolvedValueOnce({ rows: [] })  // tier0/strategy2 miss
+        .mockResolvedValueOnce({ rows: [] })  // tier0/strategy3 miss
+        .mockResolvedValueOnce({ rows: [] })  // tier0/strategy4 miss
+        .mockResolvedValueOnce({ rows: [] })  // unfiltered/strategy1 miss
+        .mockResolvedValueOnce({ rows: [] })  // unfiltered/strategy2 miss
+        .mockResolvedValueOnce({ rows: [] })  // unfiltered/strategy3 miss
+        .mockResolvedValueOnce({ rows: [] }); // unfiltered/strategy4 miss
+
+      const db = buildMockDb() as never;
+      const result = await level1Lookup(db, 'nonexistent starbucks item', {
+        hasExplicitBrand: true,
+        detectedBrand: 'starbucks-es',
+        chainSlug: 'starbucks-es',
+      });
+
+      expect(result).toBeNull();
+      // Exactly 8 calls: 4 (F068 Tier-0) + 4 (unfiltered). Not 12 (Step 3 skipped for branded).
+      expect(mockExecuteQuery).toHaveBeenCalledTimes(8);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // AC6 — chainSlug scope overrides tier pre-filter
+  // -------------------------------------------------------------------------
+
   describe('BUG-012 — AC6: chainSlug scope overrides tier pre-filter', () => {
     it('chainSlug=starbucks + "tortilla" skips Tier≥1 pre-cascade and returns scoped Starbucks result', async () => {
       // When chainSlug is set, Step 3 (Tier≥1 pre-cascade) is skipped entirely.
-      // Only the unfiltered cascade runs (Step 4), which applies scope clause.
-      // Strategy 1 exact dish returns the scoped Starbucks Tortilla Española Wrap (Tier 0).
+      // Only the unfiltered cascade runs (Step 4), which applies the scope clause.
+      // The SQL scope clause is mocked away — we reuse MOCK_TIM_HORTONS_TORTILLA_ROW as
+      // a generic Tier 0 chain row stand-in (the fixture name is legacy; what matters is
+      // that priorityTier=0 and that the Tier≥1 branch was skipped, proven by call count 1).
       mockExecuteQuery
-        .mockResolvedValueOnce({ rows: [MOCK_TIM_HORTONS_TORTILLA_ROW] }); // unfiltered cascade/strategy1: scoped hit
+        .mockResolvedValueOnce({ rows: [MOCK_TIM_HORTONS_TORTILLA_ROW] }); // unfiltered cascade/strategy1: scoped Tier 0 hit
 
       const db = buildMockDb() as never;
       const result = await level1Lookup(db, 'tortilla', {
