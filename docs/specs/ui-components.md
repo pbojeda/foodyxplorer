@@ -893,24 +893,34 @@ backdrop-blur-sm
 
 ### MicButton
 
-**Type:** Primitive | **Client:** No
+**Type:** Primitive | **Client:** Yes (`'use client'` — F091 gesture handlers)
 **File:** `src/components/MicButton.tsx`
 
-Voice trigger placeholder for F091. Visible but fully disabled in F090.
+Voice trigger. Was a disabled placeholder in F090; activated in F091 with dual tap/hold interaction.
+Full visual spec: `docs/specs/f091-voice-design-notes.md` §1.2, §4.5, §6.3.
 
-**Props:**
+**Props (F091):**
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| disabled | `boolean` | No | `true` | Always true in F090 |
-| size | `'sm' \| 'lg'` | No | `'sm'` | 48px (sm) or 80px (lg, overlay variant) |
+| onTap | `() => void` | Yes | — | Opens VoiceOverlay (tap < 200ms) |
+| onHoldStart | `() => void` | Yes | — | Begins inline hold-to-record (≥ 200ms) |
+| onHoldEnd | `(cancelled: boolean) => void` | Yes | — | Ends hold-to-record; `cancelled=true` if drag-cancel |
+| size | `'sm' \| 'lg'` | No | `'sm'` | 48px (sm, input bar) or 80px (lg, overlay variant) |
+| state | `'idle' \| 'listening' \| 'processing' \| 'speaking' \| 'budget-cap'` | No | `'idle'` | Visual state |
+| budgetCapActive | `boolean` | No | `false` | When true, shows amber badge dot; tapping shows budget-cap error inline |
 
-**Styling (F090 disabled state):**
-```
-rounded-full w-12 h-12 bg-slate-300 text-slate-400
-cursor-not-allowed opacity-60
-```
+**Interaction model:**
+- Timer starts at `pointerdown`. At 180ms: `navigator.vibrate(10)` (haptic hint). At 200ms: transitions to hold-to-record (calls `onHoldStart`).
+- `pointerup` < 200ms → calls `onTap`.
+- Hold-cancel: pointer dragged > 80px left of center → drag-cancel zone; `pointerup` in zone calls `onHoldEnd(true)`, haptic `vibrate([5,50,5])`.
+- iOS SpeechSynthesis unlock: `speechSynthesis.speak()` must be called synchronously inside the `pointerdown` handler — the component exposes an `onPointerDown` pass-through prop for this purpose.
 
-**Accessibility:** `aria-label="Micrófono (próximamente)"` `title="Próximamente"` `disabled`
+**Styling:**
+- Idle: `rounded-full bg-brand-green text-white shadow-md` (48px/80px)
+- Hold-to-record: `scale-[1.15] shadow-lg` + single ring pulse
+- Budget-cap badge: 8px amber dot, `bg-amber-400 rounded-full`, top-right corner, `sessionStorage`-gated
+
+**Accessibility:** `aria-label="Buscar por voz"` | `type="button"` | `aria-pressed` reflects hold state
 
 ### PhotoButton
 
@@ -1483,3 +1493,205 @@ API_KEY=fxp_your_key_here
 ```
 
 This key is **server-only** — it is read exclusively by the Next.js Route Handler at `app/api/analyze/route.ts` and is never exposed to the browser. The Route Handler proxies multipart requests from the client to the Fastify API, injecting the `X-API-Key` header server-side.
+
+---
+
+## /hablar Voice Mode — F091
+
+Visual design details: `docs/specs/f091-voice-design-notes.md`.
+Parent component spec: `docs/specs/hablar-design-guidelines.md` §4.2, §4.8, §5, §7.3.
+
+### Updated: HablarShell (F091)
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+**File:** `src/components/HablarShell.tsx`
+
+**New state fields:**
+- `voiceState: 'idle' | 'ready' | 'listening' | 'processing' | 'speaking' | 'results' | 'error'` — drives VoiceOverlay visibility and MicButton state
+- `voiceSession: VoiceSession | null` — abstraction over the active recording session (~50 lines); null when idle
+- `budgetCapActive: boolean` — set to `true` when `GET /health/voice-budget` returns `exhausted: true` or any voice request returns `VOICE_BUDGET_EXHAUSTED` 503. Cleared on session storage restore (monthly reset).
+- `voiceError: VoiceErrorCode | null` — last voice error; determines which error variant to render in ResultsArea
+
+**Voice lifecycle in HablarShell:**
+1. MicButton `onTap` → set `voiceState = 'ready'`, open `VoiceOverlay`
+2. MicButton `onHoldStart` → set `voiceState = 'listening'` inline (no overlay)
+3. Recording ends (overlay stop or hold release) → set `voiceState = 'processing'`, call `sendVoiceMessage`
+4. `sendVoiceMessage` success → set `voiceState = 'results'` + `results = data`, trigger TTS
+5. `sendVoiceMessage` error → map error code to `VoiceErrorCode`, set `voiceState = 'error'` + `voiceError`
+6. TTS completes / user dismisses → set `voiceState = 'idle'`
+
+**Error code mapping (voice path):**
+
+| API response | `VoiceErrorCode` | Display treatment |
+|---|---|---|
+| 422 `EMPTY_TRANSCRIPTION` | `'empty_transcription'` | Overlay toast, 2.5s, then idle |
+| `getUserMedia` `NotAllowedError` | `'mic_permission'` | Overlay toast, 3s, then idle |
+| `getUserMedia` `NotFoundError` / `NotReadableError` | `'mic_hardware'` | Overlay toast, 2.5s, then idle |
+| 429 `RATE_LIMIT_EXCEEDED` (voice bucket) | `'rate_limit'` | ResultsArea ErrorState, no retry |
+| 429 `IP_VOICE_LIMIT_EXCEEDED` | `'ip_rate_limit'` | ResultsArea ErrorState, no retry |
+| 502 `TRANSCRIPTION_FAILED` | `'whisper_failure'` | ResultsArea ErrorState, retry button |
+| network / timeout | `'network'` | ResultsArea ErrorState, retry button |
+| 503 `VOICE_BUDGET_EXHAUSTED` | `'budget_cap'` | ResultsArea ErrorState (budget-cap variant), set `budgetCapActive = true` |
+| `SpeechSynthesis` unsupported | `'tts_unavailable'` | Inline soft notice above results, dismissible |
+
+**Note on error code alignment (F090 bug fix):** F090 handled rate limits by comparing against `'RATE_LIMIT_EXCEEDED'`; the server always returned this code (not `'ACTOR_RATE_LIMIT_EXCEEDED'`). F091 uses the correct server code `'RATE_LIMIT_EXCEEDED'` for the voice bucket.
+
+### New: VoiceOverlay (F091)
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+**File:** `src/components/VoiceOverlay.tsx`
+
+Full-screen overlay for tap-to-record voice interaction. Refer to `docs/specs/hablar-design-guidelines.md` §4.8, §5, §7.3 for base visual spec (ring animations, state colors, overlay structure). This entry documents F091-specific additions only.
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| isOpen | `boolean` | Yes | — | Controls overlay visibility |
+| voiceState | `'ready' \| 'listening' \| 'processing' \| 'speaking' \| 'error'` | Yes | — | Current voice state |
+| errorCode | `VoiceErrorCode \| null` | No | `null` | Error to display as toast |
+| onClose | `() => void` | Yes | — | Dismiss handler |
+| onRecordStart | `() => void` | Yes | — | MicButton tap inside overlay |
+| onRecordStop | `() => void` | Yes | — | MicButton tap to stop |
+| ttsEnabled | `boolean` | No | `true` | Whether TTS playback is active |
+
+**F091 additions to base overlay spec:**
+- Voice settings pill in bottom-left (idle/ready states only): opens `VoicePickerDrawer`
+- Pre-permission context screen on first voice use (when `localStorage.hablar_mic_consented` absent): replaces `ready` state view — see `docs/specs/f091-voice-design-notes.md` §6.1
+- `aria-live="polite"` on overlay's `role="dialog"` container (state transition announcements)
+- Error toast uses `role="alert"` `aria-live="assertive"`
+
+**ARIA / focus:**
+- `role="dialog"` `aria-modal="true"` `aria-label="Búsqueda por voz"`
+- On open: focus moves to dismiss button (`data-initial-focus`)
+- Focus trap: Dismiss → MicButton (overlay) → Voice settings pill → Dismiss
+- On close: focus returns to input-bar MicButton
+
+### New: VoicePickerDrawer (F091)
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+**File:** `src/components/VoicePickerDrawer.tsx`
+
+Bottom drawer for voice selection, preview playback, and TTS toggle. Slides up over the VoiceOverlay.
+Full visual spec: `docs/specs/f091-voice-design-notes.md` §2.2, §2.3, §2.4, §2.5.
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| isOpen | `boolean` | Yes | — | Controls drawer visibility |
+| onClose | `() => void` | Yes | — | Called on dismiss (tap outside, drag down, Escape) |
+| selectedVoiceName | `string \| null` | Yes | — | Name of currently persisted voice |
+| ttsEnabled | `boolean` | Yes | — | Current TTS toggle state |
+| onVoiceSelect | `(voiceName: string) => void` | Yes | — | Called when user taps a voice row radio |
+| onTtsToggle | `(enabled: boolean) => void` | Yes | — | Called when TTS toggle is flipped |
+
+**State (internal):**
+- `voices: SpeechSynthesisVoice[]` — populated from `speechSynthesis.getVoices()` filtered to `lang.startsWith('es')`. Populated inside `voiceschanged` event handler (not on init — iOS timing constraint).
+- `previewingVoiceName: string | null` — which voice preview is currently playing
+
+**Auto-select heuristic:** On first render when `selectedVoiceName` is null, runs priority-ordered auto-select from `docs/specs/f091-voice-design-notes.md` §2.4. Priority: Monica → Paulina → Siri (Spanish) → Google español → es-ES → es-MX → any `es*`. Stores result via `onVoiceSelect`.
+
+**No-Spanish-voices fallback:** When `voices` array is empty after `voiceschanged` fires, show warning copy "No hay voces en español disponibles en este dispositivo." Voice list is hidden; only TTS toggle and privacy link remain.
+
+**Persistence:** `selectedVoiceName` read/written via `localStorage.hablar_voice`. `ttsEnabled` read/written via `localStorage.hablar_tts_enabled` (default `'true'`).
+
+**Entrance/exit animation:** `translateY(100%) → translateY(0)` 280ms ease-out / `translateY(0) → translateY(100%)` 200ms ease-in.
+
+**ARIA:** `role="dialog"` `aria-label="Voz del asistente"` `aria-modal="true"`. Drawer Escape → closes drawer only (returns to overlay). Focus trapped within drawer while open.
+
+### New: VoiceBudgetBadge (F091)
+
+**Type:** Primitive | **Client:** Yes (`'use client'`)
+**File:** `src/components/VoiceBudgetBadge.tsx`
+
+Optional indicator on the MicButton signalling that monthly voice budget is exhausted. Renders nothing when budget is not exhausted.
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| active | `boolean` | Yes | — | When `true`, renders the 8px amber dot |
+
+**Rendering:** An 8×8px `div` positioned `absolute top-0 right-0` with `bg-amber-400 rounded-full`. No text, no tooltip — the amber dot is the only indicator. When `active=false`, renders `null`.
+
+**Persistence:** `HablarShell` stores the `budgetCapActive` flag in `sessionStorage` (key: `hablar_budget_cap`). Clears on next browser session (monthly reset assumed). `VoiceBudgetBadge` is driven by this flag from parent.
+
+**Accessibility:** The dot is decorative. When `active=true`, `HablarShell` adds `aria-description="Búsqueda por voz temporalmente desactivada"` to the MicButton so screen readers are informed.
+
+### New: useVoiceSession hook (F091)
+
+**Type:** Hook | **Client:** Yes
+**File:** `src/hooks/useVoiceSession.ts`
+
+Encapsulates the `VoiceSession` abstraction — the ~50-line interface that wraps `MediaRecorder` + `POST /conversation/audio` for F091. Designed so F095-F097 can swap to a WebSocket/WebRTC implementation without touching HablarShell.
+
+**Returns:**
+```typescript
+{
+  start: () => Promise<void>         // requests mic + starts MediaRecorder (call synchronously inside pointerdown on iOS)
+  stop: () => Promise<void>          // stops recording + triggers upload (resolves when upload settles; state reflects outcome)
+  cancel: () => void                 // discards recording, no API call
+  uploadRetainedBlob: () => Promise<void>  // retry path: re-submits the in-memory Blob; only valid in state 'error' with code in {NETWORK_ERROR, TRANSCRIPTION_FAILED}
+  state: VoiceSessionState           // 'idle' | 'requesting-mic' | 'recording' | 'uploading' | 'done' | 'error'
+  durationMs: number                 // elapsed recording time in ms
+  response: ConversationMessageData | null  // populated on 'done'
+  error: ApiError | null             // populated on 'error' (includes details.bucket/tier when server provides them)
+}
+```
+
+**Constraints:**
+- `start()` must be called inside a user gesture handler (not async chain) on iOS
+- Silence timeout: 2000ms silence detected via Web Audio `AnalyserNode` (RMS < 0.01, sampled every 100ms); NOT via `MediaRecorder.ondataavailable` (chunks don't expose audio levels). Fallback if Web Audio unavailable: no auto-stop; user must release/tap-stop.
+- Max recording duration: 120s (matching server-side `duration` max). After 120s, auto-calls `stop()`.
+- MIME type: auto-detected from `MediaRecorder.isTypeSupported()` — prefers `audio/webm;codecs=opus`, falls back to `audio/mp4` (iOS Safari)
+- Retry retention: the recorded Blob is held in memory until state transitions to `'done'` (upload success) or `cancel()` is called. Used by `uploadRetainedBlob()` for retry on NETWORK_ERROR / TRANSCRIPTION_FAILED.
+
+### New: sendVoiceMessage (F091)
+
+**File:** `packages/web/src/lib/apiClient.ts` (new export in existing module)
+
+API client function that wraps `POST /conversation/audio`. Mirrors `sendPhotoAnalysis` in shape.
+
+**Contract:**
+- Accepts: `{ audioBlob: Blob, durationSeconds: number, actorId: string, signal?: AbortSignal }`
+- Builds `FormData` with fields: `audio` (the Blob) + `duration` (number)
+- Target URL: `${NEXT_PUBLIC_API_URL}/conversation/audio` (direct call from browser — no Next.js proxy; see §"/api/voice removed" below)
+- Request headers: `X-Actor-Id: actorId`, `X-FXP-Source: web`
+- Response: `ConversationMessageResponse` from `@foodxplorer/shared`
+- Error handling: identical pattern to `sendPhotoAnalysis` — throws `ApiError(message, code, status)`
+
+### New: aria-live results region (F091)
+
+**File:** `src/components/ResultsArea.tsx`
+
+Add `aria-live="polite"` and `aria-atomic="false"` to the scrollable results container. This enables screen readers to announce new results when they are added via voice search — without re-reading the full list on every update.
+
+Additionally, the summary line above results (number of results found) uses `role="status"` to provide a concise announcement:
+```
+"Se encontraron 2 resultados para 'ensalada mixta'."
+```
+
+This is announced once when results arrive, before `SpeechSynthesis.speak()` is queued (non-conflicting because `aria-live="polite"` yields).
+
+### Removed: /api/voice Route Handler (was previously planned, dropped in spec cross-model review 2026-04-21)
+
+**Decision:** F091 does **NOT** add a Next.js proxy for voice uploads. `sendVoiceMessage` calls `${NEXT_PUBLIC_API_URL}/conversation/audio` directly from the browser, mirroring the text `sendMessage` pattern in `src/lib/apiClient.ts`.
+
+**Rationale:** A proxy that injects a shared `X-API-Key` server-side would cause the API's global rate limiter (`packages/api/src/plugins/rateLimit.ts`) to key on `apiKey:<keyId>` instead of per-actor / per-IP, breaking the anonymous-open-voice contract for F091 (voice is open to all tiers per EAA — no authenticated key should be attached from the web). The photo-analysis proxy (`src/app/api/analyze/route.ts`) exists because `/analyze/menu` requires API-key auth; voice does not. CORS is already configured for the web origin via F090's existing CORS setup.
+
+### New: Extended ApiError class (F091)
+
+**File:** `packages/web/src/lib/apiClient.ts` (existing export, field added)
+
+Extend `ApiError` to carry optional `details` from the server error envelope. Enables bucket-specific UI differentiation for 429 responses (voice / queries / photos).
+
+```typescript
+class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly status: number,
+    public readonly details?: Record<string, unknown>,  // NEW
+  ) { super(message); this.name = 'ApiError'; }
+}
+```
+
+All existing call sites (`sendMessage`, `sendPhotoAnalysis`) parse `body.error?.details` when present and pass to the `ApiError` constructor. Existing tests that redeclare `ApiError` inline must be updated to include the new optional field (no test should break — `details` is optional).

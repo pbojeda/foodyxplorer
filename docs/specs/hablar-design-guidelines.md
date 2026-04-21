@@ -831,3 +831,13 @@ Photo thumbnail:
 **Result cards:** Identical to text mode cards. The distinction is the query display — instead of showing the typed text, show the thumbnail as the "query representation."
 
 Full design spec for F092 to be done in a dedicated ticket design notes section.
+
+---
+
+## 13. F091 Implementation Notes
+
+Feature F091 (Async Push-to-Talk Voice) introduces several design elements not covered in this document: the dual tap/hold interaction model, the voice picker drawer with auto-voice-selection heuristic, extended error states (rate-limit, budget cap, empty transcription, TTS unavailable), first-time mic permission pre-screen, and multi-platform design reflection notes. All F091-specific design decisions are documented in:
+
+**`docs/specs/f091-voice-design-notes.md`**
+
+That document is an addendum to this spec. The voice state colors (§2.2), ring animations (§7.3), overlay structure (§4.8), and state machine (§5) defined here remain authoritative. The F091 notes only fill gaps and add new states — they do not override anything in this document.
