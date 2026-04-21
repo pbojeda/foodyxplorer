@@ -58,8 +58,11 @@ export const ROUTE_BUCKET_MAP: Record<string, Bucket> = {
 /** Start of next UTC day as ISO string (for resetAt in 429 response) */
 function computeResetAt(dateKey: string): string {
   const parts = dateKey.split('-').map(Number);
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- dateKey is always YYYY-MM-DD (computed via toISOString().slice(0,10)), split produces 3 elements
   const y = parts[0]!;
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- see parts[0] comment above
   const m = parts[1]! - 1; // Date.UTC months are 0-indexed
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- see parts[0] comment above
   const d = parts[2]!;
   return new Date(Date.UTC(y, m, d + 1)).toISOString();
 }

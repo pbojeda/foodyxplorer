@@ -204,7 +204,9 @@ export async function estimate(params: EstimateParams): Promise<EstimateData> {
           // Defensive shallow clone prevents aliasing between base and scaled rows.
           // Non-null assertion safe: scaledResult !== null implies baseResult !== null
           // (scaledResult is either baseResult itself or applyPortionMultiplier(baseResult,...))
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- invariant documented above
           estimateData.baseNutrients = { ...baseResult!.nutrients };
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- same invariant as baseNutrients above
           estimateData.basePortionGrams = baseResult!.portionGrams;
         }
       }
