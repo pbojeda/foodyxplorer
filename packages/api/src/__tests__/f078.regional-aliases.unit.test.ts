@@ -129,8 +129,10 @@ describe('F078 — Regression: existing prefix patterns unaffected', () => {
 // ---------------------------------------------------------------------------
 
 describe('F078 — SERVING_FORMAT_PATTERNS constant', () => {
-  it('is an array of 5 RegExp patterns', () => {
-    expect(SERVING_FORMAT_PATTERNS).toHaveLength(5);
+  // F-MORPH extended SERVING_FORMAT_PATTERNS from 5 → 6 by adding /^ca[ñn]as?\s+de\s+/i
+  // so that normalizeDiminutive("cañita"→"caña") creates a SERVING candidate for AC7.
+  it('is an array of 6 RegExp patterns', () => {
+    expect(SERVING_FORMAT_PATTERNS).toHaveLength(6);
     for (const pattern of SERVING_FORMAT_PATTERNS) {
       expect(pattern).toBeInstanceOf(RegExp);
     }

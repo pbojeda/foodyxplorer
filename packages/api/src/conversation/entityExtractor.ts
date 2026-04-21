@@ -455,6 +455,8 @@ export const PREFIX_PATTERNS: readonly RegExp[] = [
 ];
 
 // F078: Serving-format prefixes — "tapa(s) de", "pincho(s) de", "pintxo(s) de", "ración/racion(es) de".
+// F-MORPH: added "caña(s) de" so that normalizeDiminutive("cañita"→"caña") creates a SERVING candidate
+// that the second SERVING pass (post-normalizeDiminutive) can strip correctly (AC7).
 // Used in both extractFoodQuery and parseDishExpression. Shared constant to avoid duplication.
 export const SERVING_FORMAT_PATTERNS: readonly RegExp[] = [
   /^tapas?\s+de\s+/i,
@@ -462,10 +464,65 @@ export const SERVING_FORMAT_PATTERNS: readonly RegExp[] = [
   /^pinchos?\s+de\s+/i,
   /^raciones\s+de\s+/i,
   /^raci[oó]n\s+de\s+/i,
+  /^ca[ñn]as?\s+de\s+/i,
 ];
 
 // Article/determiner stripping — applied once after prefix step.
-export const ARTICLE_PATTERN = /^(?:un[ao]?|el|la[s]?|los|del|al)\s+/i;
+// F-MORPH: extended un[ao]? → un[ao]?s? to cover unas/unos (P3 fix).
+export const ARTICLE_PATTERN = /^(?:un[ao]?s?|el|la[s]?|los|del|al)\s+/i;
+
+// F-MORPH: Container/vessel strip — pure wrappers with no calorie semantics.
+// Applied AFTER ARTICLE_PATTERN, BEFORE SERVING_FORMAT_PATTERNS.
+// NOTE: "vaso de" is intentionally excluded — it belongs to F-DRINK (drink portion).
+// "vasito de" (diminutive container) is owned by F-MORPH.
+export const CONTAINER_PATTERNS: readonly RegExp[] = [
+  /^plato\s+de\s+/i,
+  /^platito\s+de\s+/i,
+  /^cuenco\s+de\s+/i,
+  /^bol\s+de\s+/i,
+  /^vasito\s+de\s+/i,
+  /^jarrita\s+de\s+/i,
+  /^poco\s+de\s+/i,
+  /^poqu?ito\s+de\s+/i,
+  /^trozo\s+de\s+/i,
+  /^trocito\s+de\s+/i,
+];
+
+// F-MORPH: Curated diminutive → base form map (Option A).
+// Only known food/portion diminutives to avoid false-positive on non-food words.
+// Extend this map as future QA batteries surface additional cases.
+export const DIMINUTIVE_MAP: Readonly<Record<string, string>> = {
+  tapita: 'tapa',
+  tapitas: 'tapas',
+  cañita: 'caña',
+  cañitas: 'cañas',
+  copita: 'copa',
+  copitas: 'copas',
+  pintxito: 'pintxo',
+  pinchito: 'pincho',
+  racioncita: 'ración',
+  racioncitas: 'raciones',
+  croquetita: 'croqueta',
+  croquetitas: 'croquetas',
+  gambita: 'gamba',
+  gambitas: 'gambas',
+  boqueronito: 'boquerón',
+  boqueronitos: 'boquerones',
+  trocito: 'trozo',
+  trocitos: 'trozos',
+};
+
+/**
+ * Replace each whitespace-separated token in `text` with its base form
+ * if found in DIMINUTIVE_MAP (case-insensitive). Tokens not in the map
+ * are returned unchanged.
+ */
+export function normalizeDiminutive(text: string): string {
+  return text
+    .split(/\s+/)
+    .map((token) => DIMINUTIVE_MAP[token.toLowerCase()] ?? token)
+    .join(' ');
+}
 
 /**
  * Parse raw Spanish text into a query and optional chain slug.
@@ -512,14 +569,41 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
   }
 
   // Article/determiner stripping (once, after prefix step)
+  // F-MORPH: ARTICLE_PATTERN now includes unas/unos (P3 fix).
   remainder = remainder.replace(ARTICLE_PATTERN, '');
 
-  // F078: Serving-format prefix stripping (tapa de, pincho de, pintxo de, ración de)
+  // F-MORPH: Container/vessel strip (plato de, cuenco de, bol de, vasito de, jarrita de, poco/poquito de).
+  // Applied AFTER article strip, BEFORE serving-format strip.
+  for (const pattern of CONTAINER_PATTERNS) {
+    const stripped = remainder.replace(pattern, '');
+    if (stripped !== remainder && stripped.trim().length > 0) {
+      remainder = stripped.trim();
+      break;
+    }
+  }
+
+  // F078: Serving-format prefix stripping (tapa de, pincho de, pintxo de, ración de, caña de)
   for (const pattern of SERVING_FORMAT_PATTERNS) {
     const stripped = remainder.replace(pattern, '');
     if (stripped !== remainder && stripped.trim().length > 0) {
       remainder = stripped.trim();
       break;
+    }
+  }
+
+  // F-MORPH: Diminutive normalization — map known diminutive tokens to base forms.
+  // Runs on tokens so partial matches (e.g., "de") are left untouched.
+  const normalized = normalizeDiminutive(remainder);
+  if (normalized !== remainder) {
+    remainder = normalized;
+    // Second SERVING pass: normalizeDiminutive may produce a new SERVING candidate
+    // (e.g., "tapita de aceitunas" → "tapa de aceitunas" → SERVING strips "tapa de").
+    for (const pattern of SERVING_FORMAT_PATTERNS) {
+      const stripped = remainder.replace(pattern, '');
+      if (stripped !== remainder && stripped.trim().length > 0) {
+        remainder = stripped.trim();
+        break;
+      }
     }
   }
 
