@@ -12,6 +12,7 @@ import {
   splitByComparator,
   parseDishExpression,
   extractFoodQuery,
+  CONVERSATIONAL_WRAPPER_PATTERNS,
 } from '../conversation/entityExtractor.js';
 
 // ---------------------------------------------------------------------------
@@ -256,5 +257,106 @@ describe('extractFoodQuery', () => {
     // "mcdonalds" alone has no hyphen — not a valid chain slug
     const result = extractFoodQuery('big mac en mcdonalds');
     expect(result.chainSlug).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F-NLP — CONVERSATIONAL_WRAPPER_PATTERNS
+// ---------------------------------------------------------------------------
+
+describe('F-NLP — CONVERSATIONAL_WRAPPER_PATTERNS', () => {
+  // AC15 — Structural: exported array with exactly 12 entries, all RegExp
+  it('is exported as readonly RegExp array with 12 entries', () => {
+    expect(Array.isArray(CONVERSATIONAL_WRAPPER_PATTERNS)).toBe(true);
+    expect(CONVERSATIONAL_WRAPPER_PATTERNS).toHaveLength(12);
+    for (const pattern of CONVERSATIONAL_WRAPPER_PATTERNS) {
+      expect(pattern).toBeInstanceOf(RegExp);
+    }
+  });
+});
+
+describe('F-NLP — extractFoodQuery', () => {
+  // AC1 — strips "me he tomado" wrapper and resolves to dish
+  it('strips "me he tomado" wrapper and resolves to dish', () => {
+    const result = extractFoodQuery('me he tomado una ración de croquetas');
+    expect(result.query).toBe('croquetas');
+  });
+
+  // AC2 — strips "acabo de comer" wrapper
+  it('strips "acabo de comer" wrapper', () => {
+    const result = extractFoodQuery('acabo de comer paella');
+    expect(result.query).toBe('paella');
+  });
+
+  // AC3 — strips "he desayunado" wrapper leaving multi-item remainder
+  it('strips "he desayunado" wrapper leaving multi-item remainder', () => {
+    const result = extractFoodQuery('he desayunado café con leche y tostada');
+    expect(result.query).toBe('café con leche y tostada');
+  });
+
+  // AC4 — strips temporal "anoche cené" wrapper leaving multi-item remainder
+  it('strips temporal "anoche cené" wrapper leaving multi-item remainder', () => {
+    const result = extractFoodQuery('anoche cené tortilla de patatas con ensalada');
+    expect(result.query).toBe('tortilla de patatas con ensalada');
+  });
+
+  // AC5 — strips "me he bebido" wrapper
+  it('strips "me he bebido" wrapper', () => {
+    const result = extractFoodQuery('me he bebido dos cañas de cerveza');
+    expect(result.query).toBe('dos cañas de cerveza');
+  });
+
+  // AC6 — strips "quiero saber las calorías de" then article
+  it('strips "quiero saber las calorías de" then article', () => {
+    const result = extractFoodQuery('quiero saber las calorías de un bocadillo de jamón');
+    expect(result.query).toBe('bocadillo de jamón');
+  });
+
+  // AC7 — strips "cuánto engorda una ración de" via chain
+  it('strips "cuánto engorda una ración de" via chain', () => {
+    const result = extractFoodQuery('cuánto engorda una ración de croquetas');
+    expect(result.query).toBe('croquetas');
+  });
+
+  // AC8 — strips "cuánta proteína tiene el" wrapper
+  it('strips "cuánta proteína tiene el" wrapper', () => {
+    const result = extractFoodQuery('cuánta proteína tiene el pollo a la plancha');
+    expect(result.query).toBe('pollo a la plancha');
+  });
+
+  // AC9 — strips "necesito saber los nutrientes del" wrapper
+  it('strips "necesito saber los nutrientes del" wrapper', () => {
+    const result = extractFoodQuery('necesito saber los nutrientes del gazpacho');
+    expect(result.query).toBe('gazpacho');
+  });
+
+  // AC10 — Negative: does NOT strip "quiero comer algo ligero" (Category D)
+  it('does NOT strip "quiero comer algo ligero" (Category D)', () => {
+    const result = extractFoodQuery('quiero comer algo ligero');
+    expect(result.query).toBe('quiero comer algo ligero');
+  });
+
+  // AC11 — Negative: does NOT strip "recomiéndame algo con pocas calorías" (Category D)
+  it('does NOT strip "recomiéndame algo con pocas calorías" (Category D)', () => {
+    const result = extractFoodQuery('recomiéndame algo con pocas calorías');
+    expect(result.query).toBe('recomiéndame algo con pocas calorías');
+  });
+
+  // AC12 — Negative: does NOT strip "es sano comer pulpo a la gallega" (opinion)
+  it('does NOT strip "es sano comer pulpo a la gallega" (opinion)', () => {
+    const result = extractFoodQuery('es sano comer pulpo a la gallega');
+    expect(result.query).toBe('es sano comer pulpo a la gallega');
+  });
+
+  // AC13 — Regression: "cuántas calorías tiene el big mac" still strips
+  it('existing "cuántas calorías tiene el big mac" still strips (regression)', () => {
+    const result = extractFoodQuery('cuántas calorías tiene el big mac');
+    expect(result.query).toBe('big mac');
+  });
+
+  // AC14 — Regression: "cuántas calorías tiene una ración de patatas bravas" still strips via chain
+  it('"cuántas calorías tiene una ración de patatas bravas" still strips via chain (regression)', () => {
+    const result = extractFoodQuery('cuántas calorías tiene una ración de patatas bravas');
+    expect(result.query).toBe('patatas bravas');
   });
 });
