@@ -27,6 +27,13 @@ describe('ResultsArea', () => {
       expect(screen.getByText('Sin conexión.')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Intentar de nuevo/i })).toBeInTheDocument();
     });
+
+    it('CardGrid region exposes aria-live=polite for screen-reader updates (F091)', () => {
+      const results = createConversationMessageData('estimation');
+      render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
+      const region = screen.getByRole('region', { name: /Resultados de la consulta/i });
+      expect(region).toHaveAttribute('aria-live', 'polite');
+    });
   });
 
   describe('estimation intent', () => {

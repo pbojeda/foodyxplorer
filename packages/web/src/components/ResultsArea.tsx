@@ -161,8 +161,15 @@ export function ResultsArea({
 // ---------------------------------------------------------------------------
 
 function CardGrid({ children }: { children: React.ReactNode }) {
+  // role="region" + aria-live="polite" — results update in place (voice/photo/text).
+  // Not role="status" to avoid colliding with LoadingState's role="status".
   return (
-    <div className="flex-1 overflow-y-auto px-4 pb-24 pt-4">
+    <div
+      className="flex-1 overflow-y-auto px-4 pb-24 pt-4"
+      role="region"
+      aria-live="polite"
+      aria-label="Resultados de la consulta"
+    >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:mx-auto lg:max-w-2xl">
         {children}
       </div>
