@@ -161,9 +161,11 @@ describe('QA-WEB-001 a11y — MicButton', () => {
     expect(button.getAttribute('aria-label')).not.toBe('');
   });
 
-  it('is disabled (stub component)', () => {
+  it('is enabled and has accessible aria-label (F091 — no longer a disabled stub)', () => {
     render(<MicButton />);
-    expect(screen.getByRole('button')).toBeDisabled();
+    // MicButton is now interactive (F091). Default state is 'idle' — enabled.
+    expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Buscar por voz');
+    expect(screen.getByRole('button')).not.toBeDisabled();
   });
 });
 
