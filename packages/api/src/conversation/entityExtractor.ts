@@ -122,41 +122,148 @@ interface PortionModifierResult {
   portionMultiplier: number;
 }
 
-interface PatternEntry {
-  regex: RegExp;
-  multiplier: number;
-}
+// F-COUNT: Tagged union PatternEntry.
+// kind:'fixed'   — static multiplier per entry.
+// kind:'numeric' — multiplier captured from regex group $1 (integer 1-20 inclusive).
+type PatternEntry =
+  | { kind: 'fixed';   regex: RegExp; multiplier: number }
+  | { kind: 'numeric'; regex: RegExp };
+
+// F-COUNT: Minimum cap (1) enforced via [1-9] in regex; maximum cap (20) enforced in loop.
+// Any N > 20 falls through — the original text is returned unchanged.
+const NUMERIC_MAX = 20;
+
+// F-COUNT: Lexical number map — keys ordered longest-first for regex alternation.
+// Used both for constructing LEXICAL_REGEX and for multiplier lookup by matched token.
+const LEXICAL_NUMBER_MAP: Readonly<Record<string, number>> = {
+  'un par':      2,
+  'media docena': 6,
+  'una docena':  12,
+  'diez':  10,
+  'nueve':  9,
+  'ocho':   8,
+  'siete':  7,
+  'seis':   6,
+  'cinco':  5,
+  'cuatro': 4,
+  'tres':   3,
+  'dos':    2,
+};
+
+// Build alternation regex from longest-key-first order (already declared that way above).
+const _LEXICAL_ALTS = Object.keys(LEXICAL_NUMBER_MAP).join('|');
 
 // Ordered longest/most-specific first to prevent short patterns from matching
 // inside longer ones (e.g. "grande" must not match inside "extra grande").
+//
+// F-COUNT additions (top of array — most specific first):
+//   1. Numeric + "raciones de" compound (must precede bare numeric)
+//   2. Bare numeric prefix
+//   3. Lexical number words (with optional "raciones de" and "de" glue)
+//   4. "triple de" compound (must precede bare /\btriples?\b/)
+//   5. Fractional / composed: cuarto de ración, ración y media
+//   6. Extended ración compounds: ración extra, ración enorme, ración normal, ración generosa, ración buena
+//   7. Bare extended modifiers: enorme, extra, buen/buena, generosa
+// Existing F042 entries follow unchanged.
 const PATTERNS: readonly PatternEntry[] = [
-  { regex: /\bextra[\s-]grandes?\b/i,           multiplier: 1.5 },
-  { regex: /\braci[oó]n\s+doble\b/i,            multiplier: 2.0 },
-  { regex: /\braciones\s+dobles\b/i,             multiplier: 2.0 },
-  { regex: /\bmedias?\s+raci[oó]n\b/i,           multiplier: 0.5 },
-  { regex: /\bmedias\s+raciones\b/i,             multiplier: 0.5 },
-  { regex: /\btriples?\b/i,                      multiplier: 3.0 },
-  { regex: /\bdobles?\b/i,                       multiplier: 2.0 },
-  { regex: /\bgrandes?\b/i,                      multiplier: 1.5 },
-  { regex: /\bxl\b/i,                            multiplier: 1.5 },
-  { regex: /\bpeque[ñn][oa]s?\b/i,               multiplier: 0.7 },
-  { regex: /\bpeque\b/i,                         multiplier: 0.7 },
-  { regex: /\bminis?\b/i,                        multiplier: 0.7 },
-  { regex: /\bmedios?\b/i,                       multiplier: 0.5 },
-  { regex: /\bmedias?\b/i,                       multiplier: 0.5 },
-  { regex: /\bhalf\b/i,                          multiplier: 0.5 },
+  // --- F-COUNT: numeric compound (N raciones/ración de) — BEFORE bare numeric ---
+  { kind: 'numeric', regex: /^([1-9]\d?)\s+raci[oó]n(?:es)?\s+(?:de\s+)?/i },
+
+  // --- F-COUNT: bare numeric prefix (N <food>) ---
+  { kind: 'numeric', regex: /^([1-9]\d?)\s+/i },
+
+  // --- F-COUNT: lexical number words (longest match wins via alternation order) ---
+  // Matches: <word> [raci[oó]n(es) [de]] [de]
+  { kind: 'fixed', regex: new RegExp(`^(${_LEXICAL_ALTS})\\s+(?:raci[oó]n(?:es)?\\s+(?:de\\s+)?)?(?:de\\s+)?`, 'i'), multiplier: 0 /* overridden by lookup */ },
+
+  // --- F-COUNT: "triple de" compound — BEFORE bare /\btriples?\b/ ---
+  { kind: 'fixed', regex: /\btriple\s+de\s+/i, multiplier: 3.0 },
+
+  // --- F-COUNT: fractional / composed ---
+  { kind: 'fixed', regex: /\bcuarto\s+de\s+raci[oó]n\s+(?:de\s+)?/i, multiplier: 0.25 },
+  { kind: 'fixed', regex: /\braci[oó]n\s+y\s+media\s+(?:de\s+)?/i,   multiplier: 1.5 },
+
+  // --- F-COUNT: extended ración compounds (longest-first within group) ---
+  { kind: 'fixed', regex: /\braci[oó]n\s+enorme\s+(?:de\s+)?/i,    multiplier: 2.0 },
+  { kind: 'fixed', regex: /\braci[oó]n\s+extra\s+(?:de\s+)?/i,     multiplier: 1.5 },
+  { kind: 'fixed', regex: /\braci[oó]n\s+generosa\s+(?:de\s+)?/i,  multiplier: 1.0 },
+  { kind: 'fixed', regex: /\braci[oó]n\s+buena\s+(?:de\s+)?/i,     multiplier: 1.0 },
+  { kind: 'fixed', regex: /\braci[oó]n\s+normal\s+(?:de\s+)?/i,    multiplier: 1.0 },
+
+  // --- F-COUNT: leading adjective + ración de compounds (e.g. "buena ración de") ---
+  { kind: 'fixed', regex: /\bbuen[ao]s?\s+raci[oó]n\s+(?:de\s+)?/i,    multiplier: 1.0 },
+  { kind: 'fixed', regex: /\bgeneros[ao]s?\s+raci[oó]n\s+(?:de\s+)?/i, multiplier: 1.0 },
+
+  // --- F-COUNT: no-op subjective modifiers (bare) — AFTER all compound forms ---
+  // NOTE: extra[\s-]grandes? must appear BEFORE bare \bextras?\b to win longest-first.
+  // It is placed here inline (not in the F042 block below) to keep ordering explicit.
+  { kind: 'fixed', regex: /\bextra[\s-]grandes?\b/i,           multiplier: 1.5 },
+  { kind: 'fixed', regex: /\benormes?\b/i,       multiplier: 2.0 },
+  { kind: 'fixed', regex: /\bextras?\b/i,        multiplier: 1.5 },
+  { kind: 'fixed', regex: /\bbuen[ao]s?\b/i,     multiplier: 1.0 },
+  { kind: 'fixed', regex: /\bgeneros[ao]s?\b/i,  multiplier: 1.0 },
+
+  // --- F042 existing entries (unchanged, extra grande already hoisted above) ---
+  // (extra[\s-]grandes? hoisted to appear before bare extras? — see above)
+  { kind: 'fixed', regex: /\braci[oó]n\s+doble\b/i,            multiplier: 2.0 },
+  { kind: 'fixed', regex: /\braciones\s+dobles\b/i,             multiplier: 2.0 },
+  { kind: 'fixed', regex: /\bmedias?\s+raci[oó]n\b/i,           multiplier: 0.5 },
+  { kind: 'fixed', regex: /\bmedias\s+raciones\b/i,             multiplier: 0.5 },
+  { kind: 'fixed', regex: /\btriples?\b/i,                      multiplier: 3.0 },
+  { kind: 'fixed', regex: /\bdobles?\b/i,                       multiplier: 2.0 },
+  { kind: 'fixed', regex: /\bgrandes?\b/i,                      multiplier: 1.5 },
+  { kind: 'fixed', regex: /\bxl\b/i,                            multiplier: 1.5 },
+  { kind: 'fixed', regex: /\bpeque[ñn][oa]s?\b/i,               multiplier: 0.7 },
+  { kind: 'fixed', regex: /\bpeque\b/i,                         multiplier: 0.7 },
+  { kind: 'fixed', regex: /\bminis?\b/i,                        multiplier: 0.7 },
+  { kind: 'fixed', regex: /\bmedios?\b/i,                       multiplier: 0.5 },
+  { kind: 'fixed', regex: /\bmedias?\b/i,                       multiplier: 0.5 },
+  { kind: 'fixed', regex: /\bhalf\b/i,                          multiplier: 0.5 },
 ];
 
 export function extractPortionModifier(text: string): PortionModifierResult {
-  for (const { regex, multiplier } of PATTERNS) {
-    if (regex.test(text)) {
-      const cleaned = text.replace(regex, '').replace(/\s+/g, ' ').trim();
-      if (cleaned.length === 0) {
-        // Stripping the modifier leaves nothing — fall back to original text.
-        return { cleanQuery: text, portionMultiplier: 1.0 };
+  for (const entry of PATTERNS) {
+    const match = entry.regex.exec(text);
+    if (!match) continue;
+
+    let multiplier: number;
+
+    if (entry.kind === 'numeric') {
+      // Capture group $1 holds the digit string — must be 1-20 inclusive.
+      const n = parseInt(match[1] ?? '', 10);
+      if (!isFinite(n) || n < 1 || n > NUMERIC_MAX) continue;
+      multiplier = n;
+    } else {
+      // For lexical entries, check if multiplier is 0 (sentinel for LEXICAL_NUMBER_MAP lookup).
+      if (entry.multiplier === 0) {
+        // Retrieve the matched token (match[1] if capturing group, else match[0] stripped).
+        // The lexical regex has no capturing group — match[0] is the full match (word + glue).
+        // We need the leading word. Extract it: everything before the first space.
+        const token = (match[0] ?? '').trimStart().replace(/\s+.*$/, '').toLowerCase();
+        // For "un par" and "media docena" / "una docena", the token is multi-word.
+        // Re-extract by finding the longest matching key:
+        const rawMatch = (match[0] ?? '').trimStart();
+        let found: number | undefined;
+        for (const key of Object.keys(LEXICAL_NUMBER_MAP)) {
+          if (rawMatch.toLowerCase().startsWith(key)) {
+            found = LEXICAL_NUMBER_MAP[key];
+            break;
+          }
+        }
+        if (found === undefined) continue; // safety — should not happen
+        multiplier = found;
+        void token; // suppress unused-var lint
+      } else {
+        multiplier = entry.multiplier;
       }
-      return { cleanQuery: cleaned, portionMultiplier: multiplier };
     }
+
+    const cleaned = text.replace(entry.regex, '').replace(/\s+/g, ' ').trim();
+    if (cleaned.length === 0) {
+      // Stripping the modifier leaves nothing — fall back to original text.
+      return { cleanQuery: text, portionMultiplier: 1.0 };
+    }
+    return { cleanQuery: cleaned, portionMultiplier: multiplier };
   }
   return { cleanQuery: text, portionMultiplier: 1.0 };
 }
