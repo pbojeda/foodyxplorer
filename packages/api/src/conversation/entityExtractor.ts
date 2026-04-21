@@ -125,9 +125,11 @@ interface PortionModifierResult {
 // F-COUNT: Tagged union PatternEntry.
 // kind:'fixed'   — static multiplier per entry.
 // kind:'numeric' — multiplier captured from regex group $1 (integer 1-20 inclusive).
+// kind:'lexical' — multiplier looked up from LEXICAL_NUMBER_MAP by longest-prefix match on the match text.
 type PatternEntry =
   | { kind: 'fixed';   regex: RegExp; multiplier: number }
-  | { kind: 'numeric'; regex: RegExp };
+  | { kind: 'numeric'; regex: RegExp }
+  | { kind: 'lexical'; regex: RegExp };
 
 // F-COUNT: Minimum cap (1) enforced via [1-9] in regex; maximum cap (20) enforced in loop.
 // Any N > 20 falls through — the original text is returned unchanged.
@@ -174,7 +176,7 @@ const PATTERNS: readonly PatternEntry[] = [
 
   // --- F-COUNT: lexical number words (longest match wins via alternation order) ---
   // Matches: <word> [raci[oó]n(es) [de]] [de]
-  { kind: 'fixed', regex: new RegExp(`^(${_LEXICAL_ALTS})\\s+(?:raci[oó]n(?:es)?\\s+(?:de\\s+)?)?(?:de\\s+)?`, 'i'), multiplier: 0 /* overridden by lookup */ },
+  { kind: 'lexical', regex: new RegExp(`^(${_LEXICAL_ALTS})\\s+(?:raci[oó]n(?:es)?\\s+(?:de\\s+)?)?(?:de\\s+)?`, 'i') },
 
   // --- F-COUNT: "triple de" compound — BEFORE bare /\btriples?\b/ ---
   { kind: 'fixed', regex: /\btriple\s+de\s+/i, multiplier: 3.0 },
@@ -233,29 +235,21 @@ export function extractPortionModifier(text: string): PortionModifierResult {
       const n = parseInt(match[1] ?? '', 10);
       if (!isFinite(n) || n < 1 || n > NUMERIC_MAX) continue;
       multiplier = n;
-    } else {
-      // For lexical entries, check if multiplier is 0 (sentinel for LEXICAL_NUMBER_MAP lookup).
-      if (entry.multiplier === 0) {
-        // Retrieve the matched token (match[1] if capturing group, else match[0] stripped).
-        // The lexical regex has no capturing group — match[0] is the full match (word + glue).
-        // We need the leading word. Extract it: everything before the first space.
-        const token = (match[0] ?? '').trimStart().replace(/\s+.*$/, '').toLowerCase();
-        // For "un par" and "media docena" / "una docena", the token is multi-word.
-        // Re-extract by finding the longest matching key:
-        const rawMatch = (match[0] ?? '').trimStart();
-        let found: number | undefined;
-        for (const key of Object.keys(LEXICAL_NUMBER_MAP)) {
-          if (rawMatch.toLowerCase().startsWith(key)) {
-            found = LEXICAL_NUMBER_MAP[key];
-            break;
-          }
+    } else if (entry.kind === 'lexical') {
+      // LEXICAL_NUMBER_MAP keys are ordered longest-first. Find the one that prefixes
+      // the match text (which starts with the lexical word, possibly followed by glue).
+      const rawMatch = (match[0] ?? '').trimStart().toLowerCase();
+      let found: number | undefined;
+      for (const key of Object.keys(LEXICAL_NUMBER_MAP)) {
+        if (rawMatch.startsWith(key)) {
+          found = LEXICAL_NUMBER_MAP[key];
+          break;
         }
-        if (found === undefined) continue; // safety — should not happen
-        multiplier = found;
-        void token; // suppress unused-var lint
-      } else {
-        multiplier = entry.multiplier;
       }
+      if (found === undefined) continue; // safety — should not happen
+      multiplier = found;
+    } else {
+      multiplier = entry.multiplier;
     }
 
     const cleaned = text.replace(entry.regex, '').replace(/\s+/g, ' ').trim();
