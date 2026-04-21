@@ -8,8 +8,10 @@ describe('EmptyState', () => {
     expect(screen.getByText('¿Qué quieres saber?')).toBeInTheDocument();
   });
 
-  it('renders the subtext about writing a dish name', () => {
+  it('renders subtext mentioning the three input modalities (text, voice, photo)', () => {
     render(<EmptyState />);
-    expect(screen.getByText(/Escribe el nombre de un plato/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Escribe, habla o sube una foto/i),
+    ).toBeInTheDocument();
   });
 });
