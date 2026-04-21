@@ -48,6 +48,7 @@ export type DishAvailability = (typeof DishAvailability)[keyof typeof DishAvaila
 export const ApiKeyTier = {
   free: "free",
   pro: "pro",
+  admin: "admin",
 } as const;
 export type ApiKeyTier = (typeof ApiKeyTier)[keyof typeof ApiKeyTier];
 export const ActorType = {
