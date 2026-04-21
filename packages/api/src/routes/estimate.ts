@@ -248,8 +248,11 @@ const estimateRoutesPlugin: FastifyPluginAsync<EstimatePluginOptions> = async (
             const portionScaled = applyPortionAssumptionScaling(scaledResult, portionAssumption);
             if (portionScaled !== null) {
               estimateData.result = portionScaled;
-              // baseNutrients from cascade's raw baseResult (pre-any-scaling)
+              // baseNutrients from cascade's raw baseResult (pre-any-scaling).
+              // scaledResult !== null implies baseResult !== null (scaledResult is either baseResult itself or applyPortionMultiplier(baseResult,...))
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- invariant documented above
               estimateData.baseNutrients = { ...baseResult!.nutrients };
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- same invariant as baseNutrients above
               estimateData.basePortionGrams = baseResult!.portionGrams;
             }
           }
