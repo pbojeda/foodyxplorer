@@ -400,9 +400,14 @@ export function extractComparisonQuery(text: string): ParsedComparison | null {
 // least one hyphen. Identical to the regex used in commands/estimar.ts.
 const CHAIN_SLUG_REGEX = /^[a-z0-9-]+-[a-z0-9-]+$/;
 
-// F-NLP: Conversational wrapper patterns — Spanish past-tense self-reference,
-// intent-to-eat, and extended info-request wrappers. Applied BEFORE PREFIX_PATTERNS.
-// Single pass: first match wins. All patterns use the `i` flag. Ordered longest-first.
+// F-NLP (spec §Decision 1): Conversational wrapper patterns — Spanish past-tense
+// self-reference, intent-to-eat, and extended info-request wrappers. Applied BEFORE
+// PREFIX_PATTERNS so that extended-nutrient requests (e.g., "cuánta proteína tiene")
+// are stripped before the narrower "cuántas calorías" patterns get a chance to fire.
+// The nutrient alternation in pattern 10 explicitly excludes `calor[ií]as` to stay
+// disjoint from PREFIX_PATTERNS[0]. All patterns: `^`-anchored, `i` flag, longest-first.
+// Single pass: first match wins. Intent-to-eat requires `me` (pattern 7) to stay
+// disjoint from Category D ("voy a pedir una receta" → non-food, must NOT strip).
 export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
   // 1. Past-tense + object pronoun: "me he tomado/bebido/comido/..." — longest form
   /^me\s+he\s+(?:tomado|bebido|comido|cenado|desayunado|almorzado|merendado)\s+/i,
@@ -426,8 +431,6 @@ export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
   /^cu[aá]nt[ao]s?\s+(?:prote[ií]nas?|grasas?|carbohidratos?|hidratos?|fibra|sodio|sal|az[uú]car)\s+(?:tiene[n]?|hay\s+en|lleva|contiene)\s+(?:un[ao]?\s+|el\s+|la\s+|del?\s+|al\s+)?/i,
   // 11. "necesito [saber] los nutrientes de[l]"
   /^necesito\s+(?:saber\s+)?(?:los?\s+|las?\s+)?(?:nutrientes|valores\s+nutricionales?|calor[ií]as?)\s+(?:de[l]?\s+)?/i,
-  // 12. Intent-to-eat without object pronoun: "voy a pedir/comer/tomar/beber ..."
-  /^voy\s+a\s+(?:pedir|comer|tomar|beber)\s+/i,
 ];
 
 // Prefix patterns applied in order — longest/most-specific first.

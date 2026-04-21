@@ -265,13 +265,25 @@ describe('extractFoodQuery', () => {
 // ---------------------------------------------------------------------------
 
 describe('F-NLP — CONVERSATIONAL_WRAPPER_PATTERNS', () => {
-  // AC15 — Structural: exported array with exactly 12 entries, all RegExp
-  it('is exported as readonly RegExp array with 12 entries', () => {
+  // AC15 — Structural: exported array with 11 entries, all RegExp.
+  // Review M1 (2026-04-21): original plan noted 12 rows but row 8 was subsumed
+  // by pattern 1; developer's 12th pattern (bare "voy a pedir") was removed for
+  // producing Category D false positives. Final count is 11.
+  it('is exported as readonly RegExp array with >= 11 entries', () => {
     expect(Array.isArray(CONVERSATIONAL_WRAPPER_PATTERNS)).toBe(true);
-    expect(CONVERSATIONAL_WRAPPER_PATTERNS).toHaveLength(12);
+    expect(CONVERSATIONAL_WRAPPER_PATTERNS.length).toBeGreaterThanOrEqual(11);
     for (const pattern of CONVERSATIONAL_WRAPPER_PATTERNS) {
       expect(pattern).toBeInstanceOf(RegExp);
     }
+  });
+});
+
+describe('F-NLP — fallback on empty strip', () => {
+  // Review L3: confirm the existing fallback (remainder.trim() || originalTrimmed)
+  // fires when a wrapper strips to empty or whitespace-only.
+  it('falls back to original when bare wrapper "me he tomado " strips to empty', () => {
+    const result = extractFoodQuery('me he tomado ');
+    expect(result.query).toBe('me he tomado');
   });
 });
 
