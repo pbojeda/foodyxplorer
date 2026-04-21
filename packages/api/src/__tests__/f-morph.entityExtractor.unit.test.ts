@@ -273,14 +273,22 @@ describe('F-MORPH — container strip in extractFoodQuery (AC9–AC14)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// AC15 — Negative: vaso de NOT stripped (F-DRINK territory)
+// AC15 — F-MORPH CONTAINER boundary + F-DRINK-FU1 SERVING strip for vaso de.
+// F-MORPH's CONTAINER_PATTERNS still does NOT include vaso de (by design).
+// F-DRINK-FU1 (2026-04-21) added vaso de to SERVING so the full-pipeline result
+// for "un vaso de vino tinto" is now "vino tinto" (not the pre-FU1 "vaso de vino tinto").
 // ---------------------------------------------------------------------------
 
-describe('F-MORPH — negative tests (AC15–AC16)', () => {
-  // AC15: un vaso de vino tinto → NOT stripped by F-MORPH
-  it('AC15: "un vaso de vino tinto" → vaso de vino tinto (not stripped)', () => {
+describe('F-MORPH — boundary + F-DRINK-FU1 interaction (AC15–AC16)', () => {
+  // AC15 (post-F-DRINK-FU1): SERVING strip now fires on vaso de (correct behavior)
+  it('AC15 (updated): "un vaso de vino tinto" → vino tinto (stripped by F-DRINK-FU1 SERVING)', () => {
     const result = extractFoodQuery('un vaso de vino tinto');
-    expect(result.query).toBe('vaso de vino tinto');
+    expect(result.query).toBe('vino tinto');
+  });
+
+  // AC15-guard: confirm F-MORPH's CONTAINER_PATTERNS still does NOT include vaso de
+  it('AC15-guard: F-MORPH CONTAINER_PATTERNS still excludes "vaso de" (boundary preserved)', () => {
+    expect(CONTAINER_PATTERNS.some((p) => p.test('vaso de vino'))).toBe(false);
   });
 
   // AC16: patatitas alone (not in DIMINUTIVE_MAP) → unchanged
@@ -349,7 +357,7 @@ describe('F-MORPH — regression checks (AC18)', () => {
     expect(extractFoodQuery('cuánto engorda una ración de croquetas').query).toBe('croquetas');
   });
 
-  it('SERVING_FORMAT_PATTERNS now contains 6 patterns (added caña de for F-MORPH AC7)', () => {
-    expect(SERVING_FORMAT_PATTERNS).toHaveLength(6);
+  it('SERVING_FORMAT_PATTERNS contains at least 6 patterns (F-MORPH added caña de; F-DRINK-FU1 added drink containers)', () => {
+    expect(SERVING_FORMAT_PATTERNS.length).toBeGreaterThanOrEqual(6);
   });
 });
