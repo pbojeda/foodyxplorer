@@ -28,7 +28,9 @@
     "off:import": "tsx src/scripts/off-import.ts",
     "off:import:dry-run": "tsx src/scripts/off-import.ts --dry-run",
     "generate:standard-portions": "tsx src/scripts/generateStandardPortionCsv.ts",
-    "seed:standard-portions": "tsx src/scripts/seedStandardPortionCsv.ts"
+    "seed:standard-portions": "tsx src/scripts/seedStandardPortionCsv.ts",
+    "seed:api-key": "tsx src/scripts/seedApiKey.ts",
+    "seed:admin-key": "tsx src/scripts/seedApiKey.ts --tier admin"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",
