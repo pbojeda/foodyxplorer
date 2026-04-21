@@ -312,9 +312,19 @@ export function parseDishExpression(text: string): {
     }
   }
 
-  // Step 2 — Strip trailing punctuation (?, !) and leading articles (un, una, el, la).
+  // Step 2 — Strip trailing punctuation (?, !) and leading articles.
+  // F-MORPH: reuse ARTICLE_PATTERN (now covers plural unas/unos) for parity with extractFoodQuery.
   remainder = remainder.replace(/[?!]+$/, '').trim();
-  remainder = remainder.replace(/^(?:un[ao]?|el|la)\s+/i, '');
+  remainder = remainder.replace(ARTICLE_PATTERN, '');
+
+  // Step 2.1 — F-MORPH: Container/vessel strip (plato de, cuenco de, vasito de, poco de, ...)
+  for (const pattern of CONTAINER_PATTERNS) {
+    const stripped = remainder.replace(pattern, '');
+    if (stripped !== remainder && stripped.trim().length > 0) {
+      remainder = stripped.trim();
+      break;
+    }
+  }
 
   // Step 2.5 — F078: Strip serving-format prefixes (tapa de, pincho de, pintxo de, ración de)
   for (const pattern of SERVING_FORMAT_PATTERNS) {
@@ -322,6 +332,20 @@ export function parseDishExpression(text: string): {
     if (stripped !== remainder && stripped.trim().length > 0) {
       remainder = stripped.trim();
       break;
+    }
+  }
+
+  // Step 2.75 — F-MORPH: Normalize diminutive tokens (tapita→tapa, croquetitas→croquetas, ...).
+  const normalized = normalizeDiminutive(remainder);
+  if (normalized !== remainder) {
+    remainder = normalized;
+    // Re-run SERVING_FORMAT now that diminutive tokens are in base form (e.g. tapita→tapa→strip "tapa de").
+    for (const pattern of SERVING_FORMAT_PATTERNS) {
+      const stripped = remainder.replace(pattern, '');
+      if (stripped !== remainder && stripped.trim().length > 0) {
+        remainder = stripped.trim();
+        break;
+      }
     }
   }
 
@@ -508,6 +532,8 @@ export const DIMINUTIVE_MAP: Readonly<Record<string, string>> = {
   gambitas: 'gambas',
   boqueronito: 'boquerón',
   boqueronitos: 'boquerones',
+  // trocito/trocitos are ALSO handled by CONTAINER_PATTERNS for `trocito de X`.
+  // Kept here as a fallback for bare `trocito` (no `de` suffix) which CONTAINER won't match.
   trocito: 'trozo',
   trocitos: 'trozos',
 };

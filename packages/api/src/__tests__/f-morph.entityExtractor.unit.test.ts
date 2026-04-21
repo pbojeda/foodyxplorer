@@ -349,7 +349,7 @@ describe('F-MORPH — regression checks (AC18)', () => {
     expect(extractFoodQuery('cuánto engorda una ración de croquetas').query).toBe('croquetas');
   });
 
-  it('SERVING_FORMAT_PATTERNS still contains the expected 5 patterns', () => {
-    expect(SERVING_FORMAT_PATTERNS.length).toBeGreaterThanOrEqual(5);
+  it('SERVING_FORMAT_PATTERNS now contains 6 patterns (added caña de for F-MORPH AC7)', () => {
+    expect(SERVING_FORMAT_PATTERNS).toHaveLength(6);
   });
 });
