@@ -6588,6 +6588,385 @@
         "salt": 4.32,
         "sodium": 1.69
       }
+    },
+    {
+      "externalId": "CE-253",
+      "dishId": "00000000-0000-e073-0007-0000000000fd",
+      "nutrientId": "00000000-0000-e073-0008-0000000000fd",
+      "name": "Papas arrugadas",
+      "nameEs": "Papas arrugadas",
+      "aliases": [
+        "papas arrugas",
+        "papas arrugadas sin mojo",
+        "papas canarias"
+      ],
+      "category": "guarniciones",
+      "portionGrams": 220,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 180,
+        "proteins": 4,
+        "carbohydrates": 38,
+        "sugars": 1,
+        "fats": 0.5,
+        "saturatedFats": 0.1,
+        "fiber": 3.5,
+        "salt": 2.5,
+        "sodium": 0.8
+      }
+    },
+    {
+      "externalId": "CE-254",
+      "dishId": "00000000-0000-e073-0007-0000000000fe",
+      "nutrientId": "00000000-0000-e073-0008-0000000000fe",
+      "name": "Papas arrugadas con mojo picón",
+      "nameEs": "Papas arrugadas con mojo picón",
+      "aliases": [
+        "papas con mojo",
+        "papas arrugadas con mojo",
+        "papas con mojo picón"
+      ],
+      "category": "tapas",
+      "portionGrams": 260,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 250,
+        "proteins": 5,
+        "carbohydrates": 39,
+        "sugars": 1.5,
+        "fats": 10,
+        "saturatedFats": 1.5,
+        "fiber": 4,
+        "salt": 2.5,
+        "sodium": 1
+      }
+    },
+    {
+      "externalId": "CE-255",
+      "dishId": "00000000-0000-e073-0007-0000000000ff",
+      "nutrientId": "00000000-0000-e073-0008-0000000000ff",
+      "name": "Papas arrugadas con mojo verde",
+      "nameEs": "Papas arrugadas con mojo verde",
+      "aliases": [
+        "papas con mojo verde"
+      ],
+      "category": "tapas",
+      "portionGrams": 260,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 240,
+        "proteins": 5,
+        "carbohydrates": 38,
+        "sugars": 1,
+        "fats": 10,
+        "saturatedFats": 1.5,
+        "fiber": 4,
+        "salt": 2.3,
+        "sodium": 0.9
+      }
+    },
+    {
+      "externalId": "CE-256",
+      "dishId": "00000000-0000-e073-0007-000000000100",
+      "nutrientId": "00000000-0000-e073-0008-000000000100",
+      "name": "Ropa vieja canaria",
+      "nameEs": "Ropa vieja canaria",
+      "aliases": [
+        "ropa vieja de garbanzos",
+        "ropa vieja (canaria)"
+      ],
+      "category": "segundos",
+      "portionGrams": 320,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 380,
+        "proteins": 22,
+        "carbohydrates": 35,
+        "sugars": 4,
+        "fats": 15,
+        "saturatedFats": 5,
+        "fiber": 10,
+        "salt": 1.8,
+        "sodium": 0.72
+      }
+    },
+    {
+      "externalId": "CE-257",
+      "dishId": "00000000-0000-e073-0007-000000000101",
+      "nutrientId": "00000000-0000-e073-0008-000000000101",
+      "name": "Gofio escaldado",
+      "nameEs": "Gofio escaldado",
+      "aliases": [
+        "gofio amasado",
+        "escaldón"
+      ],
+      "category": "primeros",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 300,
+        "proteins": 8,
+        "carbohydrates": 55,
+        "sugars": 2,
+        "fats": 4,
+        "saturatedFats": 0.8,
+        "fiber": 6,
+        "salt": 1,
+        "sodium": 0.4
+      }
+    },
+    {
+      "externalId": "CE-258",
+      "dishId": "00000000-0000-e073-0007-000000000102",
+      "nutrientId": "00000000-0000-e073-0008-000000000102",
+      "name": "Sancocho canario",
+      "nameEs": "Sancocho canario",
+      "aliases": [
+        "sancocho con cherne"
+      ],
+      "category": "segundos",
+      "portionGrams": 380,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 450,
+        "proteins": 35,
+        "carbohydrates": 40,
+        "sugars": 2,
+        "fats": 18,
+        "saturatedFats": 4,
+        "fiber": 4,
+        "salt": 3.5,
+        "sodium": 1.4
+      }
+    },
+    {
+      "externalId": "CE-259",
+      "dishId": "00000000-0000-e073-0007-000000000103",
+      "nutrientId": "00000000-0000-e073-0008-000000000103",
+      "name": "Bienmesabe canario",
+      "nameEs": "Bienmesabe canario",
+      "aliases": [
+        "bienmesabe de almendras"
+      ],
+      "category": "postres",
+      "portionGrams": 120,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 440,
+        "proteins": 10,
+        "carbohydrates": 50,
+        "sugars": 45,
+        "fats": 25,
+        "saturatedFats": 3,
+        "fiber": 4,
+        "salt": 0.2,
+        "sodium": 0.08
+      }
+    },
+    {
+      "externalId": "CE-260",
+      "dishId": "00000000-0000-e073-0007-000000000104",
+      "nutrientId": "00000000-0000-e073-0008-000000000104",
+      "name": "Potaje canario de berros",
+      "nameEs": "Potaje canario de berros",
+      "aliases": [
+        "potaje de berros",
+        "potaje canario"
+      ],
+      "category": "primeros",
+      "portionGrams": 350,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 280,
+        "proteins": 15,
+        "carbohydrates": 30,
+        "sugars": 5,
+        "fats": 8,
+        "saturatedFats": 3,
+        "fiber": 8,
+        "salt": 1.5,
+        "sodium": 0.6
+      }
+    },
+    {
+      "externalId": "CE-261",
+      "dishId": "00000000-0000-e073-0007-000000000105",
+      "nutrientId": "00000000-0000-e073-0008-000000000105",
+      "name": "Conejo en salmorejo canario",
+      "nameEs": "Conejo en salmorejo canario",
+      "aliases": [
+        "conejo al salmorejo",
+        "conejo en salmorejo"
+      ],
+      "category": "segundos",
+      "portionGrams": 320,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 460,
+        "proteins": 45,
+        "carbohydrates": 3,
+        "sugars": 1,
+        "fats": 28,
+        "saturatedFats": 6,
+        "fiber": 1,
+        "salt": 2,
+        "sodium": 0.8
+      }
+    },
+    {
+      "externalId": "CE-262",
+      "dishId": "00000000-0000-e073-0007-000000000106",
+      "nutrientId": "00000000-0000-e073-0008-000000000106",
+      "name": "Queso asado con mojo",
+      "nameEs": "Queso asado con mojo",
+      "aliases": [
+        "queso a la plancha con mojo",
+        "queso asado canario"
+      ],
+      "category": "tapas",
+      "portionGrams": 130,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 420,
+        "proteins": 28,
+        "carbohydrates": 2,
+        "sugars": 1,
+        "fats": 35,
+        "saturatedFats": 20,
+        "fiber": 0.5,
+        "salt": 2.5,
+        "sodium": 1
+      }
+    },
+    {
+      "externalId": "CE-263",
+      "dishId": "00000000-0000-e073-0007-000000000107",
+      "nutrientId": "00000000-0000-e073-0008-000000000107",
+      "name": "Queso frito con mermelada",
+      "nameEs": "Queso frito con mermelada",
+      "aliases": [
+        "queso frito",
+        "queso rebozado con mermelada"
+      ],
+      "category": "tapas",
+      "portionGrams": 140,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 480,
+        "proteins": 22,
+        "carbohydrates": 28,
+        "sugars": 18,
+        "fats": 30,
+        "saturatedFats": 14,
+        "fiber": 1,
+        "salt": 1.5,
+        "sodium": 0.6
+      }
+    },
+    {
+      "externalId": "CE-264",
+      "dishId": "00000000-0000-e073-0007-000000000108",
+      "nutrientId": "00000000-0000-e073-0008-000000000108",
+      "name": "Truchas canarias",
+      "nameEs": "Truchas canarias",
+      "aliases": [
+        "truchas de batata",
+        "trucha canaria",
+        "trucha de boniato",
+        "trucha de batata"
+      ],
+      "category": "postres",
+      "portionGrams": 100,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 350,
+        "proteins": 5,
+        "carbohydrates": 50,
+        "sugars": 28,
+        "fats": 14,
+        "saturatedFats": 3,
+        "fiber": 2,
+        "salt": 0.3,
+        "sodium": 0.12
+      }
+    },
+    {
+      "externalId": "CE-265",
+      "dishId": "00000000-0000-e073-0007-000000000109",
+      "nutrientId": "00000000-0000-e073-0008-000000000109",
+      "name": "Mojo picón",
+      "nameEs": "Mojo picón",
+      "aliases": [
+        "mojo rojo",
+        "mojo picón canario"
+      ],
+      "category": "tapas",
+      "portionGrams": 35,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 100,
+        "proteins": 0.5,
+        "carbohydrates": 1.5,
+        "sugars": 0.5,
+        "fats": 10,
+        "saturatedFats": 1.5,
+        "fiber": 0.3,
+        "salt": 1,
+        "sodium": 0.4
+      }
+    },
+    {
+      "externalId": "CE-266",
+      "dishId": "00000000-0000-e073-0007-00000000010a",
+      "nutrientId": "00000000-0000-e073-0008-00000000010a",
+      "name": "Mojo verde",
+      "nameEs": "Mojo verde",
+      "aliases": [
+        "mojo de cilantro",
+        "mojo verde canario"
+      ],
+      "category": "tapas",
+      "portionGrams": 35,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 90,
+        "proteins": 0.4,
+        "carbohydrates": 0.5,
+        "sugars": 0.3,
+        "fats": 10,
+        "saturatedFats": 1.5,
+        "fiber": 0.2,
+        "salt": 1,
+        "sodium": 0.4
+      }
     }
   ]
 }

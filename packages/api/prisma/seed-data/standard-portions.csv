@@ -167,3 +167,29 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-0000000000e5,tapa,100,,,medium,side portion; casual bar context,pbojeda
 00000000-0000-e073-0007-0000000000e5,media_racion,150,,,high,half-racion side; UCM/SENC standard — matches portionGrams default,pbojeda
 00000000-0000-e073-0007-0000000000e5,racion,250,,,high,full side ración; SENC 200-250g cooked range,pbojeda
+00000000-0000-e073-0007-0000000000fd,tapa,120,,,medium,bar side portion; papa sola sin mojo,pbojeda
+00000000-0000-e073-0007-0000000000fd,media_racion,170,,,medium,half-racion side,pbojeda
+00000000-0000-e073-0007-0000000000fd,racion,220,,,medium,full side; matches portionGrams default,pbojeda
+00000000-0000-e073-0007-0000000000fe,tapa,140,,,medium,papa + mojo picón proporcional,pbojeda
+00000000-0000-e073-0007-0000000000fe,media_racion,200,,,medium,,pbojeda
+00000000-0000-e073-0007-0000000000fe,racion,260,,,medium,220g papa + 40g mojo picón,pbojeda
+00000000-0000-e073-0007-0000000000ff,tapa,140,,,medium,papa + mojo verde proporcional,pbojeda
+00000000-0000-e073-0007-0000000000ff,media_racion,200,,,medium,,pbojeda
+00000000-0000-e073-0007-0000000000ff,racion,260,,,medium,220g papa + 40g mojo verde,pbojeda
+00000000-0000-e073-0007-000000000100,media_racion,200,,,medium,half-racion stew,pbojeda
+00000000-0000-e073-0007-000000000100,racion,320,,,medium,full stew; chickpea + shredded meat,pbojeda
+00000000-0000-e073-0007-000000000101,tapa,100,,,medium,small cazuelita; bar portion,pbojeda
+00000000-0000-e073-0007-000000000101,racion,200,,,medium,full portion,pbojeda
+00000000-0000-e073-0007-000000000102,racion,380,,,medium,typical full plate; cherne/corvina salted,pbojeda
+00000000-0000-e073-0007-000000000103,racion,120,,,medium,copa de postre; almond+egg+sugar,pbojeda
+00000000-0000-e073-0007-000000000104,racion,350,,,medium,typical soup plate,pbojeda
+00000000-0000-e073-0007-000000000105,racion,320,,,medium,guarnición aparte; bone-in weight reduced,pbojeda
+00000000-0000-e073-0007-000000000106,tapa,60,,,medium,bar tapa; aged cheese slice,pbojeda
+00000000-0000-e073-0007-000000000106,media_racion,100,,,medium,,pbojeda
+00000000-0000-e073-0007-000000000106,racion,130,,,medium,full portion; palmero/majorero,pbojeda
+00000000-0000-e073-0007-000000000107,tapa,70,,,medium,tapa con mermelada de higo/tomate-mora,pbojeda
+00000000-0000-e073-0007-000000000107,media_racion,100,,,medium,,pbojeda
+00000000-0000-e073-0007-000000000107,racion,140,,,medium,typical canary bar portion,pbojeda
+00000000-0000-e073-0007-000000000108,racion,100,1,trucha,medium,1 trucha canaria (sweet potato/pumpkin filling),pbojeda
+00000000-0000-e073-0007-000000000109,racion,35,,,medium,cazuelita de mojo solo; ~30-40g standard,pbojeda
+00000000-0000-e073-0007-00000000010a,racion,35,,,medium,cazuelita de mojo verde solo,pbojeda
