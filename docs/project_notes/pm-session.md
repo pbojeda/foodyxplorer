@@ -17,16 +17,14 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| BUG-QA-SCRIPT-001 | Simple | pending | — | H2+H3: script escaping + smoke expectation |
 | BUG-API-AUDIO-4XX-001 | Standard | pending | — | H1: /conversation/audio 4xx error shapes; /review-spec + /review-plan required |
 | F-NLP-CHAIN-ORDERING | Standard | pending | — | H5-A+H5-B bundle: NLP+COUNT ordering + menu detection from stripped text; /review-spec + /review-plan required |
 
 ## Completed Features
 
-_(Move features here as they complete)_
-
-| Feature | Complexity | Duration | Notes |
-|---------|------------|----------|-------|
+| Feature | Complexity | PR | Commit | Duration (approx) | Notes |
+|---------|------------|----|--------|--------------------|-------|
+| BUG-QA-SCRIPT-001 | Simple | #195 | `07ecfd9` | ~90 min | H2 (JSON escape via `jq`) + H3 (smoke `200\|401` per ADR-001). 3 commits squashed: initial fix → jq review-fix → audit-merge fix. code-review-specialist APPROVE WITH MINOR CHANGES (High + Medium + Low + 2 Nits all addressed inline). `/audit-merge` 11/11 PASS. Post-merge sanity: 3647/3647 tests, lint 0. Merge pre-authorized by user. |
 
 ## Blocked Features
 
@@ -37,9 +35,9 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** BUG-QA-SCRIPT-001
-**Branch:** (to be created: `bugfix/BUG-QA-SCRIPT-001`)
-**Next features:** BUG-API-AUDIO-4XX-001 → F-NLP-CHAIN-ORDERING
+**Current feature:** BUG-API-AUDIO-4XX-001 (next to start)
+**Branch:** (to be created: `bugfix/BUG-API-AUDIO-4XX-001`)
+**Next features:** F-NLP-CHAIN-ORDERING
 **Blocked:** (none)
 
 **Baseline @ session start:** api lint 0 errors | api build clean | api tests 3647/3647 ✓
