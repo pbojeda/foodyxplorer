@@ -1574,7 +1574,8 @@
       "name": "Pan con tomate",
       "nameEs": "Pan con tomate",
       "aliases": [
-        "pa amb tomàquet"
+        "pa amb tomàquet",
+        "pa amb tomaquet"
       ],
       "category": "tapas",
       "portionGrams": 60,
@@ -6966,6 +6967,115 @@
         "fiber": 0.2,
         "salt": 1,
         "sodium": 0.4
+      }
+    },
+    {
+      "externalId": "CE-267",
+      "dishId": "00000000-0000-e073-0007-00000000010b",
+      "nutrientId": "00000000-0000-e073-0008-00000000010b",
+      "name": "Empanada gallega de atún",
+      "nameEs": "Empanada gallega de atún",
+      "aliases": [
+        "empanada gallega",
+        "empanada de atún gallega"
+      ],
+      "category": "bocadillos",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 440,
+        "proteins": 18,
+        "carbohydrates": 40,
+        "sugars": 3,
+        "fats": 22,
+        "saturatedFats": 3.5,
+        "fiber": 3,
+        "salt": 1.8,
+        "sodium": 0.72
+      }
+    },
+    {
+      "externalId": "CE-268",
+      "dishId": "00000000-0000-e073-0007-00000000010c",
+      "nutrientId": "00000000-0000-e073-0008-00000000010c",
+      "name": "Marmitako",
+      "nameEs": "Marmitako",
+      "aliases": [
+        "marmitako de bonito",
+        "marmitako de atún"
+      ],
+      "category": "primeros",
+      "portionGrams": 350,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 380,
+        "proteins": 22,
+        "carbohydrates": 30,
+        "sugars": 4,
+        "fats": 15,
+        "saturatedFats": 3,
+        "fiber": 5,
+        "salt": 2.2,
+        "sodium": 0.88
+      }
+    },
+    {
+      "externalId": "CE-269",
+      "dishId": "00000000-0000-e073-0007-00000000010d",
+      "nutrientId": "00000000-0000-e073-0008-00000000010d",
+      "name": "Txangurro a la donostiarra",
+      "nameEs": "Txangurro a la donostiarra",
+      "aliases": [
+        "txangurro",
+        "centollo relleno",
+        "changurro"
+      ],
+      "category": "segundos",
+      "portionGrams": 220,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 360,
+        "proteins": 25,
+        "carbohydrates": 12,
+        "sugars": 4,
+        "fats": 22,
+        "saturatedFats": 5,
+        "fiber": 1.5,
+        "salt": 1.8,
+        "sodium": 0.72
+      }
+    },
+    {
+      "externalId": "CE-279",
+      "dishId": "00000000-0000-e073-0007-000000000117",
+      "nutrientId": "00000000-0000-e073-0008-000000000117",
+      "name": "Fabes con almejas",
+      "nameEs": "Fabes con almejas",
+      "aliases": [
+        "fabes asturianas con almejas",
+        "fabas con almejas"
+      ],
+      "category": "primeros",
+      "portionGrams": 380,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 440,
+        "proteins": 30,
+        "carbohydrates": 40,
+        "sugars": 4,
+        "fats": 12,
+        "saturatedFats": 2,
+        "fiber": 12,
+        "salt": 1.8,
+        "sodium": 0.72
       }
     }
   ]

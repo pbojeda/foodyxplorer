@@ -193,3 +193,10 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-000000000108,racion,100,1,trucha,medium,1 trucha canaria (sweet potato/pumpkin filling),pbojeda
 00000000-0000-e073-0007-000000000109,racion,35,,,medium,cazuelita de mojo solo; ~30-40g standard,pbojeda
 00000000-0000-e073-0007-00000000010a,racion,35,,,medium,cazuelita de mojo verde solo,pbojeda
+00000000-0000-e073-0007-00000000010b,tapa,50,1,trozo,medium,1 trozo bar; piezas más pequeñas,pbojeda
+00000000-0000-e073-0007-00000000010b,media_racion,100,,,medium,medio ración,pbojeda
+00000000-0000-e073-0007-00000000010b,racion,200,,,medium,ración estándar; ~200g porción,pbojeda
+00000000-0000-e073-0007-00000000010c,racion,350,,,medium,typical Basque stew plate,pbojeda
+00000000-0000-e073-0007-00000000010d,media_racion,130,,,medium,half-racion txangurro stuffed,pbojeda
+00000000-0000-e073-0007-00000000010d,racion,220,,,medium,full plate; rich filling served in caparazón,pbojeda
+00000000-0000-e073-0007-000000000117,racion,380,,,medium,typical Asturian plate; fabes + almejas,pbojeda
