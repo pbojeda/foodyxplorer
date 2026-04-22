@@ -8,9 +8,9 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-22 (pm-sprint2 — PR #195 H2+H3 DONE; BUG-API-AUDIO-4XX-001 in Step 3 Implement; F-H4 PR #196 merged in parallel)
+**Last Updated:** 2026-04-22 (pm-sprint2 — BUG-API-AUDIO-4XX-001 PR #197 ready for user audit)
 
-**Active Feature:** BUG-API-AUDIO-4XX-001 (Standard) — Step 3/6 Implement complete (backend-developer TDD 3657/3657 tests, lint 0, build clean); moving to Step 4 Finalize. Branch: `bugfix/BUG-API-AUDIO-4XX-001`. Step 0 Spec: Gemini APPROVED R1 + Codex REVISE R1 → APPROVED R2 (3 findings resolved). Step 2 Plan: Gemini APPROVED + Codex REVISE (2 IMPORTANT + 1 SUGGESTION, all addressed). Second ticket of PM session `pm-sprint2` (merge-authorization policy in `pm-session.md`).
+**Active Feature:** BUG-API-AUDIO-4XX-001 (Standard) — Step 5/6 Review complete; **pending user audit before merge** (Standard tier policy). Branch: `bugfix/BUG-API-AUDIO-4XX-001`. PR #197 open against `develop`. Trail: Step 0 Spec (Gemini APPROVED + Codex REVISE→APPROVED R2), Step 2 Plan (Gemini APPROVED + Codex REVISE addressed inline), Step 3 backend-developer TDD, Step 4 production-code-validator APPROVE, Step 5 code-review-specialist APPROVE (1 Medium + 4 Low + 4 Nits; M1/L3/L4 fixed inline), Step 5 qa-engineer PASS WITH FOLLOW-UPS (16/16 AC verified, 2 Important gaps pinned with 8 new edge-case tests). Gates: **3668/3668** API tests, lint 0, build clean. Second ticket of PM session `pm-sprint2`.
 
 **Last Completed — 2026-04-22 BUG-QA-SCRIPT-001** (PR #195 `07ecfd9` — this session): H2 (JSON escape via `jq`) + H3 (smoke `POST /conv/msg` accepts `200|401` per ADR-001). 3 commits squashed. code-review-specialist APPROVE WITH MINOR CHANGES (all findings addressed inline). `/audit-merge` 11/11 PASS. Post-merge sanity: 3647/3647 tests, lint 0. Merge pre-authorized for Simple tier.
 
