@@ -200,3 +200,21 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-00000000010d,media_racion,130,,,medium,half-racion txangurro stuffed,pbojeda
 00000000-0000-e073-0007-00000000010d,racion,220,,,medium,full plate; rich filling served in caparazón,pbojeda
 00000000-0000-e073-0007-000000000117,racion,380,,,medium,typical Asturian plate; fabes + almejas,pbojeda
+00000000-0000-e073-0007-00000000010e,racion,350,,,medium,typical plate; botifarra + mongetes Catalan classic,pbojeda
+00000000-0000-e073-0007-00000000010f,media_racion,150,3,calcots,medium,3 calçots + romesco; half portion,pbojeda
+00000000-0000-e073-0007-00000000010f,racion,300,6,calcots,medium,6 calçots + romesco; typical calçotada serving,pbojeda
+00000000-0000-e073-0007-000000000110,tapa,30,,,medium,small bar portion,pbojeda
+00000000-0000-e073-0007-000000000110,media_racion,60,,,medium,,pbojeda
+00000000-0000-e073-0007-000000000110,racion,90,,,medium,full tapa,pbojeda
+00000000-0000-e073-0007-000000000111,tapa,130,,,medium,small bar portion; scramble,pbojeda
+00000000-0000-e073-0007-000000000111,racion,250,,,medium,full plate,pbojeda
+00000000-0000-e073-0007-000000000112,tapa,100,,,medium,cazuelita; bar tapa,pbojeda
+00000000-0000-e073-0007-000000000112,media_racion,140,,,medium,,pbojeda
+00000000-0000-e073-0007-000000000112,racion,180,,,medium,full Murcian plate,pbojeda
+00000000-0000-e073-0007-000000000113,media_racion,180,,,medium,half-racion; bone-in weight,pbojeda
+00000000-0000-e073-0007-000000000113,racion,300,,,medium,full roast serving; bone-in weight reduced,pbojeda
+00000000-0000-e073-0007-000000000114,media_racion,180,,,medium,half-racion vegetable bake,pbojeda
+00000000-0000-e073-0007-000000000114,racion,300,,,medium,full plate; potato+aubergine+pepper layered,pbojeda
+00000000-0000-e073-0007-000000000115,racion,80,1,ensaimada,medium,1 ensaimada lisa individual size,pbojeda
+00000000-0000-e073-0007-000000000116,tapa,25,,,medium,sparse spread tapa; very rich creamy cheese,pbojeda
+00000000-0000-e073-0007-000000000116,racion,50,,,medium,racion con tostadas,pbojeda
