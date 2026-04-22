@@ -117,15 +117,17 @@ export function mapError(error: Error): MappedError {
 
   // FST_ERR_CTP_INVALID_MEDIA_TYPE — fastify core: no registered Content-Type parser
   // for the supplied type. Maps to 415 UNSUPPORTED_MEDIA_TYPE (BUG-API-AUDIO-4XX-001).
-  // Uses error.message (fastify's default) — this branch fires on any route, not just
-  // /conversation/audio, so a hardcoded multipart message would be misleading elsewhere.
+  // Fastify's default message is the bare string "Unsupported Media Type" (no detail).
+  // Since this branch fires on ANY route (not just /conversation/audio), route-specific
+  // messages would leak audio wording to other endpoints. A generic-but-actionable
+  // message is the right tradeoff. The `code` field stays stable for programmatic clients.
   if (asAny['code'] === 'FST_ERR_CTP_INVALID_MEDIA_TYPE') {
     return {
       statusCode: 415,
       body: {
         success: false,
         error: {
-          message: error.message,
+          message: 'Unsupported Content-Type for this endpoint',
           code: 'UNSUPPORTED_MEDIA_TYPE',
         },
       },
@@ -133,15 +135,16 @@ export function mapError(error: Error): MappedError {
   }
 
   // FST_INVALID_MULTIPART_CONTENT_TYPE — @fastify/multipart: request.parts() called
-  // when Content-Type is absent or not multipart. Remapped 406→415 intentionally.
-  // Uses error.message — same reasoning as FST_ERR_CTP_INVALID_MEDIA_TYPE above.
+  // when Content-Type is absent or not multipart. Remapped from 406 (library default,
+  // which is semantically about response negotiation) to 415 (request body encoding —
+  // what the client needs to fix). Same generic-message reasoning as above.
   if (asAny['code'] === 'FST_INVALID_MULTIPART_CONTENT_TYPE') {
     return {
       statusCode: 415,
       body: {
         success: false,
         error: {
-          message: error.message,
+          message: 'Unsupported Content-Type for this endpoint',
           code: 'UNSUPPORTED_MEDIA_TYPE',
         },
       },

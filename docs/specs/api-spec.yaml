@@ -5695,15 +5695,32 @@ paths:
             (e.g. application/json, text/plain, application/octet-stream).
             Anonymous callers are accepted on this endpoint per F091 design; the 415
             is purely about the body encoding, not about authentication.
+
+            Two example bodies are listed. `handlerGuard` is the common path — the
+            audio route's own Content-Type guard throws an audio-specific message
+            before calling the multipart parser. `frameworkGuard` is the defensive
+            path used when fastify (or `@fastify/multipart`) rejects the request
+            before the handler runs; a generic message is used because the same
+            error-handler branches fire on any route.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                error:
-                  message: "Content-Type must be multipart/form-data"
-                  code: "UNSUPPORTED_MEDIA_TYPE"
+              examples:
+                handlerGuard:
+                  summary: Audio handler rejects non-multipart Content-Type
+                  value:
+                    success: false
+                    error:
+                      message: "Content-Type must be multipart/form-data"
+                      code: "UNSUPPORTED_MEDIA_TYPE"
+                frameworkGuard:
+                  summary: Fastify framework rejects before the handler runs
+                  value:
+                    success: false
+                    error:
+                      message: "Unsupported Content-Type for this endpoint"
+                      code: "UNSUPPORTED_MEDIA_TYPE"
         '413':
           description: Audio file exceeds 10 MB limit (handled by @fastify/multipart).
           content:
