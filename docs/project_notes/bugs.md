@@ -28,6 +28,27 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 ---
 
+### 2026-04-22 — BUG-DATA-ALIAS-COLLISION-001: 4 duplicate aliases in `spanish-dishes.json` (pre-existing, surfaced during F-H4)
+
+- **Issue**: During F-H4 self-QA review (running an alias-uniqueness check across all 279 dishes in `packages/api/prisma/seed-data/spanish-dishes.json`), 4 alias collisions were detected where the same alias string appears under two different `externalId`s. Since the L1 exact-match lookup in `packages/api/src/estimation/level1Lookup.ts` uses the first match found, one of the two dishes becomes unreachable via that alias and the pipeline routes ambiguously. Not caused by F-H4 additions — all 4 collisions are between pre-existing entries.
+  - `"manzanilla"` — CE-019 (olive/appetizer "manzanilla" as small green olive) vs CE-213 (infusion "manzanilla" as camomile tea)
+  - `"menestra de verduras"` — CE-076 vs CE-236
+  - `"pisto manchego"` — CE-075 vs CE-239
+  - `"arroz con verduras"` — CE-146 vs CE-247
+- **Root Cause**: The validator `packages/api/src/scripts/validateSpanishDishes.ts` enforces uniqueness of `externalId`, `dishId`, and `nutrientId` but does NOT check alias uniqueness across dishes. Seed entries added in F073, F114, and prior tickets accumulated shared aliases without a guard. The ambiguous collisions in the `manzanilla` case are semantic (olive vs tea are genuinely different foods with the same lexical name); the others (menestra, pisto manchego, arroz con verduras) appear to be unintentional near-duplicates in the catalog (possible candidates for dish merging rather than alias split).
+- **Solution (proposed, for a future H4-B or data-quality ticket)**:
+  1. Decide per collision:
+     - `manzanilla` — add qualifier to one (e.g., CE-213 → aliases `"manzanilla (infusión)"`, `"infusión de manzanilla"`; keep CE-019 with the bare form since olives are more likely intent in a food context)
+     - `menestra de verduras`, `pisto manchego`, `arroz con verduras` — investigate whether CE-236/239/247 are genuinely distinct from CE-076/075/146 or are near-duplicates that should be merged. If distinct, add qualifiers; if duplicates, retire one and add its unique aliases to the surviving entry.
+  2. Extend `validateSpanishDishes.ts` with an alias-uniqueness check (blocking error on cross-dish duplicates, OR warning with allow-list for known semantic homographs like `manzanilla`).
+  3. Add a unit test that loads the real JSON and asserts zero alias collisions.
+- **Prevention**: The validator enhancement in step 2 above is the preventive measure. Any future seed addition that reuses an existing alias will be caught at seed time instead of surfacing as ambiguous L1 lookups in production.
+- **Status**: Logged (not fixed). Pre-existing issue (NOT introduced by F-H4). Flagged during F-H4 self-QA review 2026-04-22. User explicitly requested tracking so it does not get lost.
+- **Severity**: P3 (data quality, behavior depends on dish order in the file — production impact is silent and low-frequency)
+- **Detected by**: F-H4 self-QA script (`packages/api/prisma/seed-data/spanish-dishes.json` alias uniqueness sweep)
+
+---
+
 ### 2026-04-20 — BUG-PROD-010: F114 seed nutrients stored per-100g instead of per-portionGrams
 
 - **Severity**: P0 (wrong calorie data displayed to users — Chuletón showed 280 kcal for 700g serving, real value 1960) | **Area**: `packages/api/prisma/seed-data/spanish-dishes.json`

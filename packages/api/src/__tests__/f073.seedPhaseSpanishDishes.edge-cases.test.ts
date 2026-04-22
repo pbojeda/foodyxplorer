@@ -318,20 +318,22 @@ describe('F073 seed edge cases — Dish upsert count and fields', () => {
     prisma = buildMockPrisma();
   });
 
-  it('upserts exactly 252 dishes', async () => {
+  it('upserts exactly 279 dishes', async () => {
     // F114: count updated 250 → 252 (Chuletón de buey + Chorizo ibérico embutido added)
+    // F-H4: count updated 252 → 279 (+27 regional dishes — Canarias + other regions)
     await seedPhaseSpanishDishes(prisma as never);
 
     const dishUpserts = prisma._calls.filter((c) => c.model === 'dish');
-    expect(dishUpserts).toHaveLength(252);
+    expect(dishUpserts).toHaveLength(279);
   });
 
-  it('upserts exactly 252 DishNutrients', async () => {
+  it('upserts exactly 279 DishNutrients', async () => {
     // F114: count updated 250 → 252 (Chuletón de buey + Chorizo ibérico embutido added)
+    // F-H4: count updated 252 → 279 (+27 regional dishes — Canarias + other regions)
     await seedPhaseSpanishDishes(prisma as never);
 
     const nutrientUpserts = prisma._calls.filter((c) => c.model === 'dishNutrient');
-    expect(nutrientUpserts).toHaveLength(252);
+    expect(nutrientUpserts).toHaveLength(279);
   });
 
   it('all Dish create blocks include nameSourceLocale=es', async () => {
