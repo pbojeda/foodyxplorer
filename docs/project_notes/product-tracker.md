@@ -10,7 +10,7 @@
 
 **Last Updated:** 2026-04-22 (PM session pm-sprint2 — BUG-QA-SCRIPT-001 DONE, PR #195 merged)
 
-**Active Feature:** BUG-API-AUDIO-4XX-001 (Standard) — pending Step 0 (Spec). Second ticket of PM session `pm-sprint2`. Requires `/review-spec` + `/review-plan` cross-model review (Gemini + Codex) and explicit user authorization before merge.
+**Active Feature:** BUG-API-AUDIO-4XX-001 (Standard) — Step 2/6 Plan complete; moving to Step 3 Implement (TDD). Branch: `bugfix/BUG-API-AUDIO-4XX-001` from `origin/develop`. Step 0 Spec: Gemini APPROVED R1 + Codex REVISE R1 → APPROVED R2 (3 IMPORTANT findings resolved). Step 2 Plan: Gemini APPROVED + Codex REVISE (2 IMPORTANT + 1 SUGGESTION, all addressed inline: generic `error.message` in FST_* branches of `mapError()`, regex-based non-empty boundary guard, test count corrected to 10). Second ticket of PM session `pm-sprint2`. Explicit user authorization required before merge.
 
 **Last Completed — 2026-04-22 BUG-QA-SCRIPT-001**: PR #195 squash-merged to `develop` @ `07ecfd9`. H2 (JSON escape via `jq` — handles `"`, `\`, control chars, Unicode) + H3 (smoke `POST /conv/msg missing api key` accepts `200|401` per ADR-001 anonymous policy). 3 commits squashed: initial fix → jq review-fix → audit-merge fix. code-review-specialist APPROVE WITH MINOR CHANGES (High + Medium + Low + 2 Nits all addressed inline). `/audit-merge` 11/11 PASS. Post-merge sanity on `develop`: 3647/3647 API tests, lint 0 errors. Ticket fully closed with AC 6/6, DoD 6/6, Workflow 5/5, Merge Checklist Evidence 8/8. Merge pre-authorized by user for Simple tier. Unblocks clean battery signal for remaining sprint tickets.
 
