@@ -129,13 +129,14 @@ const ALL_42_DISH_IDS = [
 ];
 
 // ---------------------------------------------------------------------------
-// F114-U1 — validateSpanishDishes accepts the extended JSON (252 entries)
+// F114-U1 — validateSpanishDishes accepts the extended JSON (279 entries)
 // ---------------------------------------------------------------------------
+// Count updated by F-H4 round-1: 252 → 279 (+27 regional dishes).
 
-describe('F114-U1: validateSpanishDishes accepts extended JSON (252 entries)', () => {
-  it('passes validation with 252 entries, 0 errors', () => {
+describe('F114-U1: validateSpanishDishes accepts extended JSON (279 entries)', () => {
+  it('passes validation with 279 entries, 0 errors', () => {
     const dishes = loadRealJson();
-    expect(dishes).toHaveLength(252);
+    expect(dishes).toHaveLength(279);
 
     const result = validateSpanishDishes(dishes);
     expect(result.valid).toBe(true);
