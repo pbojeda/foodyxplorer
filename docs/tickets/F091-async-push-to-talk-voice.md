@@ -1,7 +1,7 @@
 # F091: Async Push-to-Talk Voice in /hablar
 
 **Feature:** F091 | **Type:** Fullstack-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F091-async-push-to-talk-voice
+**Status:** Done | **Branch:** feature/F091-async-push-to-talk-voice (squash-merged to develop @ `0941059`, branch deleted)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-21 | **Dependencies:** F075 (audio input endpoint, done), F090 (/hablar text mode, done), F094 (voice architecture spike, done), **F-TIER-rate-limits (PR #173, BLOCKING — must merge to develop before F091 implementation begins)**
 
@@ -733,7 +733,7 @@ After F-TIER PR #173 merges to develop: rebase `feature/F091-async-push-to-talk-
 - [x] Step 4: `production-code-validator` executed (VERDICT: READY, 99/100, 0 críticos), full quality gates pass (api 3440/3440, web 443/443, shared 598/598, bot 1221/1221, lint 0, build clean)
 - [x] Step 5: `code-review-specialist` executed — VERDICT REQUEST CHANGES (4 critical + 10 important), all 4 critical + 3 important addressed in commit `9103810`
 - [x] Step 5: `qa-engineer` executed — VERDICT FIX REQUIRED (1 critical AC22 + 3 important AC23/AC25/AC15), all addressed in commit `a76d6ae`
-- [ ] Step 6: Ticket updated with final metrics, branch deleted after merge
+- [x] Step 6: PR #180 squash-merged to develop @ `0941059` (2026-04-22T08:31:17Z), remote branch deleted, ticket final state recorded
 
 ---
 
@@ -758,6 +758,9 @@ After F-TIER PR #173 merges to develop: rebase `feature/F091-async-push-to-talk-
 | 2026-04-21 | PR #180 created | Rebase onto origin/develop (resolved product-tracker.md + 3 api files covered by F116 PR #177). Merge commit ccff1ef to pick up F-NLP PR #179. PR body includes 5-item human review focus list |
 | 2026-04-21 | Step 5 code-review-specialist | Verdict REQUEST CHANGES: 4 critical (C1 voice picker persistence never wired, C2 /health/voice-budget envelope mismatch, C3 hold-to-record bypasses pre-permission gate, C4 `ip_rate_limit` spec typo) + 10 important. Fixes committed in `9103810`: lifted selectedVoiceName + ttsEnabled state into HablarShell with localStorage persistence; useTtsPlayback accepts controlled overrides; api-spec flat envelope documented; hold-to-record now checks `hablar_mic_consented`; ui-components.md uses `'ip_limit'`; VoiceOverlay dialog gains `aria-label`; VoicePickerDrawer auto-select guards against existing selection |
 | 2026-04-21 | Step 5 qa-engineer | Verdict FIX REQUIRED: 1 critical (AC22 per-IP cap silently bypassed — float durationSec passed to Redis INCRBY → "ERR value is not an integer" swallowed → counter never accumulated for webm/mp4 clips) + 3 important (AC23/AC25 voiceError never rendered in ResultsArea; AC15 focus not returned to MicButton; AC16 dialog aria-label — already fixed). AC table: 27 PASS, 4 FAIL, 0 NOT_TESTED. Fixes committed in `a76d6ae`: `Math.max(1, Math.ceil(durationSec))` before incrby + TTL detection on rounded value; ResultsArea accepts voiceError + renders persistent ErrorState variants; MicButton forwardRef + ConversationInput forwards ref + HablarShell calls `.focus()` on overlay close and persistent-error auto-close; `aria-atomic="false"` on CardGrid. Tests: api 3493/3493 (+5 edge cases), web 450/450 (+7), 0 lint, build clean |
+| 2026-04-21 | /audit-merge | All 11 checks PASS after tracker sync fix (commit `85a415c`): Status=Ready for Merge, AC 31/31, DoD 12/12, Workflow 8/9 (Step 6 pending post-merge), Evidence 9/9, Completion Log 14 entries, Tracker synced, key_facts N/A, merge-base UP TO DATE, working tree clean, no JSON seed files in diff |
+| 2026-04-22 | External audit | APPROVE FOR MERGE. Security CLEAN: auth correct (EAA-compliant open access), dual-layer rate limiting (per-actor tiered + per-IP 30min/day), budget hard-cap atomic via Lua, audio NOT stored, logs metadata-only, client billing inflation defended. 31/31 AC, 12/12 DoD, 191 new tests, 4 cross-model rounds, zero functional gaps |
+| 2026-04-22 | Merge executed | Post-merge sync with origin/develop (5 F-MORPH/F-COUNT/F-DRINK/F-DRINK-FU1/QA-Sprint commits, clean merge commit `0e09dba`). CI green: test-api + test-web + ci-success + Vercel previews all SUCCESS. Squash-merged via `gh api -X PUT repos/pbojeda/foodyxplorer/pulls/180/merge -f merge_method=squash` (gh pr merge blocked by worktree conflict with main tree). Merge SHA on develop: `0941059`, mergedAt 2026-04-22T08:31:17Z. Remote branch deleted via `gh api -X DELETE refs/heads/feature/F091-async-push-to-talk-voice` |
 
 ---
 
