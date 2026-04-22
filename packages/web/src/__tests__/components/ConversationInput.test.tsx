@@ -113,9 +113,11 @@ describe('ConversationInput', () => {
   });
 
   describe('placeholder buttons', () => {
-    it('renders MicButton (disabled placeholder)', () => {
+    it('renders MicButton (voice search button, F091)', () => {
+      // MicButton is now interactive — aria-label changed from "Micrófono (próximamente)"
+      // to "Buscar por voz" as part of F091 voice feature activation.
       renderInput();
-      expect(screen.getByRole('button', { name: 'Micrófono (próximamente)' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Buscar por voz' })).toBeInTheDocument();
     });
 
     it('renders PhotoButton (active, aria-label "Subir foto del plato")', () => {

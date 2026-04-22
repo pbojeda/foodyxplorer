@@ -19,7 +19,10 @@ export type MetricEvent =
   | 'photo_success'
   | 'photo_error'
   | 'photo_resize_ok'
-  | 'photo_resize_fallback';
+  | 'photo_resize_fallback'
+  | 'voice_start'
+  | 'voice_success'
+  | 'voice_error';
 
 export interface MetricPayload {
   intent?: string;
@@ -156,6 +159,27 @@ export function trackEvent(event: MetricEvent, payload?: MetricPayload): void {
       break;
 
     case 'photo_error':
+      state.errorCount++;
+      if (payload?.errorCode) {
+        state.errors[payload.errorCode] = (state.errors[payload.errorCode] ?? 0) + 1;
+      }
+      break;
+
+    case 'voice_start':
+      state.queryCount++;
+      break;
+
+    case 'voice_success':
+      state.successCount++;
+      if (payload?.intent) {
+        state.intents[payload.intent] = (state.intents[payload.intent] ?? 0) + 1;
+      }
+      if (payload?.responseTimeMs != null) {
+        state.totalResponseTimeMs += payload.responseTimeMs;
+      }
+      break;
+
+    case 'voice_error':
       state.errorCount++;
       if (payload?.errorCode) {
         state.errors[payload.errorCode] = (state.errors[payload.errorCode] ?? 0) + 1;

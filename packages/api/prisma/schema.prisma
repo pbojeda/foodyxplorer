@@ -85,6 +85,7 @@ enum DishAvailability {
 enum ApiKeyTier {
   free
   pro
+  admin
 
   @@map("api_key_tier")
 }

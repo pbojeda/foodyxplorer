@@ -9,7 +9,7 @@ import { z } from 'zod';
 // ApiKeyTierSchema
 // ---------------------------------------------------------------------------
 
-export const ApiKeyTierSchema = z.enum(['free', 'pro']);
+export const ApiKeyTierSchema = z.enum(['free', 'pro', 'admin']);
 export type ApiKeyTier = z.infer<typeof ApiKeyTierSchema>;
 
 // ---------------------------------------------------------------------------

@@ -6,6 +6,10 @@
 //
 // sendPhotoAnalysis(file, actorId, signal?) — sends a plate photo to the Next.js
 // Route Handler proxy at /api/analyze (POST). Always applies a 65-second timeout.
+//
+// sendVoiceMessage(blob, mimeType, durationSeconds, actorId, signal?) — sends audio
+// blob directly to POST /conversation/audio. No proxy — direct to NEXT_PUBLIC_API_URL.
+// No X-API-Key (voice is open to all tiers). Always applies a 15-second timeout.
 
 import type { ConversationMessageResponse, MenuAnalysisResponse } from '@foodxplorer/shared';
 import { persistActorId } from './actorId';
@@ -17,12 +21,14 @@ import { persistActorId } from './actorId';
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number | undefined;
+  readonly details: Record<string, unknown> | undefined;
 
-  constructor(message: string, code: string, status?: number) {
+  constructor(message: string, code: string, status?: number, details?: Record<string, unknown>) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -136,7 +142,10 @@ export async function sendMessage(
     const errorObj = (errorBody?.['error'] ?? {}) as Record<string, unknown>;
     const code = typeof errorObj['code'] === 'string' ? errorObj['code'] : 'API_ERROR';
     const message = typeof errorObj['message'] === 'string' ? errorObj['message'] : `HTTP ${response.status}`;
-    throw new ApiError(message, code, response.status);
+    const details = typeof errorObj['details'] === 'object' && errorObj['details'] !== null
+      ? errorObj['details'] as Record<string, unknown>
+      : undefined;
+    throw new ApiError(message, code, response.status, details);
   }
 
   // Validate response shape
@@ -240,11 +249,128 @@ export async function sendPhotoAnalysis(
     const errorObj = (errorBody?.['error'] ?? {}) as Record<string, unknown>;
     const code = typeof errorObj['code'] === 'string' ? errorObj['code'] : 'API_ERROR';
     const message = typeof errorObj['message'] === 'string' ? errorObj['message'] : `HTTP ${response.status}`;
-    throw new ApiError(message, code, response.status);
+    const details = typeof errorObj['details'] === 'object' && errorObj['details'] !== null
+      ? errorObj['details'] as Record<string, unknown>
+      : undefined;
+    throw new ApiError(message, code, response.status, details);
   }
 
   // Validate response shape
   if (!isMenuAnalysisResponse(json)) {
+    throw new ApiError(
+      'La respuesta del servidor tiene un formato inesperado.',
+      'MALFORMED_RESPONSE',
+      response.status,
+    );
+  }
+
+  return json;
+}
+
+// ---------------------------------------------------------------------------
+// sendVoiceMessage
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends recorded audio to POST /conversation/audio directly (no Next.js proxy).
+ * Voice is open to all tiers — no X-API-Key required.
+ *
+ * @param blob             The recorded audio Blob (webm or mp4).
+ * @param mimeType         The MIME type string (e.g. "audio/webm;codecs=opus").
+ *                         Used to derive the filename for Whisper MIME detection.
+ * @param durationSeconds  Advisory audio duration in seconds. Server re-verifies.
+ * @param actorId          The actor UUID (from actorId.ts).
+ * @param signal           Optional external AbortSignal.
+ *                         A 15-second timeout is ALWAYS applied in addition.
+ * @returns                Parsed ConversationMessageResponse.
+ * @throws ApiError on non-2xx responses or malformed JSON.
+ * @throws DOMException (AbortError) when the request is aborted.
+ */
+export async function sendVoiceMessage(
+  blob: Blob,
+  mimeType: string,
+  durationSeconds: number,
+  actorId: string,
+  signal?: AbortSignal,
+): Promise<ConversationMessageResponse> {
+  const baseUrl = process.env['NEXT_PUBLIC_API_URL'];
+  if (!baseUrl) {
+    throw new Error(
+      'NEXT_PUBLIC_API_URL is not defined. Set it in your .env.local file.'
+    );
+  }
+
+  // Derive filename from MIME type base (strip codec params).
+  // Example: "audio/webm;codecs=opus" -> "audio.webm"
+  //          "audio/mp4"              -> "audio.mp4"
+  const mimeBase = mimeType.split(';')[0]?.trim() ?? 'audio/webm';
+  const ext = mimeBase.split('/')[1] ?? 'webm';
+  const filename = `audio.${ext}`;
+
+  // Build multipart FormData — browser sets Content-Type boundary automatically.
+  const formData = new FormData();
+  formData.append('audio', new File([blob], filename, { type: mimeBase }));
+  formData.append('duration', String(Math.round(durationSeconds)));
+
+  // Always enforce a 15-second hard timeout, merged with any external signal.
+  const timeoutSignal = AbortSignal.timeout(15000);
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, timeoutSignal])
+    : timeoutSignal;
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/conversation/audio`, {
+      method: 'POST',
+      headers: {
+        'X-Actor-Id': actorId,
+        'X-FXP-Source': 'web',
+        // NO X-API-Key — voice is open to all tiers, keyed on actor/IP
+      },
+      body: formData,
+      signal: combinedSignal,
+    });
+  } catch (err) {
+    // Re-throw AbortError directly
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err;
+    }
+    // TimeoutError from AbortSignal.timeout(15000)
+    if (err instanceof DOMException && err.name === 'TimeoutError') {
+      throw new ApiError(
+        'La consulta ha tardado demasiado. Inténtalo de nuevo.',
+        'TIMEOUT_ERROR',
+      );
+    }
+    // Network failure
+    throw new ApiError(
+      err instanceof Error ? err.message : 'Network request failed',
+      'NETWORK_ERROR',
+    );
+  }
+
+  // Parse JSON
+  let json: unknown;
+  try {
+    json = await response.json();
+  } catch {
+    throw new ApiError('La respuesta del servidor no es JSON valido.', 'PARSE_ERROR', response.status);
+  }
+
+  // Handle error responses (non-2xx)
+  if (!response.ok) {
+    const errorBody = json as Record<string, unknown>;
+    const errorObj = (errorBody?.['error'] ?? {}) as Record<string, unknown>;
+    const code = typeof errorObj['code'] === 'string' ? errorObj['code'] : 'API_ERROR';
+    const message = typeof errorObj['message'] === 'string' ? errorObj['message'] : `HTTP ${response.status}`;
+    const details = typeof errorObj['details'] === 'object' && errorObj['details'] !== null
+      ? errorObj['details'] as Record<string, unknown>
+      : undefined;
+    throw new ApiError(message, code, response.status, details);
+  }
+
+  // Validate response shape
+  if (!isConversationMessageResponse(json)) {
     throw new ApiError(
       'La respuesta del servidor tiene un formato inesperado.',
       'MALFORMED_RESPONSE',

@@ -129,8 +129,11 @@ describe('F078 — Regression: existing prefix patterns unaffected', () => {
 // ---------------------------------------------------------------------------
 
 describe('F078 — SERVING_FORMAT_PATTERNS constant', () => {
-  it('is an array of 5 RegExp patterns', () => {
-    expect(SERVING_FORMAT_PATTERNS).toHaveLength(5);
+  // F078 baseline: 5 patterns. F-MORPH added caña de (6). F-DRINK-FU1 added drink containers
+  // (tercio/botella/botellín/copa/vaso + de) to strip before L1 lookup so "un tercio de cerveza"
+  // resolves to "cerveza". Use a lower-bound assertion to stay robust to future additions.
+  it('is an array of RegExp patterns (>= 6)', () => {
+    expect(SERVING_FORMAT_PATTERNS.length).toBeGreaterThanOrEqual(6);
     for (const pattern of SERVING_FORMAT_PATTERNS) {
       expect(pattern).toBeInstanceOf(RegExp);
     }
@@ -147,6 +150,50 @@ describe('F078 — SERVING_FORMAT_PATTERNS constant', () => {
     expect(patterns.some(p => p.test('ración de jamón'))).toBe(true);
     expect(patterns.some(p => p.test('racion de jamón'))).toBe(true);
     expect(patterns.some(p => p.test('raciones de jamón'))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F-DRINK-FU1 — drink container strip (tercio de, botella de, copa de, vaso de)
+// ---------------------------------------------------------------------------
+
+describe('F-DRINK-FU1 — drink container strip', () => {
+  it('strips "tercio de" → resolves to drink noun', () => {
+    expect(extractFoodQuery('un tercio de cerveza').query).toBe('cerveza');
+  });
+
+  it('strips "botella de" → resolves to drink noun', () => {
+    expect(extractFoodQuery('una botella de vino tinto').query).toBe('vino tinto');
+  });
+
+  it('strips "botellín de" → resolves to drink noun', () => {
+    expect(extractFoodQuery('un botellín de cerveza').query).toBe('cerveza');
+  });
+
+  it('strips "copa de" → resolves to drink noun', () => {
+    expect(extractFoodQuery('una copa de vino tinto').query).toBe('vino tinto');
+  });
+
+  it('strips "vaso de" → resolves to drink noun', () => {
+    expect(extractFoodQuery('un vaso de vino tinto').query).toBe('vino tinto');
+  });
+
+  it('strips "vaso de" on agua query', () => {
+    expect(extractFoodQuery('un vaso de agua').query).toBe('agua');
+  });
+
+  it('handles plural "vasos de" (after F-COUNT numeric strip in upstream pipeline)', () => {
+    // extractFoodQuery alone does not strip "dos" (F-COUNT's extractPortionModifier does).
+    // In the full conversationCore pipeline, extractPortionModifier runs first, stripping
+    // "dos" to leave "vasos de agua", then extractFoodQuery's SERVING strips to "agua".
+    // Here we test just the SERVING layer on the post-strip remainder.
+    expect(extractFoodQuery('vasos de agua').query).toBe('agua');
+  });
+
+  it('does NOT strip bare "copa" / "vaso" without "de" (they stay as portion terms)', () => {
+    // Bare "una copa" — ARTICLE strips "una", then "copa" alone is the food query.
+    // portionSizing's detectPortionTerm will match "copa" from PORTION_RULES.
+    expect(extractFoodQuery('una copa').query).toBe('copa');
   });
 });
 

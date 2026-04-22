@@ -1,20 +1,20 @@
 dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-00000000001a,pintxo,30,1,croqueta,medium,25-35g/ud estándar hostelería,pbojeda
-00000000-0000-e073-0007-00000000001a,tapa,120,4,croqueta,medium,4 uds/tapa,pbojeda
-00000000-0000-e073-0007-00000000001a,media_racion,180,6,croqueta,medium,6 uds media ración,pbojeda
-00000000-0000-e073-0007-00000000001a,racion,360,12,croqueta,medium,12 uds ración completa,pbojeda
+00000000-0000-e073-0007-00000000001a,tapa,120,4,croquetas,medium,4 uds/tapa,pbojeda
+00000000-0000-e073-0007-00000000001a,media_racion,180,6,croquetas,medium,6 uds media ración,pbojeda
+00000000-0000-e073-0007-00000000001a,racion,360,12,croquetas,medium,12 uds ración completa,pbojeda
 00000000-0000-e073-0007-00000000001b,pintxo,40,,,medium,cazuelita; Glovo/DaP,pbojeda
 00000000-0000-e073-0007-00000000001b,tapa,100,,,high,FEN: 100g/persona,pbojeda
 00000000-0000-e073-0007-00000000001b,media_racion,175,,,medium,~50% de racion,pbojeda
 00000000-0000-e073-0007-00000000001b,racion,350,,,high,300-400g estándar barra,pbojeda
-00000000-0000-e073-0007-00000000001e,pintxo,30,3,gamba,high,peladas; 3 gambas sobre pan,pbojeda
-00000000-0000-e073-0007-00000000001e,tapa,70,8,gamba,high,peladas; FatSecret,pbojeda
-00000000-0000-e073-0007-00000000001e,media_racion,120,14,gamba,medium,peladas ~half racion,pbojeda
-00000000-0000-e073-0007-00000000001e,racion,240,28,gamba,high,peeled from 500g shell-on,pbojeda
-00000000-0000-e073-0007-000000000021,pintxo,15,3,aceituna,high,3 olivas/palillo ~5g,pbojeda
-00000000-0000-e073-0007-000000000021,tapa,50,12,aceituna,high,10-12 manzanilla,pbojeda
-00000000-0000-e073-0007-000000000021,media_racion,75,18,aceituna,medium,mitad de racion,pbojeda
-00000000-0000-e073-0007-000000000021,racion,150,35,aceituna,medium,cuenco compartir,pbojeda
+00000000-0000-e073-0007-00000000001e,pintxo,30,3,gambas,high,peladas; 3 gambas sobre pan,pbojeda
+00000000-0000-e073-0007-00000000001e,tapa,70,8,gambas,high,peladas; FatSecret,pbojeda
+00000000-0000-e073-0007-00000000001e,media_racion,120,14,gambas,medium,peladas ~half racion,pbojeda
+00000000-0000-e073-0007-00000000001e,racion,240,28,gambas,high,peeled from 500g shell-on,pbojeda
+00000000-0000-e073-0007-000000000021,pintxo,15,3,aceitunas,high,3 olivas/palillo ~5g,pbojeda
+00000000-0000-e073-0007-000000000021,tapa,50,12,aceitunas,high,10-12 manzanilla,pbojeda
+00000000-0000-e073-0007-000000000021,media_racion,75,18,aceitunas,medium,mitad de racion,pbojeda
+00000000-0000-e073-0007-000000000021,racion,150,35,aceitunas,medium,cuenco compartir,pbojeda
 00000000-0000-e073-0007-000000000022,pintxo,20,,,medium,loncha sobre pan 15-25g (Jamón ibérico),pbojeda
 00000000-0000-e073-0007-000000000022,tapa,60,,,medium,plato tapa 50-70g (Jamón ibérico),pbojeda
 00000000-0000-e073-0007-000000000022,media_racion,80,,,medium,70-90g típico,pbojeda
@@ -23,10 +23,10 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-000000000023,tapa,70,,,medium,tabla formato 60-80g,pbojeda
 00000000-0000-e073-0007-000000000023,media_racion,100,,,medium,media tabla queso,pbojeda
 00000000-0000-e073-0007-000000000023,racion,180,,,medium,tabla 150-200g,pbojeda
-00000000-0000-e073-0007-000000000020,pintxo,40,2,boquerón,medium,2 fritos o vinagre,pbojeda
-00000000-0000-e073-0007-000000000020,tapa,100,6,boquerón,high,100g tapa std (tuchef.es),pbojeda
-00000000-0000-e073-0007-000000000020,media_racion,130,8,boquerón,medium,~half racion,pbojeda
-00000000-0000-e073-0007-000000000020,racion,220,14,boquerón,high,ración vinagre/fritos,pbojeda
+00000000-0000-e073-0007-000000000020,pintxo,40,2,boquerones,medium,2 fritos o vinagre,pbojeda
+00000000-0000-e073-0007-000000000020,tapa,100,6,boquerones,high,100g tapa std (tuchef.es),pbojeda
+00000000-0000-e073-0007-000000000020,media_racion,130,8,boquerones,medium,~half racion,pbojeda
+00000000-0000-e073-0007-000000000020,racion,220,14,boquerones,high,ración vinagre/fritos,pbojeda
 00000000-0000-e073-0007-00000000001d,pintxo,40,,,low,bocadillo mini/pincho,pbojeda
 00000000-0000-e073-0007-00000000001d,tapa,120,,,medium,romana 100-140g,pbojeda
 00000000-0000-e073-0007-00000000001d,media_racion,180,,,medium,170-200g,pbojeda

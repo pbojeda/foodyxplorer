@@ -14,10 +14,34 @@ import type { PrismaClient } from '@prisma/client';
 import type { Redis } from 'ioredis';
 import { sql } from 'kysely';
 import { getKysely } from '../lib/kysely.js';
+import type { VoiceBudgetData } from '../lib/voiceBudget.js';
 
 // ---------------------------------------------------------------------------
 // Schemas
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// VoiceBudgetData schema (F091)
+// ---------------------------------------------------------------------------
+
+export const VoiceBudgetDataSchema = z.object({
+  exhausted: z.boolean(),
+  spendEur: z.number(),
+  capEur: z.literal(100),
+  alertLevel: z.enum(['none', 'warn40', 'warn70', 'warn90', 'warn100', 'cap']),
+  monthKey: z.string().regex(/^\d{4}-\d{2}$/), // YYYY-MM
+});
+
+/** Fail-open default returned when Redis is unavailable or key is missing */
+const VOICE_BUDGET_DEFAULT: VoiceBudgetData = {
+  exhausted: false,
+  spendEur: 0,
+  capEur: 100,
+  alertLevel: 'none',
+  monthKey: new Date().toISOString().slice(0, 7),
+};
+
+const BUDGET_KEY = 'budget:voice:current-month';
 
 export const HealthQuerySchema = z.object({
   db: z
@@ -129,6 +153,58 @@ const healthRoutesPlugin: FastifyPluginAsync<HealthPluginOptions> = async (
       }
 
       return reply.send(responseBody);
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // GET /health/voice-budget — monthly voice spend status (F091)
+  // -------------------------------------------------------------------------
+
+  app.get(
+    '/health/voice-budget',
+    {
+      schema: {
+        tags: ['System'],
+        operationId: 'healthVoiceBudget',
+        summary: 'Monthly voice spend budget status',
+        description:
+          'Returns the current monthly voice spend status. Used by HablarShell on mount to ' +
+          'pre-populate the budget-cap state. No auth required. CDN-cached 60s. ' +
+          'Budget is tracked by an in-process accumulator (no cron) using an atomic Lua script ' +
+          'on the budget:voice:current-month Redis key. Returns { exhausted: false, spendEur: 0 } ' +
+          'on Redis miss (fail-open).',
+        response: {
+          200: VoiceBudgetDataSchema,
+        },
+      },
+    },
+    async (_request, reply) => {
+      reply.header('Cache-Control', 'public, max-age=60');
+
+      let data: VoiceBudgetData;
+
+      try {
+        const raw = await redis.get(BUDGET_KEY);
+
+        if (raw === null) {
+          data = { ...VOICE_BUDGET_DEFAULT };
+        } else {
+          const parsed = JSON.parse(raw) as Partial<VoiceBudgetData>;
+          // Merge with default to handle any missing fields
+          data = {
+            exhausted: parsed.exhausted ?? false,
+            spendEur: parsed.spendEur ?? 0,
+            capEur: 100,
+            alertLevel: parsed.alertLevel ?? 'none',
+            monthKey: parsed.monthKey ?? VOICE_BUDGET_DEFAULT.monthKey,
+          };
+        }
+      } catch {
+        // Fail-open: Redis unavailable or JSON malformed
+        data = { ...VOICE_BUDGET_DEFAULT };
+      }
+
+      return reply.send(data);
     },
   );
 };

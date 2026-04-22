@@ -52,7 +52,7 @@ declare module 'fastify' {
 
 interface CachedApiKey {
   keyId: string;
-  tier: 'free' | 'pro';
+  tier: 'free' | 'pro' | 'admin';
   isActive: boolean;
   expiresAt: string | null;
 }
@@ -110,7 +110,7 @@ export async function registerAuthMiddleware(
       // Cache miss — query DB
       let dbRow: {
         id: string;
-        tier: 'free' | 'pro';
+        tier: 'free' | 'pro' | 'admin';
         isActive: boolean;
         expiresAt: Date | null;
       } | null;

@@ -206,6 +206,39 @@ describe('photo events', () => {
   });
 });
 
+// ---------- voice events (F091) ----------
+
+describe('voice events', () => {
+  it('increments queryCount on voice_start', () => {
+    trackEvent('voice_start');
+    trackEvent('voice_start');
+    const m = getMetrics();
+    expect(m.queryCount).toBe(2);
+  });
+
+  it('increments successCount, tracks intent, and totalResponseTime on voice_success', () => {
+    trackEvent('voice_success', { intent: 'estimation', responseTimeMs: 4200 });
+    trackEvent('voice_success', { intent: 'estimation', responseTimeMs: 3800 });
+    const m = getMetrics();
+    expect(m.successCount).toBe(2);
+    expect(m.intents).toEqual({ estimation: 2 });
+    expect(m.avgResponseTimeMs).toBe(4000);
+  });
+
+  it('increments errorCount and tracks error code on voice_error', () => {
+    trackEvent('voice_error', { errorCode: 'EMPTY_TRANSCRIPTION' });
+    trackEvent('voice_error', { errorCode: 'RATE_LIMIT_EXCEEDED' });
+    trackEvent('voice_error', { errorCode: 'VOICE_BUDGET_EXHAUSTED' });
+    const m = getMetrics();
+    expect(m.errorCount).toBe(3);
+    expect(m.errors).toEqual({
+      EMPTY_TRANSCRIPTION: 1,
+      RATE_LIMIT_EXCEEDED: 1,
+      VOICE_BUDGET_EXHAUSTED: 1,
+    });
+  });
+});
+
 // ---------- localStorage hydration ----------
 
 describe('localStorage hydration', () => {

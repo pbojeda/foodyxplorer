@@ -1,15 +1,20 @@
-// seedApiKey.ts — Seed/upsert the Telegram Bot API key (F026)
+// seedApiKey.ts — Seed/upsert API keys (F026 + F-TIER)
 //
 // Standalone script: not part of the server build, not imported at runtime.
-// Run via: npx tsx src/scripts/seedApiKey.ts
+// Run via: npx tsx src/scripts/seedApiKey.ts [--tier free|pro|admin]
 //
 // Key generation:
-//   - If BOT_API_KEY_SEED is set: HMAC-SHA256(seed, 'fxp-bot-key'), take first
+//   - If SEED_KEY_PLAIN is set: use that value directly as the raw key.
+//   - Else if BOT_API_KEY_SEED is set: HMAC-SHA256(seed, 'fxp-bot-key'), take first
 //     32 hex chars, prepend 'fxp_' → 36-char deterministic key.
-//   - If not set: crypto.randomBytes(16).toString('hex') → prepend 'fxp_'.
+//   - Else: crypto.randomBytes(16).toString('hex') → prepend 'fxp_'.
 //
-// Upsert by keyHash for idempotency (same seed → same key → no-op upsert).
-// Changing BOT_API_KEY_SEED creates a NEW row; deactivate the old one manually.
+// Tier:
+//   - Default: 'free' (backward-compatible with F026 bot key seeding)
+//   - --tier admin: creates an admin key with no daily rate limits
+//   - --tier pro: creates a pro key
+//
+// Upsert by keyHash for idempotency (same key → same hash → no-op upsert).
 // The raw key is always printed to stdout — never stored unencrypted.
 
 import { createHash, createHmac, randomBytes } from 'node:crypto';
@@ -55,36 +60,39 @@ export function computeKeyPrefix(rawKey: string): string {
 // Upsert logic — exported for unit testing
 // ---------------------------------------------------------------------------
 
-export interface UpsertBotKeyArgs {
+export interface UpsertKeyArgs {
   rawKey: string;
+  tier?: 'free' | 'pro' | 'admin';
+  name?: string;
 }
 
-export interface UpsertBotKeyResult {
+export interface UpsertKeyResult {
   id: string;
   keyPrefix: string;
 }
 
 /**
- * Upsert the Telegram Bot API key by name.
+ * Upsert an API key by hash.
  * Idempotent: calling twice with the same rawKey is safe.
  */
-export async function upsertBotKey({ rawKey }: UpsertBotKeyArgs): Promise<UpsertBotKeyResult> {
+export async function upsertKey({ rawKey, tier = 'free', name }: UpsertKeyArgs): Promise<UpsertKeyResult> {
   const keyHash = computeKeyHash(rawKey);
   const keyPrefix = computeKeyPrefix(rawKey);
+  const keyName = name ?? (tier === 'admin' ? 'Admin Key' : tier === 'pro' ? 'Pro Key' : 'Telegram Bot');
 
   const result = await prisma.apiKey.upsert({
     where: { keyHash },
     update: {
       keyPrefix,
-      name: 'Telegram Bot',
-      tier: 'free',
+      name: keyName,
+      tier,
       isActive: true,
     },
     create: {
       keyHash,
       keyPrefix,
-      name: 'Telegram Bot',
-      tier: 'free',
+      name: keyName,
+      tier,
       isActive: true,
     },
     select: { id: true, keyPrefix: true },
@@ -93,18 +101,52 @@ export async function upsertBotKey({ rawKey }: UpsertBotKeyArgs): Promise<Upsert
   return { id: result.id, keyPrefix: result.keyPrefix };
 }
 
+// Backward-compatible wrapper — existing F026 tests import this
+export interface UpsertBotKeyArgs {
+  rawKey: string;
+}
+
+export type UpsertBotKeyResult = UpsertKeyResult;
+
+export async function upsertBotKey({ rawKey }: UpsertBotKeyArgs): Promise<UpsertBotKeyResult> {
+  return upsertKey({ rawKey, tier: 'free', name: 'Telegram Bot' });
+}
+
+// ---------------------------------------------------------------------------
+// CLI argument parsing
+// ---------------------------------------------------------------------------
+
+function parseTierArg(): 'free' | 'pro' | 'admin' {
+  const tierIndex = process.argv.indexOf('--tier');
+  if (tierIndex === -1) return 'free';
+  const value = process.argv[tierIndex + 1];
+  if (value === 'free' || value === 'pro' || value === 'admin') return value;
+  console.error(`Invalid tier: "${value}". Must be free, pro, or admin.`);
+  process.exit(1);
+}
+
 // ---------------------------------------------------------------------------
 // Main entry point
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  const seed = process.env['BOT_API_KEY_SEED'];
-  const rawKey = seed ? generateDeterministicKey(seed) : generateRandomKey();
+  const tier = parseTierArg();
+  const plainKey = process.env['SEED_KEY_PLAIN'];
+  const botSeed = process.env['BOT_API_KEY_SEED'];
 
-  await upsertBotKey({ rawKey });
+  // SEED_KEY_PLAIN takes precedence (F-TIER spec)
+  const rawKey = plainKey ?? (botSeed ? generateDeterministicKey(botSeed) : generateRandomKey());
+
+  await upsertKey({ rawKey, tier });
 
   // Print raw key to stdout — only time it is visible
-  console.log(`BOT_API_KEY=${rawKey}`);
+  if (botSeed && !plainKey) {
+    // Backward-compatible output for bot deployment
+    console.log(`BOT_API_KEY=${rawKey}`);
+  } else {
+    console.log(`SEED_KEY_PLAIN=${rawKey}`);
+  }
+  console.log(`Tier: ${tier}`);
 }
 
 // Run when executed directly via tsx/node (not when imported by tests)

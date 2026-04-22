@@ -535,8 +535,9 @@ describe('POST /conversation/audio (F075)', () => {
   // Rate limit
   // -------------------------------------------------------------------------
 
-  it('rate limit exceeded → 429 ACTOR_RATE_LIMIT_EXCEEDED', async () => {
-    mockRedisIncr.mockResolvedValue(51);
+  it('rate limit exceeded → 429 RATE_LIMIT_EXCEEDED', async () => {
+    // Simulate count above the free tier voice 30/day limit (F-TIER: voice bucket)
+    mockRedisIncr.mockResolvedValue(31);
     const app = await buildApp();
 
     const body = buildMultipartBody({
@@ -557,7 +558,7 @@ describe('POST /conversation/audio (F075)', () => {
 
     expect(response.statusCode).toBe(429);
     const resBody = response.json<{ success: false; error: { code: string } }>();
-    expect(resBody.error.code).toBe('ACTOR_RATE_LIMIT_EXCEEDED');
+    expect(resBody.error.code).toBe('RATE_LIMIT_EXCEEDED');
   });
 
   // -------------------------------------------------------------------------

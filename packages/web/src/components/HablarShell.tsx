@@ -3,16 +3,21 @@
 // HablarShell — top-level client orchestrator for /hablar.
 // Manages all page state: query, loading, results, error, inlineError.
 // F092: adds photo analysis flow with executePhotoAnalysis.
+// F091: adds voice flow (VoiceOverlay + useVoiceSession + TTS playback).
 // Uses useRef<AbortController | null> for stale request guard (both text and photo flows).
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ConversationMessageData, MenuAnalysisData } from '@foodxplorer/shared';
+import type { VoiceBudgetData, VoiceErrorCode, VoiceState } from '@/types/voice';
 import { getActorId } from '@/lib/actorId';
 import { sendMessage, sendPhotoAnalysis, ApiError } from '@/lib/apiClient';
 import { resizeImageForUpload } from '@/lib/imageResize';
 import { trackEvent, flushMetrics } from '@/lib/metrics';
+import { useVoiceSession } from '@/hooks/useVoiceSession';
+import { useTtsPlayback } from '@/hooks/useTtsPlayback';
 import { ConversationInput } from './ConversationInput';
 import { ResultsArea } from './ResultsArea';
+import { VoiceOverlay } from './VoiceOverlay';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const VALID_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -29,8 +34,55 @@ export function HablarShell() {
   const [photoMode, setPhotoMode] = useState<'idle' | 'analyzing'>('idle');
   const [photoResults, setPhotoResults] = useState<MenuAnalysisData | null>(null);
 
+  // Voice state (F091)
+  const [isVoiceOverlayOpen, setIsVoiceOverlayOpen] = useState(false);
+  const [budgetCapActive, setBudgetCapActive] = useState(false);
+  const [voiceError, setVoiceError] = useState<VoiceErrorCode | null>(null);
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem('hablar_voice');
+    } catch {
+      return null;
+    }
+  });
+  const [ttsEnabled, setTtsEnabled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      return localStorage.getItem('hablar_tts_enabled') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const actorIdRef = useRef<string>('');
+  if (!actorIdRef.current && typeof window !== 'undefined') {
+    actorIdRef.current = getActorId();
+  }
+  const voiceSession = useVoiceSession(actorIdRef.current);
+  const tts = useTtsPlayback({ enabled: ttsEnabled, voiceName: selectedVoiceName });
+
+  const handleVoiceSelect = useCallback((name: string) => {
+    setSelectedVoiceName(name);
+    try {
+      localStorage.setItem('hablar_voice', name);
+    } catch {
+      // localStorage unavailable — fall back to in-memory state for this session
+    }
+  }, []);
+
+  const handleTtsToggle = useCallback((enabled: boolean) => {
+    setTtsEnabled(enabled);
+    try {
+      localStorage.setItem('hablar_tts_enabled', String(enabled));
+    } catch {
+      // localStorage unavailable — fall back to in-memory state for this session
+    }
+  }, []);
+
   // Ref to track the current in-flight AbortController for stale request guard
   const currentRequestRef = useRef<AbortController | null>(null);
+  // Ref to the input-bar MicButton so we can restore focus on overlay close (AC15)
+  const micButtonRef = useRef<HTMLButtonElement>(null);
 
   // Flush metrics on page unload
   useEffect(() => {
@@ -38,6 +90,109 @@ export function HablarShell() {
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
   }, []);
+
+  // Fetch voice budget on mount — fail-open on error (F091)
+  useEffect(() => {
+    const baseUrl = process.env['NEXT_PUBLIC_API_URL'];
+    if (!baseUrl) return;
+    const controller = new AbortController();
+    fetch(`${baseUrl}/health/voice-budget`, { signal: controller.signal })
+      .then((r) => (r.ok ? (r.json() as Promise<VoiceBudgetData>) : null))
+      .then((data) => {
+        if (data?.exhausted) setBudgetCapActive(true);
+      })
+      .catch(() => {
+        // Fail-open: budget unknown → allow voice (API enforces the cap)
+      });
+    return () => controller.abort();
+  }, []);
+
+  // Sync voice session results → HablarShell results + speak summary via TTS (F091)
+  useEffect(() => {
+    if (voiceSession.state === 'done' && voiceSession.lastResponse) {
+      const data = voiceSession.lastResponse.data;
+      setResults(data);
+      setError(null);
+      setInlineError(null);
+      setPhotoResults(null);
+      setIsVoiceOverlayOpen(false);
+      setVoiceError(null);
+      trackEvent('voice_success', { intent: data.intent });
+
+      // Speak a short summary — presentation layer only; engine already
+      // calculated the numbers (ADR-001).
+      if (data.intent === 'estimation' && data.estimation?.result) {
+        const result = data.estimation.result;
+        const name = result.nameEs ?? result.name ?? 'este plato';
+        const kcal = Math.round(result.nutrients.calories);
+        tts.play(`${name} tiene aproximadamente ${kcal} kilocalorías.`);
+      }
+    }
+  }, [voiceSession.state, voiceSession.lastResponse, tts]);
+
+  // Sync voice errors → UI error code (F091).
+  // Persistent errors (rate limit, IP limit, budget cap, Whisper failure, network)
+  // get promoted to ResultsArea as an ErrorState and close the overlay. Transient
+  // errors (mic_permission, mic_hardware, empty_transcription, tts_unavailable)
+  // stay in the overlay as auto-dismissing toasts.
+  useEffect(() => {
+    if (voiceSession.state === 'error' && voiceSession.error) {
+      const code = voiceSession.error.code as VoiceErrorCode;
+      setVoiceError(code);
+      trackEvent('voice_error', { errorCode: voiceSession.error.code });
+      if (code === 'budget_cap') {
+        setBudgetCapActive(true);
+      }
+      const isPersistent =
+        code === 'budget_cap' ||
+        code === 'rate_limit' ||
+        code === 'ip_limit' ||
+        code === 'whisper_failure' ||
+        code === 'network';
+      if (isPersistent) {
+        setIsVoiceOverlayOpen(false);
+        // Focus return to the input-bar MicButton (AC15)
+        requestAnimationFrame(() => micButtonRef.current?.focus());
+      }
+    }
+  }, [voiceSession.state, voiceSession.error]);
+
+  const openVoiceOverlay = useCallback(() => {
+    if (budgetCapActive) return;
+    trackEvent('voice_start');
+    setVoiceError(null);
+    setIsVoiceOverlayOpen(true);
+  }, [budgetCapActive]);
+
+  const closeVoiceOverlay = useCallback(() => {
+    voiceSession.cancel();
+    setIsVoiceOverlayOpen(false);
+    setVoiceError(null);
+    // Return focus to the input-bar mic button (AC15 / WCAG 2.4.3)
+    requestAnimationFrame(() => micButtonRef.current?.focus());
+  }, [voiceSession]);
+
+  const clearVoiceError = useCallback(() => setVoiceError(null), []);
+
+  const startVoiceRecording = useCallback(() => {
+    void voiceSession.start();
+  }, [voiceSession]);
+
+  const stopVoiceRecording = useCallback(() => {
+    voiceSession.stop();
+  }, [voiceSession]);
+
+  // Map VoiceSessionState → UI VoiceState for the overlay
+  const uiVoiceState: VoiceState =
+    voiceSession.state === 'recording'
+      ? 'listening'
+      : voiceSession.state === 'uploading'
+      ? 'processing'
+      : voiceSession.state === 'error'
+      ? 'error'
+      : voiceSession.state === 'done'
+      ? 'results'
+      : 'idle';
 
   const executeQuery = useCallback(async (text: string) => {
     if (!text.trim()) return;
@@ -283,6 +438,8 @@ export function HablarShell() {
         onRetry={handleRetry}
         isPhotoLoading={photoMode === 'analyzing'}
         photoResults={photoResults}
+        voiceError={voiceError}
+        onVoiceRetry={clearVoiceError}
       />
 
       {/* Fixed bottom input */}
@@ -294,6 +451,50 @@ export function HablarShell() {
         isLoading={isLoading}
         isPhotoLoading={photoMode === 'analyzing'}
         inlineError={inlineError}
+        onVoiceTap={openVoiceOverlay}
+        onVoiceHoldStart={() => {
+          if (budgetCapActive) return;
+          trackEvent('voice_start');
+          setVoiceError(null);
+          setIsVoiceOverlayOpen(true);
+          // Gate first-time mic access behind the pre-permission screen
+          // (consistent with the tap path). If consent wasn't granted yet,
+          // the overlay will show the privacy screen and the user completes
+          // via the "Permitir micrófono" button.
+          let hasConsent = true;
+          try {
+            hasConsent = Boolean(localStorage.getItem('hablar_mic_consented'));
+          } catch {
+            // localStorage unavailable — err on the safe side and wait for consent tap
+            hasConsent = false;
+          }
+          if (!hasConsent) return;
+          startVoiceRecording();
+        }}
+        onVoiceHoldEnd={(cancelled: boolean) => {
+          if (cancelled) {
+            closeVoiceOverlay();
+          } else {
+            stopVoiceRecording();
+          }
+        }}
+        voiceState={uiVoiceState}
+        budgetCapActive={budgetCapActive}
+        micButtonRef={micButtonRef}
+      />
+
+      {/* Voice overlay — F091 */}
+      <VoiceOverlay
+        isOpen={isVoiceOverlayOpen}
+        voiceState={uiVoiceState}
+        errorCode={voiceError}
+        onClose={closeVoiceOverlay}
+        onStartRecording={startVoiceRecording}
+        onStopRecording={stopVoiceRecording}
+        selectedVoiceName={selectedVoiceName}
+        ttsEnabled={ttsEnabled}
+        onVoiceSelect={handleVoiceSelect}
+        onTtsToggle={handleTtsToggle}
       />
     </div>
   );
