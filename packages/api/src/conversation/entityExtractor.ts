@@ -122,41 +122,142 @@ interface PortionModifierResult {
   portionMultiplier: number;
 }
 
-interface PatternEntry {
-  regex: RegExp;
-  multiplier: number;
-}
+// F-COUNT: Tagged union PatternEntry.
+// kind:'fixed'   — static multiplier per entry.
+// kind:'numeric' — multiplier captured from regex group $1 (integer 1-20 inclusive).
+// kind:'lexical' — multiplier looked up from LEXICAL_NUMBER_MAP by longest-prefix match on the match text.
+type PatternEntry =
+  | { kind: 'fixed';   regex: RegExp; multiplier: number }
+  | { kind: 'numeric'; regex: RegExp }
+  | { kind: 'lexical'; regex: RegExp };
+
+// F-COUNT: Minimum cap (1) enforced via [1-9] in regex; maximum cap (20) enforced in loop.
+// Any N > 20 falls through — the original text is returned unchanged.
+const NUMERIC_MAX = 20;
+
+// F-COUNT: Lexical number map — keys ordered longest-first for regex alternation.
+// Used both for constructing LEXICAL_REGEX and for multiplier lookup by matched token.
+const LEXICAL_NUMBER_MAP: Readonly<Record<string, number>> = {
+  'un par':      2,
+  'media docena': 6,
+  'una docena':  12,
+  'diez':  10,
+  'nueve':  9,
+  'ocho':   8,
+  'siete':  7,
+  'seis':   6,
+  'cinco':  5,
+  'cuatro': 4,
+  'tres':   3,
+  'dos':    2,
+};
+
+// Build alternation regex from longest-key-first order (already declared that way above).
+const _LEXICAL_ALTS = Object.keys(LEXICAL_NUMBER_MAP).join('|');
 
 // Ordered longest/most-specific first to prevent short patterns from matching
 // inside longer ones (e.g. "grande" must not match inside "extra grande").
+//
+// F-COUNT additions (top of array — most specific first):
+//   1. Numeric + "raciones de" compound (must precede bare numeric)
+//   2. Bare numeric prefix
+//   3. Lexical number words (with optional "raciones de" and "de" glue)
+//   4. "triple de" compound (must precede bare /\btriples?\b/)
+//   5. Fractional / composed: cuarto de ración, ración y media
+//   6. Extended ración compounds: ración extra, ración enorme, ración normal, ración generosa, ración buena
+//   7. Bare extended modifiers: enorme, extra, buen/buena, generosa
+// Existing F042 entries follow unchanged.
 const PATTERNS: readonly PatternEntry[] = [
-  { regex: /\bextra[\s-]grandes?\b/i,           multiplier: 1.5 },
-  { regex: /\braci[oó]n\s+doble\b/i,            multiplier: 2.0 },
-  { regex: /\braciones\s+dobles\b/i,             multiplier: 2.0 },
-  { regex: /\bmedias?\s+raci[oó]n\b/i,           multiplier: 0.5 },
-  { regex: /\bmedias\s+raciones\b/i,             multiplier: 0.5 },
-  { regex: /\btriples?\b/i,                      multiplier: 3.0 },
-  { regex: /\bdobles?\b/i,                       multiplier: 2.0 },
-  { regex: /\bgrandes?\b/i,                      multiplier: 1.5 },
-  { regex: /\bxl\b/i,                            multiplier: 1.5 },
-  { regex: /\bpeque[ñn][oa]s?\b/i,               multiplier: 0.7 },
-  { regex: /\bpeque\b/i,                         multiplier: 0.7 },
-  { regex: /\bminis?\b/i,                        multiplier: 0.7 },
-  { regex: /\bmedios?\b/i,                       multiplier: 0.5 },
-  { regex: /\bmedias?\b/i,                       multiplier: 0.5 },
-  { regex: /\bhalf\b/i,                          multiplier: 0.5 },
+  // --- F-COUNT: numeric compound (N raciones/ración de) — BEFORE bare numeric ---
+  { kind: 'numeric', regex: /^([1-9]\d?)\s+raci[oó]n(?:es)?\s+(?:de\s+)?/i },
+
+  // --- F-COUNT: bare numeric prefix (N <food>) ---
+  { kind: 'numeric', regex: /^([1-9]\d?)\s+/i },
+
+  // --- F-COUNT: lexical number words (longest match wins via alternation order) ---
+  // Matches: <word> [raci[oó]n(es) [de]] [de]
+  { kind: 'lexical', regex: new RegExp(`^(${_LEXICAL_ALTS})\\s+(?:raci[oó]n(?:es)?\\s+(?:de\\s+)?)?(?:de\\s+)?`, 'i') },
+
+  // --- F-COUNT: "triple de" compound — BEFORE bare /\btriples?\b/ ---
+  { kind: 'fixed', regex: /\btriple\s+de\s+/i, multiplier: 3.0 },
+
+  // --- F-COUNT: fractional / composed ---
+  { kind: 'fixed', regex: /\bcuarto\s+de\s+raci[oó]n\s+(?:de\s+)?/i, multiplier: 0.25 },
+  { kind: 'fixed', regex: /\braci[oó]n\s+y\s+media\s+(?:de\s+)?/i,   multiplier: 1.5 },
+
+  // --- F-COUNT: extended ración compounds (longest-first within group) ---
+  { kind: 'fixed', regex: /\braci[oó]n\s+enorme\s+(?:de\s+)?/i,    multiplier: 2.0 },
+  { kind: 'fixed', regex: /\braci[oó]n\s+extra\s+(?:de\s+)?/i,     multiplier: 1.5 },
+  { kind: 'fixed', regex: /\braci[oó]n\s+generosa\s+(?:de\s+)?/i,  multiplier: 1.0 },
+  { kind: 'fixed', regex: /\braci[oó]n\s+buena\s+(?:de\s+)?/i,     multiplier: 1.0 },
+  { kind: 'fixed', regex: /\braci[oó]n\s+normal\s+(?:de\s+)?/i,    multiplier: 1.0 },
+
+  // --- F-COUNT: leading adjective + ración de compounds (e.g. "buena ración de") ---
+  { kind: 'fixed', regex: /\bbuen[ao]s?\s+raci[oó]n\s+(?:de\s+)?/i,    multiplier: 1.0 },
+  { kind: 'fixed', regex: /\bgeneros[ao]s?\s+raci[oó]n\s+(?:de\s+)?/i, multiplier: 1.0 },
+
+  // --- F-COUNT: no-op subjective modifiers (bare) — AFTER all compound forms ---
+  // NOTE: extra[\s-]grandes? must appear BEFORE bare \bextras?\b to win longest-first.
+  // It is placed here inline (not in the F042 block below) to keep ordering explicit.
+  { kind: 'fixed', regex: /\bextra[\s-]grandes?\b/i,           multiplier: 1.5 },
+  { kind: 'fixed', regex: /\benormes?\b/i,       multiplier: 2.0 },
+  { kind: 'fixed', regex: /\bextras?\b/i,        multiplier: 1.5 },
+  { kind: 'fixed', regex: /\bbuen[ao]s?\b/i,     multiplier: 1.0 },
+  { kind: 'fixed', regex: /\bgeneros[ao]s?\b/i,  multiplier: 1.0 },
+
+  // --- F042 existing entries (unchanged, extra grande already hoisted above) ---
+  // (extra[\s-]grandes? hoisted to appear before bare extras? — see above)
+  { kind: 'fixed', regex: /\braci[oó]n\s+doble\b/i,            multiplier: 2.0 },
+  { kind: 'fixed', regex: /\braciones\s+dobles\b/i,             multiplier: 2.0 },
+  { kind: 'fixed', regex: /\bmedias?\s+raci[oó]n\b/i,           multiplier: 0.5 },
+  { kind: 'fixed', regex: /\bmedias\s+raciones\b/i,             multiplier: 0.5 },
+  { kind: 'fixed', regex: /\btriples?\b/i,                      multiplier: 3.0 },
+  { kind: 'fixed', regex: /\bdobles?\b/i,                       multiplier: 2.0 },
+  { kind: 'fixed', regex: /\bgrandes?\b/i,                      multiplier: 1.5 },
+  { kind: 'fixed', regex: /\bxl\b/i,                            multiplier: 1.5 },
+  { kind: 'fixed', regex: /\bpeque[ñn][oa]s?\b/i,               multiplier: 0.7 },
+  { kind: 'fixed', regex: /\bpeque\b/i,                         multiplier: 0.7 },
+  { kind: 'fixed', regex: /\bminis?\b/i,                        multiplier: 0.7 },
+  { kind: 'fixed', regex: /\bmedios?\b/i,                       multiplier: 0.5 },
+  { kind: 'fixed', regex: /\bmedias?\b/i,                       multiplier: 0.5 },
+  { kind: 'fixed', regex: /\bhalf\b/i,                          multiplier: 0.5 },
 ];
 
 export function extractPortionModifier(text: string): PortionModifierResult {
-  for (const { regex, multiplier } of PATTERNS) {
-    if (regex.test(text)) {
-      const cleaned = text.replace(regex, '').replace(/\s+/g, ' ').trim();
-      if (cleaned.length === 0) {
-        // Stripping the modifier leaves nothing — fall back to original text.
-        return { cleanQuery: text, portionMultiplier: 1.0 };
+  for (const entry of PATTERNS) {
+    const match = entry.regex.exec(text);
+    if (!match) continue;
+
+    let multiplier: number;
+
+    if (entry.kind === 'numeric') {
+      // Capture group $1 holds the digit string — must be 1-20 inclusive.
+      const n = parseInt(match[1] ?? '', 10);
+      if (!isFinite(n) || n < 1 || n > NUMERIC_MAX) continue;
+      multiplier = n;
+    } else if (entry.kind === 'lexical') {
+      // LEXICAL_NUMBER_MAP keys are ordered longest-first. Find the one that prefixes
+      // the match text (which starts with the lexical word, possibly followed by glue).
+      const rawMatch = (match[0] ?? '').trimStart().toLowerCase();
+      let found: number | undefined;
+      for (const key of Object.keys(LEXICAL_NUMBER_MAP)) {
+        if (rawMatch.startsWith(key)) {
+          found = LEXICAL_NUMBER_MAP[key];
+          break;
+        }
       }
-      return { cleanQuery: cleaned, portionMultiplier: multiplier };
+      if (found === undefined) continue; // safety — should not happen
+      multiplier = found;
+    } else {
+      multiplier = entry.multiplier;
     }
+
+    const cleaned = text.replace(entry.regex, '').replace(/\s+/g, ' ').trim();
+    if (cleaned.length === 0) {
+      // Stripping the modifier leaves nothing — fall back to original text.
+      return { cleanQuery: text, portionMultiplier: 1.0 };
+    }
+    return { cleanQuery: cleaned, portionMultiplier: multiplier };
   }
   return { cleanQuery: text, portionMultiplier: 1.0 };
 }
@@ -312,9 +413,19 @@ export function parseDishExpression(text: string): {
     }
   }
 
-  // Step 2 — Strip trailing punctuation (?, !) and leading articles (un, una, el, la).
+  // Step 2 — Strip trailing punctuation (?, !) and leading articles.
+  // F-MORPH: reuse ARTICLE_PATTERN (now covers plural unas/unos) for parity with extractFoodQuery.
   remainder = remainder.replace(/[?!]+$/, '').trim();
-  remainder = remainder.replace(/^(?:un[ao]?|el|la)\s+/i, '');
+  remainder = remainder.replace(ARTICLE_PATTERN, '');
+
+  // Step 2.1 — F-MORPH: Container/vessel strip (plato de, cuenco de, vasito de, poco de, ...)
+  for (const pattern of CONTAINER_PATTERNS) {
+    const stripped = remainder.replace(pattern, '');
+    if (stripped !== remainder && stripped.trim().length > 0) {
+      remainder = stripped.trim();
+      break;
+    }
+  }
 
   // Step 2.5 — F078: Strip serving-format prefixes (tapa de, pincho de, pintxo de, ración de)
   for (const pattern of SERVING_FORMAT_PATTERNS) {
@@ -322,6 +433,20 @@ export function parseDishExpression(text: string): {
     if (stripped !== remainder && stripped.trim().length > 0) {
       remainder = stripped.trim();
       break;
+    }
+  }
+
+  // Step 2.75 — F-MORPH: Normalize diminutive tokens (tapita→tapa, croquetitas→croquetas, ...).
+  const normalized = normalizeDiminutive(remainder);
+  if (normalized !== remainder) {
+    remainder = normalized;
+    // Re-run SERVING_FORMAT now that diminutive tokens are in base form (e.g. tapita→tapa→strip "tapa de").
+    for (const pattern of SERVING_FORMAT_PATTERNS) {
+      const stripped = remainder.replace(pattern, '');
+      if (stripped !== remainder && stripped.trim().length > 0) {
+        remainder = stripped.trim();
+        break;
+      }
     }
   }
 
@@ -455,6 +580,8 @@ export const PREFIX_PATTERNS: readonly RegExp[] = [
 ];
 
 // F078: Serving-format prefixes — "tapa(s) de", "pincho(s) de", "pintxo(s) de", "ración/racion(es) de".
+// F-MORPH: added "caña(s) de" so that normalizeDiminutive("cañita"→"caña") creates a SERVING candidate
+// that the second SERVING pass (post-normalizeDiminutive) can strip correctly (AC7).
 // Used in both extractFoodQuery and parseDishExpression. Shared constant to avoid duplication.
 export const SERVING_FORMAT_PATTERNS: readonly RegExp[] = [
   /^tapas?\s+de\s+/i,
@@ -462,10 +589,76 @@ export const SERVING_FORMAT_PATTERNS: readonly RegExp[] = [
   /^pinchos?\s+de\s+/i,
   /^raciones\s+de\s+/i,
   /^raci[oó]n\s+de\s+/i,
+  /^ca[ñn]as?\s+de\s+/i,
+  // F-DRINK-FU1 (2026-04-21): strip drink containers before L1 so queries like
+  // "un tercio de cerveza" / "una botella de vino tinto" resolve to "cerveza" / "vino tinto".
+  // portionSizing still detects the drink portion term (tercio/botella/copa/vaso) via its
+  // own PORTION_RULES independent of this SERVING strip.
+  /^tercios?\s+de\s+/i,
+  /^botellas?\s+de\s+/i,
+  /^botell[ií]n(?:es)?\s+de\s+/i,
+  /^copas?\s+de\s+/i,
+  /^vasos?\s+de\s+/i,
 ];
 
 // Article/determiner stripping — applied once after prefix step.
-export const ARTICLE_PATTERN = /^(?:un[ao]?|el|la[s]?|los|del|al)\s+/i;
+// F-MORPH: extended un[ao]? → un[ao]?s? to cover unas/unos (P3 fix).
+export const ARTICLE_PATTERN = /^(?:un[ao]?s?|el|la[s]?|los|del|al)\s+/i;
+
+// F-MORPH: Container/vessel strip — pure wrappers with no calorie semantics.
+// Applied AFTER ARTICLE_PATTERN, BEFORE SERVING_FORMAT_PATTERNS.
+// NOTE: "vaso de" is intentionally excluded — it belongs to F-DRINK (drink portion).
+// "vasito de" (diminutive container) is owned by F-MORPH.
+export const CONTAINER_PATTERNS: readonly RegExp[] = [
+  /^plato\s+de\s+/i,
+  /^platito\s+de\s+/i,
+  /^cuenco\s+de\s+/i,
+  /^bol\s+de\s+/i,
+  /^vasito\s+de\s+/i,
+  /^jarrita\s+de\s+/i,
+  /^poco\s+de\s+/i,
+  /^poqu?ito\s+de\s+/i,
+  /^trozo\s+de\s+/i,
+  /^trocito\s+de\s+/i,
+];
+
+// F-MORPH: Curated diminutive → base form map (Option A).
+// Only known food/portion diminutives to avoid false-positive on non-food words.
+// Extend this map as future QA batteries surface additional cases.
+export const DIMINUTIVE_MAP: Readonly<Record<string, string>> = {
+  tapita: 'tapa',
+  tapitas: 'tapas',
+  cañita: 'caña',
+  cañitas: 'cañas',
+  copita: 'copa',
+  copitas: 'copas',
+  pintxito: 'pintxo',
+  pinchito: 'pincho',
+  racioncita: 'ración',
+  racioncitas: 'raciones',
+  croquetita: 'croqueta',
+  croquetitas: 'croquetas',
+  gambita: 'gamba',
+  gambitas: 'gambas',
+  boqueronito: 'boquerón',
+  boqueronitos: 'boquerones',
+  // trocito/trocitos are ALSO handled by CONTAINER_PATTERNS for `trocito de X`.
+  // Kept here as a fallback for bare `trocito` (no `de` suffix) which CONTAINER won't match.
+  trocito: 'trozo',
+  trocitos: 'trozos',
+};
+
+/**
+ * Replace each whitespace-separated token in `text` with its base form
+ * if found in DIMINUTIVE_MAP (case-insensitive). Tokens not in the map
+ * are returned unchanged.
+ */
+export function normalizeDiminutive(text: string): string {
+  return text
+    .split(/\s+/)
+    .map((token) => DIMINUTIVE_MAP[token.toLowerCase()] ?? token)
+    .join(' ');
+}
 
 /**
  * Parse raw Spanish text into a query and optional chain slug.
@@ -512,14 +705,41 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
   }
 
   // Article/determiner stripping (once, after prefix step)
+  // F-MORPH: ARTICLE_PATTERN now includes unas/unos (P3 fix).
   remainder = remainder.replace(ARTICLE_PATTERN, '');
 
-  // F078: Serving-format prefix stripping (tapa de, pincho de, pintxo de, ración de)
+  // F-MORPH: Container/vessel strip (plato de, cuenco de, bol de, vasito de, jarrita de, poco/poquito de).
+  // Applied AFTER article strip, BEFORE serving-format strip.
+  for (const pattern of CONTAINER_PATTERNS) {
+    const stripped = remainder.replace(pattern, '');
+    if (stripped !== remainder && stripped.trim().length > 0) {
+      remainder = stripped.trim();
+      break;
+    }
+  }
+
+  // F078: Serving-format prefix stripping (tapa de, pincho de, pintxo de, ración de, caña de)
   for (const pattern of SERVING_FORMAT_PATTERNS) {
     const stripped = remainder.replace(pattern, '');
     if (stripped !== remainder && stripped.trim().length > 0) {
       remainder = stripped.trim();
       break;
+    }
+  }
+
+  // F-MORPH: Diminutive normalization — map known diminutive tokens to base forms.
+  // Runs on tokens so partial matches (e.g., "de") are left untouched.
+  const normalized = normalizeDiminutive(remainder);
+  if (normalized !== remainder) {
+    remainder = normalized;
+    // Second SERVING pass: normalizeDiminutive may produce a new SERVING candidate
+    // (e.g., "tapita de aceitunas" → "tapa de aceitunas" → SERVING strips "tapa de").
+    for (const pattern of SERVING_FORMAT_PATTERNS) {
+      const stripped = remainder.replace(pattern, '');
+      if (stripped !== remainder && stripped.trim().length > 0) {
+        remainder = stripped.trim();
+        break;
+      }
     }
   }
 
