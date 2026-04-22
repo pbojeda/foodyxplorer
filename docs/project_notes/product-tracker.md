@@ -8,9 +8,9 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-22 (F091 DONE — PR #180 squash-merged to develop)
+**Last Updated:** 2026-04-22 (PM session pm-sprint2 started — QA Sprint #2 follow-ups)
 
-**Active Feature:** None. F091 merged; next session picks from backlog (F095-F097 realtime voice gated by account system + F116 lint cleanup + Spanish NLP follow-ups).
+**Active Feature:** BUG-QA-SCRIPT-001 (Simple) — Step 5/6 Review. Branch: `bugfix/BUG-QA-SCRIPT-001-escaping-and-smoke`. PR #195 open against `develop`, code-review-specialist APPROVE WITH MINOR CHANGES (all findings addressed, `/audit-merge` passes). Merge pre-authorized by user for Simple tier. PM session: `pm-sprint2` (3 tickets: BUG-QA-SCRIPT-001 → BUG-API-AUDIO-4XX-001 → F-NLP-CHAIN-ORDERING). See `docs/project_notes/pm-session.md` for full batch + merge-authorization policy.
 
 **Last Completed — 2026-04-22 F091 Async Push-to-Talk Voice**: PR #180 squash-merged to develop @ `0941059`. Option 12 architecture (Whisper STT via POST /conversation/audio + browser SpeechSynthesis TTS), open to all tiers per EAA compliance. 30 commits spanning 2 days: 9 backend TDD (audio duration parser, Redis Lua budget accumulator, per-IP voice-minute cap, /health/voice-budget endpoint, MIME-derived Whisper filename), 13 frontend TDD (voice types, sendVoiceMessage, useVoiceSession, useTtsPlayback, MicButton dual tap/hold, VoiceOverlay with focus trap + pre-permission gate, VoicePickerDrawer, VoiceBudgetBadge, ResultsArea voice error variants, HablarShell integration, metrics events), 4 review-driven fixes (code-review 4 critical + 3 important, QA 1 critical AC22 + 3 important AC23/AC25/AC15), 4 docs. Quality gates: api 3493/3493 (+154 F091 tests), web 450/450 (+92), 598 shared, 1221 bot. Multi-round cross-model review (spec + plan, Gemini + Codex high reasoning) + external user audit APPROVE FOR MERGE. Budget €100/mo cap with Slack alerts at 40/70/90/100 EUR; per-IP cap 30 voice-min/day via Redis `ip:voice-min:{date}:{ip}` key. Remote branch deleted.
 
