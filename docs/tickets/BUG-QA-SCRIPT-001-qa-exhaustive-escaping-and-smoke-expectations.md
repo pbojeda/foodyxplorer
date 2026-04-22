@@ -79,7 +79,7 @@ N/A — Simple task. Two targeted edits to a bash script + one syntax check.
 - [x] Step 3: Implementation with targeted edits + local verification
 - [x] Step 4: Quality gates pass (`bash -n` + baseline lint/test)
 - [x] Step 5: `code-review-specialist` executed
-- [x] Step 6: Ticket updated with final metrics, branch deleted
+- [ ] Step 6: Ticket updated with final metrics, branch deleted (pending merge)
 
 ---
 
@@ -106,7 +106,7 @@ N/A — Simple task. Two targeted edits to a bash script + one syntax check.
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan (N/A), Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence |
-| 1. Mark all items | [x] | AC: 6/6, DoD: 6/6, Workflow: 5/5 (Simple tier: 1, 3, 4, 5, 6); Status updated to `Ready for Merge` |
+| 1. Mark all items | [x] | AC: 6/6, DoD: 6/6, Workflow: 4/5 (Simple tier steps 1, 3, 4, 5 complete; Step 6 pending post-merge housekeeping); Status updated to `Ready for Merge` |
 | 2. Verify product tracker | [x] | Active Session updated to Step 5/6 (Review) for BUG-QA-SCRIPT-001 (line 13 of product-tracker.md). This ticket is a bugfix tracked via `bugs.md` + PM session, not in the Features table (precedent: BUG-PROD-012) |
 | 3. Update key_facts.md | [x] | N/A — tooling-only change, no new endpoints/schemas/migrations/components/error codes/utilities |
 | 4. Update decisions.md | [x] | N/A — no architectural decision; the H3 fix defers to existing ADR-001 (anonymous `/conversation/message`) |
