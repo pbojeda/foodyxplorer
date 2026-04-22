@@ -24,6 +24,9 @@ import { config } from '../config.js';
 import { writeQueryLog } from '../lib/queryLogger.js';
 import type { ChainRow } from '../conversation/types.js';
 import { callWhisperTranscription, isWhisperHallucination } from '../lib/openaiClient.js';
+import { checkBudgetExhausted, incrementSpendAndCheck, dispatchSlackAlerts } from '../lib/voiceBudget.js';
+import { getClientIp, incrementVoiceSeconds } from '../plugins/voiceIpRateLimit.js';
+import { parseAudioDuration, selectVerifiedDuration } from '../lib/audioDuration.js';
 
 // ---------------------------------------------------------------------------
 // Plugin options
@@ -262,11 +265,11 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
   // POST /conversation/audio — Multipart audio upload → Whisper → processMessage
   // -------------------------------------------------------------------------
 
+  // audio/wav omitted: browsers never produce WAV and we have no RIFF duration parser (F091)
   const ALLOWED_AUDIO_MIME_TYPES = new Set([
     'audio/ogg',
     'audio/mpeg',
     'audio/mp4',
-    'audio/wav',
     'audio/webm',
   ]);
 
@@ -285,6 +288,15 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
     },
     async (request, reply) => {
       const startMs = performance.now();
+
+      // Step 0 (F091): Budget exhausted check — blocks BEFORE multipart parsing to avoid
+      // wasteful body streaming when the monthly cap has been hit.
+      if (await checkBudgetExhausted(redis)) {
+        throw Object.assign(
+          new Error('Monthly voice budget cap reached — voice temporarily unavailable'),
+          { code: 'VOICE_BUDGET_EXHAUSTED' },
+        );
+      }
 
       // Step 1: Parse multipart stream — collect audio file part and text fields
       let audioBuffer: Buffer | undefined;
@@ -323,7 +335,7 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
       // Step 3: Guard — unsupported MIME type
       if (!ALLOWED_AUDIO_MIME_TYPES.has(audioMimeType)) {
         throw Object.assign(
-          new Error(`Unsupported audio MIME type: ${audioMimeType}. Allowed: audio/ogg, audio/mpeg, audio/mp4, audio/wav, audio/webm`),
+          new Error(`Unsupported audio MIME type: ${audioMimeType}. Allowed: audio/ogg, audio/mpeg, audio/mp4, audio/webm`),
           { code: 'VALIDATION_ERROR' },
         );
       }
@@ -350,6 +362,13 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
           { code: 'VALIDATION_ERROR' },
         );
       }
+
+      // Step 5a (F091): Server-side duration verification.
+      // Parse audio headers in-memory; if client value exceeds server-parsed value by > 2s,
+      // use the server value for per-IP minute accounting (billing guard — AC18).
+      // On parse failure (null), fall back to client-supplied duration (no crash).
+      const serverParsedDuration = parseAudioDuration(audioBuffer, audioMimeType);
+      const verifiedDuration = selectVerifiedDuration(duration, serverParsedDuration);
 
       const actorId = request.actorId;
       if (!actorId) {
@@ -414,6 +433,16 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
 
       transcribedText = transcription;
 
+      // Step 9a (F091): Increment per-IP voice-seconds counter AFTER successful transcription
+      // (only count billable audio — failed/rejected requests are not counted).
+      // Note: TRANSCRIPTION_FAILED (null return) and empty transcription both throw above this
+      // line, so this increment only runs for valid, non-hallucination transcriptions.
+      // Fire-and-forget — failure must not block the response.
+      const clientIp = getClientIp(request);
+      void incrementVoiceSeconds(redis, clientIp, verifiedDuration).catch((err: unknown) => {
+        request.log.warn({ err }, 'voiceIpRateLimit: failed to increment IP voice counter');
+      });
+
       // Step 10: Run the conversation pipeline with transcribed text
       const data = await processMessage({
         text: transcribedText,
@@ -431,6 +460,24 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
       });
 
       capturedData = data;
+
+      // Step 10a (F091): Increment monthly spend accumulator and dispatch Slack alerts.
+      // Fire-and-forget — budget tracking failure must not block the voice response.
+      void (async () => {
+        try {
+          const budgetResult = await incrementSpendAndCheck(redis, verifiedDuration);
+          if (budgetResult.alertsFired.length > 0 && config.SLACK_WEBHOOK_URL) {
+            await dispatchSlackAlerts(
+              budgetResult.alertsFired,
+              budgetResult.data.spendEur,
+              config.SLACK_WEBHOOK_URL,
+              request.log,
+            );
+          }
+        } catch (err) {
+          request.log.warn({ err }, 'voiceBudget: post-processing error');
+        }
+      })();
 
       return reply.send({ success: true, data });
 

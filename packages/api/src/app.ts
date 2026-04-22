@@ -25,6 +25,7 @@ import { registerAuthMiddleware } from './plugins/auth.js';
 import { registerActorResolver } from './plugins/actorResolver.js';
 import { registerRateLimit } from './plugins/rateLimit.js';
 import { registerActorRateLimit } from './plugins/actorRateLimit.js';
+import { registerVoiceIpRateLimit } from './plugins/voiceIpRateLimit.js';
 import { registerErrorHandler } from './errors/errorHandler.js';
 import { healthRoutes } from './routes/health.js';
 import { ingestPdfRoutes } from './routes/ingest/pdf.js';
@@ -109,6 +110,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await registerActorResolver(app, { prisma: prismaClient });
   await registerRateLimit(app, cfg);
   await registerActorRateLimit(app, { redis: redisClient });
+  await registerVoiceIpRateLimit(app, { redis: redisClient });
   // Register formbody before multipart (application/x-www-form-urlencoded support for /waitlist)
   await app.register(fastifyFormbody);
   // Register multipart before route plugins (file upload support)

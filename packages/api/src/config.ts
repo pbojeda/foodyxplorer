@@ -43,6 +43,10 @@ export const EnvSchema = z.object({
   // requests matching this API key ID (the bot key is a single shared key
   // across all Telegram users, so per-key limits would throttle all users).
   BOT_KEY_ID: z.string().uuid().optional(),
+  // Voice budget Slack alerts (F091 AC26).
+  // When set, the API fires a webhook when monthly voice spend crosses
+  // 40/70/90/100 EUR thresholds. Optional — no alerts when absent.
+  SLACK_WEBHOOK_URL: z.string().url().optional(),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

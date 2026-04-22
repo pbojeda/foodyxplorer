@@ -24,7 +24,7 @@ servers:
 
 tags:
   - name: System
-    description: Infrastructure and health endpoints
+    description: Infrastructure and health endpoints (GET /health, GET /health/voice-budget)
   - name: Ingestion
     description: |
       Data ingestion endpoints (F007b, F007c, F009, F011, F012, F031). Accept external nutritional
@@ -4457,6 +4457,58 @@ paths:
                       message: "Redis connectivity check failed"
                       code: "REDIS_UNAVAILABLE"
 
+  /health/voice-budget:
+    get:
+      summary: Voice budget status
+      description: |
+        Returns the current monthly Whisper spend vs the hard cap (€100/mo).
+        Read-only — does NOT trigger any spend change.
+
+        Intended for use by the web client's `VoiceBudgetBadge` component to
+        show a "voice disabled: budget cap" state before the user attempts a
+        voice request.
+
+        Returns the budget data from Redis key `budget:voice:current-month`
+        (updated by the in-process accumulator on every successful Whisper call — no cron,
+        atomic via Redis Lua script read-modify-write).
+        If the key is absent (Redis miss), returns `{ exhausted: false, spendEur: 0 }`.
+
+        **Auth:** No API key required. IP-rate-limited at 60 req/min (shared IP limit).
+        **Cache:** Response is cached for 60s in the CDN (Cloudflare).
+
+        **When to call:** The web client calls this once on HablarShell mount,
+        and re-checks whenever a `VOICE_BUDGET_EXHAUSTED` 503 is received.
+      operationId: voiceBudgetHealth
+      tags:
+        - System
+      responses:
+        '200':
+          description: |
+            Voice budget status retrieved successfully.
+            NOTE: This endpoint returns the flat `VoiceBudgetData` object directly (no `{success, data}` envelope).
+            It is a public health-monitoring endpoint consumed by both the web client and external dashboards, with a 60s CDN cache.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceBudgetData'
+              examples:
+                notExhausted:
+                  summary: Budget cap not reached
+                  value:
+                    exhausted: false
+                    spendEur: 43.20
+                    capEur: 100.0
+                    alertLevel: "none"
+                    monthKey: "2026-04"
+                exhausted:
+                  summary: Budget cap reached — all voice blocked
+                  value:
+                    exhausted: true
+                    spendEur: 100.0
+                    capEur: 100.0
+                    alertLevel: "cap"
+                    monthKey: "2026-04"
+
   /calculate/recipe:
     post:
       tags: [Calculation]
@@ -5495,8 +5547,32 @@ paths:
         to keep the bot as a thin adapter. The same endpoint can be reused by the
         future web assistant (Phase C, F093) without duplicating Whisper logic.
 
-        **Rate limiting:** Shares the `queries` bucket with `GET /estimate` and
-        `POST /conversation/message` — 50/day per actor. A voice message counts as 1 query.
+        **Rate limiting (F091 update):** Moved to the dedicated `voice` bucket
+        (separate from `queries`) by F-TIER-rate-limits. Daily limits per tier:
+        anonymous 30, free 30, basic 60, pro 120, admin unlimited.
+        A voice message counts as 1 voice request.
+
+        **Per-IP voice-minute cap (F091):** A secondary Redis-based guard limits total
+        Whisper audio processed per source IP to 30 minutes/day regardless of actor tier.
+        Key: `ip:voice-min:<YYYY-MM-DD>:<ip>`, TTL 86400s. Exceeding this cap returns
+        429 with code `IP_VOICE_LIMIT_EXCEEDED`. This defends against UUID-rotation bypass
+        of the per-actor cap. Applies to all tiers except admin.
+
+        **Monthly budget cap (F091):** When the project-level Whisper spend exceeds the
+        €100/month hard cap, this endpoint returns 503 with code `VOICE_BUDGET_EXHAUSTED`.
+        The budget state is read from Redis key `budget:voice:current-month` (updated by the
+        in-process accumulator on every successful Whisper call — no cron, atomic via Lua script).
+        All tiers including admin are blocked when the cap is active.
+
+        **Duration source change (F091 bug fix):** The `duration` field in the multipart
+        body was previously trusted as-is (billing vulnerability). F091 adds server-side
+        verification by parsing audio headers in-memory. If the client-supplied duration
+        exceeds the server-parsed value by > 2s, the server-parsed value is used instead.
+        The `duration` field is still required for compatibility but is now advisory.
+
+        **MIME-derived filename (F091 bug fix):** The filename sent to Whisper was
+        hardcoded as `audio.ogg`. F091 derives the filename from the upload MIME type
+        (e.g., `audio/mp4` → `audio.mp4`) to improve Whisper accuracy on iOS uploads.
 
         **Query logging:** Fire-and-forget, same pattern as `/conversation/message`.
         The transcribed text (not the filename) is logged as `queryText`.
@@ -5519,7 +5595,8 @@ paths:
                   format: binary
                   description: |
                     Audio file. Accepted MIME types: audio/ogg, audio/mpeg, audio/mp4,
-                    audio/wav, audio/webm. Max 10 MB (handled by @fastify/multipart).
+                    audio/webm. Max 10 MB (handled by @fastify/multipart).
+                    Note: audio/wav is NOT accepted (browsers never produce WAV; F091).
                 duration:
                   type: number
                   description: |
@@ -5579,7 +5656,7 @@ paths:
           description: |
             Validation error. Sub-cases:
             - `audio` file part is missing from the multipart body.
-            - MIME type is not one of: audio/ogg, audio/mpeg, audio/mp4, audio/wav, audio/webm.
+            - MIME type is not one of: audio/ogg, audio/mpeg, audio/mp4, audio/webm.
             - `duration` field is missing or not a number.
             - `duration` exceeds 120 seconds.
           content:
@@ -5653,7 +5730,44 @@ paths:
                       message: "Audio transcription failed"
                       code: "TRANSCRIPTION_FAILED"
         '429':
-          description: Per-actor daily rate limit exceeded (shares 'queries' bucket with GET /estimate).
+          description: |
+            Rate limit exceeded. Two distinct codes:
+            - `RATE_LIMIT_EXCEEDED` — per-actor daily `voice` bucket exhausted.
+              `error.details.bucket = "voice"`, `error.details.tier` present.
+            - `IP_VOICE_LIMIT_EXCEEDED` — per-IP daily voice-minute cap (30 min/day)
+              reached. `error.details.resetAt` indicates UTC midnight reset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                actorLimitExceeded:
+                  summary: Per-actor daily voice bucket exhausted
+                  value:
+                    success: false
+                    error:
+                      message: "Daily voice limit exceeded (30/day for anonymous tier). Try again tomorrow."
+                      code: "RATE_LIMIT_EXCEEDED"
+                      details:
+                        bucket: "voice"
+                        tier: "anonymous"
+                        limit: 30
+                        resetAt: "2026-04-22T00:00:00.000Z"
+                ipLimitExceeded:
+                  summary: Per-IP daily voice-minute cap reached
+                  value:
+                    success: false
+                    error:
+                      message: "Daily IP voice-minute cap reached (30 min/day). Try again tomorrow."
+                      code: "IP_VOICE_LIMIT_EXCEEDED"
+                      details:
+                        limitMinutes: 30
+                        resetAt: "2026-04-22T00:00:00.000Z"
+        '503':
+          description: |
+            Monthly project-level Whisper budget cap exhausted.
+            All voice requests are blocked until the cap resets (1st of next month UTC).
+            Users should be redirected to text input.
           content:
             application/json:
               schema:
@@ -5661,8 +5775,8 @@ paths:
               example:
                 success: false
                 error:
-                  message: "Daily queries limit exceeded (50/day). Try again tomorrow."
-                  code: "ACTOR_RATE_LIMIT_EXCEEDED"
+                  message: "Voice service temporarily unavailable: monthly budget cap reached."
+                  code: "VOICE_BUDGET_EXHAUSTED"
 
 components:
   parameters:
@@ -7328,6 +7442,53 @@ components:
       enum: [available, seasonal, discontinued, regional]
       example: available
       description: Availability status of a dish.
+
+    # -------------------------------------------------------------------------
+    # F091 — Voice budget
+    # -------------------------------------------------------------------------
+
+    VoiceBudgetData:
+      type: object
+      description: |
+        Monthly Whisper spend vs hard cap. Consumed by GET /health/voice-budget
+        and surfaced by the web client's VoiceBudgetBadge component.
+      required:
+        - exhausted
+        - spendEur
+        - capEur
+        - alertLevel
+        - monthKey
+      properties:
+        exhausted:
+          type: boolean
+          description: True when monthly spend has reached or exceeded capEur.
+          example: false
+        spendEur:
+          type: number
+          description: Current estimated spend in EUR for this calendar month.
+          minimum: 0
+          example: 43.20
+        capEur:
+          type: number
+          description: Hard cap in EUR. Defaults to 100.0.
+          minimum: 0
+          example: 100.0
+        alertLevel:
+          type: string
+          enum: [none, warn40, warn70, warn90, warn100, cap]
+          description: |
+            Alert threshold that has been crossed:
+            - `none`:    spend < 40% of cap
+            - `warn40`:  spend ≥ 40 EUR (Slack alert sent)
+            - `warn70`:  spend ≥ 70 EUR (Slack alert sent)
+            - `warn90`:  spend ≥ 90 EUR (Slack alert sent)
+            - `warn100`: spend ≥ 100 EUR (Slack alert sent)
+            - `cap`:     hard cap reached — all voice requests return 503
+          example: "none"
+        monthKey:
+          type: string
+          description: Calendar month this data applies to (YYYY-MM).
+          example: "2026-04"
 
     ErrorResponse:
       type: object

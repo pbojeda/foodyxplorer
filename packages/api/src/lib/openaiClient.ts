@@ -303,6 +303,23 @@ export function isWhisperHallucination(text: string): boolean {
 // Returns null immediately if apiKey is falsy.
 // ---------------------------------------------------------------------------
 
+/**
+ * Derive a Whisper-safe filename from a MIME type (F091 AC19).
+ *
+ * Strips codec parameters (e.g. `audio/webm;codecs=opus` → `audio/webm`)
+ * before mapping to a file extension. Unknown types fall back to `audio.bin`.
+ */
+export function mimeTypeToFilename(mimeType: string): string {
+  const baseMime = mimeType.split(';')[0]?.trim() ?? '';
+  const map: Record<string, string> = {
+    'audio/ogg':  'audio.ogg',
+    'audio/webm': 'audio.webm',
+    'audio/mp4':  'audio.mp4',
+    'audio/mpeg': 'audio.mp3',
+  };
+  return map[baseMime] ?? 'audio.bin';
+}
+
 export async function callWhisperTranscription(
   apiKey: string | undefined,
   audioBuffer: Buffer,
@@ -315,7 +332,8 @@ export async function callWhisperTranscription(
   }
 
   const client = getOpenAIClient(apiKey);
-  const file = new File([new Uint8Array(audioBuffer)], 'audio.ogg', { type: mimeType });
+  const filename = mimeTypeToFilename(mimeType);
+  const file = new File([new Uint8Array(audioBuffer)], filename, { type: mimeType });
   const startMs = performance.now();
 
   let lastError: unknown;

@@ -241,6 +241,21 @@ export function createMenuAnalysisResponse(
 }
 
 // ---------------------------------------------------------------------------
+// Voice conversation response factory (F091)
+// ---------------------------------------------------------------------------
+
+export function createVoiceConversationResponse(
+  overrides: Partial<ConversationMessageData> = {}
+): ConversationMessageResponse {
+  // Voice responses use the same ConversationMessageResponse shape as text queries.
+  // Default intent is 'estimation' — most common voice query result.
+  return {
+    success: true,
+    data: createConversationMessageData('estimation', overrides),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // ReverseSearchResult factory
 // ---------------------------------------------------------------------------
 

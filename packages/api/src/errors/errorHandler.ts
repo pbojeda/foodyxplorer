@@ -26,7 +26,9 @@ interface ErrorBody {
   error: {
     message: string;
     code: string;
-    details?: ErrorDetail[];
+    // details is typed as a union to support both Zod-style arrays (VALIDATION_ERROR)
+    // and flat objects (IP_VOICE_LIMIT_EXCEEDED with limitMinutes/resetAt — F091 plan §Open Q1)
+    details?: ErrorDetail[] | Record<string, unknown>;
   };
 }
 
@@ -492,6 +494,38 @@ export function mapError(error: Error): MappedError {
         error: {
           message: error.message,
           code: 'DUPLICATE_EMAIL',
+        },
+      },
+    };
+  }
+
+  // IP_VOICE_LIMIT_EXCEEDED — per-IP daily voice-minute cap (F091 AC22)
+  // details is passed through from the error object (limitMinutes, resetAt) — targeted
+  // widening per F091 plan §Open Q1: no structural change to Zod-style ErrorDetail[] branches
+  if (asAny['code'] === 'IP_VOICE_LIMIT_EXCEEDED') {
+    const details = asAny['details'] as Record<string, unknown> | undefined;
+    return {
+      statusCode: 429,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'IP_VOICE_LIMIT_EXCEEDED',
+          ...(details !== undefined && { details }),
+        },
+      },
+    };
+  }
+
+  // VOICE_BUDGET_EXHAUSTED — monthly hard cap reached; voice blocked for all users (F091)
+  if (asAny['code'] === 'VOICE_BUDGET_EXHAUSTED') {
+    return {
+      statusCode: 503,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'VOICE_BUDGET_EXHAUSTED',
         },
       },
     };
