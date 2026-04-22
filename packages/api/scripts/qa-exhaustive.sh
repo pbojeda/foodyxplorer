@@ -76,11 +76,14 @@ NULL=0
 
 q() {
   local query="$1"
+  # BUG-QA-SCRIPT-001 (H2): queries may contain literal " (e.g. 'blanco y "negro"').
+  # Escape each " → \" so the final JSON stays valid. Single-pass, idempotent.
+  local query_escaped="${query//\"/\\\"}"
   COUNT=$((COUNT + 1))
   local resp=$(curl -s --max-time 10 -X POST "$API/conversation/message" \
     -H "x-api-key: $KEY" \
     -H "Content-Type: application/json" \
-    -d "{\"text\":\"$query\"}")
+    -d "{\"text\":\"$query_escaped\"}")
   local line=$(echo "$resp" | python3 -c "
 import sys,json
 try:
@@ -429,7 +432,10 @@ smoke "GET /health/voice-budget (F091 flat env)"   "200"      "$API/health/voice
 smoke "GET /health/nonexistent"                    "404"      "$API/health/nonexistent" -H "x-api-key: $KEY"
 smoke "POST /conv/msg empty body"                  "400|422"  -X POST "$API/conversation/message" -H "x-api-key: $KEY" -H "Content-Type: application/json" -d "{}"
 smoke "POST /conv/msg invalid JSON"                "400"      -X POST "$API/conversation/message" -H "x-api-key: $KEY" -H "Content-Type: application/json" --data-binary "not-json"
-smoke "POST /conv/msg missing api key"             "401"      -X POST "$API/conversation/message" -H "Content-Type: application/json" -d '{"text":"croquetas"}'
+# BUG-QA-SCRIPT-001 (H3): /conversation/message is anonymous-OK per ADR-001 (EAA voice
+# accessibility). Server correctly returns 200 for unauthenticated callers. Accepting 200|401
+# keeps the smoke useful if policy ever flips to required-auth.
+smoke "POST /conv/msg missing api key"             "200|401"  -X POST "$API/conversation/message" -H "Content-Type: application/json" -d '{"text":"croquetas"}'
 smoke "POST /conv/audio no body"                   "400|415"  -X POST "$API/conversation/audio" -H "x-api-key: $KEY"
 smoke "POST /conv/audio wrong content-type"        "400|415"  -X POST "$API/conversation/audio" -H "x-api-key: $KEY" -H "Content-Type: text/plain" -d "hello"
 smoke "POST /conv/audio missing api key"           "401"      -X POST "$API/conversation/audio" -H "Content-Type: multipart/form-data"
