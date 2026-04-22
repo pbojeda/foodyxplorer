@@ -156,42 +156,42 @@ For PORTION_RULES: extend the array with drink-specific rules in longest-first o
 
 ## Acceptance Criteria
 
-- [ ] AC1 — `"un tercio de cerveza"` resolves to PORTION_RULE `tercio` with 330ml
-- [ ] AC2 — `"un vaso de vino tinto"` resolves to PORTION_RULE `vaso` with 150-200ml
-- [ ] AC3 — `"una botella de vino tinto"` resolves to PORTION_RULE `botella`
-- [ ] AC4 — `"una copa de vino tinto"` resolves to compound PORTION_RULE `copa vino` (longest-first)
-- [ ] AC5 — `"una copa de cava"` resolves to compound PORTION_RULE `copa cava`
-- [ ] AC6 — `"un vaso de agua"` resolves to compound `vaso agua`
-- [ ] AC7 — Longest-first invariant verified (compound wins over bare)
-- [ ] AC8 — Existing PORTION_RULES behavior unchanged (caña, pintxo, tapa, ración, media ración, bocadillo, plato, montadito)
-- [ ] AC9 — CSV pieceName pluralized where pieces > 1 (croquetas, gambas, aceitunas, boquerones)
-- [ ] Unit tests for AC1–AC9 added (TDD)
-- [ ] `npm test --workspace=@foodxplorer/api` all green
-- [ ] `npm run lint --workspace=@foodxplorer/api` → 0 errors
-- [ ] `npm run build` → green
+- [x] AC1 — `"un tercio de cerveza"` resolves to PORTION_RULE `tercio` with 330ml (+ F-DRINK-FU1 SERVING strip so L1 also matches `"cerveza"`)
+- [x] AC2 — `"un vaso de vino tinto"` resolves to PORTION_RULE `vaso` with 150-200ml (+ F-DRINK-FU1 SERVING strip → L1 matches `"vino tinto"`)
+- [x] AC3 — `"una botella de vino tinto"` resolves to PORTION_RULE `botella` (+ F-DRINK-FU1 SERVING strip)
+- [x] AC4 — `"una copa de vino tinto"` resolves to compound PORTION_RULE `copa vino` (longest-first invariant verified in test)
+- [x] AC5 — `"una copa de cava"` resolves to compound PORTION_RULE `copa cava`
+- [x] AC6 — `"un vaso de agua"` resolves to compound `vaso agua`
+- [x] AC7 — Longest-first invariant verified (compound wins over bare)
+- [x] AC8 — Existing PORTION_RULES behavior unchanged (caña, pintxo, tapa, ración, media ración, bocadillo, plato, montadito)
+- [x] AC9 — CSV pieceName pluralized where pieces > 1 (croquetas, gambas, aceitunas, boquerones) — **CSV committed; DB re-seed pending** (operational follow-up §5.2 in sprint report)
+- [x] Unit tests for AC1–AC9 added (TDD) — 11 tests in `f085.portion-sizing.unit.test.ts` for F-DRINK + 8 tests in `f078.regional-aliases.unit.test.ts` for F-DRINK-FU1
+- [x] `npm test --workspace=@foodxplorer/api` all green (3544/3544 at F-DRINK merge; 3553/3553 at F-DRINK-FU1 merge)
+- [x] `npm run lint --workspace=@foodxplorer/api` → 0 errors
+- [x] `npm run build` → green
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] No regressions
-- [ ] CSV follows established format (RFC 4180 via existing parseCsvString)
-- [ ] Seed re-run noted as follow-up (manual, post-merge)
-- [ ] Lint/build clean
+- [x] All acceptance criteria met
+- [x] Unit tests written and passing (19 new: 11 F-DRINK + 8 F-DRINK-FU1)
+- [x] No regressions (3544 → 3553 total, +19 net new, 0 fails)
+- [x] CSV follows established format (RFC 4180 via existing parseCsvString)
+- [x] Seed re-run noted as follow-up (manual, post-merge) — documented in sprint report §5.2 + product-tracker; command: `npm run seed:standard-portions -w @foodxplorer/api`
+- [x] Lint/build clean
 
 ---
 
 ## Workflow Checklist
 
 - [x] Step 0: Spec written (this file — Simple tier, plan written inline)
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: Plan (Simple — inline in ticket)
-- [ ] Step 3: TDD implementation
-- [ ] Step 4: Quality gates
-- [ ] Step 5: PR + code review + QA
-- [ ] Step 6: Ticket + tracker finalized
+- [x] Step 1: Branch created (feature/F-DRINK-drink-portions-and-piecename), ticket generated, tracker updated
+- [x] Step 2: Plan (Simple — inline in ticket)
+- [x] Step 3: TDD implementation
+- [x] Step 4: Quality gates (tests 3544/3544 + lint 0 + build green at merge; 3553/3553 after F-DRINK-FU1)
+- [x] Step 5: PR + code review + QA — code-review-specialist **APPROVE** (no findings on F-DRINK #183). F-DRINK-FU1 self-reviewed (post-merge dev-API probe caught container-strip gap; fix + tests shipped as PR #184)
+- [x] Step 6: Ticket + tracker finalized. PR #183 (`aef8f09`) + PR #184 (`5f1a6d5`) squash-merged to develop. Branches deleted.
 
 ---
 
@@ -200,6 +200,13 @@ For PORTION_RULES: extend the array with drink-specific rules in longest-first o
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-21 | Ticket created | Simple tier: plan inline. QA battery Category 3 (3 NULLs) + CSV cosmetic |
+| 2026-04-21 | Implementation complete (Steps 1-4) | 8 new PORTION_RULES (longest-first: copa de vino/cava/vino tinto compound, vaso de agua compound, bare copa/tercio/botellín/botella/vaso) + CSV pieceName plurals for pieces>1 rows (croquetas/gambas/aceitunas/boquerones). 11 new AC tests. 3544/3544 green. Commit: `eca67bc` |
+| 2026-04-21 | Review (Step 5) | code-review-specialist **APPROVE** — no findings. All checks verified: longest-first invariant, matchesAsWord boundary (botellín≠botella substring), CSV plurals conditional on pieces>1, F-MORPH boundary (vasito vs vaso) correct. |
+| 2026-04-21 | Merged (Step 6) | PR #183 squash-merged to develop at `aef8f09`. Branch deleted. |
+| 2026-04-21 | Post-merge gap detected | Dev API probe: `"un tercio de cerveza"` returned NULL at L1. Root cause: PORTION_RULES detect term for display but do NOT strip from query before L1 lookup. `tercio de cerveza` was never rewritten to `cerveza`. |
+| 2026-04-21 | F-DRINK-FU1 fix | Added 5 drink-container patterns to `SERVING_FORMAT_PATTERNS` (`tercio de`, `botella de`, `botellín de`, `copa de`, `vaso de`) — parallel to F-MORPH's `caña de`. 8 new tests in `f078.regional-aliases.unit.test.ts`. F-MORPH AC15 updated: `vaso de vino` now strips to `vino` (boundary moved from CONTAINER exclusion → SERVING inclusion; F-MORPH's CONTAINER_PATTERNS still doesn't include `vaso de`, guard test added). 3553/3553 green. PR #184 squash-merged at `5f1a6d5`. |
+| 2026-04-21 | Post-merge validation | Sprint battery Category 3 Drinks: 90% → 100% (+10pp, 3 NULLs fixed via FU1). |
+| 2026-04-22 | Retroactive checkbox closure | Docs-only PR marking AC/DoD/Workflow/Merge Checklist Evidence checkboxes post-audit recommendation. |
 
 ---
 
@@ -207,14 +214,14 @@ For PORTION_RULES: extend the array with drink-specific rules in longest-first o
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | |
-| 1. Mark all items | [ ] | |
-| 2. Verify product tracker | [ ] | |
-| 3. Update key_facts.md | [ ] | |
-| 4. Update decisions.md | [ ] | |
-| 5. Commit documentation | [ ] | |
-| 6. Verify clean working tree | [ ] | |
-| 7. Verify branch up to date | [ ] | |
+| 0. Validate ticket structure | [x] | All 7 sections present: Spec · Implementation Plan · Acceptance Criteria · Definition of Done · Workflow Checklist · Completion Log · Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 13/13 · DoD: 6/6 · Workflow: 7/7 (retroactively marked 2026-04-22 per audit) |
+| 2. Verify product tracker | [x] | `docs/project_notes/product-tracker.md` "QA Improvement Sprint (2026-04-21)" section: F-DRINK status=done, step=6/6, commit `aef8f09`, PR #183. F-DRINK-FU1 also registered with commit `5f1a6d5`, PR #184. |
+| 3. Update key_facts.md | [x] | N/A — no infrastructure change. Seed re-run noted separately as operational follow-up, not a `key_facts.md` entry. |
+| 4. Update decisions.md | [x] | N/A — additive extension of PORTION_RULES; no new ADR needed. |
+| 5. Commit documentation | [x] | F-DRINK ticket + code committed at `eca67bc`; squash `aef8f09`. FU1 ticket update (this commit) + code at `3f54490`; squash `5f1a6d5`. |
+| 6. Verify clean working tree | [x] | Pre-merge `git status`: clean for both PRs |
+| 7. Verify branch up to date | [x] | Both branches (`feature/F-DRINK-...` + `feature/F-DRINK-FU1-...`) up to date with origin/develop at merge (squash clean) |
 
 ---
 
