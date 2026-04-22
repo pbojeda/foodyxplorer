@@ -23,7 +23,7 @@
 #         limits per F-TIER). Override for prod runs.
 #
 # Dependencies
-#   bash (>= 3.2), curl, python3 (stdlib only)
+#   bash (>= 3.2), curl, python3 (stdlib only), jq (>= 1.5)
 #
 # Usage
 #   # Against dev (defaults):
@@ -76,14 +76,16 @@ NULL=0
 
 q() {
   local query="$1"
-  # BUG-QA-SCRIPT-001 (H2): queries may contain literal " (e.g. 'blanco y "negro"').
-  # Escape each " → \" so the final JSON stays valid. Single-pass, idempotent.
-  local query_escaped="${query//\"/\\\"}"
+  # BUG-QA-SCRIPT-001 (H2): queries may contain characters that need JSON escaping
+  # (", \, newlines, tabs, control chars, Unicode). Delegating to jq handles every
+  # corner correctly — the previous bash-only `${query//\"/\\\"}` only covered ".
+  local body
+  body=$(jq -cn --arg t "$query" '{text:$t}')
   COUNT=$((COUNT + 1))
   local resp=$(curl -s --max-time 10 -X POST "$API/conversation/message" \
     -H "x-api-key: $KEY" \
     -H "Content-Type: application/json" \
-    -d "{\"text\":\"$query_escaped\"}")
+    -d "$body")
   local line=$(echo "$resp" | python3 -c "
 import sys,json
 try:
