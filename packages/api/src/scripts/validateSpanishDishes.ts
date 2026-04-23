@@ -92,6 +92,26 @@ export function validateSpanishDishesWithAllowList(
     return { valid: false, errors: ['Input must be an array of SpanishDishEntry'] };
   }
 
+  // F-H4-B: allow-list integrity — fail fast if a caller passes entries whose
+  // `alias` field is not already lowercase. The second-pass comparison
+  // (`entry.alias !== term`) expects lowercase; a stray `Manzanilla` would
+  // silently not match and defeat the exception.
+  // (code-review MEDIUM: lowercase not enforced at the type level.)
+  for (const entry of allowList) {
+    if (entry.alias !== entry.alias.toLowerCase()) {
+      errors.push(
+        `HOMOGRAPH_ALLOW_LIST entry alias must be lowercase, got "${entry.alias}"`,
+      );
+      hasBlockingError = true;
+    }
+    if (typeof entry.reason !== 'string' || entry.reason.trim().length === 0) {
+      errors.push(
+        `HOMOGRAPH_ALLOW_LIST entry for "${entry.alias}" has empty or missing reason`,
+      );
+      hasBlockingError = true;
+    }
+  }
+
   // Minimum count
   if (dishes.length < 250) {
     errors.push(`Dataset must contain at least 250 entries, got ${dishes.length}`);
@@ -242,8 +262,14 @@ export function validateSpanishDishesWithAllowList(
   for (const [term, externalIds] of keySpaceMap) {
     if (externalIds.length <= 1) continue; // no collision
 
-    // Resolve dishIds for the colliding externalIds
-    const collidingDishIds = externalIds.map((eid) => externalIdToDishId.get(eid) ?? '');
+    // Resolve dishIds for the colliding externalIds. Filter out any missing
+    // mapping (defensive — if a dish was skipped for an earlier error, its
+    // externalId may not map to a dishId). An incomplete dishId set means
+    // the collision cannot match any allow-list entry, so treat it as a
+    // collision. (code-review HIGH: avoid `?? ''` polluting the set.)
+    const collidingDishIds = externalIds
+      .map((eid) => externalIdToDishId.get(eid))
+      .filter((x): x is string => typeof x === 'string' && x.length > 0);
 
     // Check allow-list: find an entry where alias matches AND dishIds are a strict set-equal match
     const allowed = allowList.some((entry) => {

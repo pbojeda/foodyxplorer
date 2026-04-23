@@ -149,27 +149,34 @@ describe('F-H4-B — validateSpanishDishes uniqueness check', () => {
   // ---------------------------------------------------------------------------
 
   it('AC-3c: treats "Pisto" and "pisto" as colliding (case-insensitive)', () => {
+    // QA observation: use disjoint nameEs strings so the only collision is on
+    // the alias "pisto" (no unintended nameEs collision to pollute the test).
     const dishA = makeEntry({
       externalId: 'CE-T05',
       dishId: '55555555-0000-f4b0-0007-000000000005',
       nutrientId: '55555555-0000-f4b0-0008-000000000005',
-      name: 'Plato con Pisto',
-      nameEs: 'Plato con Pisto',
+      name: 'Receta A única',
+      nameEs: 'Receta A única',
       aliases: ['Pisto'],
     });
     const dishB = makeEntry({
       externalId: 'CE-T06',
       dishId: '66666666-0000-f4b0-0007-000000000006',
       nutrientId: '66666666-0000-f4b0-0008-000000000006',
-      name: 'Plato con pisto',
-      nameEs: 'Plato con pisto',
+      name: 'Receta B distinta',
+      nameEs: 'Receta B distinta',
       aliases: ['pisto'],
     });
 
     const result = validateSpanishDishesWithAllowList(make2DishDataset(dishA, dishB), []);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes('"pisto"'))).toBe(true);
+    // Only one collision error expected — on "pisto" exclusively.
+    const collisionErrors = result.errors.filter((e) =>
+      e.includes('Collision in lookup key space'),
+    );
+    expect(collisionErrors).toHaveLength(1);
+    expect(collisionErrors[0]).toContain('"pisto"');
   });
 
   // ---------------------------------------------------------------------------
@@ -334,5 +341,116 @@ describe('F-H4-B — validateSpanishDishes uniqueness check', () => {
     const blockingErrors = result.errors.filter((e) => !e.startsWith('[WARN]'));
     expect(blockingErrors).toHaveLength(0);
     expect(result.valid).toBe(true);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Code-review MEDIUM — 3-way collision with 2-entry allow-list
+  // Adversarial case: a term shared by 3 dishes where the allow-list covers
+  // only 2 of them. Strict set equality must reject (size mismatch).
+  // ---------------------------------------------------------------------------
+
+  it('3-way collision: allow-list with only 2 of 3 colliders → still blocked (set-equality strict)', () => {
+    const dishA = makeEntry({
+      externalId: 'CE-T90',
+      dishId: '90000000-0000-0000-0000-000000000001',
+      nutrientId: '90000000-0000-f4b0-0008-000000000001',
+      name: 'Tortilla A',
+      nameEs: 'Tortilla A',
+      aliases: ['tortilla'],
+    });
+    const dishB = makeEntry({
+      externalId: 'CE-T91',
+      dishId: '91000000-0000-0000-0000-000000000002',
+      nutrientId: '91000000-0000-f4b0-0008-000000000002',
+      name: 'Tortilla B',
+      nameEs: 'Tortilla B',
+      aliases: ['tortilla'],
+    });
+    const dishC = makeEntry({
+      externalId: 'CE-T92',
+      dishId: '92000000-0000-0000-0000-000000000003',
+      nutrientId: '92000000-0000-f4b0-0008-000000000003',
+      name: 'Tortilla C',
+      nameEs: 'Tortilla C',
+      aliases: ['tortilla'],
+    });
+
+    // Allow-list only covers dishes A + B, leaving C as an un-allowed colliding party.
+    const incompleteAllowList = [
+      {
+        alias: 'tortilla',
+        dishIds: [
+          '90000000-0000-0000-0000-000000000001',
+          '91000000-0000-0000-0000-000000000002',
+        ],
+        reason: 'Partial allow-list (for test)',
+      },
+    ];
+
+    // Build dataset of 250 entries with A, B, C at the end (reuse helper pattern inline).
+    const filler = Array.from({ length: 247 }, (_unused, i) =>
+      makeEntry({
+        externalId: `CE-FILLER-${i.toString().padStart(3, '0')}`,
+        dishId: `10000000-0000-f4b0-0007-${i.toString().padStart(12, '0')}`,
+        nutrientId: `10000000-0000-f4b0-0008-${i.toString().padStart(12, '0')}`,
+        name: `Filler-${i}`,
+        nameEs: `Filler-${i}`,
+        aliases: [`filler-${i}`],
+      }),
+    );
+    const dataset = [...filler, dishA, dishB, dishC];
+
+    const result = validateSpanishDishesWithAllowList(dataset, incompleteAllowList);
+
+    expect(result.valid).toBe(false);
+    const collisionErrors = result.errors.filter((e) =>
+      e.includes('Collision in lookup key space'),
+    );
+    expect(collisionErrors).toHaveLength(1);
+    expect(collisionErrors[0]).toContain('"tortilla"');
+    expect(collisionErrors[0]).toContain('CE-T90');
+    expect(collisionErrors[0]).toContain('CE-T91');
+    expect(collisionErrors[0]).toContain('CE-T92');
+  });
+
+  // ---------------------------------------------------------------------------
+  // Code-review MEDIUM — allow-list entry with non-lowercase alias is rejected
+  // ---------------------------------------------------------------------------
+
+  it('allow-list integrity: rejects an entry whose alias is not lowercase', () => {
+    const dishA = makeEntry({
+      externalId: 'CE-T93',
+      dishId: '93000000-0000-0000-0000-000000000004',
+      nutrientId: '93000000-0000-f4b0-0008-000000000004',
+      name: 'Placeholder A',
+      nameEs: 'Placeholder A',
+      aliases: ['manzanilla'],
+    });
+    const dishB = makeEntry({
+      externalId: 'CE-T94',
+      dishId: '94000000-0000-0000-0000-000000000005',
+      nutrientId: '94000000-0000-f4b0-0008-000000000005',
+      name: 'Placeholder B',
+      nameEs: 'Placeholder B',
+      aliases: ['manzanilla'],
+    });
+
+    const badAllowList = [
+      {
+        alias: 'Manzanilla', // BAD: not lowercase
+        dishIds: [
+          '93000000-0000-0000-0000-000000000004',
+          '94000000-0000-0000-0000-000000000005',
+        ],
+        reason: 'Test non-lowercase alias',
+      },
+    ];
+
+    const result = validateSpanishDishesWithAllowList(make2DishDataset(dishA, dishB), badAllowList);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some((e) => e.includes('HOMOGRAPH_ALLOW_LIST entry alias must be lowercase')),
+    ).toBe(true);
   });
 });
