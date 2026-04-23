@@ -75,9 +75,11 @@ Expected: single-dish path, `portionMultiplier = 2`, item identified as `paella`
 Input: `"he comido paella"`
 Expected: single-dish path, `portionMultiplier = 1`, item identified as `paella`. Behaviour must be identical to pre-feature. Guards against any second-pass / reorder logic disturbing the common happy path.
 
-**EC-5 — No wrapper, count > 1, single item (regression guard)**
+**EC-5 — No wrapper, count > 1, drink-vessel item (regression guard with deliberate correctness improvement)**
 Input: `"dos cañas de cerveza"`
-Expected: single-dish path, `portionMultiplier = 2`, item identified as `caña de cerveza`. Behaviour must be identical to pre-feature. Any second-pass logic that re-runs on already-clean input must be a no-op.
+Expected: single-dish path, `portionMultiplier = 2`, item identified as `caña de cerveza`.
+
+**Observable-outcome note (made explicit during Step 3 implementation, audited by production-code-validator NIT 1):** The query reaching L1 is `"cañas de cerveza"` (NOT bare `"cerveza"` as pre-feature produced). This is an **intentional correctness improvement**: drink vessels (`caña de`, `tercio de`, `copa de`, etc.) are part of food-semantic identifiers — `"caña de cerveza"` is a catalog entity with its own portion/nutrition distinct from a bare `"cerveza"` serving. Stripping `"cañas de"` post-count would misroute to a different L1 entity (if both exist) or to L2/L3 fallback (if only `"caña de cerveza"` exists). The implementation uses a NEW exported `POST_COUNT_SERVING_PATTERNS` (`entityExtractor.ts:634`) that deliberately excludes drink vessels for this reason. `nameEs` still matches `/caña/i` — that is the observable behavioural invariant this AC actually cares about. Any second-pass logic on already-clean input remains a no-op for non-drink-vessel tokens.
 
 **EC-6 — Wrapper + count-1 article, single item (regression guard)**
 Input: `"me he tomado un café con leche"`
@@ -566,7 +568,7 @@ Fixture UUID prefix `fa000000-00fa-4000-a000-` — independent from existing `fc
 - [x] AC4 — Post-count normalization: Query `"he comido dos platos de paella"` returns `portionMultiplier = 2` AND the final query reaching L1 is `"paella"` (not `"platos de paella"`). Verify via either (a) assertion on the L1 match `nameEs === "paella"` or (b) inspection of the logged query via the pipeline's existing instrumentation. (EC-3)
 - [x] AC5 — Post-count normalization variant: Query `"me he tomado tres tapas de croquetas"` returns `portionMultiplier = 3` and L1 matches `croquetas`. (EC-10)
 - [x] AC6 — Regression: `"he comido paella"` (wrapper, no count) routes to single-dish path with `portionMultiplier = 1`, item `paella`. (EC-4)
-- [x] AC7 — Regression: `"dos cañas de cerveza"` (no wrapper) routes to single-dish path with `portionMultiplier = 2`, item `caña de cerveza`. Behaviour identical to pre-feature. (EC-5)
+- [x] AC7 — Regression: `"dos cañas de cerveza"` (no wrapper) routes to single-dish path with `portionMultiplier = 2`, item `caña de cerveza`. **Observable outcome:** `nameEs` matches `/caña/i`. **Implementation deviation from original plan (audited and approved):** the query reaching L1 is `"cañas de cerveza"` (not bare `"cerveza"`) because `POST_COUNT_SERVING_PATTERNS` deliberately excludes drink vessels for catalog-match accuracy. See EC-5 for rationale. (EC-5)
 - [x] AC8 — Regression: `"me he tomado un café con leche"` routes to single-dish path with `portionMultiplier = 1`, item `café con leche` (the `"con leche"` tail is preserved — it's part of the food name, not a container). (EC-6)
 - [x] AC9 — Regression: `"hoy he comido de menú: paella y vino"` routes to `menu_estimation` via the first-pass `detectMenuQuery`. This input matches the existing `de\s+men[uú]` pattern in `menuDetector.ts:18` — the existing F076 menu-detector contract is preserved. (EC-7)
 - [x] AC10 — Regression: `"2 bocadillos de jamón"` (no wrapper, digit-format count) routes to single-dish path with `portionMultiplier = 2`, item `bocadillo de jamón`. (EC-8)
@@ -632,6 +634,8 @@ Fixture UUID prefix `fa000000-00fa-4000-a000-` — independent from existing `fc
 | 2026-04-22 | Step 3 — Plan Steps 5+6 (GREEN: conversationCore reorder + stripContainerResidual) | Added private `stripContainerResidual()` to `conversationCore.ts` (CONTAINER + POST_COUNT_SERVING_PATTERNS, only applied when `cleanQuery !== strippedQuery`). Reordered Step 4: `extractFoodQuery` first, then `extractPortionModifier`, then strip — all wrapped in try/catch with `logger.warn?.` fallback per spec. Updated imports. |
 | 2026-04-22 | Step 3 — Plan Step 7 (RED→GREEN verified) | All 6 integration tests GREEN. All 26 unit tests GREEN. |
 | 2026-04-22 | Step 3 — Plan Step 8 (quality gates) | `npm test` 3694/3694 passed (baseline 3668 + 26 new). `npm run lint` 0 errors. `npm run build` clean. |
+| 2026-04-23 | Step 4 — production-code-validator | **APPROVE WITH NITS** (0 CRITICAL, 0 IMPORTANT, 3 NITs all about ticket-docs clarity not code). Validated: wrapper regex safety, CONTAINER plural regex `bol(?:es)?`, try/catch + `logger.warn?.` fallback, stripContainerResidual side-effect-free with guard `cleanQuery !== strippedQuery`, integration-test compliance with ADR-021, F091 ordering preservation, F-MORPH regression caught and fixed during implementation. |
+| 2026-04-23 | Step 4 — plan-vs-impl deviation audit (NIT 1) | Developer deviated from the plan's "use full SERVING_FORMAT_PATTERNS" by introducing a NEW export `POST_COUNT_SERVING_PATTERNS` (drink vessels excluded) on the argument that drink vessels carry food-semantic value (`caña de cerveza` is a catalog entity). Validator audit: **intentional correctness improvement**, not a regression — L1 matches the more specific `caña de cerveza` entity instead of routing to bare `cerveza` which may not exist in the catalog. EC-5 text and AC7 text updated to document this observable-outcome change (final query is `"cañas de cerveza"`, not `"cerveza"`) while the observable behavioural invariant (`nameEs` matches `/caña/i`) is preserved. Spec now accurately describes shipped behaviour. |
 
 <!-- After code review, add a row documenting which findings were accepted/rejected -->
 
