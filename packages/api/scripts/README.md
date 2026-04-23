@@ -9,16 +9,26 @@ benchmarks, and incident-response tooling that run against a deployed API.
 
 ### `reseed-all-envs.sh`
 
-Re-runs the two idempotent seed commands (`db:seed` + `seed:standard-portions`)
-against the dev Supabase project by default, and optionally against prod after
-an interactive confirmation. Replaces the manual flow of editing `.env`
-between runs.
+Re-runs the three idempotent seed phases against the dev Supabase project by
+default, and optionally against prod after an interactive confirmation.
+Replaces the manual flow of editing `.env` between runs.
+
+**Phases**
+
+1. `npm run db:seed` — upserts foods, restaurants, chains, BEDCA, Spanish
+   dishes, etc. OFF skipped unless `--full` is passed.
+2. `npm run seed:standard-portions` — upserts portion-term rows from CSV.
+3. `npm run embeddings:generate -- --target dishes --chain-slug cocina-espanola`
+   — regenerates OpenAI embeddings for rows where `embedding_updated_at IS NULL`
+   (i.e., the zero-vectors that Phase 1 placed for newly added dishes). Skipped
+   with `--skip-embeddings`.
 
 **Required env vars** (add to `packages/api/.env` once):
 
 ```bash
 DATABASE_URL_DEV="postgresql://...dev-pooler:5432/postgres"
 DATABASE_URL_PROD="postgresql://...prod-pooler:5432/postgres"  # only if using --prod
+OPENAI_API_KEY="sk-..."                                         # required for Phase 3
 ```
 
 **Quick start**
@@ -34,6 +44,10 @@ DATABASE_URL_PROD="postgresql://...prod-pooler:5432/postgres"  # only if using -
 # data refresh only:
 ./packages/api/scripts/reseed-all-envs.sh --full
 ./packages/api/scripts/reseed-all-envs.sh --prod --full
+
+# Skip Phase 3 when OPENAI_API_KEY is unavailable. L3 semantic search will
+# degrade for new dishes until embeddings are regenerated separately.
+./packages/api/scripts/reseed-all-envs.sh --skip-embeddings
 ```
 
 **Fast vs full** (F-TOOL-RESEED-002)
@@ -45,6 +59,19 @@ common case: a new batch of Spanish dishes merged to `develop`.
 
 Pass `--full` when you actually need OFF reseeded — e.g., bootstrapping a
 new Supabase project, or after a breaking change in the OFF import path.
+
+**Phase 3 — embeddings** (F-TOOL-RESEED-003)
+
+The seed places zero-vector embeddings for newly added dishes so pgvector
+queries don't blow up; but L3 semantic search only works once those are
+replaced with real OpenAI embeddings. Phase 3 does exactly that, targeting
+only `embedding_updated_at IS NULL` rows — so existing dishes with real
+embeddings are left alone and the cost is proportional to the new-dish count
+(~$0.00005 per 27 dishes at `text-embedding-3-small`, ~30 s).
+
+Use `--skip-embeddings` only when you cannot provide an `OPENAI_API_KEY`
+(e.g., local dev); remember to run `embeddings:generate` manually afterwards
+to avoid L3 degradation on new dishes.
 
 **Validation**: if `psql` is installed the script verifies that
 `SELECT COUNT(*) FROM dishes WHERE id LIKE '00000000-0000-e073-0007-%' >= 279`
