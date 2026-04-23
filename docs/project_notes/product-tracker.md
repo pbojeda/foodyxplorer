@@ -200,6 +200,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F056 | MIME Detection Fallback Safety | bot | done | 6/6 | Bug (low). Unknown magic bytes default to image/jpeg instead of showing error. From audit S7 (Claude, Gemini) |
 | F057 | Manual Corrections Batch | docs | done | 5/5 | Simple. 5 corrections to user-manual-bot.md: /cadenas truncation (I5), error table sync (I6), plurals (S1), half verified (S2), NL error (S3). Section 10/8 deferred to F053/F054. SHA aa212bc |
 | F058 | Strategic Plan Archival & Rate-Limit Decision Documentation | docs | done | 5/5 | Simple. Plan marked historical, verification items confirmed, ADR-013 + ADR-014 added. SHA aa212bc |
+| F-TOOL-RESEED-001 | Reseed-all-envs operator script | tooling | in-progress | 5/6 | Simple. Bash script `packages/api/scripts/reseed-all-envs.sh` + README/`.env.example` updates. Runs `db:seed` + `seed:standard-portions` against dev by default, against prod with `--prod` + interactive confirmation. Reads `DATABASE_URL_DEV` / `DATABASE_URL_PROD` from env. Optional psql post-seed count validation (≥279 dishes, ≥220 portions). Eliminates manual `.env` edits between environments. |
 
 ## Features — Landing Pre-Launch Audit
 

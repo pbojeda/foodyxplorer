@@ -7,6 +7,48 @@ benchmarks, and incident-response tooling that run against a deployed API.
 
 ## Scripts
 
+### `reseed-all-envs.sh`
+
+Re-runs the two idempotent seed commands (`db:seed` + `seed:standard-portions`)
+against the dev Supabase project by default, and optionally against prod after
+an interactive confirmation. Replaces the manual flow of editing `.env`
+between runs.
+
+**Required env vars** (add to `packages/api/.env` once):
+
+```bash
+DATABASE_URL_DEV="postgresql://...dev-pooler:5432/postgres"
+DATABASE_URL_PROD="postgresql://...prod-pooler:5432/postgres"  # only if using --prod
+```
+
+**Quick start**
+
+```bash
+# Dev only (safe default):
+./packages/api/scripts/reseed-all-envs.sh
+
+# Dev first, then prod (interactive y/N prompt between):
+./packages/api/scripts/reseed-all-envs.sh --prod
+```
+
+**Validation**: if `psql` is installed the script verifies that
+`SELECT COUNT(*) FROM dishes WHERE id LIKE '00000000-0000-e073-0007-%' >= 279`
+and `SELECT COUNT(*) FROM standard_portions >= 220` after each environment.
+Override thresholds with `EXPECTED_DISH_COUNT` / `MIN_PORTION_COUNT`. Without
+`psql` the script falls back to exit-code gating only.
+
+**When to run**
+
+- After merging any feature that adds/updates `spanish-dishes.json` or
+  `standard-portions.csv`.
+- When bringing up a fresh Supabase project.
+- Before a release from `develop` to `main`, to keep dev current.
+
+**Not in CI**. Treat as operator-run tooling — it connects directly to
+Supabase and is gated by credentials in `.env`.
+
+---
+
 ### `qa-exhaustive.sh`
 
 Exhaustive smoke-test battery for the `/conversation/message` endpoint plus
