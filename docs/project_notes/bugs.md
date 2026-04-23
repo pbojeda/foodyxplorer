@@ -71,8 +71,8 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
   2. Extend `validateSpanishDishes.ts` with an alias-uniqueness check (blocking error on cross-dish duplicates, OR warning with allow-list for known semantic homographs like `manzanilla`).
   3. Add a unit test that loads the real JSON and asserts zero alias collisions.
 - **Prevention**: The validator enhancement in step 2 above is the preventive measure. Any future seed addition that reuses an existing alias will be caught at seed time instead of surfacing as ambiguous L1 lookups in production.
-- **Status**: Logged (not fixed). Pre-existing issue (NOT introduced by F-H4). Flagged during F-H4 self-QA review 2026-04-22. User explicitly requested tracking so it does not get lost.
-- **Severity**: P3 (data quality, behavior depends on dish order in the file — production impact is silent and low-frequency)
+- **Status**: **FIXED 2026-04-23** via F-H4-B (PR #205 squash-merged to develop at `4520c24`). Resolved via Option B (hard uniqueness + `HOMOGRAPH_ALLOW_LIST`) — all 4 collisions declared as allow-list entries with distinct `reason` values (true homograph for `manzanilla`; near-duplicate pending merge for `menestra` + `pisto`; distinct dishes pending data review for `arroz con verduras`). Validator `validateSpanishDishes.ts` extended with cross-space uniqueness check as second pass + allow-list integrity pre-check. Prevention empirically verified: post-merge reseed ran the new check against real 279-dish JSON on both dev+prod with 0 blocking errors. Data-content follow-up (potential merges of near-duplicate pairs CE-076/CE-236 and CE-075/CE-239, and alias cleanup on CE-146/CE-247) deferred to a separate ticket.
+- **Severity at detection**: P3 (data quality, behavior depends on dish order in the file — production impact was silent and low-frequency)
 - **Detected by**: F-H4 self-QA script (`packages/api/prisma/seed-data/spanish-dishes.json` alias uniqueness sweep)
 
 ---
