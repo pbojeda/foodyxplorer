@@ -440,7 +440,11 @@ smoke "POST /conv/msg invalid JSON"                "400"      -X POST "$API/conv
 smoke "POST /conv/msg missing api key"             "200|401"  -X POST "$API/conversation/message" -H "Content-Type: application/json" -d '{"text":"croquetas"}'
 smoke "POST /conv/audio no body"                   "400|415"  -X POST "$API/conversation/audio" -H "x-api-key: $KEY"
 smoke "POST /conv/audio wrong content-type"        "400|415"  -X POST "$API/conversation/audio" -H "x-api-key: $KEY" -H "Content-Type: text/plain" -d "hello"
-smoke "POST /conv/audio missing api key"           "401"      -X POST "$API/conversation/audio" -H "Content-Type: multipart/form-data"
+# BUG-API-AUDIO-4XX-001: /conversation/audio allows anonymous callers per F091 EAA design
+# (same reasoning as ADR-001 for /conversation/message; see PR #195 H3 fix).
+# This smoke sends Content-Type: multipart/form-data without a boundary → 400 VALIDATION_ERROR.
+# Accepting 400|415 because the exact code depends on which guard fires first.
+smoke "POST /conv/audio missing api key"           "400|415"  -X POST "$API/conversation/audio" -H "Content-Type: multipart/form-data"
 smoke "GET /conv/message (wrong method)"           "404|405"  "$API/conversation/message" -H "x-api-key: $KEY"
 
 echo ""

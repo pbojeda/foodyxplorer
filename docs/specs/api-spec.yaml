@@ -5535,7 +5535,7 @@ paths:
       operationId: conversationAudio
       summary: Transcribe a voice message and process via ConversationCore
       description: |
-        Accepts a multipart/form-data audio file (OGG, MP3, MP4, WAV, WebM).
+        Accepts a multipart/form-data audio file (OGG, MP3, MP4, WebM).
         Transcribes via OpenAI Whisper (`whisper-1`, `language: es`, `temperature: 0`),
         applies a hallucination filter for known bad Whisper outputs, then delegates
         to the Conversation Core pipeline (`processMessage()`).
@@ -5655,6 +5655,9 @@ paths:
         '400':
           description: |
             Validation error. Sub-cases:
+            - `Content-Type: multipart/form-data` header present but missing `boundary=` parameter (malformed multipart).
+            - Multipart body is valid but contains zero parts.
+            - Multipart body is valid but no `audio` file part is present.
             - `audio` file part is missing from the multipart body.
             - MIME type is not one of: audio/ogg, audio/mpeg, audio/mp4, audio/webm.
             - `duration` field is missing or not a number.
@@ -5685,6 +5688,39 @@ paths:
                     error:
                       message: "Audio duration must be between 0 and 120 seconds"
                       code: "VALIDATION_ERROR"
+        '415':
+          description: |
+            Unsupported Media Type. The request Content-Type is not multipart/form-data.
+            Returned when Content-Type is absent, or set to a non-multipart type
+            (e.g. application/json, text/plain, application/octet-stream).
+            Anonymous callers are accepted on this endpoint per F091 design; the 415
+            is purely about the body encoding, not about authentication.
+
+            Two example bodies are listed. `handlerGuard` is the common path — the
+            audio route's own Content-Type guard throws an audio-specific message
+            before calling the multipart parser. `frameworkGuard` is the defensive
+            path used when fastify (or `@fastify/multipart`) rejects the request
+            before the handler runs; a generic message is used because the same
+            error-handler branches fire on any route.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                handlerGuard:
+                  summary: Audio handler rejects non-multipart Content-Type
+                  value:
+                    success: false
+                    error:
+                      message: "Content-Type must be multipart/form-data"
+                      code: "UNSUPPORTED_MEDIA_TYPE"
+                frameworkGuard:
+                  summary: Fastify framework rejects before the handler runs
+                  value:
+                    success: false
+                    error:
+                      message: "Unsupported Content-Type for this endpoint"
+                      code: "UNSUPPORTED_MEDIA_TYPE"
         '413':
           description: Audio file exceeds 10 MB limit (handled by @fastify/multipart).
           content:

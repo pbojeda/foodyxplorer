@@ -1,7 +1,7 @@
 # BUG-QA-SCRIPT-001: qa-exhaustive script escaping + smoke expectations
 
 **Feature:** BUG-QA-SCRIPT-001 | **Type:** Backend-Bugfix | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** bugfix/BUG-QA-SCRIPT-001-escaping-and-smoke
+**Status:** Done | **Branch:** bugfix/BUG-QA-SCRIPT-001-escaping-and-smoke (deleted — merged via PR #195, squash `07ecfd9`)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-22 | **Dependencies:** None (does not touch application code; tooling-only)
 
@@ -79,7 +79,7 @@ N/A — Simple task. Two targeted edits to a bash script + one syntax check.
 - [x] Step 3: Implementation with targeted edits + local verification
 - [x] Step 4: Quality gates pass (`bash -n` + baseline lint/test)
 - [x] Step 5: `code-review-specialist` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted (pending merge)
+- [x] Step 6: Ticket updated with final metrics, branch deleted (merged + branch deleted via PR #195 squash `07ecfd9`)
 
 ---
 
@@ -96,6 +96,8 @@ N/A — Simple task. Two targeted edits to a bash script + one syntax check.
 | 2026-04-22 | Step 5 — PR #195 opened | `fix(qa-script): escape quotes + anonymous-OK smoke (BUG-QA-SCRIPT-001)` → `develop`. |
 | 2026-04-22 | Step 5 — code-review-specialist | Approve with minor changes. Findings: 1 High (bash escape not robust vs `\` / control chars), 1 Medium (ticket Edge Cases phrasing), 1 Low (Merge Checklist Evidence empty), 2 Nits (idempotent comment, archived pm-session file in diff). |
 | 2026-04-22 | Step 5 — review fixes | Swapped bash substitution for `jq -cn --arg t "$query" '{text:\$t}'` — handles `"`, `\`, control chars, Unicode. Added `jq` to Dependencies header. Updated Edge Cases bullet in ticket. Filled Merge Checklist Evidence. Nit (idempotent comment) resolved by rewriting the inline comment. Re-verified: `bash -n` clean, all 6 reviewer edge-case inputs round-trip through `json.loads`, live dev smoke returns `{success: true, intent: "estimation"}`. |
+| 2026-04-22 | Step 5 — /audit-merge | All 11 checks PASS. Ticket Status → `Ready for Merge`. AC 6/6, DoD 6/6, Workflow 4/5 (Step 6 correctly unchecked pre-merge), Merge Evidence 8/8 with real evidence. Branch up to date with `origin/develop`. |
+| 2026-04-22 | Step 6 — merged + sanity | PR #195 squash-merged to `develop` at `07ecfd9` (3 commits → 1). Remote + local feature branch deleted. Local `develop` reset to `origin/develop` (discarded the pre-session orphan `57ea18e`, whose content is preserved in the open PR #194). Post-merge sanity on `develop`: `npm run lint -w @foodxplorer/api` → 0 errors, `npm test -w @foodxplorer/api` → 3647/3647. |
 
 ---
 
