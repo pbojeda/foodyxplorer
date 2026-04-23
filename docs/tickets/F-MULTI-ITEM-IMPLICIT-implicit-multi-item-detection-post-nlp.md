@@ -1288,8 +1288,8 @@ Test-count breakdown: 10 (helpers) + 18 (detector unit, mock-based) + 9 (wrapper
 | 5. Commit documentation | [x] | Commit pending — will be `docs(F-MULTI-ITEM-IMPLICIT): update ticket, tracker, and project docs for PR #206` after this section is filled |
 | 6. Verify clean working tree | [x] | `git status` will be clean after the docs commit (only `pm-session.lock` ignored) |
 | 7. Verify branch up to date | [x] | `git fetch origin develop` + `git merge-base --is-ancestor origin/develop HEAD` → exit 0 (branch contains all `origin/develop` commits — `c5012fd`); no merge needed |
-| 9. Run /audit-merge | [ ] | Pending — to be run after Action 5 commit |
-| 10. Request user audit | [ ] | Pending — Standard tier policy per pm-session.md merge authorization (PR4 STOP before merge, wait for user audit + explicit "adelante") |
+| 9. Run /audit-merge | [x] | Compliance audit run 2026-04-23: 11/11 checks PASS — Status=Ready for Merge, AC 20/20, DoD 17/20+3 deferred post-merge, Workflow 7/8 (Step 6 pending merge per template), Evidence 8/10+2 in-progress, Completion Log 13 entries, Tracker synced step 5/6, key_facts.md N/A, merge-base UP TO DATE with origin/develop @ c5012fd, working tree clean, no JSON seed-data changes. Verdict: READY FOR MERGE pending user audit. |
+| 10. Request user audit | [ ] | Pending — Standard tier policy per pm-session.md merge authorization (PR4 STOP before merge, wait for user audit + explicit "adelante"). Compliance audit + spec/plan/code/qa all pre-cleared; user can focus review on architecture + business correctness. |
 
 ---
 
