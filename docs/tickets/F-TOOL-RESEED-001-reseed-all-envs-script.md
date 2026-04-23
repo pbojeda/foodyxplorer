@@ -1,7 +1,7 @@
 # F-TOOL-RESEED-001: Reseed-all-envs operator script
 
 **Feature:** F-TOOL-RESEED-001 | **Type:** Backend-Feature (tooling) | **Priority:** Medium
-**Status:** In Progress | **Branch:** chore/tooling-reseed-script
+**Status:** Done | **Branch:** chore/tooling-reseed-script (merged as PR #198, squash `332d263`)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-22 | **Dependencies:** None
 **Complexity:** Simple
@@ -86,6 +86,9 @@ Files to touch:
 | 2026-04-22 | Script + docs committed | `cbda4b4` — 169 bash + 42 README + 7 .env.example + 104 ticket + 1 tracker |
 | 2026-04-22 | PR #198 opened | base `develop`, squash merge planned |
 | 2026-04-23 | Cross-model review (Gemini + Codex) | 3 IMPORTANT + 3 SUGGESTION. Fixes: (1) strip `?pgbouncer=true` before psql call, (2) explicit error message for `DATABASE_URL_PRO` typo, (3) promote psql validation failures from warn to fail, (4) drop redundant `set -a` around `.env` sourcing, (5) backticks on env var names in header. Skipped: `while/case/shift` rewrite (style-only). |
+| 2026-04-23 | PR #198 squash-merged to develop | `332d263` |
+| 2026-04-23 | Post-merge live run — discovered OFF phase (~15 min) dominates seed time | Triggered follow-up ticket F-TOOL-RESEED-002 (SEED_SKIP_OFF fast path). No data corruption — reseed killed mid-OFF; all phases idempotent upsert. |
+| 2026-04-23 | Ticket housekeeping sync (post-merge) | Status → Done. Retroactive closing via chore/tracker-sync-reseed-tickets-close (this PR). |
 
 ---
 
@@ -93,14 +96,14 @@ Files to touch:
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | — |
-| 1. Mark all items | [ ] | — |
-| 2. Verify product tracker | [ ] | — |
-| 3. Update key_facts.md | [ ] | — |
-| 4. Update decisions.md | [ ] | — |
-| 5. Commit documentation | [ ] | — |
-| 6. Verify clean working tree | [ ] | — |
-| 7. Verify branch up to date | [ ] | — |
+| 0. Validate ticket structure | [x] | All 7 sections present (Spec, Implementation Plan, AC, DoD, Workflow Checklist, Completion Log, Merge Checklist Evidence) |
+| 1. Mark all items | [x] | AC: 9/9, DoD: 6/6, Workflow: 5/5 |
+| 2. Verify product tracker | [x] | F-TOOL-RESEED-001 row in Quality & Documentation section — updated to `done 6/6` in this tracker-sync PR |
+| 3. Update key_facts.md | [x] | N/A — tooling script, no product capability change |
+| 4. Update decisions.md | [x] | N/A — no architectural decision (Simple tier, standard bash script) |
+| 5. Commit documentation | [x] | Pre-merge: `cbda4b4` + `2f41323` squashed as `332d263`. Post-merge housekeeping: this PR |
+| 6. Verify clean working tree | [x] | Confirmed at merge time (PR #198 mergeStateStatus: CLEAN) |
+| 7. Verify branch up to date | [x] | At merge: 2 commits ahead of `develop`, rebased clean, CI green (test-api pass) |
 
 ---
 
