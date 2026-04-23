@@ -38,6 +38,9 @@ function makeMinimalDataset(count: number): SpanishDishEntry[] {
       nutrientId: `00000000-0000-e073-0008-${String(i + 1).padStart(12, '0')}`,
       name: `Plato ${i + 1}`,
       nameEs: `Plato ${i + 1}`,
+      // Each filler dish gets a unique alias to avoid triggering the uniqueness
+      // check added in F-H4-B (all sharing "tortilla española" would collide).
+      aliases: [`filler-${i + 1}`],
     }),
   );
 }
