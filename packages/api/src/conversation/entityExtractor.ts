@@ -542,6 +542,11 @@ export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
   /^(?:ayer|anoche|anteayer|hoy|esta\s+ma[nñ]ana|esta\s+noche)\s+(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|beb[ií])\s+/i,
   // 4. "he + participle" bare (with optional hoy): "he desayunado ..." / "hoy he comido ..."
   /^(?:hoy\s+)?he\s+(?:tomado|bebido|comido|cenado|desayunado|almorzado|merendado)\s+/i,
+  // 4b. "esta mañana/tarde/noche he + participle": "esta mañana he tomado ..."
+  // Extends pattern 4 to cover temporal markers beyond hoy.
+  // F-MULTI-ITEM-IMPLICIT: required for canonical #2 — strips before detector receives text.
+  // NOTE: inserted BEFORE pattern 5 (acabo de) and AFTER pattern 4 in the array (index 4).
+  /^esta\s+(?:ma[nñ]ana|tarde|noche)\s+he\s+(?:tomado|bebido|comido|cenado|desayunado|almorzado|merendado)\s+/i,
   // 5. "acabo de + infinitive [+ clitic me]": "acabo de comer ..." / "acabo de beberme ..."
   // F-NLP-CHAIN-ORDERING: added optional clitic suffix (?:me)? to support "acabo de beberme/comerme/..."
   /^acabo\s+de\s+(?:comer|tomar|beber|cenar|desayunar|almorzar|merendar)(?:me)?\s+/i,
@@ -549,6 +554,15 @@ export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
   /^para\s+(?:cenar|desayunar|comer|almorzar|merendar)\s+(?:tuve|com[ií]|tom[eé])\s+/i,
   // 7. Intent-to-eat (me voy a pedir / me pido): "me voy a pedir ..." / "me pido ..."
   /^me\s+(?:voy\s+a\s+(?:pedir|comer|tomar|beber)|pido)\s+/i,
+  // 7b. "he entrado/estado en [place] y me he pedido": "he entrado en un bar y me he pedido ..."
+  // Covers the bar/restaurant entry pattern. Uses lazy .+? match for the place phrase.
+  // F-MULTI-ITEM-IMPLICIT: required for canonical #3 — strips before detector receives text.
+  // NOTE: "ido" is intentionally omitted — Spanish pairs "ido" with "al/a la" (not "en"),
+  // making "he ido en ..." unnatural. Minimum surface area principle (S3, spec §12).
+  // ReDoS safety: ^ anchor + required literal suffix "\by\s+me\s+he\s+pedido\s+" bound the
+  // .+? lazy match — backtracking terminates on the literal suffix. No catastrophic risk.
+  // NOTE: inserted AFTER pattern 7 in the array (index 8).
+  /^he\s+(?:entrado|estado)\s+en\s+.+?\by\s+me\s+he\s+pedido\s+/i,
   // 8. "quiero saber / necesito saber" + nutrient phrase: "quiero saber las calorías de ..."
   /^(?:quiero|necesito)\s+saber\s+(?:las?\s+|los?\s+)?(?:calor[ií]as?|nutrientes|informaci[oó]n\s+nutricional|valores?\s+nutricionales?)\s+(?:de[l]?\s+)?/i,
   // 9. "cuánto engorda [un/una] ...": "cuánto engorda una ración de croquetas"
