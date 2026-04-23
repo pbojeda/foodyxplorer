@@ -21,6 +21,8 @@ import {
   extractPortionModifier,
   extractFoodQuery,
   parseDishExpression,
+  CONTAINER_PATTERNS,
+  POST_COUNT_SERVING_PATTERNS,
 } from './entityExtractor.js';
 import { detectMenuQuery } from './menuDetector.js';
 import { extractDiners } from './dinersExtractor.js';
@@ -31,6 +33,45 @@ import { reverseSearchDishes } from '../estimation/reverseSearch.js';
 // ---------------------------------------------------------------------------
 
 const MAX_TEXT_LENGTH = 500;
+
+// ---------------------------------------------------------------------------
+// F-NLP-CHAIN-ORDERING: stripContainerResidual
+// ---------------------------------------------------------------------------
+
+/**
+ * Strip a leading container or non-drink serving prefix from `text`.
+ *
+ * Called ONLY after `extractPortionModifier` has stripped a count token
+ * (i.e., portionMultiplier > 1 or cleanQuery !== strippedQuery). At that
+ * point the residual text may start with a container ("platos de", "cuencos de")
+ * or a non-drink serving prefix ("tapas de", "raciones de") that must be removed
+ * so L1 receives the clean food name.
+ *
+ * Deliberately does NOT use the full SERVING_FORMAT_PATTERNS — drink-vessel
+ * entries like "cañas de", "tercios de" carry food-semantic value and must not
+ * be stripped (e.g., "cañas de cerveza" → the food IS "caña de cerveza").
+ *
+ * Module-private — not exported.
+ */
+function stripContainerResidual(text: string): string {
+  // Pass 1: CONTAINER_PATTERNS (platos de, cuencos de, boles de, vasitos de, ...)
+  for (const pattern of CONTAINER_PATTERNS) {
+    const stripped = text.replace(pattern, '').trim();
+    if (stripped !== text && stripped.length > 0) {
+      return stripped;
+    }
+  }
+
+  // Pass 2: POST_COUNT_SERVING_PATTERNS (tapas de, pinchos de, pintxos de, raciones de)
+  for (const pattern of POST_COUNT_SERVING_PATTERNS) {
+    const stripped = text.replace(pattern, '').trim();
+    if (stripped !== text && stripped.length > 0) {
+      return stripped;
+    }
+  }
+
+  return text;
+}
 
 // ---------------------------------------------------------------------------
 // processMessage
@@ -350,8 +391,34 @@ export async function processMessage(
   // Step 4 — Single-dish estimation
   // -------------------------------------------------------------------------
 
-  const { cleanQuery, portionMultiplier } = extractPortionModifier(trimmed);
-  const { query: extractedQuery, chainSlug: explicitSlug } = extractFoodQuery(cleanQuery);
+  // F-NLP-CHAIN-ORDERING: reordered pipeline — extractFoodQuery (wrapper strip) FIRST,
+  // then extractPortionModifier on stripped text, then stripContainerResidual on residual.
+  // Spec EC fallback: if the reordered pipeline throws (e.g., a future regex addition with
+  // catastrophic backtracking), fall back to the original single-pass behavior so the
+  // endpoint never regresses to 500.
+  let extractedQuery: string;
+  let portionMultiplier: number;
+  let explicitSlug: string | undefined;
+  try {
+    const stripped = extractFoodQuery(trimmed);
+    const modified = extractPortionModifier(stripped.query);
+    // Only apply the container/serving residual strip when a count token was actually
+    // extracted (i.e., the modifier changed the text). This avoids stripping serving
+    // tokens that are part of the food name (e.g., "cañas de cerveza").
+    extractedQuery =
+      modified.cleanQuery !== stripped.query
+        ? stripContainerResidual(modified.cleanQuery)
+        : modified.cleanQuery;
+    portionMultiplier = modified.portionMultiplier;
+    explicitSlug = stripped.chainSlug;
+  } catch (err) {
+    logger.warn?.({ err }, 'F-NLP-CHAIN-ORDERING: reordered pipeline threw — falling back to single-pass');
+    const modified = extractPortionModifier(trimmed);
+    const stripped = extractFoodQuery(modified.cleanQuery);
+    extractedQuery = stripped.query;
+    portionMultiplier = modified.portionMultiplier;
+    explicitSlug = stripped.chainSlug;
+  }
 
   // Inject context fallback only when query has no explicit chainSlug
   const effectiveChainSlug = explicitSlug ?? effectiveContext?.chainSlug;

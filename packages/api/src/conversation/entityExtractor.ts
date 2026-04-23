@@ -542,8 +542,9 @@ export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
   /^(?:ayer|anoche|anteayer|hoy|esta\s+ma[nñ]ana|esta\s+noche)\s+(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|beb[ií])\s+/i,
   // 4. "he + participle" bare (with optional hoy): "he desayunado ..." / "hoy he comido ..."
   /^(?:hoy\s+)?he\s+(?:tomado|bebido|comido|cenado|desayunado|almorzado|merendado)\s+/i,
-  // 5. "acabo de + infinitive": "acabo de comer ..."
-  /^acabo\s+de\s+(?:comer|tomar|beber|cenar|desayunar|almorzar|merendar)\s+/i,
+  // 5. "acabo de + infinitive [+ clitic me]": "acabo de comer ..." / "acabo de beberme ..."
+  // F-NLP-CHAIN-ORDERING: added optional clitic suffix (?:me)? to support "acabo de beberme/comerme/..."
+  /^acabo\s+de\s+(?:comer|tomar|beber|cenar|desayunar|almorzar|merendar)(?:me)?\s+/i,
   // 6. "para + meal + tuve/comí/tomé": "para cenar tuve ..."
   /^para\s+(?:cenar|desayunar|comer|almorzar|merendar)\s+(?:tuve|com[ií]|tom[eé])\s+/i,
   // 7. Intent-to-eat (me voy a pedir / me pido): "me voy a pedir ..." / "me pido ..."
@@ -609,17 +610,33 @@ export const ARTICLE_PATTERN = /^(?:un[ao]?s?|el|la[s]?|los|del|al)\s+/i;
 // Applied AFTER ARTICLE_PATTERN, BEFORE SERVING_FORMAT_PATTERNS.
 // NOTE: "vaso de" is intentionally excluded — it belongs to F-DRINK (drink portion).
 // "vasito de" (diminutive container) is owned by F-MORPH.
+// F-NLP-CHAIN-ORDERING: merged singular/plural into plural-aware forms (platos? de, etc.)
+// so that post-count residuals like "platos de paella" are correctly stripped.
 export const CONTAINER_PATTERNS: readonly RegExp[] = [
-  /^plato\s+de\s+/i,
+  /^platos?\s+de\s+/i,
   /^platito\s+de\s+/i,
-  /^cuenco\s+de\s+/i,
-  /^bol\s+de\s+/i,
-  /^vasito\s+de\s+/i,
-  /^jarrita\s+de\s+/i,
+  /^cuencos?\s+de\s+/i,
+  /^bol(?:es)?\s+de\s+/i,
+  /^vasitos?\s+de\s+/i,
+  /^jarritas?\s+de\s+/i,
   /^poco\s+de\s+/i,
   /^poqu?ito\s+de\s+/i,
   /^trozo\s+de\s+/i,
   /^trocito\s+de\s+/i,
+];
+
+// F-NLP-CHAIN-ORDERING: Non-drink serving prefixes for post-count container residual strip.
+// Used by stripContainerResidual in conversationCore.ts ONLY when extractPortionModifier
+// has stripped a count token (portionMultiplier > 1 / cleanQuery changed).
+// Deliberately EXCLUDES drink-vessel entries (cañas, tercios, botellas, copas, vasos) from
+// SERVING_FORMAT_PATTERNS because those carry food-semantic value (e.g., "caña de cerveza"
+// is the catalogue name, not a serving prefix). Only pure serving formats are included.
+export const POST_COUNT_SERVING_PATTERNS: readonly RegExp[] = [
+  /^tapas?\s+de\s+/i,
+  /^pintxos?\s+de\s+/i,
+  /^pinchos?\s+de\s+/i,
+  /^raciones\s+de\s+/i,
+  /^raci[oó]n\s+de\s+/i,
 ];
 
 // F-MORPH: Curated diminutive → base form map (Option A).
