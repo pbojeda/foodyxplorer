@@ -1,7 +1,7 @@
 # F-NLP-CHAIN-ORDERING: NLP Pipeline Chain Ordering — Count Extraction After Wrapper Strip
 
 **Feature:** F-NLP-CHAIN-ORDERING | **Type:** Backend-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F-NLP-CHAIN-ORDERING
+**Status:** Done | **Branch:** feature/F-NLP-CHAIN-ORDERING (deleted — merged via PR #202, squash `c7cee4d`)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-23 | **Dependencies:** None (builds on F-NLP + F-COUNT + F-MORPH from QA Improvement Sprint 2026-04-21)
 
@@ -607,7 +607,7 @@ Fixture UUID prefix `fa000000-00fa-4000-a000-` — independent from existing `fc
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed (APPROVE WITH CHANGES — M1 blocking + M2 recommended, both applied; L1/L2/N1 polish)
 - [x] Step 5: `qa-engineer` executed (PASS WITH FOLLOW-UPS — 18/19 AC verified, 29 proactive edge-case tests added, Important guard-semantic finding hardened inline)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted (merged + branch deleted via PR #202 squash `c7cee4d` @ 2026-04-23; post-merge sanity: 3723/3723 API tests, lint 0, build clean on `develop`)
 
 ---
 

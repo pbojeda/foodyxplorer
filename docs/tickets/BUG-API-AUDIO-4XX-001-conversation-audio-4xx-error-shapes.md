@@ -1,7 +1,7 @@
 # BUG-API-AUDIO-4XX-001: Fix POST /conversation/audio returning 500 for malformed multipart requests
 
 **Feature:** BUG-API-AUDIO-4XX-001 | **Type:** Backend-Bugfix | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** bugfix/BUG-API-AUDIO-4XX-001
+**Status:** Done | **Branch:** bugfix/BUG-API-AUDIO-4XX-001 (deleted — merged via PR #197, squash `05a973a` @ 2026-04-23T08:32Z)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-22 | **Dependencies:** None (builds on top of F091 voice endpoint scaffolding; no feature-level blockers)
 
@@ -766,7 +766,7 @@ The `buildMultipartBody` helper produces only the closing `--${boundary}--\r\n` 
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed (APPROVE — 1M+4L+4N, M1/L3/L4 addressed inline)
 - [x] Step 5: `qa-engineer` executed (PASS WITH FOLLOW-UPS — 16/16 AC verified, 2 Important gaps pinned with 8 new edge-case tests)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted (merged + branch deleted via PR #197 squash `05a973a`; post-merge sanity on develop: 3668/3668 API tests, lint 0. Step 6 housekeeping bundled into `chore/sprint2-final-housekeeping` with PR3 closure since PR #199 was superseded)
 
 ---
 
