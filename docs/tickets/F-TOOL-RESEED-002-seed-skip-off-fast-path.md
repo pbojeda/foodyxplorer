@@ -1,7 +1,7 @@
 # F-TOOL-RESEED-002: Fast-path seed — skip OFF phase by default
 
 **Feature:** F-TOOL-RESEED-002 | **Type:** Backend-Feature (tooling) | **Priority:** High
-**Status:** In Progress | **Branch:** chore/seed-skip-off-F-TOOL-RESEED-002
+**Status:** Done | **Branch:** chore/seed-skip-off-F-TOOL-RESEED-002 (merged as PR #200, squash `2de94e9`)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-23 | **Dependencies:** F-TOOL-RESEED-001 (landed as `332d263`)
 **Complexity:** Simple
@@ -83,6 +83,11 @@ Files to touch:
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-23 | Ticket created | F-TOOL-RESEED-002, Simple tier |
+| 2026-04-23 | Script + seed.ts gate implemented + committed | `704cc7a` — 40 bash + 14 seed.ts gate + 23 README + 104 ticket + 3 tracker |
+| 2026-04-23 | PR #200 squash-merged to develop | `2de94e9` — CI green (ci-success + test-api 4m16s) |
+| 2026-04-23 | Post-merge live run — fast path validated | dev+prod reseed took ~6 min total (vs ~40 min previously). OFF correctly skipped (`Skipping OFF seed (SEED_SKIP_OFF=1).` logged). 279 dishes + 219 portions per env. |
+| 2026-04-23 | Discovery post-merge: L3 gap | Zero-vector embeddings on 27 H4 dishes confirmed by audit. Triggered F-TOOL-RESEED-003 to automate `embeddings:generate` after the seed. |
+| 2026-04-23 | Ticket housekeeping sync (post-merge) | Status → Done. Retroactive closing via chore/tracker-sync-reseed-tickets-close (this PR). |
 
 ---
 
@@ -90,14 +95,14 @@ Files to touch:
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | — |
-| 1. Mark all items | [ ] | — |
-| 2. Verify product tracker | [ ] | — |
-| 3. Update key_facts.md | [ ] | — |
-| 4. Update decisions.md | [ ] | — |
-| 5. Commit documentation | [ ] | — |
-| 6. Verify clean working tree | [ ] | — |
-| 7. Verify branch up to date | [ ] | — |
+| 0. Validate ticket structure | [x] | All 7 sections present (Spec, Implementation Plan, AC, DoD, Workflow Checklist, Completion Log, Merge Checklist Evidence) |
+| 1. Mark all items | [x] | AC: 7/7, DoD: 4/4, Workflow: 5/5 |
+| 2. Verify product tracker | [x] | F-TOOL-RESEED-002 row in Quality & Documentation — updated to `done 6/6` in this tracker-sync PR |
+| 3. Update key_facts.md | [x] | N/A — tooling change, no product capability change |
+| 4. Update decisions.md | [x] | N/A — Simple tier, no architectural decision |
+| 5. Commit documentation | [x] | Pre-merge: `704cc7a` squashed as `2de94e9`. Post-merge housekeeping: this PR |
+| 6. Verify clean working tree | [x] | Confirmed at merge time (PR #200 mergeStateStatus: CLEAN) |
+| 7. Verify branch up to date | [x] | At merge: branched from `origin/develop`, CI green (test-api 4m16s) |
 
 ---
 
