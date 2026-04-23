@@ -402,17 +402,24 @@ export async function processMessage(
   try {
     const stripped = extractFoodQuery(trimmed);
     const modified = extractPortionModifier(stripped.query);
-    // Only apply the container/serving residual strip when a count token was actually
-    // extracted (i.e., the modifier changed the text). This avoids stripping serving
-    // tokens that are part of the food name (e.g., "cañas de cerveza").
+    // Apply the container/serving residual strip when `extractPortionModifier` actually
+    // modified the text AND produced a non-unit multiplier. Dual-gate (text change +
+    // multiplier ≠ 1) isolates the "count/quantifier consumed" case from the no-op
+    // identity case, preventing future no-count modifiers from accidentally triggering
+    // the residual strip and stripping serving tokens that are part of food names
+    // (e.g., "cañas de cerveza" — see EC-5 / AC7 / F-MULTI-ITEM-IMPLICIT rationale).
     extractedQuery =
-      modified.cleanQuery !== stripped.query
+      modified.cleanQuery !== stripped.query && modified.portionMultiplier !== 1
         ? stripContainerResidual(modified.cleanQuery)
         : modified.cleanQuery;
     portionMultiplier = modified.portionMultiplier;
     explicitSlug = stripped.chainSlug;
   } catch (err) {
-    logger.warn?.({ err }, 'F-NLP-CHAIN-ORDERING: reordered pipeline threw — falling back to single-pass');
+    // This error-level log is deliberately high-signal: the try-block above contains only
+    // pure regex + array iteration + string.replace, which cannot throw on valid string
+    // input. If this fires in production, a later-added regex has catastrophic backtracking
+    // — a real bug. Stable tag `F-NLP-CHAIN-ORDERING:fallback-fired` is greppable.
+    logger.error({ err }, 'F-NLP-CHAIN-ORDERING:fallback-fired — reordered pipeline threw; falling back to single-pass');
     const modified = extractPortionModifier(trimmed);
     const stripped = extractFoodQuery(modified.cleanQuery);
     extractedQuery = stripped.query;
