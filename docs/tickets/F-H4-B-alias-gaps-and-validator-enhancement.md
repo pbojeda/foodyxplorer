@@ -646,50 +646,50 @@ All criteria must be verified by running `validateSpanishDishes.ts` against `spa
 
 ### AC-1 — Apócope aliases present and resolving
 
-- AC-1a: `spanish-dishes.json` contains alias `"papas arrugás"` on CE-253.
-- AC-1b: `spanish-dishes.json` contains alias `"papas arrugás con mojo picón"` on CE-254.
-- AC-1c: `spanish-dishes.json` contains alias `"papas arrugás con mojo verde"` on CE-255.
-- AC-1d: `spanish-dishes.json` contains alias `"gofio escaldao"` on CE-257.
-- AC-1e: `spanish-dishes.json` contains alias `"queso asao con mojo"` on CE-262.
-- AC-1f: `spanish-dishes.json` contains alias `"ternasco asao"` on CE-275.
-- AC-1g: A unit test asserts that each of the above queries returns `level1Hit: true` against the seeded dev database (or, if DB is unavailable in CI, asserts that the alias string is present in the JSON and is a distinct lowercase string from `nameEs`).
+- [x] AC-1a: `spanish-dishes.json` contains alias `"papas arrugás"` on CE-253.
+- [x] AC-1b: `spanish-dishes.json` contains alias `"papas arrugás con mojo picón"` on CE-254.
+- [x] AC-1c: `spanish-dishes.json` contains alias `"papas arrugás con mojo verde"` on CE-255.
+- [x] AC-1d: `spanish-dishes.json` contains alias `"gofio escaldao"` on CE-257.
+- [x] AC-1e: `spanish-dishes.json` contains alias `"queso asao con mojo"` on CE-262.
+- [x] AC-1f: `spanish-dishes.json` contains alias `"ternasco asao"` on CE-275.
+- [x] AC-1g: A unit test asserts that each of the above queries returns `level1Hit: true` against the seeded dev database (or, if DB is unavailable in CI, asserts that the alias string is present in the JSON and is a distinct lowercase string from `nameEs`).
 
 ### AC-2 — All 4 collisions resolved via Option B allow-list
 
 Option B was selected post cross-model review. The 4 existing collisions are declared in `HOMOGRAPH_ALLOW_LIST` with distinct `reason` values; **no alias data edits are made for the existing collisions in this ticket** (collision 1 is a true homograph and collisions 2–4 defer to a future data-content review per Gemini finding).
 
 Universal ACs:
-- AC-2a: Running the extended `validateSpanishDishes` on the final `spanish-dishes.json` returns `valid: true` with zero blocking errors from the uniqueness check.
-- AC-2b: `"gofio escaldado"` (canonical) still resolves via `name_es` — no regression on existing forms.
-- AC-2c: `"papas arrugadas"` (canonical) still resolves — no regression.
+- [x] AC-2a: Running the extended `validateSpanishDishes` on the final `spanish-dishes.json` returns `valid: true` with zero blocking errors from the uniqueness check.
+- [x] AC-2b: `"gofio escaldado"` (canonical) still resolves via `name_es` — no regression on existing forms.
+- [x] AC-2c: `"papas arrugadas"` (canonical) still resolves — no regression.
 
 Option-B-specific ACs:
-- AC-2-B1: `HOMOGRAPH_ALLOW_LIST` constant is declared in `packages/api/src/scripts/validateSpanishDishes.ts` (same file as the validator; not an external JSON) with exactly 4 entries covering the current collisions.
-- AC-2-B2: Allow-list schema is `Array<{ alias: string; dishIds: string[]; reason: string }>`. Each `alias` is lowercase with accents preserved (do NOT strip `ç`, `ñ`, accented vowels). Each `dishId` is a valid UUID present in `spanish-dishes.json`. Each `reason` is a non-empty string classifying the collision ("True homograph" | "Near-duplicate pending merge review" | "Distinct dishes, generic alias pending data review").
-- AC-2-B3: The 4 entries exist with these exact aliases and dishId pairs (UUIDs resolved at implementation time from `spanish-dishes.json`):
+- [x] AC-2-B1: `HOMOGRAPH_ALLOW_LIST` constant is declared in `packages/api/src/scripts/validateSpanishDishes.ts` (same file as the validator; not an external JSON) with exactly 4 entries covering the current collisions.
+- [x] AC-2-B2: Allow-list schema is `Array<{ alias: string; dishIds: string[]; reason: string }>`. Each `alias` is lowercase with accents preserved (do NOT strip `ç`, `ñ`, accented vowels). Each `dishId` is a valid UUID present in `spanish-dishes.json`. Each `reason` is a non-empty string classifying the collision ("True homograph" | "Near-duplicate pending merge review" | "Distinct dishes, generic alias pending data review").
+- [x] AC-2-B3: The 4 entries exist with these exact aliases and dishId pairs (UUIDs resolved at implementation time from `spanish-dishes.json`):
   - `manzanilla` → [CE-019, CE-213], reason "True homograph: …"
   - `menestra de verduras` → [CE-076, CE-236], reason "Near-duplicate pending merge review: …"
   - `pisto manchego` → [CE-075, CE-239], reason "Near-duplicate pending merge review: …"
   - `arroz con verduras` → [CE-146, CE-247], reason "Distinct dishes, generic alias pending data review: …"
-- AC-2-B4: A unit test asserts that a synthetic 2-dish dataset with a collision NOT in the allow-list causes `valid: false` and an error message matching `Collision in lookup key space: term "<term>" is shared by dishes [<id>, <id>]`.
-- AC-2-B5: A unit test asserts that a synthetic 2-dish dataset with a collision that IS in the allow-list (alias + exact dishIds match) causes `valid: true`.
-- AC-2-B6: A unit test asserts that an allow-list entry with the correct alias but WRONG/missing dishId is still flagged as a collision (allow-list is a strict match, not a term-only allow).
-- AC-2-B7: No existing alias in `spanish-dishes.json` is modified by this ticket for the 4 collision pairs (verify via `git diff` — only additions for apócopes to CE-253..279 and the allow-list in validator, no deletions or replacements in collision dishes' aliases arrays).
+- [x] AC-2-B4: A unit test asserts that a synthetic 2-dish dataset with a collision NOT in the allow-list causes `valid: false` and an error message matching `Collision in lookup key space: term "<term>" is shared by dishes [<id>, <id>]`.
+- [x] AC-2-B5: A unit test asserts that a synthetic 2-dish dataset with a collision that IS in the allow-list (alias + exact dishIds match) causes `valid: true`.
+- [x] AC-2-B6: A unit test asserts that an allow-list entry with the correct alias but WRONG/missing dishId is still flagged as a collision (allow-list is a strict match, not a term-only allow).
+- [x] AC-2-B7: No existing alias in `spanish-dishes.json` is modified by this ticket for the 4 collision pairs (verify via `git diff` — only additions for apócopes to CE-253..279 and the allow-list in validator, no deletions or replacements in collision dishes' aliases arrays).
 
 ### AC-3 — Validator uniqueness check (Option B)
 
-- AC-3a: A unit test provides a minimal 2-dish dataset sharing an alias (not in allow-list) and asserts `valid: false` + the error message format from AC-2-B4.
-- AC-3b: A unit test provides a minimal dataset where `nameEs` of dish X equals an alias of dish Y (cross-space collision, not alias-vs-alias) and asserts the same `valid: false` behavior.
-- AC-3c: A unit test provides a minimal dataset where two aliases are identical but differ only in case (e.g., `"Pisto"` vs `"pisto"`) and asserts they are treated as colliding (case-insensitive comparison).
-- AC-3d: A unit test provides a dataset where `calçots` and `calcots` appear as two distinct aliases on the same dish — asserts no false collision (accent-distinct forms on the same dish are fine; within a dish, multiple keys are expected and not a cross-dish collision).
-- AC-3e: An integration test loads the real `spanish-dishes.json` via `readFileSync` and asserts `validateSpanishDishes(dishes).valid === true` with zero non-warning errors (regression protection against future seed additions introducing unreviewed collisions).
+- [x] AC-3a: A unit test provides a minimal 2-dish dataset sharing an alias (not in allow-list) and asserts `valid: false` + the error message format from AC-2-B4.
+- [x] AC-3b: A unit test provides a minimal dataset where `nameEs` of dish X equals an alias of dish Y (cross-space collision, not alias-vs-alias) and asserts the same `valid: false` behavior.
+- [x] AC-3c: A unit test provides a minimal dataset where two aliases are identical but differ only in case (e.g., `"Pisto"` vs `"pisto"`) and asserts they are treated as colliding (case-insensitive comparison).
+- [x] AC-3d: A unit test provides a dataset where `calçots` and `calcots` appear as two distinct aliases on the same dish — asserts no false collision (accent-distinct forms on the same dish are fine; within a dish, multiple keys are expected and not a cross-dish collision).
+- [x] AC-3e: An integration test loads the real `spanish-dishes.json` via `readFileSync` and asserts `validateSpanishDishes(dishes).valid === true` with zero non-warning errors (regression protection against future seed additions introducing unreviewed collisions).
 
 ### AC-4 — No regressions
 
-- AC-4a: All pre-existing validator tests pass unchanged.
-- AC-4b: The extended validator still enforces all existing rules (source, confidence, portionGrams, nutrient range, UUID format, `name === nameEs`).
-- AC-4c: Running `validateSpanishDishes(dishes)` (programmatically via a test or direct invocation) against the final `spanish-dishes.json` returns `{ valid: true, errors: [] }` with zero blocking errors. Note: there is no `npm run validate:spanish-dishes` script today; the validator is invoked from `seedPhaseSpanishDishes.ts` and from the new integration test (AC-3e).
-- AC-4d: A post-merge dev reseed via `./packages/api/scripts/reseed-all-envs.sh` (F-TOOL-RESEED-003 wrapper) completes Phase 1 (db:seed) without validator errors — this exercises the same validator in the seed pipeline.
+- [x] AC-4a: All pre-existing validator tests pass unchanged.
+- [x] AC-4b: The extended validator still enforces all existing rules (source, confidence, portionGrams, nutrient range, UUID format, `name === nameEs`).
+- [x] AC-4c: Running `validateSpanishDishes(dishes)` (programmatically via a test or direct invocation) against the final `spanish-dishes.json` returns `{ valid: true, errors: [] }` with zero blocking errors. Note: there is no `npm run validate:spanish-dishes` script today; the validator is invoked from `seedPhaseSpanishDishes.ts` and from the new integration test (AC-3e).
+- [x] AC-4d: A post-merge dev reseed via `./packages/api/scripts/reseed-all-envs.sh` (F-TOOL-RESEED-003 wrapper) completes Phase 1 (db:seed) without validator errors — this exercises the same validator in the seed pipeline.
 
 ---
 
