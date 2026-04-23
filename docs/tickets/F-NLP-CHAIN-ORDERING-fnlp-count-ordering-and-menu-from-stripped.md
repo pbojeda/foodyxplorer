@@ -592,7 +592,7 @@ Fixture UUID prefix `fa000000-00fa-4000-a000-` — independent from existing `fc
 - [x] No linting errors
 - [x] Build succeeds
 - [x] Specs reflect final implementation (no API/spec changes required — confirmed)
-- [ ] Follow-up `F-MULTI-ITEM-IMPLICIT` ticket filed for H5-B (PR4 of the current pm-sprint2 session)
+- [x] Follow-up `F-MULTI-ITEM-IMPLICIT` ticket filed for H5-B (PR4 of the current pm-sprint2 session — see `docs/tickets/F-MULTI-ITEM-IMPLICIT-implicit-multi-item-detection-post-nlp.md`)
 
 ---
 
