@@ -31,6 +31,11 @@ const MAX_MENU_ITEMS = 8;
 // Recursively splits a fragment on ' y ' until no fragment contains ' y '.
 // Uses last-y split to produce left + right, then recurses on each half.
 // EC-4: handles multiple ' y ' tokens (e.g. "paella y vino y flan" → ["paella","vino","flan"])
+//
+// Recursion depth bound: equals the count of ' y ' tokens in the fragment.
+// `processMessage` enforces MAX_TEXT_LENGTH = 500 chars upstream (conversationCore.ts:36),
+// so worst-case ≈125 ' y ' tokens (3-char delimiter + ≥1-char body) ≈ 125 stack frames.
+// Safe for V8/Node default stack sizes (~10k frames). No iterative rewrite needed.
 // ---------------------------------------------------------------------------
 
 function splitOnYRecursive(fragment: string): string[] {
@@ -103,9 +108,12 @@ export async function detectImplicitMultiItem(
   text: string,
   db: Kysely<DB>,
 ): Promise<string[] | null> {
-  // Guard 0: db unavailable → cannot validate → return null (fall through)
-  // In practice db is always present; this is a defensive safety check.
-  if (!db) return null;
+  // Guard 0: defensive null/undefined check (EC-13).
+  // Per ConversationRequest contract `db: Kysely<DB>` is always a valid Kysely instance
+  // in production; null/undefined here indicates a misconfigured caller (rare unit-test
+  // harness only). The `!db` form intentionally also rejects 0/''/false even though
+  // those aren't valid Kysely values — keeps the check explicit and removable-by-typecheck.
+  if (db === null || db === undefined) return null;
 
   // Guard 1: quick shape pre-check — only proceed if text contains ' y ' or ','
   // O(n) string check — avoids any DB call for the majority of queries.

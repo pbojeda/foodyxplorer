@@ -108,22 +108,19 @@ function buildRequest(text: string): ConversationRequest {
 describe('F-MULTI-ITEM-IMPLICIT — AC14 error-fallback (vi.mock-before-import)', () => {
 
   it('AC14 — detector throws → catch logs F-MULTI-ITEM-IMPLICIT:fallback-fired, falls through to estimation', async () => {
+    // Single-call pattern: pass our local logger so the assertion provably exercises
+    // the same logger.error mock that processMessage uses. Code-review M1 + qa SUG2:
+    // the previous two-call pattern relied on a live array-reference quirk that read
+    // as a bug to auditors.
     const logger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn() };
-    const result = await processMessage(buildRequest('paella y vino'));
+    const result = await processMessage({ ...buildRequest('paella y vino'), logger });
 
-    // Should NOT throw — try/catch in Step 3.6 swallows the error and continues to Step 4
-    // Intent must be estimation (not menu_estimation) because the detector threw and was bypassed
+    // Try/catch in Step 3.6 swallows the detector throw and continues to Step 4.
+    // Intent must be estimation (not menu_estimation) because the detector was bypassed.
     expect(result.intent).toBe('estimation');
 
     // logger.error MUST have been called with the stable tag F-MULTI-ITEM-IMPLICIT:fallback-fired
-    const errorCalls = logger.error.mock.calls as unknown[][];
-    // Note: the logger passed to processMessage is the one in buildRequest above.
-    // We need to rebuild the request with our custom logger to capture the call.
-    // The request-level logger is checked via a fresh invocation.
-    const result2 = await processMessage({ ...buildRequest('paella y vino'), logger });
-    expect(result2.intent).toBe('estimation');
-
-    const hasFallbackTag = errorCalls.some((args) =>
+    const hasFallbackTag = (logger.error.mock.calls as unknown[][]).some((args) =>
       JSON.stringify(args).includes('F-MULTI-ITEM-IMPLICIT:fallback-fired'),
     );
     expect(hasFallbackTag).toBe(true);
