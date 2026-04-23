@@ -83,6 +83,9 @@ Files to touch:
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-22 | Ticket created | F-TOOL-RESEED-001, Simple tier |
+| 2026-04-22 | Script + docs committed | `cbda4b4` — 169 bash + 42 README + 7 .env.example + 104 ticket + 1 tracker |
+| 2026-04-22 | PR #198 opened | base `develop`, squash merge planned |
+| 2026-04-23 | Cross-model review (Gemini + Codex) | 3 IMPORTANT + 3 SUGGESTION. Fixes: (1) strip `?pgbouncer=true` before psql call, (2) explicit error message for `DATABASE_URL_PRO` typo, (3) promote psql validation failures from warn to fail, (4) drop redundant `set -a` around `.env` sourcing, (5) backticks on env var names in header. Skipped: `while/case/shift` rewrite (style-only). |
 
 ---
 

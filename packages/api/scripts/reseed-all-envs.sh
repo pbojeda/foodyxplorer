@@ -13,9 +13,11 @@
 #   Replaces the manual flow of editing packages/api/.env between runs.
 #
 # Required environment
-#   DATABASE_URL_DEV   Supabase pooler URL for the dev project (port 5432).
-#   DATABASE_URL_PROD  Supabase pooler URL for the prod project. Required
-#                      only when --prod is passed.
+#   `DATABASE_URL_DEV`   Supabase pooler URL for the dev project (port 5432).
+#   `DATABASE_URL_PROD`  Supabase pooler URL for the prod project. Required
+#                        only when `--prod` is passed.
+#   Common typo: `DATABASE_URL_PRO` (missing the final D) — the script will
+#   report "DATABASE_URL_PROD is not set" and exit.
 #
 #   Put them in packages/api/.env (symlinked to repo-root .env). They are
 #   consumed only by this script — the normal DATABASE_URL is still used by
@@ -55,7 +57,7 @@ for arg in "$@"; do
   case "$arg" in
     --prod) RUN_PROD=1 ;;
     -h|--help)
-      sed -n '3,44p' "$0"
+      sed -n '3,45p' "$0"
       exit 0
       ;;
     *)
@@ -68,22 +70,24 @@ done
 
 # -----------------------------------------------------------------------------
 # Load env vars from packages/api/.env if present (falls back to pre-exported
-# values in the caller's shell).
+# values in the caller's shell). Sourcing does NOT auto-export — the script
+# reads the values directly and passes them explicitly to subshells.
 # -----------------------------------------------------------------------------
 ENV_FILE="$REPO_ROOT/packages/api/.env"
 if [ -f "$ENV_FILE" ]; then
   # shellcheck disable=SC1090
-  set -a; . "$ENV_FILE"; set +a
+  . "$ENV_FILE"
 fi
 
 if [ -z "${DATABASE_URL_DEV:-}" ]; then
   echo "ERROR: DATABASE_URL_DEV not set (looked in $ENV_FILE and shell)." >&2
-  echo "Add it to packages/api/.env alongside DATABASE_URL. See .env.example." >&2
+  echo "Add it to packages/api/.env. See .env.example for the expected shape." >&2
   exit 1
 fi
 
 if [ "$RUN_PROD" -eq 1 ] && [ -z "${DATABASE_URL_PROD:-}" ]; then
   echo "ERROR: --prod requested but DATABASE_URL_PROD is not set." >&2
+  echo "Note: a common typo is DATABASE_URL_PRO — the script requires DATABASE_URL_PROD (with trailing D)." >&2
   exit 1
 fi
 
@@ -118,26 +122,31 @@ reseed_one() {
     || fail "seed:standard-portions failed on $label"
 
   if command -v psql >/dev/null 2>&1; then
+    # libpq rejects Prisma-only query parameters (`pgbouncer=true`,
+    # `connection_limit=1`). Strip the entire query string before calling psql
+    # — the seed ran with the full URL via Prisma, which DOES support them.
+    local psql_url="${url%%\?*}"
     log "Validating post-seed counts..."
     local dish_count portion_count
-    dish_count="$(PGOPTIONS='-c search_path=public' psql "$url" -tAc \
+    dish_count="$(PGOPTIONS='-c search_path=public' psql "$psql_url" -tAc \
       "SELECT COUNT(*) FROM dishes WHERE id LIKE '00000000-0000-e073-0007-%';" \
       2>/dev/null || echo "ERR")"
-    portion_count="$(PGOPTIONS='-c search_path=public' psql "$url" -tAc \
+    portion_count="$(PGOPTIONS='-c search_path=public' psql "$psql_url" -tAc \
       "SELECT COUNT(*) FROM standard_portions;" \
       2>/dev/null || echo "ERR")"
 
     if [ "$dish_count" = "ERR" ] || [ "$portion_count" = "ERR" ]; then
-      warn "psql validation query failed — skipping count check on $label"
-    else
-      log "dishes(e073-0007-%): $dish_count (expected $EXPECTED_DISH_COUNT)"
-      log "standard_portions:  $portion_count (min $MIN_PORTION_COUNT)"
-      if [ "$dish_count" -lt "$EXPECTED_DISH_COUNT" ]; then
-        fail "dish count $dish_count < expected $EXPECTED_DISH_COUNT on $label"
-      fi
-      if [ "$portion_count" -lt "$MIN_PORTION_COUNT" ]; then
-        fail "standard_portions count $portion_count < min $MIN_PORTION_COUNT on $label"
-      fi
+      # Query failure after the seed already succeeded indicates an
+      # environment problem (credentials, network, schema) worth surfacing.
+      fail "psql validation query failed on $label — check DB credentials/network/schema"
+    fi
+    log "dishes(e073-0007-%): $dish_count (expected $EXPECTED_DISH_COUNT)"
+    log "standard_portions:  $portion_count (min $MIN_PORTION_COUNT)"
+    if [ "$dish_count" -lt "$EXPECTED_DISH_COUNT" ]; then
+      fail "dish count $dish_count < expected $EXPECTED_DISH_COUNT on $label"
+    fi
+    if [ "$portion_count" -lt "$MIN_PORTION_COUNT" ]; then
+      fail "standard_portions count $portion_count < min $MIN_PORTION_COUNT on $label"
     fi
   else
     warn "psql not found on PATH — skipping count validation on $label"
