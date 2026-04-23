@@ -743,13 +743,13 @@ Option-B-specific ACs:
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | All 7 sections present: Spec (incl. Homograph Decision + API + Data Model + UI + Edge Cases) / Implementation Plan (13 steps + Verification Commands) / Acceptance Criteria (AC-1..4 with B1..B7 branches) / Definition of Done / Workflow Checklist / Completion Log / Merge Checklist Evidence |
-| 1. Mark all items | [x] | AC: 7a-g / 2a-c / 2-B1..B7 / 3a-e / 4a-d — all 24 marked. DoD: 7/7. Workflow: 0-5 of 6 marked (Step 6 pending per merge-checklist). |
+| 1. Mark all items | [x] | AC: **26/26** — AC-1 a-g (7) + AC-2 a-c (3) + AC-2-B1..B7 (7) + AC-3 a-e (5) + AC-4 a-d (4). DoD: 7/7. Workflow: 7/8 marked (Step 6 pending per merge-checklist). |
 | 2. Verify product tracker | [x] | `docs/project_notes/product-tracker.md` — Active Session shows F-H4-B Step 5/6 Review; Features table (Quality & Documentation section) shows `in-progress 5/6`. |
 | 3. Update key_facts.md | [x] | N/A — no new models, migrations, endpoints, or infrastructure. The validator is an existing CLI script (`validateSpanishDishes.ts`) that gains a new export and new check, not a new capability surface. |
 | 4. Update decisions.md | [x] | N/A — Option B is a local design choice for one validator, not a project-wide architectural decision. The homograph option analysis is captured in the ticket Spec for historical context. |
-| 5. Commit documentation | [x] | Implementation commit: `d1f1633`. Review-fix commit: `23d7dd1`. Documentation commit (ticket marks + tracker + evidence): to be created by the user's request. |
-| 6. Verify clean working tree | [x] | To be verified immediately before merge (post-docs commit). Current state: ticket edits pending this commit. |
-| 7. Verify branch up to date | [x] | To be verified via `git merge-base --is-ancestor origin/develop HEAD` before requesting merge approval. |
+| 5. Commit documentation | [x] | Implementation: `d1f1633` / Review-fix: `23d7dd1` / Docs + tracker + evidence: `318e49f` / AC checkbox format: `5129a2c`. |
+| 6. Verify clean working tree | [x] | Verified clean at commit `5129a2c` (pre-audit-external); final pre-merge state includes one additional docs commit applying audit-external refreshes. |
+| 7. Verify branch up to date | [x] | Verified `git merge-base --is-ancestor origin/develop HEAD` = true; branch has 4+ commits on top of `origin/develop` (c5012fd base), no divergence. |
 
 ---
 
