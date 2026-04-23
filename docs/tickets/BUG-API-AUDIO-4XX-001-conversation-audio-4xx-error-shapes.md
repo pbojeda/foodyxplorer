@@ -1,7 +1,7 @@
 # BUG-API-AUDIO-4XX-001: Fix POST /conversation/audio returning 500 for malformed multipart requests
 
 **Feature:** BUG-API-AUDIO-4XX-001 | **Type:** Backend-Bugfix | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** bugfix/BUG-API-AUDIO-4XX-001
+**Status:** Done | **Branch:** bugfix/BUG-API-AUDIO-4XX-001 (deleted — merged via PR #197, squash `05a973a` @ 2026-04-23T08:32Z)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-22 | **Dependencies:** None (builds on top of F091 voice endpoint scaffolding; no feature-level blockers)
 
@@ -766,7 +766,7 @@ The `buildMultipartBody` helper produces only the closing `--${boundary}--\r\n` 
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed (APPROVE — 1M+4L+4N, M1/L3/L4 addressed inline)
 - [x] Step 5: `qa-engineer` executed (PASS WITH FOLLOW-UPS — 16/16 AC verified, 2 Important gaps pinned with 8 new edge-case tests)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted (merged + branch deleted via PR #197 squash `05a973a`; post-merge sanity on develop: 3668/3668 API tests, lint 0)
 
 ---
 
@@ -792,6 +792,12 @@ The `buildMultipartBody` helper produces only the closing `--${boundary}--\r\n` 
 | 2026-04-22 | Step 5 — code-review-specialist | **APPROVE** with 1 MEDIUM (M1: FST_* branches `error.message` passthrough too terse) + 4 LOW + 4 NITS. M1 + L3 + L4 addressed in commit `827fef8`: generic message `"Unsupported Content-Type for this endpoint"` in FST_* branches; `api-spec.yaml` 415 block now has two named examples (handlerGuard + frameworkGuard); 3 direct `mapError()` unit tests added in `errorHandler.test.ts`. L1 (pre-existing test pattern), L2 (RFC-quoted boundary — downstream 400 safety net), N1-N4 (cosmetic) deferred. |
 | 2026-04-22 | Step 5 — qa-engineer | **PASS WITH FOLLOW-UPS** (0 CRITICAL, 2 IMPORTANT, 4 NIT) — 16/16 AC verified against actual tests. QA engineer proactively wrote 8 new edge-case tests in `BUG-API-AUDIO-4XX-001.edge-cases.test.ts` to pin the gaps it identified: (Finding 1) budget-vs-CT-guard ordering adversarial case (Edge1, Edge2), (Finding 2) `FST_ERR_CTP_INVALID_MEDIA_TYPE` branch had zero route-level coverage (Edge8). Nits: CI lint soft-fail (pre-existing, not our ticket), AC4 variant naming, smoke-name phrasing, RFC-quoted-boundary guard precision — all deferred / non-blocking. |
 | 2026-04-22 | Step 5 — gates post-QA | api tests 3660 → **3668/3668** (+8 edge cases), lint 0 errors, build clean. |
+| 2026-04-23 | Step 5 — external user audit | **APPROVE WITH NOTES** — 16/16 AC verified empirically, CI green (4 jobs SUCCESS + Vercel), 3668/3668 tests, lint 0, build clean, Merge Evidence 8/8 with real evidence. 3 non-blocking findings: stale values in PR body (IMPORTANT hygiene), bugs.md entry deferred (NIT convention), RFC-quoted-boundary guard precision (L2 already documented as deferred). |
+| 2026-04-23 | Step 5 — PR body refreshed | 3 corrections per external audit: (a) Quality gates 3657 → 3668 with breakdown, (b) Commits list extended 4 → 7 entries with SHAs, (c) Test plan checkboxes marked with code-review + qa-engineer outcomes. |
+| 2026-04-23 | Step 5 — merge origin/develop (second integration) | Integrated PR #198 (F-TOOL-RESEED-001 tooling reseed script, 6 files, no overlap) into feature branch. Clean merge, 0 conflicts. Post-merge gates re-ran green. Commit `bc7f234`. |
+| 2026-04-23 | Step 5 — CI verified | test-api 3m49s PASS, ci-success PASS, Vercel foodyassistance + nutrixplorer PASS. `mergeStateStatus: CLEAN`. |
+| 2026-04-23 | Step 6 — PR #197 squash-merged | Merged to `develop` at `05a973a` @ 2026-04-23T08:32Z. Remote + local feature branch deleted. Squashed 7 commits into one. |
+| 2026-04-23 | Step 6 — post-merge sanity | Local `develop` reset to `origin/develop` @ `05a973a`. `npm test -w @foodxplorer/api` → 3668/3668 PASS, `npm run lint -w @foodxplorer/api` → 0 errors. No regressions on develop. |
 
 <!-- After code review, add a row documenting which findings were accepted/rejected:
 | YYYY-MM-DD | Review findings | Accepted: C1-C3, H1-H2. Rejected: M5 (reason). Systemic: C4 logged in bugs.md |
