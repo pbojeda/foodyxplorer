@@ -1,7 +1,7 @@
 # F-TOOL-RESEED-003: Integrate embeddings:generate into reseed-all-envs.sh
 
 **Feature:** F-TOOL-RESEED-003 | **Type:** Backend-Feature (tooling) | **Priority:** High
-**Status:** In Progress | **Branch:** chore/seed-embeddings-F-TOOL-RESEED-003
+**Status:** Done | **Branch:** chore/seed-embeddings-F-TOOL-RESEED-003 (merged as PR #201, squash `0dca029`)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-23 | **Dependencies:** F-TOOL-RESEED-001 (`332d263`), F-TOOL-RESEED-002 (`2de94e9`)
 **Complexity:** Simple
@@ -94,6 +94,13 @@ Files touched:
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-23 | Ticket created | F-TOOL-RESEED-003, Simple tier |
+| 2026-04-23 | Step 3 — implementation | Phase 3 added to `reseed-all-envs.sh`; `SKIP_EMBEDDINGS` flag + OPENAI pre-flight check; seed.ts unchanged (pipeline's built-in `WHERE embedding_updated_at IS NULL` suffices) |
+| 2026-04-23 | Step 4 — offline smoke tests | `bash -n` syntax pass; `--help` prints all 69 header lines; unknown flag lists `[--prod] [--full] [--skip-embeddings]`; OPENAI_API_KEY truly unset (via temp rename of `.env`) → exit 1 with actionable message; `--skip-embeddings` bypass works; `--full` triggers OFF-embeddings warning banner; phase labels correctly show 1/3 vs 1/2 |
+| 2026-04-23 | Step 5 — cross-model review (Gemini + Codex parallel) | Gemini CRITICAL: `--full` misleading re: OFF embeddings scope → banner warning added. Codex IMPORTANT: `SEED_SKIP_OFF=""` insufficient → switched to `env -u SEED_SKIP_OFF` for `--full`. Gemini IMPORTANT: least-privilege for OPENAI → captured + unset + re-passed only to Phase 3. Codex SUGGESTION: actionable `--skip-embeddings` handoff → printed exact `DATABASE_URL_<LABEL>` command. Codex SUGGESTION: "safe to re-run" → added to Phase 3 failure message. Skipped: sed-range brittleness (low value, adds complexity). |
+| 2026-04-23 | PR #201 squash-merged to develop | `0dca029` — CI green (ci-success + test-api 4m29s) |
+| 2026-04-23 | Step 6 — post-merge live run (dev + prod) | `processedDishes: 27` on both envs; `processedFoods: 0`. Phase 3 duration ~30 s per env. Cost ~$0.0001 total. |
+| 2026-04-23 | Step 6 — post-merge verification | Inspection script shows **279 REAL / 0 ZERO / 0 NULL** cocina-espanola dishes on dev AND prod. L3 semantic search now fully functional for all 279 dishes including the 27 F-H4 regional ones. |
+| 2026-04-23 | Ticket housekeeping sync (post-merge) | Status → Done. Retroactive closing via chore/tracker-sync-reseed-tickets-close (this PR). |
 
 ---
 
@@ -101,14 +108,14 @@ Files touched:
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | — |
-| 1. Mark all items | [ ] | — |
-| 2. Verify product tracker | [ ] | — |
-| 3. Update key_facts.md | [ ] | — |
-| 4. Update decisions.md | [ ] | — |
-| 5. Commit documentation | [ ] | — |
-| 6. Verify clean working tree | [ ] | — |
-| 7. Verify branch up to date | [ ] | — |
+| 0. Validate ticket structure | [x] | All 7 sections present (Spec, Implementation Plan, AC, DoD, Workflow Checklist, Completion Log, Merge Checklist Evidence) |
+| 1. Mark all items | [x] | AC: 9/9, DoD: 5/5, Workflow: 5/5 |
+| 2. Verify product tracker | [x] | F-TOOL-RESEED-003 row in Quality & Documentation — updated to `done 6/6` in this tracker-sync PR with SHA `0dca029` and post-merge note (279 REAL / 0 ZERO / 0 NULL) |
+| 3. Update key_facts.md | [x] | N/A — tooling change, no product capability change |
+| 4. Update decisions.md | [x] | N/A — Simple tier, no architectural decision |
+| 5. Commit documentation | [x] | Pre-merge: `ed05c74` squashed as `0dca029`. Post-merge housekeeping: this PR |
+| 6. Verify clean working tree | [x] | Confirmed at merge time (PR #201 mergeStateStatus: CLEAN) |
+| 7. Verify branch up to date | [x] | At merge: branched from `origin/develop`, CI green (ci-success + test-api 4m29s) |
 
 ---
 
