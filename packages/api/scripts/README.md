@@ -24,12 +24,27 @@ DATABASE_URL_PROD="postgresql://...prod-pooler:5432/postgres"  # only if using -
 **Quick start**
 
 ```bash
-# Dev only (safe default):
+# Dev only, fast path (dish-only — skips OFF, ~30–60 s):
 ./packages/api/scripts/reseed-all-envs.sh
 
-# Dev first, then prod (interactive y/N prompt between):
+# Dev first, then prod (interactive y/N prompt between), fast path:
 ./packages/api/scripts/reseed-all-envs.sh --prod
+
+# Full seed including OFF (~15 min/env) — fresh Supabase bring-up or OFF
+# data refresh only:
+./packages/api/scripts/reseed-all-envs.sh --full
+./packages/api/scripts/reseed-all-envs.sh --prod --full
 ```
+
+**Fast vs full** (F-TOOL-RESEED-002)
+
+Default is **fast**: `SEED_SKIP_OFF=1` is exported, so the OFF phase (11k+
+products, ~15 min) is skipped. Existing OFF rows stay intact — the seed is
+idempotent and skipping simply does not re-upsert them. Use this for the
+common case: a new batch of Spanish dishes merged to `develop`.
+
+Pass `--full` when you actually need OFF reseeded — e.g., bootstrapping a
+new Supabase project, or after a breaking change in the OFF import path.
 
 **Validation**: if `psql` is installed the script verifies that
 `SELECT COUNT(*) FROM dishes WHERE id LIKE '00000000-0000-e073-0007-%' >= 279`
@@ -40,8 +55,8 @@ Override thresholds with `EXPECTED_DISH_COUNT` / `MIN_PORTION_COUNT`. Without
 **When to run**
 
 - After merging any feature that adds/updates `spanish-dishes.json` or
-  `standard-portions.csv`.
-- When bringing up a fresh Supabase project.
+  `standard-portions.csv` (use default fast path).
+- When bringing up a fresh Supabase project (use `--full`).
 - Before a release from `develop` to `main`, to keep dev current.
 
 **Not in CI**. Treat as operator-run tooling — it connects directly to

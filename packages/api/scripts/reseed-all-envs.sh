@@ -24,11 +24,22 @@
 #   every other tool.
 #
 # Usage
-#   # Dev only (default, safe):
+#   # Dev only, fast path (dish-only — skips OFF). Default behavior:
 #   ./packages/api/scripts/reseed-all-envs.sh
 #
-#   # Dev first, then prod (interactive prompt between):
+#   # Dev first, then prod (interactive y/N prompt between), fast path:
 #   ./packages/api/scripts/reseed-all-envs.sh --prod
+#
+#   # Full seed including OFF (~15 min/env). Needed on fresh Supabase projects
+#   # or after a Tier 0 OFF data change. Combines with --prod if desired.
+#   ./packages/api/scripts/reseed-all-envs.sh --full
+#   ./packages/api/scripts/reseed-all-envs.sh --prod --full
+#
+# Flags
+#   --prod   Run against prod after dev (with interactive y/N confirmation).
+#   --full   Include the OFF (Open Food Facts) import phase. Without this
+#            flag, SEED_SKIP_OFF=1 is exported and OFF is skipped — suitable
+#            for the common case of refreshing Spanish dishes + portions.
 #
 # Dependencies
 #   bash (>= 3.2), npm, node 20+, Prisma client generated in packages/api/.
@@ -53,16 +64,21 @@ EXPECTED_DISH_COUNT="${EXPECTED_DISH_COUNT:-279}"
 MIN_PORTION_COUNT="${MIN_PORTION_COUNT:-220}"
 
 RUN_PROD=0
+# F-TOOL-RESEED-002: dish-only refreshes (the common case) skip the OFF phase
+# (11k+ products, ~15 min). `--full` opts back in when you need OFF reseeded
+# (fresh bring-up of a Supabase project, or after a Tier 0 data change).
+INCLUDE_OFF=0
 for arg in "$@"; do
   case "$arg" in
     --prod) RUN_PROD=1 ;;
+    --full) INCLUDE_OFF=1 ;;
     -h|--help)
-      sed -n '3,45p' "$0"
+      sed -n '3,56p' "$0"
       exit 0
       ;;
     *)
       echo "Unknown flag: $arg" >&2
-      echo "Usage: $0 [--prod]" >&2
+      echo "Usage: $0 [--prod] [--full]" >&2
       exit 1
       ;;
   esac
@@ -113,8 +129,15 @@ reseed_one() {
 
   log "=== $label ==="
   log "URL: $(mask_url "$url")"
-  log "Phase 1/2: npm run db:seed"
-  ( cd "$REPO_ROOT" && DATABASE_URL="$url" npm run db:seed -w @foodxplorer/api ) \
+  local seed_skip_off
+  if [ "$INCLUDE_OFF" -eq 1 ]; then
+    seed_skip_off=""
+    log "Phase 1/2: npm run db:seed (full — includes OFF, ~15 min)"
+  else
+    seed_skip_off="1"
+    log "Phase 1/2: npm run db:seed (fast — SEED_SKIP_OFF=1)"
+  fi
+  ( cd "$REPO_ROOT" && DATABASE_URL="$url" SEED_SKIP_OFF="$seed_skip_off" npm run db:seed -w @foodxplorer/api ) \
     || fail "db:seed failed on $label"
 
   log "Phase 2/2: npm run seed:standard-portions"
@@ -161,6 +184,7 @@ reseed_one() {
 # Execute — dev first (always), prod only with --prod + interactive y/N.
 # -----------------------------------------------------------------------------
 log "Target: dev$([ "$RUN_PROD" -eq 1 ] && echo ' + prod' || echo '')"
+log "Mode:   $([ "$INCLUDE_OFF" -eq 1 ] && echo 'FULL (includes OFF — ~15 min/env)' || echo 'FAST (SEED_SKIP_OFF=1)')"
 echo
 
 reseed_one "dev" "$DATABASE_URL_DEV"
