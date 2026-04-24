@@ -1,7 +1,7 @@
 # F-MULTI-ITEM-IMPLICIT: Implicit Multi-Item Detection on F-NLP Stripped Text
 
 **Feature:** F-MULTI-ITEM-IMPLICIT | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F-MULTI-ITEM-IMPLICIT (created 2026-04-23 from `origin/develop` @ `c5012fd`; pushed; PR #206)
+**Status:** Done | **Branch:** feature/F-MULTI-ITEM-IMPLICIT (deleted local + remote post-merge) | **PR:** #206 squash-merged into develop at `97f9640` (2026-04-24T10:54:16Z)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-23 | **Dependencies:** F-NLP-CHAIN-ORDERING (PR #202 merged to `develop`)
 
@@ -1236,10 +1236,10 @@ Test-count breakdown: 10 (helpers) + 18 (detector unit, mock-based) + 9 (wrapper
 - [x] `production-code-validator` APPROVE WITH NO BLOCKERS
 - [x] `code-review-specialist` APPROVE WITH MINOR CHANGES (M1 fixed inline; L1+L2 deferred per spec risk h + planner note; L3 fixed; NIT2 fixed; NIT1+NIT3+NIT4 informational)
 - [x] `qa-engineer` PASS WITH FOLLOW-UPS (22 edge-case tests added; SUG2 overlap with code-review M1 fixed inline; NIT1 false-positive (intentional contextual references); SUG3 defer 2 missing y+con landmine integration tests as follow-up)
-- [ ] User audit + merge authorization granted (Standard tier — STOP for explicit "adelante")
-- [ ] Ticket Status updated to Done; feature branch deleted (Step 6, post-merge)
+- [x] User audit + merge authorization granted (Standard tier — user `adelante` 2026-04-24 after CI green + 2 external audit cycles fully resolved)
+- [x] Ticket Status updated to Done; feature branch deleted (local + `git remote prune origin` confirmed `[pruned] origin/feature/F-MULTI-ITEM-IMPLICIT`)
 - [x] `docs/project_notes/bugs.md` entry — N/A (no new bugs surfaced; spec/plan reviews caught all issues; review fix-loop only addressed test pattern + comment clarity)
-- [ ] `docs/project_notes/product-tracker.md` updated: Active Session cleared, Features table updated (Step 6, post-merge)
+- [x] `docs/project_notes/product-tracker.md` updated: Active Session cleared (None), F-MULTI-ITEM-IMPLICIT moved to Last Completed; pm-sprint2 closed (4/4 PRs done)
 
 ---
 
@@ -1252,7 +1252,7 @@ Test-count breakdown: 10 (helpers) + 18 (detector unit, mock-based) + 9 (wrapper
 - [x] Step 4: `production-code-validator` executed, quality gates pass (verdict: APPROVE WITH NO BLOCKERS — 0 CRITICAL/HIGH/MEDIUM/LOW, 1 INFORMATIONAL note about `as any` test-double assertions for Guard 0 — accepted as defensive null-check test pattern)
 - [x] Step 5: `code-review-specialist` executed (verdict APPROVE WITH MINOR CHANGES — 0 CRITICAL/HIGH, 1 MEDIUM AC14 test pattern fixed inline, 3 LOW (1 fixed Guard 0 wording, 2 deferred per spec risk h + planner note), 4 NIT (1 fixed splitOnYRecursive comment, 3 informational))
 - [x] Step 5: `qa-engineer` executed (Standard tier — verdict PASS WITH FOLLOW-UPS — all 20 ACs verified; 22 new edge-case tests added in dedicated file; 3 follow-ups: 1 NIT api-spec contextual `(F076)` references = false-positive of strict grep rule (actually correct), 1 SUG AC14 test simplification (overlap with code-review M1, fixed inline), 1 SUG add 2 missing y+con landmine integration tests = deferred to follow-up — 4/6 y+con + 1 y-only currently covered via real DB, 2 missing covered via unit-mock)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket Status → Done, Workflow Step 6 [x], Completion Log final entry, branch deleted (local + remote pruned), tracker Active Session cleared, pm-sprint2 closed
 
 ---
 
@@ -1281,6 +1281,8 @@ Test-count breakdown: 10 (helpers) + 18 (detector unit, mock-based) + 9 (wrapper
 | 2026-04-23 | Step 5 external user audit | APPROVE WITH NOTES + BLOCK on CI. Spec/plan/code/qa all pre-cleared. 3 IMPORTANT documentation findings (this Completion Log copy-paste duplicates + 5 missing rows, PR body stale test count 3766→3788 + reviewer checkboxes, tracker header stale step 0→5) all addressed inline. 1 CRITICAL transitorio: CI not yet completed (test-api IN_PROGRESS, Vercel foodyassistance PENDING) — `mergeStateStatus=BLOCKED` until both green. STOP for CI green + user `adelante` before squash-merge. None of the findings touch code correctness. |
 | 2026-04-23 | Merge origin/develop (F-H4-B integration) | commit `bab3ff3` — integrated PR #205 F-H4-B (alias gaps + validator uniqueness check, BUG-DATA-ALIAS-COLLISION-001 partial mitigation). Baseline 3723 → 3733 (+10 tests from F-H4-B). Post-merge re-run: `npm test --workspace=@foodxplorer/api` → 3798/3798 (3733 baseline + 65 new from F-MULTI-ITEM-IMPLICIT), `npm run lint` → 0 errors, `npm run build` → clean. 1 conflict in `docs/project_notes/product-tracker.md` Active Session panel (F-H4-B Step 5/6 + F-MULTI-ITEM-IMPLICIT pending vs my updated Step 5/6 entry) resolved keeping F-MULTI-ITEM-IMPLICIT as Active Feature + adding F-H4-B as Last Completed. CI re-run after push: all SUCCESS (test-api, ci-success, Vercel-foodyassistance, Vercel-nutrixplorer). |
 | 2026-04-24 | Step 5 external user audit (re-audit) | APPROVE WITH NOTES. CI now green (CRITICAL from prior audit resolved). 3 prior IMPORTANTs (Completion Log duplicates/missing rows, PR body, tracker header) verified resolved. 3 new drift advisories post-`bab3ff3` merge (docs-only): P1+P7 stale test counts 3788→3798 in ticket AC13+AC15+DoD+tracker line 13 (merge brought +10 tests but ticket/tracker weren't updated); P7 missing Completion Log row for `bab3ff3` F-H4-B integration; P2 Merge Checklist Evidence rows 5/6/7 in future tense while commits already exist. All 3 addressed in this refresh commit. No findings touch code correctness. Self-contained feature — no post-merge operator actions required (no reseed/API probes). Ready for squash-merge. |
+| 2026-04-24 | Merge origin/develop (PR #207 F-H4-B housekeeping) | commit `c7ef974` — integrated PR #207 F-H4-B Step 6 housekeeping (BUG-DATA-ALIAS-COLLISION-001 closure). 1 conflict in `docs/project_notes/product-tracker.md` Active Session resolved consolidating F-H4-B as DONE (6/6) under one entry. Post-merge gates: 3798/3798 tests, lint 0, build clean. CI re-run all SUCCESS, mergeStateStatus=CLEAN, mergeable=MERGEABLE. |
+| 2026-04-24 | Step 6 squash-merge + housekeeping | `gh pr merge 206 --squash --delete-branch` executed after explicit user `adelante`. Squash-merge commit `97f9640218ced60f510a0a82688b6ba5c45338b7` on `develop` at 2026-04-24T10:54:16Z. Post-merge: branch deleted local + remote (`git remote prune origin` confirmed `[pruned] origin/feature/F-MULTI-ITEM-IMPLICIT`); switched to develop + pulled fast-forward; sanity gates 3798/3798 tests + lint 0 + build clean ✓. bugs.md entry: N/A (no new bugs surfaced — only documentation cleanup findings throughout the cycle). pm-sprint2 closed (4/4 PRs DONE: BUG-QA-SCRIPT-001, BUG-API-AUDIO-4XX-001, F-NLP-CHAIN-ORDERING, F-MULTI-ITEM-IMPLICIT). Total session: ~22 commits across 4 PRs over 2 days. F-MULTI-ITEM-IMPLICIT specifically: 12 atomic commits (4 Phase + 1 review fix + 4 docs + 2 merges + 1 final docs), squashed to 1 develop commit. |
 
 ---
 
@@ -1297,7 +1299,7 @@ Test-count breakdown: 10 (helpers) + 18 (detector unit, mock-based) + 9 (wrapper
 | 6. Verify clean working tree | [x] | Verified clean at commit `ced79c8` (`git status --short` shows only `pm-session.lock` untracked = PM runtime, ignored). Will re-verify after this commit lands. |
 | 7. Verify branch up to date | [x] | Integrated `origin/develop` at commit `bab3ff3` (PR #205 F-H4-B alias gaps + validator uniqueness check). Post-integration: `git merge-base --is-ancestor origin/develop HEAD` returns true at `bab3ff3` (and at every commit since). |
 | 9. Run /audit-merge | [x] | Compliance audit run 2026-04-23: 11/11 checks PASS — Status=Ready for Merge, AC 20/20, DoD 17/20+3 deferred post-merge, Workflow 7/8 (Step 6 pending merge per template), Evidence 8/10+2 in-progress, Completion Log 13 entries, Tracker synced step 5/6, key_facts.md N/A, merge-base UP TO DATE with origin/develop @ c5012fd, working tree clean, no JSON seed-data changes. Verdict: READY FOR MERGE pending user audit. |
-| 10. Request user audit | [ ] | Pending — Standard tier policy per pm-session.md merge authorization (PR4 STOP before merge, wait for user audit + explicit "adelante"). Compliance audit + spec/plan/code/qa all pre-cleared; user can focus review on architecture + business correctness. |
+| 10. Request user audit | [x] | Two external audit cycles completed: round 1 APPROVE WITH NOTES + BLOCK on CI (3 IMPORTANT docs findings: Completion Log dupes/missing rows, PR body stale 3766→3788, tracker header — all fixed in commits `cbbdc27`/`1835bfd`/`ced79c8`); round 2 APPROVE WITH NOTES (3 drift advisories post-`bab3ff3` F-H4-B merge: stale 3788→3798, missing F-H4-B Completion Log row, Evidence rows future tense — all fixed in commit `d8219d0`). Plus integration of PR #207 F-H4-B housekeeping in commit `c7ef974`. CI green. User explicit `adelante` 2026-04-24. Squash-merge executed: `97f9640218ced60f510a0a82688b6ba5c45338b7`. |
 
 ---
 
