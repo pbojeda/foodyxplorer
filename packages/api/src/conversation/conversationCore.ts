@@ -25,6 +25,7 @@ import {
   POST_COUNT_SERVING_PATTERNS,
 } from './entityExtractor.js';
 import { detectMenuQuery } from './menuDetector.js';
+import { detectImplicitMultiItem } from './implicitMultiItemDetector.js';
 import { extractDiners } from './dinersExtractor.js';
 import { reverseSearchDishes } from '../estimation/reverseSearch.js';
 
@@ -384,6 +385,109 @@ export async function processMessage(
       },
       activeContext,
       usedContextFallback: menuUsedContextFallback,
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 3.6 — Implicit multi-item detection (F-MULTI-ITEM-IMPLICIT)
+  // -------------------------------------------------------------------------
+  // Receives diners-stripped + wrapper-stripped text (extractFoodQuery(textWithoutDiners).query).
+  // Route-exclusive: only reached when detectMenuQuery (Step 3.5) returned null above.
+  // Async: calls level1Lookup (L1 exact+FTS) for whole-text guard + per-fragment validation.
+  // On throw: logs error with stable tag and falls through to Step 4 (no 500 to caller).
+
+  const implicitStripped = extractFoodQuery(textWithoutDiners);
+  let implicitItems: string[] | null = null;
+  try {
+    implicitItems = await detectImplicitMultiItem(implicitStripped.query, db);
+  } catch (err) {
+    logger.error(
+      { err },
+      'F-MULTI-ITEM-IMPLICIT:fallback-fired — implicit detector threw; continuing to single-dish path',
+    );
+    // implicitItems stays null → falls through to Step 4 unchanged
+  }
+
+  if (implicitItems !== null) {
+    // Route to menu_estimation using the same Promise.allSettled machinery as Step 3.5.
+    // Each item in implicitItems is a normalized food name; pass through parseDishExpression
+    // to resolve chain slug and portion multiplier, consistent with Step 3.5 handling.
+    const implicitMenuResults = await Promise.allSettled(
+      implicitItems.map((itemText) => {
+        const parsed = parseDishExpression(itemText);
+        const chainSlugForItem = parsed.chainSlug ?? effectiveContext?.chainSlug;
+        return estimate({
+          query: parsed.query,
+          chainSlug: chainSlugForItem,
+          portionMultiplier: parsed.portionMultiplier,
+          db,
+          prisma,
+          openAiApiKey,
+          level4Lookup,
+          chainSlugs,
+          logger,
+          originalQuery: itemText,
+        });
+      }),
+    );
+
+    // All-rejected guard (same pattern as Step 3.5)
+    const allImplicitRejected = implicitMenuResults.every((r) => r.status === 'rejected');
+    if (allImplicitRejected && implicitMenuResults.length > 0) {
+      const firstRejected = implicitMenuResults.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+      throw firstRejected.reason instanceof Error
+        ? firstRejected.reason
+        : new Error(String(firstRejected.reason));
+    }
+
+    // Build items array — rejected promises become null-result EstimateData
+    const implicitItemsBuilt = implicitItems.map((query, i) => {
+      const result = implicitMenuResults[i];
+      if (!result) throw new Error(`implicitMenuResults missing index ${i} — allSettled contract violated`);
+      const estimation: EstimateData = result.status === 'fulfilled'
+        ? result.value
+        : {
+            query,
+            chainSlug: null,
+            level1Hit: false,
+            level2Hit: false,
+            level3Hit: false,
+            level4Hit: false,
+            matchType: null,
+            result: null,
+            cachedAt: null,
+            portionMultiplier: 1,
+          };
+      return { query, estimation };
+    });
+
+    // Aggregate totals from matched implicit items
+    const implicitTotals = aggregateMenuTotals(implicitItemsBuilt);
+    const implicitMatchedCount = implicitItemsBuilt.filter((item) => item.estimation.result !== null).length;
+
+    // Context fallback: true if any item had no explicit chain slug but context was injected
+    const implicitUsedContextFallback = implicitItems.some((itemText) => {
+      const parsed = parseDishExpression(itemText);
+      return !parsed.chainSlug && !!effectiveContext?.chainSlug;
+    });
+
+    // F089: compute per-person totals if diners were detected (reuse detectedDiners from Step 3.5)
+    const implicitDiners = detectedDiners ?? null;
+    const implicitPerPerson = implicitDiners !== null ? divideMenuTotals(implicitTotals, implicitDiners) : null;
+
+    return {
+      intent: 'menu_estimation' as const,
+      actorId,
+      menuEstimation: {
+        items: implicitItemsBuilt,
+        totals: implicitTotals,
+        itemCount: implicitItemsBuilt.length,
+        matchedCount: implicitMatchedCount,
+        diners: implicitDiners,
+        perPerson: implicitPerPerson,
+      },
+      activeContext,
+      usedContextFallback: implicitUsedContextFallback,
     };
   }
 

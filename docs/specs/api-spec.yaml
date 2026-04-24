@@ -5242,6 +5242,12 @@ paths:
            `conv:ctx:{actorId}` to Redis (TTL 2h), return `context_set` intent.
         3. Comparison detection: "big mac vs whopper" pattern → two parallel estimation
            cascade calls, return `comparison` intent with both EstimateData objects.
+        3.5. Explicit menu detection: "de menú: paella, vino" / "menú: ..." →
+           `detectMenuQuery` fires → `menu_estimation` intent (F076). Only reached when
+           steps 1-3 do not match.
+        3.6. Implicit multi-item detection: "paella y vino" → `detectImplicitMultiItem`
+           validates each fragment via L1 exact+FTS catalog lookup → `menu_estimation`
+           intent (F-MULTI-ITEM-IMPLICIT). Only reached when step 3.5 returns null.
         4. Single-dish estimation: extract query + portion modifier, apply fallback chain
            context from Redis, run estimation cascade, return `estimation` intent.
 
@@ -5861,7 +5867,10 @@ components:
         Resolved intent of the user's message:
         - `context_set`:      message was recognised as "estoy en <chain>" — context written to Redis.
         - `comparison`:       message was recognised as a two-dish comparison query.
-        - `menu_estimation`:  message was recognised as a multi-dish "menú del día" query (F076).
+        - `menu_estimation`:  message was recognised as a multi-dish query. Triggered by (a) explicit
+                              menú: / de menú: / menú del día: prefix (F076), OR (b) implicit multi-item
+                              phrasing where ≥2 fragments validate as catalog dishes via L1 exact+FTS
+                              lookup (F-MULTI-ITEM-IMPLICIT). Response shape is identical for both paths.
         - `estimation`:       message was resolved as a single-dish nutritional query.
         - `text_too_long`:    input exceeded 500 characters and was rejected.
 
@@ -5908,7 +5917,7 @@ components:
 
     MenuEstimationItem:
       type: object
-      description: A single dish in a menu estimation (F076).
+      description: A single dish in a menu estimation.
       required:
         - query
         - estimation
@@ -5924,7 +5933,7 @@ components:
 
     MenuEstimationTotals:
       type: object
-      description: Aggregated nutrients across all matched menu items (F076). All 15 nutrient fields.
+      description: Aggregated nutrients across all matched menu items. All 15 nutrient fields.
       properties:
         calories:
           type: number
@@ -5975,7 +5984,7 @@ components:
 
     MenuEstimationData:
       type: object
-      description: Full menu estimation response payload (F076).
+      description: Full menu estimation response payload.
       required:
         - items
         - totals
@@ -6050,7 +6059,8 @@ components:
           allOf:
             - $ref: '#/components/schemas/MenuEstimationData'
           description: |
-            Present when intent is `menu_estimation` (F076). Contains per-item estimation
+            Present when intent is `menu_estimation` (set by F076 explicit triggers OR by
+            F-MULTI-ITEM-IMPLICIT implicit multi-item detection). Contains per-item estimation
             results, aggregated totals, and match count. Null for other intents.
         activeContext:
           nullable: true
