@@ -1,7 +1,7 @@
 # F-H4-B: Alias gaps + validator uniqueness enhancement
 
 **Feature:** F-H4-B | **Type:** Backend-Feature (data + tooling) | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F-H4-B
+**Status:** Done | **Branch:** feature/F-H4-B (merged as PR #205, squash `4520c24`)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-23 | **Dependencies:** F-H4 (`c83f6cb`), F-TOOL-RESEED-003 (`0dca029`)
 **Complexity:** Standard
@@ -714,7 +714,7 @@ Option-B-specific ACs:
 - [x] Step 4: `production-code-validator` executed, quality gates pass (APPROVE 0 blockers; full suite 3733/3733; lint 0; build clean)
 - [x] Step 5: `code-review-specialist` executed (Approve with minor changes; 1 HIGH + 4 MEDIUM + 3 LOW; HIGH and 3/4 MEDIUM applied as follow-up commit)
 - [x] Step 5: `qa-engineer` executed (Standard/Complex) — QA VERIFIED / PASS; 1 minor observation addressed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted (pending post-merge)
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -733,6 +733,11 @@ Option-B-specific ACs:
 | 2026-04-23 | Step 5 — `code-review-specialist` | Approve with minor changes. 1 HIGH (`?? ''` fallback polluting set); 4 MEDIUM (missing 3-way test; allow-list alias not lowercase-enforced; accent allow-list test; AC-3c nameEs side-effect); 3 LOW/NIT (helper refactor, describe nesting, naming, bugs.md link). |
 | 2026-04-23 | Step 5 — `qa-engineer` | QA VERIFIED / PASS. All ACs covered. 1 minor observation (AC-3c test had unintended nameEs collision — implementation was correct but test exercised two collisions instead of the documented one). |
 | 2026-04-23 | Follow-up commit `23d7dd1` | Addresses review findings: [HIGH] `?? ''` fallback replaced with type-guarded filter; [MEDIUM] allow-list integrity pre-check (non-lowercase alias → error; empty reason → error); [MEDIUM] new test `3-way collision: allow-list with only 2 of 3 colliders → still blocked`; [MEDIUM] new test `allow-list integrity: rejects an entry whose alias is not lowercase`; [MEDIUM/QA] AC-3c test disambiguated (disjoint nameEs). Full suite: 3733/3733 (+2). Lint: 0. Skipped LOW/NIT items (style-only). |
+| 2026-04-23 | External audit refresh commit `63d13b7` | Pre-merge audit APPROVE WITH NOTES: PR body test count 3731→3733 with follow-up attribution, Merge Checklist Evidence row 1 count 24→26, rows 5/6/7 past-tense with concrete SHAs. |
+| 2026-04-23 | PR #205 squash-merged to develop | `4520c24` — all CI green (ci-success + test-api 4m); no conflicts. |
+| 2026-04-23 | Post-merge Action A — reseed dev+prod (AC-4d empirical) | `./packages/api/scripts/reseed-all-envs.sh --prod` ran Phase 1+2+3 on both envs. Validator executed the new uniqueness + allow-list check against the real 279-dish JSON: `Validated 279 Spanish dishes` (no blocking errors). Phase 3 embeddings: `processedDishes: 0` on both (no new dishes need embedding regeneration — data change was additive only, not new UUIDs). |
+| 2026-04-23 | Post-merge Action B — API probes on dev (AC-1g empirical) | 6/6 apócope queries returned `level1Hit=True` on `api-dev.nutrixplorer.com`: `papas arrugás`, `papas arrugás con mojo picón`, `papas arrugás con mojo verde`, `gofio escaldao`, `queso asao con mojo`, `ternasco asao`. |
+| 2026-04-23 | Step 6 housekeeping | Status→Done, Workflow Step 6 [x], branch deleted (local + remote), BUG-DATA-ALIAS-COLLISION-001 closed in bugs.md with merge SHA `4520c24`, tracker updated to done 6/6. |
 
 ---
 
