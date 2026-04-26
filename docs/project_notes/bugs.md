@@ -56,6 +56,15 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 ---
 
+### 2026-04-26 — BUG-DATA-DUPLICATE-ATOM-001: CE-281 (Esqueixada de bacallà) is the same dish as pre-existing CE-095 (Esqueixada) [P3, FOLLOW-UP]
+
+- **Issue**: F-H6 introduced CE-281 `Esqueixada de bacallà` as a new atom to resolve Q465 (`media ración de esqueixada de bacallà`). Code-review-specialist (PR #211) flagged that this is the same Catalan salt-cod salad as the pre-existing CE-095 `Esqueixada` (alias `esqueixada de bacalao`). Esqueixada is invariably bacalao-based; the long-form is just the Catalan name. Two atoms with overlapping concept return inconsistent kcal estimates (CE-095: 80 kcal/100g vs CE-281: 120 kcal/100g) for orthographic variants of the same query.
+- **Root Cause**: Spec's pre-check used lowercase grep on alias strings; the Catalan spelling `bacallà/bacalà` did not match `bacalao` so the duplicate-detection failed. The spec's diagnosis was "MISSING ATOM" when the right diagnosis was "ALIAS GAP on CE-095".
+- **Status**: NOT FIXED. F-H6 merged with the duplicate atom (acceptable since not user-blocking — the orthographic form `esqueixada de bacallà` resolves to a valid kcal estimate via CE-281; only inconsistency is between language variants of the same query). Code-reviewer recommended filing this follow-up rather than blocking merge.
+- **Proposed Solution** (next sprint): collapse CE-281 → CE-095. Specifically: (a) move Catalan-spelling aliases (`esqueixada de bacallà`, `esqueixada de bacalà`, `esqueixada catalana`) from CE-281 to CE-095; (b) delete CE-281 (DB rows for Dish/DishNutrient/StandardPortion via revised rollback SQL); (c) re-decrement count 307→306 (key_facts L95 + 3 test assertions); (d) revert dishId/nutrientId hex 0x119 to unused. Workload: ~1h Simple SDD.
+- **Prevention**: Spec pre-check must include orthographic/transliteration variant matching for cross-lingual collisions (e.g., `bacalao` ↔ `bacallà` ↔ `bacalà`; similar concern for `mojo` ↔ `moho` etc.). Future seed expansion specs should use Levenshtein-distance fuzzy matching against existing names+aliases AFTER lowercase grep.
+- **Discovered by**: code-review-specialist on PR #211, Step 5 of F-H6 SDD workflow.
+
 ### 2026-04-22 — BUG-DATA-ALIAS-COLLISION-001: 4 duplicate aliases in `spanish-dishes.json` (pre-existing, surfaced during F-H4)
 
 - **Issue**: During F-H4 self-QA review (running an alias-uniqueness check across all 279 dishes in `packages/api/prisma/seed-data/spanish-dishes.json`), 4 alias collisions were detected where the same alias string appears under two different `externalId`s. Since the L1 exact-match lookup in `packages/api/src/estimation/level1Lookup.ts` uses the first match found, one of the two dishes becomes unreachable via that alias and the pipeline routes ambiguously. Not caused by F-H4 additions — all 4 collisions are between pre-existing entries.

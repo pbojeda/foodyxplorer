@@ -2381,7 +2381,8 @@
       "name": "Pimientos asados",
       "nameEs": "Pimientos asados",
       "aliases": [
-        "escalivada"
+        "escalivada",
+        "escalivada con anchoas"
       ],
       "category": "primeros",
       "portionGrams": 150,
@@ -3315,7 +3316,8 @@
       "name": "Cachopo",
       "nameEs": "Cachopo",
       "aliases": [
-        "cachopo asturiano"
+        "cachopo asturiano",
+        "cachopo para compartir"
       ],
       "category": "segundos",
       "portionGrams": 250,
@@ -3627,7 +3629,9 @@
       "name": "Espaguetis carbonara",
       "nameEs": "Espaguetis carbonara",
       "aliases": [
-        "carbonara"
+        "carbonara",
+        "spaghetti carbonara",
+        "spaguetis carbonara"
       ],
       "category": "arroces",
       "portionGrams": 300,
@@ -5648,7 +5652,8 @@
       "name": "Hamburguesa con huevo y patatas",
       "nameEs": "Hamburguesa con huevo y patatas",
       "aliases": [
-        "hamburguesa completa"
+        "hamburguesa completa",
+        "hamburguesa gourmet"
       ],
       "category": "combinados",
       "portionGrams": 400,
@@ -6982,7 +6987,8 @@
       "nameEs": "Empanada gallega de atún",
       "aliases": [
         "empanada gallega",
-        "empanada de atún gallega"
+        "empanada de atún gallega",
+        "empanada gallega de zamburiñas"
       ],
       "category": "bocadillos",
       "portionGrams": 200,
@@ -7286,7 +7292,8 @@
       "aliases": [
         "ensaimada mallorquina",
         "ensaimada lisa",
-        "ensaimada de mallorca"
+        "ensaimada de mallorca",
+        "ensaimada de crema"
       ],
       "category": "postres",
       "portionGrams": 80,
@@ -7330,6 +7337,743 @@
         "fiber": 0,
         "salt": 1,
         "sodium": 0.4
+      }
+    },
+    {
+      "externalId": "CE-280",
+      "dishId": "00000000-0000-e073-0007-000000000118",
+      "nutrientId": "00000000-0000-e073-0008-000000000118",
+      "name": "Pescaíto frito",
+      "nameEs": "Pescaíto frito",
+      "aliases": [],
+      "category": "tapas",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 560,
+        "proteins": 34,
+        "carbohydrates": 22,
+        "sugars": 0.5,
+        "fats": 34,
+        "saturatedFats": 4,
+        "fiber": 0.5,
+        "salt": 1.4,
+        "sodium": 0.56
+      }
+    },
+    {
+      "externalId": "CE-281",
+      "dishId": "00000000-0000-e073-0007-000000000119",
+      "nutrientId": "00000000-0000-e073-0008-000000000119",
+      "name": "Esqueixada de bacallà",
+      "nameEs": "Esqueixada de bacallà",
+      "aliases": [
+        "esqueixada de bacalà",
+        "esqueixada catalana"
+      ],
+      "category": "tapas",
+      "portionGrams": 180,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 216,
+        "proteins": 20,
+        "carbohydrates": 8,
+        "sugars": 3,
+        "fats": 11,
+        "saturatedFats": 1.5,
+        "fiber": 2,
+        "salt": 2,
+        "sodium": 0.8
+      }
+    },
+    {
+      "externalId": "CE-282",
+      "dishId": "00000000-0000-e073-0007-00000000011a",
+      "nutrientId": "00000000-0000-e073-0008-00000000011a",
+      "name": "Sobrassada con miel",
+      "nameEs": "Sobrassada con miel",
+      "aliases": [
+        "sobrasada con miel"
+      ],
+      "category": "tapas",
+      "portionGrams": 60,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 240,
+        "proteins": 5,
+        "carbohydrates": 7,
+        "sugars": 6,
+        "fats": 21,
+        "saturatedFats": 8,
+        "fiber": 0,
+        "salt": 1,
+        "sodium": 0.4
+      }
+    },
+    {
+      "externalId": "CE-283",
+      "dishId": "00000000-0000-e073-0007-00000000011b",
+      "nutrientId": "00000000-0000-e073-0008-00000000011b",
+      "name": "Gazpachuelo malagueño",
+      "nameEs": "Gazpachuelo malagueño",
+      "aliases": [
+        "gazpachuelo"
+      ],
+      "category": "primeros",
+      "portionGrams": 250,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 250,
+        "proteins": 10,
+        "carbohydrates": 18,
+        "sugars": 1,
+        "fats": 14,
+        "saturatedFats": 2,
+        "fiber": 1,
+        "salt": 1.5,
+        "sodium": 0.6
+      }
+    },
+    {
+      "externalId": "CE-284",
+      "dishId": "00000000-0000-e073-0007-00000000011c",
+      "nutrientId": "00000000-0000-e073-0008-00000000011c",
+      "name": "Berza jerezana",
+      "nameEs": "Berza jerezana",
+      "aliases": [
+        "berza gaditana"
+      ],
+      "category": "primeros",
+      "portionGrams": 350,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 490,
+        "proteins": 28,
+        "carbohydrates": 44,
+        "sugars": 4,
+        "fats": 18,
+        "saturatedFats": 6,
+        "fiber": 14,
+        "salt": 2,
+        "sodium": 0.8
+      }
+    },
+    {
+      "externalId": "CE-285",
+      "dishId": "00000000-0000-e073-0007-00000000011d",
+      "nutrientId": "00000000-0000-e073-0008-00000000011d",
+      "name": "Talo con chistorra",
+      "nameEs": "Talo con chistorra",
+      "aliases": [
+        "talo vasco"
+      ],
+      "category": "tapas",
+      "portionGrams": 150,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 465,
+        "proteins": 14,
+        "carbohydrates": 36,
+        "sugars": 1,
+        "fats": 29,
+        "saturatedFats": 10,
+        "fiber": 2,
+        "salt": 1.8,
+        "sodium": 0.72
+      }
+    },
+    {
+      "externalId": "CE-286",
+      "dishId": "00000000-0000-e073-0007-00000000011e",
+      "nutrientId": "00000000-0000-e073-0008-00000000011e",
+      "name": "Casadielles",
+      "nameEs": "Casadielles",
+      "aliases": [
+        "casadiella"
+      ],
+      "category": "postres",
+      "portionGrams": 80,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 320,
+        "proteins": 5,
+        "carbohydrates": 38,
+        "sugars": 16,
+        "fats": 16,
+        "saturatedFats": 5,
+        "fiber": 2,
+        "salt": 0.3,
+        "sodium": 0.12
+      }
+    },
+    {
+      "externalId": "CE-287",
+      "dishId": "00000000-0000-e073-0007-00000000011f",
+      "nutrientId": "00000000-0000-e073-0008-00000000011f",
+      "name": "Fartons",
+      "nameEs": "Fartons",
+      "aliases": [
+        "fartón"
+      ],
+      "category": "postres",
+      "portionGrams": 50,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 180,
+        "proteins": 4,
+        "carbohydrates": 30,
+        "sugars": 10,
+        "fats": 5,
+        "saturatedFats": 1.5,
+        "fiber": 0.5,
+        "salt": 0.3,
+        "sodium": 0.12
+      }
+    },
+    {
+      "externalId": "CE-288",
+      "dishId": "00000000-0000-e073-0007-000000000120",
+      "nutrientId": "00000000-0000-e073-0008-000000000120",
+      "name": "Poke bowl",
+      "nameEs": "Poke bowl",
+      "aliases": [
+        "poke bowl de salmón"
+      ],
+      "category": "primeros",
+      "portionGrams": 350,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 420,
+        "proteins": 28,
+        "carbohydrates": 52,
+        "sugars": 8,
+        "fats": 10,
+        "saturatedFats": 2,
+        "fiber": 5,
+        "salt": 1.4,
+        "sodium": 0.56
+      }
+    },
+    {
+      "externalId": "CE-289",
+      "dishId": "00000000-0000-e073-0007-000000000121",
+      "nutrientId": "00000000-0000-e073-0008-000000000121",
+      "name": "Burrito de cochinita pibil",
+      "nameEs": "Burrito de cochinita pibil",
+      "aliases": [],
+      "category": "segundos",
+      "portionGrams": 280,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 616,
+        "proteins": 30,
+        "carbohydrates": 62,
+        "sugars": 4,
+        "fats": 24,
+        "saturatedFats": 8,
+        "fiber": 8,
+        "salt": 2,
+        "sodium": 0.8
+      }
+    },
+    {
+      "externalId": "CE-290",
+      "dishId": "00000000-0000-e073-0007-000000000122",
+      "nutrientId": "00000000-0000-e073-0008-000000000122",
+      "name": "Ramen de miso",
+      "nameEs": "Ramen de miso",
+      "aliases": [],
+      "category": "primeros",
+      "portionGrams": 400,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 340,
+        "proteins": 20,
+        "carbohydrates": 42,
+        "sugars": 4,
+        "fats": 8,
+        "saturatedFats": 2.5,
+        "fiber": 3,
+        "salt": 3.2,
+        "sodium": 1.28
+      }
+    },
+    {
+      "externalId": "CE-291",
+      "dishId": "00000000-0000-e073-0007-000000000123",
+      "nutrientId": "00000000-0000-e073-0008-000000000123",
+      "name": "Pad thai",
+      "nameEs": "Pad thai",
+      "aliases": [
+        "pad thai de langostinos",
+        "pad thai de gambas"
+      ],
+      "category": "segundos",
+      "portionGrams": 300,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 555,
+        "proteins": 22,
+        "carbohydrates": 72,
+        "sugars": 8,
+        "fats": 18,
+        "saturatedFats": 3,
+        "fiber": 3,
+        "salt": 2.4,
+        "sodium": 0.96
+      }
+    },
+    {
+      "externalId": "CE-292",
+      "dishId": "00000000-0000-e073-0007-000000000124",
+      "nutrientId": "00000000-0000-e073-0008-000000000124",
+      "name": "Shawarma de pollo",
+      "nameEs": "Shawarma de pollo",
+      "aliases": [
+        "shawarma de pollo solo carne"
+      ],
+      "category": "bocadillos",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 480,
+        "proteins": 28,
+        "carbohydrates": 44,
+        "sugars": 4,
+        "fats": 20,
+        "saturatedFats": 4,
+        "fiber": 2,
+        "salt": 2,
+        "sodium": 0.8
+      }
+    },
+    {
+      "externalId": "CE-293",
+      "dishId": "00000000-0000-e073-0007-000000000125",
+      "nutrientId": "00000000-0000-e073-0008-000000000125",
+      "name": "Falafel",
+      "nameEs": "Falafel",
+      "aliases": [
+        "falafel con tahini",
+        "falafel vegano",
+        "falafel con salsa de yogur"
+      ],
+      "category": "tapas",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 610,
+        "proteins": 20,
+        "carbohydrates": 56,
+        "sugars": 4,
+        "fats": 32,
+        "saturatedFats": 4,
+        "fiber": 10,
+        "salt": 1.6,
+        "sodium": 0.64
+      }
+    },
+    {
+      "externalId": "CE-294",
+      "dishId": "00000000-0000-e073-0007-000000000126",
+      "nutrientId": "00000000-0000-e073-0008-000000000126",
+      "name": "Pastel de nata",
+      "nameEs": "Pastel de nata",
+      "aliases": [
+        "pastéis de nata",
+        "pastel de belém"
+      ],
+      "category": "postres",
+      "portionGrams": 90,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 315,
+        "proteins": 7,
+        "carbohydrates": 42,
+        "sugars": 22,
+        "fats": 14,
+        "saturatedFats": 7,
+        "fiber": 0.5,
+        "salt": 0.4,
+        "sodium": 0.16
+      }
+    },
+    {
+      "externalId": "CE-295",
+      "dishId": "00000000-0000-e073-0007-000000000127",
+      "nutrientId": "00000000-0000-e073-0008-000000000127",
+      "name": "Nigiri de pez mantequilla",
+      "nameEs": "Nigiri de pez mantequilla",
+      "aliases": [
+        "nigiri de pez mantequilla con trufa",
+        "nigiris de pez mantequilla",
+        "sushi de pez mantequilla"
+      ],
+      "category": "tapas",
+      "portionGrams": 50,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 88,
+        "proteins": 6,
+        "carbohydrates": 9,
+        "sugars": 1,
+        "fats": 3,
+        "saturatedFats": 0.8,
+        "fiber": 0.2,
+        "salt": 0.4,
+        "sodium": 0.16
+      }
+    },
+    {
+      "externalId": "CE-296",
+      "dishId": "00000000-0000-e073-0007-000000000128",
+      "nutrientId": "00000000-0000-e073-0008-000000000128",
+      "name": "Uramaki roll",
+      "nameEs": "Uramaki roll",
+      "aliases": [
+        "uramaki roll de atún",
+        "uramaki roll de atún picante"
+      ],
+      "category": "tapas",
+      "portionGrams": 120,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 228,
+        "proteins": 10,
+        "carbohydrates": 28,
+        "sugars": 3,
+        "fats": 8,
+        "saturatedFats": 1.5,
+        "fiber": 2,
+        "salt": 1.2,
+        "sodium": 0.48
+      }
+    },
+    {
+      "externalId": "CE-297",
+      "dishId": "00000000-0000-e073-0007-000000000129",
+      "nutrientId": "00000000-0000-e073-0008-000000000129",
+      "name": "Tacos al pastor",
+      "nameEs": "Tacos al pastor",
+      "aliases": [
+        "taco al pastor"
+      ],
+      "category": "segundos",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 510,
+        "proteins": 24,
+        "carbohydrates": 56,
+        "sugars": 6,
+        "fats": 18,
+        "saturatedFats": 6,
+        "fiber": 4,
+        "salt": 1.6,
+        "sodium": 0.64
+      }
+    },
+    {
+      "externalId": "CE-298",
+      "dishId": "00000000-0000-e073-0007-00000000012a",
+      "nutrientId": "00000000-0000-e073-0008-00000000012a",
+      "name": "Bao de panceta",
+      "nameEs": "Bao de panceta",
+      "aliases": [
+        "bao chino"
+      ],
+      "category": "tapas",
+      "portionGrams": 120,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 312,
+        "proteins": 12,
+        "carbohydrates": 34,
+        "sugars": 6,
+        "fats": 14,
+        "saturatedFats": 5,
+        "fiber": 1.5,
+        "salt": 1.2,
+        "sodium": 0.48
+      }
+    },
+    {
+      "externalId": "CE-299",
+      "dishId": "00000000-0000-e073-0007-00000000012b",
+      "nutrientId": "00000000-0000-e073-0008-00000000012b",
+      "name": "Arepa de reina pepiada",
+      "nameEs": "Arepa de reina pepiada",
+      "aliases": [
+        "reina pepiada"
+      ],
+      "category": "segundos",
+      "portionGrams": 180,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 414,
+        "proteins": 22,
+        "carbohydrates": 42,
+        "sugars": 2,
+        "fats": 16,
+        "saturatedFats": 3,
+        "fiber": 4,
+        "salt": 1.4,
+        "sodium": 0.56
+      }
+    },
+    {
+      "externalId": "CE-300",
+      "dishId": "00000000-0000-e073-0007-00000000012c",
+      "nutrientId": "00000000-0000-e073-0008-00000000012c",
+      "name": "Gyozas",
+      "nameEs": "Gyozas",
+      "aliases": [
+        "gyoza",
+        "dumplings japoneses",
+        "empanadillas japonesas"
+      ],
+      "category": "tapas",
+      "portionGrams": 240,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 516,
+        "proteins": 22,
+        "carbohydrates": 54,
+        "sugars": 3,
+        "fats": 22,
+        "saturatedFats": 6,
+        "fiber": 3,
+        "salt": 1.9,
+        "sodium": 0.76
+      }
+    },
+    {
+      "externalId": "CE-301",
+      "dishId": "00000000-0000-e073-0007-00000000012d",
+      "nutrientId": "00000000-0000-e073-0008-00000000012d",
+      "name": "Ceviche",
+      "nameEs": "Ceviche",
+      "aliases": [
+        "ceviche de corvina",
+        "ceviche peruano"
+      ],
+      "category": "primeros",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 190,
+        "proteins": 22,
+        "carbohydrates": 10,
+        "sugars": 4,
+        "fats": 6,
+        "saturatedFats": 1,
+        "fiber": 2,
+        "salt": 1.6,
+        "sodium": 0.64
+      }
+    },
+    {
+      "externalId": "CE-302",
+      "dishId": "00000000-0000-e073-0007-00000000012e",
+      "nutrientId": "00000000-0000-e073-0008-00000000012e",
+      "name": "Musaka",
+      "nameEs": "Musaka",
+      "aliases": [
+        "moussaka",
+        "musaca",
+        "musaka griega"
+      ],
+      "category": "segundos",
+      "portionGrams": 350,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 595,
+        "proteins": 28,
+        "carbohydrates": 38,
+        "sugars": 8,
+        "fats": 34,
+        "saturatedFats": 14,
+        "fiber": 6,
+        "salt": 2,
+        "sodium": 0.8
+      }
+    },
+    {
+      "externalId": "CE-303",
+      "dishId": "00000000-0000-e073-0007-00000000012f",
+      "nutrientId": "00000000-0000-e073-0008-00000000012f",
+      "name": "Hummus",
+      "nameEs": "Hummus",
+      "aliases": [
+        "humus",
+        "hummus con pan de pita"
+      ],
+      "category": "tapas",
+      "portionGrams": 100,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 180,
+        "proteins": 8,
+        "carbohydrates": 16,
+        "sugars": 2,
+        "fats": 10,
+        "saturatedFats": 1.5,
+        "fiber": 5,
+        "salt": 0.8,
+        "sodium": 0.32
+      }
+    },
+    {
+      "externalId": "CE-304",
+      "dishId": "00000000-0000-e073-0007-000000000130",
+      "nutrientId": "00000000-0000-e073-0008-000000000130",
+      "name": "Tataki de atún",
+      "nameEs": "Tataki de atún",
+      "aliases": [
+        "tataki de atún rojo"
+      ],
+      "category": "tapas",
+      "portionGrams": 150,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 225,
+        "proteins": 30,
+        "carbohydrates": 5,
+        "sugars": 2,
+        "fats": 8,
+        "saturatedFats": 2,
+        "fiber": 0.5,
+        "salt": 1.5,
+        "sodium": 0.6
+      }
+    },
+    {
+      "externalId": "CE-305",
+      "dishId": "00000000-0000-e073-0007-000000000131",
+      "nutrientId": "00000000-0000-e073-0008-000000000131",
+      "name": "Steak tartar",
+      "nameEs": "Steak tartar",
+      "aliases": [
+        "tartar de ternera",
+        "tartar de buey",
+        "steak tartare"
+      ],
+      "category": "primeros",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 420,
+        "proteins": 36,
+        "carbohydrates": 4,
+        "sugars": 1,
+        "fats": 28,
+        "saturatedFats": 10,
+        "fiber": 0.5,
+        "salt": 1.6,
+        "sodium": 0.64
+      }
+    },
+    {
+      "externalId": "CE-306",
+      "dishId": "00000000-0000-e073-0007-000000000132",
+      "nutrientId": "00000000-0000-e073-0008-000000000132",
+      "name": "Carpaccio",
+      "nameEs": "Carpaccio",
+      "aliases": [
+        "carpaccio de ternera",
+        "carpaccio de buey"
+      ],
+      "category": "primeros",
+      "portionGrams": 80,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 120,
+        "proteins": 16,
+        "carbohydrates": 1,
+        "sugars": 0.5,
+        "fats": 6,
+        "saturatedFats": 2,
+        "fiber": 0,
+        "salt": 0.6,
+        "sodium": 0.24
+      }
+    },
+    {
+      "externalId": "CE-307",
+      "dishId": "00000000-0000-e073-0007-000000000133",
+      "nutrientId": "00000000-0000-e073-0008-000000000133",
+      "name": "Chorizo a la sidra",
+      "nameEs": "Chorizo a la sidra",
+      "aliases": [],
+      "category": "tapas",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 630,
+        "proteins": 28,
+        "carbohydrates": 4,
+        "sugars": 1,
+        "fats": 52,
+        "saturatedFats": 18,
+        "fiber": 0,
+        "salt": 2.4,
+        "sodium": 0.96
       }
     }
   ]
