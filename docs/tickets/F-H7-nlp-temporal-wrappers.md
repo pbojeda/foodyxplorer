@@ -1063,6 +1063,8 @@ All changes are purely additive:
 | 2026-04-26 | Step 2.5 (Cross-model plan review R1): Gemini APPROVED with 1 SUGGESTION; Codex REVISE with 5 IMPORTANT. Plan v2 fixes applied. | I1 (Codex): added explicit bare `^un[ao]?\s+de\s+` form to H7-P4 spec + regex + RED tests for Q472/Q484/Q484 (`una de pad thai...`, `una de cordero`). I2 (Codex): replaced vague "logger?.debug" with concrete `extractFoodQuery()` return-shape change (`matchedWrapperLabel?: 'H7-P1'..'H7-P4' \| null`); added `conversationCore.ts` to Files-to-Modify with single call site at line 507 emitting `request.log.debug`. I3 (Codex): added `esta mañana/tarde/noche en [lugar]` branch to H7-P1 (covers Q644 `esta tarde en la cafetería`), updated example regex, marked Q644 in H7-P2 examples as documentation-only (H7-P1 fires first). I4 (Codex): forced-Path-B Q494 test moved to dedicated `fH7.q494-pathB.unit.test.ts` with top-level hoisted `vi.mock`; the non-mocked Q494 in `fH7.edge-cases.test.ts` becomes a soft assertion accepting either Path A or Path B. I5 (Codex): replaced non-existent landmines (`pollo con almendras`, `arroz con verduras`) with verified-in-seed alternatives (`bacalao al pil-pil`, `Sepia a la plancha`, `Tostada con tomate y aceite`, `café con leche`, `pan con tomate`, `gambas al ajillo`); guard test renamed from `pollo con almendras` to `pan con tomate`. Plan v2 ready. |
 | 2026-04-26 | Step 2.5 (Cross-model plan review R2): Gemini APPROVED, Codex REVISE (4I+1S residual cleanup). Plan v3 fixes. | I1 (Codex R2): replaced ALL remaining `pollo con almendras` references throughout plan (Edge Case 4 line 338, unit test inputs lines 596-598, risk register R3 line 930, AC-7 line 1012) with verified-in-seed equivalents (`pan con tomate`, synthetic `foo con bar`/`foo bar con baz con qux`, plus six-dish landmine corpus in AC-7). I2 (Codex R2): removed ambiguous "Option A callback / Option B return shape" Key Patterns section — single contract `matchedWrapperLabel` return shape only. I3 (Codex R2): clarified that AC-10 scope is line-507 primary path only (line 521/528 fallback in catch block is OUT of scope, documented in plan). I4 (Codex R2): added explicit `me hice una tortilla francesa con champiñones` test + `hice una tortilla` test to Phase 3 RED test list (R5 mitigation). S1 (Codex R2): test count totals corrected — Phase 2 13→14, Phase 4 14→17, Phase 3 9→11; AC-11 estimate updated from 35-55 to ~96 (matching Test Strategy table total). |
 | 2026-04-26 | Step 2 (Plan): drafted v1, self-review pass done. 34 total steps across 7 phases. | Empirical anchors verified: 13-entry CONVERSATIONAL_WRAPPER_PATTERNS confirmed (indices 0–12), for-break loop at 721–726 confirmed, empty-remainder guard at 778 confirmed, L1 null branch at 168 and L2 start at 170 confirmed, QueryLogEntry fixed (9 fields, no wrapperPattern), ADR-022 = last ADR (ADR-023 next). All 12 ACs covered: AC-1 via Phase 1–3 tests, AC-2 via Phase 5 integration, AC-3 via Phase 4 tests, AC-4 via regression suites in all phases, AC-5 via Phase 6 landmine corpus, AC-6 via conservative-fallback unit tests, AC-7 via Phase 5b integration, AC-8 via 4 new test files, AC-9 via fH7.engineRouter.integration.test.ts processMessage path (or fH7.conversationCore.integration.test.ts if developer adds it for full AC-9 compliance), AC-10 via callback/logger pattern documented in Key Patterns, AC-11 via ~93 new tests (3× the 30-test minimum), AC-12 via Phase 7 lint/build step. |
+| 2026-04-26 | Step 3 (TDD Implementation) Phases 1–6: all phases complete | Phase 1: H7-P1 (idx 13, compound temporal+eat-verb). Phase 2: H7-P2 (idx 14, compound activity/context+eat-verb). Phase 3: H7-P3 (idx 15, bare eat-verb fallback). Phase 4: H7-P4 (idx 16, conversational fillers: quiero/ponme/tráeme/tenéis/un de). Phase 5: H7-P5 retry seam in engineRouter.ts, h7TrailingStrip.ts (Cat A/B/C), AC-10 matchedWrapperLabel return shape, logger.debug in conversationCore.ts. Phase 6: fH7.edge-cases.test.ts (ECs 1–9, AC-10, ReDoS, empty inputs), fH7.q494-pathB.unit.test.ts (deterministic Path B with mocked level1Lookup). 5 new test files created, 1 pre-existing test updated (f-nlp.entityExtractor.edge-cases.test.ts: H7-P2 behavioral change). Unit tests: 4043 passing (baseline 3932, +111). All 0 regressions. |
+| 2026-04-26 | Step 3 Phase 7: documentation updated | key_facts.md: CONVERSATIONAL_WRAPPER_PATTERNS count 13→17, H7-P5 seam, h7TrailingStrip.ts, extractFoodQuery return shape, unit test count 4043. decisions.md: ADR-023 added (H7-P5 L1-retry seam pattern). api-spec.yaml: no change required (no response schema change — AC-10 is ephemeral debug log only). |
 
 <!-- After code review, add a row documenting which findings were accepted/rejected:
 | YYYY-MM-DD | Review findings | Accepted: C1-C3, H1-H2. Rejected: M5 (reason). Systemic: C4 logged in bugs.md |
@@ -1076,14 +1078,14 @@ This creates a feedback loop for improving future reviews. -->
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/12, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
+| 0. Validate ticket structure | [x] | All sections present: Spec, Implementation Plan, Testing Strategy, Completion Log, Merge Checklist |
+| 1. Mark all items | [ ] | AC: pending final review, DoD: pending, Workflow: Step 3 |
+| 2. Verify product tracker | [ ] | Pending Step 4 (review) |
+| 3. Update key_facts.md | [x] | Updated: CONVERSATIONAL_WRAPPER_PATTERNS count 13→17, H7-P5 seam, h7TrailingStrip.ts, extractFoodQuery return shape, unit test count 4043 |
+| 4. Update decisions.md | [x] | ADR-023 added (H7-P5 L1-retry seam in engineRouter.ts) |
+| 5. Commit documentation | [ ] | Pending |
+| 6. Verify clean working tree | [ ] | Pending |
+| 7. Verify branch up to date | [ ] | Pending |
 
 ---
 

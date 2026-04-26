@@ -745,7 +745,8 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
   // F-H7 AC-10: capture matched index to derive H7-P1..H7-P4 wrapper label.
   let matchedWrapperIndex = -1;
   for (let wIdx = 0; wIdx < CONVERSATIONAL_WRAPPER_PATTERNS.length; wIdx++) {
-    const pattern = CONVERSATIONAL_WRAPPER_PATTERNS[wIdx]!;
+    const pattern = CONVERSATIONAL_WRAPPER_PATTERNS[wIdx];
+    if (pattern === undefined) continue;
     const stripped = remainder.replace(pattern, '');
     if (stripped !== remainder) {
       remainder = stripped;
