@@ -708,10 +708,18 @@ export function normalizeDiminutive(text: string): string {
 }
 
 /**
+ * F-H7 AC-10: wrapper label for H7-P1 through H7-P4, returned from extractFoodQuery().
+ * null means a pre-existing pattern (0–12) matched or no wrapper fired.
+ * H7-P5 is NOT represented here — it emits its own label inside engineRouter.ts.
+ */
+export type H7WrapperLabel = 'H7-P1' | 'H7-P2' | 'H7-P3' | 'H7-P4' | null;
+
+/**
  * Parse raw Spanish text into a query and optional chain slug.
  * Pure function — no side effects, no I/O.
+ * F-H7 AC-10: returns matchedWrapperLabel for H7-P1..H7-P4 observability.
  */
-export function extractFoodQuery(text: string): { query: string; chainSlug?: string } {
+export function extractFoodQuery(text: string): { query: string; chainSlug?: string; matchedWrapperLabel?: H7WrapperLabel } {
   // Strip leading ¿¡ and trailing ?! — consistent with extractComparisonQuery
   // and detectContextSet.
   const originalTrimmed = text.replace(/^[¿¡]+/, '').replace(/[?!]+$/, '').trim();
@@ -734,13 +742,21 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
   // Step 2a — F-NLP: Conversational wrapper stripping (single pass, first match wins).
   // Runs before PREFIX_PATTERNS so that extended info-request and past-tense wrappers
   // are stripped cleanly before the narrower prefix patterns are attempted.
-  for (const pattern of CONVERSATIONAL_WRAPPER_PATTERNS) {
+  // F-H7 AC-10: capture matched index to derive H7-P1..H7-P4 wrapper label.
+  let matchedWrapperIndex = -1;
+  for (let wIdx = 0; wIdx < CONVERSATIONAL_WRAPPER_PATTERNS.length; wIdx++) {
+    const pattern = CONVERSATIONAL_WRAPPER_PATTERNS[wIdx]!;
     const stripped = remainder.replace(pattern, '');
     if (stripped !== remainder) {
       remainder = stripped;
+      matchedWrapperIndex = wIdx;
       break;
     }
   }
+
+  // Map array index → H7 wrapper label (indices 13–16 = H7-P1..H7-P4; pre-existing 0–12 → null).
+  const H7_LABELS: Record<number, H7WrapperLabel> = { 13: 'H7-P1', 14: 'H7-P2', 15: 'H7-P3', 16: 'H7-P4' };
+  const matchedWrapperLabel: H7WrapperLabel = H7_LABELS[matchedWrapperIndex] ?? null;
 
   // Step 2b — Prefix stripping (single pass, first match wins)
   for (const pattern of PREFIX_PATTERNS) {
@@ -793,5 +809,11 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
   // Step 3 — Fallback: if stripped result is empty, use original trimmed text
   const query = remainder.trim() || originalTrimmed;
 
-  return chainSlug !== undefined ? { query, chainSlug } : { query };
+  // F-H7 AC-10: include matchedWrapperLabel in return shape.
+  // Existing consumers ignore this field (optional, backward-compatible).
+  // null means no H7-P1..H7-P4 fired (either pre-existing pattern 0–12 matched, or no wrapper).
+  const wrapperResult = matchedWrapperLabel !== null ? { matchedWrapperLabel } : {};
+  return chainSlug !== undefined
+    ? { query, chainSlug, ...wrapperResult }
+    : { query, ...wrapperResult };
 }

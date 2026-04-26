@@ -505,6 +505,14 @@ export async function processMessage(
   let explicitSlug: string | undefined;
   try {
     const stripped = extractFoodQuery(trimmed);
+    // F-H7 AC-10: emit structured debug log when H7-P1..H7-P4 wrapper fired.
+    // Scope: primary single-dish estimation path only (line 507).
+    // The fallback extractFoodQuery() call at line ~538 (catch block, error-recovery path) is
+    // explicitly OUT of AC-10 scope — observability there is best-effort, not required.
+    // The menu-detection rerun is also out of scope (pre-routing classification).
+    if (stripped.matchedWrapperLabel != null) {
+      logger.debug({ wrapperPattern: stripped.matchedWrapperLabel }, 'F-H7 wrapper match');
+    }
     const modified = extractPortionModifier(stripped.query);
     // Apply the container/serving residual strip when `extractPortionModifier` actually
     // modified the text AND produced a non-unit multiplier. Dual-gate (text change +
@@ -525,6 +533,7 @@ export async function processMessage(
     // — a real bug. Stable tag `F-NLP-CHAIN-ORDERING:fallback-fired` is greppable.
     logger.error({ err }, 'F-NLP-CHAIN-ORDERING:fallback-fired — reordered pipeline threw; falling back to single-pass');
     const modified = extractPortionModifier(trimmed);
+    // AC-10 NOTE: fallback extractFoodQuery() call is OUT of AC-10 scope (error-recovery path only).
     const stripped = extractFoodQuery(modified.cleanQuery);
     extractedQuery = stripped.query;
     portionMultiplier = modified.portionMultiplier;
