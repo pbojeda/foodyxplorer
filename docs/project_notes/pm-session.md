@@ -18,14 +18,13 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-_(empty — F-H6 completed; H7/H8 deferred to post-compact session)_
+| F-H7 | Standard | in-progress | — | Step 2/6 done — Plan v3 (Gemini APPROVED both plan rounds; Codex 5I R1 + 4I+1S R2 all addressed). 7 phases, ~96 tests planned. Step 3 TDD next. |
 
-## Backlog (this sprint, deferred to next session)
+## Backlog (this sprint, queued)
 
 | Feature | Complexity | Reason |
 |---------|------------|--------|
-| F-H7 | Standard | Mandatory compact after 2 features. Run after F-H6 + `/compact` + `continue pm`. |
-| F-H8 | Simple | Run after F-H7 (or in same post-compact session if attention budget permits). |
+| F-H8 | Simple | Run after F-H7 (max 2 features per session — likely defer to next /compact). |
 
 ## Completed Features
 
@@ -42,12 +41,12 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** None — F-H6 closed (Step 6 done)
-**Branch:** N/A — F-H6 branch deleted post-merge
-**Next features:** F-H7 (Standard, Cat 29 temporal wrappers), F-H8 (Simple, Cat 24 preparation modifier strip) — both deferred to post-compact session
+**Current feature:** F-H7 — NLP Temporal Wrappers + Frame Strip
+**Branch:** `feature/F-H7-nlp-temporal-wrappers` (created from develop, clean)
+**Step:** 1/6 done — Setup (Step 2 Plan next)
+**Next features:** F-H8 (Simple, Cat 24 preparation modifier strip) — deferred to post-compact session per 2-feature limit
 **Blocked:** (none)
 
-**Session status:** PAUSED for /compact (1/3 features completed; mandatory pause due to substantial token usage on multi-round cross-model reviews — F-H6 alone consumed 7+ external review rounds + 4 specialist agents).
+**Session status:** RESUMED post-/compact. F-H7 active. Baseline gates verified before starting: 3932/3932 api tests, lint 0 errors, build clean, working tree clean on develop.
 
-To resume after /compact: run `continue pm`
 To stop gracefully: run `stop pm`
