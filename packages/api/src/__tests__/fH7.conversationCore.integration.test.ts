@@ -124,7 +124,7 @@ function makeMockCascadeResult(query: string) {
 // Request builder
 // ---------------------------------------------------------------------------
 
-function buildRequest(text: string): ConversationRequest {
+function buildRequest(text: string, customLogger?: ConversationRequest['logger']): ConversationRequest {
   return {
     text,
     actorId: 'fh7c0000-test-4000-a000-000000000099',
@@ -136,7 +136,7 @@ function buildRequest(text: string): ConversationRequest {
     chains: [],
     legacyChainSlug: null,
     legacyChainName: null,
-    logger: {
+    logger: customLogger ?? {
       debug: () => {},
       info: () => {},
       warn: () => {},
@@ -230,5 +230,65 @@ describe('F-H7 — processMessage() end-to-end (AC-9, ADR-021)', () => {
     // Cascade returns total miss → estimation.result is null (not estimation itself)
     expect(result.estimation).not.toBeNull(); // EstimateData object (always present)
     expect(result.estimation?.result).toBeNull(); // but result inside is null
+  });
+
+  // QA F1 follow-up: AC-10 end-to-end logger.debug emission verification
+  it('Test 4 (AC-10 logger spy — H7-P1): logger.debug fires with wrapperPattern: H7-P1', async () => {
+    mockCascade.mockClear();
+    const debugSpy = vi.fn();
+    const customLogger = {
+      debug: debugSpy,
+      info: () => {},
+      warn: () => {},
+      error: () => {},
+    };
+
+    await processMessage(buildRequest('ayer por la noche cené salmón con verduras al horno', customLogger));
+
+    // Verify the debug spy received a call with the H7-P1 wrapperPattern object
+    const fH7Calls = debugSpy.mock.calls.filter((args: unknown[]) => {
+      const [first] = args;
+      return typeof first === 'object' && first !== null && 'wrapperPattern' in first && (first as { wrapperPattern: string }).wrapperPattern === 'H7-P1';
+    });
+    expect(fH7Calls.length).toBeGreaterThan(0);
+  });
+
+  it('Test 5 (AC-10 logger spy — H7-P4): logger.debug fires with wrapperPattern: H7-P4', async () => {
+    mockCascade.mockClear();
+    const debugSpy = vi.fn();
+    const customLogger = {
+      debug: debugSpy,
+      info: () => {},
+      warn: () => {},
+      error: () => {},
+    };
+
+    await processMessage(buildRequest('quiero probar la ropa vieja canaria', customLogger));
+
+    const fH7Calls = debugSpy.mock.calls.filter((args: unknown[]) => {
+      const [first] = args;
+      return typeof first === 'object' && first !== null && 'wrapperPattern' in first && (first as { wrapperPattern: string }).wrapperPattern === 'H7-P4';
+    });
+    expect(fH7Calls.length).toBeGreaterThan(0);
+  });
+
+  it('Test 6 (AC-10 logger spy — no H7 match): logger.debug NOT called with wrapperPattern when no H7 pattern fires', async () => {
+    mockCascade.mockClear();
+    const debugSpy = vi.fn();
+    const customLogger = {
+      debug: debugSpy,
+      info: () => {},
+      warn: () => {},
+      error: () => {},
+    };
+
+    // "salmón con verduras" — no H7-P1..P4 pattern matches (no temporal, no leading filler)
+    await processMessage(buildRequest('salmón con verduras', customLogger));
+
+    const fH7Calls = debugSpy.mock.calls.filter((args: unknown[]) => {
+      const [first] = args;
+      return typeof first === 'object' && first !== null && 'wrapperPattern' in first;
+    });
+    expect(fH7Calls.length).toBe(0);
   });
 });

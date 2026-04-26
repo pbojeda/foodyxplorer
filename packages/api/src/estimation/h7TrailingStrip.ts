@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 
 const CAT_A_PATTERNS: readonly RegExp[] = [
-  /,?\s*por\s+favor\s*$/i,
+  /,?\s+por\s+favor\s*$/i,
   /\s+para\s+(?:merendar|picar|dos|compartir|el\s+centro)\s*$/i,
   /\s+clásic[ao]s?\s*$/i,
   /\s+bien\s+(?:caliente|frío|fría)\s*$/i,
@@ -19,12 +19,15 @@ const CAT_A_PATTERNS: readonly RegExp[] = [
  * Strip Cat A conversational suffixes from the end of `text`.
  * Applies all patterns in order; stops on first match and returns stripped result.
  * Returns original text if no pattern matches.
+ *
+ * Empty-strip guard: if a pattern strips the entire text to empty/whitespace,
+ * return original text instead — prevents wasted L1 retry on empty query.
  */
 export function applyH7CatAStrip(text: string): string {
   for (const pattern of CAT_A_PATTERNS) {
     const stripped = text.replace(pattern, '').trimEnd();
     if (stripped !== text) {
-      return stripped;
+      return stripped.length > 0 ? stripped : text;
     }
   }
   return text;

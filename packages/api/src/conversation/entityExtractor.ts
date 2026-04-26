@@ -582,7 +582,7 @@ export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
   // Fallback for Cat 29 queries without leading frames (e.g. "comí garbanzos con espinacas").
   // Note: outer (?:me\s+)? handles single-token clitics (me comí, me tomé);
   //       inner me\s+hice? handles the idiom "me hice una tortilla". F-H7.
-  /^(?:(?:me\s+)?(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|ped[ií]|compartí|prob[eé]|beb[ií]|piqu[eé])|me\s+hice?|hice?)\s+/i,
+  /^(?:(?:me\s+)?(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|ped[ií]|compartí|prob[eé]|beb[ií]|piqu[eé])|me\s+hice|hice)\s+/i,
   // H7-P4 (NEW). Common leading conversational fillers (quiero un, quiero probar el, ponme,
   // tráeme, cuánto cuesta, tenéis, tienes, me pones, bare "un[ao] de"). No eat-verb consumed —
   // dish name follows directly. After strip, standard ARTICLE_PATTERN handles residual articles. F-H7.
@@ -714,6 +714,15 @@ export function normalizeDiminutive(text: string): string {
  */
 export type H7WrapperLabel = 'H7-P1' | 'H7-P2' | 'H7-P3' | 'H7-P4' | null;
 
+// Module-scope lookup map — array index 13–16 → H7 wrapper label.
+// Hoisted out of `extractFoodQuery` per code-review S4 (avoid per-call allocation).
+const H7_LABELS: Readonly<Record<number, H7WrapperLabel>> = {
+  13: 'H7-P1',
+  14: 'H7-P2',
+  15: 'H7-P3',
+  16: 'H7-P4',
+};
+
 /**
  * Parse raw Spanish text into a query and optional chain slug.
  * Pure function — no side effects, no I/O.
@@ -756,7 +765,6 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
   }
 
   // Map array index → H7 wrapper label (indices 13–16 = H7-P1..H7-P4; pre-existing 0–12 → null).
-  const H7_LABELS: Record<number, H7WrapperLabel> = { 13: 'H7-P1', 14: 'H7-P2', 15: 'H7-P3', 16: 'H7-P4' };
   const matchedWrapperLabel: H7WrapperLabel = H7_LABELS[matchedWrapperIndex] ?? null;
 
   // Step 2b — Prefix stripping (single pass, first match wins)
