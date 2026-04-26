@@ -72,3 +72,4 @@ storage/
 
 # sdd-devflow provenance tracking (local-only, content-addressable hashes)
 .sdd-meta.json
+docs/project_notes/pm-session.lock
