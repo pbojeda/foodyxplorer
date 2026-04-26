@@ -578,6 +578,11 @@ export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
   // H7-P2 (NEW). Activity/context reference prefix + eat-verb — compound. Covers después de,
   // antes de, durante, en [lugar], para [meal-verb]. ReDoS-safe: [^,]{1,40}? bounded lazy. F-H7.
   /^(?:despu[eé]s\s+de[l]?\s+[^,]{1,40}?|antes\s+de[l]?\s+[^,]{1,40}?|durante\s+(?:el|la)\s+[^,]{1,40}?|en\s+(?:el|la|un[ao]?)\s+[^,]{1,40}?|para\s+(?:merendar|desayunar|comer|cenar|almorzar)(?:\s+(?:ayer|hoy|esta\s+(?:ma[nñ]ana|tarde|noche)))?\s*)\s+(?:me\s+)?(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|ped[ií]|compartí|prob[eé]|beb[ií]|me\s+hice?|piqu[eé])\s+/i,
+  // H7-P3 (NEW). Bare 1st-person simple-past eat-verb at position 0, no temporal/activity prefix.
+  // Fallback for Cat 29 queries without leading frames (e.g. "comí garbanzos con espinacas").
+  // Note: outer (?:me\s+)? handles single-token clitics (me comí, me tomé);
+  //       inner me\s+hice? handles the idiom "me hice una tortilla". F-H7.
+  /^(?:(?:me\s+)?(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|ped[ií]|compartí|prob[eé]|beb[ií]|piqu[eé])|me\s+hice?|hice?)\s+/i,
 ];
 
 // Prefix patterns applied in order — longest/most-specific first.
