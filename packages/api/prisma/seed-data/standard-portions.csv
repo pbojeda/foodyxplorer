@@ -218,3 +218,23 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-000000000115,racion,80,1,ensaimada,medium,1 ensaimada lisa individual size,pbojeda
 00000000-0000-e073-0007-000000000116,tapa,25,,,medium,sparse spread tapa; very rich creamy cheese,pbojeda
 00000000-0000-e073-0007-000000000116,racion,50,,,medium,racion con tostadas,pbojeda
+00000000-0000-e073-0007-000000000118,tapa,100,,,medium,Andalusian bar tapa; small whole fish rebozado,pbojeda
+00000000-0000-e073-0007-000000000118,media_racion,150,,,medium,half racion pescaíto frito,pbojeda
+00000000-0000-e073-0007-000000000118,racion,200,,,medium,full racion; Andalusian classic,pbojeda
+00000000-0000-e073-0007-000000000119,tapa,80,,,medium,cold Catalan starter tapa,pbojeda
+00000000-0000-e073-0007-000000000119,media_racion,130,,,medium,half racion esqueixada de bacallà,pbojeda
+00000000-0000-e073-0007-000000000119,racion,180,,,medium,full racion; shredded salt cod salad,pbojeda
+00000000-0000-e073-0007-00000000011a,tapa,40,,,medium,small bar spread tapa; very rich,pbojeda
+00000000-0000-e073-0007-00000000011a,racion,60,,,medium,racion sobrassada con miel; Balearic classic,pbojeda
+00000000-0000-e073-0007-00000000011b,media_racion,200,,,medium,half racion gazpachuelo malagueño,pbojeda
+00000000-0000-e073-0007-00000000011b,racion,250,,,medium,full bowl; warm fish broth + mayo,pbojeda
+00000000-0000-e073-0007-00000000011c,media_racion,250,,,medium,half racion berza jerezana,pbojeda
+00000000-0000-e073-0007-00000000011c,racion,350,,,medium,full plate; legume + pork stew,pbojeda
+00000000-0000-e073-0007-00000000011d,tapa,80,,,medium,small bar portion talo con chistorra,pbojeda
+00000000-0000-e073-0007-00000000011d,media_racion,120,,,medium,half racion; corn flatbread wrap,pbojeda
+00000000-0000-e073-0007-00000000011d,racion,150,,,medium,full racion talo con chistorra,pbojeda
+00000000-0000-e073-0007-00000000011e,tapa,40,,,medium,2 small casadielles tapa,pbojeda
+00000000-0000-e073-0007-00000000011e,media_racion,60,,,medium,3 casadielles media racion,pbojeda
+00000000-0000-e073-0007-00000000011e,racion,80,2,casadiella,medium,2 casadielles racion; fried walnut pastry,pbojeda
+00000000-0000-e073-0007-00000000011f,tapa,50,1,fartón,medium,1 fartón individual; Valencian pastry,pbojeda
+00000000-0000-e073-0007-00000000011f,racion,100,2,fartons,medium,2 fartons racion; companion to horchata,pbojeda

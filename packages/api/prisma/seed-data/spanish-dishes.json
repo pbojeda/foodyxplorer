@@ -2381,7 +2381,8 @@
       "name": "Pimientos asados",
       "nameEs": "Pimientos asados",
       "aliases": [
-        "escalivada"
+        "escalivada",
+        "escalivada con anchoas"
       ],
       "category": "primeros",
       "portionGrams": 150,
@@ -3315,7 +3316,8 @@
       "name": "Cachopo",
       "nameEs": "Cachopo",
       "aliases": [
-        "cachopo asturiano"
+        "cachopo asturiano",
+        "cachopo para compartir"
       ],
       "category": "segundos",
       "portionGrams": 250,
@@ -6982,7 +6984,8 @@
       "nameEs": "Empanada gallega de atún",
       "aliases": [
         "empanada gallega",
-        "empanada de atún gallega"
+        "empanada de atún gallega",
+        "empanada gallega de zamburiñas"
       ],
       "category": "bocadillos",
       "portionGrams": 200,
@@ -7286,7 +7289,8 @@
       "aliases": [
         "ensaimada mallorquina",
         "ensaimada lisa",
-        "ensaimada de mallorca"
+        "ensaimada de mallorca",
+        "ensaimada de crema"
       ],
       "category": "postres",
       "portionGrams": 80,
@@ -7330,6 +7334,213 @@
         "fiber": 0,
         "salt": 1,
         "sodium": 0.4
+      }
+    },
+    {
+      "externalId": "CE-280",
+      "dishId": "00000000-0000-e073-0007-000000000118",
+      "nutrientId": "00000000-0000-e073-0008-000000000118",
+      "name": "Pescaíto frito",
+      "nameEs": "Pescaíto frito",
+      "aliases": [],
+      "category": "tapas",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 560,
+        "proteins": 34,
+        "carbohydrates": 22,
+        "sugars": 0.5,
+        "fats": 34,
+        "saturatedFats": 4,
+        "fiber": 0.5,
+        "salt": 1.4,
+        "sodium": 0.56
+      }
+    },
+    {
+      "externalId": "CE-281",
+      "dishId": "00000000-0000-e073-0007-000000000119",
+      "nutrientId": "00000000-0000-e073-0008-000000000119",
+      "name": "Esqueixada de bacallà",
+      "nameEs": "Esqueixada de bacallà",
+      "aliases": [
+        "esqueixada de bacalà",
+        "esqueixada catalana"
+      ],
+      "category": "tapas",
+      "portionGrams": 180,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 216,
+        "proteins": 20,
+        "carbohydrates": 8,
+        "sugars": 3,
+        "fats": 11,
+        "saturatedFats": 1.5,
+        "fiber": 2,
+        "salt": 2,
+        "sodium": 0.8
+      }
+    },
+    {
+      "externalId": "CE-282",
+      "dishId": "00000000-0000-e073-0007-00000000011a",
+      "nutrientId": "00000000-0000-e073-0008-00000000011a",
+      "name": "Sobrassada con miel",
+      "nameEs": "Sobrassada con miel",
+      "aliases": [
+        "sobrasada con miel"
+      ],
+      "category": "tapas",
+      "portionGrams": 60,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 240,
+        "proteins": 5,
+        "carbohydrates": 7,
+        "sugars": 6,
+        "fats": 21,
+        "saturatedFats": 8,
+        "fiber": 0,
+        "salt": 1,
+        "sodium": 0.4
+      }
+    },
+    {
+      "externalId": "CE-283",
+      "dishId": "00000000-0000-e073-0007-00000000011b",
+      "nutrientId": "00000000-0000-e073-0008-00000000011b",
+      "name": "Gazpachuelo malagueño",
+      "nameEs": "Gazpachuelo malagueño",
+      "aliases": [
+        "gazpachuelo"
+      ],
+      "category": "primeros",
+      "portionGrams": 250,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 250,
+        "proteins": 10,
+        "carbohydrates": 18,
+        "sugars": 1,
+        "fats": 14,
+        "saturatedFats": 2,
+        "fiber": 1,
+        "salt": 1.5,
+        "sodium": 0.6
+      }
+    },
+    {
+      "externalId": "CE-284",
+      "dishId": "00000000-0000-e073-0007-00000000011c",
+      "nutrientId": "00000000-0000-e073-0008-00000000011c",
+      "name": "Berza jerezana",
+      "nameEs": "Berza jerezana",
+      "aliases": [
+        "berza gaditana"
+      ],
+      "category": "primeros",
+      "portionGrams": 350,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 490,
+        "proteins": 28,
+        "carbohydrates": 44,
+        "sugars": 4,
+        "fats": 18,
+        "saturatedFats": 6,
+        "fiber": 14,
+        "salt": 2,
+        "sodium": 0.8
+      }
+    },
+    {
+      "externalId": "CE-285",
+      "dishId": "00000000-0000-e073-0007-00000000011d",
+      "nutrientId": "00000000-0000-e073-0008-00000000011d",
+      "name": "Talo con chistorra",
+      "nameEs": "Talo con chistorra",
+      "aliases": [
+        "talo vasco"
+      ],
+      "category": "tapas",
+      "portionGrams": 150,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 465,
+        "proteins": 14,
+        "carbohydrates": 36,
+        "sugars": 1,
+        "fats": 29,
+        "saturatedFats": 10,
+        "fiber": 2,
+        "salt": 1.8,
+        "sodium": 0.72
+      }
+    },
+    {
+      "externalId": "CE-286",
+      "dishId": "00000000-0000-e073-0007-00000000011e",
+      "nutrientId": "00000000-0000-e073-0008-00000000011e",
+      "name": "Casadielles",
+      "nameEs": "Casadielles",
+      "aliases": [
+        "casadiella"
+      ],
+      "category": "postres",
+      "portionGrams": 80,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 320,
+        "proteins": 5,
+        "carbohydrates": 38,
+        "sugars": 16,
+        "fats": 16,
+        "saturatedFats": 5,
+        "fiber": 2,
+        "salt": 0.3,
+        "sodium": 0.12
+      }
+    },
+    {
+      "externalId": "CE-287",
+      "dishId": "00000000-0000-e073-0007-00000000011f",
+      "nutrientId": "00000000-0000-e073-0008-00000000011f",
+      "name": "Fartons",
+      "nameEs": "Fartons",
+      "aliases": [
+        "fartón"
+      ],
+      "category": "postres",
+      "portionGrams": 50,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 180,
+        "proteins": 4,
+        "carbohydrates": 30,
+        "sugars": 10,
+        "fats": 5,
+        "saturatedFats": 1.5,
+        "fiber": 0.5,
+        "salt": 0.3,
+        "sodium": 0.12
       }
     }
   ]
