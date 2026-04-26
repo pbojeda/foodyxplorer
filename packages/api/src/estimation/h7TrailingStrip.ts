@@ -100,17 +100,82 @@ export function applyH7CatCStrip(text: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Combined strip — Cat A → B → C priority order
+// Cat D — F-H8 trailing dietary/state inquiry suffix strip
+// ---------------------------------------------------------------------------
+
+// Tag-question suffix: ", verdad?" / ", no?" / ", cierto?" / ", seguro?"
+// Requires comma (or whitespace + comma-equivalent boundary) before tag word
+// to avoid stripping legitimate tokens like "verdad" inside a dish name.
+const CAT_D_TAG_PATTERN = /,\s*(?:verdad|no|cierto|seguro)\s*\??\s*$/i;
+
+// Trailing state/qualifier inquiry patterns:
+//   " está [adjective phrase]?"  → covers "el pollo al ajillo está muy guisado?"
+//   " es [phrase]?"             → covers "el pulpo es a la brasa?", "el gazpacho es ecológico?"
+//   " lleva [ingredient]?"       → covers "el flan lleva huevo?"
+// All require ≥1 word after the verb and stop at "," or "?" so chained tag-questions
+// have already been stripped by CAT_D_TAG_PATTERN in the same call.
+const CAT_D_INQUIRY_PATTERNS: readonly RegExp[] = [
+  /\s+está\s+[^?,]+\??\s*$/i,
+  /\s+es\s+[^?,]+\??\s*$/i,
+  /\s+lleva\s+[^?,]+\??\s*$/i,
+];
+
+/**
+ * Strip F-H8 Cat D dietary/state inquiry suffixes from the end of `text`.
+ *
+ * Two-stage strip in a single call to handle chained suffixes naturally:
+ *   1. Strip trailing tag-question (", verdad?", ", no?", etc.) if present.
+ *   2. Strip trailing state/qualifier inquiry (" está ...?", " es ...?", " lleva ...?")
+ *      if present.
+ *
+ * Both stages can fire in one call so that "el tartar de atún es crudo, verdad?" first
+ * loses ", verdad?" → "el tartar de atún es crudo", then loses " es crudo" → "el tartar
+ * de atún". If neither stage produces a change, returns the original text unchanged.
+ *
+ * Empty-strip guard: if both stages combine to remove the entire text, return original.
+ *
+ * In production: Cat D only runs after L1 Pass 1 returned null (via H7-P5 retry seam),
+ * so catalog landmines are protected by the retry-seam architecture (ADR-023).
+ */
+export function applyH8CatDStrip(text: string): string {
+  let result = text;
+  let changed = false;
+
+  const afterTag = result.replace(CAT_D_TAG_PATTERN, '').trimEnd();
+  if (afterTag !== result) {
+    result = afterTag;
+    changed = true;
+  }
+
+  for (const pattern of CAT_D_INQUIRY_PATTERNS) {
+    const stripped = result.replace(pattern, '').trimEnd();
+    if (stripped !== result) {
+      result = stripped;
+      changed = true;
+      break;
+    }
+  }
+
+  if (!changed) {
+    return text;
+  }
+
+  return result.length > 0 ? result : text;
+}
+
+// ---------------------------------------------------------------------------
+// Combined strip — Cat A → B → C → D priority order
 // ---------------------------------------------------------------------------
 
 /**
- * Apply Cat A, then Cat B, then Cat C trailing modifier strips.
+ * Apply Cat A, then Cat B, then Cat C, then Cat D trailing modifier strips.
  * Returns after the first category that produces a change.
  * If no category matches, returns the original text unchanged.
  *
  * Priority order ensures Cat A (por favor, clásico, etc.) fires before Cat C,
  * preventing "talo con chistorra, por favor" from having "con chistorra" also
- * stripped after Cat A removes ", por favor".
+ * stripped after Cat A removes ", por favor". Cat D (F-H8) is appended last so
+ * dietary/state inquiries strip only when no preceding category matched.
  */
 export function applyH7TrailingStrip(text: string): string {
   const catA = applyH7CatAStrip(text);
@@ -119,5 +184,8 @@ export function applyH7TrailingStrip(text: string): string {
   const catB = applyH7CatBStrip(text);
   if (catB !== text) return catB;
 
-  return applyH7CatCStrip(text);
+  const catC = applyH7CatCStrip(text);
+  if (catC !== text) return catC;
+
+  return applyH8CatDStrip(text);
 }

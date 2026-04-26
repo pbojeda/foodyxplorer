@@ -18,13 +18,13 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-_(empty — F-H7 completed; F-H8 deferred to next post-/compact session per 2-feature limit)_
+| F-H8 | Simple | in-progress | — | Step 1/6 — Setup. Cat D trailing strip (`está/es/lleva [...]?` + tag-questions). Predicted +3-6 OK (conservative re-scope from +10-15). |
 
-## Backlog (this sprint, deferred to next session)
+## Backlog (this sprint, post-/compact segment)
 
 | Feature | Complexity | Reason |
 |---------|------------|--------|
-| F-H8 | Simple | Mandatory /compact after 2 features completed in this pm-h6plus session (F-H6 pre-compact + F-H7 post-compact). Run after `/compact` + `continue pm`. |
+_(F-H8 promoted to Current Batch; future Standard candidates F-H9 [Cat 29 seed expansion] / F-H10 [L3 threshold tuning] not yet ticketed — to be classified after F-H8 completion if context allows.)_
 
 ## Completed Features
 
@@ -42,12 +42,12 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** None — F-H7 closed (Step 6 done, PR #213 merged at `027a884`)
-**Branch:** N/A — F-H7 branch deleted post-merge
-**Next features:** F-H8 (Simple, Cat 24 preparation modifier strip) — deferred to next post-/compact session
+**Current feature:** F-H8 — NLP Cat 24 Preparation/Inquiry Modifier Strip (Simple)
+**Branch:** `feature/F-H8-cat24-preparation-strip`
+**Step:** 1/6 (Setup)
+**Next features:** Standard candidates F-H9/F-H10 — to be evaluated post-F-H8 if context permits before next mandatory /compact
 **Blocked:** (none)
 
-**Session status:** PAUSED for mandatory /compact (2/3 features completed in pm-h6plus: F-H6 pre-compact + F-H7 post-compact). Token usage substantial across 5 cross-model review rounds + 4 specialist agents on F-H7.
+**Session status:** RESUMED post-/compact. Post-/compact feature counter: 1/2 (F-H8 in progress).
 
-To resume after /compact: run `continue pm`
 To stop gracefully: run `stop pm`
