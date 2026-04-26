@@ -812,8 +812,7 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
   // F-H7 AC-10: include matchedWrapperLabel in return shape.
   // Existing consumers ignore this field (optional, backward-compatible).
   // null means no H7-P1..H7-P4 fired (either pre-existing pattern 0–12 matched, or no wrapper).
-  const wrapperResult = matchedWrapperLabel !== null ? { matchedWrapperLabel } : {};
   return chainSlug !== undefined
-    ? { query, chainSlug, ...wrapperResult }
-    : { query, ...wrapperResult };
+    ? { query, chainSlug, matchedWrapperLabel }
+    : { query, matchedWrapperLabel };
 }
