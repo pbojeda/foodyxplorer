@@ -263,3 +263,30 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-000000000129,tapa,80,1,taco,medium,1 taco al pastor tapa,pbojeda
 00000000-0000-e073-0007-000000000129,media_racion,120,2,tacos,medium,2 tacos al pastor media racion,pbojeda
 00000000-0000-e073-0007-000000000129,racion,200,3,tacos,medium,3 tacos al pastor racion; corn tortilla + pork,pbojeda
+00000000-0000-e073-0007-00000000012a,tapa,60,1,bao,medium,1 bao de panceta tapa,pbojeda
+00000000-0000-e073-0007-00000000012a,media_racion,90,2,baos,medium,2 baos de panceta media racion,pbojeda
+00000000-0000-e073-0007-00000000012a,racion,120,3,baos,medium,3 baos de panceta racion; steamed bun,pbojeda
+00000000-0000-e073-0007-00000000012b,media_racion,130,,,medium,half arepa de reina pepiada,pbojeda
+00000000-0000-e073-0007-00000000012b,racion,180,,,medium,full arepa; masarepa + chicken + avocado,pbojeda
+00000000-0000-e073-0007-00000000012c,tapa,120,3,gyozas,medium,3 gyozas tapa; bar serving,pbojeda
+00000000-0000-e073-0007-00000000012c,media_racion,180,5,gyozas,medium,5 gyozas media racion; pan-fried,pbojeda
+00000000-0000-e073-0007-00000000012c,racion,240,6,gyozas,medium,6 gyozas racion; Spanish bar convention,pbojeda
+00000000-0000-e073-0007-00000000012d,tapa,100,,,medium,tapa ceviche; cold marinated fish,pbojeda
+00000000-0000-e073-0007-00000000012d,media_racion,150,,,medium,half racion ceviche,pbojeda
+00000000-0000-e073-0007-00000000012d,racion,200,,,medium,full racion ceviche; white fish + citrus,pbojeda
+00000000-0000-e073-0007-00000000012e,media_racion,200,,,medium,half racion musaka; baked oven dish,pbojeda
+00000000-0000-e073-0007-00000000012e,racion,350,,,medium,full racion; eggplant + lamb + béchamel,pbojeda
+00000000-0000-e073-0007-00000000012f,tapa,50,,,medium,small dip portion hummus,pbojeda
+00000000-0000-e073-0007-00000000012f,media_racion,80,,,medium,half racion hummus con pan de pita,pbojeda
+00000000-0000-e073-0007-00000000012f,racion,100,,,medium,full racion hummus; chickpea + tahini,pbojeda
+00000000-0000-e073-0007-000000000130,tapa,60,,,medium,small tataki tapa; sliced seared tuna,pbojeda
+00000000-0000-e073-0007-000000000130,media_racion,100,,,medium,half racion tataki de atún,pbojeda
+00000000-0000-e073-0007-000000000130,racion,150,,,medium,full racion; seared tuna loin,pbojeda
+00000000-0000-e073-0007-000000000131,media_racion,130,,,medium,half racion steak tartar,pbojeda
+00000000-0000-e073-0007-000000000131,racion,200,,,medium,full racion; raw beef + capers + mustard,pbojeda
+00000000-0000-e073-0007-000000000132,tapa,40,,,medium,small carpaccio tapa; thin beef slices,pbojeda
+00000000-0000-e073-0007-000000000132,media_racion,60,,,medium,half racion carpaccio,pbojeda
+00000000-0000-e073-0007-000000000132,racion,80,,,medium,full racion carpaccio; raw beef + olive oil,pbojeda
+00000000-0000-e073-0007-000000000133,tapa,80,,,medium,tapa chorizo a la sidra; Asturian classic,pbojeda
+00000000-0000-e073-0007-000000000133,media_racion,120,,,medium,half racion chorizo a la sidra,pbojeda
+00000000-0000-e073-0007-000000000133,racion,200,,,medium,full racion; chorizo braised in cider,pbojeda

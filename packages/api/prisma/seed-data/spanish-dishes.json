@@ -3629,7 +3629,9 @@
       "name": "Espaguetis carbonara",
       "nameEs": "Espaguetis carbonara",
       "aliases": [
-        "carbonara"
+        "carbonara",
+        "spaghetti carbonara",
+        "spaguetis carbonara"
       ],
       "category": "arroces",
       "portionGrams": 300,
@@ -5650,7 +5652,8 @@
       "name": "Hamburguesa con huevo y patatas",
       "nameEs": "Hamburguesa con huevo y patatas",
       "aliases": [
-        "hamburguesa completa"
+        "hamburguesa completa",
+        "hamburguesa gourmet"
       ],
       "category": "combinados",
       "portionGrams": 400,
@@ -7804,6 +7807,273 @@
         "fiber": 4,
         "salt": 1.6,
         "sodium": 0.64
+      }
+    },
+    {
+      "externalId": "CE-298",
+      "dishId": "00000000-0000-e073-0007-00000000012a",
+      "nutrientId": "00000000-0000-e073-0008-00000000012a",
+      "name": "Bao de panceta",
+      "nameEs": "Bao de panceta",
+      "aliases": [
+        "bao chino"
+      ],
+      "category": "tapas",
+      "portionGrams": 120,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 312,
+        "proteins": 12,
+        "carbohydrates": 34,
+        "sugars": 6,
+        "fats": 14,
+        "saturatedFats": 5,
+        "fiber": 1.5,
+        "salt": 1.2,
+        "sodium": 0.48
+      }
+    },
+    {
+      "externalId": "CE-299",
+      "dishId": "00000000-0000-e073-0007-00000000012b",
+      "nutrientId": "00000000-0000-e073-0008-00000000012b",
+      "name": "Arepa de reina pepiada",
+      "nameEs": "Arepa de reina pepiada",
+      "aliases": [
+        "reina pepiada"
+      ],
+      "category": "segundos",
+      "portionGrams": 180,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 414,
+        "proteins": 22,
+        "carbohydrates": 42,
+        "sugars": 2,
+        "fats": 16,
+        "saturatedFats": 3,
+        "fiber": 4,
+        "salt": 1.4,
+        "sodium": 0.56
+      }
+    },
+    {
+      "externalId": "CE-300",
+      "dishId": "00000000-0000-e073-0007-00000000012c",
+      "nutrientId": "00000000-0000-e073-0008-00000000012c",
+      "name": "Gyozas",
+      "nameEs": "Gyozas",
+      "aliases": [
+        "gyoza",
+        "dumplings japoneses",
+        "empanadillas japonesas"
+      ],
+      "category": "tapas",
+      "portionGrams": 240,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 516,
+        "proteins": 22,
+        "carbohydrates": 54,
+        "sugars": 3,
+        "fats": 22,
+        "saturatedFats": 6,
+        "fiber": 3,
+        "salt": 1.9,
+        "sodium": 0.76
+      }
+    },
+    {
+      "externalId": "CE-301",
+      "dishId": "00000000-0000-e073-0007-00000000012d",
+      "nutrientId": "00000000-0000-e073-0008-00000000012d",
+      "name": "Ceviche",
+      "nameEs": "Ceviche",
+      "aliases": [
+        "ceviche de corvina",
+        "ceviche peruano"
+      ],
+      "category": "primeros",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 190,
+        "proteins": 22,
+        "carbohydrates": 10,
+        "sugars": 4,
+        "fats": 6,
+        "saturatedFats": 1,
+        "fiber": 2,
+        "salt": 1.6,
+        "sodium": 0.64
+      }
+    },
+    {
+      "externalId": "CE-302",
+      "dishId": "00000000-0000-e073-0007-00000000012e",
+      "nutrientId": "00000000-0000-e073-0008-00000000012e",
+      "name": "Musaka",
+      "nameEs": "Musaka",
+      "aliases": [
+        "moussaka",
+        "musaca",
+        "musaka griega"
+      ],
+      "category": "segundos",
+      "portionGrams": 350,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 595,
+        "proteins": 28,
+        "carbohydrates": 38,
+        "sugars": 8,
+        "fats": 34,
+        "saturatedFats": 14,
+        "fiber": 6,
+        "salt": 2,
+        "sodium": 0.8
+      }
+    },
+    {
+      "externalId": "CE-303",
+      "dishId": "00000000-0000-e073-0007-00000000012f",
+      "nutrientId": "00000000-0000-e073-0008-00000000012f",
+      "name": "Hummus",
+      "nameEs": "Hummus",
+      "aliases": [
+        "humus",
+        "hummus con pan de pita"
+      ],
+      "category": "tapas",
+      "portionGrams": 100,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 180,
+        "proteins": 8,
+        "carbohydrates": 16,
+        "sugars": 2,
+        "fats": 10,
+        "saturatedFats": 1.5,
+        "fiber": 5,
+        "salt": 0.8,
+        "sodium": 0.32
+      }
+    },
+    {
+      "externalId": "CE-304",
+      "dishId": "00000000-0000-e073-0007-000000000130",
+      "nutrientId": "00000000-0000-e073-0008-000000000130",
+      "name": "Tataki de atún",
+      "nameEs": "Tataki de atún",
+      "aliases": [
+        "tataki de atún rojo"
+      ],
+      "category": "tapas",
+      "portionGrams": 150,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 225,
+        "proteins": 30,
+        "carbohydrates": 5,
+        "sugars": 2,
+        "fats": 8,
+        "saturatedFats": 2,
+        "fiber": 0.5,
+        "salt": 1.5,
+        "sodium": 0.6
+      }
+    },
+    {
+      "externalId": "CE-305",
+      "dishId": "00000000-0000-e073-0007-000000000131",
+      "nutrientId": "00000000-0000-e073-0008-000000000131",
+      "name": "Steak tartar",
+      "nameEs": "Steak tartar",
+      "aliases": [
+        "tartar de ternera",
+        "tartar de buey",
+        "steak tartare"
+      ],
+      "category": "primeros",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 420,
+        "proteins": 36,
+        "carbohydrates": 4,
+        "sugars": 1,
+        "fats": 28,
+        "saturatedFats": 10,
+        "fiber": 0.5,
+        "salt": 1.6,
+        "sodium": 0.64
+      }
+    },
+    {
+      "externalId": "CE-306",
+      "dishId": "00000000-0000-e073-0007-000000000132",
+      "nutrientId": "00000000-0000-e073-0008-000000000132",
+      "name": "Carpaccio",
+      "nameEs": "Carpaccio",
+      "aliases": [
+        "carpaccio de ternera",
+        "carpaccio de buey"
+      ],
+      "category": "primeros",
+      "portionGrams": 80,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 120,
+        "proteins": 16,
+        "carbohydrates": 1,
+        "sugars": 0.5,
+        "fats": 6,
+        "saturatedFats": 2,
+        "fiber": 0,
+        "salt": 0.6,
+        "sodium": 0.24
+      }
+    },
+    {
+      "externalId": "CE-307",
+      "dishId": "00000000-0000-e073-0007-000000000133",
+      "nutrientId": "00000000-0000-e073-0008-000000000133",
+      "name": "Chorizo a la sidra",
+      "nameEs": "Chorizo a la sidra",
+      "aliases": [],
+      "category": "tapas",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 630,
+        "proteins": 28,
+        "carbohydrates": 4,
+        "sugars": 1,
+        "fats": 52,
+        "saturatedFats": 18,
+        "fiber": 0,
+        "salt": 2.4,
+        "sodium": 0.96
       }
     }
   ]
