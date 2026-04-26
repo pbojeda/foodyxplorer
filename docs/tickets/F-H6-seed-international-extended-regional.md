@@ -1,7 +1,7 @@
 # F-H6: Seed Expansion Round-2 — International-in-Spain + Regional Spanish Remainder
 
 **Feature:** F-H6 | **Type:** Backend-Feature (data/seed) | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F-H6-international-extended-regional
+**Status:** Done | **Branch:** feature/F-H6-international-extended-regional (deleted post-merge) | **Merge commit:** `b2a8fb0` on develop
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-26 | **Dependencies:** F-H4 (merged `c83f6cb`), F-H4-B (merged `4520c24`)
 
@@ -876,7 +876,7 @@ WHERE "id" IN (
 - [x] Step 4: `production-code-validator` executed — APPROVE 100% confidence, zero blockers, zero nits. All 10 ACs validated empirically.
 - [x] Step 5: `code-review-specialist` executed — APPROVE WITH CHANGES (M1 HIGH duplicate atom CE-281 vs CE-095 → BUG-DATA-DUPLICATE-ATOM-001 follow-up filed; M2 MEDIUM 6 unplanned aliases → accepted + documented; M3 MEDIUM Merge Checklist Evidence → filled)
 - [x] Step 5: `qa-engineer` executed — QA VERIFIED + 134 new edge-case tests in `fH6.seedExpansionRound2.edge-cases.test.ts` (committed as `dff7536`); total tests 3798→3932
-- [ ] Step 6: Ticket updated with final metrics, branch deleted post-merge
+- [x] Step 6: Ticket Status → Done; PR #211 squash-merged at `b2a8fb0` 2026-04-26 13:41 UTC; branch deleted local + remote; post-merge sanity test 3932/3932 ✓
 
 ---
 
