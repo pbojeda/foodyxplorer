@@ -1,7 +1,7 @@
 # F-H8: NLP Cat 24 Preparation/Inquiry Modifier Strip
 
 **Feature:** F-H8 | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/F-H8-cat24-preparation-strip
+**Status:** Ready for Merge | **Branch:** feature/F-H8-cat24-preparation-strip
 **Created:** 2026-04-26 | **Dependencies:** F-H7 (h7TrailingStrip module + retry seam)
 
 ---
@@ -116,6 +116,9 @@ _N/A — Simple task. Direct TDD implementation:_
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-26 | Step 1 — Setup | Branch created, lite ticket drafted, tracker Active Session updated |
+| 2026-04-26 | Step 3 — TDD | RED: 25 failing tests in `fH8.cat24.unit.test.ts`. GREEN: implemented `applyH8CatDStrip` + Cat D priority-order extension in `h7TrailingStrip.ts`. All 34 new tests pass + 9 identity/regression tests pass = 34/34. F-H7 trailing/temporal/edge-case tests (106) still pass. |
+| 2026-04-26 | Step 4 — Quality gates | api tests 4060 → 4094 (+34), lint 0 errors, build clean. Commit `f5c9951`. |
+| 2026-04-26 | Step 5 — PR | PR #215 created against `develop`. Simple complexity → code-review-specialist + qa-engineer skipped per workflow. Diff: 5 files, +437/-15. |
 
 ---
 
@@ -123,14 +126,14 @@ _N/A — Simple task. Direct TDD implementation:_
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: Spec, Implementation Plan (N/A Simple), AC, DoD, Workflow Checklist, Completion Log, Merge Checklist Evidence |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | N/A — NLP-only, no infrastructure |
-| 4. Update decisions.md | [ ] | N/A — extends ADR-023 retry-seam pattern |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date with develop |
+| 0. Validate ticket structure | [x] | All 7 sections present in order: Spec, Implementation Plan (N/A Simple), AC, DoD, Workflow Checklist, Completion Log, Merge Checklist Evidence. |
+| 1. Mark all items | [x] | AC: 8/8 [x], DoD: 8/8 [x], Workflow: 4/5 [x] (Step 6 pending merge). |
+| 2. Verify product tracker | [x] | Active Session: F-H8 step 4/6 → 5/6 (this commit). Features table row updated to step 4/6 with test counts. Will progress to 5/6 with audit-merge result + Step 6 completion log post-merge. |
+| 3. Update key_facts.md | [x] | N/A — NLP-only, no new infrastructure. Catalog count unchanged (307). Wrapper pattern count unchanged (17 — Cat D is in `h7TrailingStrip.ts`, not in `CONVERSATIONAL_WRAPPER_PATTERNS`). |
+| 4. Update decisions.md | [x] | N/A — extends ADR-023 retry-seam pattern with Cat D, no new architectural decision. Cat D is a strip-only category like Cat A/B/C. |
+| 5. Commit documentation | [x] | Commit `f5c9951` includes ticket + tracker + pm-session updates alongside code/tests. |
+| 6. Verify clean working tree | [x] | `git status` clean (only tracked files modified, all committed). |
+| 7. Verify branch up to date | [x] | Branch `feature/F-H8-cat24-preparation-strip` based on develop @ `5bf43d9`. No new commits on develop since branch creation (verified via `git fetch origin develop`). |
 
 ---
 
