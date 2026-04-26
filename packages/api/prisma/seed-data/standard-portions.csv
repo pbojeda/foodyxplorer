@@ -238,3 +238,28 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-00000000011e,racion,80,2,casadiella,medium,2 casadielles racion; fried walnut pastry,pbojeda
 00000000-0000-e073-0007-00000000011f,tapa,50,1,fartón,medium,1 fartón individual; Valencian pastry,pbojeda
 00000000-0000-e073-0007-00000000011f,racion,100,2,fartons,medium,2 fartons racion; companion to horchata,pbojeda
+00000000-0000-e073-0007-000000000120,media_racion,250,,,medium,half bowl poke; rice + fish + veg,pbojeda
+00000000-0000-e073-0007-000000000120,racion,350,,,medium,full poke bowl; USDA SR rice+fish base,pbojeda
+00000000-0000-e073-0007-000000000121,media_racion,180,,,medium,half burrito cochinita pibil,pbojeda
+00000000-0000-e073-0007-000000000121,racion,280,,,medium,full burrito; tortilla + slow-pork + beans,pbojeda
+00000000-0000-e073-0007-000000000122,media_racion,300,,,medium,half bowl ramen de miso,pbojeda
+00000000-0000-e073-0007-000000000122,racion,400,,,medium,full bowl; broth + noodles + pork,pbojeda
+00000000-0000-e073-0007-000000000123,media_racion,200,,,medium,half plate pad thai,pbojeda
+00000000-0000-e073-0007-000000000123,racion,300,,,medium,full plate; rice noodles + shrimp + peanuts,pbojeda
+00000000-0000-e073-0007-000000000124,tapa,100,,,medium,small shawarma tapa; bar format,pbojeda
+00000000-0000-e073-0007-000000000124,media_racion,150,,,medium,half shawarma de pollo,pbojeda
+00000000-0000-e073-0007-000000000124,racion,200,,,medium,full shawarma de pollo; pita + chicken + sauce,pbojeda
+00000000-0000-e073-0007-000000000125,tapa,100,3,falafel,medium,3 falafel tapa bar portion,pbojeda
+00000000-0000-e073-0007-000000000125,media_racion,150,5,falafel,medium,5 falafel media racion,pbojeda
+00000000-0000-e073-0007-000000000125,racion,200,7,falafel,medium,7 falafel racion; chickpea + herbs deep-fried,pbojeda
+00000000-0000-e073-0007-000000000126,tapa,45,1,pastel,medium,1 pastel de nata tapa,pbojeda
+00000000-0000-e073-0007-000000000126,racion,90,2,pasteles,medium,2 pasteles de nata racion; Portuguese custard tart,pbojeda
+00000000-0000-e073-0007-000000000127,tapa,25,1,nigiri,medium,1 nigiri de pez mantequilla,pbojeda
+00000000-0000-e073-0007-000000000127,media_racion,50,2,nigiris,medium,2 nigiris de pez mantequilla,pbojeda
+00000000-0000-e073-0007-000000000127,racion,100,4,nigiris,medium,4 nigiris de pez mantequilla; butterfish-specific,pbojeda
+00000000-0000-e073-0007-000000000128,tapa,60,3,piezas,medium,3 uramaki rolls tapa,pbojeda
+00000000-0000-e073-0007-000000000128,media_racion,90,5,piezas,medium,5 uramaki rolls media racion,pbojeda
+00000000-0000-e073-0007-000000000128,racion,180,10,piezas,medium,10 uramaki rolls racion; inside-out maki,pbojeda
+00000000-0000-e073-0007-000000000129,tapa,80,1,taco,medium,1 taco al pastor tapa,pbojeda
+00000000-0000-e073-0007-000000000129,media_racion,120,2,tacos,medium,2 tacos al pastor media racion,pbojeda
+00000000-0000-e073-0007-000000000129,racion,200,3,tacos,medium,3 tacos al pastor racion; corn tortilla + pork,pbojeda

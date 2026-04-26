@@ -7542,6 +7542,269 @@
         "salt": 0.3,
         "sodium": 0.12
       }
+    },
+    {
+      "externalId": "CE-288",
+      "dishId": "00000000-0000-e073-0007-000000000120",
+      "nutrientId": "00000000-0000-e073-0008-000000000120",
+      "name": "Poke bowl",
+      "nameEs": "Poke bowl",
+      "aliases": [
+        "poke bowl de salmón"
+      ],
+      "category": "primeros",
+      "portionGrams": 350,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 420,
+        "proteins": 28,
+        "carbohydrates": 52,
+        "sugars": 8,
+        "fats": 10,
+        "saturatedFats": 2,
+        "fiber": 5,
+        "salt": 1.4,
+        "sodium": 0.56
+      }
+    },
+    {
+      "externalId": "CE-289",
+      "dishId": "00000000-0000-e073-0007-000000000121",
+      "nutrientId": "00000000-0000-e073-0008-000000000121",
+      "name": "Burrito de cochinita pibil",
+      "nameEs": "Burrito de cochinita pibil",
+      "aliases": [],
+      "category": "segundos",
+      "portionGrams": 280,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 616,
+        "proteins": 30,
+        "carbohydrates": 62,
+        "sugars": 4,
+        "fats": 24,
+        "saturatedFats": 8,
+        "fiber": 8,
+        "salt": 2,
+        "sodium": 0.8
+      }
+    },
+    {
+      "externalId": "CE-290",
+      "dishId": "00000000-0000-e073-0007-000000000122",
+      "nutrientId": "00000000-0000-e073-0008-000000000122",
+      "name": "Ramen de miso",
+      "nameEs": "Ramen de miso",
+      "aliases": [],
+      "category": "primeros",
+      "portionGrams": 400,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 340,
+        "proteins": 20,
+        "carbohydrates": 42,
+        "sugars": 4,
+        "fats": 8,
+        "saturatedFats": 2.5,
+        "fiber": 3,
+        "salt": 3.2,
+        "sodium": 1.28
+      }
+    },
+    {
+      "externalId": "CE-291",
+      "dishId": "00000000-0000-e073-0007-000000000123",
+      "nutrientId": "00000000-0000-e073-0008-000000000123",
+      "name": "Pad thai",
+      "nameEs": "Pad thai",
+      "aliases": [
+        "pad thai de langostinos",
+        "pad thai de gambas"
+      ],
+      "category": "segundos",
+      "portionGrams": 300,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 555,
+        "proteins": 22,
+        "carbohydrates": 72,
+        "sugars": 8,
+        "fats": 18,
+        "saturatedFats": 3,
+        "fiber": 3,
+        "salt": 2.4,
+        "sodium": 0.96
+      }
+    },
+    {
+      "externalId": "CE-292",
+      "dishId": "00000000-0000-e073-0007-000000000124",
+      "nutrientId": "00000000-0000-e073-0008-000000000124",
+      "name": "Shawarma de pollo",
+      "nameEs": "Shawarma de pollo",
+      "aliases": [
+        "shawarma de pollo solo carne"
+      ],
+      "category": "bocadillos",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 480,
+        "proteins": 28,
+        "carbohydrates": 44,
+        "sugars": 4,
+        "fats": 20,
+        "saturatedFats": 4,
+        "fiber": 2,
+        "salt": 2,
+        "sodium": 0.8
+      }
+    },
+    {
+      "externalId": "CE-293",
+      "dishId": "00000000-0000-e073-0007-000000000125",
+      "nutrientId": "00000000-0000-e073-0008-000000000125",
+      "name": "Falafel",
+      "nameEs": "Falafel",
+      "aliases": [
+        "falafel con tahini",
+        "falafel vegano",
+        "falafel con salsa de yogur"
+      ],
+      "category": "tapas",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 610,
+        "proteins": 20,
+        "carbohydrates": 56,
+        "sugars": 4,
+        "fats": 32,
+        "saturatedFats": 4,
+        "fiber": 10,
+        "salt": 1.6,
+        "sodium": 0.64
+      }
+    },
+    {
+      "externalId": "CE-294",
+      "dishId": "00000000-0000-e073-0007-000000000126",
+      "nutrientId": "00000000-0000-e073-0008-000000000126",
+      "name": "Pastel de nata",
+      "nameEs": "Pastel de nata",
+      "aliases": [
+        "pastéis de nata",
+        "pastel de belém"
+      ],
+      "category": "postres",
+      "portionGrams": 90,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 315,
+        "proteins": 7,
+        "carbohydrates": 42,
+        "sugars": 22,
+        "fats": 14,
+        "saturatedFats": 7,
+        "fiber": 0.5,
+        "salt": 0.4,
+        "sodium": 0.16
+      }
+    },
+    {
+      "externalId": "CE-295",
+      "dishId": "00000000-0000-e073-0007-000000000127",
+      "nutrientId": "00000000-0000-e073-0008-000000000127",
+      "name": "Nigiri de pez mantequilla",
+      "nameEs": "Nigiri de pez mantequilla",
+      "aliases": [
+        "nigiri de pez mantequilla con trufa",
+        "nigiris de pez mantequilla",
+        "sushi de pez mantequilla"
+      ],
+      "category": "tapas",
+      "portionGrams": 50,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 88,
+        "proteins": 6,
+        "carbohydrates": 9,
+        "sugars": 1,
+        "fats": 3,
+        "saturatedFats": 0.8,
+        "fiber": 0.2,
+        "salt": 0.4,
+        "sodium": 0.16
+      }
+    },
+    {
+      "externalId": "CE-296",
+      "dishId": "00000000-0000-e073-0007-000000000128",
+      "nutrientId": "00000000-0000-e073-0008-000000000128",
+      "name": "Uramaki roll",
+      "nameEs": "Uramaki roll",
+      "aliases": [
+        "uramaki roll de atún",
+        "uramaki roll de atún picante"
+      ],
+      "category": "tapas",
+      "portionGrams": 120,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 228,
+        "proteins": 10,
+        "carbohydrates": 28,
+        "sugars": 3,
+        "fats": 8,
+        "saturatedFats": 1.5,
+        "fiber": 2,
+        "salt": 1.2,
+        "sodium": 0.48
+      }
+    },
+    {
+      "externalId": "CE-297",
+      "dishId": "00000000-0000-e073-0007-000000000129",
+      "nutrientId": "00000000-0000-e073-0008-000000000129",
+      "name": "Tacos al pastor",
+      "nameEs": "Tacos al pastor",
+      "aliases": [
+        "taco al pastor"
+      ],
+      "category": "segundos",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 510,
+        "proteins": 24,
+        "carbohydrates": 56,
+        "sugars": 6,
+        "fats": 18,
+        "saturatedFats": 6,
+        "fiber": 4,
+        "salt": 1.6,
+        "sodium": 0.64
+      }
     }
   ]
 }
