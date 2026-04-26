@@ -583,6 +583,10 @@ export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
   // Note: outer (?:me\s+)? handles single-token clitics (me comí, me tomé);
   //       inner me\s+hice? handles the idiom "me hice una tortilla". F-H7.
   /^(?:(?:me\s+)?(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|ped[ií]|compartí|prob[eé]|beb[ií]|piqu[eé])|me\s+hice?|hice?)\s+/i,
+  // H7-P4 (NEW). Common leading conversational fillers (quiero un, quiero probar el, ponme,
+  // tráeme, cuánto cuesta, tenéis, tienes, me pones, bare "un[ao] de"). No eat-verb consumed —
+  // dish name follows directly. After strip, standard ARTICLE_PATTERN handles residual articles. F-H7.
+  /^(?:quiero\s+(?:probar\s+(?:el|la)\s+|un[ao]?\s+)|quería\s+probar\s+(?:el|la)\s+|qu[eé]\s+tal\s+est[aá]\s+(?:el|la)\s+|ponme\s+(?:un[ao]?\s+(?:tapa\s+de\s+)?)|tr[aá]eme\s+(?:un[ao]?\s+(?:de\s+)?)|me\s+pones\s+|cu[aá]nto\s+cuesta\s+(?:el|la|un[ao]?\s+)|ten[eé]is\s+|tienes\s+|un[ao]?\s+de\s+)/i,
 ];
 
 // Prefix patterns applied in order — longest/most-specific first.
