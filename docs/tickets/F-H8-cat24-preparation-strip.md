@@ -1,8 +1,8 @@
 # F-H8: NLP Cat 24 Preparation/Inquiry Modifier Strip
 
 **Feature:** F-H8 | **Type:** Backend-Feature | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F-H8-cat24-preparation-strip
-**Created:** 2026-04-26 | **Dependencies:** F-H7 (h7TrailingStrip module + retry seam)
+**Status:** Done | **Branch:** feature/F-H8-cat24-preparation-strip (deleted post-merge)
+**Created:** 2026-04-26 | **Merged:** 2026-04-26 (PR #215, squash commit `2b00b48`) | **Dependencies:** F-H7 (h7TrailingStrip module + retry seam)
 
 ---
 
@@ -107,7 +107,7 @@ _N/A — Simple task. Direct TDD implementation:_
 - [x] Step 3: TDD implementation (Cat D patterns + tests)
 - [x] Step 4: Quality gates pass
 - [x] Step 5: PR + code-review + audit-merge
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted, post-merge sanity 4094/4094 ✓
 
 ---
 
@@ -119,6 +119,9 @@ _N/A — Simple task. Direct TDD implementation:_
 | 2026-04-26 | Step 3 — TDD | RED: 25 failing tests in `fH8.cat24.unit.test.ts`. GREEN: implemented `applyH8CatDStrip` + Cat D priority-order extension in `h7TrailingStrip.ts`. All 34 new tests pass + 9 identity/regression tests pass = 34/34. F-H7 trailing/temporal/edge-case tests (106) still pass. |
 | 2026-04-26 | Step 4 — Quality gates | api tests 4060 → 4094 (+34), lint 0 errors, build clean. Commit `f5c9951`. |
 | 2026-04-26 | Step 5 — PR | PR #215 created against `develop`. Simple complexity → code-review-specialist + qa-engineer skipped per workflow. Diff: 5 files, +437/-15. |
+| 2026-04-26 | Step 5 — audit-merge | 11/11 PASS (Status, AC 8/8, DoD 8/8, Workflow 4/5, Evidence 8/8, Completion Log 4 entries, Tracker 5/6, key_facts N/A, Merge base UP TO DATE, Working tree clean, Data files N/A). |
+| 2026-04-26 | Step 5 — Merge | PR #215 squash-merged at `2b00b48` (mergeStateStatus CLEAN after test-api passed in 4m19s + Vercel previews + ci-success). Branch deleted local + remote. |
+| 2026-04-26 | Step 6 — Housekeeping | Status → Done. Workflow Step 6 [x]. Tracker Active Session cleared. pm-session.md F-H8 row moved to Completed. Post-merge sanity: api 4094/4094 ✓. Operator action pending: api-dev manual deploy + QA battery dev to verify +3-6 OK delta. |
 
 ---
 
