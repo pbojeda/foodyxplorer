@@ -16,6 +16,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { DB } from '../generated/kysely-types.js';
 import type { EstimateData, EstimateMatchType, EstimateResult, YieldAdjustment } from '@foodxplorer/shared';
 import { level1Lookup, offFallbackFoodMatch } from './level1Lookup.js';
+import { applyH7TrailingStrip } from './h7TrailingStrip.js';
 import { level2Lookup } from './level2Lookup.js';
 import { level3Lookup } from './level3Lookup.js';
 import { resolveAndApplyYield } from './applyYield.js';
@@ -165,6 +166,46 @@ export async function runEstimationCascade(
         yieldAdjustment,
       },
     };
+  }
+
+  // --- H7-P5: Trailing modifier strip retry seam ---
+  // Fires only when L1 Pass 1 returned null (i.e., lookupResult1 is null at this point).
+  // Applies Cat A → Cat B → Cat C trailing strip to normalizedQuery.
+  // If stripped text differs from normalizedQuery, retries L1 with stripped text.
+  // If retry hits → return Level 1 result (query echoed as raw, not stripped).
+  // If retry misses → fall through to L2 with ORIGINAL normalizedQuery.
+  // Conservative fallback: no L1/L2/L3/L4 regression when strip is a false positive.
+  const h7StrippedQuery = applyH7TrailingStrip(normalizedQuery);
+  if (h7StrippedQuery !== normalizedQuery) {
+    logger?.debug({ wrapperPattern: 'H7-P5', original: normalizedQuery, stripped: h7StrippedQuery }, 'H7-P5 trailing strip retry');
+    let lookupResult1b;
+    try {
+      lookupResult1b = await level1Lookup(db, h7StrippedQuery, { chainSlug, restaurantId, hasExplicitBrand, detectedBrand });
+    } catch (err) {
+      throw Object.assign(
+        new Error('Database query failed'),
+        { statusCode: 500, code: 'DB_UNAVAILABLE', cause: err },
+      );
+    }
+    if (lookupResult1b !== null) {
+      const { result: yieldResult, yieldAdjustment } = await applyYield(lookupResult1b.result, lookupResult1b.rawFoodGroup);
+      return {
+        levelHit: 1,
+        data: {
+          query,  // raw query echoed (not the stripped form) — "echo raw query" invariant
+          chainSlug: chainSlug ?? null,
+          level1Hit: true,
+          level2Hit: false,
+          level3Hit: false,
+          level4Hit: false,
+          matchType: lookupResult1b.matchType,
+          result: yieldResult,
+          cachedAt: null,
+          yieldAdjustment,
+        },
+      };
+    }
+    // Retry missed → fall through to L2 with original normalizedQuery
   }
 
   // --- Level 2 fallback ---
