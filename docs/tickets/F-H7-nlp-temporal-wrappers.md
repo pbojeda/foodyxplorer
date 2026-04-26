@@ -1,7 +1,7 @@
 # F-H7: NLP Temporal Wrappers + Frame Strip Extension
 
 **Feature:** F-H7 | **Type:** Backend-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F-H7-nlp-temporal-wrappers
+**Status:** Done | **Branch:** feature/F-H7-nlp-temporal-wrappers (deleted post-merge)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-26 | **Dependencies:** F-MULTI-ITEM-IMPLICIT (merged PR #206), F-H6 (merged PR #211)
 
@@ -1046,7 +1046,7 @@ All changes are purely additive:
 - [x] Step 3: `backend-developer` executed via TDD across 7 phases. 5 new test files + 1 modified test. 4060 unit tests + 12 integration tests passing.
 - [x] Step 4: `production-code-validator` APPROVE 98% confidence — all 12 ACs satisfied with concrete test evidence, no blockers. Quality gates: 4060/4060 unit tests, 12/12 integration tests, lint 0, build clean.
 - [x] Step 5: `code-review-specialist` APPROVE WITH MINOR CHANGES (5 LOW/NIT all non-blocking; S1, S2, S4 fixed inline + S5 docs); `qa-engineer` PASS WITH FOLLOW-UPS (1 MEDIUM F1 logger spy added inline; F2 4 missing landmines deferred to bugs.md).
-- [ ] Step 6: Ticket updated with final metrics (test count delta, QA battery delta), branch deleted
+- [x] Step 6: PR #213 squash-merged to develop at `027a884` 2026-04-26 ~20:39 UTC. Branch deleted local + remote. Post-merge sanity PASS: 4060/4060 unit tests on develop.
 
 ---
 
@@ -1066,6 +1066,8 @@ All changes are purely additive:
 | 2026-04-26 | Step 3 Phase 7: documentation updated | key_facts.md: CONVERSATIONAL_WRAPPER_PATTERNS count 13→17, H7-P5 seam, h7TrailingStrip.ts, extractFoodQuery return shape, unit test count 4043. decisions.md: ADR-023 added (H7-P5 L1-retry seam pattern). api-spec.yaml: no change required (no response schema change — AC-10 is ephemeral debug log only). |
 | 2026-04-26 | Step 4 (production-code-validator): APPROVE 98% confidence | All 12 ACs satisfied with concrete test evidence (matrix verified). 4043/4043 unit + 12/12 integration tests passing, lint 0, build clean. ADR-023 documented. Backward-compatible return-shape change verified. Ready for Step 5. |
 | 2026-04-26 | Step 5 (code-review-specialist + qa-engineer): APPROVE WITH MINOR CHANGES + PASS WITH FOLLOW-UPS | code-review 5 LOW/NIT findings: S1 Cat A `por favor` regex `\s*` → `\s+` + empty-strip guard (fixed); S2 `me hice?` → `me hice` to drop theoretical `hic` false positive (fixed); S3 H7-P5 retry try/catch DRY (skipped — readability over abstraction); S4 H7_LABELS map hoisted to module scope (fixed); S5 Workflow Checklist updated (this commit). qa-engineer 4 findings: F1 MEDIUM AC-10 logger.debug emission spy assertion missing — added 3 spy tests to fH7.conversationCore.integration.test.ts (Test 4/5/6) verifying H7-P1 fires, H7-P4 fires, no H7 match emits no log; F2 LOW 4 missing landmine integration tests deferred (low risk — unit tests already cover guard); F3 LOW key_facts.md test count drift after qa added observability suite (4060 → measured); F4 INFO H7-P4 doubled-prefix non-optimal (no action). qa-engineer added 17 unit tests in fH7.edge-cases.observability.test.ts (AC-10 pre-condition gating + 6 landmine guard verifications). Final: 4060 unit + 12 integration = 4072 total, lint 0, build clean. |
+| 2026-04-26 | Step 5 (audit-merge): 11/11 PASS | All compliance checks pass: Status Ready for Merge, AC 12/12, DoD 13/13, Workflow 6/7 (Step 6 pending), Merge Evidence 8/8, Tracker synced 5/6, key_facts.md updated, Merge base UP TO DATE, working tree clean. |
+| 2026-04-26 | Step 5 → Step 6 (Merge): PR #213 squash-merged to develop at `027a884` ~20:39 UTC | 11 commits squashed into 1 squash commit. Branch deleted local + remote (--delete-branch). Post-merge sanity: 4060/4060 unit tests on develop ✓. Status updated to Done. |
 
 <!-- After code review, add a row documenting which findings were accepted/rejected:
 | YYYY-MM-DD | Review findings | Accepted: C1-C3, H1-H2. Rejected: M5 (reason). Systemic: C4 logged in bugs.md |
