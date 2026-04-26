@@ -660,3 +660,26 @@ Cross-model consensus: both Codex and Gemini independently recommended Option C 
 - (+) Eliminates silent false-positive dishId mappings — the worst class of data bug.
 - (-) Generator no longer auto-discovers new dishes when `spanish-dishes.json` is extended; a curator must explicitly add an entry to `PRIORITY_DISH_MAP`. This is desirable — the map is a curation artifact, not a search result.
 - 9 priority names currently omitted: `chorizo`, `chuletón`, `arroz`, `bocadillo`, `pintxos`, `alitas de pollo`, `zamburiñas`, `berberechos`, `tostas`. Follow-up ticket **F114** will add `Chuletón de buey`, `Chorizo ibérico embutido`, and `Arroz blanco cocido` canonical entries.
+
+---
+
+### ADR-023: H7-P5 L1-Retry Seam Pattern in `engineRouter.ts` (2026-04-26)
+
+**Date:** 2026-04-26
+**Status:** Accepted
+**Context:** F-H7 requires trailing modifier stripping (e.g. `con sésamo`, `a baja temperatura`, `bien caliente`) that operates post-wrapper, between L1 and L2 in the estimation cascade. Trailing modifiers are conversational context that users append to dish names (`tataki de atún con sésamo`, `gazpachuelo malagueño bien caliente`) — they cause L1 exact-match to miss even though the base dish name (`tataki de atún`, `gazpachuelo malagueño`) is in the catalog. Modifying `extractFoodQuery()` to strip these suffixes before calling the cascade would (a) require a two-pass architecture (strip → extract → cascade), (b) conflate pre-lookup wrapper stripping with post-lookup trailing modifier removal, and (c) produce a query field in the cascade that no longer echoes the user's original text.
+
+**Decision:** Insert a retry seam between L1-null and L2 in `runEstimationCascade()` (in `packages/api/src/estimation/engineRouter.ts`). The seam applies pure-function trailing strip helpers from `packages/api/src/estimation/h7TrailingStrip.ts` (Cat A: conversational suffixes like "por favor", "bien caliente"; Cat B: cooking method suffixes like "a la plancha"; Cat C: trailing `con [tail]` with ≥2 pre-con token guard to prevent single-word landmine strips). If the stripped text differs from the original, L1 is retried once with the stripped text. If retry hits, the response uses `levelHit: 1` and echoes the raw (unstripped) `query` in `data.query`. If retry misses, falls through to L2 with the original `normalizedQuery` (conservative fallback principle).
+
+**Alternatives Considered:**
+- **Option A — Pre-lookup strip in `extractFoodQuery()`**: Strip trailing modifiers before the cascade is called. Rejected: conflates two distinct concerns; requires two-pass design; loses the invariant that `extractFoodQuery` output == user's unambiguous food reference; complicates the wrapper-then-strip composition.
+- **Option B — Post-pipeline normalizer in `estimationOrchestrator.ts`**: Apply strip in the orchestrator before calling `runEstimationCascade`. Rejected: same architectural conflation as Option A; orchestrator doesn't have visibility into which L1-miss produced which result.
+- **Option C — Expand L1 FTS query to handle modifiers via `tsquery`**: Teach the FTS engine to ignore appended modifiers. Rejected: complex query construction; would also match partial dish names incorrectly (e.g. `tataki de atún con gambas` should not hit `tataki de atún` via L1 — that conflation is the point of the retry seam's ≥2 token guard).
+
+**Consequences:**
+- (+) Clean separation of concerns: wrappers in `CONVERSATIONAL_WRAPPER_PATTERNS`, trailing modifiers in `h7TrailingStrip.ts`, cascade wiring in `engineRouter.ts`.
+- (+) Conservative: any strip that produces no L1 hit forwards the original text to L2/L3/L4 — no regression risk.
+- (+) Extensible: future strip categories can be added to `h7TrailingStrip.ts` without modifying the seam wiring.
+- (+) Raw `query` field always echoes the user's original text — no downstream surprise for callers reading `data.query`.
+- (-) One additional L1 DB query on every L1-miss. For queries that ultimately resolve via L2/L3/L4, this adds one extra round-trip. Acceptable for the target user population; L1 queries are indexed and fast.
+- The Cat C ≥2 pre-con token guard is essential: it prevents `arroz con leche` (1 pre-con token: "arroz") from being stripped to `arroz`, and generally protects single-word-dish `con` compounds that are catalog entries.

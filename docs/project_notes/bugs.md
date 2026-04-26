@@ -17,6 +17,14 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-04-26 — F-H7-FU1: 4 missing landmine integration tests (qa-engineer F2 follow-up)
+
+- **Issue**: F-H7's `fH7.engineRouter.integration.test.ts` tests only 2 of the 6 landmine corpus dishes specified in the spec for AC-5 verification. Missing: `sepia a la plancha`, `tostada con tomate y aceite`, `café con leche`, `gambas al ajillo`. qa-engineer flagged as LOW severity (F2 finding).
+- **Root Cause**: `fH7.engineRouter.integration.test.ts` uses minimal real-DB fixture inserts to keep test file scope tight. The 4 additional landmines would require additional fixture inserts in `beforeAll` that were deferred during Phase 5b implementation.
+- **Risk**: LOW — the H7-P5 retry-seam architecture protects ALL catalog dishes via L1 Pass 1 (the seam never runs when L1 hits the full text). The Cat C `≥2 pre-con tokens` guard is unit-tested in `fH7.trailing.unit.test.ts` and `fH7.edge-cases.observability.test.ts` (qa added 6 landmine guard verifications at function level). Production protection is independent of the missing integration coverage.
+- **Resolution plan**: Next sprint or Simple SDD ticket — add 4 fixture inserts to `fH7.engineRouter.integration.test.ts` `beforeAll` and assert `levelHit === 1` for each landmine. Estimated effort: ~30 min.
+- **Tracked**: Spec AC-5 + AC-7 (architecture-level) covered; integration coverage delta is the gap.
+
 ### 2026-04-23 — F-NLP-CHAIN-ORDERING: `extractPortionModifier` ran before `extractFoodQuery` wrapper strip
 
 - **Issue**: `POST /conversation/message` silently dropped numeric counts for wrapper-prefixed queries. Input `"me he bebido dos cañas de cerveza"` returned `portionMultiplier=1` (expected 2) because `extractPortionModifier` matched patterns anchored at the start of the raw input — the `"me he bebido"` wrapper prevented the count token from being at index 0. Clitic-form inputs like `"acabo de beberme 3 cañas"` failed doubly: wrapper pattern 5 at `entityExtractor.ts:545` didn't support the clitic suffix at all, so `extractFoodQuery` also failed to strip, leaving the entire query unprocessed.

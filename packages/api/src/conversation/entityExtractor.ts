@@ -571,6 +571,22 @@ export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
   /^cu[aá]nt[ao]s?\s+(?:prote[ií]nas?|grasas?|carbohidratos?|hidratos?|fibra|sodio|sal|az[uú]car)\s+(?:tiene[n]?|hay\s+en|lleva|contiene)\s+(?:un[ao]?\s+|el\s+|la\s+|del?\s+|al\s+)?/i,
   // 11. "necesito [saber] los nutrientes de[l]"
   /^necesito\s+(?:saber\s+)?(?:los?\s+|las?\s+)?(?:nutrientes|valores\s+nutricionales?|calor[ií]as?)\s+(?:de[l]?\s+)?/i,
+  // H7-P1 (NEW). Pure temporal prefix + eat-verb — compound. Covers day-of-week,
+  // ayer tarde/por la noche, a medianoche, esta mañana/tarde/noche + optional bridge.
+  // ReDoS-safe: [^,]{1,30} bounded lazy quantifiers, ^-anchored, required eat-verb suffix. F-H7.
+  /^(?:ayer\s+(?:por\s+la\s+(?:ma[nñ]ana|tarde|noche)|tarde)|anoche(?:\s+despu[eé]s\s+de[l]?\s+[^,]{1,30})?|hoy(?:\s+al\s+medi[oó]d[ií]a)?|esta\s+(?:ma[nñ]ana|tarde|noche)(?:\s+(?:antes|despu[eé]s)\s+de[l]?\s+[^,]{1,30}|\s+en\s+(?:el|la|los|las)\s+[^,]{1,25})?|a\s+medianoche|el\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+(?:(?:por\s+la|al)\s+(?:ma[nñ]ana|tarde|noche|medi[oó]d[ií]a)|en\s+(?:la\s+)?[^,]{1,25}|(?:antes|despu[eé]s)\s+de[l]?\s+[^,]{1,30}))?),?\s*\s+(?:me\s+)?(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|ped[ií]|compartí|prob[eé]|beb[ií]|me\s+hice?|piqu[eé])\s+/i,
+  // H7-P2 (NEW). Activity/context reference prefix + eat-verb — compound. Covers después de,
+  // antes de, durante, en [lugar], para [meal-verb]. ReDoS-safe: [^,]{1,40}? bounded lazy. F-H7.
+  /^(?:despu[eé]s\s+de[l]?\s+[^,]{1,40}?|antes\s+de[l]?\s+[^,]{1,40}?|durante\s+(?:el|la)\s+[^,]{1,40}?|en\s+(?:el|la|un[ao]?)\s+[^,]{1,40}?|para\s+(?:merendar|desayunar|comer|cenar|almorzar)(?:\s+(?:ayer|hoy|esta\s+(?:ma[nñ]ana|tarde|noche)))?\s*)\s+(?:me\s+)?(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|ped[ií]|compartí|prob[eé]|beb[ií]|me\s+hice?|piqu[eé])\s+/i,
+  // H7-P3 (NEW). Bare 1st-person simple-past eat-verb at position 0, no temporal/activity prefix.
+  // Fallback for Cat 29 queries without leading frames (e.g. "comí garbanzos con espinacas").
+  // Note: outer (?:me\s+)? handles single-token clitics (me comí, me tomé);
+  //       inner me\s+hice? handles the idiom "me hice una tortilla". F-H7.
+  /^(?:(?:me\s+)?(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|ped[ií]|compartí|prob[eé]|beb[ií]|piqu[eé])|me\s+hice|hice)\s+/i,
+  // H7-P4 (NEW). Common leading conversational fillers (quiero un, quiero probar el, ponme,
+  // tráeme, cuánto cuesta, tenéis, tienes, me pones, bare "un[ao] de"). No eat-verb consumed —
+  // dish name follows directly. After strip, standard ARTICLE_PATTERN handles residual articles. F-H7.
+  /^(?:quiero\s+(?:probar\s+(?:el|la)\s+|un[ao]?\s+)|quería\s+probar\s+(?:el|la)\s+|qu[eé]\s+tal\s+est[aá]\s+(?:el|la)\s+|ponme\s+(?:un[ao]?\s+(?:tapa\s+de\s+)?)|tr[aá]eme\s+(?:un[ao]?\s+(?:de\s+)?)|me\s+pones\s+|cu[aá]nto\s+cuesta\s+(?:el|la|un[ao]?\s+)|ten[eé]is\s+|tienes\s+|un[ao]?\s+de\s+)/i,
 ];
 
 // Prefix patterns applied in order — longest/most-specific first.
@@ -692,10 +708,27 @@ export function normalizeDiminutive(text: string): string {
 }
 
 /**
+ * F-H7 AC-10: wrapper label for H7-P1 through H7-P4, returned from extractFoodQuery().
+ * null means a pre-existing pattern (0–12) matched or no wrapper fired.
+ * H7-P5 is NOT represented here — it emits its own label inside engineRouter.ts.
+ */
+export type H7WrapperLabel = 'H7-P1' | 'H7-P2' | 'H7-P3' | 'H7-P4' | null;
+
+// Module-scope lookup map — array index 13–16 → H7 wrapper label.
+// Hoisted out of `extractFoodQuery` per code-review S4 (avoid per-call allocation).
+const H7_LABELS: Readonly<Record<number, H7WrapperLabel>> = {
+  13: 'H7-P1',
+  14: 'H7-P2',
+  15: 'H7-P3',
+  16: 'H7-P4',
+};
+
+/**
  * Parse raw Spanish text into a query and optional chain slug.
  * Pure function — no side effects, no I/O.
+ * F-H7 AC-10: returns matchedWrapperLabel for H7-P1..H7-P4 observability.
  */
-export function extractFoodQuery(text: string): { query: string; chainSlug?: string } {
+export function extractFoodQuery(text: string): { query: string; chainSlug?: string; matchedWrapperLabel?: H7WrapperLabel } {
   // Strip leading ¿¡ and trailing ?! — consistent with extractComparisonQuery
   // and detectContextSet.
   const originalTrimmed = text.replace(/^[¿¡]+/, '').replace(/[?!]+$/, '').trim();
@@ -718,13 +751,21 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
   // Step 2a — F-NLP: Conversational wrapper stripping (single pass, first match wins).
   // Runs before PREFIX_PATTERNS so that extended info-request and past-tense wrappers
   // are stripped cleanly before the narrower prefix patterns are attempted.
-  for (const pattern of CONVERSATIONAL_WRAPPER_PATTERNS) {
+  // F-H7 AC-10: capture matched index to derive H7-P1..H7-P4 wrapper label.
+  let matchedWrapperIndex = -1;
+  for (let wIdx = 0; wIdx < CONVERSATIONAL_WRAPPER_PATTERNS.length; wIdx++) {
+    const pattern = CONVERSATIONAL_WRAPPER_PATTERNS[wIdx];
+    if (pattern === undefined) continue;
     const stripped = remainder.replace(pattern, '');
     if (stripped !== remainder) {
       remainder = stripped;
+      matchedWrapperIndex = wIdx;
       break;
     }
   }
+
+  // Map array index → H7 wrapper label (indices 13–16 = H7-P1..H7-P4; pre-existing 0–12 → null).
+  const matchedWrapperLabel: H7WrapperLabel = H7_LABELS[matchedWrapperIndex] ?? null;
 
   // Step 2b — Prefix stripping (single pass, first match wins)
   for (const pattern of PREFIX_PATTERNS) {
@@ -777,5 +818,10 @@ export function extractFoodQuery(text: string): { query: string; chainSlug?: str
   // Step 3 — Fallback: if stripped result is empty, use original trimmed text
   const query = remainder.trim() || originalTrimmed;
 
-  return chainSlug !== undefined ? { query, chainSlug } : { query };
+  // F-H7 AC-10: include matchedWrapperLabel in return shape.
+  // Existing consumers ignore this field (optional, backward-compatible).
+  // null means no H7-P1..H7-P4 fired (either pre-existing pattern 0–12 matched, or no wrapper).
+  return chainSlug !== undefined
+    ? { query, chainSlug, matchedWrapperLabel }
+    : { query, matchedWrapperLabel };
 }
