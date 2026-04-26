@@ -298,6 +298,26 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
         );
       }
 
+      // Step 0a: Guard — Content-Type must be multipart/form-data with a non-empty boundary
+      // (BUG-API-AUDIO-4XX-001). This runs after the budget check so VOICE_BUDGET_EXHAUSTED
+      // still takes precedence. Using bracket notation per noPropertyAccessFromIndexSignature.
+      const rawCt = request.headers['content-type'];
+      const ct = typeof rawCt === 'string' ? rawCt : '';
+      if (!ct.toLowerCase().startsWith('multipart/form-data')) {
+        throw Object.assign(
+          new Error('Content-Type must be multipart/form-data'),
+          { code: 'UNSUPPORTED_MEDIA_TYPE' },
+        );
+      }
+      // Regex requires a non-empty capture after boundary= to reject `boundary=` with empty value
+      const boundaryMatch = /;\s*boundary=([^;\s]+)/i.exec(ct);
+      if (boundaryMatch === null || boundaryMatch[1] === undefined || boundaryMatch[1].length === 0) {
+        throw Object.assign(
+          new Error('Malformed multipart request: missing or empty boundary'),
+          { code: 'VALIDATION_ERROR' },
+        );
+      }
+
       // Step 1: Parse multipart stream — collect audio file part and text fields
       let audioBuffer: Buffer | undefined;
       let audioMimeType: string | undefined;

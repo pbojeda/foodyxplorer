@@ -152,7 +152,7 @@ describe('F-NLP edge-cases — catastrophic backtracking audit', () => {
   // with a crafted adversarial input (long string designed to backtrack maximally).
   // If a pattern is safe, exec() completes immediately.
 
-  it('all 12 patterns complete in <50ms on a 500-char adversarial string', () => {
+  it('all 13 patterns complete in <50ms on a 500-char adversarial string', () => {
     const adversarial = 'me ' + 'he '.repeat(100) + 'tomado '.repeat(50) + 'x';
     const start = Date.now();
     for (const pattern of CONVERSATIONAL_WRAPPER_PATTERNS) {
@@ -162,19 +162,21 @@ describe('F-NLP edge-cases — catastrophic backtracking audit', () => {
     expect(elapsed).toBeLessThan(50);
   });
 
-  it('pattern 8 ("quiero saber") handles long non-matching string without catastrophic backtrack', () => {
-    // Pattern 8 has nested optional groups — craft worst-case
+  it('pattern 10 ("quiero saber") handles long non-matching string without catastrophic backtrack', () => {
+    // Pattern 10 has nested optional groups — craft worst-case
+    // (was pattern 8 at index 7 before F-MULTI-ITEM-IMPLICIT added patterns 4b + 7b)
     const adversarial = 'quiero saber ' + 'las '.repeat(50) + 'calorías '.repeat(50);
     const start = Date.now();
-    CONVERSATIONAL_WRAPPER_PATTERNS[7]!.exec(adversarial);
+    CONVERSATIONAL_WRAPPER_PATTERNS[9]!.exec(adversarial);
     const elapsed = Date.now() - start;
     expect(elapsed).toBeLessThan(20);
   });
 
-  it('pattern 11 ("necesito") handles long non-matching string', () => {
+  it('pattern 13 ("necesito") handles long non-matching string', () => {
+    // (was pattern 11 at index 10 before F-MULTI-ITEM-IMPLICIT added patterns 4b + 7b)
     const adversarial = 'necesito ' + 'los '.repeat(50) + 'nutrientes '.repeat(50);
     const start = Date.now();
-    CONVERSATIONAL_WRAPPER_PATTERNS[10]!.exec(adversarial);
+    CONVERSATIONAL_WRAPPER_PATTERNS[12]!.exec(adversarial);
     const elapsed = Date.now() - start;
     expect(elapsed).toBeLessThan(20);
   });

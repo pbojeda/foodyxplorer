@@ -464,4 +464,58 @@ describe('mapError', () => {
       expect(result.body.error.message).toBe('Email already registered');
     });
   });
+
+  // BUG-API-AUDIO-4XX-001: direct mapError() coverage for Content-Type rejection
+  // branches. Route-integration tests in f091.audio.route.test.ts exercise the
+  // handler-thrown UNSUPPORTED_MEDIA_TYPE path (the common path under current parser
+  // registration). These unit tests cover the two defensive FST_* framework branches
+  // so regressions surface here instead of silently returning 500 if the app's parser
+  // registration ever changes.
+  describe('FST_ERR_CTP_INVALID_MEDIA_TYPE (fastify core, BUG-API-AUDIO-4XX-001)', () => {
+    it('maps to 415 UNSUPPORTED_MEDIA_TYPE with generic message', () => {
+      const err = Object.assign(
+        new Error('Unsupported Media Type'),
+        { code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE', statusCode: 415 },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(415);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
+      expect(result.body.error.message).toBe('Unsupported Content-Type for this endpoint');
+    });
+  });
+
+  describe('FST_INVALID_MULTIPART_CONTENT_TYPE (@fastify/multipart, BUG-API-AUDIO-4XX-001)', () => {
+    it('remaps from 406 to 415 UNSUPPORTED_MEDIA_TYPE with generic message', () => {
+      const err = Object.assign(
+        new Error('the request is not multipart'),
+        { code: 'FST_INVALID_MULTIPART_CONTENT_TYPE', statusCode: 406 },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(415);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
+      expect(result.body.error.message).toBe('Unsupported Content-Type for this endpoint');
+    });
+  });
+
+  describe('UNSUPPORTED_MEDIA_TYPE (handler-thrown, BUG-API-AUDIO-4XX-001)', () => {
+    it('maps to 415 with the audio-specific message passed through', () => {
+      const err = Object.assign(
+        new Error('Content-Type must be multipart/form-data'),
+        { code: 'UNSUPPORTED_MEDIA_TYPE' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(415);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
+      expect(result.body.error.message).toBe('Content-Type must be multipart/form-data');
+    });
+  });
 });
