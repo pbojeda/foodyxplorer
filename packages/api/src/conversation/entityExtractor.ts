@@ -575,6 +575,9 @@ export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
   // ayer tarde/por la noche, a medianoche, esta mañana/tarde/noche + optional bridge.
   // ReDoS-safe: [^,]{1,30} bounded lazy quantifiers, ^-anchored, required eat-verb suffix. F-H7.
   /^(?:ayer\s+(?:por\s+la\s+(?:ma[nñ]ana|tarde|noche)|tarde)|anoche(?:\s+despu[eé]s\s+de[l]?\s+[^,]{1,30})?|hoy(?:\s+al\s+medi[oó]d[ií]a)?|esta\s+(?:ma[nñ]ana|tarde|noche)(?:\s+(?:antes|despu[eé]s)\s+de[l]?\s+[^,]{1,30}|\s+en\s+(?:el|la|los|las)\s+[^,]{1,25})?|a\s+medianoche|el\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+(?:(?:por\s+la|al)\s+(?:ma[nñ]ana|tarde|noche|medi[oó]d[ií]a)|en\s+(?:la\s+)?[^,]{1,25}|(?:antes|despu[eé]s)\s+de[l]?\s+[^,]{1,30}))?),?\s*\s+(?:me\s+)?(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|ped[ií]|compartí|prob[eé]|beb[ií]|me\s+hice?|piqu[eé])\s+/i,
+  // H7-P2 (NEW). Activity/context reference prefix + eat-verb — compound. Covers después de,
+  // antes de, durante, en [lugar], para [meal-verb]. ReDoS-safe: [^,]{1,40}? bounded lazy. F-H7.
+  /^(?:despu[eé]s\s+de[l]?\s+[^,]{1,40}?|antes\s+de[l]?\s+[^,]{1,40}?|durante\s+(?:el|la)\s+[^,]{1,40}?|en\s+(?:el|la|un[ao]?)\s+[^,]{1,40}?|para\s+(?:merendar|desayunar|comer|cenar|almorzar)(?:\s+(?:ayer|hoy|esta\s+(?:ma[nñ]ana|tarde|noche)))?\s*)\s+(?:me\s+)?(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|ped[ií]|compartí|prob[eé]|beb[ií]|me\s+hice?|piqu[eé])\s+/i,
 ];
 
 // Prefix patterns applied in order — longest/most-specific first.

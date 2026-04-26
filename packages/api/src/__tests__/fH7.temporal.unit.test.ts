@@ -19,9 +19,12 @@ describe('H7-P1 — Pure Temporal Prefix (compound regex)', () => {
     expect(result.query).toBe('salmón con verduras al horno');
   });
 
-  it('Q632: "el domingo me comí un plato de migas con huevo" → "un plato de migas con huevo"', () => {
+  it('Q632: "el domingo me comí un plato de migas con huevo" → "migas con huevo" (article + container stripped by pipeline)', () => {
+    // H7-P1 strips temporal+verb → "un plato de migas con huevo"
+    // ARTICLE_PATTERN strips "un " → "plato de migas con huevo"
+    // CONTAINER_PATTERNS strips "plato de " → "migas con huevo"
     const result = extractFoodQuery('el domingo me comí un plato de migas con huevo');
-    expect(result.query).toBe('un plato de migas con huevo');
+    expect(result.query).toBe('migas con huevo');
   });
 
   it('Q637: "anoche después del cine compartí nachos con queso" → "nachos con queso"', () => {
@@ -34,24 +37,28 @@ describe('H7-P1 — Pure Temporal Prefix (compound regex)', () => {
     expect(result.query).toBe('noodles con pollo y verduras');
   });
 
-  it('Q646: "el lunes después de clase comí una empanadilla de carne" → "una empanadilla de carne"', () => {
+  it('Q646: "el lunes después de clase comí una empanadilla de carne" → "empanadilla de carne" (article stripped)', () => {
+    // H7-P1 strips "el lunes después de clase comí " → "una empanadilla de carne"; ARTICLE_PATTERN strips "una "
     const result = extractFoodQuery('el lunes después de clase comí una empanadilla de carne');
-    expect(result.query).toBe('una empanadilla de carne');
+    expect(result.query).toBe('empanadilla de carne');
   });
 
-  it('Q647: "ayer tarde me bebí un smoothie de mango con yogur" → "un smoothie de mango con yogur"', () => {
+  it('Q647: "ayer tarde me bebí un smoothie de mango con yogur" → "smoothie de mango con yogur" (article stripped)', () => {
+    // H7-P1 strips "ayer tarde me bebí " → "un smoothie..."; ARTICLE_PATTERN strips "un "
     const result = extractFoodQuery('ayer tarde me bebí un smoothie de mango con yogur');
-    expect(result.query).toBe('un smoothie de mango con yogur');
+    expect(result.query).toBe('smoothie de mango con yogur');
   });
 
-  it('Q650: "a medianoche me hice una tortilla francesa con champiñones" → "una tortilla francesa con champiñones"', () => {
+  it('Q650: "a medianoche me hice una tortilla francesa con champiñones" → "tortilla francesa con champiñones" (article stripped)', () => {
+    // H7-P1 strips "a medianoche me hice " → "una tortilla..."; ARTICLE_PATTERN strips "una "
     const result = extractFoodQuery('a medianoche me hice una tortilla francesa con champiñones');
-    expect(result.query).toBe('una tortilla francesa con champiñones');
+    expect(result.query).toBe('tortilla francesa con champiñones');
   });
 
-  it('Q636: "esta mañana antes de trabajar tomé un croissant de mantequilla" → "un croissant de mantequilla"', () => {
+  it('Q636: "esta mañana antes de trabajar tomé un croissant de mantequilla" → "croissant de mantequilla" (article stripped)', () => {
+    // H7-P1 strips "esta mañana antes de trabajar tomé " → "un croissant..."; ARTICLE_PATTERN strips "un "
     const result = extractFoodQuery('esta mañana antes de trabajar tomé un croissant de mantequilla');
-    expect(result.query).toBe('un croissant de mantequilla');
+    expect(result.query).toBe('croissant de mantequilla');
   });
 
   it('Negative regression — Pattern 3 still fires: "anoche cené paella" → "paella"', () => {
@@ -67,9 +74,11 @@ describe('H7-P1 — Pure Temporal Prefix (compound regex)', () => {
     expect(result.query).toBe('paella');
   });
 
-  it('Empty-remainder guard: "el lunes" (no eat-verb) → H7-P1 must NOT match, returns "el lunes"', () => {
+  it('Empty-remainder guard: "el lunes" (no eat-verb) → H7-P1 must NOT match; ARTICLE_PATTERN strips "el" → "lunes"', () => {
+    // H7-P1 requires eat-verb — "el lunes" alone does NOT match H7-P1.
+    // ARTICLE_PATTERN then strips "el " → "lunes".
     const result = extractFoodQuery('el lunes');
-    expect(result.query).toBe('el lunes');
+    expect(result.query).toBe('lunes');
   });
 
   it('ReDoS timing bound: 200-char compound temporal input resolves in < 50 ms', () => {
@@ -87,14 +96,18 @@ describe('H7-P1 — Pure Temporal Prefix (compound regex)', () => {
 // ---------------------------------------------------------------------------
 
 describe('H7-P2 — Activity Reference Prefix (compound regex)', () => {
-  it('Q633: "después del gimnasio me tomé un batido de chocolate con avena" → "un batido de chocolate con avena"', () => {
+  it('Q633: "después del gimnasio me tomé un batido de chocolate con avena" → "batido de chocolate con avena" (article stripped by pipeline)', () => {
+    // H7-P2 strips "después del gimnasio me tomé " → "un batido de chocolate con avena"
+    // ARTICLE_PATTERN then strips "un " → "batido de chocolate con avena"
     const result = extractFoodQuery('después del gimnasio me tomé un batido de chocolate con avena');
-    expect(result.query).toBe('un batido de chocolate con avena');
+    expect(result.query).toBe('batido de chocolate con avena');
   });
 
-  it('Q634: "antes de dormir cené una crema de puerros con picatostes" → "una crema de puerros con picatostes"', () => {
+  it('Q634: "antes de dormir cené una crema de puerros con picatostes" → "crema de puerros con picatostes" (article stripped)', () => {
+    // H7-P2 strips "antes de dormir cené " → "una crema de puerros con picatostes"
+    // ARTICLE_PATTERN then strips "una " → "crema de puerros con picatostes"
     const result = extractFoodQuery('antes de dormir cené una crema de puerros con picatostes');
-    expect(result.query).toBe('una crema de puerros con picatostes');
+    expect(result.query).toBe('crema de puerros con picatostes');
   });
 
   it('Q635: "en el desayuno de hoy comí tostadas con aguacate y huevo" → "tostadas con aguacate y huevo"', () => {
@@ -102,14 +115,16 @@ describe('H7-P2 — Activity Reference Prefix (compound regex)', () => {
     expect(result.query).toBe('tostadas con aguacate y huevo');
   });
 
-  it('Q639: "para merendar ayer tomé un yogur con granola" → "un yogur con granola"', () => {
+  it('Q639: "para merendar ayer tomé un yogur con granola" → "yogur con granola" (article stripped)', () => {
+    // H7-P2 strips "para merendar ayer tomé " → "un yogur con granola"; ARTICLE_PATTERN strips "un "
     const result = extractFoodQuery('para merendar ayer tomé un yogur con granola');
-    expect(result.query).toBe('un yogur con granola');
+    expect(result.query).toBe('yogur con granola');
   });
 
-  it('Q640: "después de correr me comí una barrita energética de frutos secos" → "una barrita energética de frutos secos"', () => {
+  it('Q640: "después de correr me comí una barrita energética de frutos secos" → "barrita energética de frutos secos" (article stripped)', () => {
+    // H7-P2 strips prefix → "una barrita energética de frutos secos"; ARTICLE_PATTERN strips "una "
     const result = extractFoodQuery('después de correr me comí una barrita energética de frutos secos');
-    expect(result.query).toBe('una barrita energética de frutos secos');
+    expect(result.query).toBe('barrita energética de frutos secos');
   });
 
   it('Q641: "en la cena familiar del sábado probé cochinillo asado con ensalada" → "cochinillo asado con ensalada"', () => {
@@ -117,16 +132,17 @@ describe('H7-P2 — Activity Reference Prefix (compound regex)', () => {
     expect(result.query).toBe('cochinillo asado con ensalada');
   });
 
-  it('Q643: "durante el viaje me tomé un bocata de pavo con queso" → "un bocata de pavo con queso"', () => {
+  it('Q643: "durante el viaje me tomé un bocata de pavo con queso" → "bocata de pavo con queso" (article stripped)', () => {
+    // H7-P2 strips "durante el viaje me tomé " → "un bocata de pavo con queso"; ARTICLE_PATTERN strips "un "
     const result = extractFoodQuery('durante el viaje me tomé un bocata de pavo con queso');
-    expect(result.query).toBe('un bocata de pavo con queso');
+    expect(result.query).toBe('bocata de pavo con queso');
   });
 
-  it('Q644: "esta tarde en la cafetería pedí una porción de brownie" → "una porción de brownie" (H7-P1 fires first)', () => {
-    // Q644 is handled by H7-P1 (esta tarde en [lugar] branch). H7-P2 is documented here for completeness.
-    // H7-P1 is at index 13, H7-P2 at 14; H7-P1 fires first.
+  it('Q644: "esta tarde en la cafetería pedí una porción de brownie" → "porción de brownie" (H7-P1 fires, article stripped)', () => {
+    // Q644 is handled by H7-P1 (esta tarde en [lugar] branch). H7-P1 is at index 13, H7-P2 at 14; H7-P1 fires first.
+    // ARTICLE_PATTERN strips "una " → "porción de brownie"
     const result = extractFoodQuery('esta tarde en la cafetería pedí una porción de brownie');
-    expect(result.query).toBe('una porción de brownie');
+    expect(result.query).toBe('porción de brownie');
   });
 
   it('Q645: "antes del partido cené arroz con atún y maíz" → "arroz con atún y maíz"', () => {
