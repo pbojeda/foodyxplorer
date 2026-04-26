@@ -571,6 +571,10 @@ export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
   /^cu[aá]nt[ao]s?\s+(?:prote[ií]nas?|grasas?|carbohidratos?|hidratos?|fibra|sodio|sal|az[uú]car)\s+(?:tiene[n]?|hay\s+en|lleva|contiene)\s+(?:un[ao]?\s+|el\s+|la\s+|del?\s+|al\s+)?/i,
   // 11. "necesito [saber] los nutrientes de[l]"
   /^necesito\s+(?:saber\s+)?(?:los?\s+|las?\s+)?(?:nutrientes|valores\s+nutricionales?|calor[ií]as?)\s+(?:de[l]?\s+)?/i,
+  // H7-P1 (NEW). Pure temporal prefix + eat-verb — compound. Covers day-of-week,
+  // ayer tarde/por la noche, a medianoche, esta mañana/tarde/noche + optional bridge.
+  // ReDoS-safe: [^,]{1,30} bounded lazy quantifiers, ^-anchored, required eat-verb suffix. F-H7.
+  /^(?:ayer\s+(?:por\s+la\s+(?:ma[nñ]ana|tarde|noche)|tarde)|anoche(?:\s+despu[eé]s\s+de[l]?\s+[^,]{1,30})?|hoy(?:\s+al\s+medi[oó]d[ií]a)?|esta\s+(?:ma[nñ]ana|tarde|noche)(?:\s+(?:antes|despu[eé]s)\s+de[l]?\s+[^,]{1,30}|\s+en\s+(?:el|la|los|las)\s+[^,]{1,25})?|a\s+medianoche|el\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+(?:(?:por\s+la|al)\s+(?:ma[nñ]ana|tarde|noche|medi[oó]d[ií]a)|en\s+(?:la\s+)?[^,]{1,25}|(?:antes|despu[eé]s)\s+de[l]?\s+[^,]{1,30}))?),?\s*\s+(?:me\s+)?(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|ped[ií]|compartí|prob[eé]|beb[ií]|me\s+hice?|piqu[eé])\s+/i,
 ];
 
 // Prefix patterns applied in order — longest/most-specific first.
