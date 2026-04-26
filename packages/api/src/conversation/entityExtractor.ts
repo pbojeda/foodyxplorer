@@ -542,12 +542,27 @@ export const CONVERSATIONAL_WRAPPER_PATTERNS: readonly RegExp[] = [
   /^(?:ayer|anoche|anteayer|hoy|esta\s+ma[nñ]ana|esta\s+noche)\s+(?:cen[eé]|desayun[eé]|almorc[eé]|com[ií]|merend[eé]|tom[eé]|beb[ií])\s+/i,
   // 4. "he + participle" bare (with optional hoy): "he desayunado ..." / "hoy he comido ..."
   /^(?:hoy\s+)?he\s+(?:tomado|bebido|comido|cenado|desayunado|almorzado|merendado)\s+/i,
-  // 5. "acabo de + infinitive": "acabo de comer ..."
-  /^acabo\s+de\s+(?:comer|tomar|beber|cenar|desayunar|almorzar|merendar)\s+/i,
+  // 4b. "esta mañana/tarde/noche he + participle": "esta mañana he tomado ..."
+  // Extends pattern 4 to cover temporal markers beyond hoy.
+  // F-MULTI-ITEM-IMPLICIT: required for canonical #2 — strips before detector receives text.
+  // NOTE: inserted BEFORE pattern 5 (acabo de) and AFTER pattern 4 in the array (index 4).
+  /^esta\s+(?:ma[nñ]ana|tarde|noche)\s+he\s+(?:tomado|bebido|comido|cenado|desayunado|almorzado|merendado)\s+/i,
+  // 5. "acabo de + infinitive [+ clitic me]": "acabo de comer ..." / "acabo de beberme ..."
+  // F-NLP-CHAIN-ORDERING: added optional clitic suffix (?:me)? to support "acabo de beberme/comerme/..."
+  /^acabo\s+de\s+(?:comer|tomar|beber|cenar|desayunar|almorzar|merendar)(?:me)?\s+/i,
   // 6. "para + meal + tuve/comí/tomé": "para cenar tuve ..."
   /^para\s+(?:cenar|desayunar|comer|almorzar|merendar)\s+(?:tuve|com[ií]|tom[eé])\s+/i,
   // 7. Intent-to-eat (me voy a pedir / me pido): "me voy a pedir ..." / "me pido ..."
   /^me\s+(?:voy\s+a\s+(?:pedir|comer|tomar|beber)|pido)\s+/i,
+  // 7b. "he entrado/estado en [place] y me he pedido": "he entrado en un bar y me he pedido ..."
+  // Covers the bar/restaurant entry pattern. Uses lazy .+? match for the place phrase.
+  // F-MULTI-ITEM-IMPLICIT: required for canonical #3 — strips before detector receives text.
+  // NOTE: "ido" is intentionally omitted — Spanish pairs "ido" with "al/a la" (not "en"),
+  // making "he ido en ..." unnatural. Minimum surface area principle (S3, spec §12).
+  // ReDoS safety: ^ anchor + required literal suffix "\by\s+me\s+he\s+pedido\s+" bound the
+  // .+? lazy match — backtracking terminates on the literal suffix. No catastrophic risk.
+  // NOTE: inserted AFTER pattern 7 in the array (index 8).
+  /^he\s+(?:entrado|estado)\s+en\s+.+?\by\s+me\s+he\s+pedido\s+/i,
   // 8. "quiero saber / necesito saber" + nutrient phrase: "quiero saber las calorías de ..."
   /^(?:quiero|necesito)\s+saber\s+(?:las?\s+|los?\s+)?(?:calor[ií]as?|nutrientes|informaci[oó]n\s+nutricional|valores?\s+nutricionales?)\s+(?:de[l]?\s+)?/i,
   // 9. "cuánto engorda [un/una] ...": "cuánto engorda una ración de croquetas"
@@ -609,17 +624,33 @@ export const ARTICLE_PATTERN = /^(?:un[ao]?s?|el|la[s]?|los|del|al)\s+/i;
 // Applied AFTER ARTICLE_PATTERN, BEFORE SERVING_FORMAT_PATTERNS.
 // NOTE: "vaso de" is intentionally excluded — it belongs to F-DRINK (drink portion).
 // "vasito de" (diminutive container) is owned by F-MORPH.
+// F-NLP-CHAIN-ORDERING: merged singular/plural into plural-aware forms (platos? de, etc.)
+// so that post-count residuals like "platos de paella" are correctly stripped.
 export const CONTAINER_PATTERNS: readonly RegExp[] = [
-  /^plato\s+de\s+/i,
+  /^platos?\s+de\s+/i,
   /^platito\s+de\s+/i,
-  /^cuenco\s+de\s+/i,
-  /^bol\s+de\s+/i,
-  /^vasito\s+de\s+/i,
-  /^jarrita\s+de\s+/i,
+  /^cuencos?\s+de\s+/i,
+  /^bol(?:es)?\s+de\s+/i,
+  /^vasitos?\s+de\s+/i,
+  /^jarritas?\s+de\s+/i,
   /^poco\s+de\s+/i,
   /^poqu?ito\s+de\s+/i,
   /^trozo\s+de\s+/i,
   /^trocito\s+de\s+/i,
+];
+
+// F-NLP-CHAIN-ORDERING: Non-drink serving prefixes for post-count container residual strip.
+// Used by stripContainerResidual in conversationCore.ts ONLY when extractPortionModifier
+// has stripped a count token (portionMultiplier > 1 / cleanQuery changed).
+// Deliberately EXCLUDES drink-vessel entries (cañas, tercios, botellas, copas, vasos) from
+// SERVING_FORMAT_PATTERNS because those carry food-semantic value (e.g., "caña de cerveza"
+// is the catalogue name, not a serving prefix). Only pure serving formats are included.
+export const POST_COUNT_SERVING_PATTERNS: readonly RegExp[] = [
+  /^tapas?\s+de\s+/i,
+  /^pintxos?\s+de\s+/i,
+  /^pinchos?\s+de\s+/i,
+  /^raciones\s+de\s+/i,
+  /^raci[oó]n\s+de\s+/i,
 ];
 
 // F-MORPH: Curated diminutive → base form map (Option A).

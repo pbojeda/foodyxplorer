@@ -453,3 +453,227 @@ describe('POST /conversation/audio — F091 hardening', () => {
     await app.close();
   });
 });
+
+// ---------------------------------------------------------------------------
+// BUG-API-AUDIO-4XX-001 — 415 and 400 error shapes
+// ---------------------------------------------------------------------------
+
+describe('POST /conversation/audio — BUG-API-AUDIO-4XX-001 error shapes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupAuthMocks();
+    setupKyselyMocks();
+    setupRedisMocks();
+    mockCheckBudgetExhausted.mockResolvedValue(false);
+    mockParseAudioDuration.mockReturnValue(10);
+    mockIncrementSpendAndCheck.mockResolvedValue({
+      data: { exhausted: false, spendEur: 1.5, capEur: 100, alertLevel: 'none', monthKey: '2026-04' },
+      alertsFired: [],
+    });
+    mockDispatchSlackAlerts.mockResolvedValue(undefined);
+    mockIsWhisperHallucination.mockReturnValue(false);
+    mockRunEstimationCascade.mockResolvedValue(ROUTER_L3_HIT);
+  });
+
+  // -------------------------------------------------------------------------
+  // AC1 — absent Content-Type → 415
+  // -------------------------------------------------------------------------
+
+  it('AC1: returns 415 UNSUPPORTED_MEDIA_TYPE when Content-Type header is absent', async () => {
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/conversation/audio',
+      headers: {}, // no Content-Type, no body
+      payload: undefined,
+    });
+    expect(response.statusCode).toBe(415);
+    const body = response.json<{ success: false; error: { code: string; message: string } }>();
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
+    expect(body.error.message).toBe('Content-Type must be multipart/form-data');
+    await app.close();
+  });
+
+  // -------------------------------------------------------------------------
+  // AC2 — Content-Type: application/json → 415
+  // -------------------------------------------------------------------------
+
+  it('AC2: returns 415 UNSUPPORTED_MEDIA_TYPE when Content-Type is application/json', async () => {
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/conversation/audio',
+      headers: { 'Content-Type': 'application/json' },
+      payload: JSON.stringify({ text: 'hello' }),
+    });
+    expect(response.statusCode).toBe(415);
+    const body = response.json<{ success: false; error: { code: string } }>();
+    expect(body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
+    await app.close();
+  });
+
+  // -------------------------------------------------------------------------
+  // AC3 — Content-Type: text/plain → 415
+  // -------------------------------------------------------------------------
+
+  it('AC3: returns 415 UNSUPPORTED_MEDIA_TYPE when Content-Type is text/plain', async () => {
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/conversation/audio',
+      headers: { 'Content-Type': 'text/plain' },
+      payload: 'hello',
+    });
+    expect(response.statusCode).toBe(415);
+    const body = response.json<{ success: false; error: { code: string } }>();
+    expect(body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
+    await app.close();
+  });
+
+  // -------------------------------------------------------------------------
+  // AC4 — multipart/form-data without boundary param → 400
+  // -------------------------------------------------------------------------
+
+  it('AC4: returns 400 VALIDATION_ERROR when Content-Type is multipart/form-data without boundary param', async () => {
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/conversation/audio',
+      headers: { 'Content-Type': 'multipart/form-data' }, // no boundary=
+      payload: Buffer.alloc(0),
+    });
+    expect(response.statusCode).toBe(400);
+    const body = response.json<{ success: false; error: { code: string; message: string } }>();
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toMatch(/boundary/i);
+    await app.close();
+  });
+
+  it('AC4 variant: returns 400 VALIDATION_ERROR when boundary parameter is present but empty', async () => {
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/conversation/audio',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=' }, // empty value
+      payload: Buffer.alloc(0),
+    });
+    expect(response.statusCode).toBe(400);
+    const body = response.json<{ success: false; error: { code: string; message: string } }>();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toMatch(/boundary/i);
+    await app.close();
+  });
+
+  // -------------------------------------------------------------------------
+  // AC5 — valid multipart with zero parts → 400
+  // -------------------------------------------------------------------------
+
+  it('AC5: returns 400 VALIDATION_ERROR for valid multipart with zero parts (empty body)', async () => {
+    const body = buildMultipartBody({ audioPart: null, duration: null });
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/conversation/audio',
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${MULTIPART_BOUNDARY}`,
+      },
+      payload: body,
+    });
+    expect(response.statusCode).toBe(400);
+    const resBody = response.json<{ success: false; error: { code: string; message: string } }>();
+    expect(resBody.error.code).toBe('VALIDATION_ERROR');
+    expect(resBody.error.message).toBe('Missing audio file part in multipart request');
+    await app.close();
+  });
+
+  // -------------------------------------------------------------------------
+  // AC6 — valid multipart with non-audio parts only → 400
+  // -------------------------------------------------------------------------
+
+  it('AC6: returns 400 VALIDATION_ERROR for valid multipart with non-audio parts only', async () => {
+    const body = buildMultipartBody({ audioPart: null, duration: '10' });
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/conversation/audio',
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${MULTIPART_BOUNDARY}`,
+      },
+      payload: body,
+    });
+    expect(response.statusCode).toBe(400);
+    const resBody = response.json<{ success: false; error: { code: string; message: string } }>();
+    expect(resBody.error.code).toBe('VALIDATION_ERROR');
+    expect(resBody.error.message).toBe('Missing audio file part in multipart request');
+    await app.close();
+  });
+
+  // -------------------------------------------------------------------------
+  // AC7 — anonymous caller happy path → 200
+  // -------------------------------------------------------------------------
+
+  it('AC7: anonymous caller with no X-API-Key and no X-Actor-Id returns 200 on valid audio', async () => {
+    mockCallWhisperTranscription.mockResolvedValue('paella valenciana');
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/conversation/audio',
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${MULTIPART_BOUNDARY}`,
+        'X-Forwarded-For': CLIENT_IP,
+        // No X-API-Key, no X-Actor-Id
+      },
+      payload: buildAudioBody(10),
+    });
+    expect(response.statusCode).toBe(200);
+    await app.close();
+  });
+
+  // -------------------------------------------------------------------------
+  // AC8 — duration > 120 still returns 400 (existing guard preserved)
+  // -------------------------------------------------------------------------
+
+  it('AC8: duration > 120 returns 400 VALIDATION_ERROR (existing guard preserved)', async () => {
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/conversation/audio',
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${MULTIPART_BOUNDARY}`,
+        'X-API-Key': API_KEY_VALUE,
+      },
+      payload: buildAudioBody(200), // 200s > 120s limit
+    });
+    expect(response.statusCode).toBe(400);
+    const body = response.json<{ success: false; error: { code: string; message: string } }>();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.message).toContain('120 seconds');
+    await app.close();
+  });
+
+  // -------------------------------------------------------------------------
+  // AC10 — invalid (present but unregistered) API key returns 401
+  // -------------------------------------------------------------------------
+
+  it('AC10: invalid (present but unregistered) X-API-Key returns 401 UNAUTHORIZED', async () => {
+    mockPrismaApiKeyFindUnique.mockResolvedValue(null);
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/conversation/audio',
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${MULTIPART_BOUNDARY}`,
+        'X-API-Key': 'fxp_not_a_real_key_12345',
+        'X-Forwarded-For': CLIENT_IP,
+      },
+      payload: buildAudioBody(10),
+    });
+    expect(response.statusCode).toBe(401);
+    const body = response.json<{ success: false; error: { code: string; message: string } }>();
+    expect(body.error.code).toBe('UNAUTHORIZED');
+    expect(body.error.message).toBe('Invalid or expired API key');
+    await app.close();
+  });
+});

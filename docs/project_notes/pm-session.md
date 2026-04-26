@@ -1,53 +1,54 @@
 # PM Autonomous Session
 
-**Started:** 2026-04-21
-**Session ID:** pm-qai
+**Started:** 2026-04-22
+**Session ID:** pm-sprint2
 **Autonomy Level:** L5 (PM Autonomous)
 **Status:** completed
 **Target Branch:** develop
-**Completed at:** 2026-04-21 (all 5 sprint tickets + baseline prep + FU1 merged)
 
-**Sprint:** QA Improvement Sprint — 5 tickets addressing 9 problems from 350-query battery (2026-04-21). User-approved override of the 2-feature compact rule: all 5 features executed in one session.
+**Sprint:** QA Sprint #2 — 3 follow-ups from QA exhaustive battery run 2026-04-22 (`/tmp/qa-dev-2026-04-22.txt`). Target: unblock H1, H2, H3, H5-A, H5-B hallazgos.
+
+**Merge authorization policy (user-set 2026-04-22, updated 2026-04-23):**
+- PR1 (BUG-QA-SCRIPT-001, Simple): **auto-merge authorized**; produce detailed post-merge audit summary.
+- PR2 (BUG-API-AUDIO-4XX-001, Standard): **STOP before merge, wait for user audit**.
+- PR3 (F-NLP-CHAIN-ORDERING, Standard, H5-A-only after split): **STOP before merge, wait for user audit**.
+- PR4 (F-MULTI-ITEM-IMPLICIT, Standard, H5-B spin-off — added 2026-04-23): **STOP before merge, wait for user audit**.
 
 ## Current Batch
 
-_(empty — all features moved to Completed)_
-
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
+_(empty — F-MULTI-ITEM-IMPLICIT moved to Completed Features below; pm-sprint2 closed 2026-04-24 with 4/4 PRs DONE)_
 
 ## Completed Features
 
 | Feature | Complexity | PR | Commit | Duration (approx) | Notes |
 |---------|------------|----|--------|--------------------|-------|
-| BUG-DEV-LINT-002 | Simple (prep) | #177 | `9fa2dfc` | ~30 min | Baseline hotfix — 7 eslint-disable-next-line on legitimate non-null assertions introduced by F-TIER (#173). F116 0-error baseline restored |
-| BUG-PROD-012 | Standard | #178 | `8b33433` | ~60 min | Tier≥1 inverse cascade. Option B (parallel `minTier?` param). 7 AC tests + 3 regression updates. Review APPROVE WITH NITS (3 fixed inline). QA PASS WITH FOLLOW-UPS (2 fixed inline) |
-| F-NLP | Standard | #179 | `fc9f519` | ~55 min | CONVERSATIONAL_WRAPPER_PATTERNS (11 final patterns). Review MAJOR M1 fixed inline (dropped bare `voy a pedir` pattern for Category D scope guard). 15 AC + 25 edge-case tests |
-| F-MORPH | Standard | #181 | `21b9873` | ~55 min | ARTICLE_PATTERN+unas/unos, CONTAINER_PATTERNS (10), DIMINUTIVE_MAP (18), normalizeDiminutive, SERVING+caña, parseDishExpression parity. Review MAJOR×2 fixed inline (parseDishExpression + test title). 56 + 22 tests |
-| F-COUNT | Standard | #182 | `084dd90` | ~60 min | Tagged-union PatternEntry (fixed/numeric/lexical). LEXICAL_NUMBER_MAP (11 entries). Numeric prefix 1-20 cap, lexical number words, extended modifier vocab. Review NITs fixed inline (lexical kind variant, dead code cleanup). 39 AC + 17 edge-case tests |
-| F-DRINK | Simple | #183 | `aef8f09` | ~25 min | 8 new PORTION_RULES (copa/tercio/botellín/botella/vaso + compounds), CSV pieceName plurals (pieces>1). 11 new tests. Review APPROVE |
-| F-DRINK-FU1 | Simple (FU) | #184 | `5f1a6d5` | ~20 min | Post-merge gap: container strip in SERVING for tercio/botella/botellín/copa/vaso `de X`. Added 5 SERVING patterns + 8 new tests + F-MORPH AC15 updated for new boundary |
-
-**Total: 7 PRs merged, ~5 hours end-to-end.**
+| BUG-QA-SCRIPT-001 | Simple | #195 | `07ecfd9` | ~90 min | H2 (JSON escape via `jq`) + H3 (smoke `200\|401` per ADR-001). 3 commits squashed: initial fix → jq review-fix → audit-merge fix. code-review-specialist APPROVE WITH MINOR CHANGES (High + Medium + Low + 2 Nits all addressed inline). `/audit-merge` 11/11 PASS. Post-merge sanity: 3647/3647 tests, lint 0. Merge pre-authorized by user. |
+| BUG-API-AUDIO-4XX-001 | Standard | #197 | `05a973a` | ~4h | H1: /conversation/audio 4xx shapes. 7 commits squashed. Full SDD with cross-model review (Gemini APPROVED + Codex REVISE→APPROVED R2 on spec; Gemini APPROVED + Codex REVISE addressed on plan), production-code-validator APPROVE, code-review-specialist APPROVE (1M+4L+4N fixed inline), qa-engineer PASS WITH FOLLOW-UPS (8 proactive edge-case tests for 2 Important gaps), external user audit APPROVE WITH NOTES. Gates: 3668/3668 (+21 tests), lint 0, build clean. Integrated 2 parallel merges (#196 F-H4, #198 F-TOOL-RESEED-001). `bugs.md` entry added. |
+| F-MULTI-ITEM-IMPLICIT | Standard | #206 | `97f9640` | ~14h (across 2 days) | H5-B implicit multi-item detection. Strategy D (whole-text L1 catalog guard + per-fragment `level1Lookup` validation) + 2 wrapper extensions (Pattern 4b temporal `esta mañana/tarde/noche he`, Pattern 7b bar/restaurant entry — `ido` dropped after grammar check). Full SDD with 3 `/review-spec` rounds (Gemini APPROVED R1+R2+R3; Codex R1 1 CRITICAL `paella`/`tostada`/`flan` need FTS not exact alias → Strategy D pivot in v3 reusing existing `level1Lookup`; Codex R1 4 IMPORTANTs + R2/R3 textual cleanup all addressed). 3 `/review-plan` rounds (Gemini APPROVED R1+R2+R3; Codex R1 3 IMPORTANTs vi.spyOn→vi.mock + real-DB unit→mock + index shift fix all addressed in v2; R2/R3 textual cleanup). 6 atomic commits Step 3 (4 Phase + 1 review fix-loop + 1 docs) + 4 housekeeping commits + 2 merge commits (PR #205 F-H4-B + PR #207 housekeeping integration). production-code-validator APPROVE WITH NO BLOCKERS. code-review-specialist APPROVE WITH MINOR CHANGES (M1 fixed). qa-engineer PASS WITH FOLLOW-UPS (+22 edge-cases). 2 external user audit cycles (APPROVE WITH NOTES — all docs drift findings fixed inline). /audit-merge 11/11 PASS. Final gates: 3798/3798 (3733 post-F-H4-B baseline + 65 new = 43 detector/wrapper unit + 22 qa edge-cases) + 17/17 integration tests, lint 0, build clean. Step 3 attempt #1 hit subagent token limit before any code written; attempt #2 (post 20:20 reset) succeeded. F076 `menuDetector.ts` untouched. Self-contained — no post-merge operator actions required. |
+| F-NLP-CHAIN-ORDERING | Standard | #202 | `c7cee4d` | ~6h | H5-A chain ordering (H5-B split to PR4). 9 commits squashed. Full SDD with 3 rounds /review-spec (Gemini+Codex APPROVED after H5-B scope split + AC9 regex + post-count catalogue note), 3 rounds /review-plan (Gemini+Codex APPROVED after CRITICAL wrapper-clitic + AC7 drift + RED→GREEN order + try/catch fallback), production-code-validator APPROVE WITH NITS (3 NITs ticket-docs, NIT 1 deviation audited as correctness improvement), code-review-specialist APPROVE WITH CHANGES (M1+M2+L2 applied inline), qa-engineer PASS WITH FOLLOW-UPS (29 proactive edge-case tests + IMPORTANT guard-semantic hardened via dual-gate), external user audit APPROVE WITH NOTES (test-count reconciliation applied). Gates: 3723/3723 (61 new `it()` calls), lint 0, build clean. AC7/EC-5 deliberate correctness improvement (drink-vessel query preservation) audited + documented. Integrated 5 parallel merges (#196 F-H4, #198/#200/#201 F-TOOL-RESEED-001/002/003, #203 tracker-sync). H5-B spun off to `F-MULTI-ITEM-IMPLICIT` stub for PR4. `bugs.md` entry added. |
 
 ## Blocked Features
 
-_(none)_
+_(Move features here if blocked)_
+
+| Feature | Reason | Step |
+|---------|--------|------|
 
 ## Recovery Instructions
 
-**Current feature:** none — sprint complete
-**Branch:** develop (all feature branches deleted post-merge)
-**Next features:** follow-ups in `docs/project_notes/product-tracker.md` under "QA Improvement Sprint (2026-04-21)" section
+**Current feature:** None — pm-sprint2 COMPLETED 2026-04-24
+**Branch:** N/A (all 4 feature branches squash-merged to develop, deleted local + remote)
+**Next features:** (none — sprint complete)
+**Blocked:** (none)
 
-To start a new session: run `start pm`
+**Session progress:** 4/4 PRs DONE. Final gates on develop: 3798/3798 API tests (+141 new across PR1-PR4 + 10 from parallel F-H4-B integration), lint 0, build clean.
+**Closed:** 2026-04-24 after F-MULTI-ITEM-IMPLICIT squash-merge (commit `97f9640`).
+**PR4 recommendation (user direction 2026-04-23):** start F-MULTI-ITEM-IMPLICIT in a fresh session with a full `/context-prompt` to avoid carrying over stale context. The stub ticket at `docs/tickets/F-MULTI-ITEM-IMPLICIT-implicit-multi-item-detection-post-nlp.md` has the scope + landmine catalog (arroz con leche, pan con tomate, mar y montaña, F-H4 aliases) + constraints — ready for Step 0 Spec.
+**Baseline @ session start:** api lint 0 errors | api build clean | api tests 3647/3647 ✓ (now 3723/3723 after PR1-PR3 merged)
+**Parallel sessions during sprint:** H4 seed expansion (merged #196), F-TOOL-RESEED-001/002/003 (merged #198/#200/#201), tracker-sync (merged #203). All integrated cleanly into feature branches via periodic `git merge origin/develop`.
+**Pending PRs:** #194 (docs/key_facts autoDeploy update) + #199 (chore/sprint2-post-merge-housekeeping — SUPERSEDED by this housekeeping PR, should be closed).
 
-## Session Notes
-
-- **Baseline verification** (2026-04-21): build=green, lint=BROKEN (7 errors from F-TIER #173), tests=3297+. Baseline restored via PR #177 before first feature started.
-- **Context budget:** ran in Opus 4.7 1M context mode. Override of 2-feature compact rule was honored successfully; no noticeable degradation across 7 consecutive PRs.
-- **Agent delegation:** every feature used `backend-planner` (or inline planning) + `backend-developer` + `code-review-specialist` + `qa-engineer` agents. Main context stayed focused on orchestration + review-fix loops.
-- **Cross-model review (/review-spec, /review-plan):** skipped in favor of in-session code-review + QA agents to keep the pace. Trade-off accepted by user via "modo autónomo" direction.
-- **Inline review-fix loops:** every ticket had 1-3 review findings addressed on the same branch before merge (not in follow-up PRs). Pattern reduced round-trip latency.
-- **Admin API key:** `fxp_admin_dev_testing_2026` (dev env) used for post-merge validation curl probes that caught the F-DRINK gap → triggered F-DRINK-FU1.
-- **Regression battery:** re-run post-sprint via `/tmp/qa-exhaustive.sh` — results in sprint report (`docs/research/qa-improvement-sprint-report-2026-04-21.md` — pending).
+To resume after /compact: run `continue pm`
+To stop gracefully: run `stop pm`

@@ -21,8 +21,11 @@ import {
   extractPortionModifier,
   extractFoodQuery,
   parseDishExpression,
+  CONTAINER_PATTERNS,
+  POST_COUNT_SERVING_PATTERNS,
 } from './entityExtractor.js';
 import { detectMenuQuery } from './menuDetector.js';
+import { detectImplicitMultiItem } from './implicitMultiItemDetector.js';
 import { extractDiners } from './dinersExtractor.js';
 import { reverseSearchDishes } from '../estimation/reverseSearch.js';
 
@@ -31,6 +34,45 @@ import { reverseSearchDishes } from '../estimation/reverseSearch.js';
 // ---------------------------------------------------------------------------
 
 const MAX_TEXT_LENGTH = 500;
+
+// ---------------------------------------------------------------------------
+// F-NLP-CHAIN-ORDERING: stripContainerResidual
+// ---------------------------------------------------------------------------
+
+/**
+ * Strip a leading container or non-drink serving prefix from `text`.
+ *
+ * Called ONLY after `extractPortionModifier` has stripped a count token
+ * (i.e., portionMultiplier > 1 or cleanQuery !== strippedQuery). At that
+ * point the residual text may start with a container ("platos de", "cuencos de")
+ * or a non-drink serving prefix ("tapas de", "raciones de") that must be removed
+ * so L1 receives the clean food name.
+ *
+ * Deliberately does NOT use the full SERVING_FORMAT_PATTERNS — drink-vessel
+ * entries like "cañas de", "tercios de" carry food-semantic value and must not
+ * be stripped (e.g., "cañas de cerveza" → the food IS "caña de cerveza").
+ *
+ * Module-private — not exported.
+ */
+function stripContainerResidual(text: string): string {
+  // Pass 1: CONTAINER_PATTERNS (platos de, cuencos de, boles de, vasitos de, ...)
+  for (const pattern of CONTAINER_PATTERNS) {
+    const stripped = text.replace(pattern, '').trim();
+    if (stripped !== text && stripped.length > 0) {
+      return stripped;
+    }
+  }
+
+  // Pass 2: POST_COUNT_SERVING_PATTERNS (tapas de, pinchos de, pintxos de, raciones de)
+  for (const pattern of POST_COUNT_SERVING_PATTERNS) {
+    const stripped = text.replace(pattern, '').trim();
+    if (stripped !== text && stripped.length > 0) {
+      return stripped;
+    }
+  }
+
+  return text;
+}
 
 // ---------------------------------------------------------------------------
 // processMessage
@@ -347,11 +389,147 @@ export async function processMessage(
   }
 
   // -------------------------------------------------------------------------
+  // Step 3.6 — Implicit multi-item detection (F-MULTI-ITEM-IMPLICIT)
+  // -------------------------------------------------------------------------
+  // Receives diners-stripped + wrapper-stripped text (extractFoodQuery(textWithoutDiners).query).
+  // Route-exclusive: only reached when detectMenuQuery (Step 3.5) returned null above.
+  // Async: calls level1Lookup (L1 exact+FTS) for whole-text guard + per-fragment validation.
+  // On throw: logs error with stable tag and falls through to Step 4 (no 500 to caller).
+
+  const implicitStripped = extractFoodQuery(textWithoutDiners);
+  let implicitItems: string[] | null = null;
+  try {
+    implicitItems = await detectImplicitMultiItem(implicitStripped.query, db);
+  } catch (err) {
+    logger.error(
+      { err },
+      'F-MULTI-ITEM-IMPLICIT:fallback-fired — implicit detector threw; continuing to single-dish path',
+    );
+    // implicitItems stays null → falls through to Step 4 unchanged
+  }
+
+  if (implicitItems !== null) {
+    // Route to menu_estimation using the same Promise.allSettled machinery as Step 3.5.
+    // Each item in implicitItems is a normalized food name; pass through parseDishExpression
+    // to resolve chain slug and portion multiplier, consistent with Step 3.5 handling.
+    const implicitMenuResults = await Promise.allSettled(
+      implicitItems.map((itemText) => {
+        const parsed = parseDishExpression(itemText);
+        const chainSlugForItem = parsed.chainSlug ?? effectiveContext?.chainSlug;
+        return estimate({
+          query: parsed.query,
+          chainSlug: chainSlugForItem,
+          portionMultiplier: parsed.portionMultiplier,
+          db,
+          prisma,
+          openAiApiKey,
+          level4Lookup,
+          chainSlugs,
+          logger,
+          originalQuery: itemText,
+        });
+      }),
+    );
+
+    // All-rejected guard (same pattern as Step 3.5)
+    const allImplicitRejected = implicitMenuResults.every((r) => r.status === 'rejected');
+    if (allImplicitRejected && implicitMenuResults.length > 0) {
+      const firstRejected = implicitMenuResults.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+      throw firstRejected.reason instanceof Error
+        ? firstRejected.reason
+        : new Error(String(firstRejected.reason));
+    }
+
+    // Build items array — rejected promises become null-result EstimateData
+    const implicitItemsBuilt = implicitItems.map((query, i) => {
+      const result = implicitMenuResults[i];
+      if (!result) throw new Error(`implicitMenuResults missing index ${i} — allSettled contract violated`);
+      const estimation: EstimateData = result.status === 'fulfilled'
+        ? result.value
+        : {
+            query,
+            chainSlug: null,
+            level1Hit: false,
+            level2Hit: false,
+            level3Hit: false,
+            level4Hit: false,
+            matchType: null,
+            result: null,
+            cachedAt: null,
+            portionMultiplier: 1,
+          };
+      return { query, estimation };
+    });
+
+    // Aggregate totals from matched implicit items
+    const implicitTotals = aggregateMenuTotals(implicitItemsBuilt);
+    const implicitMatchedCount = implicitItemsBuilt.filter((item) => item.estimation.result !== null).length;
+
+    // Context fallback: true if any item had no explicit chain slug but context was injected
+    const implicitUsedContextFallback = implicitItems.some((itemText) => {
+      const parsed = parseDishExpression(itemText);
+      return !parsed.chainSlug && !!effectiveContext?.chainSlug;
+    });
+
+    // F089: compute per-person totals if diners were detected (reuse detectedDiners from Step 3.5)
+    const implicitDiners = detectedDiners ?? null;
+    const implicitPerPerson = implicitDiners !== null ? divideMenuTotals(implicitTotals, implicitDiners) : null;
+
+    return {
+      intent: 'menu_estimation' as const,
+      actorId,
+      menuEstimation: {
+        items: implicitItemsBuilt,
+        totals: implicitTotals,
+        itemCount: implicitItemsBuilt.length,
+        matchedCount: implicitMatchedCount,
+        diners: implicitDiners,
+        perPerson: implicitPerPerson,
+      },
+      activeContext,
+      usedContextFallback: implicitUsedContextFallback,
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // Step 4 — Single-dish estimation
   // -------------------------------------------------------------------------
 
-  const { cleanQuery, portionMultiplier } = extractPortionModifier(trimmed);
-  const { query: extractedQuery, chainSlug: explicitSlug } = extractFoodQuery(cleanQuery);
+  // F-NLP-CHAIN-ORDERING: reordered pipeline — extractFoodQuery (wrapper strip) FIRST,
+  // then extractPortionModifier on stripped text, then stripContainerResidual on residual.
+  // Spec EC fallback: if the reordered pipeline throws (e.g., a future regex addition with
+  // catastrophic backtracking), fall back to the original single-pass behavior so the
+  // endpoint never regresses to 500.
+  let extractedQuery: string;
+  let portionMultiplier: number;
+  let explicitSlug: string | undefined;
+  try {
+    const stripped = extractFoodQuery(trimmed);
+    const modified = extractPortionModifier(stripped.query);
+    // Apply the container/serving residual strip when `extractPortionModifier` actually
+    // modified the text AND produced a non-unit multiplier. Dual-gate (text change +
+    // multiplier ≠ 1) isolates the "count/quantifier consumed" case from the no-op
+    // identity case, preventing future no-count modifiers from accidentally triggering
+    // the residual strip and stripping serving tokens that are part of food names
+    // (e.g., "cañas de cerveza" — see EC-5 / AC7 / F-MULTI-ITEM-IMPLICIT rationale).
+    extractedQuery =
+      modified.cleanQuery !== stripped.query && modified.portionMultiplier !== 1
+        ? stripContainerResidual(modified.cleanQuery)
+        : modified.cleanQuery;
+    portionMultiplier = modified.portionMultiplier;
+    explicitSlug = stripped.chainSlug;
+  } catch (err) {
+    // This error-level log is deliberately high-signal: the try-block above contains only
+    // pure regex + array iteration + string.replace, which cannot throw on valid string
+    // input. If this fires in production, a later-added regex has catastrophic backtracking
+    // — a real bug. Stable tag `F-NLP-CHAIN-ORDERING:fallback-fired` is greppable.
+    logger.error({ err }, 'F-NLP-CHAIN-ORDERING:fallback-fired — reordered pipeline threw; falling back to single-pass');
+    const modified = extractPortionModifier(trimmed);
+    const stripped = extractFoodQuery(modified.cleanQuery);
+    extractedQuery = stripped.query;
+    portionMultiplier = modified.portionMultiplier;
+    explicitSlug = stripped.chainSlug;
+  }
 
   // Inject context fallback only when query has no explicit chainSlug
   const effectiveChainSlug = explicitSlug ?? effectiveContext?.chainSlug;

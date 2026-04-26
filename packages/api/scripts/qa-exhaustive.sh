@@ -23,7 +23,7 @@
 #         limits per F-TIER). Override for prod runs.
 #
 # Dependencies
-#   bash (>= 3.2), curl, python3 (stdlib only)
+#   bash (>= 3.2), curl, python3 (stdlib only), jq (>= 1.5)
 #
 # Usage
 #   # Against dev (defaults):
@@ -76,11 +76,16 @@ NULL=0
 
 q() {
   local query="$1"
+  # BUG-QA-SCRIPT-001 (H2): queries may contain characters that need JSON escaping
+  # (", \, newlines, tabs, control chars, Unicode). Delegating to jq handles every
+  # corner correctly — the previous bash-only `${query//\"/\\\"}` only covered ".
+  local body
+  body=$(jq -cn --arg t "$query" '{text:$t}')
   COUNT=$((COUNT + 1))
   local resp=$(curl -s --max-time 10 -X POST "$API/conversation/message" \
     -H "x-api-key: $KEY" \
     -H "Content-Type: application/json" \
-    -d "{\"text\":\"$query\"}")
+    -d "$body")
   local line=$(echo "$resp" | python3 -c "
 import sys,json
 try:
@@ -429,10 +434,17 @@ smoke "GET /health/voice-budget (F091 flat env)"   "200"      "$API/health/voice
 smoke "GET /health/nonexistent"                    "404"      "$API/health/nonexistent" -H "x-api-key: $KEY"
 smoke "POST /conv/msg empty body"                  "400|422"  -X POST "$API/conversation/message" -H "x-api-key: $KEY" -H "Content-Type: application/json" -d "{}"
 smoke "POST /conv/msg invalid JSON"                "400"      -X POST "$API/conversation/message" -H "x-api-key: $KEY" -H "Content-Type: application/json" --data-binary "not-json"
-smoke "POST /conv/msg missing api key"             "401"      -X POST "$API/conversation/message" -H "Content-Type: application/json" -d '{"text":"croquetas"}'
+# BUG-QA-SCRIPT-001 (H3): /conversation/message is anonymous-OK per ADR-001 (EAA voice
+# accessibility). Server correctly returns 200 for unauthenticated callers. Accepting 200|401
+# keeps the smoke useful if policy ever flips to required-auth.
+smoke "POST /conv/msg missing api key"             "200|401"  -X POST "$API/conversation/message" -H "Content-Type: application/json" -d '{"text":"croquetas"}'
 smoke "POST /conv/audio no body"                   "400|415"  -X POST "$API/conversation/audio" -H "x-api-key: $KEY"
 smoke "POST /conv/audio wrong content-type"        "400|415"  -X POST "$API/conversation/audio" -H "x-api-key: $KEY" -H "Content-Type: text/plain" -d "hello"
-smoke "POST /conv/audio missing api key"           "401"      -X POST "$API/conversation/audio" -H "Content-Type: multipart/form-data"
+# BUG-API-AUDIO-4XX-001: /conversation/audio allows anonymous callers per F091 EAA design
+# (same reasoning as ADR-001 for /conversation/message; see PR #195 H3 fix).
+# This smoke sends Content-Type: multipart/form-data without a boundary → 400 VALIDATION_ERROR.
+# Accepting 400|415 because the exact code depends on which guard fires first.
+smoke "POST /conv/audio missing api key"           "400|415"  -X POST "$API/conversation/audio" -H "Content-Type: multipart/form-data"
 smoke "GET /conv/message (wrong method)"           "404|405"  "$API/conversation/message" -H "x-api-key: $KEY"
 
 echo ""

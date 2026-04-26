@@ -581,10 +581,18 @@ async function main(): Promise<void> {
   // OFF — Open Food Facts (F080)
   // Tier 0 branded queries (priority_tier=0). Requires OFF_IMPORT_ENABLED=true
   // in non-test environments. ODbL attribution required in all responses.
+  //
+  // Skipped when SEED_SKIP_OFF=1 (F-TOOL-RESEED-002). OFF imports 11k+ products
+  // and adds ~15 min per environment; skipping is safe for dish-only refreshes
+  // because OFF rows are upserted idempotently and existing rows stay intact.
   // ---------------------------------------------------------------------------
-  console.log('Starting OFF seed: Open Food Facts prepared foods...');
-  await seedPhaseOff(prisma);
-  console.log('OFF seed complete.');
+  if (process.env['SEED_SKIP_OFF'] === '1') {
+    console.log('Skipping OFF seed (SEED_SKIP_OFF=1).');
+  } else {
+    console.log('Starting OFF seed: Open Food Facts prepared foods...');
+    await seedPhaseOff(prisma);
+    console.log('OFF seed complete.');
+  }
 
   // ---------------------------------------------------------------------------
   // Spanish Canonical Dishes (F073)
