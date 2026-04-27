@@ -22,7 +22,7 @@ alwaysApply: true
 
 These conventions adapt per-project via `<!-- CONFIG: -->` comments in `CLAUDE.md` and `key_facts.md`:
 
-- **Autonomy Level** → `CLAUDE.md` (1-4)
+- **Autonomy Level** → `CLAUDE.md` (1-5)
 - **Tech Stack** → `backend-standards.mdc` / `frontend-standards.mdc`
 - **Monorepo Layout** → `CLAUDE.md`
 - **Branching Strategy** → `key_facts.md` (github-flow or gitflow)
@@ -59,18 +59,20 @@ Complex:  0 → 1 (+ADR) → 2 → 3 → 4 → 5 (+QA) → 6
 
 Quality gates (tests, lint, build, validators) **always run** regardless of level.
 
-| Checkpoint | L1 Full Control | L2 Trusted | L3 Autopilot | L4 Full Auto |
-|------------|:-:|:-:|:-:|:-:|
-| Spec Approval | Required | Auto | Auto | Auto |
-| Ticket Approval | Required | Auto | Auto | Auto |
-| Plan Approval | Required | Required | Auto | Auto |
-| Commit Approval | Required | Auto | Auto | Auto |
-| Merge Approval | Required | Required | Required | Auto |
+| Checkpoint | L1 Full Control | L2 Trusted | L3 Autopilot | L4 Full Auto | L5 PM Auto |
+|------------|:-:|:-:|:-:|:-:|:-:|
+| Spec Approval | Required | Auto | Auto | Auto | Auto |
+| Ticket Approval | Required | Auto | Auto | Auto | Auto |
+| Plan Approval | Required | Required | Auto | Auto | Auto |
+| Commit Approval | Required | Auto | Auto | Auto | Auto |
+| Merge Approval | Required | Required | Required | Auto | Auto |
+| Next Feature | — | — | — | — | Auto |
 
 - **L1 Full Control**: New project or learning SDD — human approves every step.
 - **L2 Trusted**: Comfortable with SDD — AI handles routine, human reviews plans and merges.
 - **L3 Autopilot**: Battle-tested workflow — human only reviews PRs before merge.
 - **L4 Full Auto**: Full automation — human reviews completed features only.
+- **L5 PM Autonomous**: PM Orchestrator runs features end-to-end sequentially. Invoke with `start pm`.
 
 **Auto** = proceed without asking; log in product tracker → "Auto-Approved Decisions" table.
 
@@ -84,6 +86,7 @@ Quality gates (tests, lint, build, validators) **always run** regardless of leve
 | `production-code-validator` | Pre-commit validation (debug code, TODOs, secrets, spec drift) |
 | `code-review-specialist` | Pre-merge code review |
 | `qa-engineer` | Edge cases, spec verification, regression (Std/Cplx) |
+| `ui-ux-designer` | Design guidelines and feature design notes (invoke manually) |
 | `database-architect` | Schema design, migrations, query optimization (invoke manually) |
 
 ## 5. Shared Types Strategy
