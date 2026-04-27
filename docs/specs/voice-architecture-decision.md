@@ -1,9 +1,10 @@
 # Voice Architecture Decision — Browser-Side vs Cloud STT/TTS for /hablar
 
-**Feature reference:** F094 — Voice Spike
+**Feature reference:** F094 — Voice Spike (DONE 6/6, PR #93 `00f27f5`)
 **Status:** Provisional recommendation — user must confirm before F091 starts
 **Author:** F094 spike developer
 **Date:** 2026-04-09
+**Session trail:** Spike orchestrated via PM session `pm-vs1` (paused mid-spike at Step 4 by F115 lint bankruptcy, resumed and merged after F115). Full session log archived at `docs/archive/pm-sessions/pm-session-pm-vs1.md`.
 **Downstream consumers:** F091 (async voice in /hablar), F095-F097 (realtime voice in /hablar)
 **Baseline to reconcile with:** F075 `POST /conversation/audio` (already in production for the Telegram bot)
 
