@@ -869,7 +869,7 @@ Block 2 — CSV batch invariants (F-H9-AC-12-CSV, ~6 cases):
 - [x] Step 1: Branch `feature/F-H9-cat29-seed-expansion` created off `develop` @ `6128115`; ticket status → `Planning`; product tracker Active Session updated.
 - [x] Step 2: `backend-planner` executed — Implementation Plan generated; commit strategy (data commits 1–N-1 intentionally red, final count/test commit green) confirmed. /review-plan 3R Codex (REVISE→REVISE→APPROVED), 1R Gemini (APPROVED).
 - [x] Step 3: `backend-developer` executed with TDD — data additions in `spanish-dishes.json` + `standard-portions.csv`; count assertions updated across all 3 test files (f073, f114, fH6 including H6-EC-11 structural fix); new `fH9.cat29.unit.test.ts` created (AC-12); validator passes
-- [ ] Step 4: `production-code-validator` executed — all quality gates pass (lint, build, tests, validator)
+- [x] Step 4: `production-code-validator` executed — APPROVE WITH NOTES (92%). 1 CRITICAL kcal/100g→per-portion fix applied in commit `fdd2d9d`. Final gates: 4110/4110 tests GREEN, lint 0, build clean, validator 317 dishes valid.
 - [ ] Step 5: `code-review-specialist` executed — findings triaged and logged in Completion Log
 - [ ] Step 5: `qa-engineer` executed — QA battery dev re-run confirms all 11 addressable queries OK on Cat 29; delta documented
 - [ ] Step 6: Ticket Completion Log updated with metrics; Merge Checklist Evidence filled; branch deleted post-merge; product tracker updated to `Done`
@@ -894,6 +894,7 @@ Block 2 — CSV batch invariants (F-H9-AC-12-CSV, ~6 cases):
 | 2026-04-27 | Step 3 — Batch C commit `cd0f977` | CE-316..CE-317 appended (tortilla francesa/brownie) + 6 portion rows (CE-317 racion uses pieces=1 pieceName=brownie). JSON count: 317. Uniqueness test: 10/10 PASS. |
 | 2026-04-27 | Step 3 — Phase 3 commit `961e4c6` | `fH9.cat29.unit.test.ts` created — 11 level1Lookup cases + 5 CSV invariants = 16 tests, all GREEN immediately. |
 | 2026-04-27 | Step 3 — Phase 4 commit `25c1bfa` | 307→317 in f073 (6 locations), f114 (5 locations), fH6 (5 locations + H6-EC-11 structural fix `slice(-28)`→`slice(-38,-10)`); key_facts.md L95 updated. Full suite: 224 test files, 4110 tests GREEN. Lint clean. Build clean. |
+| 2026-04-27 | Step 4 — production-code-validator | APPROVE WITH NOTES (92% confidence). 1 CRITICAL: nutrient values entered as kcal/100g but seed convention is per-portionGrams. Fix commit `fdd2d9d` scaled all 9 nutrient fields × portionGrams/100 across 10 atoms. Post-fix kcal/100g all within spec Edge Case §9 ranges (130/420/125/165/430/255/155/270/180/420). Tests still 4110/4110 GREEN. |
 
 <!-- After code review, add a row documenting which findings were accepted/rejected:
 | YYYY-MM-DD | Review findings | Accepted: C1-C3, H1-H2. Rejected: M5 (reason). Systemic: C4 logged in bugs.md |
