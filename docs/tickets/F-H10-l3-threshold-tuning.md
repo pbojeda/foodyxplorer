@@ -643,7 +643,7 @@ npm run build --workspace=@foodxplorer/api
 - [ ] Step 0b: `/review-spec` executed, spec approved by user
 - [ ] Step 1: Branch `feature/F-H10-l3-threshold-tuning` created, tracker updated
 - [ ] Step 2: `backend-planner` executed, implementation plan approved
-- [ ] Step 3: `backend-developer` executed with TDD (new test file + guard implementation)
+- [x] Step 3: `backend-developer` executed with TDD (new test file + guard implementation)
 - [ ] Step 4: `production-code-validator` executed, quality gates pass
 - [ ] Step 5a: `code-review-specialist` executed
 - [ ] Step 5b: `qa-engineer` executed
@@ -655,7 +655,10 @@ npm run build --workspace=@foodxplorer/api
 
 | Date | Action | Notes |
 |------|--------|-------|
-| | | |
+| 2026-04-27 | Phase 2: helpers + unit tests | `computeTokenJaccard`, `applyLexicalGuard`, `LEXICAL_GUARD_MIN_OVERLAP`, `SPANISH_STOP_WORDS` added to `level3Lookup.ts`. 23 pure helper tests in `fH10.l3LexicalGuard.unit.test.ts` (AC3-AC7, AC2.5, AC4.5). Commit `0e744d4`. |
+| 2026-04-27 | Phase 3: guard wiring + cascade integration tests | Guard wired into strategy 1 (fall-through on reject) and strategy 2 (null on reject). AC1/AC2/AC8/AC9 cascade tests added. 3 f022 fall-through tests updated to use `'ternera'` query (pre-flight analysis missed 'hamburguesa' ↔ 'Carne de Ternera Picada' zero-overlap; deviation from plan noted). Commit `75cb1cb`. |
+| 2026-04-27 | Phase 4: ADR-024 + key_facts.md | ADR-024 appended to decisions.md. key_facts.md level3Lookup description updated. Commit `9910c55`. |
+| 2026-04-27 | Phase 5: final validation | 4133 tests passing (225 test files). Lint: clean. Build: clean. |
 
 <!-- After code review, add a row documenting which findings were accepted/rejected:
 | YYYY-MM-DD | Review findings | Accepted: C1-C3, H1-H2. Rejected: M5 (reason). Systemic: C4 logged in bugs.md |
