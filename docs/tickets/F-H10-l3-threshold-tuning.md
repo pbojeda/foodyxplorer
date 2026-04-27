@@ -134,7 +134,7 @@ None. This is a backend engine change only.
 | `'hamburguesa clásica'` | `'Hamburguesa Clásica'` | {hamburguesa, clásica} ∩ {hamburguesa, clásica} = 2/2 | 1.0 | PASS |
 | `'hamburguesa'` | `'Hamburguesa Clásica'` | {hamburguesa} ∩ {hamburguesa, clásica} = 1/2 | 0.5 | PASS |
 | `'ternera picada'` | `'Carne de Ternera Picada'` | {ternera, picada} ∩ {carne, ternera, picada} = 2/3 | 0.67 | PASS |
-| `'ternera'` | `'Carne de Ternera Picada'` | {ternera} ∩ {carne, ternera, picada} = 1/4 | 0.25 | PASS (≥ threshold) |
+| `'ternera'` | `'Carne de Ternera Picada'` | {ternera} ∩ {carne, ternera, picada} = 1, union = 3 → Jaccard = 1/3 ≈ 0.333 | 0.333 | PASS (> threshold) |
 | edge-cases `'hamburguesa test'` | `'Hamburguesa Test'` | {hamburguesa, test} ∩ {hamburguesa, test} = 2/2 | 1.0 | PASS |
 | edge-cases `'ternera'` | `'Ternera Test'` | {ternera} ∩ {ternera, test} = 1/2 | 0.5 | PASS |
 
