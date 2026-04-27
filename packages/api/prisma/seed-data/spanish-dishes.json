@@ -8090,15 +8090,15 @@
       "estimationMethod": "ingredients",
       "source": "recipe",
       "nutrients": {
-        "calories": 130,
-        "proteins": 18,
-        "carbohydrates": 6,
-        "sugars": 3,
-        "fats": 5,
-        "saturatedFats": 1,
-        "fiber": 2,
-        "salt": 0.8,
-        "sodium": 0.32
+        "calories": 455,
+        "proteins": 63,
+        "carbohydrates": 21,
+        "sugars": 10.5,
+        "fats": 17.5,
+        "saturatedFats": 3.5,
+        "fiber": 7,
+        "salt": 2.8,
+        "sodium": 1.12
       }
     },
     {
@@ -8114,15 +8114,15 @@
       "estimationMethod": "ingredients",
       "source": "recipe",
       "nutrients": {
-        "calories": 420,
-        "proteins": 12,
-        "carbohydrates": 48,
-        "sugars": 2,
-        "fats": 22,
-        "saturatedFats": 9,
-        "fiber": 3,
-        "salt": 1.4,
-        "sodium": 0.56
+        "calories": 630,
+        "proteins": 18,
+        "carbohydrates": 72,
+        "sugars": 3,
+        "fats": 33,
+        "saturatedFats": 13.5,
+        "fiber": 4.5,
+        "salt": 2.1,
+        "sodium": 0.84
       }
     },
     {
@@ -8138,15 +8138,15 @@
       "estimationMethod": "ingredients",
       "source": "recipe",
       "nutrients": {
-        "calories": 125,
-        "proteins": 14,
-        "carbohydrates": 12,
-        "sugars": 2,
-        "fats": 3,
-        "saturatedFats": 0.8,
-        "fiber": 2,
-        "salt": 1.0,
-        "sodium": 0.4
+        "calories": 500,
+        "proteins": 56,
+        "carbohydrates": 48,
+        "sugars": 8,
+        "fats": 12,
+        "saturatedFats": 3.2,
+        "fiber": 8,
+        "salt": 4,
+        "sodium": 1.6
       }
     },
     {
@@ -8162,15 +8162,15 @@
       "estimationMethod": "ingredients",
       "source": "recipe",
       "nutrients": {
-        "calories": 165,
-        "proteins": 7,
-        "carbohydrates": 26,
-        "sugars": 14,
-        "fats": 4,
-        "saturatedFats": 1.5,
-        "fiber": 2,
-        "salt": 0.2,
-        "sodium": 0.08
+        "calories": 330,
+        "proteins": 14,
+        "carbohydrates": 52,
+        "sugars": 28,
+        "fats": 8,
+        "saturatedFats": 3,
+        "fiber": 4,
+        "salt": 0.4,
+        "sodium": 0.16
       }
     },
     {
@@ -8186,15 +8186,15 @@
       "estimationMethod": "ingredients",
       "source": "recipe",
       "nutrients": {
-        "calories": 430,
-        "proteins": 10,
-        "carbohydrates": 40,
-        "sugars": 18,
-        "fats": 26,
-        "saturatedFats": 4,
-        "fiber": 5,
-        "salt": 0.3,
-        "sodium": 0.12
+        "calories": 172,
+        "proteins": 4,
+        "carbohydrates": 16,
+        "sugars": 7.2,
+        "fats": 10.4,
+        "saturatedFats": 1.6,
+        "fiber": 2,
+        "salt": 0.12,
+        "sodium": 0.05
       }
     },
     {
@@ -8212,15 +8212,15 @@
       "estimationMethod": "ingredients",
       "source": "recipe",
       "nutrients": {
-        "calories": 255,
-        "proteins": 18,
-        "carbohydrates": 28,
-        "sugars": 2,
-        "fats": 8,
-        "saturatedFats": 3,
-        "fiber": 2,
-        "salt": 1.2,
-        "sodium": 0.48
+        "calories": 510,
+        "proteins": 36,
+        "carbohydrates": 56,
+        "sugars": 4,
+        "fats": 16,
+        "saturatedFats": 6,
+        "fiber": 4,
+        "salt": 2.4,
+        "sodium": 0.96
       }
     },
     {
@@ -8236,15 +8236,15 @@
       "estimationMethod": "ingredients",
       "source": "recipe",
       "nutrients": {
-        "calories": 155,
-        "proteins": 12,
-        "carbohydrates": 22,
-        "sugars": 2,
-        "fats": 3,
-        "saturatedFats": 0.5,
-        "fiber": 1.5,
-        "salt": 0.8,
-        "sodium": 0.32
+        "calories": 465,
+        "proteins": 36,
+        "carbohydrates": 66,
+        "sugars": 6,
+        "fats": 9,
+        "saturatedFats": 1.5,
+        "fiber": 4.5,
+        "salt": 2.4,
+        "sodium": 0.96
       }
     },
     {
@@ -8260,15 +8260,15 @@
       "estimationMethod": "ingredients",
       "source": "recipe",
       "nutrients": {
-        "calories": 270,
-        "proteins": 10,
-        "carbohydrates": 28,
-        "sugars": 1,
-        "fats": 14,
-        "saturatedFats": 5,
-        "fiber": 1.5,
-        "salt": 1.0,
-        "sodium": 0.4
+        "calories": 216,
+        "proteins": 8,
+        "carbohydrates": 22.4,
+        "sugars": 0.8,
+        "fats": 11.2,
+        "saturatedFats": 4,
+        "fiber": 1.2,
+        "salt": 0.8,
+        "sodium": 0.32
       }
     },
     {
@@ -8286,15 +8286,15 @@
       "estimationMethod": "ingredients",
       "source": "recipe",
       "nutrients": {
-        "calories": 180,
-        "proteins": 12,
-        "carbohydrates": 1,
-        "sugars": 0.5,
-        "fats": 14,
-        "saturatedFats": 3.5,
+        "calories": 270,
+        "proteins": 18,
+        "carbohydrates": 1.5,
+        "sugars": 0.75,
+        "fats": 21,
+        "saturatedFats": 5.25,
         "fiber": 0,
-        "salt": 0.8,
-        "sodium": 0.32
+        "salt": 1.2,
+        "sodium": 0.48
       }
     },
     {
@@ -8312,15 +8312,15 @@
       "estimationMethod": "ingredients",
       "source": "recipe",
       "nutrients": {
-        "calories": 420,
-        "proteins": 5,
-        "carbohydrates": 52,
-        "sugars": 38,
-        "fats": 22,
-        "saturatedFats": 10,
-        "fiber": 2,
-        "salt": 0.4,
-        "sodium": 0.16
+        "calories": 336,
+        "proteins": 4,
+        "carbohydrates": 41.6,
+        "sugars": 30.4,
+        "fats": 17.6,
+        "saturatedFats": 8,
+        "fiber": 1.6,
+        "salt": 0.32,
+        "sodium": 0.13
       }
     }
   ]
