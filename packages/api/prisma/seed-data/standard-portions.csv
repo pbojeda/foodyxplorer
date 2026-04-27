@@ -302,3 +302,13 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-000000000137,racion,200,,,medium,standard yogur bowl con granola,pbojeda
 00000000-0000-e073-0007-000000000138,media_racion,20,,,medium,half barrita energética,pbojeda
 00000000-0000-e073-0007-000000000138,racion,40,,,medium,full barrita de frutos secos; single-serve,pbojeda
+00000000-0000-e073-0007-000000000139,tapa,100,,,medium,small bocadillo half tapa,pbojeda
+00000000-0000-e073-0007-000000000139,media_racion,150,,,medium,half bocadillo de pavo con queso,pbojeda
+00000000-0000-e073-0007-000000000139,racion,200,,,medium,full bocadillo; bread + turkey + cheese,pbojeda
+00000000-0000-e073-0007-00000000013a,tapa,100,,,medium,small tapa arroz con atún y maíz,pbojeda
+00000000-0000-e073-0007-00000000013a,media_racion,180,,,medium,half racion arroz con atún y maíz,pbojeda
+00000000-0000-e073-0007-00000000013a,racion,300,,,medium,full racion; rice + tuna + corn,pbojeda
+00000000-0000-e073-0007-00000000013b,pintxo,50,1,empanadilla,medium,1 empanadilla pintxo,pbojeda
+00000000-0000-e073-0007-00000000013b,tapa,80,1,empanadilla,medium,1 empanadilla tapa,pbojeda
+00000000-0000-e073-0007-00000000013b,media_racion,160,2,empanadillas,medium,2 empanadillas media racion,pbojeda
+00000000-0000-e073-0007-00000000013b,racion,240,3,empanadillas,medium,3 empanadillas racion,pbojeda

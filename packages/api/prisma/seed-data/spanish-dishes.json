@@ -8196,6 +8196,80 @@
         "salt": 0.3,
         "sodium": 0.12
       }
+    },
+    {
+      "externalId": "CE-313",
+      "dishId": "00000000-0000-e073-0007-000000000139",
+      "nutrientId": "00000000-0000-e073-0008-000000000139",
+      "name": "Bocadillo de pavo con queso",
+      "nameEs": "Bocadillo de pavo con queso",
+      "aliases": [
+        "bocata de pavo con queso"
+      ],
+      "category": "bocadillos",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 255,
+        "proteins": 18,
+        "carbohydrates": 28,
+        "sugars": 2,
+        "fats": 8,
+        "saturatedFats": 3,
+        "fiber": 2,
+        "salt": 1.2,
+        "sodium": 0.48
+      }
+    },
+    {
+      "externalId": "CE-314",
+      "dishId": "00000000-0000-e073-0007-00000000013a",
+      "nutrientId": "00000000-0000-e073-0008-00000000013a",
+      "name": "Arroz con atún y maíz",
+      "nameEs": "Arroz con atún y maíz",
+      "aliases": [],
+      "category": "arroces",
+      "portionGrams": 300,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 155,
+        "proteins": 12,
+        "carbohydrates": 22,
+        "sugars": 2,
+        "fats": 3,
+        "saturatedFats": 0.5,
+        "fiber": 1.5,
+        "salt": 0.8,
+        "sodium": 0.32
+      }
+    },
+    {
+      "externalId": "CE-315",
+      "dishId": "00000000-0000-e073-0007-00000000013b",
+      "nutrientId": "00000000-0000-e073-0008-00000000013b",
+      "name": "Empanadilla de carne",
+      "nameEs": "Empanadilla de carne",
+      "aliases": [],
+      "category": "tapas",
+      "portionGrams": 80,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 270,
+        "proteins": 10,
+        "carbohydrates": 28,
+        "sugars": 1,
+        "fats": 14,
+        "saturatedFats": 5,
+        "fiber": 1.5,
+        "salt": 1.0,
+        "sodium": 0.4
+      }
     }
   ]
 }
