@@ -424,8 +424,12 @@ describe('H6-EC-10: spec-required aliases on new dishes', () => {
 
 describe('H6-EC-11: monotonic CE-280..CE-307 sequence at file end', () => {
   it('the F-H6 batch (CE-280..CE-307) remains in monotonic order at its appended position', () => {
-    const last28 = dishes.slice(-38, -10);
-    const eids = last28.map((d) => d.externalId);
+    // Future-proof: locate CE-280 by externalId rather than negative-index slicing.
+    // Negative slices break silently when subsequent batches (F-H9, F-H10, ...) append more atoms.
+    const start = dishes.findIndex((d) => d.externalId === 'CE-280');
+    expect(start, 'CE-280 not found in dataset').toBeGreaterThanOrEqual(0);
+    const fH6Batch = dishes.slice(start, start + 28);
+    const eids = fH6Batch.map((d) => d.externalId);
     const expected = Array.from({ length: 28 }, (_, i) => `CE-${280 + i}`);
     expect(eids).toEqual(expected);
   });

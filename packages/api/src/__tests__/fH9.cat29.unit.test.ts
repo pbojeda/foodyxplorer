@@ -82,24 +82,16 @@ function level1Lookup(query: string): SpanishDishEntry[] {
   );
 }
 
-/** F-H9 new dishId hex suffixes: CE-308 (0x134) through CE-317 (0x13d) */
-const FH9_SUFFIXES: string[] = [
-  '000000000134', // CE-308
-  '000000000135', // CE-309
-  '000000000136', // CE-310
-  '000000000137', // CE-311
-  '000000000138', // CE-312
-  '000000000139', // CE-313
-  '00000000013a', // CE-314
-  '00000000013b', // CE-315
-  '00000000013c', // CE-316
-  '00000000013d', // CE-317
-];
+/** F-H9 batch identifiers — derived from spec (CE-308..CE-317) instead of hand-rolled. */
+const FH9_EXTERNAL_IDS: string[] = Array.from({ length: 10 }, (_, i) => `CE-${308 + i}`);
+const FH9_DISH_IDS: Set<string> = new Set(
+  dishes
+    .filter((d) => FH9_EXTERNAL_IDS.includes(d.externalId))
+    .map((d) => d.dishId),
+);
 
 function fH9CsvRows(): CsvRow[] {
-  return csvRows.filter((r) =>
-    FH9_SUFFIXES.some((s) => r.dishId.endsWith(s)),
-  );
+  return csvRows.filter((r) => FH9_DISH_IDS.has(r.dishId));
 }
 
 // ---------------------------------------------------------------------------
@@ -137,9 +129,9 @@ describe('F-H9-AC-12: level1Lookup simulation for 11 Cat 29 stripped queries', (
 describe('F-H9-AC-12-CSV: standard-portions.csv F-H9 batch invariants', () => {
   it('INV-1: every new F-H9 dishId has at least 1 CSV row', () => {
     const rows = fH9CsvRows();
-    for (const suffix of FH9_SUFFIXES) {
-      const count = rows.filter((r) => r.dishId.endsWith(suffix)).length;
-      expect(count, `dishId ending in ${suffix} has no portion rows`).toBeGreaterThanOrEqual(1);
+    for (const dishId of FH9_DISH_IDS) {
+      const count = rows.filter((r) => r.dishId === dishId).length;
+      expect(count, `dishId ${dishId} has no portion rows`).toBeGreaterThanOrEqual(1);
     }
   });
 
