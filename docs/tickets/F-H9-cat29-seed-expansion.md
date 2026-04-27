@@ -881,6 +881,7 @@ Block 2 — CSV batch invariants (F-H9-AC-12-CSV, ~6 cases):
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-27 | Step 0 — Spec | spec-creator agent invoked. Initial draft + 2 SendMessage corrections (empirical: Brownie + Tortilla francesa do NOT exist in catalog; re-scoped 8 atoms+2 aliases → 10 atoms+1 alias on Migas, count 307→317; UUID lowercase fix; AC structure split 10a/10b; AC-12 automated repo-side test added). Self-review: clean. |
+| 2026-04-27 | Step 1 — Setup | Branch `feature/F-H9-cat29-seed-expansion` created off develop @ `6128115`. Ticket initialized from template. Product tracker Active Session updated. |
 | 2026-04-27 | Step 0 — /review-spec R1 | Gemini APPROVED. Codex REVISE — 3 IMPORTANT (fH6 test missing, UUID case, AC-10 inconsistent) + 1 SUGGESTION (AC-10 not automatable → AC-12 repo test). All addressed in R2. |
 | 2026-04-27 | Step 0 — /review-spec R2 | Gemini APPROVED. Codex REVISE — 2 IMPORTANT (Q638 deterministic per H5-B Guard 2 not conditional; CE-??? placeholders → CE-151). All addressed in R3. |
 | 2026-04-27 | Step 0 — /review-spec R3 | Codex APPROVED (Gemini already APPROVED twice). Spec ready for planning. |
@@ -899,6 +900,7 @@ Block 2 — CSV batch invariants (F-H9-AC-12-CSV, ~6 cases):
 | 2026-04-27 | Step 5 — qa-engineer | PASS WITH FOLLOW-UPS. All 12 ACs verified empirically. 1 MINOR (PR body Q-number swap claim — empirically WRONG per QA battery `/tmp/qa-dev-post-fH8-20260427-1306.txt`: PR body matches battery line numbering Q644=brownie, Q645=arroz, Q650=tortilla francesa; the ticket spec had typo Q645→Q650 fixed in this commit). 1 NIT (H6-EC-11 fragility — addressed via M1 refactor in `67eb0e7`). |
 | 2026-04-27 | Step 5 — /audit-merge | 11/11 structural PASS + drift CLEAN. Verdict: READY FOR MERGE. |
 | 2026-04-27 | Step 6 — Squash merge | PR #220 squash-merged to develop at `67cc09b` 2026-04-27. Branch deleted local + remote. Post-merge sanity: 4110/4110 tests GREEN on develop. Operator action pending: api-dev manual deploy + reseed Phase 1+2 + re-run QA battery dev to confirm empirical +11 OK. |
+| 2026-04-27 | Step 6 — Empirical post-deploy QA battery dev | api-dev manual deploy + reseed (Phase 1+2+3 embeddings: `processedDishes:10`, `skippedDishes:307`) confirmed CE-308..CE-317 ingested. QA battery dev `/tmp/qa-dev-post-fH9-fH10-20260427-1654.txt`: 435 OK / 207 NULL / 8 FAIL. Delta vs F-H8 baseline 424/225/1: **+11 OK / -18 NULL / +7 ERR (script-level JSON parse on long voice queries 552-561, not API regression)**. **All 11 F-H9 target queries (Q631/632/637-640/643-646/650) resolve correctly** to CE-308..CE-317 + CE-094 alias hit — exactly as predicted. AC-10 closed empirically. |
 
 <!-- After code review, add a row documenting which findings were accepted/rejected:
 | YYYY-MM-DD | Review findings | Accepted: C1-C3, H1-H2. Rejected: M5 (reason). Systemic: C4 logged in bugs.md |
@@ -914,7 +916,7 @@ This creates a feedback loop for improving future reviews. -->
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | All 7 sections present: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence |
 | 1. Mark all items | [x] | AC: 12/12, DoD: 7/7, Workflow: 7/8 (Step 6 pending merge) |
-| 2. Verify product tracker | [x] | Active Session: F-H9 Step 5/6; Features table: F-H9 5/6 (will update to 6/6 post-merge) |
+| 2. Verify product tracker | [x] | Active Session: F-H9 Step 6/6 done; Features table: F-H9 done 6/6 (synced post-merge in `afbdffc` chore housekeeping PR #221) |
 | 3. Update key_facts.md | [x] | L95: `307 dishes (47 BEDCA + 260 recipe)` → `317 dishes (47 BEDCA + 270 recipe)`; tag `Imported (F073/F114/F-H4/F-H6/F-H9)` |
 | 4. Update decisions.md | [x] | N/A — no new ADR (data-only feature follows existing F-H4/F-H6 pattern + ADR-019 alias scope already in place) |
 | 5. Commit documentation | [x] | Commits: spec/plan (`bf0151e`/`038a840`), data batches (`6093081`/`af03415`/`cd0f977`), test create (`961e4c6`), count fix (`25c1bfa`), housekeeping (`23b01ba`/`01af362`), kcal fix (`fdd2d9d`), review refactors (`67eb0e7`) |

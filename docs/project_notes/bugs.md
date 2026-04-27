@@ -17,6 +17,22 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-04-27 — F-H10-FU: lexical guard must extend to L1 FTS (Q649 fix incomplete after F-H10)
+
+- **Issue**: F-H10's lexical guard (`applyLexicalGuard` + `computeTokenJaccard` in `level3Lookup.ts:99`) was wired ONLY into the L3 cascade. Empirical post-deploy QA battery dev (2026-04-27 16:54, `/tmp/qa-dev-post-fH9-fH10-20260427-1654.txt`) confirms Q649 (`queso fresco con membrillo`) still returns `CROISSANT CON QUESO FRESC` (Starbucks Spain, 343 kcal) — identical to pre-F-H10 behavior. F-H10's stated AC-1 (Q649 fix) NOT empirically achieved.
+- **Root Cause**: F-H10 spec assumed the false positive was an L3 vector-similarity issue. Empirically it is an **L1 FTS issue**: `CROISSANT CON QUESO FRESC` is from Starbucks PDF ingest (not in `spanish-dishes.json`), and the L1 FTS search matches `queso fresco` query tokens against `QUESO FRESC` in the dish nameEs with high tsrank, returning the CROISSANT before L3 ever runs. The lexical guard at L3 never executes for this query path.
+- **Risk**: LOW for production correctness — Q649 is a single false positive in 650-query QA battery; the returned dish has plausible kcal (343) so impact is limited. The lexical guard infrastructure SHIPPED in F-H10 is sound and protects L3 path correctly. **Risk is reputational**: F-H10 PR body claims "Q649 false positive correctly rejected" — this claim is empirically false post-deploy. ADR-024 also frames the guard as solving Q649; needs amendment or follow-up note.
+- **Resolution plan**: Standard SDD ticket F-H10-FU.
+  - **Single file change**: `packages/api/src/estimation/level1Lookup.ts` — wire `applyLexicalGuard(query, hit.nameEs ?? hit.name)` after FTS hit, before returning result. If guard rejects, fall through to L2 (existing cascade behavior).
+  - **Reuse**: import `applyLexicalGuard` from `level3Lookup.ts` (already exported as part of F-H10).
+  - **Tests**: new `fH10FU.l1LexicalGuard.unit.test.ts` mirroring the F-H10 test pattern; integration test `fH10FU.q649.integration.test.ts` for the empirical Q649 fixture.
+  - **Risk**: must verify the guard at L1 doesn't reject legitimate FTS matches. Pre-flight: enumerate all current L1 hits in QA battery (pre-F-H10-FU) and compute their Jaccard scores; threshold should remain 0.25 (consistent with F-H10) unless empirical data shows otherwise.
+  - Estimated effort: ~3h (Standard, full cross-model spec/plan review per workflow).
+- **Tracked**: F-H10-FU follow-up (Standard). Empirical evidence: `/tmp/qa-dev-post-fH9-fH10-20260427-1654.txt:649`. Code reuse: 100% from F-H10.
+- **Severity**: P3 — stated feature goal (Q649 fix) not empirically achieved; underlying infrastructure (lexical guard) shipped and reusable. Not a regression — Q649 was already broken pre-F-H10.
+- **Found by**: post-deploy QA battery dev 2026-04-27 (operator action after F-H9+F-H10 merge)
+- **Feature**: F-H10 | **PR**: #222 | **Merge**: `ffd2ece` | **Follow-up**: F-H10-FU (next Standard SDD ticket)
+
 ### 2026-04-26 — F-H7-FU1: 4 missing landmine integration tests (qa-engineer F2 follow-up)
 
 - **Issue**: F-H7's `fH7.engineRouter.integration.test.ts` tests only 2 of the 6 landmine corpus dishes specified in the spec for AC-5 verification. Missing: `sepia a la plancha`, `tostada con tomate y aceite`, `café con leche`, `gambas al ajillo`. qa-engineer flagged as LOW severity (F2 finding).
