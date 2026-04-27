@@ -39,6 +39,67 @@ import { mapDishRowToResult, mapFoodRowToResult } from './types.js';
 
 const DEFAULT_THRESHOLD = 0.5;
 
+/** ADR-024: Minimum Jaccard token overlap required for a candidate to pass the lexical guard.
+ * Q649 case: Jaccard = 0.20 (< 0.25) → rejected. Legitimate 2-token overlap: 0.33+ → passes. */
+export const LEXICAL_GUARD_MIN_OVERLAP = 0.25;
+
+/** Spanish stop words removed before Jaccard computation. Small curated set for dish-name domain. */
+const SPANISH_STOP_WORDS = new Set([
+  'de', 'del', 'con', 'la', 'el', 'los', 'las', 'un', 'una', 'al', 'y', 'a', 'en', 'por',
+]);
+
+// ---------------------------------------------------------------------------
+// Lexical guard helpers (ADR-024)
+// ---------------------------------------------------------------------------
+
+/** Lowercase + NFD diacritic-strip normalization for accent-insensitive tokenization.
+ * Example: 'atún' → 'atun', 'Queso Fresco' → 'queso fresco' */
+function normalize(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+/**
+ * Compute word-level Jaccard overlap between two strings.
+ * Both strings are normalized (lowercase + diacritic-stripped), punctuation-stripped,
+ * split on whitespace, and filtered through SPANISH_STOP_WORDS before set computation.
+ * Returns 0.0 if either token set is empty (no meaningful tokens).
+ */
+export function computeTokenJaccard(a: string, b: string): number {
+  const tokenize = (s: string): Set<string> => {
+    const normalized = normalize(s).replace(/[^a-z\s]/g, '');
+    const tokens = normalized
+      .split(/\s+/)
+      .filter((t) => t.length > 0 && !SPANISH_STOP_WORDS.has(t));
+    return new Set(tokens);
+  };
+
+  const setA = tokenize(a);
+  const setB = tokenize(b);
+
+  if (setA.size === 0 || setB.size === 0) {
+    return 0;
+  }
+
+  let intersectionCount = 0;
+  for (const token of setA) {
+    if (setB.has(token)) {
+      intersectionCount++;
+    }
+  }
+
+  const unionCount = setA.size + setB.size - intersectionCount;
+  return intersectionCount / unionCount;
+}
+
+/**
+ * Returns true if the word-level Jaccard overlap between queryText and candidateName
+ * meets or exceeds LEXICAL_GUARD_MIN_OVERLAP. False → candidate rejected.
+ * ADR-024: post-retrieval lexical guard for L3 similarity extrapolation.
+ */
+export function applyLexicalGuard(queryText: string, candidateName: string): boolean {
+  return computeTokenJaccard(queryText, candidateName) >= LEXICAL_GUARD_MIN_OVERLAP;
+}
+
 // ---------------------------------------------------------------------------
 // Scope clause helper
 // Identical pattern to Level 1 and Level 2 — do NOT extract to shared utility (F023 scope).
