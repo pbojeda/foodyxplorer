@@ -91,8 +91,8 @@ _N/A — Simple task. Direct TDD implementation:_
 ## Definition of Done
 
 - [x] All acceptance criteria met
-- [x] Unit tests written and passing (added 12+ new tests)
-- [x] Integration tests written and passing
+- [x] Unit tests written and passing (added 34 new unit tests in `fH8.cat24.unit.test.ts`)
+- [x] Integration tests written and passing (2 added in `fH7.engineRouter.integration.test.ts` retroactively in drift cleanup PR — verified GREEN)
 - [x] Code follows project standards (pure-function, no I/O, no DB)
 - [x] No linting errors
 - [x] Build succeeds
@@ -122,6 +122,7 @@ _N/A — Simple task. Direct TDD implementation:_
 | 2026-04-26 | Step 5 — audit-merge | 11/11 PASS (Status, AC 8/8, DoD 8/8, Workflow 4/5, Evidence 8/8, Completion Log 4 entries, Tracker 5/6, key_facts N/A, Merge base UP TO DATE, Working tree clean, Data files N/A). |
 | 2026-04-26 | Step 5 — Merge | PR #215 squash-merged at `2b00b48` (mergeStateStatus CLEAN after test-api passed in 4m19s + Vercel previews + ci-success). Branch deleted local + remote. |
 | 2026-04-26 | Step 6 — Housekeeping | Status → Done. Workflow Step 6 [x]. Tracker Active Session cleared. pm-session.md F-H8 row moved to Completed. Post-merge sanity: api 4094/4094 ✓. Operator action pending: api-dev manual deploy + QA battery dev to verify +3-6 OK delta. |
+| 2026-04-27 | Post-merge drift cleanup — AC-4/AC-5 integration tests added retroactively | External post-merge audit flagged that AC-4 ("Integration test verifies Q547 (`el pollo al ajillo está muy guisado?`) resolves via L1 retry") and AC-5 ("Integration test verifies catalog landmine protection") were marked [x] but only unit tests existed pre-merge. Pattern was systemic with F-H7 AC-1 (end-to-end ACs satisfied at unit level only). Resolution: 2 real integration tests added to `fH7.engineRouter.integration.test.ts` in cleanup PR — `AC-4: "pollo al ajillo está muy guisado?" → Cat D strips state inquiry → L1 retry hit` and `AC-5: "pollo al ajillo" baseline hits L1 Pass 1 — Cat D never fires (landmine protection)`. Both tests use `H8_DISH_POLLO` fixture (Pollo al ajillo, CE-077 equivalent). Verified GREEN locally (8/8 in fH7.engineRouter.integration vs 6/6 baseline). Closes the systemic drift class — future Simple-tier features must NOT mark integration-test ACs without writing them. |
 
 ---
 
@@ -130,14 +131,17 @@ _N/A — Simple task. Direct TDD implementation:_
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | All 7 sections present in order: Spec, Implementation Plan (N/A Simple), AC, DoD, Workflow Checklist, Completion Log, Merge Checklist Evidence. |
-| 1. Mark all items | [x] | AC: 8/8 [x], DoD: 8/8 [x], Workflow: 4/5 [x] (Step 6 pending merge). |
-| 2. Verify product tracker | [x] | Active Session: F-H8 step 4/6 → 5/6 (this commit). Features table row updated to step 4/6 with test counts. Will progress to 5/6 with audit-merge result + Step 6 completion log post-merge. |
-| 3. Update key_facts.md | [x] | N/A — NLP-only, no new infrastructure. Catalog count unchanged (307). Wrapper pattern count unchanged (17 — Cat D is in `h7TrailingStrip.ts`, not in `CONVERSATIONAL_WRAPPER_PATTERNS`). |
+| 1. Mark all items | [x] | AC: 8/8 [x], DoD: 8/8 [x], Workflow: 5/5 [x] (post-merge final state; pre-merge snapshot was 4/5 with Step 6 pending). |
+| 2. Verify product tracker | [x] | Active Session transitioned step 4/6 (pre-PR) → 5/6 (audit-merge) → 6/6 (post-merge housekeeping in PR #216 squash-merged at `e14235d`). |
+| 3. Update key_facts.md | [x] | Originally N/A claim — NLP-only, no new infrastructure. Drift cleanup PR updates `key_facts.md:198` test count `4043 → 4094` (covers F-H7 4060 + F-H8 +34 cumulative drift acknowledged-not-fixed in F-H7). Wrapper pattern count unchanged (17 — Cat D is in `h7TrailingStrip.ts`, not in `CONVERSATIONAL_WRAPPER_PATTERNS`). |
 | 4. Update decisions.md | [x] | N/A — extends ADR-023 retry-seam pattern with Cat D, no new architectural decision. Cat D is a strip-only category like Cat A/B/C. |
-| 5. Commit documentation | [x] | Commit `f5c9951` includes ticket + tracker + pm-session updates alongside code/tests. |
-| 6. Verify clean working tree | [x] | `git status` clean (only tracked files modified, all committed). |
-| 7. Verify branch up to date | [x] | Branch `feature/F-H8-cat24-preparation-strip` based on develop @ `5bf43d9`. No new commits on develop since branch creation (verified via `git fetch origin develop`). |
+| 5. Commit documentation | [x] | Commit `f5c9951` includes ticket + tracker + pm-session updates alongside code/tests. PR #216 housekeeping at `e14235d`. Drift cleanup PR adds 2 integration tests + docs corrections. |
+| 6. Verify clean working tree | [x] | `git status` clean at every commit boundary in PR #215 + PR #216 + drift cleanup PR. |
+| 7. Verify branch up to date | [x] | Branch `feature/F-H8-cat24-preparation-strip` based on develop @ `5bf43d9`. No new commits on develop since branch creation (verified via `git fetch origin develop`). Squash-merged with mergeStateStatus CLEAN. |
+| 8. Fill Merge Checklist Evidence | [x] | This table — populated pre-merge in PR #215, refreshed post-merge in drift cleanup PR (rows 1, 2, 3, 5 corrected; rows 8/9/10 added retroactively). |
+| 9. Run /audit-merge | [x] | 11/11 PASS — see Completion Log row "Step 5 — audit-merge" (Status, AC 8/8, DoD 8/8, Workflow 4/5, Evidence 8/8, Completion Log 4 entries, Tracker 5/6, key_facts N/A claim — refined post-audit, Merge base UP TO DATE, Working tree clean, Data files N/A). |
+| 10. Squash-merge | [x] | PR #215 squash-merged to develop at `2b00b48` 2026-04-26T21:32:10Z. Branch deleted local + remote (--delete-branch). PR #216 housekeeping squash-merged at `e14235d`. Drift cleanup integration tests in this PR. |
 
 ---
 
-*Ticket created: 2026-04-26*
+*Ticket created: 2026-04-26 | Drift cleanup applied: 2026-04-27*
