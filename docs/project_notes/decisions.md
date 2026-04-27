@@ -706,3 +706,60 @@ Threshold derivation: Q649 case produces Jaccard = 1/5 = 0.20 (single token "que
 - (+) ADR-001 compliance verified: guard is lexical matching (deterministic), not LLM-based nutrient interpretation.
 - (-) Spanish stop-word list is small and domain-specific; defined inline in `level3Lookup.ts`. Future features needing shared stop-word removal should refactor to a shared module.
 - (-) Jaccard operates on exact token strings (no stemming). "fresco" ≠ "fresc" (Catalan apocope) — this is acceptable since the overlap threshold is already calibrated to handle partial matches.
+
+#### ADR-024 Addendum: L1 FTS Extension (F-H10-FU, 2026-04-27)
+
+**Date:** 2026-04-27
+**Status:** Accepted — extends ADR-024
+
+**Context:** F-H10 wired `applyLexicalGuard()` exclusively into `level3Lookup.ts`. Post-deploy QA battery run on 2026-04-27 16:54 confirmed that Q649 (`queso fresco con membrillo`) still produces a false positive: `CROISSANT CON QUESO FRESC` (Starbucks Spain, 343 kcal) is returned at L1 FTS via `ftsDishMatch()` (Strategy 2) before the cascade ever reaches L3. The L3 guard is correct but never executes for this query path.
+
+Root cause: `ftsDishMatch()` uses a bilingual FTS query — `to_tsvector('spanish', COALESCE(d.name_es, d.name)) @@ plainto_tsquery(...)` OR `to_tsvector('english', d.name) @@ plainto_tsquery(...)`. Token overlap with "queso fresc" is sufficient for FTS to match CROISSANT at high confidence, even though the dishes are semantically unrelated (pastry vs cheese+quince plate).
+
+**Decision 1 — Extend guard to L1 FTS Strategies 2 and 4:**
+Wire the lexical guard into `runCascade()` in `level1Lookup.ts` immediately after each FTS strategy returns a hit (Strategies 2 and 4), before constructing and returning the `Level1Result`. Exact-match strategies (1 and 3) are exempt: an exact or alias match is inherently a lexical identity match and cannot be a false positive of this type. Guard-rejected hits fall through to the next strategy (S2 reject → S3; S4 reject → null).
+
+**Decision 2 — Dual-name OR semantics via private `passesGuardEither` helper:**
+L1 FTS is bilingual: a match may occur on the Spanish branch (COALESCE(name_es, name) with Spanish stemmer) OR the English branch (name with English stemmer). The matched branch is not exposed in the result row — only `name_es` and `name` columns are available. Comparing only against `name_es ?? name` (L3 pattern) would reject legitimate English-branch hits (example: query `bacon eggs` hits `Bacon and Eggs` via English FTS; `name_es = 'Beicon con huevos'`; guard against Spanish name alone would reject a valid match).
+
+Solution: private helper `passesGuardEither(query, nameEs, name)` evaluates `applyLexicalGuard` against BOTH names and returns `true` if EITHER clears the threshold (OR semantics). Null/undefined `nameEs` skips the Spanish side. The helper is local to `level1Lookup.ts` (not exported from `level3Lookup.ts`) because the dual-name OR semantics are L1-specific — L3 candidates only have Spanish-side names from `fetchDishNutrients()`.
+
+**Decision 3 — Retain threshold 0.25 for L1 FTS:**
+The same `LEXICAL_GUARD_MIN_OVERLAP = 0.25` constant is reused. L1 FTS is a higher-confidence retrieval mechanism than L3 pgvector (FTS guarantees token presence via `plainto_tsquery`; pgvector only requires proximity). This raises a theoretical risk of over-rejection on legitimate single-token FTS matches, which is resolved by the following analysis:
+
+Minimum safe Jaccard for a single-query-token match against an N-content-token candidate = 1/N (FTS guarantees the query token appears in the document, so intersection ≥ 1). Guard rejects only when N > 4 (1/N < 0.25), i.e., a 1-word query matching a 5+ meaningful-word candidate name where only 1 token overlaps. This is an extremely unlikely legitimate FTS hit for dish/food names in this domain. Empirical verification:
+- `paella` → `Paella valenciana` (N=2): Jaccard = 0.50 ≥ 0.25 → PASS
+- `tortilla` → `Tortilla de patatas` (N=2, after stop-word strip): Jaccard = 0.50 ≥ 0.25 → PASS
+- `gazpacho` → `Gazpacho andaluz` (N=2): Jaccard = 0.50 ≥ 0.25 → PASS
+- `queso fresco membrillo` → `CROISSANT CON QUESO FRESC` (N=3 content tokens, union=5): Jaccard = 0.20 < 0.25 → REJECT (correct)
+
+Pre-flight distribution analysis artifact: `docs/project_notes/F-H10-FU-jaccard-preflight.md` (operator action pending — see AC4 in ticket).
+
+**Guard injection points in `runCascade()`:**
+
+Strategy 2 (was):
+```typescript
+if (ftsDishRow !== undefined) {
+  return { matchType: 'fts_dish', result: mapDishRowToResult(ftsDishRow), rawFoodGroup: null };
+}
+```
+
+Strategy 2 (after):
+```typescript
+if (ftsDishRow !== undefined) {
+  if (passesGuardEither(normalizedQuery, ftsDishRow.dish_name_es, ftsDishRow.dish_name)) {
+    return { matchType: 'fts_dish', result: mapDishRowToResult(ftsDishRow), rawFoodGroup: null };
+  }
+  // Guard rejected on both sides — fall through to Strategy 3
+}
+```
+
+Same pattern for Strategy 4 with `ftsFoodRow.food_name_es` / `ftsFoodRow.food_name`.
+
+**Consequences:**
+- (+) Q649 false positive eliminated at source (L1 FTS layer, before cascade reaches L3).
+- (+) Guard is additive; no existing passing FTS hits are rejected (confirmed by single-token Jaccard analysis and regression test suite).
+- (+) H7-P5 retry seam interaction is safe: guard-induced null on a strippable query enables the desired unmask path (seam fires, retry with stripped form hits the legitimate dish). Guard-induced null on a non-strippable query propagates to L2 without seam firing. No infinite loop risk (seam fires at most once per request).
+- (+) BUG-PROD-012 two-pass interaction is safe: guard runs inside `runCascade()`, applied independently on each pass. Q649 correctly returns null on both passes.
+- (-) `passesGuardEither` is NOT exported — unit tests exercise it via cascade tests (Option A per plan). If direct unit testing of the helper is needed in future, it must be exported or tested via a different mechanism.
+- (-) Pre-flight Jaccard distribution analysis (AC4) was deferred to operator action post-implementation. Risk is low (dual-name OR semantics are strictly more permissive than F-H10's single-name guard), but the artifact should be completed before marking AC4 done.
