@@ -852,7 +852,7 @@ The following empirical reads and commands were executed by the planner agent to
 - [x] AC1: `level1Lookup` (called with `chainSlug` set to force single-pass `runCascade`) returns `null` for query `queso fresco con membrillo` when the DB is mocked to return a single FTS dish hit with `dish_name_es: 'CROISSANT CON QUESO FRESC'` and `dish_name` (English variant). `passesGuardEither` evaluates BOTH sides; both fall below 0.25; both rejected → result null. Assert mock DB called ≥2 times (FTS dish query + at least one subsequent strategy attempt within the same pass).
 
 **Q649 fix — two-pass unscoped integration test**
-- [ ] AC2: New file `packages/api/src/__tests__/fH10FU.q649.unit.test.ts` exists. Mocks `level1Lookup` invocation **without** `chainSlug`/`restaurantId`/`hasExplicitBrand`, exercising BUG-PROD-012's two-pass flow. Both passes (minTier≥1 first, unfiltered fallthrough) apply the guard. Tier≥1 pass returns null (no Tier≥1 candidate). Unfiltered pass returns CROISSANT from FTS dish, guard rejects, cascade continues, all subsequent strategies miss → null. Final return: null. *(File exists and passes; operator post-deploy verification deferred to Step 6)*
+- [x] AC2: New file `packages/api/src/__tests__/fH10FU.q649.unit.test.ts` exists (renamed from `*.integration.test.ts` per qa-engineer follow-up). Mocks `level1Lookup` invocation **without** `chainSlug`/`restaurantId`/`hasExplicitBrand`, exercising BUG-PROD-012's two-pass flow. Both passes (minTier≥1 first, unfiltered fallthrough) apply the guard. Tier≥1 pass returns null (no Tier≥1 candidate). Unfiltered pass returns CROISSANT from FTS dish, guard rejects, cascade continues, all subsequent strategies miss → null. Final return: null. 3 tests pass. *(Empirical post-deploy verification covered by AC3, operator-deferred to Step 6)*
 
 **Empirical post-deploy verification (operator action)**
 - [ ] AC3: After api-dev deploy, re-run QA battery dev (`qa-exhaustive.sh`). Q649 line (`después de la siesta piqué queso fresco con membrillo`) must show `NULL result` (or a correct non-CROISSANT entity). Evidence (battery file path + line + commit SHA of deploy) recorded in Completion Log. Marked done at Step 6 housekeeping (post-merge operator action).
@@ -891,18 +891,18 @@ The following empirical reads and commands were executed by the planner agent to
 
 ## Definition of Done
 
-- [ ] All 13 acceptance criteria met (AC1-AC13)
-- [ ] Unit tests written and passing (`fH10FU.l1LexicalGuard.unit.test.ts`)
-- [ ] Integration test written and passing (`fH10FU.q649.unit.test.ts`)
-- [ ] H7-P5 retry seam regression test included
-- [ ] Code follows project standards (no `any`, English-only identifiers, TDD)
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] ADR-024 addendum (or ADR-025) committed to `decisions.md`
-- [ ] `key_facts.md` Level 1 module bullet updated (AC12)
-- [ ] Pre-flight Jaccard artifact committed at `docs/project_notes/F-H10-FU-jaccard-preflight.md`
-- [ ] `qa-exhaustive.sh` matchType extension committed (separately or with ticket)
-- [ ] Specs reflect final implementation (api-spec.yaml unchanged — internal feature)
+- [x] All 13 acceptance criteria met (AC1-AC13) — 11 done at code level (AC1, AC2, AC5-AC13) + 2 operator-deferred (AC3, AC4) per design
+- [x] Unit tests written and passing (`fH10FU.l1LexicalGuard.unit.test.ts` 12 tests + `fH10FU.l1LexicalGuard.edge-cases.test.ts` 20 tests + `fH10FU.h7SeamRegression.unit.test.ts` 3 tests)
+- [x] Integration test written and passing (`fH10FU.q649.unit.test.ts` 3 tests)
+- [x] H7-P5 retry seam regression test included (Path A non-strippable + Path B strippable success + Path B null retry)
+- [x] Code follows project standards (no `any`, English-only identifiers, TDD)
+- [x] No linting errors (`npm run lint --workspace=@foodxplorer/api` clean)
+- [x] Build succeeds (`npm run build --workspace=@foodxplorer/api` clean)
+- [x] ADR-024 addendum committed to `decisions.md` (commit `3336eca`)
+- [x] `key_facts.md` Level 1 module bullet updated (AC12, commit `3336eca`)
+- [x] Pre-flight Jaccard artifact committed at `docs/project_notes/F-H10-FU-jaccard-preflight.md` (placeholder + operator checklist; commit `c4049b7`)
+- [x] `qa-exhaustive.sh` matchType extension committed (commit `f41bd13`)
+- [x] Specs reflect final implementation (api-spec.yaml unchanged — internal feature only)
 
 ---
 
@@ -955,14 +955,14 @@ The following empirical reads and commands were executed by the planner agent to
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
+| 0. Validate ticket structure | [x] | All 7 sections present: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence. |
+| 1. Mark all items | [x] | AC: 11/13 done + 2 operator-deferred (AC3, AC4) per design; DoD: 12/12; Workflow: 7/8 (Step 6 pending merge). |
+| 2. Verify product tracker | [x] | Active Session: F-H10-FU step 5/6 ✓; Features table: F-H10-FU `in-progress` 5/6 ✓ (synced 2026-04-28). |
+| 3. Update key_facts.md | [x] | Level 1 estimation-module bullet (line 167) updated with `passesGuardEither` dual-name OR semantics. Commit `3336eca`. |
+| 4. Update decisions.md | [x] | ADR-024 addendum appended documenting L1 extension rationale, bilingual OR semantics, threshold safety analysis. Commit `3336eca`. |
+| 5. Commit documentation | [x] | Documentation commits: `3336eca` (ADR + key_facts), `c4049b7` (pre-flight artifact placeholder), `0f82319` (spec), `f10e330` (plan). |
+| 6. Verify clean working tree | [x] | `git status` clean (verified 2026-04-28 pre-audit). |
+| 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` → UP TO DATE (verified 2026-04-28 pre-audit). |
 
 ---
 
