@@ -104,8 +104,6 @@ Post-release: `standard_portions` seeded with **160 rows** (43 dishes × ~4 term
 3. BUG-AUDIT-C5 — Fix reverse search via conversation returns empty (C5). Simple SDD.
 4. Deferred: C2 (context persistence), C6 (data quality), A1 (bot rate limit architecture)
 
-Full findings: `docs/project_notes/audit-phase-b-findings.md`
-
 **Pending operational step (F080):** OFF data import in progress — API v2 auth fix applied (ecdc186). Pagination fix applied (count-based). Ingestion being executed in a separate session.
 ```
 OFF_IMPORT_ENABLED=true npx tsx packages/api/src/scripts/off-import.ts --brand hacendado
@@ -384,7 +382,6 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 ## Security & Robustness Backlog (Post-Phase B)
 
 > Identified during cross-model QA audit (2026-04-06). To be addressed before public launch.
-> Full details: `docs/project_notes/qa-api-audit-2026-04-06.md`
 
 | ID | Severity | Issue | Category |
 |----|----------|-------|----------|

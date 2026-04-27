@@ -344,8 +344,6 @@ The preprocessor is invoked from `POST /ingest/pdf-url` when an optional `chainS
 - (-) Schema migration adds complexity to F032
 - (-) Google Maps integration delayed to Phase 2
 
-**Full plan:** `docs/project_notes/strategic-plan-r1-r6.md`
-
 ### ADR-011: Multi-Modal Menu Analysis Pipeline — OCR vs Vision API Routing (2026-03-26)
 
 **Context:** F034 introduces `POST /analyze/menu`, a stateless endpoint that extracts dish names from restaurant menu photos/PDFs and returns per-dish nutritional estimates via `runEstimationCascade`. The endpoint must handle four distinct input scenarios: PDF menus, menu photos, single dish photos, and forced OCR mode. Each has different optimal extraction strategies, fallback behavior, and failure modes. Key architectural decisions were shaped by external review (Gemini 2.5 Pro: 3C+2I, Codex GPT-5.4: 2I+3S).
