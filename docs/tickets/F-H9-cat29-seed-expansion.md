@@ -868,7 +868,7 @@ Block 2 — CSV batch invariants (F-H9-AC-12-CSV, ~6 cases):
 - [x] Step 0: `spec-creator` executed — `## Spec`, `## Acceptance Criteria`, `## Definition of Done` filled; `/review-spec` cross-model review completed (Standard complexity — mandatory). 3R Codex (REVISE→REVISE→APPROVED), 2R Gemini (APPROVED both).
 - [x] Step 1: Branch `feature/F-H9-cat29-seed-expansion` created off `develop` @ `6128115`; ticket status → `Planning`; product tracker Active Session updated.
 - [x] Step 2: `backend-planner` executed — Implementation Plan generated; commit strategy (data commits 1–N-1 intentionally red, final count/test commit green) confirmed. /review-plan 3R Codex (REVISE→REVISE→APPROVED), 1R Gemini (APPROVED).
-- [ ] Step 3: `backend-developer` executed with TDD — data additions in `spanish-dishes.json` + `standard-portions.csv`; count assertions updated across all 3 test files (f073, f114, fH6 including H6-EC-11 structural fix); new `fH9.cat29.unit.test.ts` created (AC-12); validator passes
+- [x] Step 3: `backend-developer` executed with TDD — data additions in `spanish-dishes.json` + `standard-portions.csv`; count assertions updated across all 3 test files (f073, f114, fH6 including H6-EC-11 structural fix); new `fH9.cat29.unit.test.ts` created (AC-12); validator passes
 - [ ] Step 4: `production-code-validator` executed — all quality gates pass (lint, build, tests, validator)
 - [ ] Step 5: `code-review-specialist` executed — findings triaged and logged in Completion Log
 - [ ] Step 5: `qa-engineer` executed — QA battery dev re-run confirms all 11 addressable queries OK on Cat 29; delta documented
@@ -888,6 +888,12 @@ Block 2 — CSV batch invariants (F-H9-AC-12-CSV, ~6 cases):
 | 2026-04-27 | Step 2 — /review-plan R1 | Gemini APPROVED. Codex REVISE — 2 IMPORTANT (rollback SQL not allocated to phase + cascade order; CSV invariants untested for new batch). All addressed in R2. |
 | 2026-04-27 | Step 2 — /review-plan R2 | Codex REVISE — 1 IMPORTANT (rollback Step 1 dish_id UUID family mismatch — used 0008 nutrientIds in WHERE dish_id; would match 0 rows and Step 3 fails with onDelete: Restrict) + 1 SUGGESTION (snacks/huevos categories don't exist). All addressed in R3. |
 | 2026-04-27 | Step 2 — /review-plan R3 | Codex APPROVED. Plan ready for implementation. |
+| 2026-04-27 | Step 3 — Phase 1 verification | Pre-flight grep checks passed: all 10 dishes confirmed absent from catalog; CE-094 Migas has `"migas extremeñas"` only; CE-151 bocadillo alias pattern confirmed; JSON count=307; CSV tail at CE-307 (`...000000000133`). No blockers. |
+| 2026-04-27 | Step 3 — Batch A commit `6093081` | CE-308..CE-312 appended to JSON + alias `"migas con huevo"` on CE-094 + 12 portion rows in CSV. JSON count: 312. Uniqueness test: 10/10 PASS. |
+| 2026-04-27 | Step 3 — Batch B commit `af03415` | CE-313..CE-315 appended (bocadillo/arroz/empanadilla) + 10 portion rows (CE-315 uses pieces/pieceName). JSON count: 315. Uniqueness test: 10/10 PASS. |
+| 2026-04-27 | Step 3 — Batch C commit `cd0f977` | CE-316..CE-317 appended (tortilla francesa/brownie) + 6 portion rows (CE-317 racion uses pieces=1 pieceName=brownie). JSON count: 317. Uniqueness test: 10/10 PASS. |
+| 2026-04-27 | Step 3 — Phase 3 commit `961e4c6` | `fH9.cat29.unit.test.ts` created — 11 level1Lookup cases + 5 CSV invariants = 16 tests, all GREEN immediately. |
+| 2026-04-27 | Step 3 — Phase 4 commit `25c1bfa` | 307→317 in f073 (6 locations), f114 (5 locations), fH6 (5 locations + H6-EC-11 structural fix `slice(-28)`→`slice(-38,-10)`); key_facts.md L95 updated. Full suite: 224 test files, 4110 tests GREEN. Lint clean. Build clean. |
 
 <!-- After code review, add a row documenting which findings were accepted/rejected:
 | YYYY-MM-DD | Review findings | Accepted: C1-C3, H1-H2. Rejected: M5 (reason). Systemic: C4 logged in bugs.md |
