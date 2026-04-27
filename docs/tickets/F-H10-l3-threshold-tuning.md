@@ -1,7 +1,7 @@
 # F-H10: L3 Similarity Threshold / Lexical Guard for Q649 False Positive
 
 **Feature:** F-H10 | **Type:** Backend-Feature (NLP/Search) | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F-H10-l3-threshold-tuning
+**Status:** Done | **Branch:** feature/F-H10-l3-threshold-tuning
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-27 | **Dependencies:** F-H6, F-H7, F-H8, F-H9 (all DONE)
 
@@ -647,7 +647,7 @@ npm run build --workspace=@foodxplorer/api
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5a: `code-review-specialist` executed
 - [x] Step 5b: `qa-engineer` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted, ADR-024 committed
+- [x] Step 6: Ticket updated with final metrics, branch deleted, ADR-024 committed
 
 ---
 
@@ -664,6 +664,8 @@ npm run build --workspace=@foodxplorer/api
 | 2026-04-27 | Step 4 — production-code-validator | APPROVE 98% confidence. Zero issues. Commits 0e744d4/75cb1cb/9910c55 verified. Q649 math confirmed (1/5=0.20 < 0.25 → reject). Cascade semantics correct. |
 | 2026-04-27 | Step 5a — code-review-specialist | APPROVE. 6 NIT-level suggestions (NFD regex Unicode-property form, boundary test naming, asymmetric exports, normalize() reuse hint, f022 query rationale, mock pattern). Zero CRITICAL/IMPORTANT. |
 | 2026-04-27 | Step 5b — qa-engineer | QA VERIFIED. All 14 ACs pass. +18 adversarial tests in `fH10.l3LexicalGuard.edge-cases.test.ts` (4133 → 4151). 1 minor finding: spec L137 arithmetic typo (1/4 → 1/3 — code correct, fixed in `96f5790`). |
+| 2026-04-27 | Step 5 — /audit-merge | 11/11 structural PASS + drift CLEAN. Verdict: READY FOR MERGE. |
+| 2026-04-27 | Step 6 — Squash merge | PR #222 squash-merged to develop at `ffd2ece` 2026-04-27. Branch deleted local + remote. Operator action pending: api-dev manual deploy + re-run QA battery dev to confirm Q649 no longer false-positives. |
 
 <!-- After code review, add a row documenting which findings were accepted/rejected:
 | YYYY-MM-DD | Review findings | Accepted: C1-C3, H1-H2. Rejected: M5 (reason). Systemic: C4 logged in bugs.md |
