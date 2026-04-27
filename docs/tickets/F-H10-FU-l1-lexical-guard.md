@@ -1,7 +1,7 @@
 # F-H10-FU: L1 Lexical Guard Extension — Q649 False Positive Mitigation at FTS Layer
 
 **Feature:** F-H10-FU | **Type:** Backend-Feature (NLP/Search) | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F-H10-FU-l1-lexical-guard
+**Status:** Ready for Merge | **Branch:** feature/F-H10-FU-l1-lexical-guard
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-27 | **Dependencies:** F-H10 (done — exports `applyLexicalGuard`, `computeTokenJaccard`, `LEXICAL_GUARD_MIN_OVERLAP`. `SPANISH_STOP_WORDS` is module-private inside `level3Lookup.ts` and intentionally NOT exported.)
 
@@ -37,7 +37,7 @@ When the guard rejects an FTS hit, the cascade falls through to the next strateg
 - Production source file: `packages/api/src/estimation/level1Lookup.ts` (guard insertion + small `passesGuardEither` helper)
 - New test files:
   - `packages/api/src/__tests__/fH10FU.l1LexicalGuard.unit.test.ts` — single-pass scoped unit tests + dual-name helper unit tests (REAL `level1Lookup`, mocked DB)
-  - `packages/api/src/__tests__/fH10FU.q649.integration.test.ts` — two-pass cascade integration test for the Q649 fixture (mock DB) per `bugs.md` 2026-04-27 entry
+  - `packages/api/src/__tests__/fH10FU.q649.unit.test.ts` — two-pass cascade integration test for the Q649 fixture (mock DB) per `bugs.md` 2026-04-27 entry
   - `packages/api/src/__tests__/fH10FU.h7SeamRegression.unit.test.ts` — H7-P5 seam regression tests (Path A + Path B per AC9) — MOCKED `level1Lookup` via `vi.mock` + `vi.hoisted`. Separate file from the L1 cascade tests to avoid module-mock hoisting conflict.
 - QA tooling: minor extension to `packages/api/scripts/qa-exhaustive.sh` adding optional `matchType` emission so AC3 (pre-flight Jaccard analysis) is mechanically reproducible. Backwards-compatible (existing OK/NULL/FAIL counters preserved).
 - ADR-024 addendum documenting the L1 extension (preferred over a new ADR-025 because the threshold + helper set is the same decision; planner agent confirms at Step 2)
@@ -258,7 +258,7 @@ N/A. Backend engine change only.
 | Path | Purpose |
 |---|---|
 | `packages/api/src/__tests__/fH10FU.l1LexicalGuard.unit.test.ts` | Phases 2–5: pure helper unit tests for `passesGuardEither` (AC8), single-pass cascade integration tests (AC7), and single-token boundary tests (AC10). All `level1Lookup` invocations use `chainSlug` to force single-pass. **Imports REAL `level1Lookup`**, mocks Kysely DB. |
-| `packages/api/src/__tests__/fH10FU.q649.integration.test.ts` | Phase 6: two-pass cascade integration test exercising BUG-PROD-012 unscoped path (no `chainSlug`/`restaurantId`/`hasExplicitBrand`). Validates both passes apply guard independently and Q649 returns null end-to-end (AC2). **Imports REAL `level1Lookup`**, mocks Kysely DB. |
+| `packages/api/src/__tests__/fH10FU.q649.unit.test.ts` | Phase 6: two-pass cascade integration test exercising BUG-PROD-012 unscoped path (no `chainSlug`/`restaurantId`/`hasExplicitBrand`). Validates both passes apply guard independently and Q649 returns null end-to-end (AC2). **Imports REAL `level1Lookup`**, mocks Kysely DB. |
 | `packages/api/src/__tests__/fH10FU.h7SeamRegression.unit.test.ts` | Phase 7: H7-P5 seam regression tests (AC9 Path A + Path B). **Imports REAL `runEstimationCascade`** from `engineRouter.ts`; **MOCKS `level1Lookup`** via `vi.hoisted` + `vi.mock('../estimation/level1Lookup.js', ...)` (pattern from `f023.engineRouter.unit.test.ts:15-22`). Separate from L1 file to avoid hoisting conflict. |
 | `docs/project_notes/F-H10-FU-jaccard-preflight.md` | Phase 1 artifact: markdown table (`q \| matchType \| name_es \| name \| jaccard_es \| jaccard_en \| max \| gate_pass \| reviewer_judgment`) confirming all legitimate FTS hits pass the OR-semantics gate. Committed before Phase 5 guard wiring. |
 
@@ -516,7 +516,7 @@ The sequence enforces TDD (RED before GREEN) and the AC4 pre-flight constraint (
 
 **Phase 6 — Two-pass integration test for Q649 (AC2)**
 
-- File to create: `packages/api/src/__tests__/fH10FU.q649.integration.test.ts`
+- File to create: `packages/api/src/__tests__/fH10FU.q649.unit.test.ts`
 - Uses `buildMockDb()` + `mockExecuteQuery` (same pattern).
 - NO `chainSlug`, NO `restaurantId`, NO `hasExplicitBrand` → triggers BUG-PROD-012 two-pass path.
 - Two-pass mock sequence (8 total DB calls — 4 per pass):
@@ -547,7 +547,7 @@ The sequence enforces TDD (RED before GREEN) and the AC4 pre-flight constraint (
   ```
 
 - Note: Tests likely already GREEN after Phase 5. Write them for empirical assurance and AC2 evidence.
-- Verification: `npx vitest run --reporter=verbose fH10FU.q649.integration` — GREEN.
+- Verification: `npx vitest run --reporter=verbose fH10FU.q649.unit` — GREEN. (File originally named `*.integration.test.ts`; renamed to `*.unit.test.ts` per qa-engineer follow-up — uses only mocked DB and belongs in the unit suite that runs under `npm test`.)
 
 **Phase 7 — RED: H7-P5 retry seam regression tests (AC9)**
 
@@ -633,7 +633,7 @@ npm run build --workspace=@foodxplorer/api
 | File | Test count (estimate) | ACs covered | Mock strategy |
 |---|---|---|---|
 | `fH10FU.l1LexicalGuard.unit.test.ts` | ~12–15 tests | AC7, AC8, AC10 | REAL `level1Lookup` import + Kysely DB mocked (`buildMockDb()`). No engineRouter. |
-| `fH10FU.q649.integration.test.ts` | ~3–5 tests | AC2 | REAL `level1Lookup` import + Kysely DB mocked. Two-pass scenario. |
+| `fH10FU.q649.unit.test.ts` | ~3–5 tests | AC2 | REAL `level1Lookup` import + Kysely DB mocked. Two-pass scenario. |
 | `fH10FU.h7SeamRegression.unit.test.ts` | ~4–6 tests | AC9 (Path A + Path B) | MOCKED `level1Lookup` via `vi.hoisted` + `vi.mock('../estimation/level1Lookup.js', ...)`. Tests `runEstimationCascade` from `engineRouter.ts`. **MUST be a separate file from `fH10FU.l1LexicalGuard.unit.test.ts`** — mixing real and hoisted-mocked imports of the same module in one file creates a Vitest hoisting conflict. |
 
 **Test structure in `fH10FU.l1LexicalGuard.unit.test.ts`** (REAL level1Lookup, mocked DB):
@@ -678,7 +678,7 @@ describe('H7-P5 seam regression — guard-induced null interaction')  (AC9)
               → cascade falls through to L2; mockLevel1Lookup called exactly 2 times
 ```
 
-**Test structure in `fH10FU.q649.integration.test.ts`:**
+**Test structure in `fH10FU.q649.unit.test.ts`:**
 
 ```
 describe('Q649 two-pass cascade (BUG-PROD-012, unscoped)')  (AC2)
@@ -689,7 +689,7 @@ describe('Q649 two-pass cascade (BUG-PROD-012, unscoped)')  (AC2)
 
 **Mocking strategy:**
 
-- `fH10FU.l1LexicalGuard.unit.test.ts` and `fH10FU.q649.integration.test.ts`: `buildMockDb()` + `mockExecuteQuery` via `vi.hoisted` — identical to `f020.level1Lookup.unit.test.ts:80-100`. No real DB, no HTTP. **Imports REAL `level1Lookup`**.
+- `fH10FU.l1LexicalGuard.unit.test.ts` and `fH10FU.q649.unit.test.ts`: `buildMockDb()` + `mockExecuteQuery` via `vi.hoisted` — identical to `f020.level1Lookup.unit.test.ts:80-100`. No real DB, no HTTP. **Imports REAL `level1Lookup`**.
 - `fH10FU.h7SeamRegression.unit.test.ts`: `vi.mock('../estimation/level1Lookup.js')` via `vi.hoisted` — identical pattern to `f023.engineRouter.unit.test.ts:15-22` and `f072.engineRouter.unit.test.ts:19+`. Also mock `level2Lookup`, `level3Lookup`, `level4Lookup`, `applyYield`. **Imports REAL `runEstimationCascade` from `engineRouter.ts`**.
 - The two file-types CANNOT coexist in one file: `vi.mock` is hoisted, so importing the real `level1Lookup` and a mocked `level1Lookup` in the same module is impossible without `vi.importActual` indirection (which the plan does not use). Separate files = separate hoist contexts = no conflict.
 - No new mock utilities — self-contained per file.
@@ -704,7 +704,7 @@ describe('Q649 two-pass cascade (BUG-PROD-012, unscoped)')  (AC2)
 
 - **`vi.hoisted` for mock setup** — reference: `packages/api/src/__tests__/f020.level1Lookup.unit.test.ts:80-100` and `packages/api/src/__tests__/fH10.l3LexicalGuard.unit.test.ts:17-43`. Required because `vi.mock` calls are hoisted before module imports.
 - **`mockResolvedValueOnce` call ordering** — calls are consumed in the order Kysely makes them. For Strategy 2 guard-reject: Strategy 1 call is consumed first (returns `{ rows: [] }`), then Strategy 2 call returns the FTS hit, then Strategy 3 and 4 calls return `{ rows: [] }`. Get the call count right — the test's `toHaveBeenCalledTimes` assertion is the evidence.
-- **BUG-PROD-012 two-pass** — ONLY triggers when `chainSlug === undefined && restaurantId === undefined && hasExplicitBrand !== true`. Always set `chainSlug: 'some-chain'` in single-pass tests. The `fH10FU.q649.integration.test.ts` tests must omit all three to exercise the two-pass path.
+- **BUG-PROD-012 two-pass** — ONLY triggers when `chainSlug === undefined && restaurantId === undefined && hasExplicitBrand !== true`. Always set `chainSlug: 'some-chain'` in single-pass tests. The `fH10FU.q649.unit.test.ts` tests must omit all three to exercise the two-pass path.
 - **`dish_name_es` is `string | null`** — in `DishQueryRow` (`types.ts`). `food_name_es` is `string | null`. `passesGuardEither` must accept `nameEs: string | null | undefined`.
 - **No `any` types** — all fixture row objects must conform to `DishQueryRow` / `FoodQueryRow`. Use `as DishQueryRow` cast if strict type checking requires it (same pattern as f020 tests: `db = buildMockDb() as never`).
 - **Fixture UUIDs** — use namespace `fd000000-fu10-4000-a000-000000000XXX` for F-H10-FU fixtures to isolate from F-H10 fixtures (`fd000000-fh10-*`).
@@ -717,7 +717,7 @@ describe('Q649 two-pass cascade (BUG-PROD-012, unscoped)')  (AC2)
 
 ### Fixture Reference
 
-Fixtures for `fH10FU.l1LexicalGuard.unit.test.ts` and `fH10FU.q649.integration.test.ts`. Shape must match `DishQueryRow` / `FoodQueryRow` from `packages/api/src/estimation/types.ts`. Verify exact field list against the live type before coding.
+Fixtures for `fH10FU.l1LexicalGuard.unit.test.ts` and `fH10FU.q649.unit.test.ts`. Shape must match `DishQueryRow` / `FoodQueryRow` from `packages/api/src/estimation/types.ts`. Verify exact field list against the live type before coding.
 
 **CROISSANT_DISH_ROW** (Q649 false positive, Tier 0, Starbucks):
 ```
@@ -852,7 +852,7 @@ The following empirical reads and commands were executed by the planner agent to
 - [x] AC1: `level1Lookup` (called with `chainSlug` set to force single-pass `runCascade`) returns `null` for query `queso fresco con membrillo` when the DB is mocked to return a single FTS dish hit with `dish_name_es: 'CROISSANT CON QUESO FRESC'` and `dish_name` (English variant). `passesGuardEither` evaluates BOTH sides; both fall below 0.25; both rejected → result null. Assert mock DB called ≥2 times (FTS dish query + at least one subsequent strategy attempt within the same pass).
 
 **Q649 fix — two-pass unscoped integration test**
-- [ ] AC2: New file `packages/api/src/__tests__/fH10FU.q649.integration.test.ts` exists. Mocks `level1Lookup` invocation **without** `chainSlug`/`restaurantId`/`hasExplicitBrand`, exercising BUG-PROD-012's two-pass flow. Both passes (minTier≥1 first, unfiltered fallthrough) apply the guard. Tier≥1 pass returns null (no Tier≥1 candidate). Unfiltered pass returns CROISSANT from FTS dish, guard rejects, cascade continues, all subsequent strategies miss → null. Final return: null. *(File exists and passes; operator post-deploy verification deferred to Step 6)*
+- [ ] AC2: New file `packages/api/src/__tests__/fH10FU.q649.unit.test.ts` exists. Mocks `level1Lookup` invocation **without** `chainSlug`/`restaurantId`/`hasExplicitBrand`, exercising BUG-PROD-012's two-pass flow. Both passes (minTier≥1 first, unfiltered fallthrough) apply the guard. Tier≥1 pass returns null (no Tier≥1 candidate). Unfiltered pass returns CROISSANT from FTS dish, guard rejects, cascade continues, all subsequent strategies miss → null. Final return: null. *(File exists and passes; operator post-deploy verification deferred to Step 6)*
 
 **Empirical post-deploy verification (operator action)**
 - [ ] AC3: After api-dev deploy, re-run QA battery dev (`qa-exhaustive.sh`). Q649 line (`después de la siesta piqué queso fresco con membrillo`) must show `NULL result` (or a correct non-CROISSANT entity). Evidence (battery file path + line + commit SHA of deploy) recorded in Completion Log. Marked done at Step 6 housekeeping (post-merge operator action).
@@ -885,7 +885,7 @@ The following empirical reads and commands were executed by the planner agent to
 - [x] AC12: `docs/project_notes/key_facts.md` line 167 updated to note lexical guard at L1 FTS Strategies 2 and 4 with dual-name OR semantics, referencing ADR-024 addendum.
 
 **All tests pass, build clean**
-- [x] AC13: Full API test suite passes (`npm test --workspace=@foodxplorer/api`) — 4166 tests. Lint clean. Build succeeds.
+- [x] AC13: Full API test suite passes (`npm test --workspace=@foodxplorer/api`) — 4189 tests (4166 → 4189 = +23 net: q649 unit reclassification +3 brought into default suite + qa-engineer edge-cases file +20). Lint clean. Build succeeds.
 
 ---
 
@@ -893,7 +893,7 @@ The following empirical reads and commands were executed by the planner agent to
 
 - [ ] All 13 acceptance criteria met (AC1-AC13)
 - [ ] Unit tests written and passing (`fH10FU.l1LexicalGuard.unit.test.ts`)
-- [ ] Integration test written and passing (`fH10FU.q649.integration.test.ts`)
+- [ ] Integration test written and passing (`fH10FU.q649.unit.test.ts`)
 - [ ] H7-P5 retry seam regression test included
 - [ ] Code follows project standards (no `any`, English-only identifiers, TDD)
 - [ ] No linting errors
@@ -913,8 +913,8 @@ The following empirical reads and commands were executed by the planner agent to
 - [x] Step 2: `backend-planner` executed, plan approved
 - [x] Step 3: `backend-developer` executed with TDD
 - [x] Step 4: `production-code-validator` executed (Anthropic rate-limited mid-validation; orchestrator manually ran quality gates + verified key concerns — APPROVE WITH NOTES ~95%), quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard)
+- [x] Step 5: `code-review-specialist` executed (APPROVE — 5 LOW/NIT non-blocking suggestions)
+- [x] Step 5: `qa-engineer` executed (PASS WITH FOLLOW-UPS — 1 required fix applied: q649 file rename + 20 new edge-case tests added)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -937,11 +937,15 @@ The following empirical reads and commands were executed by the planner agent to
 | 2026-04-27 | Step 3: Phase 0 | Extended `qa-exhaustive.sh` Python parser to emit `mt={matchType}`, `nameEs="..."`, `nameEn="..."` in OK lines. Backwards-compatible (OK/NULL/FAIL counters unchanged). Commit `f41bd13`. |
 | 2026-04-27 | Step 3: Phase 1 — DEFERRED | Pre-flight artifact placeholder created at `docs/project_notes/F-H10-FU-jaccard-preflight.md`. Operator checklist with exact commands. AC4 deferred to post-implementation operator action. Commit `c4049b7`. |
 | 2026-04-27 | Step 3: Phases 2-5 | RED: 12 tests in `fH10FU.l1LexicalGuard.unit.test.ts` (AC7, AC8, AC10). GREEN: `passesGuardEither` private helper added to `level1Lookup.ts` importing `applyLexicalGuard` from `level3Lookup.ts`. Wired into Strategy 2 and Strategy 4 of `runCascade()`. Also fixed f020 S2 test query to have lexical overlap with MOCK_DISH_ROW (guard now correctly requires token overlap). All 12 tests GREEN. Commit `215cfff`. |
-| 2026-04-27 | Step 3: Phase 6 | 3 tests in `fH10FU.q649.integration.test.ts` (AC2). Two-pass path (no chainSlug): Pass 1 all miss (CROISSANT excluded), Pass 2 CROISSANT rejected (Jaccard=0.20), 8 DB calls total. Commit `3602fcc`. |
+| 2026-04-27 | Step 3: Phase 6 | 3 tests in `fH10FU.q649.unit.test.ts` (AC2). Two-pass path (no chainSlug): Pass 1 all miss (CROISSANT excluded), Pass 2 CROISSANT rejected (Jaccard=0.20), 8 DB calls total. Commit `3602fcc`. |
 | 2026-04-27 | Step 3: Phase 7 | 3 tests in `fH10FU.h7SeamRegression.unit.test.ts` (AC9). Path A: 'croquetas de jamon' non-strippable → seam does NOT fire. Path B: 'el pollo al ajillo está muy guisado?' strippable → seam fires, retry succeeds OR null propagates without loop. Commit `2801030`. |
 | 2026-04-27 | Step 3: Phase 9 | ADR-024 addendum appended to `decisions.md`. `key_facts.md` level1Lookup bullet updated with passesGuardEither dual-name OR semantics. Commit `3336eca`. |
 | 2026-04-27 | Step 3: Phase 10 — Final gates | Full suite: 4166 tests passed (228 test files). Lint clean. Build clean. Unused `misses()` helper removed from test file (lint fix). AC1-AC13 marked: 10/13 done, AC2/AC3/AC4 deferred to operator post-deploy action. Workflow Step 3 marked [x]. |
 | 2026-04-28 | Step 4: `production-code-validator` (rate-limited) | Anthropic API rate-limit hit mid-validation (29 tool uses, no verdict produced). Orchestrator ran quality gates manually as definitive verification: 4166/4166 tests ✓, lint clean ✓, build clean ✓. Verified key concerns via grep: `applyLexicalGuard` 1 def in `level3Lookup.ts:99`, `passesGuardEither` private (no export), no `any` in `level1Lookup.ts`, f020 fixture change is legitimate (lexical overlap). Manual verdict: APPROVE WITH NOTES ~95% confidence. Workflow Step 4 marked [x]. Note: at L5 commit-approval auto. Step 5 (PR + reviews) ready. |
+| 2026-04-28 | Step 5: PR #225 created | Branch pushed to origin; PR #225 opened against `develop` with full summary, test plan, cross-model review trail, and risks. Merge-base verified UP TO DATE with origin/develop. |
+| 2026-04-28 | Step 5: `code-review-specialist` | APPROVE. 5 LOW/NIT suggestions (S1-S5) all non-blocking: f020 query polish, stop-word edge case explicit test (filled by qa-engineer), helper non-export rationale (intentional per ADR), pre-flight deferral note (already documented), comment polish at level1Lookup.ts:553. Code reuse correct: `applyLexicalGuard` 1 def in `level3Lookup.ts`, `passesGuardEither` private 5-line composer. Bilingual OR semantics implemented correctly. H7-P5 seam coverage standout. |
+| 2026-04-28 | Step 5: `qa-engineer` | PASS WITH FOLLOW-UPS. Per-AC compliance: AC1-AC13 all covered (AC2/AC3/AC4 operator-deferred per design). 1 BUG found and FIXED inline: `fH10FU.q649.integration.test.ts` was misclassified — `*.integration.test.ts` files are excluded from `npm test` via vitest.config.ts. File uses mocked DB only, so renamed to `fH10FU.q649.unit.test.ts`. Reference updates in ticket plan, bugs.md, product-tracker.md, l1LexicalGuard test header. Also added new `fH10FU.l1LexicalGuard.edge-cases.test.ts` with 20 adversarial tests covering: stop-word-only queries, NFD diacritic normalization, very long inputs, empty `name_es` falsy branch, AC8(c) both-pass case, exact 0.25 boundary, just-below-0.25 rejection, Tier=0 hasExplicitBrand, S2-reject→S3-exact-hit, empty `food_name_es` English fallback. Final test count: 4166 → 4189 (+23). |
+| 2026-04-28 | Step 5: Quality gates re-verified | Post-fix: 4189/4189 tests ✓ (230 files, was 228), lint clean, build clean. Workflow Step 5 marked [x]. |
 
 ---
 

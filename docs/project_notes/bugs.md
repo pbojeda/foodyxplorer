@@ -25,7 +25,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Resolution plan**: Standard SDD ticket F-H10-FU.
   - **Single file change**: `packages/api/src/estimation/level1Lookup.ts` — wire `applyLexicalGuard(query, hit.nameEs ?? hit.name)` after FTS hit, before returning result. If guard rejects, fall through to L2 (existing cascade behavior).
   - **Reuse**: import `applyLexicalGuard` from `level3Lookup.ts` (already exported as part of F-H10).
-  - **Tests**: new `fH10FU.l1LexicalGuard.unit.test.ts` mirroring the F-H10 test pattern; integration test `fH10FU.q649.integration.test.ts` for the empirical Q649 fixture.
+  - **Tests**: new `fH10FU.l1LexicalGuard.unit.test.ts` mirroring the F-H10 test pattern; integration test `fH10FU.q649.unit.test.ts` for the empirical Q649 fixture.
   - **Risk**: must verify the guard at L1 doesn't reject legitimate FTS matches. Pre-flight: enumerate all current L1 hits in QA battery (pre-F-H10-FU) and compute their Jaccard scores; threshold should remain 0.25 (consistent with F-H10) unless empirical data shows otherwise.
   - Estimated effort: ~3h (Standard, full cross-model spec/plan review per workflow).
 - **Tracked**: F-H10-FU follow-up (Standard). Empirical evidence: `/tmp/qa-dev-post-fH9-fH10-20260427-1654.txt:649`. Code reuse: 100% from F-H10.

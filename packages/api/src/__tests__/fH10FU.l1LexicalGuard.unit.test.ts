@@ -4,7 +4,7 @@
 // runCascade (AC7, AC10) via the real level1Lookup with a mocked Kysely DB.
 //
 // All invocations set chainSlug to force single-pass behaviour (bypassing
-// BUG-PROD-012 two-pass path). For two-pass coverage see fH10FU.q649.integration.test.ts.
+// BUG-PROD-012 two-pass path). For two-pass coverage see fH10FU.q649.unit.test.ts.
 //
 // Mocking approach mirrors f020.level1Lookup.unit.test.ts:80-100.
 
