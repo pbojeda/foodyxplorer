@@ -335,17 +335,22 @@ export async function level3Lookup(
         // Fetch nutrients for the matched dish
         const nutrientRow = await fetchDishNutrients(db, dishRow.dish_id);
         if (nutrientRow !== undefined) {
-          const result = mapDishRowToResult(nutrientRow);
-          // Override confidence and method — extrapolation from similar entity
-          result.confidenceLevel = 'low';
-          result.estimationMethod = 'extrapolation';
-          result.similarityDistance = distance;
-          return {
-            matchType: 'similarity_dish',
-            result,
-            similarityDistance: distance,
-            rawFoodGroup: null,
-          };
+          // ADR-024: apply lexical guard — reject if token overlap < LEXICAL_GUARD_MIN_OVERLAP
+          const candidateName = nutrientRow.dish_name_es ?? nutrientRow.dish_name;
+          if (applyLexicalGuard(query, candidateName)) {
+            const result = mapDishRowToResult(nutrientRow);
+            // Override confidence and method — extrapolation from similar entity
+            result.confidenceLevel = 'low';
+            result.estimationMethod = 'extrapolation';
+            result.similarityDistance = distance;
+            return {
+              matchType: 'similarity_dish',
+              result,
+              similarityDistance: distance,
+              rawFoodGroup: null,
+            };
+          }
+          // Lexical guard rejected — fall through to food strategy
         }
         // Dish match found but no nutrient row — fall through to food strategy
       }
@@ -359,6 +364,13 @@ export async function level3Lookup(
         // Fetch nutrients for the matched food
         const nutrientRow = await fetchFoodNutrients(db, foodRow.food_id);
         if (nutrientRow !== undefined) {
+          // ADR-024: apply lexical guard — reject if token overlap < LEXICAL_GUARD_MIN_OVERLAP
+          // food_name_es is typed string | null (conservative artefact); fallback to food_name always present
+          const candidateName = nutrientRow.food_name_es ?? nutrientRow.food_name;
+          if (!applyLexicalGuard(query, candidateName)) {
+            // Both strategies rejected — return null (total miss)
+            return null;
+          }
           const result = mapFoodRowToResult(nutrientRow);
           // Override confidence and method — extrapolation from similar entity
           result.confidenceLevel = 'low';
