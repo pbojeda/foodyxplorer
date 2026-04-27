@@ -681,3 +681,28 @@ Cross-model consensus: both Codex and Gemini independently recommended Option C 
 - (+) Raw `query` field always echoes the user's original text — no downstream surprise for callers reading `data.query`.
 - (-) One additional L1 DB query on every L1-miss. For queries that ultimately resolve via L2/L3/L4, this adds one extra round-trip. Acceptable for the target user population; L1 queries are indexed and fast.
 - The Cat C ≥2 pre-con token guard is essential: it prevents `arroz con leche` (1 pre-con token: "arroz") from being stripped to `arroz`, and generally protects single-word-dish `con` compounds that are catalog entries.
+
+---
+
+### ADR-024: Lexical Token-Overlap Guard for L3 Similarity Extrapolation (2026-04-27)
+
+**Date:** 2026-04-27
+**Status:** Accepted
+**Context:** L3 similarity extrapolation (pgvector cosine distance) produces false positives when two entity names share a high-weight token but refer to fundamentally different things. Canonical case Q649 (QA 2026-04-27): query `queso fresco con membrillo` matched `CROISSANT CON QUESO FRESC` (distance 0.18 < 0.5 threshold) because the embedding model assigns high proximity to the shared token "queso/fresc". See Spec section of ticket `F-H10-l3-threshold-tuning.md`.
+
+**Decision:** Add a **post-retrieval lexical guard** to `level3Lookup.ts`. After `fetchDishNutrients()` / `fetchFoodNutrients()` returns, compute the word-level Jaccard overlap between the normalized query and the candidate name. If `jaccard < LEXICAL_GUARD_MIN_OVERLAP (0.25)`, the candidate is rejected. Strategy 1 (dish) rejection falls through to Strategy 2 (food); Strategy 2 rejection returns `null`. The guard is a pure deterministic function `computeTokenJaccard(a, b)` operating on lowercase, punctuation-stripped, Spanish-stop-word-removed token sets.
+
+Threshold derivation: Q649 case produces Jaccard = 1/5 = 0.20 (single token "queso" shared across 5-token union). Setting threshold to 0.25 ensures this case is rejected (0.20 < 0.25) while 2-token overlaps on short queries (e.g. "tortilla" in "tortilla española" vs "tortilla de patatas", Jaccard ≈ 0.33) pass.
+
+**Alternatives Considered:**
+- **Strategy A (lower global cosine threshold):** Blind calibration without empirical distance distribution data. High regression risk on legitimate L3 hits.
+- **Strategy C (threshold tightening when overlap is low):** Two interacting parameters. Higher complexity for same outcome.
+- **Strategy D (chain-scoped guard):** Does not generalize to food strategy mismatches.
+
+**Consequences:**
+- (+) Additive and orthogonal to the cosine distance threshold — no existing behavior changed for legitimate hits.
+- (+) Single constant `LEXICAL_GUARD_MIN_OVERLAP` is tunable.
+- (+) Pure function with comprehensive unit tests; no DB interaction.
+- (+) ADR-001 compliance verified: guard is lexical matching (deterministic), not LLM-based nutrient interpretation.
+- (-) Spanish stop-word list is small and domain-specific; defined inline in `level3Lookup.ts`. Future features needing shared stop-word removal should refactor to a shared module.
+- (-) Jaccard operates on exact token strings (no stemming). "fresco" ≠ "fresc" (Catalan apocope) — this is acceptable since the overlap threshold is already calibrated to handle partial matches.
