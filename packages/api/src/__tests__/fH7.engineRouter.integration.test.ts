@@ -55,6 +55,9 @@ const H7_DISH_TACOS   = 'f7000000-00f7-4000-a000-000000000040'; // tacos al past
 const H7_DN_TACOS     = 'f7000000-00f7-4000-a000-000000000041';
 const H7_DISH_TATAKI  = 'f7000000-00f7-4000-a000-000000000050'; // tataki de atún (CE-304)
 const H7_DN_TATAKI    = 'f7000000-00f7-4000-a000-000000000051';
+// F-H8 Cat D fixture — Pollo al ajillo (CE-077 equivalent)
+const H8_DISH_POLLO   = 'f7000000-00f7-4000-a000-000000000060';
+const H8_DN_POLLO     = 'f7000000-00f7-4000-a000-000000000061';
 
 const BASE_NUTRIENTS = {
   calories: 200, proteins: 8, carbohydrates: 15, sugars: 2,
@@ -68,7 +71,7 @@ const BASE_NUTRIENTS = {
 // ---------------------------------------------------------------------------
 
 async function cleanFixtures(): Promise<void> {
-  const dishIds = [H7_DISH_GAZP, H7_DISH_BACALAO, H7_DISH_PAN, H7_DISH_TACOS, H7_DISH_TATAKI];
+  const dishIds = [H7_DISH_GAZP, H7_DISH_BACALAO, H7_DISH_PAN, H7_DISH_TACOS, H7_DISH_TATAKI, H8_DISH_POLLO];
   await prisma.dishNutrient.deleteMany({ where: { dishId: { in: dishIds } } });
   await prisma.dish.deleteMany({ where: { id: { in: dishIds } } });
   await prisma.restaurant.deleteMany({ where: { id: H7_REST_ID } });
@@ -129,6 +132,12 @@ beforeAll(async () => {
   // tataki de atún — CE-304 equivalent (Cat C strip target: "con sésamo")
   await prisma.dish.create({ data: makeDish(H7_DISH_TATAKI, 'tataki de atún', ['tataki de atún rojo'], 200) });
   await prisma.dishNutrient.create({ data: makeDN(H7_DN_TATAKI, H7_DISH_TATAKI) });
+
+  // F-H8 Cat D fixture — pollo al ajillo (CE-077 equivalent)
+  // Used by Cat D state-inquiry strip test ("pollo al ajillo está muy guisado?") +
+  // Cat D landmine protection test ("pollo al ajillo" alone → L1 Pass 1).
+  await prisma.dish.create({ data: makeDish(H8_DISH_POLLO, 'pollo al ajillo', [], 250) });
+  await prisma.dishNutrient.create({ data: makeDN(H8_DN_POLLO, H8_DISH_POLLO) });
 });
 
 afterAll(async () => {
@@ -202,6 +211,54 @@ describe('H7-P5 retry seam — runEstimationCascade() end-to-end', () => {
     expect(result.data.level1Hit).toBe(true);
     // Raw query echoed
     expect(result.data.query).toBe('tacos al pastor con cilantro y piña');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F-H8 Cat D — end-to-end via H7-P5 retry seam (closes F-H8 AC-4 + AC-5 gap).
+// Verifies that Cat D dietary/state inquiry strip (added by F-H8) integrates
+// with the existing retry-seam architecture without breaking landmine protection.
+// ---------------------------------------------------------------------------
+
+describe('F-H8 Cat D retry seam — runEstimationCascade() end-to-end', () => {
+  it('AC-4: "pollo al ajillo está muy guisado?" → Cat D strips state inquiry → L1 retry hit', async () => {
+    // L1 Pass 1: "pollo al ajillo está muy guisado?" → NULL (full text not in catalog)
+    // applyH7TrailingStrip: Cat A/B/C miss; Cat D matches " está muy guisado?" → strips
+    // Result: "pollo al ajillo" → L1 retry hits the fixture dish.
+    const result = await runEstimationCascade({
+      db,
+      query: 'pollo al ajillo está muy guisado?',
+      prisma,
+    });
+    expect(result.levelHit).toBe(1);
+    expect(result.data.level1Hit).toBe(true);
+    // Echo-raw invariant: query field reflects the user input, not the stripped form.
+    expect(result.data.query).toBe('pollo al ajillo está muy guisado?');
+  });
+
+  it('AC-5: "pollo al ajillo" baseline hits L1 Pass 1 — Cat D never fires (landmine protection)', async () => {
+    // "pollo al ajillo" is the catalog dish itself. L1 Pass 1 must hit before the
+    // retry seam is reached — proves Cat D is a no-op on catalog landmines and
+    // depends on the retry-seam architecture (ADR-023) for safety.
+    const debugCalls: Array<Record<string, unknown>> = [];
+    const mockLogger = {
+      debug: (obj: Record<string, unknown>) => { debugCalls.push(obj); },
+      info: () => {},
+      warn: () => {},
+      error: () => {},
+    };
+
+    const result = await runEstimationCascade({
+      db,
+      query: 'pollo al ajillo',
+      prisma,
+      logger: mockLogger,
+    });
+    expect(result.levelHit).toBe(1);
+    expect(result.data.level1Hit).toBe(true);
+    // Retry seam must NOT have fired (no H7-P5 debug call).
+    const h7Triggered = debugCalls.some(c => c['wrapperPattern'] === 'H7-P5');
+    expect(h7Triggered).toBe(false);
   });
 });
 

@@ -3,7 +3,7 @@
 **Started:** 2026-04-26
 **Session ID:** pm-h6plus
 **Autonomy Level:** L5 (PM Autonomous)
-**Status:** in-progress
+**Status:** paused (3/3 features completed: F-H6 + F-H7 + F-H8; awaiting /compact + continue pm for F-H9)
 **Target Branch:** develop
 
 **Sprint:** QA Improvement Sprint #3 — Sprint H6+. Targets top NULL clusters from the 2026-04-26 post-Release-Fase-3 battery (650 queries, 355/294/1 dev+prod paridad). Top 8 categories hold 170/294 NULLs.
@@ -26,8 +26,35 @@ _(empty — F-H8 completed; F-H9+ deferred to next session per 2-feature post-/c
 
 | Feature | Complexity | Reason |
 |---------|------------|--------|
-| F-H9 (candidate) | Standard | Cat 29 seed expansion — F-H7 diagnosis identified 12 NULL dishes blocked by catalog gap (salmón con verduras al horno, nachos con queso, bocata de pavo con queso, empanadilla de carne, yogur con granola, barrita energética, noodles con pollo, arroz con atún y maíz, etc.). Predicted +6-10 OK. Mandatory /compact required before starting (2/2 features in post-/compact segment used: F-H7 + F-H8). |
+| F-H9 (candidate) | Standard | Cat 29 seed expansion. See **F-H9 spec input** section below for the exact 12 dishes. Predicted +6-10 OK. Mandatory /compact required before starting (2/2 features in post-/compact segment used: F-H7 + F-H8). |
 | F-H10 (candidate) | Standard | L3 similarity threshold tuning — Q649 false positive (`queso fresco con membrillo` → CROISSANT CON QUESO FRESC). Risk register; deferred until F-H9 ships. |
+
+## F-H9 spec input — Cat 29 catalog gap (post-F-H7 diagnostic, persists across /compact)
+
+> Captured here so the F-H9 spec-creator agent has empirical input ready post-/compact. Source: F-H7 post-merge QA dev battery `/tmp/qa-dev-post-fH7-20260426-2219.txt` + F-H7 ticket Completion Log "AC-1 empirical reconciliation" row.
+
+The 12 Cat 29 queries where H7-P1/H7-P2 wrappers strip correctly but the residual dish has NO catalog atom (need seed addition). Plus 1 ARTICLE_PATTERN edge case:
+
+| # | Q | Stripped query (post-H7-P1/P2) | Catalog gap |
+|---|---|--------------------------------|-------------|
+| 1 | Q631 | `salmón con verduras al horno` | compound dish — needs new atom |
+| 2 | Q632 | `migas con huevo` | Migas exists (CE-???) but compound variant missing — alias or new atom |
+| 3 | Q637 | `nachos con queso` | no atom |
+| 4 | Q638 | `noodles con pollo y verduras` | no atom |
+| 5 | Q639 | `yogur con granola` | no atom |
+| 6 | Q640 | `barrita energética de frutos secos` | no atom |
+| 7 | Q643 | `bocata de pavo con queso` | no atom |
+| 8 | Q644 | `una porción de brownie` (after H7-P1 strip "esta tarde en la cafetería pedí") | Brownie exists; ARTICLE_PATTERN doesn't fully clean "porción de" — could be NLP fix or alias |
+| 9 | Q645 | `arroz con atún y maíz` | no atom |
+| 10 | Q646 | `empanadilla de carne` | no atom (Empanadilla family gap) |
+| 11 | Q650 | `tortilla francesa con champiñones` | Tortilla francesa exists; compound variant missing — alias or new atom |
+| 12 | Q635 | `tostadas con aguacate y huevo` | routes to `intent=menu_estimation` (H5-B follow-up — out of F-H9 scope, separate ticket) |
+
+Out of scope for F-H9:
+- Q635 → `intent=menu_estimation` (H5-B territory, separate ticket)
+- Q649 → L3 false positive `queso fresco con membrillo` → "CROISSANT CON QUESO FRESC" (F-H10 threshold tuning)
+
+F-H9 strategy (likely): pattern follows F-H4 / F-H6 (data-only seed expansion, no schema, no NLP code). Add ~9-10 new atoms + 1-3 alias enrichments on existing dishes (Migas, Brownie, Tortilla francesa). Standard complexity, Self-Review + optional cross-model. Predicted +6-10 OK delta on next QA battery dev.
 
 ## Completed Features
 
