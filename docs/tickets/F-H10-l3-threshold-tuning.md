@@ -655,10 +655,11 @@ npm run build --workspace=@foodxplorer/api
 
 | Date | Action | Notes |
 |------|--------|-------|
-| 2026-04-27 | Phase 2: helpers + unit tests | `computeTokenJaccard`, `applyLexicalGuard`, `LEXICAL_GUARD_MIN_OVERLAP`, `SPANISH_STOP_WORDS` added to `level3Lookup.ts`. 23 pure helper tests in `fH10.l3LexicalGuard.unit.test.ts` (AC3-AC7, AC2.5, AC4.5). Commit `0e744d4`. |
-| 2026-04-27 | Phase 3: guard wiring + cascade integration tests | Guard wired into strategy 1 (fall-through on reject) and strategy 2 (null on reject). AC1/AC2/AC8/AC9 cascade tests added. 3 f022 fall-through tests updated to use `'ternera'` query (pre-flight analysis missed 'hamburguesa' ↔ 'Carne de Ternera Picada' zero-overlap; deviation from plan noted). Commit `75cb1cb`. |
-| 2026-04-27 | Phase 4: ADR-024 + key_facts.md | ADR-024 appended to decisions.md. key_facts.md level3Lookup description updated. Commit `9910c55`. |
-| 2026-04-27 | Phase 5: final validation | 4133 tests passing (225 test files). Lint: clean. Build: clean. |
+| 2026-04-27 | Step 1 — Setup | Branch `feature/F-H10-l3-threshold-tuning` created off develop @ `0f2421d`. Ticket initialized from template. Product tracker Active Session updated. |
+| 2026-04-27 | Step 3 — Phase 2 (helpers + unit tests) | `computeTokenJaccard`, `applyLexicalGuard`, `LEXICAL_GUARD_MIN_OVERLAP`, `SPANISH_STOP_WORDS` added to `level3Lookup.ts`. 23 pure helper tests in `fH10.l3LexicalGuard.unit.test.ts` (AC3-AC7, AC2.5, AC4.5). Commit `0e744d4`. |
+| 2026-04-27 | Step 3 — Phase 3 (guard wiring + cascade integration tests) | Guard wired into strategy 1 (fall-through on reject) and strategy 2 (null on reject). AC1/AC2/AC8/AC9 cascade tests added. 3 f022 fall-through tests updated to use `'ternera'` query (pre-flight analysis missed 'hamburguesa' ↔ 'Carne de Ternera Picada' zero-overlap; deviation from plan noted). Commit `75cb1cb`. |
+| 2026-04-27 | Step 3 — Phase 4 (ADR-024 + key_facts.md) | ADR-024 appended to decisions.md. key_facts.md level3Lookup description updated. Commit `9910c55`. |
+| 2026-04-27 | Step 3 — Phase 5 (final validation) | 4133 tests passing (225 test files). Lint: clean. Build: clean. |
 | 2026-04-27 | Step 0b — /review-spec | Gemini APPROVED R1 (1 spurious IMPORTANT — ADR-024 numbering already correct). Codex REVISE R1 (3 IMPORTANT — guard placement, AC test seam, schema null states) → APPROVED R2. |
 | 2026-04-27 | Step 2 — /review-plan | Gemini APPROVED R1. Codex REVISE R1 (4 IMPORTANT — food fallback, FoodQueryRow shape OOS, ADR insert location, accent normalization + 2 SUGGESTION) → REVISE R2 (1 IMPORTANT residual food contradiction + 1 SUGGESTION ADR template) → R3 fixes applied (skipped R3 review per F-H6/F-H7 plan precedent). |
 | 2026-04-27 | Step 4 — production-code-validator | APPROVE 98% confidence. Zero issues. Commits 0e744d4/75cb1cb/9910c55 verified. Q649 math confirmed (1/5=0.20 < 0.25 → reject). Cascade semantics correct. |
@@ -666,6 +667,7 @@ npm run build --workspace=@foodxplorer/api
 | 2026-04-27 | Step 5b — qa-engineer | QA VERIFIED. All 14 ACs pass. +18 adversarial tests in `fH10.l3LexicalGuard.edge-cases.test.ts` (4133 → 4151). 1 minor finding: spec L137 arithmetic typo (1/4 → 1/3 — code correct, fixed in `96f5790`). |
 | 2026-04-27 | Step 5 — /audit-merge | 11/11 structural PASS + drift CLEAN. Verdict: READY FOR MERGE. |
 | 2026-04-27 | Step 6 — Squash merge | PR #222 squash-merged to develop at `ffd2ece` 2026-04-27. Branch deleted local + remote. Operator action pending: api-dev manual deploy + re-run QA battery dev to confirm Q649 no longer false-positives. |
+| 2026-04-27 | Step 6 — Empirical post-deploy QA battery dev | api-dev manual deploy + reseed Phase 1+2+3 OK. QA battery dev `/tmp/qa-dev-post-fH9-fH10-20260427-1654.txt`. **CRITICAL FINDING: Q649 (`queso fresco con membrillo`) STILL returns `CROISSANT CON QUESO FRESC`** (Starbucks Spain, 343kcal) — F-H10 lexical guard did NOT close Q649. **Root cause (empirical): the false positive happens at L1 FTS, not L3 — CROISSANT entry is from Starbucks PDF ingest (not in spanish-dishes.json), and FTS matches `queso fresco` tokens against `QUESO FRESC` in dish name with high tsrank, returning the CROISSANT before L3 ever runs. The lexical guard at L3 (`level3Lookup.ts`) never executes for this query.** Spec assumption that Q649 was an L3 false positive was incorrect. **Follow-up F-H10-FU created**: extend `applyLexicalGuard` to L1 post-FTS hit in `level1Lookup.ts`. Code already exists (helper exported from level3Lookup.ts) — only wiring required. AC-10 (Q649 fix claim) NOT satisfied empirically; closing as KNOWN-GAP-DEFERRED-TO-F-H10-FU. F-H10 still ships as planned (lexical guard infrastructure + L3 protection in place; helpers reusable). |
 
 <!-- After code review, add a row documenting which findings were accepted/rejected:
 | YYYY-MM-DD | Review findings | Accepted: C1-C3, H1-H2. Rejected: M5 (reason). Systemic: C4 logged in bugs.md |
@@ -681,7 +683,7 @@ This creates a feedback loop for improving future reviews. -->
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | All 7 sections present: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence |
 | 1. Mark all items | [x] | AC: 14/14, DoD: 11/11, Workflow: 8/9 (Step 6 pending merge) |
-| 2. Verify product tracker | [x] | Will sync in tracker commit before /audit-merge |
+| 2. Verify product tracker | [x] | Active Session: F-H10 Step 6/6 done; Features table: F-H10 done 6/6 (synced post-merge in `2f8ff21` chore housekeeping PR #223) |
 | 3. Update key_facts.md | [x] | L167: level3Lookup description appended with lexical guard reference (commit `9910c55`) |
 | 4. Update decisions.md | [x] | ADR-024 appended (lines 687-708) with **Date:** 2026-04-27, **Status:** Accepted, full rationale + alternatives + consequences (commit `9910c55`) |
 | 5. Commit documentation | [x] | Commits: spec/plan (`53b3d18`), implementation (`0e744d4`/`75cb1cb`), docs (`9910c55`), housekeeping (`faeaab0`), QA additions (`96f5790`) |

@@ -27,6 +27,7 @@ _(empty — F-H10 completed; session at 5/5 cap, mandatory /compact required)_
 
 | Feature | Complexity | Reason |
 |---------|------------|--------|
+| **F-H10-FU** | **Standard** | **Extend lexical guard to L1 FTS — Q649 still false-positive after F-H10 (empirical post-deploy verification 2026-04-27). Single file change `level1Lookup.ts` + tests. ~3h. See `bugs.md` 2026-04-27 entry.** |
 | BUG-DATA-DUPLICATE-ATOM-001 | Simple | Collapse CE-281 → CE-095, count 307 → 306. Filed during F-H6 code-review. Low priority. |
 | F-H7-FU1 | LOW | 4 missing landmine integration tests. Filed during F-H7 QA. |
 | Release develop→main | Release | When F-H9 + F-H10 stable + paridad dev↔prod confirmada. |
