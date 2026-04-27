@@ -2434,7 +2434,8 @@
       "name": "Migas",
       "nameEs": "Migas",
       "aliases": [
-        "migas extremeñas"
+        "migas extremeñas",
+        "migas con huevo"
       ],
       "category": "primeros",
       "portionGrams": 200,
@@ -8074,6 +8075,126 @@
         "fiber": 0,
         "salt": 2.4,
         "sodium": 0.96
+      }
+    },
+    {
+      "externalId": "CE-308",
+      "dishId": "00000000-0000-e073-0007-000000000134",
+      "nutrientId": "00000000-0000-e073-0008-000000000134",
+      "name": "Salmón con verduras al horno",
+      "nameEs": "Salmón con verduras al horno",
+      "aliases": [],
+      "category": "segundos",
+      "portionGrams": 350,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 130,
+        "proteins": 18,
+        "carbohydrates": 6,
+        "sugars": 3,
+        "fats": 5,
+        "saturatedFats": 1,
+        "fiber": 2,
+        "salt": 0.8,
+        "sodium": 0.32
+      }
+    },
+    {
+      "externalId": "CE-309",
+      "dishId": "00000000-0000-e073-0007-000000000135",
+      "nutrientId": "00000000-0000-e073-0008-000000000135",
+      "name": "Nachos con queso",
+      "nameEs": "Nachos con queso",
+      "aliases": [],
+      "category": "tapas",
+      "portionGrams": 150,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 420,
+        "proteins": 12,
+        "carbohydrates": 48,
+        "sugars": 2,
+        "fats": 22,
+        "saturatedFats": 9,
+        "fiber": 3,
+        "salt": 1.4,
+        "sodium": 0.56
+      }
+    },
+    {
+      "externalId": "CE-310",
+      "dishId": "00000000-0000-e073-0007-000000000136",
+      "nutrientId": "00000000-0000-e073-0008-000000000136",
+      "name": "Noodles con pollo y verduras",
+      "nameEs": "Noodles con pollo y verduras",
+      "aliases": [],
+      "category": "primeros",
+      "portionGrams": 400,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 125,
+        "proteins": 14,
+        "carbohydrates": 12,
+        "sugars": 2,
+        "fats": 3,
+        "saturatedFats": 0.8,
+        "fiber": 2,
+        "salt": 1.0,
+        "sodium": 0.4
+      }
+    },
+    {
+      "externalId": "CE-311",
+      "dishId": "00000000-0000-e073-0007-000000000137",
+      "nutrientId": "00000000-0000-e073-0008-000000000137",
+      "name": "Yogur con granola",
+      "nameEs": "Yogur con granola",
+      "aliases": [],
+      "category": "desayunos",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 165,
+        "proteins": 7,
+        "carbohydrates": 26,
+        "sugars": 14,
+        "fats": 4,
+        "saturatedFats": 1.5,
+        "fiber": 2,
+        "salt": 0.2,
+        "sodium": 0.08
+      }
+    },
+    {
+      "externalId": "CE-312",
+      "dishId": "00000000-0000-e073-0007-000000000138",
+      "nutrientId": "00000000-0000-e073-0008-000000000138",
+      "name": "Barrita energética de frutos secos",
+      "nameEs": "Barrita energética de frutos secos",
+      "aliases": [],
+      "category": "desayunos",
+      "portionGrams": 40,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 430,
+        "proteins": 10,
+        "carbohydrates": 40,
+        "sugars": 18,
+        "fats": 26,
+        "saturatedFats": 4,
+        "fiber": 5,
+        "salt": 0.3,
+        "sodium": 0.12
       }
     }
   ]

@@ -290,3 +290,15 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-000000000133,tapa,80,,,medium,tapa chorizo a la sidra; Asturian classic,pbojeda
 00000000-0000-e073-0007-000000000133,media_racion,120,,,medium,half racion chorizo a la sidra,pbojeda
 00000000-0000-e073-0007-000000000133,racion,200,,,medium,full racion; chorizo braised in cider,pbojeda
+00000000-0000-e073-0007-000000000134,tapa,120,,,medium,tapa salmón con verduras al horno,pbojeda
+00000000-0000-e073-0007-000000000134,media_racion,220,,,medium,half racion salmón al horno,pbojeda
+00000000-0000-e073-0007-000000000134,racion,350,,,medium,full racion; baked salmon + veg,pbojeda
+00000000-0000-e073-0007-000000000135,tapa,80,,,medium,small nachos tapa,pbojeda
+00000000-0000-e073-0007-000000000135,media_racion,120,,,medium,half nachos con queso,pbojeda
+00000000-0000-e073-0007-000000000135,racion,200,,,medium,full nachos con queso; chips + cheese,pbojeda
+00000000-0000-e073-0007-000000000136,media_racion,250,,,medium,half bowl noodles con pollo y verduras,pbojeda
+00000000-0000-e073-0007-000000000136,racion,400,,,medium,full bowl; noodles + chicken + veg,pbojeda
+00000000-0000-e073-0007-000000000137,media_racion,100,,,medium,small yogur con granola,pbojeda
+00000000-0000-e073-0007-000000000137,racion,200,,,medium,standard yogur bowl con granola,pbojeda
+00000000-0000-e073-0007-000000000138,media_racion,20,,,medium,half barrita energética,pbojeda
+00000000-0000-e073-0007-000000000138,racion,40,,,medium,full barrita de frutos secos; single-serve,pbojeda
