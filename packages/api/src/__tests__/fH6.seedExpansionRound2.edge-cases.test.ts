@@ -5,7 +5,7 @@
  * additions on existing dishes.  All tests are data-only (no DB, no HTTP).
  *
  * Checks:
- *   H6-EC-1  No duplicate name/nameEs/alias across all 307 entries
+ *   H6-EC-1  No duplicate name/nameEs/alias across all 317 entries
  *   H6-EC-2  All 28 new dishes have correct source/confidence/method triple
  *   H6-EC-3  All 28 new dishes are within their spec kcal/100g ranges
  *   H6-EC-4  CSV pieces/pieceName invariant holds for all new rows
@@ -111,18 +111,18 @@ function level1Lookup(query: string): SpanishDishEntry[] {
 }
 
 // ---------------------------------------------------------------------------
-// H6-EC-1  No duplicate tokens across all 307 entries
+// H6-EC-1  No duplicate tokens across all 317 entries
 // ---------------------------------------------------------------------------
 
-describe('H6-EC-1: no duplicate name/nameEs/alias across 307 entries', () => {
-  it('validateSpanishDishes returns valid: true with 0 errors on the full 307-entry dataset', () => {
+describe('H6-EC-1: no duplicate name/nameEs/alias across 317 entries', () => {
+  it('validateSpanishDishes returns valid: true with 0 errors on the full 317-entry dataset', () => {
     const result = validateSpanishDishes(dishes);
     expect(result.valid, result.errors.join('\n')).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 
-  it('total dish count is 307', () => {
-    expect(dishes).toHaveLength(307);
+  it('total dish count is 317', () => {
+    expect(dishes).toHaveLength(317);
   });
 });
 
@@ -423,8 +423,8 @@ describe('H6-EC-10: spec-required aliases on new dishes', () => {
 // ---------------------------------------------------------------------------
 
 describe('H6-EC-11: monotonic CE-280..CE-307 sequence at file end', () => {
-  it('the last 28 entries are CE-280..CE-307 in order', () => {
-    const last28 = dishes.slice(-28);
+  it('the F-H6 batch (CE-280..CE-307) remains in monotonic order at its appended position', () => {
+    const last28 = dishes.slice(-38, -10);
     const eids = last28.map((d) => d.externalId);
     const expected = Array.from({ length: 28 }, (_, i) => `CE-${280 + i}`);
     expect(eids).toEqual(expected);

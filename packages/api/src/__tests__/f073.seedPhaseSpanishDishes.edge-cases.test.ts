@@ -318,24 +318,26 @@ describe('F073 seed edge cases — Dish upsert count and fields', () => {
     prisma = buildMockPrisma();
   });
 
-  it('upserts exactly 307 dishes', async () => {
+  it('upserts exactly 317 dishes', async () => {
     // F114: count updated 250 → 252 (Chuletón de buey + Chorizo ibérico embutido added)
     // F-H4: count updated 252 → 279 (+27 regional dishes — Canarias + other regions)
     // F-H6: count updated 279 → 307 (+28 new atoms — Cat21/Cat22 international + extended regional)
+    // F-H9: count updated 307 → 317 (+10 Cat 29 atoms)
     await seedPhaseSpanishDishes(prisma as never);
 
     const dishUpserts = prisma._calls.filter((c) => c.model === 'dish');
-    expect(dishUpserts).toHaveLength(307);
+    expect(dishUpserts).toHaveLength(317);
   });
 
-  it('upserts exactly 307 DishNutrients', async () => {
+  it('upserts exactly 317 DishNutrients', async () => {
     // F114: count updated 250 → 252 (Chuletón de buey + Chorizo ibérico embutido added)
     // F-H4: count updated 252 → 279 (+27 regional dishes — Canarias + other regions)
     // F-H6: count updated 279 → 307 (+28 new atoms — Cat21/Cat22 international + extended regional)
+    // F-H9: count updated 307 → 317 (+10 Cat 29 atoms)
     await seedPhaseSpanishDishes(prisma as never);
 
     const nutrientUpserts = prisma._calls.filter((c) => c.model === 'dishNutrient');
-    expect(nutrientUpserts).toHaveLength(307);
+    expect(nutrientUpserts).toHaveLength(317);
   });
 
   it('all Dish create blocks include nameSourceLocale=es', async () => {
