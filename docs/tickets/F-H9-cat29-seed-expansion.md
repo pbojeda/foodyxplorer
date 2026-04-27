@@ -1,7 +1,7 @@
 # F-H9: Cat 29 Seed Expansion — Date/Time/Context-Wrapped Spanish Dishes
 
 **Feature:** F-H9 | **Type:** Backend-Feature (data) | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F-H9-cat29-seed-expansion
+**Status:** Done | **Branch:** feature/F-H9-cat29-seed-expansion (deleted post-merge)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-27 | **Dependencies:** F-H6 (DONE), F-H7 (DONE), F-H8 (DONE)
 
@@ -872,7 +872,7 @@ Block 2 — CSV batch invariants (F-H9-AC-12-CSV, ~6 cases):
 - [x] Step 4: `production-code-validator` executed — APPROVE WITH NOTES (92%). 1 CRITICAL kcal/100g→per-portion fix applied in commit `fdd2d9d`. Final gates: 4110/4110 tests GREEN, lint 0, build clean, validator 317 dishes valid.
 - [x] Step 5: `code-review-specialist` executed — APPROVE WITH MINOR. 2 MEDIUM (M1 H6-EC-11 future-proof + M2 computed FH9_DISH_IDS) addressed in commit `67eb0e7`. NITs noted (consistency with H6 patterns).
 - [x] Step 5: `qa-engineer` executed — PASS WITH FOLLOW-UPS. All 12 ACs verified empirically. PR body Q-number claim was empirically wrong (battery confirms PR body); ticket Q645→Q650 typos fixed.
-- [ ] Step 6: Ticket Completion Log updated with metrics; Merge Checklist Evidence filled; branch deleted post-merge; product tracker updated to `Done`
+- [x] Step 6: Ticket Status → `Done`; Completion Log finalized with merge SHA; branch deleted (local + remote); product tracker updated to `done | 6/6`.
 
 ---
 
@@ -897,6 +897,8 @@ Block 2 — CSV batch invariants (F-H9-AC-12-CSV, ~6 cases):
 | 2026-04-27 | Step 4 — production-code-validator | APPROVE WITH NOTES (92% confidence). 1 CRITICAL: nutrient values entered as kcal/100g but seed convention is per-portionGrams. Fix commit `fdd2d9d` scaled all 9 nutrient fields × portionGrams/100 across 10 atoms. Post-fix kcal/100g all within spec Edge Case §9 ranges (130/420/125/165/430/255/155/270/180/420). Tests still 4110/4110 GREEN. |
 | 2026-04-27 | Step 5 — code-review-specialist | APPROVE WITH MINOR. 2 MEDIUM future-proofing suggestions (slice(-38,-10) magic numbers + hand-rolled FH9_SUFFIXES). Both applied in commit `67eb0e7`. Atwater equation cross-check ≤10% on every atom. Zero new token collisions. Tests 4110/4110 GREEN. |
 | 2026-04-27 | Step 5 — qa-engineer | PASS WITH FOLLOW-UPS. All 12 ACs verified empirically. 1 MINOR (PR body Q-number swap claim — empirically WRONG per QA battery `/tmp/qa-dev-post-fH8-20260427-1306.txt`: PR body matches battery line numbering Q644=brownie, Q645=arroz, Q650=tortilla francesa; the ticket spec had typo Q645→Q650 fixed in this commit). 1 NIT (H6-EC-11 fragility — addressed via M1 refactor in `67eb0e7`). |
+| 2026-04-27 | Step 5 — /audit-merge | 11/11 structural PASS + drift CLEAN. Verdict: READY FOR MERGE. |
+| 2026-04-27 | Step 6 — Squash merge | PR #220 squash-merged to develop at `67cc09b` 2026-04-27. Branch deleted local + remote. Post-merge sanity: 4110/4110 tests GREEN on develop. Operator action pending: api-dev manual deploy + reseed Phase 1+2 + re-run QA battery dev to confirm empirical +11 OK. |
 
 <!-- After code review, add a row documenting which findings were accepted/rejected:
 | YYYY-MM-DD | Review findings | Accepted: C1-C3, H1-H2. Rejected: M5 (reason). Systemic: C4 logged in bugs.md |
