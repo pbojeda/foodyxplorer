@@ -18,8 +18,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F-H10-FU | Standard | in-progress | — | Step 0+1+2 done (Spec 3R, Plan 2R cross-model). Entering Step 3 (TDD). |
-| BUG-DATA-DUPLICATE-ATOM-001 | Simple | pending | — | Awaits F-H10-FU completion |
+| BUG-DATA-DUPLICATE-ATOM-001 | Simple | pending | — | Next — F-H10-FU completed 2026-04-28 |
 
 ## Completed Features
 
@@ -27,6 +26,7 @@ _(Move features here as they complete)_
 
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
+| F-H10-FU | Standard | ~6h (extended due to multi-round reviews) | DONE 6/6. PR #225 squash-merged at `73e1c97` 2026-04-28. 4166→4189 tests (+23). Cross-model: /review-spec 3R + /review-plan 2R + code-review APPROVE + qa-engineer PASS WITH FOLLOW-UPS resolved + /audit-merge 11/11. 11/13 ACs + 2 operator-deferred. |
 
 ## Blocked Features
 
@@ -44,9 +44,9 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** F-H10-FU
-**Branch:** feature/F-H10-FU-l1-lexical-guard (created)
-**Current Step:** 3/6 (Implement)
+**Current feature:** None — F-H10-FU completed 2026-04-28. Next: BUG-DATA-DUPLICATE-ATOM-001 (Simple) or /compact (1/2 in current /compact-window).
+**Branch:** (next branch will be `bugfix/BUG-DATA-DUPLICATE-ATOM-001-collapse-ce281`)
+**Current Step:** 0/6 (no active feature)
 **Next features:** BUG-DATA-DUPLICATE-ATOM-001 (Simple) after F-H10-FU completes
 **Blocked:** none
 

@@ -1,7 +1,7 @@
 # F-H10-FU: L1 Lexical Guard Extension — Q649 False Positive Mitigation at FTS Layer
 
 **Feature:** F-H10-FU | **Type:** Backend-Feature (NLP/Search) | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F-H10-FU-l1-lexical-guard
+**Status:** Done | **Branch:** feature/F-H10-FU-l1-lexical-guard (deleted post-merge)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-27 | **Dependencies:** F-H10 (done — exports `applyLexicalGuard`, `computeTokenJaccard`, `LEXICAL_GUARD_MIN_OVERLAP`. `SPANISH_STOP_WORDS` is module-private inside `level3Lookup.ts` and intentionally NOT exported.)
 
@@ -915,7 +915,7 @@ The following empirical reads and commands were executed by the planner agent to
 - [x] Step 4: `production-code-validator` executed (Anthropic rate-limited mid-validation; orchestrator manually ran quality gates + verified key concerns — APPROVE WITH NOTES ~95%), quality gates pass
 - [x] Step 5: `code-review-specialist` executed (APPROVE — 5 LOW/NIT non-blocking suggestions)
 - [x] Step 5: `qa-engineer` executed (PASS WITH FOLLOW-UPS — 1 required fix applied: q649 file rename + 20 new edge-case tests added)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -946,6 +946,9 @@ The following empirical reads and commands were executed by the planner agent to
 | 2026-04-28 | Step 5: `code-review-specialist` | APPROVE. 5 LOW/NIT suggestions (S1-S5) all non-blocking: f020 query polish, stop-word edge case explicit test (filled by qa-engineer), helper non-export rationale (intentional per ADR), pre-flight deferral note (already documented), comment polish at level1Lookup.ts:553. Code reuse correct: `applyLexicalGuard` 1 def in `level3Lookup.ts`, `passesGuardEither` private 5-line composer. Bilingual OR semantics implemented correctly. H7-P5 seam coverage standout. |
 | 2026-04-28 | Step 5: `qa-engineer` | PASS WITH FOLLOW-UPS. Per-AC compliance: AC1-AC13 all covered (AC2/AC3/AC4 operator-deferred per design). 1 BUG found and FIXED inline: `fH10FU.q649.integration.test.ts` was misclassified — `*.integration.test.ts` files are excluded from `npm test` via vitest.config.ts. File uses mocked DB only, so renamed to `fH10FU.q649.unit.test.ts`. Reference updates in ticket plan, bugs.md, product-tracker.md, l1LexicalGuard test header. Also added new `fH10FU.l1LexicalGuard.edge-cases.test.ts` with 20 adversarial tests covering: stop-word-only queries, NFD diacritic normalization, very long inputs, empty `name_es` falsy branch, AC8(c) both-pass case, exact 0.25 boundary, just-below-0.25 rejection, Tier=0 hasExplicitBrand, S2-reject→S3-exact-hit, empty `food_name_es` English fallback. Final test count: 4166 → 4189 (+23). |
 | 2026-04-28 | Step 5: Quality gates re-verified | Post-fix: 4189/4189 tests ✓ (230 files, was 228), lint clean, build clean. Workflow Step 5 marked [x]. |
+| 2026-04-28 | Step 5: `/audit-merge` | Structural 11/11 PASS. Drift: P1 fixed (PR body 4166→4189), P5 56 pre-existing frozen tickets noted as systemic out-of-scope, all other drift PASS. Verdict: READY FOR MERGE. |
+| 2026-04-28 | Step 5: PR #225 squash-merged | CI gates passed (test-api 4m30s ✓, all Vercel deployments OK). Squash-merged to develop at `73e1c97`. Branch `feature/F-H10-FU-l1-lexical-guard` deleted local + remote via `--delete-branch` flag. 10 commits squashed into single develop commit. |
+| 2026-04-28 | Step 6: post-merge sanity | `npm test --workspace=@foodxplorer/api` on develop after merge: 4189/4189 PASS (230 files). No regressions. F-H10-FU successfully integrated. Workflow Step 6 marked [x]. Status: Ready for Merge → Done. |
 
 ---
 
