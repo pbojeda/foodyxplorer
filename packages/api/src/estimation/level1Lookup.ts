@@ -30,6 +30,31 @@ import type { DB } from '../generated/kysely-types.js';
 import type { Level1LookupOptions, Level1Result, DishQueryRow, FoodQueryRow } from './types.js';
 import { mapDishRowToResult, mapFoodRowToResult, OFF_SOURCE_UUID } from './types.js';
 import { resolveAliases, SUPERMARKET_BRAND_ALIASES } from './brandDetector.js';
+import { applyLexicalGuard } from './level3Lookup.js';
+
+// ---------------------------------------------------------------------------
+// Guard helper — dual-name OR semantics (ADR-024 addendum, F-H10-FU)
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true if the query clears the lexical guard threshold against
+ * EITHER the Spanish name (nameEs) OR the English name.
+ *
+ * L1 FTS is bilingual: a match may occur on the Spanish branch (name_es)
+ * or the English branch (name). Since the matched branch is not exposed in
+ * the result row, we must evaluate both sides and accept if either passes.
+ *
+ * nameEs may be null/undefined (Dish.nameEs is optional in Prisma schema).
+ * name is always non-null (DB constraint + SQL projection).
+ */
+function passesGuardEither(
+  query: string,
+  nameEs: string | null | undefined,
+  name: string,
+): boolean {
+  if (nameEs && applyLexicalGuard(query, nameEs)) return true;
+  return applyLexicalGuard(query, name);
+}
 
 // ---------------------------------------------------------------------------
 // Query normalization
@@ -507,7 +532,10 @@ async function runCascade(
   // Strategy 2: FTS dish
   const ftsDishRow = await ftsDishMatch(db, normalizedQuery, options, tierFilter, minTier);
   if (ftsDishRow !== undefined) {
-    return { matchType: 'fts_dish', result: mapDishRowToResult(ftsDishRow), rawFoodGroup: null };
+    if (passesGuardEither(normalizedQuery, ftsDishRow.dish_name_es, ftsDishRow.dish_name)) {
+      return { matchType: 'fts_dish', result: mapDishRowToResult(ftsDishRow), rawFoodGroup: null };
+    }
+    // Guard rejected on both Spanish and English sides — fall through to Strategy 3
   }
 
   // Strategy 3: exact food (no chain scope)
@@ -519,7 +547,10 @@ async function runCascade(
   // Strategy 4: FTS food (no chain scope)
   const ftsFoodRow = await ftsFoodMatch(db, normalizedQuery, tierFilter, minTier);
   if (ftsFoodRow !== undefined) {
-    return { matchType: 'fts_food', result: mapFoodRowToResult(ftsFoodRow), rawFoodGroup: ftsFoodRow.food_group };
+    if (passesGuardEither(normalizedQuery, ftsFoodRow.food_name_es, ftsFoodRow.food_name)) {
+      return { matchType: 'fts_food', result: mapFoodRowToResult(ftsFoodRow), rawFoodGroup: ftsFoodRow.food_group };
+    }
+    // Guard rejected on both Spanish and English sides — fall through to null (runCascade returns null)
   }
 
   return null;
