@@ -3,7 +3,7 @@
 **Started:** 2026-04-26
 **Session ID:** pm-h6plus
 **Autonomy Level:** L5 (PM Autonomous)
-**Status:** paused (3/3 features completed: F-H6 + F-H7 + F-H8; awaiting /compact + continue pm for F-H9)
+**Status:** in-progress (3/5 features completed: F-H6 + F-H7 + F-H8; resumed 2026-04-27 post-/compact + post-docs-cleanup PR #219 for F-H9 + F-H10 segment)
 **Target Branch:** develop
 
 **Sprint:** QA Improvement Sprint #3 — Sprint H6+. Targets top NULL clusters from the 2026-04-26 post-Release-Fase-3 battery (650 queries, 355/294/1 dev+prod paridad). Top 8 categories hold 170/294 NULLs.
@@ -14,20 +14,23 @@
 - F-H6 (Standard): user pre-authorized merge per remote-control message. Merge after audit-merge passes. **DONE.**
 - F-H7 (Standard): user pre-authorized post-/compact resume. Merge after audit-merge passes. **DONE.**
 - F-H8 (Simple): user pre-authorized via "puedes seguir con las demás" message 2026-04-26 23:21. Merge after audit-merge passes. **DONE.**
-- F-H9+ (Standard candidates): TBD next session after mandatory /compact.
+- F-H9 (Standard): user authorized 2026-04-27 ("vamos con H9 y H10"). Merge after audit-merge passes.
+- F-H10 (Standard): user authorized 2026-04-27 same message. Merge after audit-merge passes.
 
 ## Current Batch
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-_(empty — F-H8 completed; F-H9+ deferred to next session per 2-feature post-/compact limit)_
+| F-H9 | Standard | pending | — | Cat 29 seed expansion (data-only, F-H4/F-H6 pattern). 12 dishes empirically mapped — see **F-H9 spec input** below. Predicted +6-10 OK. Spec → /review-spec → Plan → /review-plan → TDD → audit-merge. |
+| F-H10 | Standard | pending | — | L3 similarity threshold tuning. Q649 false positive (`queso fresco con membrillo` → CROISSANT CON QUESO FRESC). Investigate threshold or guard. Confirmed empirically in QA dev battery 2026-04-27 13:06. |
 
-## Backlog (this sprint, deferred to next session post-/compact)
+## Backlog (deferred — post post-/compact 2-feature window)
 
 | Feature | Complexity | Reason |
 |---------|------------|--------|
-| F-H9 (candidate) | Standard | Cat 29 seed expansion. See **F-H9 spec input** section below for the exact 12 dishes. Predicted +6-10 OK. Mandatory /compact required before starting (2/2 features in post-/compact segment used: F-H7 + F-H8). |
-| F-H10 (candidate) | Standard | L3 similarity threshold tuning — Q649 false positive (`queso fresco con membrillo` → CROISSANT CON QUESO FRESC). Risk register; deferred until F-H9 ships. |
+| BUG-DATA-DUPLICATE-ATOM-001 | Simple | Collapse CE-281 → CE-095, count 307 → 306. Filed during F-H6 code-review. Low priority. |
+| F-H7-FU1 | LOW | 4 missing landmine integration tests. Filed during F-H7 QA. |
+| Release develop→main | Release | When F-H9 + F-H10 stable + paridad dev↔prod confirmada. |
 
 ## F-H9 spec input — Cat 29 catalog gap (post-F-H7 diagnostic, persists across /compact)
 

@@ -92,7 +92,7 @@ Quick reference for project configuration, infrastructure details, and important
 | **BEDCA** | ~431 with data | 55 per food | Pending authorization | Email sent 2026-04-02 | Tier 1 |
 | **Open Food Facts** | 11K+ Hacendado | Full packaging | ODbL (attribution) | Available | Tier 0 (branded) |
 | **Chain PDFs** | ~885 dishes (14 chains) | 14 per dish | Official/scraped | Imported | Tier 0 (chain) |
-| **Cocina Española** | 307 dishes (47 BEDCA + 260 recipe) | 9 per dish (per_serving) | Own | Imported (F073/F114/F-H4/F-H6) | Tier 1 (BEDCA) / Tier 3 (recipe) |
+| **Cocina Española** | 317 dishes (47 BEDCA + 270 recipe) | 9 per dish (per_serving) | Own | Imported (F073/F114/F-H4/F-H6/F-H9) | Tier 1 (BEDCA) / Tier 3 (recipe) |
 
 ### Key ADRs (Phase 2)
 

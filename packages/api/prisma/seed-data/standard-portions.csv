@@ -290,3 +290,31 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-000000000133,tapa,80,,,medium,tapa chorizo a la sidra; Asturian classic,pbojeda
 00000000-0000-e073-0007-000000000133,media_racion,120,,,medium,half racion chorizo a la sidra,pbojeda
 00000000-0000-e073-0007-000000000133,racion,200,,,medium,full racion; chorizo braised in cider,pbojeda
+00000000-0000-e073-0007-000000000134,tapa,120,,,medium,tapa salmón con verduras al horno,pbojeda
+00000000-0000-e073-0007-000000000134,media_racion,220,,,medium,half racion salmón al horno,pbojeda
+00000000-0000-e073-0007-000000000134,racion,350,,,medium,full racion; baked salmon + veg,pbojeda
+00000000-0000-e073-0007-000000000135,tapa,80,,,medium,small nachos tapa,pbojeda
+00000000-0000-e073-0007-000000000135,media_racion,120,,,medium,half nachos con queso,pbojeda
+00000000-0000-e073-0007-000000000135,racion,200,,,medium,full nachos con queso; chips + cheese,pbojeda
+00000000-0000-e073-0007-000000000136,media_racion,250,,,medium,half bowl noodles con pollo y verduras,pbojeda
+00000000-0000-e073-0007-000000000136,racion,400,,,medium,full bowl; noodles + chicken + veg,pbojeda
+00000000-0000-e073-0007-000000000137,media_racion,100,,,medium,small yogur con granola,pbojeda
+00000000-0000-e073-0007-000000000137,racion,200,,,medium,standard yogur bowl con granola,pbojeda
+00000000-0000-e073-0007-000000000138,media_racion,20,,,medium,half barrita energética,pbojeda
+00000000-0000-e073-0007-000000000138,racion,40,,,medium,full barrita de frutos secos; single-serve,pbojeda
+00000000-0000-e073-0007-000000000139,tapa,100,,,medium,small bocadillo half tapa,pbojeda
+00000000-0000-e073-0007-000000000139,media_racion,150,,,medium,half bocadillo de pavo con queso,pbojeda
+00000000-0000-e073-0007-000000000139,racion,200,,,medium,full bocadillo; bread + turkey + cheese,pbojeda
+00000000-0000-e073-0007-00000000013a,tapa,100,,,medium,small tapa arroz con atún y maíz,pbojeda
+00000000-0000-e073-0007-00000000013a,media_racion,180,,,medium,half racion arroz con atún y maíz,pbojeda
+00000000-0000-e073-0007-00000000013a,racion,300,,,medium,full racion; rice + tuna + corn,pbojeda
+00000000-0000-e073-0007-00000000013b,pintxo,50,1,empanadilla,medium,1 empanadilla pintxo,pbojeda
+00000000-0000-e073-0007-00000000013b,tapa,80,1,empanadilla,medium,1 empanadilla tapa,pbojeda
+00000000-0000-e073-0007-00000000013b,media_racion,160,2,empanadillas,medium,2 empanadillas media racion,pbojeda
+00000000-0000-e073-0007-00000000013b,racion,240,3,empanadillas,medium,3 empanadillas racion,pbojeda
+00000000-0000-e073-0007-00000000013c,tapa,80,,,medium,small tortilla francesa tapa,pbojeda
+00000000-0000-e073-0007-00000000013c,media_racion,120,,,medium,half tortilla francesa,pbojeda
+00000000-0000-e073-0007-00000000013c,racion,180,,,medium,full tortilla francesa; 2 eggs + oil,pbojeda
+00000000-0000-e073-0007-00000000013d,tapa,40,,,medium,small brownie tapa bar portion,pbojeda
+00000000-0000-e073-0007-00000000013d,media_racion,60,,,medium,half brownie portion,pbojeda
+00000000-0000-e073-0007-00000000013d,racion,80,1,brownie,medium,1 brownie racion; restaurant dessert standard,pbojeda

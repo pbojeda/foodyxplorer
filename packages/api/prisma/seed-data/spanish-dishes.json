@@ -2434,7 +2434,8 @@
       "name": "Migas",
       "nameEs": "Migas",
       "aliases": [
-        "migas extremeñas"
+        "migas extremeñas",
+        "migas con huevo"
       ],
       "category": "primeros",
       "portionGrams": 200,
@@ -8074,6 +8075,252 @@
         "fiber": 0,
         "salt": 2.4,
         "sodium": 0.96
+      }
+    },
+    {
+      "externalId": "CE-308",
+      "dishId": "00000000-0000-e073-0007-000000000134",
+      "nutrientId": "00000000-0000-e073-0008-000000000134",
+      "name": "Salmón con verduras al horno",
+      "nameEs": "Salmón con verduras al horno",
+      "aliases": [],
+      "category": "segundos",
+      "portionGrams": 350,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 455,
+        "proteins": 63,
+        "carbohydrates": 21,
+        "sugars": 10.5,
+        "fats": 17.5,
+        "saturatedFats": 3.5,
+        "fiber": 7,
+        "salt": 2.8,
+        "sodium": 1.12
+      }
+    },
+    {
+      "externalId": "CE-309",
+      "dishId": "00000000-0000-e073-0007-000000000135",
+      "nutrientId": "00000000-0000-e073-0008-000000000135",
+      "name": "Nachos con queso",
+      "nameEs": "Nachos con queso",
+      "aliases": [],
+      "category": "tapas",
+      "portionGrams": 150,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 630,
+        "proteins": 18,
+        "carbohydrates": 72,
+        "sugars": 3,
+        "fats": 33,
+        "saturatedFats": 13.5,
+        "fiber": 4.5,
+        "salt": 2.1,
+        "sodium": 0.84
+      }
+    },
+    {
+      "externalId": "CE-310",
+      "dishId": "00000000-0000-e073-0007-000000000136",
+      "nutrientId": "00000000-0000-e073-0008-000000000136",
+      "name": "Noodles con pollo y verduras",
+      "nameEs": "Noodles con pollo y verduras",
+      "aliases": [],
+      "category": "primeros",
+      "portionGrams": 400,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 500,
+        "proteins": 56,
+        "carbohydrates": 48,
+        "sugars": 8,
+        "fats": 12,
+        "saturatedFats": 3.2,
+        "fiber": 8,
+        "salt": 4,
+        "sodium": 1.6
+      }
+    },
+    {
+      "externalId": "CE-311",
+      "dishId": "00000000-0000-e073-0007-000000000137",
+      "nutrientId": "00000000-0000-e073-0008-000000000137",
+      "name": "Yogur con granola",
+      "nameEs": "Yogur con granola",
+      "aliases": [],
+      "category": "desayunos",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 330,
+        "proteins": 14,
+        "carbohydrates": 52,
+        "sugars": 28,
+        "fats": 8,
+        "saturatedFats": 3,
+        "fiber": 4,
+        "salt": 0.4,
+        "sodium": 0.16
+      }
+    },
+    {
+      "externalId": "CE-312",
+      "dishId": "00000000-0000-e073-0007-000000000138",
+      "nutrientId": "00000000-0000-e073-0008-000000000138",
+      "name": "Barrita energética de frutos secos",
+      "nameEs": "Barrita energética de frutos secos",
+      "aliases": [],
+      "category": "desayunos",
+      "portionGrams": 40,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 172,
+        "proteins": 4,
+        "carbohydrates": 16,
+        "sugars": 7.2,
+        "fats": 10.4,
+        "saturatedFats": 1.6,
+        "fiber": 2,
+        "salt": 0.12,
+        "sodium": 0.05
+      }
+    },
+    {
+      "externalId": "CE-313",
+      "dishId": "00000000-0000-e073-0007-000000000139",
+      "nutrientId": "00000000-0000-e073-0008-000000000139",
+      "name": "Bocadillo de pavo con queso",
+      "nameEs": "Bocadillo de pavo con queso",
+      "aliases": [
+        "bocata de pavo con queso"
+      ],
+      "category": "bocadillos",
+      "portionGrams": 200,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 510,
+        "proteins": 36,
+        "carbohydrates": 56,
+        "sugars": 4,
+        "fats": 16,
+        "saturatedFats": 6,
+        "fiber": 4,
+        "salt": 2.4,
+        "sodium": 0.96
+      }
+    },
+    {
+      "externalId": "CE-314",
+      "dishId": "00000000-0000-e073-0007-00000000013a",
+      "nutrientId": "00000000-0000-e073-0008-00000000013a",
+      "name": "Arroz con atún y maíz",
+      "nameEs": "Arroz con atún y maíz",
+      "aliases": [],
+      "category": "arroces",
+      "portionGrams": 300,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 465,
+        "proteins": 36,
+        "carbohydrates": 66,
+        "sugars": 6,
+        "fats": 9,
+        "saturatedFats": 1.5,
+        "fiber": 4.5,
+        "salt": 2.4,
+        "sodium": 0.96
+      }
+    },
+    {
+      "externalId": "CE-315",
+      "dishId": "00000000-0000-e073-0007-00000000013b",
+      "nutrientId": "00000000-0000-e073-0008-00000000013b",
+      "name": "Empanadilla de carne",
+      "nameEs": "Empanadilla de carne",
+      "aliases": [],
+      "category": "tapas",
+      "portionGrams": 80,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 216,
+        "proteins": 8,
+        "carbohydrates": 22.4,
+        "sugars": 0.8,
+        "fats": 11.2,
+        "saturatedFats": 4,
+        "fiber": 1.2,
+        "salt": 0.8,
+        "sodium": 0.32
+      }
+    },
+    {
+      "externalId": "CE-316",
+      "dishId": "00000000-0000-e073-0007-00000000013c",
+      "nutrientId": "00000000-0000-e073-0008-00000000013c",
+      "name": "Tortilla francesa",
+      "nameEs": "Tortilla francesa",
+      "aliases": [
+        "tortilla francesa con champiñones"
+      ],
+      "category": "primeros",
+      "portionGrams": 150,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 270,
+        "proteins": 18,
+        "carbohydrates": 1.5,
+        "sugars": 0.75,
+        "fats": 21,
+        "saturatedFats": 5.25,
+        "fiber": 0,
+        "salt": 1.2,
+        "sodium": 0.48
+      }
+    },
+    {
+      "externalId": "CE-317",
+      "dishId": "00000000-0000-e073-0007-00000000013d",
+      "nutrientId": "00000000-0000-e073-0008-00000000013d",
+      "name": "Brownie",
+      "nameEs": "Brownie",
+      "aliases": [
+        "porción de brownie"
+      ],
+      "category": "postres",
+      "portionGrams": 80,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 336,
+        "proteins": 4,
+        "carbohydrates": 41.6,
+        "sugars": 30.4,
+        "fats": 17.6,
+        "saturatedFats": 8,
+        "fiber": 1.6,
+        "salt": 0.32,
+        "sodium": 0.13
       }
     }
   ]
