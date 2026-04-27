@@ -18,7 +18,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F-H10-FU | Standard | in-progress | — | Step 1/6 done (Spec approved 3R cross-model). Entering Step 2 (Plan). |
+| F-H10-FU | Standard | in-progress | — | Step 0+1+2 done (Spec 3R, Plan 2R cross-model). Entering Step 3 (TDD). |
 | BUG-DATA-DUPLICATE-ATOM-001 | Simple | pending | — | Awaits F-H10-FU completion |
 
 ## Completed Features
@@ -46,7 +46,7 @@ _(Move features here if blocked)_
 
 **Current feature:** F-H10-FU
 **Branch:** feature/F-H10-FU-l1-lexical-guard (created)
-**Current Step:** 2/6 (Plan)
+**Current Step:** 3/6 (Implement)
 **Next features:** BUG-DATA-DUPLICATE-ATOM-001 (Simple) after F-H10-FU completes
 **Blocked:** none
 
