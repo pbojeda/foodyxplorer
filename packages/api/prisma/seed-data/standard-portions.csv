@@ -312,3 +312,9 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-00000000013b,tapa,80,1,empanadilla,medium,1 empanadilla tapa,pbojeda
 00000000-0000-e073-0007-00000000013b,media_racion,160,2,empanadillas,medium,2 empanadillas media racion,pbojeda
 00000000-0000-e073-0007-00000000013b,racion,240,3,empanadillas,medium,3 empanadillas racion,pbojeda
+00000000-0000-e073-0007-00000000013c,tapa,80,,,medium,small tortilla francesa tapa,pbojeda
+00000000-0000-e073-0007-00000000013c,media_racion,120,,,medium,half tortilla francesa,pbojeda
+00000000-0000-e073-0007-00000000013c,racion,180,,,medium,full tortilla francesa; 2 eggs + oil,pbojeda
+00000000-0000-e073-0007-00000000013d,tapa,40,,,medium,small brownie tapa bar portion,pbojeda
+00000000-0000-e073-0007-00000000013d,media_racion,60,,,medium,half brownie portion,pbojeda
+00000000-0000-e073-0007-00000000013d,racion,80,1,brownie,medium,1 brownie racion; restaurant dessert standard,pbojeda

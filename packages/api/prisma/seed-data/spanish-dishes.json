@@ -8270,6 +8270,58 @@
         "salt": 1.0,
         "sodium": 0.4
       }
+    },
+    {
+      "externalId": "CE-316",
+      "dishId": "00000000-0000-e073-0007-00000000013c",
+      "nutrientId": "00000000-0000-e073-0008-00000000013c",
+      "name": "Tortilla francesa",
+      "nameEs": "Tortilla francesa",
+      "aliases": [
+        "tortilla francesa con champiñones"
+      ],
+      "category": "primeros",
+      "portionGrams": 150,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 180,
+        "proteins": 12,
+        "carbohydrates": 1,
+        "sugars": 0.5,
+        "fats": 14,
+        "saturatedFats": 3.5,
+        "fiber": 0,
+        "salt": 0.8,
+        "sodium": 0.32
+      }
+    },
+    {
+      "externalId": "CE-317",
+      "dishId": "00000000-0000-e073-0007-00000000013d",
+      "nutrientId": "00000000-0000-e073-0008-00000000013d",
+      "name": "Brownie",
+      "nameEs": "Brownie",
+      "aliases": [
+        "porción de brownie"
+      ],
+      "category": "postres",
+      "portionGrams": 80,
+      "confidenceLevel": "medium",
+      "estimationMethod": "ingredients",
+      "source": "recipe",
+      "nutrients": {
+        "calories": 420,
+        "proteins": 5,
+        "carbohydrates": 52,
+        "sugars": 38,
+        "fats": 22,
+        "saturatedFats": 10,
+        "fiber": 2,
+        "salt": 0.4,
+        "sodium": 0.16
+      }
     }
   ]
 }
