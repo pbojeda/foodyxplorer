@@ -20,13 +20,15 @@
 |---------|------------|--------|----------|-------|
 | BUG-DATA-DUPLICATE-ATOM-001 | Simple | pending | — | Next — F-H10-FU completed 2026-04-28 |
 
+(F-H10-FU2 filed in bugs.md as P2; eligible to be promoted to tracker when scoped — Standard ~4-6h, NOT in current /compact-window batch)
+
 ## Completed Features
 
 _(Move features here as they complete)_
 
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
-| F-H10-FU | Standard | ~6h (extended due to multi-round reviews) | DONE 6/6. PR #225 squash-merged at `73e1c97` 2026-04-28. 4166→4189 tests (+23). Cross-model: /review-spec 3R + /review-plan 2R + code-review APPROVE + qa-engineer PASS WITH FOLLOW-UPS resolved + /audit-merge 11/11. 11/13 ACs + 2 operator-deferred. |
+| F-H10-FU | Standard | ~6h (extended due to multi-round reviews) + ~30min ops verification | DONE 6/6. PR #225 squash-merged at `73e1c97` 2026-04-28. 4166→4189 tests (+23). Cross-model: /review-spec 3R + /review-plan 2R + code-review APPROVE + qa-engineer PASS WITH FOLLOW-UPS resolved + /audit-merge 11/11. **Operator verification 2026-04-28: AC4 [x] (threshold validated empirically); AC3 [ ] EMPIRICAL FAIL → F-H10-FU2 filed in bugs.md (Jaccard threshold structurally insufficient for Q649 — need algorithm change).** |
 
 ## Blocked Features
 

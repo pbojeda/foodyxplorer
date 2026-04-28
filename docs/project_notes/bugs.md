@@ -17,7 +17,32 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
-### 2026-04-27 — F-H10-FU: lexical guard must extend to L1 FTS (Q649 fix incomplete after F-H10)
+### 2026-04-28 — F-H10-FU2: Jaccard threshold-based guard insufficient to fix Q649 (semantic mismatch problem)
+
+- **Issue**: F-H10-FU shipped the L1 lexical guard with `passesGuardEither(query, nameEs, name)` and OR-semantics + threshold 0.25. Post-deploy verification on api-dev (commit `73e1c97`, deploy 2026-04-28 morning) re-runs the QA battery and Q649 STILL returns `CROISSANT CON QUESO FRESCO`. Battery file: `/tmp/qa-dev-post-fH10FU-20260428-1217.txt:649`.
+- **Root cause (definitive empirical analysis)**: F-H10-FU's spec computed Jaccard against the **truncated display name** `CROISSANT CON QUESO FRESC` (25-char QA-output truncation), arriving at Jaccard = 0.20 (would-reject). The actual full dish nameEs is `CROISSANT CON QUESO FRESCO` (with `O` final). With the full name:
+  - Query tokens after stop-word strip: `{queso, fresco, membrillo}` (3 content tokens)
+  - Candidate tokens after stop-word strip: `{croissant, queso, fresco}` (3 content tokens — `con` removed)
+  - Intersection: `{queso, fresco}` = 2 tokens
+  - Union: `{croissant, queso, fresco, membrillo}` = 4 tokens
+  - Jaccard: **2/4 = 0.50** ≥ 0.25 → guard ACCEPTS (incorrectly)
+- **Why threshold tuning alone CANNOT fix this**: raising threshold above 0.50 would correctly reject Q649 BUT also break legitimate single-token queries against 2-content-token candidates, e.g. `paella` → `Paella valenciana` (Jaccard = 0.50). Single-token queries are common (post-wrapper-strip many queries reduce to 1 word). Any threshold > 0.50 has unacceptable false-negative rate.
+- **Other false positives detected in same QA battery** (semantically similar problem, same Jaccard-acceptance signature):
+  - Q178 / Q312: `coca cola` → `Huevas cocidas de merluza de cola patagónia` (sea-food not soda)
+  - Q378: `una copa de oporto` → `Paté fresco de vino de Oporto` (paté not Port wine)
+  - Q345: `un poco de todo` → `Patatas aptas para todo uso culinario` (filler matches catalog noise)
+  - Q580: `pollo al curri con arro blanco` → `Foccacia Pollo al Curry` (catalog gap; semantic mismatch)
+- **Risk**: MEDIUM — multiple false positives confirm the lexical-only approach has structural limits. Most are LOW severity in isolation (kcal estimates plausible) but reputational/correctness risk grows with each. F-H10-FU IS still net-positive: it correctly rejects ~115 candidates that would have been false positives at L1, AND shipped the reusable infrastructure.
+- **Resolution path** — F-H10-FU2 ticket needed (Standard, ~4-6h). Algorithm options:
+  - **Option A (lightweight)**: Required-token check — compute "high-information" tokens of the query (length ≥ 4, not in food-stop-word list like `queso, fresco, leche, agua, plato, ración`); if any HI token absent from candidate, reject. Q649: `membrillo` is HI, not in candidate → reject ✓. paella → Paella valenciana: `paella` is HI, present in candidate → accept ✓.
+  - **Option B (medium)**: TF-IDF or BM25 with food-corpus IDF — common food words like `queso, fresco` get low weight, distinctive ones like `membrillo, oporto, croissant` get high weight. Compute weighted similarity; reject below threshold.
+  - **Option C (heavy)**: Embedding-similarity cross-check at L1 — invoke `callOpenAIEmbeddings` once per FTS hit and verify cosine similarity ≥ threshold against the L1 candidate embedding. Cost: latency + OpenAI API call per L1 FTS hit. Probably overkill for L1; L3 already does this.
+  - **Recommended**: Option A as a quick fix layered on top of existing Jaccard guard. Simple to implement, no extra dependencies, semantic intuition matches the failure mode. If Option A insufficient, escalate to B.
+- **Tests required**: new `fH10FU2.l1RequiredTokenGuard.unit.test.ts`. At minimum cover: Q649 (rejected), Q178/Q312 (rejected), Q378 (rejected), paella → Paella valenciana (accepted), tortilla → Tortilla de patatas (accepted), gazpacho → Gazpacho andaluz (accepted), single-token edge cases.
+- **Severity**: P2 — F-H10-FU's stated goal (Q649 fix) not empirically achieved. Same severity-class as the F-H10-FU follow-up itself. Not a regression — Q649 was broken pre-F-H10 and pre-F-H10-FU.
+- **Filed by**: orchestrator post-deploy verification 2026-04-28. Empirical artifact at `docs/project_notes/F-H10-FU-jaccard-preflight.md`.
+
+### 2026-04-27 — F-H10-FU: lexical guard must extend to L1 FTS (Q649 fix incomplete after F-H10) [PARTIALLY RESOLVED — see F-H10-FU2 above]
 
 - **Issue**: F-H10's lexical guard (`applyLexicalGuard` + `computeTokenJaccard` in `level3Lookup.ts:99`) was wired ONLY into the L3 cascade. Empirical post-deploy QA battery dev (2026-04-27 16:54, `/tmp/qa-dev-post-fH9-fH10-20260427-1654.txt`) confirms Q649 (`queso fresco con membrillo`) still returns `CROISSANT CON QUESO FRESC` (Starbucks Spain, 343 kcal) — identical to pre-F-H10 behavior. F-H10's stated AC-1 (Q649 fix) NOT empirically achieved.
 - **Root Cause**: F-H10 spec assumed the false positive was an L3 vector-similarity issue. Empirically it is an **L1 FTS issue**: `CROISSANT CON QUESO FRESC` is from Starbucks PDF ingest (not in `spanish-dishes.json`), and the L1 FTS search matches `queso fresco` query tokens against `QUESO FRESC` in the dish nameEs with high tsrank, returning the CROISSANT before L3 ever runs. The lexical guard at L3 never executes for this query path.
