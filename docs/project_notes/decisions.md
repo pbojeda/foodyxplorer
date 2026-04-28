@@ -763,3 +763,67 @@ Same pattern for Strategy 4 with `ftsFoodRow.food_name_es` / `ftsFoodRow.food_na
 - (+) BUG-PROD-012 two-pass interaction is safe: guard runs inside `runCascade()`, applied independently on each pass. Q649 correctly returns null on both passes.
 - (-) `passesGuardEither` is NOT exported — unit tests exercise it via cascade tests (Option A per plan). If direct unit testing of the helper is needed in future, it must be exported or tested via a different mechanism.
 - (-) Pre-flight Jaccard distribution analysis (AC4) was deferred to operator action post-implementation. Risk is low (dual-name OR semantics are strictly more permissive than F-H10's single-name guard), but the artifact should be completed before marking AC4 done.
+
+---
+
+#### ADR-024 Addendum 2: L1 Required-Token Guard (F-H10-FU2, 2026-04-28)
+
+**Date:** 2026-04-28
+**Status:** Accepted — extends ADR-024 and ADR-024 Addendum 1 (F-H10-FU)
+
+**Context:** Post-deploy operator verification on 2026-04-28 confirmed that Q649 (`queso fresco con membrillo` → `CROISSANT CON QUESO FRESCO`) is still accepted at L1 FTS under the Jaccard-only guard shipped in F-H10-FU (commit `73e1c97`). Root cause: the full `nameEs` is `CROISSANT CON QUESO FRESCO`; Jaccard against the full name is 2/4 = 0.50 ≥ 0.25 (threshold) → guard passes. The original spec incorrectly computed Jaccard against the truncated QA-display string `CROISSANT CON QUESO FRESC` (0.20 → reject). Additionally, 5 other false positives (Q178, Q312, Q345, Q378, Q580) were identified in the 2026-04-28 QA battery, 4 of which are rejected by F-H10-FU's Step 1 at the source level (reconciled in `F-H10-FU2-preflight-20260428.md` as a stale deploy artifact), with Q649 and Q378 passing Step 1.
+
+**Failure mode: Jaccard insufficient for multi-token semantic mismatches.** Any threshold sufficient to reject Q649 (> 0.50) would also reject single-token legitimate queries like `paella` → `Paella valenciana` (Jaccard = 0.50). Threshold tuning alone cannot distinguish between:
+- `queso fresco con membrillo` (queryHI={membrillo}) against `CROISSANT CON QUESO FRESCO` — semantic mismatch
+- `paella` against `Paella valenciana` — semantic match
+
+**Decision 4 — Required-token check as Step 2 of combined guard `passesGuardL1`:**
+
+A query token is "high-information" (HI) if it has normalized length ≥ 4 AND is not in `FOOD_STOP_WORDS_EXTENDED`. The combined guard `passesGuardL1` wraps `passesGuardEither` as Step 1, then applies the required-token check as Step 2:
+
+- Step 1: `passesGuardEither(query, nameEs, name)`. If false → REJECT immediately.
+- Step 2: Extract `queryHI = getHighInformationTokens(query)`. If empty → fall through (Jaccard-only behavior, EC-1).
+- Step 2a: If nameEs non-null → tokenize nameEs. If EVERY token in `queryHI` is present → ACCEPT.
+- Step 2b: Tokenize name. If EVERY token in `queryHI` is present → ACCEPT.
+- Otherwise → REJECT.
+
+**Why `every` (not `some`).** Using `some` (accept if ANY HI token is absent) is too strict and would reject legitimate matches where only one HI token is missing. The correct semantics is `every` — accept if ALL HI tokens are present. Empirically verified: `some` would still accept Q178/Q312 because `cola` IS present in `Huevas cocidas de merluza de cola patagónia` (a false positive). `every` correctly rejects because `coca` is absent.
+
+**Decision 5 — `FOOD_STOP_WORDS_EXTENDED` for HI token extraction.**
+
+The HI token filter uses a superset of `SPANISH_STOP_WORDS`:
+1. **Linguistic stop words** (14): `de, del, con, la, el, los, las, un, una, al, y, a, en, por`
+2. **Food-domain modifiers** (12, spec starter): `queso, fresco, leche, agua, plato, racion, tapa, pintxo, media, caliente, frio, natural`
+3. **Quantity/size modifiers** (expanded after Phase 0.2 simulation): `grande, normal, generosa, generoso, cuarto, triple, doble, algunos, algunas, tres, cuatro, cinco`
+4. **Serving containers** (expanded): `copas, copa, pinchos, pincho, rebanadas, rebanada, vaso, vasito, botella, botellin`
+5. **Preparation method modifiers** (expanded): `brasa, frito, frita, fritos, fritas, plancha, asado, asada`
+6. **Conversational filler** (expanded): `favor, para`
+7. **Food packaging/container** (expanded): `sobre, sopa, instantanea, instantaneo, lata`
+8. **Serving format**: `canas, cana` (cañas/caña = beer glass; NFD: caña→cana), `molde, crema`
+9. **Truncation artifact**: `verdu` (truncated "verduras" in QA capture)
+
+**Criteria for inclusion:** token is semantically common across many dish types; its presence alone does not justify a match; removing it does not cause false negatives on known QA battery (136-row simulation, 2026-04-28). DO NOT add primary dish identifiers (pollo, jamon, vino, paella, tortilla, etc.).
+
+**Phase 0.2 simulation result:** v1 starter list (26 tokens) yielded 26 false negatives. Expanded list (59 tokens) reduced to 5 FNs — all truncation artifacts from the QA capture's 40-char limit. Decision gate (≤ 5) passed.
+
+**Decision 6 — `token.length >= 4` heuristic for HI qualification.**
+
+3-character Spanish food words (`pan`, `ron`, `té`, `sal`) appear in many candidate names (`pan de cristal`, `ron caña`, `sal gorda`) and would cause systematic false negatives if treated as HI tokens. The length-4 cutoff is a practical heuristic balancing selectivity vs. coverage. Known limitation: very short food terms (< 4 chars) fall through to Jaccard-only, which may miss rare semantic mismatches. Acceptable for the current QA battery.
+
+**Decision 7 — L1→L3 delegation pattern for over-rejection on elaborated queries.**
+
+With `every` semantics, queries containing HI tokens NOT in the canonical catalog name are rejected at L1 even when semantically equivalent. Example: `tarta de queso casera` → `Tarta de queso` — queryHI = {tarta, casera}; `casera` absent from candidate → REJECT at L1. This is acceptable because the L3 embedding semantic check acts as a safety net. L1 stays strict to suppress noise; L3 catches semantic equivalents. If empirical QA confirms specific quality modifiers cause systematic L1 rejection of legitimate matches, extend `FOOD_STOP_WORDS_EXTENDED` in a follow-up ticket.
+
+**Q378 scope note:** `una copa de oporto` → postStrip (via extractFoodQuery) → `oporto`. queryHI = {oporto}. Candidate `Paté fresco de vino de Oporto` contains `oporto` → step2 ACCEPTS. This is correct L1 behavior — the semantic mismatch (drink vs. pâté) is delegated to L3 embedding. The original spec assumed `copa` would survive extractFoodQuery stripping; empirically it does not.
+
+**Call-site replacement:**
+
+Strategy 2 and Strategy 4 in `runCascade()` now call `passesGuardL1` instead of `passesGuardEither` directly. `passesGuardL1` is private to `level1Lookup.ts`, not exported. Tested exclusively via cascade tests per ADR-024 addendum decision 4.
+
+**Consequences:**
+- (+) All 5 known FPs from Step 2's `every`-HI-token check now rejected at L1 (Q649 ✓, Q178 ✓, Q312 ✓, Q345 ✓, Q580 ✓). Q378 correctly passes L1 and is delegated to L3.
+- (+) Single-token legitimate queries preserved (paella, gazpacho, tortilla, croquetas, etc.) — required-token check does not interfere.
+- (+) NFD normalization handles accented queries (jamón→jamon, ibérico→iberico, caña→cana).
+- (+) Bilingual OR semantics preserved — accept if all HI tokens in nameEs OR all HI tokens in name.
+- (-) Elaborated queries (e.g., `tortilla de patatas` against canonical `tortilla española`) are rejected at L1 and must be caught by L3. Two F-H10-FU regression fixtures required update (`TORTILLA_DISH_ROW`, `GAZPACHO_FOOD_ROW`) to use full canonical names — documented in ticket Completion Log.
+- (-) `FOOD_STOP_WORDS_EXTENDED` list requires ongoing curation. Aggressive extension causes false negatives; conservative extension leaves some FPs. QA battery re-run after each expansion is mandatory.
