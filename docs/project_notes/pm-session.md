@@ -19,8 +19,8 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F-H10-FU2 | Standard | in-progress | — | Active — Step 0/6. Algorithm change to fix Q649 + 5 FPs (required-token guard layered on Jaccard). Spec/plan inputs: bugs.md 2026-04-28 + F-H10-FU-jaccard-preflight.md. |
-| BUG-DATA-DUPLICATE-ATOM-001 | Simple | pending | — | Queued after F-H10-FU2. |
+| F-H10-FU2 | Standard | done | ~5h | DONE 6/6. PR #229 squash-merged at `49770ad` 2026-04-28T20:46 UTC. 4189→4244 tests (+55). |
+| BUG-DATA-DUPLICATE-ATOM-001 | Simple | in-progress | — | Active per user "continua con la siguiente" 2026-04-28. Pre-authorized. |
 
 ## Completed Features
 
@@ -46,9 +46,9 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** F-H10-FU2 (Standard ~4-6h) — algorithm change for Q649 + 5 known FPs (required-token guard, every-HI-token semantics). Started 2026-04-28 post-recovery.
-**Branch:** `feature/F-H10-FU2-l1-required-token-guard` (created)
-**Current Step:** 1/6 (Setup done — branch + ticket Spec section drafted, /review-spec converged APPROVED in 2 rounds)
+**Current feature:** BUG-DATA-DUPLICATE-ATOM-001 (Simple ~1h) — collapse duplicate atom CE-281 → CE-095 (Migas). Started 2026-04-28 after F-H10-FU2 merge.
+**Branch:** (next branch will be `bugfix/BUG-DATA-DUPLICATE-ATOM-001-collapse-ce281`)
+**Current Step:** 0/6 (intake)
 **Next features:** BUG-DATA-DUPLICATE-ATOM-001 (Simple) after F-H10-FU2 completes
 **Blocked:** none
 
