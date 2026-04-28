@@ -61,7 +61,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 ---
 
-### 2026-04-28 — F-H10-FU2: Jaccard threshold-based guard insufficient to fix Q649 (semantic mismatch problem)
+### 2026-04-28 — F-H10-FU2: Jaccard threshold-based guard insufficient to fix Q649 (semantic mismatch problem) [RESOLVED — PR #229 `49770ad`]
 
 - **Issue**: F-H10-FU shipped the L1 lexical guard with `passesGuardEither(query, nameEs, name)` and OR-semantics + threshold 0.25. Post-deploy verification on api-dev (commit `73e1c97`, deploy 2026-04-28 morning) re-runs the QA battery and Q649 STILL returns `CROISSANT CON QUESO FRESCO`. Battery file: `/tmp/qa-dev-post-fH10FU-20260428-1217.txt:649`.
 - **Root cause (definitive empirical analysis)**: F-H10-FU's spec computed Jaccard against the **truncated display name** `CROISSANT CON QUESO FRESC` (25-char QA-output truncation), arriving at Jaccard = 0.20 (would-reject). The actual full dish nameEs is `CROISSANT CON QUESO FRESCO` (with `O` final). With the full name:

@@ -1,7 +1,7 @@
 # F-H10-FU2: L1 Required-Token Guard — Q649 algorithm fix (Jaccard insufficient)
 
 **Feature:** F-H10-FU2 | **Type:** Backend-Feature (NLP/Search) | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F-H10-FU2-l1-required-token-guard
+**Status:** Done | **Branch:** feature/F-H10-FU2-l1-required-token-guard (squash-merged at `49770ad` 2026-04-28; deleted local + remote)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-28 | **Dependencies:** F-H10-FU (PR #225, merged at `73e1c97`)
 
@@ -562,7 +562,7 @@ This does not affect implementation — the regression gate in Phase 5 should ta
 - [x] Step 4: `production-code-validator` APPROVE 98% (0 CRITICAL/HIGH; 1 MEDIUM admin Merge Checklist; 2 LOW NITs)
 - [x] Step 5: `code-review-specialist` APPROVE WITH MINOR (1 MEDIUM `sopa` removed; LOW-1 HI_TOKEN_MIN_LENGTH constant added; MEDIUM-2/3 + LOW-2/3/4 + NIT-1 deferred as non-blocking)
 - [x] Step 5: `qa-engineer` PASS WITH FOLLOW-UPS (+13 adversarial tests, 42→55; Q378 spec table inaccuracy fixed; Q649 Jaccard claim verified correct)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted (pending merge)
+- [x] Step 6: Ticket updated with final metrics; PR #229 squash-merged at `49770ad` 2026-04-28T20:46 UTC; branch deleted local + remote (gh pr merge --delete-branch)
 
 ---
 
