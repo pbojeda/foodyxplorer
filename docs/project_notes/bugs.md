@@ -17,6 +17,50 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-04-28 — F-MODIFIERS-001: extractPortionModifier missing `mediano/a`, `gigante`, standalone `casero/a` (filed during F-H10-FU2 spec audit)
+
+- **Issue**: During the F-H10-FU2 spec discussion (required-token L1 guard), the user asked whether existing modifier-strip logic in the project was being duplicated. An Explore-agent audit confirmed `extractPortionModifier()` at `packages/api/src/conversation/entityExtractor.ts:170-224` already strip-extracts size/quality modifiers as nutritional multipliers BEFORE L1 lookup: `grande` (1.5×), `pequeño/a` (0.7×), `enorme` (2.0×), `mini` (0.7×), `media` / `media ración` (0.5×), `extra` (1.5×), `buen[ao]s` (1.0×), `generos[ao]s` (1.0×). Three common modifiers are MISSING from the PATTERNS array:
+  - `mediano/a` — common size descriptor (medium); should be 1.0× (informational, no nutritional change)
+  - `gigante` — common size descriptor (giant); should be 2.0× (parallel to `enorme`)
+  - `casero/a` standalone — currently ONLY handled in the H7 Cat A compound `casero de postre` (`h7TrailingStrip.ts:14`); not as a standalone trailing modifier
+- **Concrete failure modes (under F-H10-FU2's stricter `every`-HI guard)**:
+  - `tarta de queso casera` → L1 sees `tarta queso casera` (queryHI = {tarta, casera} after `queso` stop-worded). Candidate `Tarta de queso` lacks `casera` → required-token rejects at L1. (L3 embedding rescues, but unnecessary delegation.)
+  - `paella mediana` → L1 sees `paella mediana` (queryHI = {paella, mediana}). Candidate `Paella valenciana` lacks `mediana` → reject. Should have been `paella` × 1.0 multiplier.
+  - `pizza gigante` → L1 sees `pizza gigante` (queryHI = {pizza, gigante}). Most pizza atoms lack `gigante` → reject. Should have been `pizza` × 2.0 multiplier.
+- **Risk**: LOW pre-F-H10-FU2 (Jaccard 0.5 still passes for these cases). MEDIUM post-F-H10-FU2 (every-HI semantics is strict; L3 rescues but adds latency + OpenAI cost per call).
+- **Resolution**: Add 3 entries to PATTERNS array in `extractPortionModifier()`:
+  ```typescript
+  { kind: 'fixed', regex: /\bmedian[oa]s?\b/i, multiplier: 1.0 },
+  { kind: 'fixed', regex: /\bgigantes?\b/i,    multiplier: 2.0 },
+  { kind: 'fixed', regex: /\bcaser[oa]s?\b/i,  multiplier: 1.0 },
+  ```
+  Also extend ración-compound patterns at lines 188-197 (`/\bracion?\s+median[oa]s?\s+de\b/i`, etc.) for parity. Tests in `packages/api/src/__tests__/f070.entityExtractor.unit.test.ts` (or current entityExtractor test file).
+- **Severity**: P3 — quality-of-life improvement; not blocking F-H10-FU2 itself.
+- **Filed by**: orchestrator post-Explore audit 2026-04-28 during F-H10-FU2 Step 0.
+
+---
+
+### 2026-04-28 — F-CHARCUTERIE-001: standalone charcuterie atoms missing (Jamón serrano, Cecina, Lomo embuchado)
+
+- **Issue**: User reported during F-H10-FU2 spec discussion (2026-04-28) that searching `jamón serrano` always returns `Bocadillo de jamón serrano` rather than the cured charcuterie standalone. Confirmed via grep on `packages/api/prisma/seed-data/spanish-dishes.json`:
+  - `Jamón ibérico` exists as standalone embutido atom ✓
+  - `Chorizo ibérico embutido` exists as standalone atom ✓
+  - `Jamón serrano` is MISSING — only `Bocadillo de jamón serrano` (dish) + alias `montadito de jamón serrano` exist
+  - `Cecina` (cured beef, León DOP) is MISSING entirely
+  - `Lomo embuchado` (cured pork loin) is MISSING — only the dish forms exist (`Lomo a la plancha`, `Cinta de lomo al horno`, `Bocadillo de lomo`, `Lomo con pimientos y patatas`)
+- **Resolution**: Add 3 atoms to `spanish-dishes.json` following the F-H6/F-H9 seed expansion pattern. Each atom needs:
+  - id (next available CE-XXX, currently 317 → would be CE-318/319/320)
+  - name + nameEs (e.g., `Jamón serrano`, `Serrano ham`)
+  - kcal_per_100g, macros, sodium_mg, fiber_g per BEDCA reference
+  - aliases list (consider: `lomo curado`, `cecina de león`, `lomo ibérico`)
+  - source priority tier
+  - Portion rows in `standard-portions.csv` (typical serving: 30-50g for cured charcuterie)
+- **Acceptance**: catalog count 317 → 320 (+3); validator passes; alias coverage tested in seed expansion edge-case suite.
+- **Severity**: P3 — catalog completeness gap; user-facing impact: incorrect routing of bare charcuterie queries to compound dish atoms.
+- **Filed by**: orchestrator post user observation 2026-04-28 during F-H10-FU2 Step 0.
+
+---
+
 ### 2026-04-28 — F-H10-FU2: Jaccard threshold-based guard insufficient to fix Q649 (semantic mismatch problem)
 
 - **Issue**: F-H10-FU shipped the L1 lexical guard with `passesGuardEither(query, nameEs, name)` and OR-semantics + threshold 0.25. Post-deploy verification on api-dev (commit `73e1c97`, deploy 2026-04-28 morning) re-runs the QA battery and Q649 STILL returns `CROISSANT CON QUESO FRESCO`. Battery file: `/tmp/qa-dev-post-fH10FU-20260428-1217.txt:649`.
