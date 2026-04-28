@@ -232,6 +232,10 @@ describe('H6-EC-6: minimum 2 portion rows per new dish', () => {
     const underCovered: string[] = [];
 
     for (let n = 280; n <= 307; n++) {
+      // BUG-DATA-DUPLICATE-ATOM-001 (2026-04-28): CE-281 collapsed into CE-095.
+      // Skip its hex suffix here so the "≥ 2 rows" assertion does not enforce
+      // orphan portion rows that would FK-violate at deploy time.
+      if (n === 281) continue;
       const suf = hexSuffix(n);
       const rows = rowsForNew.filter((r) => r.dishId.endsWith(suf));
       if (rows.length < 2) {
@@ -240,6 +244,13 @@ describe('H6-EC-6: minimum 2 portion rows per new dish', () => {
     }
 
     expect(underCovered).toHaveLength(0);
+  });
+
+  it('CE-281 hex suffix has ZERO portion rows (orphan-row regression guard)', () => {
+    const rowsForNew = newCsvRows();
+    const ce281Suffix = hexSuffix(281);
+    const orphans = rowsForNew.filter((r) => r.dishId.endsWith(ce281Suffix));
+    expect(orphans).toHaveLength(0);
   });
 });
 
