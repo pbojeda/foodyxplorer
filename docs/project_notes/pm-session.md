@@ -10,17 +10,17 @@
 
 **Baseline @ session start (develop @ `36be921`):** api lint 0 errors | api build clean | api tests 4151/4151 ✓ (verified post-#224 chore PR drift fixes merge). Re-verification skipped — no commits since baseline.
 
-**Merge authorization policy (user-set 2026-04-27):**
-- F-H10-FU (Standard): user pre-authorized via `start pm` confirmation. Merge after audit-merge passes.
-- BUG-DATA-DUPLICATE-ATOM-001 (Simple): user pre-authorized via same confirmation. Merge after audit-merge passes.
+**Merge authorization policy (user-set 2026-04-27, extended 2026-04-28):**
+- F-H10-FU (Standard): user pre-authorized via `start pm` confirmation. Merge after audit-merge passes. **DONE 2026-04-28.**
+- BUG-DATA-DUPLICATE-ATOM-001 (Simple): user pre-authorized via same confirmation. Merge after audit-merge passes. **PENDING.**
+- **F-H10-FU2 (Standard): user pre-authorized 2026-04-28 via "vamos a por el A" after recovery decision tree.** Promoted to tracker as active feature. Merge after audit-merge passes.
 
 ## Current Batch
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| BUG-DATA-DUPLICATE-ATOM-001 | Simple | pending | — | Next — F-H10-FU completed 2026-04-28 |
-
-(F-H10-FU2 filed in bugs.md as P2; eligible to be promoted to tracker when scoped — Standard ~4-6h, NOT in current /compact-window batch)
+| F-H10-FU2 | Standard | in-progress | — | Active — Step 0/6. Algorithm change to fix Q649 + 5 FPs (required-token guard layered on Jaccard). Spec/plan inputs: bugs.md 2026-04-28 + F-H10-FU-jaccard-preflight.md. |
+| BUG-DATA-DUPLICATE-ATOM-001 | Simple | pending | — | Queued after F-H10-FU2. |
 
 ## Completed Features
 
@@ -46,10 +46,10 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** None — F-H10-FU completed 2026-04-28. Next: BUG-DATA-DUPLICATE-ATOM-001 (Simple) or /compact (1/2 in current /compact-window).
-**Branch:** (next branch will be `bugfix/BUG-DATA-DUPLICATE-ATOM-001-collapse-ce281`)
-**Current Step:** 0/6 (no active feature)
-**Next features:** BUG-DATA-DUPLICATE-ATOM-001 (Simple) after F-H10-FU completes
+**Current feature:** F-H10-FU2 (Standard ~4-6h) — algorithm change for Q649 + 5 known FPs (required-token guard, every-HI-token semantics). Started 2026-04-28 post-recovery.
+**Branch:** `feature/F-H10-FU2-l1-required-token-guard` (created)
+**Current Step:** 1/6 (Setup done — branch + ticket Spec section drafted, /review-spec converged APPROVED in 2 rounds)
+**Next features:** BUG-DATA-DUPLICATE-ATOM-001 (Simple) after F-H10-FU2 completes
 **Blocked:** none
 
 To resume after /compact: run `continue pm`
