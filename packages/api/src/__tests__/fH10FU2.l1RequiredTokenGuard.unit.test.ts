@@ -679,3 +679,251 @@ describe('passesGuardL1 — EC edge cases (AC6)', () => {
     expect(result).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Adversarial edge cases — QA-added (F-H10-FU2 QA pass, 2026-04-28)
+// ---------------------------------------------------------------------------
+
+describe('passesGuardL1 — adversarial edge cases (QA pass)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Hyphenated query tokens
+  // ---------------------------------------------------------------------------
+
+  it('Hyphen merging: "coca-cola" (hyphenated) vs "Coca Cola Zero" — REJECT (hyphen stripped, "cocacola" not a candidate token)', async () => {
+    // normalizeL1 strips hyphens via [^a-z\s] → "coca-cola" → "cocacola" (single token, 8 chars).
+    // queryHI = {cocacola}. Candidate "Coca Cola Zero" tokenizes to {coca, cola, zero}.
+    // "cocacola" is absent → every fails → REJECT at Step 2.
+    // Note: Jaccard also = 0 (no token overlap), so Step 1 rejects too.
+    // This is consistent with computeTokenJaccard's pipeline (same punctuation strip).
+    // Users who type "coca-cola" (hyphen) will get null at L1 and fall to L3 embedding.
+    const row = makeDishRow({ dish_name: 'Coca Cola Zero', dish_name_es: 'Coca Cola Zero' });
+    mockDishFtsHit(row);
+    const db = buildMockDb() as never;
+    const result = await level1Lookup(db, 'coca-cola', { chainSlug: 'test-chain' });
+    expect(result).toBeNull();
+  });
+
+  // ---------------------------------------------------------------------------
+  // EC-6: Two-pass cascade (BUG-PROD-012) with FULL nameEs — Step 2 fires in pass 2
+  // ---------------------------------------------------------------------------
+
+  it('EC-6 two-pass (unscoped): FULL nameEs passes Step 1 (Jaccard 0.60) but Step 2 rejects (membrillo absent) in both passes — result null', async () => {
+    // This test exercises the EC-6 scenario with the FULL nameEs ('CROISSANT CON QUESO FRESCO'),
+    // where Step 1 PASSES (Jaccard = 3/5 = 0.60 ≥ 0.25) and Step 2 fires and REJECTS.
+    //
+    // In contrast, fH10FU.q649.unit.test.ts uses the TRUNCATED nameEs ('CROISSANT CON QUESO FRESC')
+    // where Step 1 itself rejects (Jaccard 0.20 < 0.25). That test validates Step 1 rejection.
+    // THIS test validates Step 2 rejection in the two-pass path with the production-accurate FULL name.
+    //
+    // Pass 1 (minTier≥1, no chainSlug/restaurantId → two-pass trigger):
+    //   All 4 strategies miss (CROISSANT is Tier 0; excluded from Tier≥1 filter) → 4 DB calls.
+    // Pass 2 (unfiltered):
+    //   S1 miss, S2 returns FULL nameEs CROISSANT row.
+    //   Step 1: Jaccard('queso fresco con membrillo', 'CROISSANT CON QUESO FRESCO') = 3/5 = 0.60 → PASS.
+    //   Step 2: queryHI={membrillo}. 'membrillo' not in {croissant, queso, fresco, con} → REJECT.
+    //   S3 miss, S4 miss → pass 2 returns null.
+    // Final result: null. Total: 8 DB calls.
+    mockExecuteQuery
+      .mockResolvedValueOnce({ rows: [] })  // Pass 1 S1 (Tier≥1 exact dish → miss)
+      .mockResolvedValueOnce({ rows: [] })  // Pass 1 S2 (Tier≥1 FTS dish → CROISSANT excluded)
+      .mockResolvedValueOnce({ rows: [] })  // Pass 1 S3 (Tier≥1 exact food → miss)
+      .mockResolvedValueOnce({ rows: [] })  // Pass 1 S4 (Tier≥1 FTS food → miss)
+      .mockResolvedValueOnce({ rows: [] })  // Pass 2 S1 (unfiltered exact dish → miss)
+      .mockResolvedValueOnce({ rows: [makeDishRow({  // Pass 2 S2 (FTS dish → FULL nameEs hit)
+        dish_name: 'CROISSANT WITH FRESH CHEESE',
+        dish_name_es: 'CROISSANT CON QUESO FRESCO',  // FULL nameEs — Jaccard 0.60, Step1 PASSES
+        chain_slug: 'starbucks-es',
+      })] })
+      .mockResolvedValueOnce({ rows: [] })  // Pass 2 S3 (unfiltered exact food → miss)
+      .mockResolvedValueOnce({ rows: [] }); // Pass 2 S4 (unfiltered FTS food → miss)
+
+    const db = buildMockDb() as never;
+    // No chainSlug, no restaurantId → triggers two-pass BUG-PROD-012 path
+    const result = await level1Lookup(db, 'queso fresco con membrillo', {});
+
+    expect(result).toBeNull();
+    // 8 total DB calls: 4 per pass — proves BOTH passes ran and guard fired in pass 2
+    expect(mockExecuteQuery).toHaveBeenCalledTimes(8);
+  });
+
+  it('EC-6 two-pass (unscoped): S4 FTS food — FULL nameEs passes Step 1 but Step 2 rejects — null across both passes', async () => {
+    // Validates EC-6 for Strategy 4 (FTS food) in the two-pass path.
+    // Pass 1 (minTier≥1): all miss (food row is Tier 0 / excluded) → 4 DB calls.
+    // Pass 2 (unfiltered): S4 returns a food row whose nameEs passes Jaccard but lacks HI token.
+    // query="coca cola grande", postStrip by normalizeQuery="coca cola grande".
+    // queryHI={coca, cola}. food_name_es='Huevas cocidas de merluza de cola patagónia'.
+    // Step 1: Jaccard('coca cola grande', 'Huevas cocidas de merluza de cola patagónia') < 0.25 → REJECT.
+    // Actually let's use a case where Step1 passes and Step2 fires:
+    // query="membrillo artesano", queryHI={membrillo, artesano}.
+    // candidate "Mermelada de membrillo": Jaccard {membrillo,artesano} ∩ {mermelada,membrillo} = {membrillo}
+    // union = {membrillo,artesano,mermelada} → 1/3 ≈ 0.33 → Step1 PASSES.
+    // Step2: 'artesano' absent → REJECT.
+    mockExecuteQuery
+      .mockResolvedValueOnce({ rows: [] })  // Pass 1 S1
+      .mockResolvedValueOnce({ rows: [] })  // Pass 1 S2
+      .mockResolvedValueOnce({ rows: [] })  // Pass 1 S3
+      .mockResolvedValueOnce({ rows: [] })  // Pass 1 S4
+      .mockResolvedValueOnce({ rows: [] })  // Pass 2 S1
+      .mockResolvedValueOnce({ rows: [] })  // Pass 2 S2
+      .mockResolvedValueOnce({ rows: [] })  // Pass 2 S3
+      .mockResolvedValueOnce({ rows: [makeFoodRow({  // Pass 2 S4 — food FTS hit, Step1 passes, Step2 rejects
+        food_name: 'Quince jam',
+        food_name_es: 'Mermelada de membrillo',
+      })] });
+
+    const db = buildMockDb() as never;
+    const result = await level1Lookup(db, 'membrillo artesano', {});
+
+    expect(result).toBeNull();
+    expect(mockExecuteQuery).toHaveBeenCalledTimes(8);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Empty string nameEs (spec EC-7 extension: '' treated as null)
+  // ---------------------------------------------------------------------------
+
+  it('Empty string nameEs treated as falsy (like null): evaluates name side only — HI tokens in name → ACCEPT', async () => {
+    // Spec EC-7 mentions null/undefined nameEs. Empty string '' is also falsy in JS.
+    // passesGuardL1: if (nameEs) { ... } — '' skips to name evaluation.
+    // If name has all HI tokens → ACCEPT. Documents this implicit behavior.
+    // query="paella valenciana" → HI={paella, valenciana}.
+    // nameEs='', name='Paella valenciana' → name side passes → ACCEPT.
+    const row = makeDishRow({ dish_name: 'Paella valenciana', dish_name_es: '' as unknown as null });
+    mockDishFtsHit(row);
+    const db = buildMockDb() as never;
+    const result = await level1Lookup(db, 'paella valenciana', { chainSlug: 'test-chain' });
+    expect(result).not.toBeNull();
+  });
+
+  it('Empty string nameEs treated as falsy: HI token absent from name only → REJECT', async () => {
+    // nameEs='' (falsy) and name lacks 'membrillo' → REJECT.
+    // query="membrillo casero" → HI={membrillo, casero}.
+    // nameEs='', name='Quince jam' → {quince, jam} → neither HI present → REJECT.
+    // Note: Step 1 Jaccard likely also rejects here, but this documents the '' behavior.
+    const row = makeDishRow({ dish_name: 'Quince jam', dish_name_es: '' as unknown as null });
+    mockDishFtsHit(row);
+    const db = buildMockDb() as never;
+    const result = await level1Lookup(db, 'membrillo casero', { chainSlug: 'test-chain' });
+    expect(result).toBeNull();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Leading/trailing whitespace in query (normalizeQuery trims before guard)
+  // ---------------------------------------------------------------------------
+
+  it('Leading/trailing whitespace in query: "  paella  " trimmed by normalizeQuery → ACCEPT against Paella valenciana', async () => {
+    // level1Lookup calls normalizeQuery(query) which applies .trim().
+    // So "  paella  " → "paella" before reaching passesGuardL1. No crash.
+    // queryHI={paella}. 'paella' in 'Paella valenciana' → ACCEPT.
+    const row = makeDishRow({ dish_name: 'Paella valenciana', dish_name_es: 'Paella valenciana' });
+    mockDishFtsHit(row);
+    const db = buildMockDb() as never;
+    const result = await level1Lookup(db, '  paella  ', { chainSlug: 'test-chain' });
+    expect(result).not.toBeNull();
+    expect(result?.matchType).toBe('fts_dish');
+  });
+
+  // ---------------------------------------------------------------------------
+  // Deduplication of repeated query tokens
+  // ---------------------------------------------------------------------------
+
+  it('Repeated query token "pollo pollo pollo" — Set dedup yields {pollo}; present in candidate → ACCEPT', async () => {
+    // getHighInformationTokens uses Set → {pollo} (size 1).
+    // every([pollo] in candidate) with candidate having 'pollo' → ACCEPT.
+    // Confirms Set dedup prevents spurious repeated-token false negatives.
+    const row = makeDishRow({ dish_name: 'Chicken roast', dish_name_es: 'Pollo asado al horno' });
+    mockDishFtsHit(row);
+    const db = buildMockDb() as never;
+    const result = await level1Lookup(db, 'pollo pollo pollo', { chainSlug: 'test-chain' });
+    expect(result).not.toBeNull();
+  });
+
+  // ---------------------------------------------------------------------------
+  // L3-delegation regression checks (spec EC-9 trade-off elaborated queries)
+  // ---------------------------------------------------------------------------
+
+  it('L3 delegation: "tarta de queso casera" vs "Tarta de queso" — REJECT at L1 (casera absent)', async () => {
+    // queryHI = {tarta, casera} (queso is in FOOD_STOP_WORDS_EXTENDED; de/con stop words).
+    // Candidate "Tarta de queso" tokens: {tarta, queso}.
+    // 'casera' absent → every fails → REJECT.
+    // Jaccard also passes (tarta overlap = 0.33 ≥ 0.25), so Step 1 passes but Step 2 rejects.
+    // Correct behavior per spec EC-9 trade-off: elaborated queries delegated to L3 embedding.
+    const row = makeDishRow({ dish_name: 'Cheesecake', dish_name_es: 'Tarta de queso' });
+    mockDishFtsHit(row);
+    const db = buildMockDb() as never;
+    const result = await level1Lookup(db, 'tarta de queso casera', { chainSlug: 'test-chain' });
+    expect(result).toBeNull();
+  });
+
+  it('L3 delegation: "pizza margarita" vs "Pizza margherita" — REJECT at L1 (spelling drift)', async () => {
+    // queryHI = {pizza, margarita}. Candidate "Pizza margherita" tokens: {pizza, margherita}.
+    // 'margarita' ≠ 'margherita' (different tokens) → every fails → REJECT.
+    // Correct behavior: spelling drift handled by L3 embedding, not L1 exact token match.
+    const row = makeDishRow({ dish_name: 'Margherita pizza', dish_name_es: 'Pizza margherita' });
+    mockDishFtsHit(row);
+    const db = buildMockDb() as never;
+    const result = await level1Lookup(db, 'pizza margarita', { chainSlug: 'test-chain' });
+    expect(result).toBeNull();
+  });
+
+  it('L3 delegation: "paella de mariscos" vs "Paella valenciana" — REJECT at L1 (mariscos absent)', async () => {
+    // queryHI = {paella, mariscos}. Candidate "Paella valenciana" tokens: {paella, valenciana}.
+    // 'mariscos' absent → REJECT. L3 embedding to handle semantic match.
+    // Step 1 Jaccard: {paella, mariscos} ∩ {paella, valenciana} = {paella} → 1/3 ≈ 0.33 → PASS.
+    // Step 2 fires and rejects.
+    const row = makeDishRow({ dish_name: 'Valencian paella', dish_name_es: 'Paella valenciana' });
+    mockDishFtsHit(row);
+    const db = buildMockDb() as never;
+    const result = await level1Lookup(db, 'paella de mariscos', { chainSlug: 'test-chain' });
+    expect(result).toBeNull();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Known FN truncation artifacts (Phase 0.2 simulation, documented per-spec)
+  // ---------------------------------------------------------------------------
+
+  it('FN artifact Q327: "queso mancheg" (truncated "manchego") — REJECT at L1 (mancheg absent, truncation prevents match)', async () => {
+    // Phase 0.2 simulation identified 5 FNs from QA truncation at ~40-char limit.
+    // Q327: raw query truncated to "queso mancheg" (should be "queso manchego").
+    // queryHI = {mancheg} (queso is extended stop word; mancheg=7 chars, not in list).
+    // Candidate "Queso manchego curado" → tokens: {manchego, curado} (queso stop word).
+    // 'mancheg' ≠ 'manchego' → every fails → REJECT.
+    // This is expected behavior: truncated query cannot match. Documents the known FN.
+    const row = makeFoodRow({ food_name: 'Aged manchego cheese', food_name_es: 'Queso manchego curado' });
+    mockFoodFtsHit(row);
+    const db = buildMockDb() as never;
+    const result = await level1Lookup(db, 'queso mancheg', { chainSlug: 'test-chain' });
+    expect(result).toBeNull();
+  });
+
+  it('FN artifact Q331: "pollo a la plan" (truncated "plancha") — REJECT at L1 (plan absent; plancha is stop word post-NFD)', async () => {
+    // Phase 0.2 FN: Q331 raw query truncated: "plancha" → "plan" (4 chars, not in FOOD_STOP_WORDS_EXTENDED).
+    // "plancha" IS in FOOD_STOP_WORDS_EXTENDED (exact match: 'plancha').
+    // "plan" is NOT → queryHI = {pollo, plan}.
+    // Candidate "Pollo a la plancha": tokens {pollo, plancha}.
+    // 'plan' ≠ 'plancha' → every fails → REJECT.
+    // This is the truncation artifact: real query "pollo a la plancha" would have queryHI={pollo}
+    // and 'pollo' is present → ACCEPT. Only the truncated QA-capture form fails.
+    const row = makeDishRow({ dish_name: 'Grilled chicken', dish_name_es: 'Pollo a la plancha' });
+    mockDishFtsHit(row);
+    const db = buildMockDb() as never;
+    const result = await level1Lookup(db, 'pollo a la plan', { chainSlug: 'test-chain' });
+    expect(result).toBeNull();
+  });
+
+  it('FN artifact Q331 (non-truncated real query): "pollo a la plancha" — ACCEPT (plancha is stop word, queryHI={pollo} present)', async () => {
+    // Companion test to Q331 FN: the REAL (non-truncated) query should ACCEPT.
+    // queryHI = {pollo} (plancha is in FOOD_STOP_WORDS_EXTENDED, la/a are stop words).
+    // Candidate "Pollo a la plancha": tokens {pollo, plancha}.
+    // 'pollo' present → ACCEPT. Confirms the FN is truncation-only, not an algorithm defect.
+    const row = makeDishRow({ dish_name: 'Grilled chicken', dish_name_es: 'Pollo a la plancha' });
+    mockDishFtsHit(row);
+    const db = buildMockDb() as never;
+    const result = await level1Lookup(db, 'pollo a la plancha', { chainSlug: 'test-chain' });
+    expect(result).not.toBeNull();
+  });
+});

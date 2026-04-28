@@ -91,7 +91,11 @@ const FOOD_STOP_WORDS_EXTENDED: Set<string> = new Set([
   // Conversational filler
   'favor', 'para',
   // Food packaging / container descriptors
-  'sobre', 'sopa', 'instantanea', 'instantaneo', 'lata',
+  // NOTE: `sopa` was removed from this set after code-review-specialist MEDIUM-1
+  // flagged it as a primary dish identifier (Sopa de ajo, Sopa de marisco, etc.).
+  // Q627 (`un sobre de sopa instantánea de pollo`) still passes because the
+  // candidate `Sopa instantánea pollo` ALSO contains `sopa` → step 2 accepts.
+  'sobre', 'instantanea', 'instantaneo', 'lata',
   // Serving format / unit
   'canas', 'cana', // cañas/caña = beer glass (NFD: caña→cana)
   // Contextual modifiers (product type, not dish identity)
@@ -117,22 +121,24 @@ function normalizeL1(s: string): string {
     .replace(/[^a-z\s]/g, '');       // punctuation strip — hyphens, commas, parens, etc.
 }
 
+/** Minimum token length to qualify as high-information (ADR-024 addendum 2 Decision 6).
+ *  Below this threshold, 3-char Spanish food words (pan, ron, té) appear in many
+ *  candidate names and would cause systematic false negatives if treated as HI tokens. */
+const HI_TOKEN_MIN_LENGTH = 4;
+
 /**
  * Extract high-information tokens from a query string.
  *
  * A token is "high-information" if:
- *  1. Its normalized form has length >= 4 characters.
+ *  1. Its normalized form has length >= HI_TOKEN_MIN_LENGTH (4).
  *  2. It is NOT in FOOD_STOP_WORDS_EXTENDED.
  *
  * Returns an empty Set if no HI tokens exist (caller falls through to Jaccard-only).
- *
- * Rationale for length >= 4: 3-char Spanish food words (pan, ron, té) appear in many
- * candidate names and would cause systematic false negatives if treated as HI tokens.
  */
 function getHighInformationTokens(s: string): Set<string> {
   const tokens = normalizeL1(s)
     .split(/\s+/)
-    .filter((t) => t.length >= 4 && !FOOD_STOP_WORDS_EXTENDED.has(t));
+    .filter((t) => t.length >= HI_TOKEN_MIN_LENGTH && !FOOD_STOP_WORDS_EXTENDED.has(t));
   return new Set(tokens);
 }
 

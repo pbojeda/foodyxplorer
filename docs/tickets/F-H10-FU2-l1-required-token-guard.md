@@ -55,7 +55,7 @@ This ensures `caña` matches `cana`, `café` matches `cafe`, `Crème brûlée` m
 | una coca cola | Huevas cocidas de merluza de cola patagónia | {coca, cola} | `coca` absent → fail | REJECT (Q178 fixed at Step 2) |
 | coca cola grande | Huevas cocidas de merluza de cola patagónia | {coca, cola, grande} | `coca` absent → fail | REJECT (Q312 fixed at Step 2) |
 | un poco de todo | Patatas aptas para todo uso culinario | {poco, todo} | `poco` absent → fail | REJECT (Q345 fixed at Step 2 — also rejected at Step 1 by Jaccard 0.143; Step 2 is primary gate) |
-| una copa de oporto | Paté fresco de vino de Oporto | {copa, oporto} | `copa` absent → fail | REJECT (Q378 fixed at Step 2 — `oporto` present but `copa` missing means `every` fails) |
+| una copa de oporto | Paté fresco de vino de Oporto | {oporto} — `extractFoodQuery` strips `una copa de` upstream; verified empirically Phase 0.0 | `oporto` IS present in candidate → all match | **ACCEPT at L1** — semantic mismatch (drink vs paté) **delegated to L3 embedding semantic check** (L1→L3 delegation pattern, ADR-024 addendum 2 Decision 7). At the L1 lexical layer this is the correct verdict given the evidence. The original spec draft of this row erroneously assumed `copa` would survive `extractFoodQuery`; corrected per QA-pass finding 2026-04-28. |
 | pollo al curri con arro blanco | Foccacia Pollo al Curry | {pollo, curri, arro, blanco} | `curri` ≠ `curry`, `arro` absent, `blanco` absent → fail | REJECT (Q580 fixed at Step 2 — `pollo` present but the other 3 missing means `every` fails. Catalog gap remains; correct behavior is to return null and let user re-query) |
 | paella | Paella valenciana | {paella} | `paella` present → all match | ACCEPT (preserved) |
 | gazpacho | Gazpacho andaluz | {gazpacho} | `gazpacho` present → all match | ACCEPT (preserved) |
@@ -558,6 +558,10 @@ This does not affect implementation — the regression gate in Phase 5 should ta
 - [x] Step 0: `spec-creator` executed, specs updated (Spec /review-spec 2 rounds: Gemini APPROVED R1; Codex REVISE R1 → APPROVED R2; all CRITICAL/IMPORTANT findings addressed; auto-approved per L5)
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: `backend-planner` executed, plan approved (Plan /review-plan 3 rounds: R1 both REVISE → R2 PARTIALLY FIXED → R3 APPROVED with AC5 count fix; auto-approved per L5)
+- [x] Step 3: `backend-developer` executed with TDD (5 commits across Phases 1-6; 42 new tests; 4189→4231 baseline)
+- [x] Step 4: `production-code-validator` APPROVE 98% (0 CRITICAL/HIGH; 1 MEDIUM admin Merge Checklist; 2 LOW NITs)
+- [x] Step 5: `code-review-specialist` APPROVE WITH MINOR (1 MEDIUM `sopa` removed; LOW-1 HI_TOKEN_MIN_LENGTH constant added; MEDIUM-2/3 + LOW-2/3/4 + NIT-1 deferred as non-blocking)
+- [x] Step 5: `qa-engineer` PASS WITH FOLLOW-UPS (+13 adversarial tests, 42→55; Q378 spec table inaccuracy fixed; Q649 Jaccard claim verified correct)
 - [x] Step 3: `backend-developer` executed with TDD
 - [ ] Step 4: `production-code-validator` executed, quality gates pass
 - [ ] Step 5: `code-review-specialist` executed
