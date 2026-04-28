@@ -55,48 +55,52 @@ Eleven empirically-validated drift patterns. Failures are NOT blockers for the c
 **12. P1 — PR body test count stale.** Ratio must co-occur with test/pass/green marker to avoid AC/DoD ratios (14/14, 7/7).
 ```bash
 PR_BODY=$(gh pr view --json body -q .body)
-PR_TESTS=$(echo "$PR_BODY" | grep -iE "(npm test|tests?.*(pass|green))" | grep -oE "[0-9]+/[0-9]+" | head -1)
-TICKET_TESTS=$(grep -iE "(npm test|tests?.*(pass|green))" "$TICKET" | grep -oE "[0-9]+/[0-9]+" | tail -1)
-[ -n "$PR_TESTS" ] && [ -n "$TICKET_TESTS" ] && [ "$PR_TESTS" != "$TICKET_TESTS" ] && flag "P1: PR body $PR_TESTS vs ticket $TICKET_TESTS"
+PR_TESTS=$(echo "$PR_BODY" | grep -iE "(npm test|tests?[^|]*[0-9]|[*: ]tests?[*: ]+[0-9])" | grep -oE "[0-9]+/[0-9]+" | head -1)
+TICKET_TESTS=$(grep -iE "(npm test|tests?[^|]*[0-9]|[*: ]tests?[*: ]+[0-9])" "$TICKET" | grep -oE "[0-9]+/[0-9]+" | tail -1)
+[ -n "$PR_TESTS" ] && [ -n "$TICKET_TESTS" ] && [ "$PR_TESTS" != "$TICKET_TESTS" ] && flag "P1 drift: PR body $PR_TESTS vs ticket $TICKET_TESTS"
 ```
 
 **13. P2 — Merge Checklist Evidence aspirational.** `[x]` rows with future-tense text.
 ```bash
-awk '/^## Merge Checklist Evidence/,/^## /' "$TICKET" \
+awk '/^## Merge Checklist Evidence/{flag=1; next} /^## /{flag=0} flag' "$TICKET" \
   | grep -E '^\|.*\[x\].*(to be |will |pending|TBD|Will be |to be created|next commit|aspirational)' \
-  && flag "P2: aspirational row(s)"
+  && flag "P2 drift: aspirational row(s) found"
 ```
 
 **14. P3 — Post-merge actions not logged** (post-merge only).
 ```bash
+# Strip checkbox prefix before comparison; use grep -Fq fixed-string match.
 grep -E "^- \[ \].*(post-merge|operator|prod rollout|pending verification)" "$TICKET" \
   | sed -E 's/^- \[ \] //' > /tmp/pm_items.txt
 COMPLETION=$(awk '/^## Completion Log/,/^## Merge Checklist/' "$TICKET")
 while IFS= read -r item; do
   [ -z "$item" ] && continue
   KEY=$(echo "$item" | cut -c1-40)
-  echo "$COMPLETION" | grep -Fq "$KEY" || flag "P3: '$item' not logged"
+  echo "$COMPLETION" | grep -Fq "$KEY" || flag "P3 drift: post-merge '$item' not in Completion Log"
 done < /tmp/pm_items.txt
 ```
 
 **15. P4 — Remote branch orphan.**
 ```bash
-BRANCH=$(grep -E "^\*\*[Bb]ranch:\*\*" "$TICKET" | head -1 | sed -E 's/^\*\*[Bb]ranch:\*\*[[:space:]]*([^[:space:]|]+).*/\1/')
+BRANCH=$(grep -oE '\*\*[Bb]ranch:\*\*[[:space:]]*[^[:space:]|()]+' "$TICKET" | head -1 | sed -E 's/^\*\*[Bb]ranch:\*\*[[:space:]]*//')
 git fetch origin --prune --quiet
-git ls-remote --heads origin "$BRANCH" 2>/dev/null | grep -q refs/heads && flag "P4: branch $BRANCH still on origin"
+git ls-remote --heads origin "$BRANCH" 2>/dev/null | grep -q refs/heads && flag "P4 drift: remote branch $BRANCH still exists (run: git push origin --delete $BRANCH)"
 ```
 
 **16. P5 — Frozen ticket Status post-merge.** Multi-word status via sed char class, not `\w+`.
 ```bash
 FROZEN_COUNT=0
 for t in docs/tickets/*.md; do
-  status=$(grep -E "^\*\*Status:\*\*" "$t" | head -1 | sed -E 's/^\*\*Status:\*\*[[:space:]]*([A-Za-z ]+)[[:space:]]*\|.*/\1/' | sed -E 's/[[:space:]]+$//')
+  status=$(grep -E "^\*\*Status:\*\*" "$t" | head -1 \
+    | sed -E 's/^\*\*Status:\*\*[[:space:]]*\*?\*?//' \
+    | sed -E 's/[[:space:]]*\*?\*?[[:space:]]*\|.*//' \
+    | sed -E 's/[[:space:]]+$//')
   [ "$status" = "Done" ] && continue
   ticket_id=$(basename "$t" .md | sed -E 's/-[a-z].*//')
   git log --all --oneline --grep="$ticket_id" | grep -q . && FROZEN_COUNT=$((FROZEN_COUNT+1))
 done
-[ "$FROZEN_COUNT" -ge 2 ] && flag "P5 SYSTEMIC: $FROZEN_COUNT frozen tickets"
-[ "$FROZEN_COUNT" -eq 1 ] && flag "P5: 1 frozen ticket"
+[ "$FROZEN_COUNT" -ge 2 ] && flag "P5 drift (SYSTEMIC): $FROZEN_COUNT frozen tickets — Status not updated post-merge"
+[ "$FROZEN_COUNT" -eq 1 ] && flag "P5 drift: 1 frozen ticket"
 ```
 
 **17. P6 — AC count off-by-N.**
@@ -104,7 +108,7 @@ done
 ACTUAL=$(awk '/^## Acceptance Criteria/,/^## Definition of Done/' "$TICKET" | grep -cE "^- \[[x ]\]")
 CLAIMED=$(grep -oE 'all [0-9]+ marked|AC: [0-9]+/[0-9]+' "$TICKET" | head -1 | grep -oE "[0-9]+" | head -1)
 [ -n "$CLAIMED" ] && [ "$CLAIMED" != "$ACTUAL" ] && [ $((ACTUAL - CLAIMED)) -ge 2 -o $((CLAIMED - ACTUAL)) -ge 2 ] \
-  && flag "P6: claim $CLAIMED vs actual $ACTUAL"
+  && flag "P6 drift: claim '$CLAIMED' vs actual AC count $ACTUAL"
 ```
 
 **18. P7 — Test count drift within ticket (final-sections only).**
@@ -112,8 +116,9 @@ CLAIMED=$(grep -oE 'all [0-9]+ marked|AC: [0-9]+/[0-9]+' "$TICKET" | head -1 | g
 TERMINAL=$(awk '/^## Completion Log/,/^## Merge Checklist/' "$TICKET" | grep -iE "(test|pass|green)" | grep -oE "[0-9]+/[0-9]+" | tail -1)
 AC=$(awk '/^## Acceptance Criteria/,/^## Definition of Done/' "$TICKET")
 DOD=$(awk '/^## Definition of Done/,/^## Workflow Checklist/' "$TICKET")
-for n in $(printf '%s\n%s\n' "$AC" "$DOD" | grep -iE "(test|pass|green)" | grep -oE "[0-9]+/[0-9]+" | sort -u); do
-  [ -n "$TERMINAL" ] && [ "$n" != "$TERMINAL" ] && flag "P7: final $n vs terminal $TERMINAL"
+FINAL_NUMS=$(printf '%s\n%s\n' "$AC" "$DOD" | grep -iE "(test|pass|green)" | grep -oE "[0-9]+/[0-9]+" | sort -u)
+for n in $FINAL_NUMS; do
+  [ -n "$TERMINAL" ] && [ "$n" != "$TERMINAL" ] && flag "P7 drift: final-section count $n vs terminal $TERMINAL"
 done
 ```
 
@@ -124,17 +129,17 @@ COMPLETION=$(awk '/^## Completion Log/,/^## Merge Checklist/' "$TICKET")
 CHECKED_STEPS=$(echo "$WORKFLOW" | grep -E "^- \[x\] Step [0-9]+:" | sed -E 's/^- \[x\] Step ([0-9]+):.*/\1/' | sort -u)
 while read -r step_num; do
   [ -z "$step_num" ] && continue
-  echo "$COMPLETION" | grep -qE "Step[[:space:]]+$step_num([^0-9]|$)" || flag "P8: Step $step_num [x] but no log entry"
+  echo "$COMPLETION" | grep -qE "^\|[^|]*\|[[:space:]]*Step[[:space:]]+$step_num([^0-9]|$)" || flag "P8 drift: Step $step_num [x] but no dedicated Completion Log entry"
 done <<< "$CHECKED_STEPS"
 ```
 
 **20. P9 — Tracker header stale.**
 ```bash
 TRACKER=docs/project_notes/product-tracker.md
-HEADER_STEP=$(grep -oE 'Step [0-9]+/6' "$TRACKER" | head -1)
-DETAIL_STEP=$(grep -A 1 '^\*\*Active Feature:\*\*' "$TRACKER" | grep -oE 'Step [0-9]+/6' | head -1)
+HEADER_STEP=$(grep '^\*\*Last Updated:\*\*' "$TRACKER" | grep -oE '(Step )?[0-9]+/6' | head -1 | sed -E 's/^Step //')
+DETAIL_STEP=$(grep -A 1 '^\*\*Active Feature:\*\*' "$TRACKER" | grep -oE '(Step )?[0-9]+/6' | head -1 | sed -E 's/^Step //')
 [ -n "$HEADER_STEP" ] && [ -n "$DETAIL_STEP" ] && [ "$HEADER_STEP" != "$DETAIL_STEP" ] \
-  && flag "P9: header $HEADER_STEP vs detail $DETAIL_STEP"
+  && flag "P9 drift: tracker header says $HEADER_STEP, Active Feature says $DETAIL_STEP"
 ```
 
 **21. P10 — Duplicate Completion Log rows.**
@@ -143,12 +148,16 @@ awk -F'|' '/^\| [0-9]{4}-[0-9]{2}-[0-9]{2}/ {
   key = $2 "|" $3 "|" substr($4, 1, 80)
   gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
   print key
-}' "$TICKET" | sort | uniq -d | while read -r dup; do flag "P10: duplicate row: $dup"; done
+}' "$TICKET" | sort | uniq -d \
+  | while read -r dup; do flag "P10 drift: duplicate Completion Log row: $dup"; done
 ```
 
 **22. P11 — Tracker Features table status vs ticket Status mismatch.**
 ```bash
-TICKET_STATUS=$(grep -E "^\*\*Status:\*\*" "$TICKET" | head -1 | sed -E 's/^\*\*Status:\*\*[[:space:]]*([A-Za-z ]+)[[:space:]]*\|.*/\1/' | sed -E 's/[[:space:]]+$//')
+TICKET_STATUS=$(grep -E "^\*\*Status:\*\*" "$TICKET" | head -1 \
+    | sed -E 's/^\*\*Status:\*\*[[:space:]]*\*?\*?//' \
+    | sed -E 's/[[:space:]]*\*?\*?[[:space:]]*\|.*//' \
+    | sed -E 's/[[:space:]]+$//')
 FEATURE_ID=$(basename "$TICKET" .md | sed -E 's/-[a-z].*//')
 TRACKER_STATUS=$(grep -F "$FEATURE_ID" docs/project_notes/product-tracker.md | grep -oE "\| (in-progress|done|pending|blocked) \|" | head -1 | sed -E 's/\| ([a-z-]+) \|/\1/')
 case "$TICKET_STATUS" in
@@ -157,8 +166,22 @@ case "$TICKET_STATUS" in
   *) EXPECTED="" ;;
 esac
 [ -n "$EXPECTED" ] && [ -n "$TRACKER_STATUS" ] && [ "$TRACKER_STATUS" != "$EXPECTED" ] \
-  && flag "P11: Status='$TICKET_STATUS' expects tracker='$EXPECTED' but tracker='$TRACKER_STATUS'"
+  && flag "P11 drift: ticket Status='$TICKET_STATUS' expects tracker='$EXPECTED' but tracker='$TRACKER_STATUS'"
 ```
+
+### Execution discipline (added v0.18.1)
+
+For each of the 11 drift checks (P1–P11), if you declare PASS, **include the literal command output** (or its absence — explicit "no rows matched", "extracted: feature/foo", "FROZEN_COUNT=0") as evidence in your report. A bare "PASS" without supporting output is treated as **NOT EXECUTED** by the auditor — re-run with output captured.
+
+Recommended pattern:
+
+```
+P1 PR body test count stale | PASS | PR_TESTS=4110/4110, TICKET_TESTS=4110/4110 (matched)
+P2 Aspirational rows | PASS | awk … | grep … (no rows matched)
+P5 Frozen ticket Status | PASS | FROZEN_COUNT=0
+```
+
+This prevents two failure modes empirically observed during the v0.18.1 origin audit (fx F-H9 + F-H10): (a) the agent abbreviates execution and reports CLEAN by inference from MEMORY/design knowledge; (b) buggy recipes return empty output silently and the agent treats empty as PASS without verifying the recipe ran. Both are caught when literal output is required.
 
 ### Output Format
 
