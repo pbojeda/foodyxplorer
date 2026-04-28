@@ -1,7 +1,7 @@
 # F-H10-FU2: L1 Required-Token Guard — Q649 algorithm fix (Jaccard insufficient)
 
 **Feature:** F-H10-FU2 | **Type:** Backend-Feature (NLP/Search) | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F-H10-FU2-l1-required-token-guard
+**Status:** Ready for Merge | **Branch:** feature/F-H10-FU2-l1-required-token-guard
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-28 | **Dependencies:** F-H10-FU (PR #225, merged at `73e1c97`)
 
@@ -544,12 +544,12 @@ This does not affect implementation — the regression gate in Phase 5 should ta
 ## Definition of Done
 
 - [x] All acceptance criteria met
-- [x] Unit tests written and passing (42 new + 38 regression = 80 total)
+- [x] Unit tests written and passing (55 new fH10FU2 + 38 regression fH10FU = 93 total in F-H10-FU2 scope; 4244/4244 api-wide)
 - [x] E2E tests updated (N/A — pure algorithmic change, no API contract changes)
 - [x] Code follows project standards
 - [x] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation
+- [x] Build succeeds (`npm run build --workspace=@foodxplorer/api` → tsc clean)
+- [x] Specs reflect final implementation (ADR-024 second addendum + key_facts.md L1 bullet)
 
 ---
 
@@ -562,11 +562,7 @@ This does not affect implementation — the regression gate in Phase 5 should ta
 - [x] Step 4: `production-code-validator` APPROVE 98% (0 CRITICAL/HIGH; 1 MEDIUM admin Merge Checklist; 2 LOW NITs)
 - [x] Step 5: `code-review-specialist` APPROVE WITH MINOR (1 MEDIUM `sopa` removed; LOW-1 HI_TOKEN_MIN_LENGTH constant added; MEDIUM-2/3 + LOW-2/3/4 + NIT-1 deferred as non-blocking)
 - [x] Step 5: `qa-engineer` PASS WITH FOLLOW-UPS (+13 adversarial tests, 42→55; Q378 spec table inaccuracy fixed; Q649 Jaccard claim verified correct)
-- [x] Step 3: `backend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [ ] Step 6: Ticket updated with final metrics, branch deleted (pending merge)
 
 ---
 
@@ -586,6 +582,11 @@ This does not affect implementation — the regression gate in Phase 5 should ta
 | 2026-04-28 | Phase 5 fixture updates | 2 regression fixtures updated per plan Phase 5 instructions: `TORTILLA_DISH_ROW.dish_name_es` ('tortilla española' → 'Tortilla de patatas') and `GAZPACHO_FOOD_ROW.food_name_es` ('gazpacho' → 'Gazpacho andaluz'). Justification: abbreviated fixture names did not represent full canonical catalog names; queries 'tortilla de patatas' and 'gazpacho andaluz' have HI tokens absent from the abbreviated forms. Updated fixtures still test the same behavior (guard ACCEPT) and now use realistic catalog entries. |
 | 2026-04-28 | Phase 5 Spec Discrepancy confirmed | 38 tests empirical (not 40 as originally spec'd). Already documented in Spec Discrepancy Note. No new discrepancy. |
 | 2026-04-28 | Implementation complete | 42 new tests in fH10FU2.l1RequiredTokenGuard.unit.test.ts (42 > AC6 min 15). 38 F-H10-FU regression tests pass. Total: 80 tests passing across both test files. TypeScript: no errors. ESLint: clean. |
+| 2026-04-28 | Step 3 backend-developer | TDD across Phases 0.2/1/2/3/4/5/6. 5 commits (c8ceaed/e993c7b/52ae644/681d408/f465cda). Implementation: passesGuardL1 + helpers in level1Lookup.ts. Tests: 42 new in fH10FU2.l1RequiredTokenGuard.unit.test.ts. ADR-024 addendum 2 + key_facts.md L1 bullet. 4189→4231 baseline (+42). |
+| 2026-04-28 | Step 4 production-code-validator | APPROVE 98% confidence. 0 CRITICAL, 0 HIGH, 1 MEDIUM (admin Merge Checklist Evidence template — addressed in this audit), 2 LOW NITs (DoD checkbox + comment style). All quality gates pass: 4231 tests, lint 0, build clean. |
+| 2026-04-28 | Step 5 code-review-specialist | APPROVE WITH MINOR. 0 CRITICAL/HIGH. MEDIUM-1: `sopa` removed from FOOD_STOP_WORDS_EXTENDED (primary dish identifier). LOW-1: HI_TOKEN_MIN_LENGTH constant added. MEDIUM-2 (closure refactor) + MEDIUM-3 (L1→L3 layer inversion) + LOW-2 (Set iteration) + LOW-3 (regex format) + LOW-4 (parallel pipeline) + NIT-1 (empty-string nameEs comment) deferred to follow-up tickets per non-blocking judgement. |
+| 2026-04-28 | Step 5 qa-engineer | PASS WITH FOLLOW-UPS. Adversarial scan added +13 tests (42→55) covering: hyphen merging (1), EC-6 two-pass with FULL nameEs S2/S4 (2), empty-string nameEs accept/reject (2), whitespace trimming (1), Set dedup (1), L3 delegation regression cases tarta/pizza/paella (3), Phase 0.2 truncation FN companions Q327/Q331 (3). Spec doc inaccuracies surfaced: Q378 spec table corrected (REJECT → ACCEPT delegated to L3); Q649 Jaccard 0.50 verified accurate. No code defects. |
+| 2026-04-28 | Step 5 review-fix loop | code-review MEDIUM-1 + LOW-1 applied (commit d46fa26). Q378 spec table corrected per qa-engineer finding. Workflow Checklist Steps 3/4/5 marked. Final test count 4244 (+55 = 42 fH10FU2 + 13 QA adversarial). |
 
 <!-- After code review, add a row documenting which findings were accepted/rejected:
 | YYYY-MM-DD | Review findings | Accepted: C1-C3, H1-H2. Rejected: M5 (reason). Systemic: C4 logged in bugs.md |
@@ -599,14 +600,14 @@ This creates a feedback loop for improving future reviews. -->
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Implementation Plan, Post-deploy Verification, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence (8 sections) |
+| 1. Mark all items | [x] | AC: 6/6, DoD: 7/7, Workflow: 7/8 (Step 6 pending merge), PD pending operator action post-merge |
+| 2. Verify product tracker | [x] | Active Session: step 5/6 set; Features table: F-H10-FU2 row in-progress 5/6 |
+| 3. Update key_facts.md | [x] | Updated: L1 module bullet (line 167) at commit `681d408` referencing `passesGuardL1` (F-H10-FU2, ADR-024 addendum 2) |
+| 4. Update decisions.md | [x] | ADR-024 second addendum added at commit `681d408` covering algorithm rationale (a-e + every-vs-some + L1→L3 delegation pattern) |
+| 5. Commit documentation | [x] | Commits 09cdd54 (Step 0.0) + c8ceaed (Phase 0.2) + e993c7b (Phases 1-4) + 52ae644 (Phase 5) + 681d408 (Phase 6) + f465cda (ticket finalization) + d46fa26 (Step 5 review fixes) |
+| 6. Verify clean working tree | [x] | `git status` returns "nothing to commit, working tree clean" after d46fa26 |
+| 7. Verify branch up to date | [x] | Branch rebased on develop @ 6ecfe6f post-chore commit; merge-base ancestry confirmed |
 
 ---
 
