@@ -83,7 +83,13 @@ const CROISSANT_DISH_ROW: DishQueryRow = {
 const TORTILLA_DISH_ROW: DishQueryRow = {
   dish_id: 'fd000000-fu10-4000-a000-000000000003',
   dish_name: 'Spanish Omelette',
-  dish_name_es: 'tortilla española',
+  // F-H10-FU2 fixture update: changed from 'tortilla española' to 'Tortilla de patatas'
+  // so that query 'tortilla de patatas' has all HI tokens present in candidate nameEs.
+  // 'tortilla española' caused passesGuardL1 step2 to reject because 'patatas' was absent.
+  // 'Tortilla de patatas' is the full canonical catalog name matching this query.
+  // Justification: ADR-024 addendum 2 — required-token check requires all HI tokens in candidate;
+  // abbreviated fixture names do not represent realistic catalog entries for elaborated queries.
+  dish_name_es: 'Tortilla de patatas',
   restaurant_id: 'fd000000-fu10-4000-a000-000000000004',
   chain_slug: 'generic-es',
   portion_grams: '150.00',
@@ -188,7 +194,13 @@ const CROISSANT_FOOD_ROW: FoodQueryRow = {
 const GAZPACHO_FOOD_ROW: FoodQueryRow = {
   food_id: 'fd000000-fu10-4000-a000-000000000022',
   food_name: 'Gazpacho',
-  food_name_es: 'gazpacho',
+  // F-H10-FU2 fixture update: changed from 'gazpacho' to 'Gazpacho andaluz'
+  // so that query 'gazpacho andaluz' has all HI tokens present in candidate nameEs.
+  // 'gazpacho' alone caused passesGuardL1 step2 to reject because 'andaluz' was absent.
+  // 'Gazpacho andaluz' is the full canonical catalog name matching this query.
+  // Justification: same as TORTILLA_DISH_ROW — abbreviated fixture names do not
+  // represent realistic catalog entries; full names ensure the guard tests the right path.
+  food_name_es: 'Gazpacho andaluz',
   food_group: 'Soups',
   barcode: null,
   brand_name: null,

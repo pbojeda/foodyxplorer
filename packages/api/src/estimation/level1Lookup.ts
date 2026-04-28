@@ -57,6 +57,132 @@ function passesGuardEither(
 }
 
 // ---------------------------------------------------------------------------
+// Required-token guard — layered check (ADR-024 addendum 2, F-H10-FU2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Extended stop-word set for the required-token check.
+ *
+ * Superset of SPANISH_STOP_WORDS (linguistic) PLUS food-domain modifier tokens
+ * that appear across many dish types and do NOT distinguish dish identity.
+ *
+ * Criteria for inclusion:
+ *  - Token is semantically common across many dish types (not a distinguishing ingredient)
+ *  - Its presence alone does not justify a match
+ *  - Removing it from HI computation does not cause false negatives on known QA battery
+ *
+ * DO NOT add: pollo, jamon, vino, paella, tortilla, etc. (primary dish identifiers).
+ * Validated against 136 FTS-hit rows from /tmp/jaccard-table.md simulation (2026-04-28).
+ */
+const FOOD_STOP_WORDS_EXTENDED: Set<string> = new Set([
+  // SPANISH_STOP_WORDS (linguistic — 14 tokens)
+  'de', 'del', 'con', 'la', 'el', 'los', 'las', 'un', 'una', 'al', 'y', 'a', 'en', 'por',
+  // Food-domain modifiers — spec starter list (12 tokens)
+  'queso', 'fresco', 'leche', 'agua', 'plato', 'racion', 'tapa', 'pintxo', 'media',
+  'caliente', 'frio', 'natural',
+  // Quantity / size modifiers — do NOT distinguish dish type
+  'grande', 'normal', 'generosa', 'generoso', 'cuarto', 'triple', 'doble',
+  'algunos', 'algunas', 'tres', 'cuatro', 'cinco',
+  // Serving containers — extends existing tapa/pintxo/media/racion set
+  'copas', 'copa', 'pinchos', 'pincho', 'rebanadas', 'rebanada',
+  'vaso', 'vasito', 'botella', 'botellin',
+  // Preparation method modifiers — cooking method, not dish identity
+  'brasa', 'frito', 'frita', 'fritos', 'fritas', 'plancha', 'asado', 'asada',
+  // Conversational filler
+  'favor', 'para',
+  // Food packaging / container descriptors
+  // NOTE: `sopa` was removed from this set after code-review-specialist MEDIUM-1
+  // flagged it as a primary dish identifier (Sopa de ajo, Sopa de marisco, etc.).
+  // Q627 (`un sobre de sopa instantánea de pollo`) still passes because the
+  // candidate `Sopa instantánea pollo` ALSO contains `sopa` → step 2 accepts.
+  'sobre', 'instantanea', 'instantaneo', 'lata',
+  // Serving format / unit
+  'canas', 'cana', // cañas/caña = beer glass (NFD: caña→cana)
+  // Contextual modifiers (product type, not dish identity)
+  'molde', 'crema',
+  // Truncation artifact (QA capture ~40-char limit): "verduras" truncated to "verdu"
+  'verdu',
+]);
+
+/**
+ * Full normalization pipeline — identical to `computeTokenJaccard`'s `tokenize` in
+ * `level3Lookup.ts:68-70`. Replicated locally to avoid importing private symbols.
+ *
+ * Pipeline: lowercase → NFD diacritic-strip → punctuation-strip → result string.
+ * Callers split on /\s+/ after this call.
+ *
+ * Example: 'Caña de cerveza' → 'cana de cerveza', 'ibérico' → 'iberico'
+ */
+function normalizeL1(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // NFD diacritic-strip (U+0300–U+036F combining marks)
+    .replace(/[^a-z\s]/g, '');       // punctuation strip — hyphens, commas, parens, etc.
+}
+
+/** Minimum token length to qualify as high-information (ADR-024 addendum 2 Decision 6).
+ *  Below this threshold, 3-char Spanish food words (pan, ron, té) appear in many
+ *  candidate names and would cause systematic false negatives if treated as HI tokens. */
+const HI_TOKEN_MIN_LENGTH = 4;
+
+/**
+ * Extract high-information tokens from a query string.
+ *
+ * A token is "high-information" if:
+ *  1. Its normalized form has length >= HI_TOKEN_MIN_LENGTH (4).
+ *  2. It is NOT in FOOD_STOP_WORDS_EXTENDED.
+ *
+ * Returns an empty Set if no HI tokens exist (caller falls through to Jaccard-only).
+ */
+function getHighInformationTokens(s: string): Set<string> {
+  const tokens = normalizeL1(s)
+    .split(/\s+/)
+    .filter((t) => t.length >= HI_TOKEN_MIN_LENGTH && !FOOD_STOP_WORDS_EXTENDED.has(t));
+  return new Set(tokens);
+}
+
+/**
+ * Combined L1 lexical guard — replaces direct `passesGuardEither` calls at FTS
+ * injection points (Strategy 2 and Strategy 4) in runCascade().
+ *
+ * Step 1 — Jaccard gate (F-H10-FU): call passesGuardEither. If false → REJECT.
+ * Step 2 — Required-token check (F-H10-FU2): if queryHI is non-empty, EVERY HI
+ * token must be present in normalizeL1(nameEs) tokens OR normalizeL1(name) tokens.
+ * If queryHI is empty → fall through (Jaccard-only behavior preserved, EC-1).
+ *
+ * OR semantics (EC-3): accept if ALL HI tokens are in nameEs tokens OR ALL HI
+ * tokens are in name tokens. Mixed split (some in nameEs, some in name) → REJECT.
+ * Matches passesGuardEither's bilingual contract.
+ *
+ * NOT exported — tested indirectly via cascade tests per ADR-024 addendum 1 decision 4.
+ */
+function passesGuardL1(
+  query: string,
+  nameEs: string | null | undefined,
+  name: string,
+): boolean {
+  // Step 1: Jaccard gate (existing F-H10-FU check)
+  if (!passesGuardEither(query, nameEs, name)) return false;
+
+  // Step 2: Required-token check
+  const queryHI = getHighInformationTokens(query);
+  if (queryHI.size === 0) return true; // EC-1: fall through to Jaccard-only behavior
+
+  const tokenize = (s: string): Set<string> =>
+    new Set(normalizeL1(s).split(/\s+/).filter((t) => t.length > 0));
+
+  // OR semantics: accept if EVERY HI token is in nameEs tokens OR in name tokens
+  if (nameEs) {
+    const nameEsTokens = tokenize(nameEs);
+    if (Array.from(queryHI).every((t) => nameEsTokens.has(t))) return true;
+  }
+
+  const nameTokens = tokenize(name);
+  return Array.from(queryHI).every((t) => nameTokens.has(t));
+}
+
+// ---------------------------------------------------------------------------
 // Query normalization
 // ---------------------------------------------------------------------------
 
@@ -532,10 +658,10 @@ async function runCascade(
   // Strategy 2: FTS dish
   const ftsDishRow = await ftsDishMatch(db, normalizedQuery, options, tierFilter, minTier);
   if (ftsDishRow !== undefined) {
-    if (passesGuardEither(normalizedQuery, ftsDishRow.dish_name_es, ftsDishRow.dish_name)) {
+    if (passesGuardL1(normalizedQuery, ftsDishRow.dish_name_es, ftsDishRow.dish_name)) {
       return { matchType: 'fts_dish', result: mapDishRowToResult(ftsDishRow), rawFoodGroup: null };
     }
-    // Guard rejected on both Spanish and English sides — fall through to Strategy 3
+    // Guard rejected — fall through to Strategy 3
   }
 
   // Strategy 3: exact food (no chain scope)
@@ -547,10 +673,10 @@ async function runCascade(
   // Strategy 4: FTS food (no chain scope)
   const ftsFoodRow = await ftsFoodMatch(db, normalizedQuery, tierFilter, minTier);
   if (ftsFoodRow !== undefined) {
-    if (passesGuardEither(normalizedQuery, ftsFoodRow.food_name_es, ftsFoodRow.food_name)) {
+    if (passesGuardL1(normalizedQuery, ftsFoodRow.food_name_es, ftsFoodRow.food_name)) {
       return { matchType: 'fts_food', result: mapFoodRowToResult(ftsFoodRow), rawFoodGroup: ftsFoodRow.food_group };
     }
-    // Guard rejected on both Spanish and English sides — fall through to null (runCascade returns null)
+    // Guard rejected — fall through to null (runCascade returns null)
   }
 
   return null;
