@@ -1,7 +1,7 @@
 # BUG-DATA-DUPLICATE-ATOM-001: Collapse duplicate atom CE-281 → CE-095 (Esqueixada)
 
 **Feature:** BUG-DATA-DUPLICATE-ATOM-001 | **Type:** Backend-Bugfix (data) | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** bugfix/BUG-DATA-DUPLICATE-ATOM-001-collapse-ce281
+**Status:** Done | **Branch:** bugfix/BUG-DATA-DUPLICATE-ATOM-001-collapse-ce281 (squash-merged at `f70271f` 2026-04-28; deleted local + remote)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-28 | **Dependencies:** F-H6 (PR #211, where CE-281 was introduced)
 
@@ -45,7 +45,7 @@ No standard-portions.csv changes (CE-281 has no row there).
 - [x] Tests passing (4244/4244)
 - [x] No linting errors
 - [x] Build succeeds
-- [ ] bugs.md entry updated to RESOLVED with PR/commit reference (Step 6)
+- [x] bugs.md entry updated to RESOLVED with PR #231 / commit `f70271f`
 
 ---
 
@@ -57,7 +57,7 @@ No standard-portions.csv changes (CE-281 has no row there).
 - [x] Step 3: Implementation with TDD (data fix) — commit `b088c14`
 - [x] Step 4: Quality gates pass (tests 4244/4244, lint 0, build clean)
 - [x] Step 5: PR + code-review-specialist APPROVE WITH CHANGES (C1 orphan rows in CSV) → fix-loop applied at `ac33a40`
-- [ ] Step 6: Ticket Done, branch deleted, tracker closed (pending merge)
+- [x] Step 6: PR #231 squash-merged at `f70271f`; branch deleted local + remote; tracker + bugs.md updated
 
 ---
 

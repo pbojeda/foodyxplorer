@@ -149,7 +149,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 ---
 
-### 2026-04-26 — BUG-DATA-DUPLICATE-ATOM-001: CE-281 (Esqueixada de bacallà) is the same dish as pre-existing CE-095 (Esqueixada) [P3, FOLLOW-UP]
+### 2026-04-26 — BUG-DATA-DUPLICATE-ATOM-001: CE-281 (Esqueixada de bacallà) is the same dish as pre-existing CE-095 (Esqueixada) [RESOLVED — PR #231 `f70271f`]
 
 - **Issue**: F-H6 introduced CE-281 `Esqueixada de bacallà` as a new atom to resolve Q465 (`media ración de esqueixada de bacallà`). Code-review-specialist (PR #211) flagged that this is the same Catalan salt-cod salad as the pre-existing CE-095 `Esqueixada` (alias `esqueixada de bacalao`). Esqueixada is invariably bacalao-based; the long-form is just the Catalan name. Two atoms with overlapping concept return inconsistent kcal estimates (CE-095: 80 kcal/100g vs CE-281: 120 kcal/100g) for orthographic variants of the same query.
 - **Root Cause**: Spec's pre-check used lowercase grep on alias strings; the Catalan spelling `bacallà/bacalà` did not match `bacalao` so the duplicate-detection failed. The spec's diagnosis was "MISSING ATOM" when the right diagnosis was "ALIAS GAP on CE-095".

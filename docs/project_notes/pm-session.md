@@ -3,7 +3,7 @@
 **Started:** 2026-04-27
 **Session ID:** pm-h6plus2
 **Autonomy Level:** L5 (PM Autonomous)
-**Status:** in-progress
+**Status:** complete (3/3 features done 2026-04-28)
 **Target Branch:** develop
 
 **Sprint:** QA Improvement Sprint #3 — Sprint H6+ continuation. Closes residual issues from pm-h6plus session: F-H10-FU (Q649 false-positive at L1 layer not L3 — empirically confirmed in QA battery dev 2026-04-27 16:54) + BUG-DATA-DUPLICATE-ATOM-001 (CE-281 duplicate atom).
@@ -20,7 +20,7 @@
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
 | F-H10-FU2 | Standard | done | ~5h | DONE 6/6. PR #229 squash-merged at `49770ad` 2026-04-28T20:46 UTC. 4189→4244 tests (+55). |
-| BUG-DATA-DUPLICATE-ATOM-001 | Simple | in-progress | — | Active per user "continua con la siguiente" 2026-04-28. Pre-authorized. |
+| BUG-DATA-DUPLICATE-ATOM-001 | Simple | done | ~1h | DONE 5/5. PR #231 squash-merged at `f70271f` 2026-04-28. Catalog 317→316. |
 
 ## Completed Features
 
@@ -46,9 +46,9 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** BUG-DATA-DUPLICATE-ATOM-001 (Simple ~1h) — collapse duplicate atom CE-281 → CE-095 (Migas). Started 2026-04-28 after F-H10-FU2 merge.
-**Branch:** (next branch will be `bugfix/BUG-DATA-DUPLICATE-ATOM-001-collapse-ce281`)
-**Current Step:** 0/6 (intake)
+**Current feature:** None — pm-h6plus2 batch CLOSED (3/3 features done).
+**Branch:** N/A
+**Current Step:** N/A — batch complete. pm-h6plus3 backlog ready: F-MODIFIERS-001 + F-CHARCUTERIE-001 + F-H7-FU1.
 **Next features:** BUG-DATA-DUPLICATE-ATOM-001 (Simple) after F-H10-FU2 completes
 **Blocked:** none
 
