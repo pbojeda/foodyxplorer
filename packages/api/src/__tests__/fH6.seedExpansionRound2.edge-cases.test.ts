@@ -5,17 +5,17 @@
  * additions on existing dishes.  All tests are data-only (no DB, no HTTP).
  *
  * Checks:
- *   H6-EC-1  No duplicate name/nameEs/alias across all 317 entries
+ *   H6-EC-1  No duplicate name/nameEs/alias across all 316 entries
  *   H6-EC-2  All 28 new dishes have correct source/confidence/method triple
  *   H6-EC-3  All 28 new dishes are within their spec kcal/100g ranges
  *   H6-EC-4  CSV pieces/pieceName invariant holds for all new rows
  *   H6-EC-5  No new CSV rows have empty reviewed_by
  *   H6-EC-6  Every new dishId has at least 2 standard_portion rows
  *   H6-EC-7  ADR-019: bare family terms not used as aliases
- *   H6-EC-8  CE-095 vs CE-281 esqueixada — non-overlapping alias spaces
+ *   H6-EC-8  REMOVED — CE-281 collapsed into CE-095 by BUG-DATA-DUPLICATE-ATOM-001 (2026-04-28); disambiguation no longer applies
  *   H6-EC-9  6 alias additions on existing dishes are present
  *   H6-EC-10 Spec-required aliases on new dishes are present
- *   H6-EC-11 CE-280..CE-307 appear in monotonic order at file end
+ *   H6-EC-11 CE-280..CE-307 minus CE-281 (collapsed) appear in monotonic order at file end
  *   H6-EC-12 Level1Lookup simulation for 5 random new atoms
  */
 
@@ -111,18 +111,18 @@ function level1Lookup(query: string): SpanishDishEntry[] {
 }
 
 // ---------------------------------------------------------------------------
-// H6-EC-1  No duplicate tokens across all 317 entries
+// H6-EC-1  No duplicate tokens across all 316 entries (was 317; CE-281 collapsed into CE-095 by BUG-DATA-DUPLICATE-ATOM-001 2026-04-28)
 // ---------------------------------------------------------------------------
 
-describe('H6-EC-1: no duplicate name/nameEs/alias across 317 entries', () => {
-  it('validateSpanishDishes returns valid: true with 0 errors on the full 317-entry dataset', () => {
+describe('H6-EC-1: no duplicate name/nameEs/alias across 316 entries', () => {
+  it('validateSpanishDishes returns valid: true with 0 errors on the full 316-entry dataset', () => {
     const result = validateSpanishDishes(dishes);
     expect(result.valid, result.errors.join('\n')).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 
-  it('total dish count is 317', () => {
-    expect(dishes).toHaveLength(317);
+  it('total dish count is 316', () => {
+    expect(dishes).toHaveLength(316);
   });
 });
 
@@ -133,8 +133,8 @@ describe('H6-EC-1: no duplicate name/nameEs/alias across 317 entries', () => {
 describe('H6-EC-2: source/confidence/estimationMethod triple', () => {
   const newDishes = dishes.filter(isNew);
 
-  it('exactly 28 new dishes are present (CE-280..CE-307)', () => {
-    expect(newDishes).toHaveLength(28);
+  it('exactly 27 new dishes are present (CE-280..CE-307 minus CE-281 collapsed by BUG-DATA-DUPLICATE-ATOM-001)', () => {
+    expect(newDishes).toHaveLength(27);
   });
 
   it.each(newDishes.map((d) => [d.externalId, d] as [string, SpanishDishEntry]))(
@@ -153,7 +153,7 @@ describe('H6-EC-2: source/confidence/estimationMethod triple', () => {
 
 const KCAL_RANGES: Record<string, [number, number]> = {
   'CE-280': [250, 320], // Pescaíto frito
-  'CE-281': [100, 150], // Esqueixada de bacallà
+  // CE-281 collapsed into CE-095 by BUG-DATA-DUPLICATE-ATOM-001 (2026-04-28) — kcal range removed
   'CE-282': [370, 430], // Sobrassada con miel
   'CE-283': [80, 130],  // Gazpachuelo malagueño
   'CE-284': [110, 170], // Berza jerezana
@@ -275,37 +275,33 @@ describe('H6-EC-7: ADR-019 — bare family terms absent from aliases', () => {
 });
 
 // ---------------------------------------------------------------------------
-// H6-EC-8  CE-095 vs CE-281 esqueixada — non-overlapping alias spaces
+// H6-EC-8  CE-281 collapsed into CE-095 (BUG-DATA-DUPLICATE-ATOM-001 2026-04-28)
+//          The two atoms represented the same Catalan codfish salad — duplicate
+//          retired in favor of alias migration onto CE-095.
 // ---------------------------------------------------------------------------
 
-describe('H6-EC-8: CE-095 vs CE-281 esqueixada disambiguation', () => {
-  const ce095 = dishes.find((d) => d.externalId === 'CE-095');
-  const ce281 = dishes.find((d) => d.externalId === 'CE-281');
+describe('H6-EC-8: CE-281 collapsed into CE-095', () => {
+  it('CE-281 no longer exists in the dataset', () => {
+    const ce281 = dishes.find((d) => d.externalId === 'CE-281');
+    expect(ce281).toBeUndefined();
+  });
 
-  it('both CE-095 and CE-281 exist in the dataset', () => {
+  it('CE-095 absorbs the Catalan-spelling aliases that were on CE-281', () => {
+    const ce095 = dishes.find((d) => d.externalId === 'CE-095');
     expect(ce095).toBeDefined();
-    expect(ce281).toBeDefined();
+    const aliases = (ce095!.aliases ?? []).map((a) => a.toLowerCase());
+    expect(aliases).toContain('esqueixada de bacallà');
+    expect(aliases).toContain('esqueixada de bacalà');
+    expect(aliases).toContain('esqueixada catalana');
   });
 
-  it('CE-095 and CE-281 have zero overlapping tokens', () => {
-    const tokens095 = new Set(
-      [
-        ce095!.name.toLowerCase(),
-        ce095!.nameEs.toLowerCase(),
-        ...(ce095!.aliases ?? []).map((a) => a.toLowerCase()),
-      ],
-    );
-    const tokens281 = [
-      ce281!.name.toLowerCase(),
-      ce281!.nameEs.toLowerCase(),
-      ...(ce281!.aliases ?? []).map((a) => a.toLowerCase()),
-    ];
-    const overlap = tokens281.filter((t) => tokens095.has(t));
-    expect(overlap).toHaveLength(0);
-  });
-
-  it('bare "esqueixada" resolves only to CE-095 (Castilian atom)', () => {
+  it('bare "esqueixada" resolves to CE-095', () => {
     const matches = level1Lookup('esqueixada');
+    expect(matches.map((d) => d.externalId)).toEqual(['CE-095']);
+  });
+
+  it('Catalan-spelling "esqueixada de bacallà" also resolves to CE-095 post-collapse', () => {
+    const matches = level1Lookup('esqueixada de bacallà');
     expect(matches.map((d) => d.externalId)).toEqual(['CE-095']);
   });
 });
@@ -422,15 +418,17 @@ describe('H6-EC-10: spec-required aliases on new dishes', () => {
 // H6-EC-11  CE-280..CE-307 in monotonic order at file end
 // ---------------------------------------------------------------------------
 
-describe('H6-EC-11: monotonic CE-280..CE-307 sequence at file end', () => {
-  it('the F-H6 batch (CE-280..CE-307) remains in monotonic order at its appended position', () => {
+describe('H6-EC-11: monotonic CE-280..CE-307 sequence at file end (minus CE-281)', () => {
+  it('the F-H6 batch (CE-280..CE-307 except CE-281) remains in monotonic order at its appended position', () => {
     // Future-proof: locate CE-280 by externalId rather than negative-index slicing.
     // Negative slices break silently when subsequent batches (F-H9, F-H10, ...) append more atoms.
+    // BUG-DATA-DUPLICATE-ATOM-001 (2026-04-28): CE-281 collapsed into CE-095. The expected sequence
+    // skips CE-281 — the remaining 27 atoms still appear in monotonic order.
     const start = dishes.findIndex((d) => d.externalId === 'CE-280');
     expect(start, 'CE-280 not found in dataset').toBeGreaterThanOrEqual(0);
-    const fH6Batch = dishes.slice(start, start + 28);
+    const fH6Batch = dishes.slice(start, start + 27);
     const eids = fH6Batch.map((d) => d.externalId);
-    const expected = Array.from({ length: 28 }, (_, i) => `CE-${280 + i}`);
+    const expected = Array.from({ length: 28 }, (_, i) => `CE-${280 + i}`).filter((eid) => eid !== 'CE-281');
     expect(eids).toEqual(expected);
   });
 });
@@ -451,7 +449,7 @@ describe('H6-EC-12: level1Lookup simulation', () => {
     ['taco al pastor', 'CE-297'],
     ['gyoza', 'CE-300'],
     ['poke bowl de salmón', 'CE-288'],
-    ['esqueixada de bacallà', 'CE-281'],
+    ['esqueixada de bacallà', 'CE-095'], // BUG-DATA-DUPLICATE-ATOM-001: was CE-281 pre-2026-04-28 collapse
     ['esqueixada de bacalao', 'CE-095'],
   ];
 

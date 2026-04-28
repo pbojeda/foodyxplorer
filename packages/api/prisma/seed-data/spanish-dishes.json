@@ -2461,7 +2461,10 @@
       "name": "Esqueixada",
       "nameEs": "Esqueixada",
       "aliases": [
-        "esqueixada de bacalao"
+        "esqueixada de bacalao",
+        "esqueixada de bacallà",
+        "esqueixada de bacalà",
+        "esqueixada catalana"
       ],
       "category": "primeros",
       "portionGrams": 200,
@@ -7362,33 +7365,6 @@
         "fiber": 0.5,
         "salt": 1.4,
         "sodium": 0.56
-      }
-    },
-    {
-      "externalId": "CE-281",
-      "dishId": "00000000-0000-e073-0007-000000000119",
-      "nutrientId": "00000000-0000-e073-0008-000000000119",
-      "name": "Esqueixada de bacallà",
-      "nameEs": "Esqueixada de bacallà",
-      "aliases": [
-        "esqueixada de bacalà",
-        "esqueixada catalana"
-      ],
-      "category": "tapas",
-      "portionGrams": 180,
-      "confidenceLevel": "medium",
-      "estimationMethod": "ingredients",
-      "source": "recipe",
-      "nutrients": {
-        "calories": 216,
-        "proteins": 20,
-        "carbohydrates": 8,
-        "sugars": 3,
-        "fats": 11,
-        "saturatedFats": 1.5,
-        "fiber": 2,
-        "salt": 2,
-        "sodium": 0.8
       }
     },
     {
