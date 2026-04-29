@@ -164,8 +164,8 @@ const _LEXICAL_ALTS = Object.keys(LEXICAL_NUMBER_MAP).join('|');
 //   3. Lexical number words (with optional "raciones de" and "de" glue)
 //   4. "triple de" compound (must precede bare /\btriples?\b/)
 //   5. Fractional / composed: cuarto de ración, ración y media
-//   6. Extended ración compounds: ración extra, ración enorme, ración normal, ración generosa, ración buena
-//   7. Bare extended modifiers: enorme, extra, buen/buena, generosa
+//   6. Extended ración compounds: ración extra, ración enorme, ración gigante (F-MODIFIERS-001), ración mediana (F-MODIFIERS-001), ración normal, ración generosa, ración buena
+//   7. Bare extended modifiers: enorme, gigante (F-MODIFIERS-001), extra, buen/buena, generosa, mediano/a (F-MODIFIERS-001), casero/a (F-MODIFIERS-001 — standalone; compound `casero de postre` handled by H7 Cat A)
 // Existing F042 entries follow unchanged.
 const PATTERNS: readonly PatternEntry[] = [
   // --- F-COUNT: numeric compound (N raciones/ración de) — BEFORE bare numeric ---
@@ -187,7 +187,9 @@ const PATTERNS: readonly PatternEntry[] = [
 
   // --- F-COUNT: extended ración compounds (longest-first within group) ---
   { kind: 'fixed', regex: /\braci[oó]n\s+enorme\s+(?:de\s+)?/i,    multiplier: 2.0 },
+  { kind: 'fixed', regex: /\braci[oó]n\s+gigante\s+(?:de\s+)?/i,   multiplier: 2.0 },
   { kind: 'fixed', regex: /\braci[oó]n\s+extra\s+(?:de\s+)?/i,     multiplier: 1.5 },
+  { kind: 'fixed', regex: /\braci[oó]n\s+median[oa]\s+(?:de\s+)?/i, multiplier: 1.0 },
   { kind: 'fixed', regex: /\braci[oó]n\s+generosa\s+(?:de\s+)?/i,  multiplier: 1.0 },
   { kind: 'fixed', regex: /\braci[oó]n\s+buena\s+(?:de\s+)?/i,     multiplier: 1.0 },
   { kind: 'fixed', regex: /\braci[oó]n\s+normal\s+(?:de\s+)?/i,    multiplier: 1.0 },
@@ -201,9 +203,14 @@ const PATTERNS: readonly PatternEntry[] = [
   // It is placed here inline (not in the F042 block below) to keep ordering explicit.
   { kind: 'fixed', regex: /\bextra[\s-]grandes?\b/i,           multiplier: 1.5 },
   { kind: 'fixed', regex: /\benormes?\b/i,       multiplier: 2.0 },
+  { kind: 'fixed', regex: /\bgigantes?\b/i,      multiplier: 2.0 },
   { kind: 'fixed', regex: /\bextras?\b/i,        multiplier: 1.5 },
   { kind: 'fixed', regex: /\bbuen[ao]s?\b/i,     multiplier: 1.0 },
   { kind: 'fixed', regex: /\bgeneros[ao]s?\b/i,  multiplier: 1.0 },
+  // F-MODIFIERS-001: informational quality/size modifiers (multiplier 1.0×).
+  // mediano/a — medium size; casero/a — homemade quality (standalone, NOT compound `casero de postre` which H7 Cat A handles).
+  { kind: 'fixed', regex: /\bmedian[oa]s?\b/i,   multiplier: 1.0 },
+  { kind: 'fixed', regex: /\bcaser[oa]s?\b/i,    multiplier: 1.0 },
 
   // --- F042 existing entries (unchanged, extra grande already hoisted above) ---
   // (extra[\s-]grandes? hoisted to appear before bare extras? — see above)
