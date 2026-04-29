@@ -17,7 +17,41 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
-### 2026-04-29 — BUG-DEPLOY-DRIFT-001: api-dev binary stuck pre-F-H10-FU2 due to Render build-filter + docs-only deploy targets
+### 2026-04-29 — BUG-H7-P5-OVERSTRIP-001: H7-P5 retry seam strips discriminating HI token, defeating F-H10-FU2 Step 2
+
+- **Issue**: After Render manual deploy (with "Clear build cache & deploy") of commit `2dca7a7` confirmed F-H10-FU2 IS active on api-dev (verified via `tarta de queso casera` → REJECT correctly), Q649 `después de la siesta piqué queso fresco con membrillo` STILL returns OK CROISSANT CON QUESO FRESCO with `level1Hit: true`. Direct probe of variations isolated the cause:
+  - `queso fresco con membrillo` → ACCEPT CROISSANT ❌ (the bug)
+  - `queso fresco membrillo` (no `con`) → REJECT ✓
+  - `queso con membrillo` (1 pre-con token) → REJECT ✓
+  - `fresco con membrillo` (1 pre-con token) → REJECT ✓
+- **Root cause**: H7-P5 retry seam in `engineRouter.ts:178-209`. When L1 Pass 1 returns null (correctly rejected by F-H10-FU2 `passesGuardL1` Step 2 because `membrillo` absent from candidate), `applyH7TrailingStrip` is called on the normalized query. H7 Cat C "trailing `con [tail]` strip" applies because pre-con fragment `queso fresco` has 2 tokens (Cat C requires ≥ 2 tokens before `con`). Result: `queso fresco con membrillo` → `queso fresco`. Retry L1 with stripped query:
+  - `passesGuardL1` Step 1: Jaccard(`queso fresco`, `CROISSANT CON QUESO FRESCO`) = 2/3 = 0.667 → PASS
+  - Step 2: queryHI for `queso fresco` = {} (both `queso` and `fresco` are in `FOOD_STOP_WORDS_EXTENDED`) → empty → fall through to Jaccard-only ACCEPT
+  - Returns CROISSANT with `level1Hit: true` (per the H7-P5 return path at engineRouter.ts:192).
+- **Why F-H10-FU2 spec missed this**: EC-6 documented "Two-pass cascade preservation (BUG-PROD-012)" — Tier-filter cascade inside `runCascade`. But H7-P5 retry is OUTSIDE `runCascade`, in `engineRouter.ts`. The spec analyzed Pass 1's behavior correctly but did not trace the post-rejection path through `engineRouter.runEstimationCascade`.
+- **Why the variations work correctly**: H7 Cat C requires ≥ 2 tokens before `con`. `queso con membrillo` and `fresco con membrillo` have only 1 → strip not applied → retry doesn't fire → REJECT preserved. `queso fresco membrillo` has no `con` → no strip → REJECT preserved.
+- **Risk**: HIGH for F-H10-FU2's stated user-visible goal (Q649). The Q580 `pollo al curri con arro blanco` also has `con` but Pass 1 already rejects (Jaccard 0.167 alone) and the retry stripped to `pollo al curri` would also reject because catalog has no exact match. Q649 is the single case where Pass 1 needs Step 2 AND the H7-P5 strip removes the only HI token.
+- **Resolution path** — F-H10-FU3 **DEFERRED to P3 backlog 2026-04-29** (cost-benefit + cross-agent audit findings):
+  - **Option A (cascade signal)**: Differentiate `runCascade` rejection reason. Return `{ rejected: true, by: 'guard' }` vs `null`. H7-P5 retry only fires if `null` (no match found), NOT if `rejected: 'guard'` (rejection was correct). Type change small but spans `runCascade` + `engineRouter.runEstimationCascade`.
+  - **Option B (re-evaluate post-retry against original query)** — **REJECTED 2026-04-29 by cross-agent audit**: empirically confirmed to break ≥ 6 existing tests in F-H7/F-H8 retry coverage. Concrete regression list (verified file:line):
+    - `packages/api/src/__tests__/fH7.engineRouter.integration.test.ts:224` — AC-4 "pollo al ajillo está muy guisado?" → "guisado" not in "Pollo al ajillo" → Option B rejects retry
+    - `packages/api/src/__tests__/fH8.cat24.unit.test.ts:61` — same query
+    - `packages/api/src/__tests__/fH8.cat24.unit.test.ts:88` — "el bonito en escabeche es de lata o casero?" → "casero" not in "Bonito en escabeche" → Option B rejects retry
+    - `packages/api/src/__tests__/fH7.trailing.unit.test.ts:29` — "tiramisú casero de postre" → "casero, postre" not in candidate → Option B rejects retry
+    - `packages/api/src/__tests__/fH7.trailing.unit.test.ts:37` — "michirones para picar" → "picar" not in candidate → Option B rejects retry
+    - `packages/api/src/__tests__/fH7.trailing.unit.test.ts:67` — "burrito de cochinita pibil con extra de picante" → "extra, picante" not in candidate → Option B rejects retry
+    Option B is semantically invasive — it inverts the F-H7/F-H8 retry seam principle ("strip wrappers like guisado/casero/para picar permits matching catalog atoms that the verbose query would not match"). Initial framing as "3-5 lines, easy rollback" was wrong — it's a semantic change with ≥ 6 known regressions.
+  - **Option C (narrow — Cat C only)**: H7 Cat C should not strip the LAST content token when it's the only HI token. Fixes Q649 specifically; leaves other Cats untouched.
+  - **Option C-generalized (PREFERRED if F-H10-FU3 pursued)**: applied to ALL `applyH7TrailingStrip` cats — skip strip when `queryHI(stripped) == empty AND queryHI(original) != empty`. Preserves the 6 legitimate retry tests above (they all have `queryHI(stripped) != empty` because the dish-name token like `tiramisú`, `michirones`, `bonito`, `pollo` survives the strip). Cancels strip only when the strip removes the ONLY HI token.
+- **Cost-benefit verdict (user-driven 2026-04-29)**: Q649 is a **single user-visible FP** in a **narrow pattern** ("X Y con Z" where X+Y are both in FOOD_STOP_WORDS_EXTENDED, Z is the only discriminator, Cat C strip qualifies because pre-con has ≥ 2 tokens, retry's stripped query happens to FTS-match the same wrong candidate). No other case in the 650-query QA battery exhibits this pattern. Standard ~3-4h fix for 1 query is poor ROI compared to BUG-OFF-FALLBACK-NO-GUARD-001 (Simple ~30min, 4 FPs) and other backlog items.
+- **Tests required if pursued** — extend fH10FU2 suite: assert `queso fresco con membrillo` produces null after H7-P5 retry; assert all 6 retry-test cases above still work post-fix; sweep QA battery for other "X Y con Z all-stop-Z-only-HI" patterns.
+- **Severity**: P3 (was P2 pre-audit) — DEFERRED. Single FP in narrow pattern; high regression risk on Option B; better-ROI bugs available.
+- **Reclassification 2026-04-29 (cross-agent audit)**: was Simple ~30min → now Standard ~3-4h IF pursued (full SDD pipeline + cross-model spec review + cross-model plan review + production-code-validator + code-review + qa-engineer + audit-merge). The bug emerges at the intersection of `passesGuardL1` (level1Lookup) + H7-P5 strip (engineRouter) + cascade rejection signaling — non-trivial solution space requires deliberate design.
+- **Filed by**: Operator post-deploy verification 2026-04-29 12:33 UTC. **Audit-revised 2026-04-29 13:00 UTC** after cross-agent review surfaced Option B test breakage and recommended deferral.
+
+---
+
+### 2026-04-29 — BUG-DEPLOY-DRIFT-001 [RESOLVED 2026-04-29 10:31]: api-dev binary stuck pre-F-H10-FU2 due to Render build-filter + docs-only deploy targets
 
 - **Issue**: Three QA batteries (2026-04-28 12:27 pre-redeploy + 2026-04-29 11:30 post-user-redeploy + 2026-04-29 12:01 post-`9baf248`-deploy) are **byte-identical** for the 6 known FPs. Q649 still returns `OK CROISSANT CON QUESO FRESCO` with `matchType: fts_dish`, `level1Hit: true` — the Starbucks Tier 0 chain dish that F-H10-FU2's Step 2 was specifically designed to reject. Direct API probe (uptime 58s post-`9baf248`) confirms `runCascade` Strategy 2 + `passesGuardL1` ACCEPTS — Step 2 NOT executing.
 - **Empirical contrast — what works**: Q178 `una coca cola` correctly returns `level1Hit: false` at L1 (Step 1 Jaccard 0.167 < 0.25 alone rejects — and that's F-H10-FU's existing behavior, NOT F-H10-FU2's contribution). Q580 `pollo al curri con arro blanco` also correctly NULLs (Step 1 0.167 rejects). The Q649 case is the ONLY one that requires F-H10-FU2's Step 2 (Jaccard 0.500 PASS Step 1; queryHI={membrillo} absent from candidate → Step 2 reject).
