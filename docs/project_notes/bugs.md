@@ -17,6 +17,25 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-04-29 — BUG-L1-FTS-SEMANTIC-MISMATCH-001: L1 FTS Strategy 4 returns semantically-wrong food candidate that passesGuardL1 ACCEPTS [P3 OPEN]
+
+- **Issue**: A class of L1 FTS Strategy 4 (food table) hits where `passesGuardL1` ACCEPTS the candidate (Jaccard ≥ 0.25 + every-HI token present in candidate) but the result is semantically wrong (drink vs paté, Spanish omelet vs Mexican flour tortilla, generic adjective vs specific dish). The lexical guard cannot distinguish these because the discriminating token IS shared between query and candidate.
+- **Affected user-visible queries** (verified empirically 2026-04-29 post-clean-cache battery):
+  - **Q378 `una copa de oporto`** → `Paté fresco de vino de Oporto` (paté not Port wine) — `level1Hit:true`, `mt:fts_food`. Post-strip query=`oporto`. Candidate tokens={pate, fresco, vino, oporto}. Jaccard 1/4=0.25 boundary PASS Step 1. Step 2 queryHI={oporto}, oporto IS in candidate → ACCEPT. **Realistic FP** (user-typed query: ordering Port at a bar).
+  - **Q394 `tres tortillas`** → `Tortillas Trigo` (Mexican flour tortillas, not Spanish omelet) — `level1Hit:true`, `mt:fts_food`. Post-strip (F-COUNT extracts `tres`)=`tortillas`. Candidate tokens={tortillas, trigo}. Jaccard 1/2=0.5 → ACCEPT. queryHI={tortillas} IS in candidate → ACCEPT. ✗ Unrealistic per user.
+  - **Q530 `un asiático, por favor`** → `Wok Asiático` — `level1Hit:true`, `mt:fts_food`. Post-strip=`asiatico`. Candidate tokens={wok, asiatico}. Jaccard 1/2=0.5 → ACCEPT. queryHI={asiatico} IS in candidate → ACCEPT. ✗ Unrealistic per user.
+- **Class**: "L1 FTS Strategy 4 prefers semantically-wrong candidate when query token superficially overlaps with regional/categorical variant in candidate name". Distinct from BUG-OFF-FALLBACK (l1:false) — these all have `level1Hit:true` because `runCascade` Strategy 4 returns the hit and `passesGuardL1` accepts.
+- **Why F-H10-FU2 Step 2 cannot fix this**: every-HI semantics requires every HI token from query to be present in candidate. In all 3 cases the discriminating token IS present (oporto, tortillas, asiatico) — what differs is the SEMANTIC CATEGORY (drink vs spread, Spanish vs Mexican cuisine, generic adjective vs specific dish). Lexical guards are insufficient by design — semantic check requires embedding similarity OR food-group classifier.
+- **Risk**: LOW per realistic-FP count (1 of 3 realistic per user judgement: Q378). Class structurally enables more cases as catalog grows; future expansions of OFF/Cocina-Española with regional variants could surface additional FPs.
+- **Resolution path** — Standard ~3-4h ticket if pursued. Algorithm options:
+  - **B1 L3 embedding cross-check at L1**: After `runCascade` Strategy 4 returns a hit, compute embedding similarity between query and candidate name; reject if cosine distance > threshold. Cost: latency + OpenAI call per L1 FTS hit (similar to L3). Probably overkill — L3 already does this if L1 misses.
+  - **B2 Food-group classifier**: Detect query category (drink, dish, ingredient) via simple lexicon; reject candidates from incompatible category (drink query → reject non-drink atoms). Requires taxonomy mapping for atoms (BEDCA-style food groups already exist as `food.food_group_es`).
+  - **B3 Inverted threshold**: Tighten Step 1 Jaccard threshold for FTS Strategy 4 specifically when query is short (≤ 2 tokens). Risk: regression on legitimate single-token queries (paella → Paella valenciana already at 0.5 boundary).
+- **Severity**: P3 OPEN. Defer until: (a) production traffic surfaces additional realistic Q378-class FPs, OR (b) BUG-OFF-FALLBACK pursued and same algorithm could close both classes, OR (c) F080-removal product decision (then this class shrinks to L1 only).
+- **Filed by**: Cross-agent audit cycle 2026-04-29 16:00 UTC during pm-h6plus3 pre-sprint analysis. Reclassified Q378 from BUG-OFF-FALLBACK-NO-GUARD-001 (where it was incorrectly attributed) and grouped with newly-discovered Q394 + Q530 from fresh battery sweep `/tmp/qa-dev-baseline-pm-h6plus3-20260429-1550.txt`.
+
+---
+
 ### 2026-04-29 — BUG-H7-P5-OVERSTRIP-001: H7-P5 retry seam strips discriminating HI token, defeating F-H10-FU2 Step 2
 
 - **Issue**: After Render manual deploy (with "Clear build cache & deploy") of commit `2dca7a7` confirmed F-H10-FU2 IS active on api-dev (verified via `tarta de queso casera` → REJECT correctly), Q649 `después de la siesta piqué queso fresco con membrillo` STILL returns OK CROISSANT CON QUESO FRESCO with `level1Hit: true`. Direct probe of variations isolated the cause:
@@ -73,22 +92,44 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 ---
 
-### 2026-04-29 — BUG-OFF-FALLBACK-NO-GUARD-001: F080 OFF Tier 3 fallback bypasses lexical guard
+### 2026-04-29 — BUG-OFF-FALLBACK-NO-GUARD-001: F080 OFF Tier 3 fallback bypasses lexical guard [P3 DEFERRED 2026-04-29 16:30 UTC]
 
-- **Issue**: Post-redeploy QA battery (2026-04-29) shows Q178/Q312/Q345/Q378 still as `OK ... mt=fts_food` despite L1 cascade correctly rejecting them via `passesGuardL1`. Direct API probe of Q178 (`una coca cola` → `Huevas cocidas de merluza de cola patagónia`) shows `level1Hit: false`, `level3Hit: true`, `matchType: fts_food`. The match comes from F080 OFF (Open Food Facts) Tier 3 generic fallback at `engineRouter.ts:282` which calls `offFallbackFoodMatch` from `level1Lookup.ts:572` and returns the result WITHOUT applying any lexical guard.
-- **Affected user-visible queries** (4 of 6 known FPs from F-H10-FU2 spec — Q580 was correctly fixed because both L1 and OFF rejected):
-  - Q178: `una coca cola` → Huevas cocidas de merluza de cola (sea-food, OFF Tier 3)
-  - Q312: `coca cola grande` → same
-  - Q345: `un poco de todo` → Patatas aptas para todo uso
-  - Q378: `una copa de oporto` → Paté fresco de vino de Oporto
-- **Root cause**: Architectural gap. F-H10/F-H10-FU/F-H10-FU2 all wired the lexical guard into the L1 `runCascade` strategies (L1 Strategy 2 + 4 + L3 cascade). The F080 OFF Tier 3 fallback was added by F080 (PR before F-H10) and was never extended to apply the guard. When `runCascade` returns null (correctly rejected by `passesGuardL1`), control falls through to F080 which does an unscoped FTS against OFF products and returns the highest-rank match without any token-overlap check.
-- **Risk**: MEDIUM — multiple user-visible FPs from this single unguarded path. F-H10-FU2 cannot fix these because the path is OUTSIDE `runCascade`'s scope.
-- **Resolution path**: extend F-H10-FU2-style guard to F080 fallback. Two options:
-  - **Option A (lightweight)**: wrap `offFallbackFoodMatch` result with `passesGuardL1(normalizedQuery, row.food_name_es, row.food_name)` at `engineRouter.ts:290`; if guard fails, return null instead of the OFF match. This is a 3-line change and reuses the F-H10-FU2 algorithm directly.
-  - **Option B (architectural)**: refactor F080 fallback into `level1Lookup.runCascade` as Strategy 5, so the guard naturally applies. Larger change, cleaner architecture.
-- **Tests required**: new file `bugOffFallbackGuard.unit.test.ts` covering Q178/Q312/Q345/Q378 fixtures + at least 3 legitimate OFF matches that should pass.
-- **Severity**: P2 — closes the user-visible FP gap that F-H10-FU2's stated goal could not reach due to architectural scope.
-- **Filed by**: Post-deploy verification 2026-04-29 during F-H10-FU2 PD1-PD6 audit. Discovered via direct API probe showing `level1Hit: false` + `level3Hit: true` flag combination.
+- **Issue**: F080 OFF Tier 3 fallback at `engineRouter.ts:282` calls `offFallbackFoodMatch` (from `level1Lookup.ts:572`) and returns the result WITHOUT applying any lexical guard. When `runCascade` rejects via `passesGuardL1` and L3 also misses, control falls through to F080 which does an unscoped FTS against OFF products and returns the highest-rank match. Architectural fingerprint of the unguarded path: `level1Hit: false`, `level3Hit: true`, `matchType: fts_food`, `source: Open Food Facts`.
+- **Affected user-visible queries from this path** (verified empirically post-clean-cache battery 2026-04-29 15:50 UTC `/tmp/qa-dev-baseline-pm-h6plus3-20260429-1550.txt`):
+  - Q178: `una coca cola` → Huevas cocidas de merluza de cola patagónia ✓ realistic FP
+  - Q312: `coca cola grande` → same ✓ realistic FP
+  - Q270: `unas cañas` → `natural cana` (Yogur de caña) ✓ realistic FP **[NEW]**
+  - Q362: `acabo de beberme dos cañas` → same ✓ realistic FP **[NEW]**
+  - Q338: `tapa` → Presunto Serrano Tapas ✗ unrealistic (per user 2026-04-29: "tapa solo nadie la busca, siempre tapa de X") **[NEW]**
+  - Q345: `un poco de todo` → Patatas aptas para todo uso ✗ unrealistic **[NEW unrealistic flag]**
+  - Q391: `las paellas` → Verdura para paella ✗ unrealistic **[NEW]**
+  - Q392: `un paellas` → Verdura para paella ✗ unrealistic **[NEW]**
+- **Q378 OUT — moved to BUG-L1-FTS-SEMANTIC-MISMATCH-001**: empirical re-probe 2026-04-29 confirmed Q378 `una copa de oporto` has `level1Hit:true` (passes through L1 FTS Strategy 4 with passesGuardL1 ACCEPT — Jaccard 0.25 boundary + `oporto` token in candidate). NOT F080 path. Original 2026-04-29 12:33 UTC filing incorrectly attributed Q378 to this bug.
+- **Root cause**: Architectural gap. F-H10/F-H10-FU/F-H10-FU2 all wired the lexical guard into the L1 `runCascade` strategies (L1 Strategy 2 + 4 + L3 cascade). The F080 OFF Tier 3 fallback was added by F080 (PR before F-H10) and was never extended to apply the guard.
+- **Why initial fix proposal (option a/b/c) is insufficient — empirically verified 2026-04-29 16:00 UTC via vitest harness**: wrapping `offFallbackFoodMatch` with `applyLexicalGuard` (Jaccard threshold 0.25, no stemming, exact-string token match) breaks **3 legitimate F080 matches** because singular↔plural are distinct tokens:
+  - Q259 `natilla` → `Natillas`: Jaccard = 0/2 = 0.000 → REJECT ❌ regression (correct match today)
+  - Q393 `dos cafes` → `Café`: Jaccard = 0/2 = 0.000 → REJECT ❌ regression (correct match today)
+  - `ciruela` → `Ciruelas Ameixas` (manual probe): Jaccard = 0/3 = 0.000 → REJECT ❌ regression
+  Option (c) refactor to shared `lexicalGuards.ts` module + `passesGuardL1` exhibits same regression because Step 1 = `passesGuardEither` = same `applyLexicalGuard`.
+- **Realistic ROI math (per user judgement on which queries users actually type)**:
+  - F080-fix-covered realistic FPs: 4 (Q178, Q312, Q270, Q362)
+  - F080-fix-covered unrealistic FPs: 4 (Q338, Q345, Q391, Q392)
+  - Realistic legitimates broken: 3 (Q259 natilla, Q393 dos cafes, ciruela)
+  - **Net realistic = +1 fix, with UX asymmetry: wrong-match→null on common queries (natilla, dos cafes) is perceived as "app broken" — more severe than current wrong-match which user re-phrases.**
+- **Algorithm options reconsidered (none trivial)**:
+  - A1 Stemming (Snowball Spanish) in tokenize — Standard ~3-4h, new dependency, resolves plural↔singular cleanly
+  - A2 Prefix-tolerance match (token match if `abs(len(a)-len(b)) ≤ 2 AND prefix overlap ≥ 4`) — Standard ~2-3h heuristic, edge cases
+  - A3 pg_trgm threshold filter in SQL (in `offFallbackFoodMatch` directly) — Standard ~2-3h, leverages existing trgm + needs migration testing
+  - A4 Food-group classifier blacklist (drink queries → block non-drink groups) — Standard ~4-5h, requires taxonomy mapping
+  - A5 Wrap with `applyLexicalGuard` accepting the 3 known regressions — Simple ~30min, net coverage degraded, user-visible regression
+- **Severity**: P2 → **P3 DEFERRED 2026-04-29 16:30 UTC** (cost-benefit + cross-agent audit findings):
+  - Standard ~3-4h work (not Simple ~30min) for any algorithmically-correct fix
+  - Net realistic ROI ~0 to +1 (4 realistic fixes – 3 realistic regressions)
+  - UX asymmetry argument: wrong-match→null regression is worse than wrong-match retention
+  - Better-ROI items available in pm-h6plus3 backlog (F-H7-FU1, F-MODIFIERS-001, F-CHARCUTERIE-001 — Simple, no architectural risk, ~2.5h total)
+  - Pursue if: production traffic surfaces additional realistic F080 FPs that justify Standard work, OR product stakeholder confirms 4 realistic FPs justify ~3-4h algorithm change
+- **Tests required if pursued**: new file `bugOffFallbackGuard.unit.test.ts` covering Q178/Q312/Q270/Q362 fixtures (must REJECT) + Q259/Q393/`ciruela` fixtures (must ACCEPT via chosen algorithm — confirms no regression).
+- **Filed by**: Post-deploy verification 2026-04-29 12:33 UTC. **Cross-agent audit-revised + reclassified P3 DEFERRED 2026-04-29 16:30 UTC** after fresh post-clean-cache battery (650 queries) + 4 cross-agent audit cycles (R1-R4) + empirical Jaccard regression trace surfaced (a) Q378 reclassification, (b) 5 new FPs not previously enumerated, (c) 3 legitimate F080 matches that fix would break.
 
 ---
 
