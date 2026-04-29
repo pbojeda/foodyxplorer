@@ -69,6 +69,8 @@ No standard-portions.csv changes (CE-281 has no row there).
 | 2026-04-28 | Step 3+4 implementation | Commit `b088c14`. Removed CE-281 from spanish-dishes.json; migrated 3 aliases to CE-095; updated 5 test files + key_facts.md. 4189→4243 tests (one fixture dropped). Lint+build clean. |
 | 2026-04-28 | Step 5 code-review-specialist | REVISE → 1 CRITICAL (C1 orphan rows in standard-portions.csv at lines 224-226 referencing deleted CE-281 dishId 0x119 — FK violation at deploy time). 1 IMPORTANT (I1 H6-EC-6 silently masked the orphan rows). 1 SUGGESTION S2 (cross-validator JSON↔CSV — out of scope, may file as new ticket). |
 | 2026-04-28 | Step 5 fix-loop | Commit `ac33a40`. Removed 3 orphan rows from standard-portions.csv. Updated H6-EC-6 to skip n=281 + added positive guard test (CE-281 hex suffix has zero portion rows). Final: 4244/4244 tests. |
+| 2026-04-28 | Step 6 close | PR #231 squash-merged at `f70271f`; PR #232 housekeeping at `3c7cbf6`; branch deleted local + remote; tracker + bugs.md synced; ticket Status → Done. |
+| 2026-04-29 | Operator reseed dev+prod completed | `reseed-all-envs.sh --prod` → 316 dishes upserted in both. Manual cleanup `_delete_ce281.mts` removed CE-281 row + 1 DishNutrient + 3 StandardPortion from dev + prod (seed is upsert-only; explicit delete required). CE-095 verified with 4 aliases (1 original + 3 migrated) in both envs. Total cocina-espanola dishes: 316 ✓. |
 
 ---
 
@@ -79,13 +81,13 @@ No standard-portions.csv changes (CE-281 has no row there).
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | Spec, Workflow Checklist, Completion Log, Merge Checklist Evidence (lite ticket per Simple workflow) |
-| 1. Mark all items | [x] | AC: 10/10, DoD: 4/5 (last item is Step 6); Workflow: 4/5 (Step 6 pending) |
-| 2. Verify product tracker | [x] | Active Session 1/6 + Features table in-progress; will be synced to 5/6 in Step 5 commit |
+| 1. Mark all items | [x] | AC: 10/10, DoD: 5/5, Workflow: 5/5 (Step 6 done at `3c7cbf6`) |
+| 2. Verify product tracker | [x] | Active Session synced; Features table=done 5/5 (post-merge `3c7cbf6`) |
 | 3. Update key_facts.md | [x] | Line 95: catalog count 317 → 316 with attribution to BUG-DATA-DUPLICATE-ATOM-001 |
 | 4. Update decisions.md | [x] | N/A — data fix only, no architectural decision |
-| 5. Commit documentation | [x] | Ticket created in commit `b088c14`; updated in `ac33a40` and current commit |
-| 6. Verify clean working tree | [x] | will be verified post-commit |
-| 7. Verify branch up to date | [x] | branched from develop @ `23a409a` (current); no rebase needed |
+| 5. Commit documentation | [x] | `b088c14` (data fix) + `ac33a40` (C1 fix-loop) + `b8f6d32` (MCE prep) + `de27a27` (Step 6 housekeeping merged at `3c7cbf6`) |
+| 6. Verify clean working tree | [x] | `git status` clean post-housekeeping |
+| 7. Verify branch up to date | [x] | branched from develop @ `23a409a`; merged via PR #231 → `f70271f` |
 
 ---
 

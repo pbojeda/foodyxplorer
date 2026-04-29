@@ -1,6 +1,6 @@
-# F-H10-FU2 — Phase 0 Pre-flight Validation
+# F-H10-FU2 — Phase 0 Pre-flight Validation + Post-deploy Verification
 
-**Status:** Step 0.0 complete (BLOCKER reconciliation). Steps 0.1–0.4 PENDING (require user action: redeploy api-dev + re-capture QA battery).
+**Status (2026-04-29):** Step 0.0 complete + post-deploy QA battery executed. **Critical empirical finding: F-H10-FU2 works correctly at L1, but a SEPARATE unguarded F080 OFF Tier 3 fallback path in `engineRouter.ts:282` produces the user-visible FPs.** New bug filed (see "Post-deploy verification" section at bottom).
 
 ## Step 0.0 — Discrepancy Reconciliation (BLOCKER)
 
@@ -145,3 +145,70 @@ This document is the canonical Step 0 preflight artifact. Steps 0.1 (operator re
 
 *Authored: 2026-04-28 by F-H10-FU2 implementation pre-flight (Step 0.0).*
 *Step 0.2/0.3 added: 2026-04-28 by backend-developer agent.*
+*Post-deploy verification added: 2026-04-29 (this document).*
+
+---
+
+## Post-deploy Verification (2026-04-29)
+
+**Operator actions executed:**
+1. Render redeploy of api-dev with develop HEAD (PR #229 + #230 + #231 + #232 merged).
+2. Reseed dev + prod via `reseed-all-envs.sh --prod` — 316 dishes upserted in both.
+3. Manual cleanup of CE-281 row in dev + prod via `_delete_ce281.mts` (since seed is upsert-only, the stale CE-281 row + 1 DishNutrient + 3 StandardPortion required explicit delete; CE-095 confirmed with 4 aliases post-cleanup).
+4. `qa-exhaustive.sh` against api-dev → `/tmp/qa-dev-post-fH10FU2-20260429-1130.txt`.
+
+**QA battery summary:**
+
+| Metric | Pre-fix (2026-04-28 12:27) | Post-fix (2026-04-29 11:30) | Delta |
+|---|---|---|---|
+| OK | 435 | 430 | -5 |
+| NULL | 205 | 214 | +9 |
+| FAIL | 10 | 6 | -4 |
+
+The -5 OK / +9 NULL flow is within the spec's PD4 gate (≤5 OK→NULL conversions acceptable for L1→L3 delegation). Lint/build/tests all clean.
+
+**The 6 known L1 FPs status — at the user-visible API:**
+
+| Q | Query | Pre-fix verdict | Post-fix verdict | F-H10-FU2 expectation | Match path |
+|---|---|---|---|---|---|
+| Q178 | una coca cola | OK Huevas (FP) | **OK Huevas (still FP)** | REJECT | F080 OFF Tier 3 fallback (`engineRouter.ts:282`) — unguarded |
+| Q312 | coca cola grande | OK Huevas (FP) | **OK Huevas (still FP)** | REJECT | F080 OFF Tier 3 fallback — unguarded |
+| Q345 | un poco de todo | OK Patatas (FP) | **OK Patatas (still FP)** | REJECT | F080 OFF Tier 3 fallback — unguarded |
+| Q378 | una copa de oporto | OK Paté (FP) | **OK Paté (still FP)** | ACCEPT (L1 → L3 delegation) | F080 OFF Tier 3 fallback — unguarded |
+| Q580 | pollo al curri con arro blanco | OK Foccacia (FP) | **NULL ✓** | REJECT | L1 cascade rejected; F080 also missed → null |
+| Q649 | queso fresco con membrillo | OK CROISSANT (FP) | **OK CROISSANT (still FP)** | REJECT | NEEDS INVESTIGATION — L1 should reject (Step 2 fires on full nameEs); but Starbucks chain dish is Tier 0 (chain PDF), not OFF — this path is Strategy 1 exact_dish or Strategy 2 fts_dish in the L1 cascade. **Actual matchType=fts_dish** at runtime per QA output → suggests `passesGuardL1` did NOT reject the Starbucks dish. **Possible cause: the deployed binary still does not include F-H10-FU2 algorithm changes despite the redeploy.** |
+
+**Direct API probe (Q178, 2026-04-29):**
+```json
+{
+  "level1Hit": false, "level3Hit": true, "matchType": "fts_food",
+  "result": { "name": "Huevas cocidas de merluza de cola patagónia", ... }
+}
+```
+
+**Diagnosis:**
+1. **F-H10-FU2 IS confirmed working at L1** for `coca cola` (level1Hit: false → guard rejected). This validates the algorithmic fix.
+2. **F080 OFF Tier 3 fallback at `engineRouter.ts:282` is unguarded** — calls `offFallbackFoodMatch` and returns the result with `level3Hit: true` + `matchType: 'fts_food'` without applying any lexical guard. This is the user-visible FP source for Q178/Q312/Q345/Q378.
+3. **Q649 — DEPLOY SMOKING GUN**: direct API probe (2026-04-29) returns `level1Hit: true`, `matchType: fts_dish`, `nameEs: CROISSANT CON QUESO FRESCO` (FULL name, not truncated). For Step 1 Jaccard at runtime: query=`queso fresco con membrillo` (post-strip via H7-P2) vs candidate=`CROISSANT CON QUESO FRESCO` → Jaccard = 0.50 ≥ 0.25 → Step 1 PASSES. **Step 2 (F-H10-FU2's required-token check) is the only gate that should reject this**: queryHI={membrillo}; `membrillo` is NOT in candidate tokens → Step 2 should REJECT. But L1 ACCEPTS at runtime — meaning **`passesGuardL1` Step 2 is NOT executing on api-dev**. The contrast with Q178 confirms this: Q178 rejection comes from Step 1 alone (Jaccard 0.167) which is F-H10-FU's existing behavior, and works correctly. Q649 needs Step 2 (F-H10-FU2) and it doesn't fire. **The deployed binary on api-dev does not contain F-H10-FU2 changes despite the user-confirmed Render redeploy.**
+
+   Possible root causes:
+   - Render redeploy targeted an earlier commit (before `49770ad`)
+   - Build artifact cache served a stale `dist/` from before F-H10-FU2 merge
+   - Render's auto-deploy webhook didn't fire on the squash-merge commit
+   - The redeploy happened but health endpoint reset uptime due to a different process restart
+
+   Verification next steps (operator action):
+   - Confirm Render's deployed commit SHA matches `2509a3b` (or newer) on api-dev dashboard
+   - If deploy is older, manually trigger redeploy targeting current develop HEAD
+   - Re-capture QA battery; expect Q649 → NULL (matchType=null)
+
+**PD1-PD6 verdicts:**
+
+- **PD1 — QA battery captured.** ✓ /tmp/qa-dev-post-fH10FU2-20260429-1130.txt
+- **PD2 — Q649 NOT in OK list.** ❌ FAIL — Q649 still OK CROISSANT. Needs F-H10-FU3 (algorithmic OR deploy investigation).
+- **PD3 — Q178/Q312/Q345/Q378/Q580 NOT in OK list.** ⚠️ PARTIAL — only Q580 → NULL. Q178/Q312/Q345/Q378 still OK due to F080 OFF Tier 3 unguarded fallback.
+- **PD4 — ≤5 OK→NULL regressions on legitimate.** ✓ PASS — net -5 OK is within the gate.
+- **PD5 — Update preflight artifact.** ✓ This document.
+- **PD6 — File new FPs/FNs in bugs.md.** ⏳ Filing now: BUG-OFF-FALLBACK-NO-GUARD-001 (F080 path bypasses lexical guard) + Q649-INVESTIGATION-001 (deployed binary may differ from source).
+
+**Recommendation:** F-H10-FU2 status remains Done at the L1 algorithm level. The persistent user-visible FPs require a separate ticket (F-H10-FU3 or BUG-OFF-FALLBACK-NO-GUARD-001) targeting the F080 fallback. Q649's persistence at fts_dish is anomalous and needs investigation before pm-h6plus3.
