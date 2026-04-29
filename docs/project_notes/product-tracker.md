@@ -18,13 +18,15 @@
 
 **F-H10-FU2 verdict**: algorithm is empirically correct (`tarta de queso casera` → REJECT confirms Step 2 path); persistent FPs (Q178/Q312/Q270/Q362/Q649) are NOT regressions but architectural interactions with paths outside `runCascade` scope (F080 unguarded at `engineRouter.ts:282`, H7-P5 retry seam at `engineRouter.ts:178`).
 
-**pm-h6plus3 backlog (priority order, total ~2.5h, no architectural risk)**:
-1. F-H7-FU1 (Simple/LOW ~30min) — 4 missing landmine integration tests
+**pm-h6plus3 backlog (priority order, total ~2h remaining, no architectural risk)**:
+1. ~~F-H7-FU1~~ DONE 2026-04-29 — PR #237 `614ea66`. Integration suite 8→12.
 2. F-MODIFIERS-001 (Simple ~30min) — extend extractPortionModifier (mediano/gigante/casero)
 3. F-CHARCUTERIE-001 (Simple ~1.5h) — 3 charcuterie standalone atoms
 4. ~~BUG-OFF-FALLBACK-NO-GUARD-001~~ (DEFERRED P3) — see audit findings 2026-04-29 16:30
 5. ~~BUG-L1-FTS-SEMANTIC-MISMATCH-001~~ (DEFERRED P3) — Q378+Q394+Q530, requires Standard work
 6. ~~F-H10-FU3~~ (DEFERRED P3) — Q649 single FP, see BUG-H7-P5-OVERSTRIP-001 audit
+
+**Last Completed — 2026-04-29 F-H7-FU1 DONE (5/5)** — PR #237 squash-merged to develop at `614ea66`. Simple test-only ticket (~30min actual). Closed AC-5 coverage gap from F-H7 (PR #213) by adding 4 missing landmine integration tests for `sepia a la plancha`, `tostada con tomate y aceite`, `café con leche`, `gambas al ajillo`. Each asserts `levelHit === 1` + `data.level1Hit === true`. Integration suite 8 → 12. code-review-specialist APPROVE no blockers (2 NITs optional, accepted). Branch deleted local + remote.
 
 **Last Completed — 2026-04-28 BUG-DATA-DUPLICATE-ATOM-001 DONE (5/5)** — PR #231 squash-merged to develop at `f70271f`. Simple data fix (~1h). CE-281 `Esqueixada de bacallà` collapsed into CE-095 `Esqueixada` (same Catalan codfish salad — F-H6 introduced as duplicate due to alias-grep missing orthographic variant `bacallà`/`bacalà` ≠ `bacalao`). 3 commits: `b088c14` (data fix + 5 test files + key_facts.md) + `ac33a40` (code-review C1 fix-loop: removed 3 orphan CSV rows + H6-EC-6 guard) + `b8f6d32` (MCE prep). code-review-specialist REVISE→APPROVE post-fix-loop (C1 CRITICAL orphan rows in standard-portions.csv would have FK-violated at deploy; I1 IMPORTANT H6-EC-6 silently masked the rows; S2 SUGGESTION cross-validator JSON↔CSV deferred as follow-up). Catalog count 317 → 316. Final gates: 4244/4244 tests, lint 0, build clean. Branch deleted local + remote. **Operator action**: reseed dev + prod required (CE-281 deletion cascades to DishNutrient + StandardPortion in DB).
 

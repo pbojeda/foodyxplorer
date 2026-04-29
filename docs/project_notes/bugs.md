@@ -218,13 +218,13 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Found by**: post-deploy QA battery dev 2026-04-27 (operator action after F-H9+F-H10 merge)
 - **Feature**: F-H10 | **PR**: #222 | **Merge**: `ffd2ece` | **Follow-up**: F-H10-FU (next Standard SDD ticket)
 
-### 2026-04-26 — F-H7-FU1: 4 missing landmine integration tests (qa-engineer F2 follow-up)
+### 2026-04-26 — F-H7-FU1: 4 missing landmine integration tests (qa-engineer F2 follow-up) [RESOLVED 2026-04-29]
 
 - **Issue**: F-H7's `fH7.engineRouter.integration.test.ts` tests only 2 of the 6 landmine corpus dishes specified in the spec for AC-5 verification. Missing: `sepia a la plancha`, `tostada con tomate y aceite`, `café con leche`, `gambas al ajillo`. qa-engineer flagged as LOW severity (F2 finding).
 - **Root Cause**: `fH7.engineRouter.integration.test.ts` uses minimal real-DB fixture inserts to keep test file scope tight. The 4 additional landmines would require additional fixture inserts in `beforeAll` that were deferred during Phase 5b implementation.
 - **Risk**: LOW — the H7-P5 retry-seam architecture protects ALL catalog dishes via L1 Pass 1 (the seam never runs when L1 hits the full text). The Cat C `≥2 pre-con tokens` guard is unit-tested in `fH7.trailing.unit.test.ts` and `fH7.edge-cases.observability.test.ts` (qa added 6 landmine guard verifications at function level). Production protection is independent of the missing integration coverage.
-- **Resolution plan**: Next sprint or Simple SDD ticket — add 4 fixture inserts to `fH7.engineRouter.integration.test.ts` `beforeAll` and assert `levelHit === 1` for each landmine. Estimated effort: ~30 min.
-- **Tracked**: Spec AC-5 + AC-7 (architecture-level) covered; integration coverage delta is the gap.
+- **Resolution**: PR #237 squash-merged at `614ea66` 2026-04-29. Added 4 fixture UUIDs (070/071, 080/081, 090/091, 100/101) + 4 `it(...)` blocks in `fH7.engineRouter.integration.test.ts`, each asserting `levelHit === 1` + `data.level1Hit === true`. Integration suite 8 → 12 (+4); default suite 4244/4244 unchanged; lint 0; build clean. code-review-specialist APPROVE no blockers.
+- **Tracked**: Spec AC-5 + AC-7 (architecture-level) covered; integration coverage delta CLOSED.
 
 ### 2026-04-23 — F-NLP-CHAIN-ORDERING: `extractPortionModifier` ran before `extractFoodQuery` wrapper strip
 
