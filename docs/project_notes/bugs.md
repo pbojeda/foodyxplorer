@@ -17,18 +17,25 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
-### 2026-04-29 — BUG-DEPLOY-DRIFT-001: api-dev binary does not include F-H10-FU2 despite reseed + redeploy
+### 2026-04-29 — BUG-DEPLOY-DRIFT-001: api-dev binary stuck pre-F-H10-FU2 due to Render build-filter + docs-only deploy targets
 
-- **Issue**: Post-redeploy QA battery (2026-04-29 11:30 UTC, output at `/tmp/qa-dev-post-fH10FU2-20260429-1130.txt`) shows Q649 `después de la siesta piqué queso fresco con membrillo` STILL returning `OK CROISSANT CON QUESO FRESCO` with `matchType: fts_dish`, `level1Hit: true` — the Starbucks Tier 0 chain dish that F-H10-FU2's Step 2 was specifically designed to reject. Direct API probe confirms Q649 reaches `runCascade` Strategy 2 and `passesGuardL1` accepts.
-- **Empirical contrast — what works**: Q178 `una coca cola` correctly returns `level1Hit: false` at L1 (Step 1 Jaccard 0.167 < 0.25 alone rejects). The user-visible Q178 FP comes from a different unguarded path (BUG-OFF-FALLBACK-NO-GUARD-001 below). Q580 `pollo al curri con arro blanco` also correctly NULLs.
-- **What doesn't work**: Q649 needs Step 2 (F-H10-FU2's `every`-HI required-token check) — Step 1 alone passes Q649 because Jaccard against full nameEs `CROISSANT CON QUESO FRESCO` = 0.50 ≥ 0.25. The local vitest harness trace (Phase 0 Step 0.0 in `F-H10-FU2-preflight-20260428.md`) PROVES the source code at HEAD rejects Q649 via Step 2. The runtime acceptance therefore implies Step 2 is NOT executing on api-dev.
-- **Root cause hypothesis (cannot verify without Render dashboard access per memory `reference_render_access.md`)**:
-  1. Render redeploy targeted an earlier commit (before `49770ad`)
-  2. Build artifact cache served stale `dist/` from before F-H10-FU2 merge
-  3. Auto-deploy webhook didn't fire on the squash-merge commit
-- **Risk**: HIGH for F-H10-FU2's stated purpose (Q649 fix). LOW for production correctness (api-dev only — prod not affected unless redeployed similarly).
-- **Resolution**: Operator action — confirm Render's deployed commit on api-dev dashboard. If older than `49770ad`, trigger fresh deploy targeting current develop HEAD. Re-capture QA battery → expect Q649 → NULL (matchType=null) AND only the F080-fallback FPs (Q178/Q312/Q345/Q378) persist (those need BUG-OFF-FALLBACK-NO-GUARD-001 fix).
-- **Filed by**: Post-deploy verification 2026-04-29 during F-H10-FU2 PD1-PD6 audit.
+- **Issue**: Three QA batteries (2026-04-28 12:27 pre-redeploy + 2026-04-29 11:30 post-user-redeploy + 2026-04-29 12:01 post-`9baf248`-deploy) are **byte-identical** for the 6 known FPs. Q649 still returns `OK CROISSANT CON QUESO FRESCO` with `matchType: fts_dish`, `level1Hit: true` — the Starbucks Tier 0 chain dish that F-H10-FU2's Step 2 was specifically designed to reject. Direct API probe (uptime 58s post-`9baf248`) confirms `runCascade` Strategy 2 + `passesGuardL1` ACCEPTS — Step 2 NOT executing.
+- **Empirical contrast — what works**: Q178 `una coca cola` correctly returns `level1Hit: false` at L1 (Step 1 Jaccard 0.167 < 0.25 alone rejects — and that's F-H10-FU's existing behavior, NOT F-H10-FU2's contribution). Q580 `pollo al curri con arro blanco` also correctly NULLs (Step 1 0.167 rejects). The Q649 case is the ONLY one that requires F-H10-FU2's Step 2 (Jaccard 0.500 PASS Step 1; queryHI={membrillo} absent from candidate → Step 2 reject).
+- **Root cause CONFIRMED**: per `key_facts.md` line documenting Render configuration:
+  - `nutrixplorer-api-dev` has `autoDeploy=OFF` (set 2026-04-22).
+  - Build filter on api services: `Included = packages/api/**, packages/shared/**, packages/scraper/**, package.json, package-lock.json | Ignored = docs/**, packages/bot/**, **/*.md, **/*.test.ts`.
+  - PR #232 (`3c7cbf6`) and PR #233 (`9baf248`) are 100% docs-only — only `docs/**` and `*.md` files modified.
+  - When user manually deploys targeting these commits, Render evaluates the build filter and reports "no relevant changes" → SKIPS the build → continues serving the previous (older) binary.
+  - The previous binary on api-dev is from before F-H10-FU2 was merged (likely `73e1c97` F-H10-FU only or earlier).
+- **Why we missed this**: vitest harness at HEAD source confirmed F-H10-FU2 algorithm rejects Q649. PD1-PD6 logic assumed "new deploy + new battery = new behavior". The build-filter interaction with docs-only deploy targets was not anticipated.
+- **Risk**: HIGH for F-H10-FU2's stated purpose (Q649 fix). MEDIUM for development workflow — any future docs-only PR after a code change creates the same skip-and-stale pattern unless operator deliberately targets the code-change commit on next manual deploy.
+- **Resolution (operator action)**: in Render dashboard for `nutrixplorer-api-dev`:
+  1. **Manual Deploy → Deploy specific commit** → enter SHA `49770ad` (F-H10-FU2 feat commit, first to touch `packages/api/src/estimation/level1Lookup.ts`).
+  2. Alternative SHAs: `d46fa26` (F-H10-FU2 review fixes), `f70271f` (BUG-DATA-DUPLICATE collapse — also touches `packages/api/`).
+  3. If filter still skips: select **"Clear build cache & deploy"** in the manual deploy dialog.
+  4. Verify post-deploy: `curl https://api-dev.nutrixplorer.com/health` → uptime should be small; then re-run `qa-exhaustive.sh`. Expected outcome: Q649 → NULL (F-H10-FU2 Step 2 rejects); Q178/Q312/Q345/Q378 → still OK (F080 unguarded path — separate fix in BUG-OFF-FALLBACK-NO-GUARD-001).
+- **Prevention**: workflow guideline added — when scheduling manual Render deploys for code changes, operator must target a commit that touches `packages/api/**` (i.e., the code-change commit, NOT the subsequent docs-only housekeeping commit). Consider toggling `autoDeploy=ON` temporarily on `api-dev` when shipping a backend feature, then back to OFF after deploy completes — sidesteps the filter entirely.
+- **Filed by**: Post-deploy verification 2026-04-29 during F-H10-FU2 PD1-PD6 audit. Updated 2026-04-29 12:05 UTC with confirmed root cause after 3 identical batteries proved Render build-filter interaction.
 
 ---
 
