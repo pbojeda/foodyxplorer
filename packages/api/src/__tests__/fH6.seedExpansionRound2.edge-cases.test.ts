@@ -5,7 +5,7 @@
  * additions on existing dishes.  All tests are data-only (no DB, no HTTP).
  *
  * Checks:
- *   H6-EC-1  No duplicate name/nameEs/alias across all 316 entries
+ *   H6-EC-1  No duplicate name/nameEs/alias across all 319 entries
  *   H6-EC-2  All 28 new dishes have correct source/confidence/method triple
  *   H6-EC-3  All 28 new dishes are within their spec kcal/100g ranges
  *   H6-EC-4  CSV pieces/pieceName invariant holds for all new rows
@@ -111,18 +111,20 @@ function level1Lookup(query: string): SpanishDishEntry[] {
 }
 
 // ---------------------------------------------------------------------------
-// H6-EC-1  No duplicate tokens across all 316 entries (was 317; CE-281 collapsed into CE-095 by BUG-DATA-DUPLICATE-ATOM-001 2026-04-28)
+// H6-EC-1  No duplicate tokens across all 319 entries
+// History: 317 (post-F-H9) → 316 (CE-281 collapsed by BUG-DATA-DUPLICATE-ATOM-001 2026-04-28)
+//          → 319 (+3 charcuterie atoms CE-318/319/320 by F-CHARCUTERIE-001 2026-04-29)
 // ---------------------------------------------------------------------------
 
-describe('H6-EC-1: no duplicate name/nameEs/alias across 316 entries', () => {
-  it('validateSpanishDishes returns valid: true with 0 errors on the full 316-entry dataset', () => {
+describe('H6-EC-1: no duplicate name/nameEs/alias across 319 entries', () => {
+  it('validateSpanishDishes returns valid: true with 0 errors on the full 319-entry dataset', () => {
     const result = validateSpanishDishes(dishes);
     expect(result.valid, result.errors.join('\n')).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 
-  it('total dish count is 316', () => {
-    expect(dishes).toHaveLength(316);
+  it('total dish count is 319', () => {
+    expect(dishes).toHaveLength(319);
   });
 });
 

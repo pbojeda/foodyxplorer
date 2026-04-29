@@ -129,17 +129,18 @@ const ALL_42_DISH_IDS = [
 ];
 
 // ---------------------------------------------------------------------------
-// F114-U1 — validateSpanishDishes accepts the extended JSON (316 entries)
+// F114-U1 — validateSpanishDishes accepts the extended JSON (319 entries)
 // ---------------------------------------------------------------------------
 // Count updated by F-H4 round-1: 252 → 279 (+27 regional dishes).
 // F-H6: count updated 279 → 307 (+28 international + extended regional).
 // F-H9: count updated 307 → 317 (+10 Cat 29 atoms).
 // BUG-DATA-DUPLICATE-ATOM-001: count updated 317 → 316 (CE-281 collapsed into CE-095, 2026-04-28).
+// F-CHARCUTERIE-001: count updated 316 → 319 (+3 charcuterie atoms — Jamón serrano CE-318, Cecina CE-319, Lomo embuchado CE-320, 2026-04-29).
 
-describe('F114-U1: validateSpanishDishes accepts extended JSON (316 entries)', () => {
-  it('passes validation with 316 entries, 0 errors', () => {
+describe('F114-U1: validateSpanishDishes accepts extended JSON (319 entries)', () => {
+  it('passes validation with 319 entries, 0 errors', () => {
     const dishes = loadRealJson();
-    expect(dishes).toHaveLength(316);
+    expect(dishes).toHaveLength(319);
 
     const result = validateSpanishDishes(dishes);
     expect(result.valid).toBe(true);
