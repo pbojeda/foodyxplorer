@@ -186,6 +186,9 @@ const PATTERNS: readonly PatternEntry[] = [
   { kind: 'fixed', regex: /\braci[oó]n\s+y\s+media\s+(?:de\s+)?/i,   multiplier: 1.5 },
 
   // --- F-COUNT: extended ración compounds (longest-first within group) ---
+  // NOTE: all compounds match SINGULAR `ración` only — plural `raciones <adj>` falls through
+  // to bare modifier strip (preserves multiplier but loses leading-`de` consumption).
+  // F-COUNT introduced this convention; F-MODIFIERS-001 follows for parity.
   { kind: 'fixed', regex: /\braci[oó]n\s+enorme\s+(?:de\s+)?/i,    multiplier: 2.0 },
   { kind: 'fixed', regex: /\braci[oó]n\s+gigante\s+(?:de\s+)?/i,   multiplier: 2.0 },
   { kind: 'fixed', regex: /\braci[oó]n\s+extra\s+(?:de\s+)?/i,     multiplier: 1.5 },

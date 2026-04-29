@@ -179,10 +179,33 @@ describe('F-MODIFIERS-001 — modifier interaction', () => {
   it('only first matched modifier wins (extractor is single-pass)', () => {
     // Both "casera" and "mediana" present — first match in PATTERNS order wins.
     // Per array order: gigante > extra > buen > generoso > MEDIANO > CASERO.
-    // So "mediana" matches first.
+    // So "mediana" matches first; "casera" is left in cleanQuery (single-pass invariant).
     const r = extractPortionModifier('paella mediana casera');
     expect(r.portionMultiplier).toBe(1.0);
-    // cleanQuery contains the un-stripped portion
-    expect(r.cleanQuery.toLowerCase()).toContain('paella');
+    expect(r.cleanQuery).toBe('paella casera');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AC8 — \b word-boundary safety: substrings of new tokens must NOT trigger
+// ---------------------------------------------------------------------------
+
+describe('F-MODIFIERS-001 — \\b boundary regression (substrings must not match)', () => {
+  it('does not strip "medianoche" (substring of mediano + che)', () => {
+    const r = extractPortionModifier('sándwich medianoche');
+    expect(r.portionMultiplier).toBe(1.0); // identity — no pattern match
+    expect(r.cleanQuery).toBe('sándwich medianoche');
+  });
+
+  it('does not strip "gigantesco" (substring of gigante + sco)', () => {
+    const r = extractPortionModifier('plato gigantesco');
+    expect(r.portionMultiplier).toBe(1.0); // identity
+    expect(r.cleanQuery).toBe('plato gigantesco');
+  });
+
+  it('does not strip "medianamente" (substring of mediana + mente)', () => {
+    const r = extractPortionModifier('cocido medianamente hecho');
+    expect(r.portionMultiplier).toBe(1.0); // identity
+    expect(r.cleanQuery).toBe('cocido medianamente hecho');
   });
 });

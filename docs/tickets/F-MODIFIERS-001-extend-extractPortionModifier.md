@@ -82,9 +82,9 @@ Direct steps:
 <!-- Simple flow: Steps 1, 3, 4, 5 only. Step 6 closes the ticket. -->
 
 - [x] Step 1: Branch created, ticket generated
-- [ ] Step 3: Implementation (5 patterns + tests)
-- [ ] Step 4: Quality gates pass
-- [ ] Step 5: PR + code-review-specialist
+- [x] Step 3: Implementation (5 patterns + 24 tests) — commit `788faea`
+- [x] Step 4: Quality gates pass (4244→4265, +21 → +3 boundary regression = 4268 default suite, lint 0, build clean)
+- [x] Step 5: PR + code-review-specialist APPROVE WITH MINOR (N2 mandatory + N1+I1 applied: AC7 tightened, +3 \b boundary regression tests, plural compound comment added)
 - [ ] Step 6: PR squash-merged; branch deleted; tracker + bugs.md synced
 
 ---
@@ -94,6 +94,9 @@ Direct steps:
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-29 | Ticket created | Branch `feature/F-MODIFIERS-001-extend-extractPortionModifier` from develop @ `a49c0e3`. Lite ticket per Simple workflow. Catalog conflict pre-check completed (grep): 2 canonical atoms + 3 aliases contain `casero` — all post-strip routing verified safe. |
+| 2026-04-29 | Step 3 implementation | Commit `788faea`. Added 5 patterns (3 bare + 2 ración compound) + 21 unit tests + plural-compound documentation comment. |
+| 2026-04-29 | Step 4 quality gates | Default suite 4244 → 4265 ✓ (+21 from F-MODIFIERS-001 tests); lint 0; build clean. |
+| 2026-04-29 | Step 5 code-review-specialist | APPROVE WITH MINOR. N2 mandatory (AC7 assertion tightened to `expect(r.cleanQuery).toBe('paella casera')`); N1 (+3 boundary regression tests for medianoche/gigantesco/medianamente, suite 21 → 24); I1 (plural compound limitation comment added per Option (b) YAGNI). All applied. |
 
 ---
 
@@ -103,10 +106,10 @@ Direct steps:
 
 | Recipe | Evidence | Status |
 |---|---|---|
-| B1 build clean | (filled at Step 4) | pending |
-| B2 lint clean | (filled at Step 4) | pending |
-| B3 tests pass | (filled at Step 4) | pending |
+| B1 build clean | `npm run build -w @foodxplorer/api` exit 0 | ✓ |
+| B2 lint clean | `npm run lint -w @foodxplorer/api` exit 0, 0 errors | ✓ |
+| B3 tests pass | Default suite 4244 → 4268 (+24: 21 AC + 3 boundary regression) | ✓ |
 | B4 spec/plan up-to-date | Lite ticket — Simple workflow, no spec/plan | N/A Simple |
 | B5 cross-model review | N/A Simple | N/A |
-| B6 code-review-specialist | (filled at Step 5) | pending |
+| B6 code-review-specialist | APPROVE WITH MINOR; all 3 findings applied (N2 mandatory + N1+I1 polish) | ✓ |
 | B7 audit-merge | (filled pre-merge) | pending |
