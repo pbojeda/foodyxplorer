@@ -1,7 +1,7 @@
 # F-CHARCUTERIE-001: Add 3 standalone charcuterie atoms (Jamón serrano, Cecina, Lomo embuchado)
 
 **Feature:** F-CHARCUTERIE-001 | **Type:** Backend-Data | **Priority:** Low
-**Status:** In Progress | **Branch:** feature/F-CHARCUTERIE-001-add-charcuterie-atoms
+**Status:** Done | **Branch:** feature/F-CHARCUTERIE-001-add-charcuterie-atoms (squash-merged at `620beab` 2026-04-29; deleted local + remote)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-29 | **Dependencies:** F-H6/F-H9 (seed expansion pattern), BUG-DATA-DUPLICATE-ATOM-001 (catalog count baseline 316)
 
@@ -98,7 +98,7 @@ No PRIORITY_DISH_MAP update (F-H6 pattern: bulk additions stay out of map; manua
 - [x] Step 3: Implementation (3 atoms + 12 CSV rows + count updates) — commit `dfaa60a`
 - [x] Step 4: Quality gates pass (4268/4268 ✓ — count assertions modified, no new tests; lint 0; build clean; JSON valid 319 dishes)
 - [x] Step 5: PR + code-review-specialist APPROVE (1 MINOR + 3 NIT, all optional/accepted as-is per Simple-tier scope; salt/sodium ratio 2.5 matches existing catalog convention — Jamón ibérico same)
-- [ ] Step 6: PR squash-merged; branch deleted; tracker synced
+- [x] Step 6: PR #241 squash-merged at `620beab`; branch deleted local + remote; tracker + bugs.md synced
 
 ---
 

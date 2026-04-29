@@ -8,9 +8,9 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-29 16:30 UTC (pm-h6plus3 pre-sprint audit: BUG-OFF-FALLBACK reclassified P3 DEFERRED + BUG-L1-FTS-SEMANTIC-MISMATCH filed P3 + Q378 reattributed)
+**Last Updated:** 2026-04-29 21:50 UTC (pm-h6plus3 batch CLOSED — 3 simples shipped + pre-sprint audit deferred 3 architectural items)
 
-**Active Feature:** None — pm-h6plus2 fully complete. **pm-h6plus3 reduced backlog ready to start** (3 simples, ~2.5h, no architectural risk). Bug status post pre-sprint audit:
+**Active Feature:** None — **pm-h6plus3 fully complete (3/3 simples shipped)**. Catalog 316 → 319; default suite 4244 → 4268 (+24); integration suite 8 → 12 (+4). Bug status post pm-h6plus3:
 - ✅ **BUG-DEPLOY-DRIFT-001** RESOLVED 2026-04-29 10:31 — Render build-filter + docs-only deploy targets caused stale binary; clean-cache redeploy from `f70271f` fixed.
 - 🔁 **BUG-OFF-FALLBACK-NO-GUARD-001** **P2 → P3 DEFERRED 2026-04-29 16:30** — fresh post-clean-cache battery + cross-agent audit cycles surfaced (a) Q378 reclassification (NOT F080 path — `level1Hit:true`), (b) 5 new FPs (Q270/Q338/Q345/Q391/Q392), (c) **3 legitimate F080 matches that fix would break** (Q259 natilla, Q393 dos cafes, ciruela — Jaccard 0.0 due to plural↔singular without stemming). Net realistic ROI ~+1 (4 realistic fixes − 3 realistic regressions). Standard ~3-4h algorithm work required (A1 stemming / A3 pg_trgm / A4 food-group classifier) — not Simple ~30min. UX asymmetry: wrong-match→null on common queries (natilla, dos cafes) more severe than current wrong-match.
 - 🔁 **BUG-L1-FTS-SEMANTIC-MISMATCH-001** **P3 OPEN [NEW 2026-04-29 16:00]** — class of L1 FTS Strategy 4 hits where `passesGuardL1` ACCEPTS semantically-wrong candidate (Jaccard ≥ 0.25 + every-HI present in candidate but semantic category mismatch). 3 cases: Q378 (`una copa de oporto` → Paté fresco de vino de Oporto, realistic), Q394 (`tres tortillas` → Tortillas Trigo, unrealistic), Q530 (`un asiático` → Wok Asiático, unrealistic). Standard ~3-4h ticket if pursued. Algorithm: B1 L3 embedding cross-check / B2 food-group classifier / B3 inverted threshold.
@@ -18,13 +18,17 @@
 
 **F-H10-FU2 verdict**: algorithm is empirically correct (`tarta de queso casera` → REJECT confirms Step 2 path); persistent FPs (Q178/Q312/Q270/Q362/Q649) are NOT regressions but architectural interactions with paths outside `runCascade` scope (F080 unguarded at `engineRouter.ts:282`, H7-P5 retry seam at `engineRouter.ts:178`).
 
-**pm-h6plus3 backlog (priority order, total ~1.5h remaining, no architectural risk)**:
-1. ~~F-H7-FU1~~ DONE 2026-04-29 — PR #237 `614ea66`. Integration suite 8→12.
-2. ~~F-MODIFIERS-001~~ DONE 2026-04-29 — PR #239 `b0d3e87`. Default suite 4244→4268 (+24).
-3. F-CHARCUTERIE-001 (Simple ~1.5h) — 3 charcuterie standalone atoms
+**pm-h6plus3 backlog — CLOSED 2026-04-29 (3/3 simples shipped)**:
+1. ~~F-H7-FU1~~ DONE — PR #237 `614ea66`. Integration suite 8→12 (+4 landmine tests).
+2. ~~F-MODIFIERS-001~~ DONE — PR #239 `b0d3e87`. Default suite 4244→4268 (+24 tests).
+3. ~~F-CHARCUTERIE-001~~ DONE — PR #241 `620beab`. Catalog 316→319 (+3 atoms).
 4. ~~BUG-OFF-FALLBACK-NO-GUARD-001~~ (DEFERRED P3) — see audit findings 2026-04-29 16:30
 5. ~~BUG-L1-FTS-SEMANTIC-MISMATCH-001~~ (DEFERRED P3) — Q378+Q394+Q530, requires Standard work
 6. ~~F-H10-FU3~~ (DEFERRED P3) — Q649 single FP, see BUG-H7-P5-OVERSTRIP-001 audit
+
+**Operator action pending post pm-h6plus3**: redeploy api-dev (clean cache; manual since `autoDeploy=OFF`) + reseed dev with `echo y | EXPECTED_DISH_COUNT=319 ./packages/api/scripts/reseed-all-envs.sh --prod`. Then capture fresh battery to confirm: (a) no regressions from 3 simples, (b) catalog count =319, (c) Q649/Q378/Q394/Q530 unchanged (no new interactions). Post-verify candidate: /schedule release develop→main 1-2 weeks out per user runway preference.
+
+**Last Completed — 2026-04-29 F-CHARCUTERIE-001 DONE (5/5)** — PR #241 squash-merged to develop at `620beab`. Simple data ticket (~1h actual). Added 3 standalone charcuterie atoms (CE-318 Jamón serrano, CE-319 Cecina, CE-320 Lomo embuchado) per BEDCA reference values + 12 standard-portions.csv rows + 15 count assertion updates across 3 test files + key_facts.md attribution. Aliases: `jamón curado serrano`, `cecina de león`, `lomo curado`, `lomo ibérico` — alias collision pre-check verified ADR-019 H6-EC-7 compliant. Catalog 316 → 319. code-review-specialist APPROVE no blockers (1 MINOR salt/sodium ratio rejected — matches existing catalog convention; 3 NIT optional accepted as-is). Operator action pending: reseed dev+prod with EXPECTED_DISH_COUNT=319.
 
 **Last Completed — 2026-04-29 F-MODIFIERS-001 DONE (5/5)** — PR #239 squash-merged to develop at `b0d3e87`. Simple NLP feature ticket. Extended `extractPortionModifier()` PATTERNS array with 5 new regexes: bare `mediano/a/s/as` (1.0×), `gigantes?` (2.0×), `casero/a/s/as` (1.0×) + ración-compound `ración mediana` (1.0×) + `ración gigante` (2.0×). Addresses F-H10-FU2 over-rejection scenario (e.g., `tarta de queso casera` previously hit every-HI guard rejection; now stripped before L1). 24 unit tests in new `f-modifiers.entityExtractor.unit.test.ts` (21 AC + 3 \\b boundary regression). Catalog conflict pre-check: `casero` in 2 atoms + 3 aliases — post-strip routing verified safe via FTS. Default suite 4244 → 4268. code-review-specialist APPROVE WITH MINOR; all 3 findings (N2 mandatory + N1+I1 polish) applied.
 
