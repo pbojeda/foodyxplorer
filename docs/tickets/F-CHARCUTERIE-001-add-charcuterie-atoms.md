@@ -95,9 +95,9 @@ No PRIORITY_DISH_MAP update (F-H6 pattern: bulk additions stay out of map; manua
 <!-- Simple flow: Steps 1, 3, 4, 5 only. Step 6 closes the ticket. -->
 
 - [x] Step 1: Branch created, ticket generated
-- [ ] Step 3: Implementation (3 atoms + 12 CSV rows + count updates)
-- [ ] Step 4: Quality gates pass
-- [ ] Step 5: PR + code-review-specialist
+- [x] Step 3: Implementation (3 atoms + 12 CSV rows + count updates) — commit `dfaa60a`
+- [x] Step 4: Quality gates pass (4268/4268 ✓ — count assertions modified, no new tests; lint 0; build clean; JSON valid 319 dishes)
+- [x] Step 5: PR + code-review-specialist APPROVE (1 MINOR + 3 NIT, all optional/accepted as-is per Simple-tier scope; salt/sodium ratio 2.5 matches existing catalog convention — Jamón ibérico same)
 - [ ] Step 6: PR squash-merged; branch deleted; tracker synced
 
 ---
@@ -107,6 +107,9 @@ No PRIORITY_DISH_MAP update (F-H6 pattern: bulk additions stay out of map; manua
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-29 | Ticket created | Branch `feature/F-CHARCUTERIE-001-add-charcuterie-atoms` from develop @ post-PR #240 housekeeping merge. Lite ticket per Simple workflow. Alias collision pre-check completed (grep): no conflicts. |
+| 2026-04-29 | Step 3 implementation | Commit `dfaa60a`. Added 3 atoms CE-318/319/320 to spanish-dishes.json + 12 CSV rows + 15 count assertion updates across 3 test files + key_facts.md attribution. |
+| 2026-04-29 | Step 4 quality gates | Default suite 4268/4268 ✓; lint 0; build clean; JSON valid (319 dishes). |
+| 2026-04-29 | Step 5 code-review-specialist | APPROVE (no blockers). 1 MINOR (sodium/salt ratio 2.5 vs 2.542 chemical) + 3 NIT (CE-320 kcal/100g borderline, ALL_42_DISH_IDS pre-existing, future cecina expansions doc). MINOR rejected: 2.5 ratio matches existing catalog convention (Jamón ibérico same). NITs accepted as-is per Simple-tier scope. |
 
 ---
 
@@ -116,12 +119,12 @@ No PRIORITY_DISH_MAP update (F-H6 pattern: bulk additions stay out of map; manua
 
 | Recipe | Evidence | Status |
 |---|---|---|
-| B1 build clean | (filled at Step 4) | pending |
-| B2 lint clean | (filled at Step 4) | pending |
-| B3 tests pass | (filled at Step 4) | pending |
+| B1 build clean | `npm run build -w @foodxplorer/api` exit 0 | ✓ |
+| B2 lint clean | `npm run lint -w @foodxplorer/api` exit 0, 0 errors | ✓ |
+| B3 tests pass | 4268/4268 ✓ (count assertions in 3 files updated 316→319; no new test files) | ✓ |
 | B4 spec/plan up-to-date | Lite ticket — Simple workflow, no spec/plan | N/A Simple |
 | B5 cross-model review | N/A Simple | N/A |
-| B6 code-review-specialist | (filled at Step 5) | pending |
+| B6 code-review-specialist | APPROVE (1 MINOR + 3 NIT all optional, accepted as-is) | ✓ |
 | B7 audit-merge | (filled pre-merge) | pending |
 
 ---
