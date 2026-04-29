@@ -315,3 +315,15 @@ dishId,term,grams,pieces,pieceName,confidence,notes,reviewed_by
 00000000-0000-e073-0007-00000000013d,tapa,40,,,medium,small brownie tapa bar portion,pbojeda
 00000000-0000-e073-0007-00000000013d,media_racion,60,,,medium,half brownie portion,pbojeda
 00000000-0000-e073-0007-00000000013d,racion,80,1,brownie,medium,1 brownie racion; restaurant dessert standard,pbojeda
+00000000-0000-e073-0007-00000000013e,pintxo,20,,,medium,loncha sobre pan 15-25g (Jamón serrano),pbojeda
+00000000-0000-e073-0007-00000000013e,tapa,60,,,medium,plato tapa 50-70g (Jamón serrano),pbojeda
+00000000-0000-e073-0007-00000000013e,media_racion,80,,,medium,70-90g típico (Jamón serrano),pbojeda
+00000000-0000-e073-0007-00000000013e,racion,120,,,medium,100-150g (Jamón serrano),pbojeda
+00000000-0000-e073-0007-00000000013f,pintxo,15,,,medium,loncha fina 10-20g (Cecina),pbojeda
+00000000-0000-e073-0007-00000000013f,tapa,50,,,medium,plato tapa 40-60g (Cecina),pbojeda
+00000000-0000-e073-0007-00000000013f,media_racion,70,,,medium,60-80g típico (Cecina),pbojeda
+00000000-0000-e073-0007-00000000013f,racion,100,,,medium,80-120g (Cecina),pbojeda
+00000000-0000-e073-0007-000000000140,pintxo,15,,,medium,loncha fina 10-20g (Lomo embuchado),pbojeda
+00000000-0000-e073-0007-000000000140,tapa,50,,,medium,plato tapa 40-60g (Lomo embuchado),pbojeda
+00000000-0000-e073-0007-000000000140,media_racion,70,,,medium,60-80g típico (Lomo embuchado),pbojeda
+00000000-0000-e073-0007-000000000140,racion,100,,,medium,80-120g (Lomo embuchado),pbojeda
