@@ -8,9 +8,20 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-29 (pm-h6plus2 batch CLOSED + post-deploy verification surfaced 2 new bugs blocking pm-h6plus3 start)
+**Last Updated:** 2026-04-29 13:00 UTC (pm-h6plus2 CLOSED + 3 post-deploy bugs filed + cross-agent audit revised priorities)
 
-**Active Feature:** None — pm-h6plus2 fully complete. **pm-h6plus3 BLOCKED on operator action**: post-deploy QA battery (2026-04-29 11:30 UTC) revealed F-H10-FU2 not active on api-dev (Q649 still OK CROISSANT — `BUG-DEPLOY-DRIFT-001`) AND a separate F080 OFF Tier 3 unguarded fallback path produces 4 user-visible FPs (Q178/Q312/Q345/Q378 — `BUG-OFF-FALLBACK-NO-GUARD-001`). F-H10-FU2 algorithm is empirically correct at L1 (Q580 confirms; Q178 confirmed via direct API probe `level1Hit:false`); persistent FPs are NOT regressions but architectural gaps + deploy drift. **Operator action**: verify Render commit SHA on api-dev → if older than `49770ad`, trigger fresh deploy. Then re-run QA battery; expect Q649 → NULL; Q178/Q312/Q345/Q378 still need BUG-OFF-FALLBACK-NO-GUARD-001 fix. pm-h6plus3 can include this fix as F-H10-FU3 (~30min: 3-line wrap of `offFallbackFoodMatch` with `passesGuardL1`).
+**Active Feature:** None — pm-h6plus2 fully complete. **pm-h6plus3 ready to start** (no blockers; deploy drift resolved via clean-cache redeploy of `f70271f` on 2026-04-29 10:31 UTC). Three new bugs filed during post-deploy verification:
+- ✅ **BUG-DEPLOY-DRIFT-001** RESOLVED 2026-04-29 10:31 — Render build-filter + docs-only deploy targets caused stale binary; clean-cache redeploy from `f70271f` (most recent commit touching `packages/api/`) fixed.
+- ❌ **BUG-OFF-FALLBACK-NO-GUARD-001** OPEN P2 — F080 OFF Tier 3 fallback at `engineRouter.ts:282` bypasses lexical guard; produces 4 user-visible FPs (Q178/Q312/Q345/Q378). Fix: 3-line wrap of `offFallbackFoodMatch` result with `passesGuardL1` at `engineRouter.ts:290`. Simple ~30min, low risk, HIGH ROI.
+- 🔁 **BUG-H7-P5-OVERSTRIP-001** OPEN P3 (DEFERRED) — H7-P5 retry seam over-strips discriminating HI token; produces 1 user-visible FP (Q649). Cross-agent audit 2026-04-29 13:00 confirmed Option B (initial 3-line proposal) would break ≥ 6 F-H7/F-H8 retry tests. **Reclassified Standard ~3-4h IF pursued**; recommended Option C-generalized (skip strip when queryHI(stripped)==∅ AND queryHI(original)≠∅). User decision: defer (single FP, narrow pattern, Standard work, better-ROI bugs available). pm-h6plus3 can ship without this fix; user reviews if pursue when other H7-Cat-C "X Y con Z" cases surface in QA battery.
+**F-H10-FU2 verdict**: algorithm is empirically correct (`tarta de queso casera` → REJECT confirms Step 2 path); persistent Q649 user-visible FP is NOT a regression but an architectural interaction with H7-P5 retry seam outside `runCascade` scope.
+
+**pm-h6plus3 backlog (priority order, total ~3h)**:
+1. BUG-OFF-FALLBACK-NO-GUARD-001 (Simple ~30min) — best ROI: 4 FPs, low risk
+2. F-H7-FU1 (Simple/LOW ~30min) — 4 missing landmine integration tests
+3. F-MODIFIERS-001 (Simple ~30min) — extend extractPortionModifier (mediano/gigante/casero)
+4. F-CHARCUTERIE-001 (Simple ~1.5h) — 3 charcuterie standalone atoms
+5. ~~F-H10-FU3~~ (DEFERRED to P3) — see BUG-H7-P5-OVERSTRIP-001 audit notes
 
 **Last Completed — 2026-04-28 BUG-DATA-DUPLICATE-ATOM-001 DONE (5/5)** — PR #231 squash-merged to develop at `f70271f`. Simple data fix (~1h). CE-281 `Esqueixada de bacallà` collapsed into CE-095 `Esqueixada` (same Catalan codfish salad — F-H6 introduced as duplicate due to alias-grep missing orthographic variant `bacallà`/`bacalà` ≠ `bacalao`). 3 commits: `b088c14` (data fix + 5 test files + key_facts.md) + `ac33a40` (code-review C1 fix-loop: removed 3 orphan CSV rows + H6-EC-6 guard) + `b8f6d32` (MCE prep). code-review-specialist REVISE→APPROVE post-fix-loop (C1 CRITICAL orphan rows in standard-portions.csv would have FK-violated at deploy; I1 IMPORTANT H6-EC-6 silently masked the rows; S2 SUGGESTION cross-validator JSON↔CSV deferred as follow-up). Catalog count 317 → 316. Final gates: 4244/4244 tests, lint 0, build clean. Branch deleted local + remote. **Operator action**: reseed dev + prod required (CE-281 deletion cascades to DishNutrient + StandardPortion in DB).
 
