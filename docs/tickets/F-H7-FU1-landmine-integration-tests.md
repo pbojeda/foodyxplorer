@@ -36,7 +36,8 @@ Direct steps:
 - [x] 4 fixture dishes inserted in `beforeAll` (sepia a la plancha, tostada con tomate y aceite, café con leche, gambas al ajillo)
 - [x] 4 new `it(...)` tests added covering each landmine with `levelHit === 1` + `level1Hit === true`
 - [x] `cleanFixtures()` `dishIds` array extended (no orphan rows post-test)
-- [x] All API tests pass (4244 → 4248, +4)
+- [x] Default test suite unchanged (4244/4244 — integration tests are separate config)
+- [x] Integration suite: 8 → 12 (+4) for `fH7.engineRouter.integration.test.ts`
 - [x] Lint clean: 0 errors
 - [x] Build clean
 
@@ -54,9 +55,9 @@ Direct steps:
 <!-- Simple flow: Steps 1, 3, 4, 5 only. Step 6 closes the ticket. -->
 
 - [x] Step 1: Branch created, ticket generated
-- [ ] Step 3: Implementation (4 fixtures + 4 tests)
-- [ ] Step 4: Quality gates pass
-- [ ] Step 5: PR + code-review-specialist
+- [x] Step 3: Implementation (4 fixtures + 4 tests) — commit `8b528d9`
+- [x] Step 4: Quality gates pass (default 4244/4244, integration 12/12, lint 0, build clean)
+- [x] Step 5: PR + code-review-specialist APPROVE (no blockers; 2 NITs optional, accepted as-is)
 - [ ] Step 6: PR squash-merged; branch deleted; tracker + bugs.md synced
 
 ---
@@ -66,6 +67,9 @@ Direct steps:
 | Date | Action | Notes |
 |------|--------|-------|
 | 2026-04-29 | Ticket created | Branch `feature/F-H7-FU1-landmine-integration-tests` from develop @ `2c5310d`. Lite ticket per Simple workflow. |
+| 2026-04-29 | Step 3 implementation | Commit `8b528d9`. Added 4 fixture UUIDs + 4 prisma.dish.create + 4 it(...) tests. Extended cleanFixtures() dishIds array. |
+| 2026-04-29 | Step 4 quality gates | Default suite 4244/4244 ✓; integration suite 12/12 ✓ (was 8); lint 0; build clean. |
+| 2026-04-29 | Step 5 code-review-specialist | APPROVE (no blockers). 2 NITs optional (raw-query echo assertion + parenthetical descriptions) — accepted as-is per Simple-tier scope. |
 
 ---
 
@@ -75,10 +79,10 @@ Direct steps:
 
 | Recipe | Evidence | Status |
 |---|---|---|
-| B1 build clean | (filled at Step 4) | pending |
-| B2 lint clean | (filled at Step 4) | pending |
-| B3 tests pass | (filled at Step 4) | pending |
-| B4 spec/plan up-to-date | Lite ticket — no spec/plan | N/A Simple |
+| B1 build clean | `npm run build -w @foodxplorer/api` exit 0 | ✓ |
+| B2 lint clean | `npm run lint -w @foodxplorer/api` exit 0, 0 errors | ✓ |
+| B3 tests pass | Default 4244/4244 + integration 12/12 (was 8, +4) | ✓ |
+| B4 spec/plan up-to-date | Lite ticket — Simple workflow, no spec/plan | N/A Simple |
 | B5 cross-model review | N/A Simple | N/A |
-| B6 code-review-specialist | (filled at Step 5) | pending |
-| B7 audit-merge | (filled at Step 5) | pending |
+| B6 code-review-specialist | APPROVE (no blockers; 2 NITs optional, accepted as-is) | ✓ |
+| B7 audit-merge | (filled pre-merge) | pending |
