@@ -59,6 +59,16 @@ const H7_DN_TATAKI    = 'f7000000-00f7-4000-a000-000000000051';
 const H8_DISH_POLLO   = 'f7000000-00f7-4000-a000-000000000060';
 const H8_DN_POLLO     = 'f7000000-00f7-4000-a000-000000000061';
 
+// F-H7-FU1 landmine fixtures — close AC-5 coverage gap (4 missing of 6 corpus dishes)
+const H7_DISH_SEPIA   = 'f7000000-00f7-4000-a000-000000000070'; // sepia a la plancha
+const H7_DN_SEPIA     = 'f7000000-00f7-4000-a000-000000000071';
+const H7_DISH_TOSTA   = 'f7000000-00f7-4000-a000-000000000080'; // tostada con tomate y aceite
+const H7_DN_TOSTA     = 'f7000000-00f7-4000-a000-000000000081';
+const H7_DISH_CAFE    = 'f7000000-00f7-4000-a000-000000000090'; // café con leche
+const H7_DN_CAFE      = 'f7000000-00f7-4000-a000-000000000091';
+const H7_DISH_GAMBAS  = 'f7000000-00f7-4000-a000-000000000100'; // gambas al ajillo
+const H7_DN_GAMBAS    = 'f7000000-00f7-4000-a000-000000000101';
+
 const BASE_NUTRIENTS = {
   calories: 200, proteins: 8, carbohydrates: 15, sugars: 2,
   fats: 10, saturatedFats: 3, fiber: 2, salt: 0.5, sodium: 200,
@@ -71,7 +81,10 @@ const BASE_NUTRIENTS = {
 // ---------------------------------------------------------------------------
 
 async function cleanFixtures(): Promise<void> {
-  const dishIds = [H7_DISH_GAZP, H7_DISH_BACALAO, H7_DISH_PAN, H7_DISH_TACOS, H7_DISH_TATAKI, H8_DISH_POLLO];
+  const dishIds = [
+    H7_DISH_GAZP, H7_DISH_BACALAO, H7_DISH_PAN, H7_DISH_TACOS, H7_DISH_TATAKI, H8_DISH_POLLO,
+    H7_DISH_SEPIA, H7_DISH_TOSTA, H7_DISH_CAFE, H7_DISH_GAMBAS,
+  ];
   await prisma.dishNutrient.deleteMany({ where: { dishId: { in: dishIds } } });
   await prisma.dish.deleteMany({ where: { id: { in: dishIds } } });
   await prisma.restaurant.deleteMany({ where: { id: H7_REST_ID } });
@@ -138,6 +151,19 @@ beforeAll(async () => {
   // Cat D landmine protection test ("pollo al ajillo" alone → L1 Pass 1).
   await prisma.dish.create({ data: makeDish(H8_DISH_POLLO, 'pollo al ajillo', [], 250) });
   await prisma.dishNutrient.create({ data: makeDN(H8_DN_POLLO, H8_DISH_POLLO) });
+
+  // F-H7-FU1 landmines — AC-5 corpus dishes that must hit L1 Pass 1 (retry seam never fires).
+  await prisma.dish.create({ data: makeDish(H7_DISH_SEPIA, 'sepia a la plancha', [], 200) });
+  await prisma.dishNutrient.create({ data: makeDN(H7_DN_SEPIA, H7_DISH_SEPIA) });
+
+  await prisma.dish.create({ data: makeDish(H7_DISH_TOSTA, 'tostada con tomate y aceite', [], 100) });
+  await prisma.dishNutrient.create({ data: makeDN(H7_DN_TOSTA, H7_DISH_TOSTA) });
+
+  await prisma.dish.create({ data: makeDish(H7_DISH_CAFE, 'café con leche', [], 200) });
+  await prisma.dishNutrient.create({ data: makeDN(H7_DN_CAFE, H7_DISH_CAFE) });
+
+  await prisma.dish.create({ data: makeDish(H7_DISH_GAMBAS, 'gambas al ajillo', [], 150) });
+  await prisma.dishNutrient.create({ data: makeDN(H7_DN_GAMBAS, H7_DISH_GAMBAS) });
 });
 
 afterAll(async () => {
@@ -211,6 +237,49 @@ describe('H7-P5 retry seam — runEstimationCascade() end-to-end', () => {
     expect(result.data.level1Hit).toBe(true);
     // Raw query echoed
     expect(result.data.query).toBe('tacos al pastor con cilantro y piña');
+  });
+
+  // F-H7-FU1 — AC-5 landmine coverage gap (4 of 6 corpus dishes previously untested).
+  // Each query IS a catalog dish — L1 Pass 1 must hit; H7-P5 retry seam must NOT fire.
+
+  it('F-H7-FU1 landmine: "sepia a la plancha" → L1 Pass 1 hits (Cat B "a la plancha" not stripped)', async () => {
+    const result = await runEstimationCascade({
+      db,
+      query: 'sepia a la plancha',
+      prisma,
+    });
+    expect(result.levelHit).toBe(1);
+    expect(result.data.level1Hit).toBe(true);
+  });
+
+  it('F-H7-FU1 landmine: "tostada con tomate y aceite" → L1 Pass 1 hits (Cat C "con tomate y aceite" not stripped)', async () => {
+    const result = await runEstimationCascade({
+      db,
+      query: 'tostada con tomate y aceite',
+      prisma,
+    });
+    expect(result.levelHit).toBe(1);
+    expect(result.data.level1Hit).toBe(true);
+  });
+
+  it('F-H7-FU1 landmine: "café con leche" → L1 Pass 1 hits (Cat C ≥2 pre-con guard prevents strip)', async () => {
+    const result = await runEstimationCascade({
+      db,
+      query: 'café con leche',
+      prisma,
+    });
+    expect(result.levelHit).toBe(1);
+    expect(result.data.level1Hit).toBe(true);
+  });
+
+  it('F-H7-FU1 landmine: "gambas al ajillo" → L1 Pass 1 hits (no Cat A/B/C/D match on bare landmine)', async () => {
+    const result = await runEstimationCascade({
+      db,
+      query: 'gambas al ajillo',
+      prisma,
+    });
+    expect(result.levelHit).toBe(1);
+    expect(result.data.level1Hit).toBe(true);
   });
 });
 
