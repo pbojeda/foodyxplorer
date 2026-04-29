@@ -8,20 +8,23 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-04-29 13:00 UTC (pm-h6plus2 CLOSED + 3 post-deploy bugs filed + cross-agent audit revised priorities)
+**Last Updated:** 2026-04-29 16:30 UTC (pm-h6plus3 pre-sprint audit: BUG-OFF-FALLBACK reclassified P3 DEFERRED + BUG-L1-FTS-SEMANTIC-MISMATCH filed P3 + Q378 reattributed)
 
-**Active Feature:** None — pm-h6plus2 fully complete. **pm-h6plus3 ready to start** (no blockers; deploy drift resolved via clean-cache redeploy of `f70271f` on 2026-04-29 10:31 UTC). Three new bugs filed during post-deploy verification:
-- ✅ **BUG-DEPLOY-DRIFT-001** RESOLVED 2026-04-29 10:31 — Render build-filter + docs-only deploy targets caused stale binary; clean-cache redeploy from `f70271f` (most recent commit touching `packages/api/`) fixed.
-- ❌ **BUG-OFF-FALLBACK-NO-GUARD-001** OPEN P2 — F080 OFF Tier 3 fallback at `engineRouter.ts:282` bypasses lexical guard; produces 4 user-visible FPs (Q178/Q312/Q345/Q378). Fix: 3-line wrap of `offFallbackFoodMatch` result with `passesGuardL1` at `engineRouter.ts:290`. Simple ~30min, low risk, HIGH ROI.
-- 🔁 **BUG-H7-P5-OVERSTRIP-001** OPEN P3 (DEFERRED) — H7-P5 retry seam over-strips discriminating HI token; produces 1 user-visible FP (Q649). Cross-agent audit 2026-04-29 13:00 confirmed Option B (initial 3-line proposal) would break ≥ 6 F-H7/F-H8 retry tests. **Reclassified Standard ~3-4h IF pursued**; recommended Option C-generalized (skip strip when queryHI(stripped)==∅ AND queryHI(original)≠∅). User decision: defer (single FP, narrow pattern, Standard work, better-ROI bugs available). pm-h6plus3 can ship without this fix; user reviews if pursue when other H7-Cat-C "X Y con Z" cases surface in QA battery.
-**F-H10-FU2 verdict**: algorithm is empirically correct (`tarta de queso casera` → REJECT confirms Step 2 path); persistent Q649 user-visible FP is NOT a regression but an architectural interaction with H7-P5 retry seam outside `runCascade` scope.
+**Active Feature:** None — pm-h6plus2 fully complete. **pm-h6plus3 reduced backlog ready to start** (3 simples, ~2.5h, no architectural risk). Bug status post pre-sprint audit:
+- ✅ **BUG-DEPLOY-DRIFT-001** RESOLVED 2026-04-29 10:31 — Render build-filter + docs-only deploy targets caused stale binary; clean-cache redeploy from `f70271f` fixed.
+- 🔁 **BUG-OFF-FALLBACK-NO-GUARD-001** **P2 → P3 DEFERRED 2026-04-29 16:30** — fresh post-clean-cache battery + cross-agent audit cycles surfaced (a) Q378 reclassification (NOT F080 path — `level1Hit:true`), (b) 5 new FPs (Q270/Q338/Q345/Q391/Q392), (c) **3 legitimate F080 matches that fix would break** (Q259 natilla, Q393 dos cafes, ciruela — Jaccard 0.0 due to plural↔singular without stemming). Net realistic ROI ~+1 (4 realistic fixes − 3 realistic regressions). Standard ~3-4h algorithm work required (A1 stemming / A3 pg_trgm / A4 food-group classifier) — not Simple ~30min. UX asymmetry: wrong-match→null on common queries (natilla, dos cafes) more severe than current wrong-match.
+- 🔁 **BUG-L1-FTS-SEMANTIC-MISMATCH-001** **P3 OPEN [NEW 2026-04-29 16:00]** — class of L1 FTS Strategy 4 hits where `passesGuardL1` ACCEPTS semantically-wrong candidate (Jaccard ≥ 0.25 + every-HI present in candidate but semantic category mismatch). 3 cases: Q378 (`una copa de oporto` → Paté fresco de vino de Oporto, realistic), Q394 (`tres tortillas` → Tortillas Trigo, unrealistic), Q530 (`un asiático` → Wok Asiático, unrealistic). Standard ~3-4h ticket if pursued. Algorithm: B1 L3 embedding cross-check / B2 food-group classifier / B3 inverted threshold.
+- 🔁 **BUG-H7-P5-OVERSTRIP-001** OPEN P3 (DEFERRED) — Q649 only empirical case in fresh battery; deferral confirmed.
 
-**pm-h6plus3 backlog (priority order, total ~3h)**:
-1. BUG-OFF-FALLBACK-NO-GUARD-001 (Simple ~30min) — best ROI: 4 FPs, low risk
-2. F-H7-FU1 (Simple/LOW ~30min) — 4 missing landmine integration tests
-3. F-MODIFIERS-001 (Simple ~30min) — extend extractPortionModifier (mediano/gigante/casero)
-4. F-CHARCUTERIE-001 (Simple ~1.5h) — 3 charcuterie standalone atoms
-5. ~~F-H10-FU3~~ (DEFERRED to P3) — see BUG-H7-P5-OVERSTRIP-001 audit notes
+**F-H10-FU2 verdict**: algorithm is empirically correct (`tarta de queso casera` → REJECT confirms Step 2 path); persistent FPs (Q178/Q312/Q270/Q362/Q649) are NOT regressions but architectural interactions with paths outside `runCascade` scope (F080 unguarded at `engineRouter.ts:282`, H7-P5 retry seam at `engineRouter.ts:178`).
+
+**pm-h6plus3 backlog (priority order, total ~2.5h, no architectural risk)**:
+1. F-H7-FU1 (Simple/LOW ~30min) — 4 missing landmine integration tests
+2. F-MODIFIERS-001 (Simple ~30min) — extend extractPortionModifier (mediano/gigante/casero)
+3. F-CHARCUTERIE-001 (Simple ~1.5h) — 3 charcuterie standalone atoms
+4. ~~BUG-OFF-FALLBACK-NO-GUARD-001~~ (DEFERRED P3) — see audit findings 2026-04-29 16:30
+5. ~~BUG-L1-FTS-SEMANTIC-MISMATCH-001~~ (DEFERRED P3) — Q378+Q394+Q530, requires Standard work
+6. ~~F-H10-FU3~~ (DEFERRED P3) — Q649 single FP, see BUG-H7-P5-OVERSTRIP-001 audit
 
 **Last Completed — 2026-04-28 BUG-DATA-DUPLICATE-ATOM-001 DONE (5/5)** — PR #231 squash-merged to develop at `f70271f`. Simple data fix (~1h). CE-281 `Esqueixada de bacallà` collapsed into CE-095 `Esqueixada` (same Catalan codfish salad — F-H6 introduced as duplicate due to alias-grep missing orthographic variant `bacallà`/`bacalà` ≠ `bacalao`). 3 commits: `b088c14` (data fix + 5 test files + key_facts.md) + `ac33a40` (code-review C1 fix-loop: removed 3 orphan CSV rows + H6-EC-6 guard) + `b8f6d32` (MCE prep). code-review-specialist REVISE→APPROVE post-fix-loop (C1 CRITICAL orphan rows in standard-portions.csv would have FK-violated at deploy; I1 IMPORTANT H6-EC-6 silently masked the rows; S2 SUGGESTION cross-validator JSON↔CSV deferred as follow-up). Catalog count 317 → 316. Final gates: 4244/4244 tests, lint 0, build clean. Branch deleted local + remote. **Operator action**: reseed dev + prod required (CE-281 deletion cascades to DishNutrient + StandardPortion in DB).
 
