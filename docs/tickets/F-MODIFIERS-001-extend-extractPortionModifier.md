@@ -1,7 +1,7 @@
 # F-MODIFIERS-001: Extend extractPortionModifier with mediano/gigante/casero patterns
 
 **Feature:** F-MODIFIERS-001 | **Type:** Backend-Feature (NLP) | **Priority:** Low
-**Status:** In Progress | **Branch:** feature/F-MODIFIERS-001-extend-extractPortionModifier
+**Status:** Done | **Branch:** feature/F-MODIFIERS-001-extend-extractPortionModifier (squash-merged at `b0d3e87` 2026-04-29; deleted local + remote)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-04-29 | **Dependencies:** F-COUNT (existing patterns), F-H10-FU2 (alleviates over-rejection FN cost)
 
@@ -85,7 +85,7 @@ Direct steps:
 - [x] Step 3: Implementation (5 patterns + 24 tests) — commit `788faea`
 - [x] Step 4: Quality gates pass (4244→4265, +21 → +3 boundary regression = 4268 default suite, lint 0, build clean)
 - [x] Step 5: PR + code-review-specialist APPROVE WITH MINOR (N2 mandatory + N1+I1 applied: AC7 tightened, +3 \b boundary regression tests, plural compound comment added)
-- [ ] Step 6: PR squash-merged; branch deleted; tracker + bugs.md synced
+- [x] Step 6: PR #239 squash-merged at `b0d3e87`; branch deleted local + remote; tracker + bugs.md synced
 
 ---
 

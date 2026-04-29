@@ -18,13 +18,15 @@
 
 **F-H10-FU2 verdict**: algorithm is empirically correct (`tarta de queso casera` → REJECT confirms Step 2 path); persistent FPs (Q178/Q312/Q270/Q362/Q649) are NOT regressions but architectural interactions with paths outside `runCascade` scope (F080 unguarded at `engineRouter.ts:282`, H7-P5 retry seam at `engineRouter.ts:178`).
 
-**pm-h6plus3 backlog (priority order, total ~2h remaining, no architectural risk)**:
+**pm-h6plus3 backlog (priority order, total ~1.5h remaining, no architectural risk)**:
 1. ~~F-H7-FU1~~ DONE 2026-04-29 — PR #237 `614ea66`. Integration suite 8→12.
-2. F-MODIFIERS-001 (Simple ~30min) — extend extractPortionModifier (mediano/gigante/casero)
+2. ~~F-MODIFIERS-001~~ DONE 2026-04-29 — PR #239 `b0d3e87`. Default suite 4244→4268 (+24).
 3. F-CHARCUTERIE-001 (Simple ~1.5h) — 3 charcuterie standalone atoms
 4. ~~BUG-OFF-FALLBACK-NO-GUARD-001~~ (DEFERRED P3) — see audit findings 2026-04-29 16:30
 5. ~~BUG-L1-FTS-SEMANTIC-MISMATCH-001~~ (DEFERRED P3) — Q378+Q394+Q530, requires Standard work
 6. ~~F-H10-FU3~~ (DEFERRED P3) — Q649 single FP, see BUG-H7-P5-OVERSTRIP-001 audit
+
+**Last Completed — 2026-04-29 F-MODIFIERS-001 DONE (5/5)** — PR #239 squash-merged to develop at `b0d3e87`. Simple NLP feature ticket. Extended `extractPortionModifier()` PATTERNS array with 5 new regexes: bare `mediano/a/s/as` (1.0×), `gigantes?` (2.0×), `casero/a/s/as` (1.0×) + ración-compound `ración mediana` (1.0×) + `ración gigante` (2.0×). Addresses F-H10-FU2 over-rejection scenario (e.g., `tarta de queso casera` previously hit every-HI guard rejection; now stripped before L1). 24 unit tests in new `f-modifiers.entityExtractor.unit.test.ts` (21 AC + 3 \\b boundary regression). Catalog conflict pre-check: `casero` in 2 atoms + 3 aliases — post-strip routing verified safe via FTS. Default suite 4244 → 4268. code-review-specialist APPROVE WITH MINOR; all 3 findings (N2 mandatory + N1+I1 polish) applied.
 
 **Last Completed — 2026-04-29 F-H7-FU1 DONE (5/5)** — PR #237 squash-merged to develop at `614ea66`. Simple test-only ticket (~30min actual). Closed AC-5 coverage gap from F-H7 (PR #213) by adding 4 missing landmine integration tests for `sepia a la plancha`, `tostada con tomate y aceite`, `café con leche`, `gambas al ajillo`. Each asserts `levelHit === 1` + `data.level1Hit === true`. Integration suite 8 → 12. code-review-specialist APPROVE no blockers (2 NITs optional, accepted). Branch deleted local + remote.
 

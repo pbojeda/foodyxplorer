@@ -133,7 +133,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 ---
 
-### 2026-04-28 — F-MODIFIERS-001: extractPortionModifier missing `mediano/a`, `gigante`, standalone `casero/a` (filed during F-H10-FU2 spec audit)
+### 2026-04-28 — F-MODIFIERS-001: extractPortionModifier missing `mediano/a`, `gigante`, standalone `casero/a` (filed during F-H10-FU2 spec audit) [RESOLVED 2026-04-29]
 
 - **Issue**: During the F-H10-FU2 spec discussion (required-token L1 guard), the user asked whether existing modifier-strip logic in the project was being duplicated. An Explore-agent audit confirmed `extractPortionModifier()` at `packages/api/src/conversation/entityExtractor.ts:170-224` already strip-extracts size/quality modifiers as nutritional multipliers BEFORE L1 lookup: `grande` (1.5×), `pequeño/a` (0.7×), `enorme` (2.0×), `mini` (0.7×), `media` / `media ración` (0.5×), `extra` (1.5×), `buen[ao]s` (1.0×), `generos[ao]s` (1.0×). Three common modifiers are MISSING from the PATTERNS array:
   - `mediano/a` — common size descriptor (medium); should be 1.0× (informational, no nutritional change)
@@ -153,6 +153,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
   Also extend ración-compound patterns at lines 188-197 (`/\bracion?\s+median[oa]s?\s+de\b/i`, etc.) for parity. Tests in `packages/api/src/__tests__/f070.entityExtractor.unit.test.ts` (or current entityExtractor test file).
 - **Severity**: P3 — quality-of-life improvement; not blocking F-H10-FU2 itself.
 - **Filed by**: orchestrator post-Explore audit 2026-04-28 during F-H10-FU2 Step 0.
+- **Resolution**: PR #239 squash-merged at `b0d3e87` 2026-04-29. Added 5 patterns (3 bare + 2 ración compound) to `entityExtractor.ts:170-228`: `mediano/a/s/as` (1.0×), `gigantes?` (2.0×), `casero/a/s/as` (1.0×), `ración mediana` (1.0×), `ración gigante` (2.0×). 24 unit tests in new `f-modifiers.entityExtractor.unit.test.ts` (+3 boundary regression tests for medianoche/gigantesco/medianamente per code-review N1). Default suite 4244 → 4268 (+24); lint 0; build clean. code-review-specialist APPROVE WITH MINOR; all 3 findings (N2 mandatory + N1 + I1) applied. Catalog conflict pre-check verified safe: 2 atoms + 3 aliases with `casero` route correctly post-strip via FTS Strategy 4.
 
 ---
 
