@@ -17,6 +17,40 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-04-29 — BUG-DEPLOY-DRIFT-001: api-dev binary does not include F-H10-FU2 despite reseed + redeploy
+
+- **Issue**: Post-redeploy QA battery (2026-04-29 11:30 UTC, output at `/tmp/qa-dev-post-fH10FU2-20260429-1130.txt`) shows Q649 `después de la siesta piqué queso fresco con membrillo` STILL returning `OK CROISSANT CON QUESO FRESCO` with `matchType: fts_dish`, `level1Hit: true` — the Starbucks Tier 0 chain dish that F-H10-FU2's Step 2 was specifically designed to reject. Direct API probe confirms Q649 reaches `runCascade` Strategy 2 and `passesGuardL1` accepts.
+- **Empirical contrast — what works**: Q178 `una coca cola` correctly returns `level1Hit: false` at L1 (Step 1 Jaccard 0.167 < 0.25 alone rejects). The user-visible Q178 FP comes from a different unguarded path (BUG-OFF-FALLBACK-NO-GUARD-001 below). Q580 `pollo al curri con arro blanco` also correctly NULLs.
+- **What doesn't work**: Q649 needs Step 2 (F-H10-FU2's `every`-HI required-token check) — Step 1 alone passes Q649 because Jaccard against full nameEs `CROISSANT CON QUESO FRESCO` = 0.50 ≥ 0.25. The local vitest harness trace (Phase 0 Step 0.0 in `F-H10-FU2-preflight-20260428.md`) PROVES the source code at HEAD rejects Q649 via Step 2. The runtime acceptance therefore implies Step 2 is NOT executing on api-dev.
+- **Root cause hypothesis (cannot verify without Render dashboard access per memory `reference_render_access.md`)**:
+  1. Render redeploy targeted an earlier commit (before `49770ad`)
+  2. Build artifact cache served stale `dist/` from before F-H10-FU2 merge
+  3. Auto-deploy webhook didn't fire on the squash-merge commit
+- **Risk**: HIGH for F-H10-FU2's stated purpose (Q649 fix). LOW for production correctness (api-dev only — prod not affected unless redeployed similarly).
+- **Resolution**: Operator action — confirm Render's deployed commit on api-dev dashboard. If older than `49770ad`, trigger fresh deploy targeting current develop HEAD. Re-capture QA battery → expect Q649 → NULL (matchType=null) AND only the F080-fallback FPs (Q178/Q312/Q345/Q378) persist (those need BUG-OFF-FALLBACK-NO-GUARD-001 fix).
+- **Filed by**: Post-deploy verification 2026-04-29 during F-H10-FU2 PD1-PD6 audit.
+
+---
+
+### 2026-04-29 — BUG-OFF-FALLBACK-NO-GUARD-001: F080 OFF Tier 3 fallback bypasses lexical guard
+
+- **Issue**: Post-redeploy QA battery (2026-04-29) shows Q178/Q312/Q345/Q378 still as `OK ... mt=fts_food` despite L1 cascade correctly rejecting them via `passesGuardL1`. Direct API probe of Q178 (`una coca cola` → `Huevas cocidas de merluza de cola patagónia`) shows `level1Hit: false`, `level3Hit: true`, `matchType: fts_food`. The match comes from F080 OFF (Open Food Facts) Tier 3 generic fallback at `engineRouter.ts:282` which calls `offFallbackFoodMatch` from `level1Lookup.ts:572` and returns the result WITHOUT applying any lexical guard.
+- **Affected user-visible queries** (4 of 6 known FPs from F-H10-FU2 spec — Q580 was correctly fixed because both L1 and OFF rejected):
+  - Q178: `una coca cola` → Huevas cocidas de merluza de cola (sea-food, OFF Tier 3)
+  - Q312: `coca cola grande` → same
+  - Q345: `un poco de todo` → Patatas aptas para todo uso
+  - Q378: `una copa de oporto` → Paté fresco de vino de Oporto
+- **Root cause**: Architectural gap. F-H10/F-H10-FU/F-H10-FU2 all wired the lexical guard into the L1 `runCascade` strategies (L1 Strategy 2 + 4 + L3 cascade). The F080 OFF Tier 3 fallback was added by F080 (PR before F-H10) and was never extended to apply the guard. When `runCascade` returns null (correctly rejected by `passesGuardL1`), control falls through to F080 which does an unscoped FTS against OFF products and returns the highest-rank match without any token-overlap check.
+- **Risk**: MEDIUM — multiple user-visible FPs from this single unguarded path. F-H10-FU2 cannot fix these because the path is OUTSIDE `runCascade`'s scope.
+- **Resolution path**: extend F-H10-FU2-style guard to F080 fallback. Two options:
+  - **Option A (lightweight)**: wrap `offFallbackFoodMatch` result with `passesGuardL1(normalizedQuery, row.food_name_es, row.food_name)` at `engineRouter.ts:290`; if guard fails, return null instead of the OFF match. This is a 3-line change and reuses the F-H10-FU2 algorithm directly.
+  - **Option B (architectural)**: refactor F080 fallback into `level1Lookup.runCascade` as Strategy 5, so the guard naturally applies. Larger change, cleaner architecture.
+- **Tests required**: new file `bugOffFallbackGuard.unit.test.ts` covering Q178/Q312/Q345/Q378 fixtures + at least 3 legitimate OFF matches that should pass.
+- **Severity**: P2 — closes the user-visible FP gap that F-H10-FU2's stated goal could not reach due to architectural scope.
+- **Filed by**: Post-deploy verification 2026-04-29 during F-H10-FU2 PD1-PD6 audit. Discovered via direct API probe showing `level1Hit: false` + `level3Hit: true` flag combination.
+
+---
+
 ### 2026-04-28 — F-MODIFIERS-001: extractPortionModifier missing `mediano/a`, `gigante`, standalone `casero/a` (filed during F-H10-FU2 spec audit)
 
 - **Issue**: During the F-H10-FU2 spec discussion (required-token L1 guard), the user asked whether existing modifier-strip logic in the project was being duplicated. An Explore-agent audit confirmed `extractPortionModifier()` at `packages/api/src/conversation/entityExtractor.ts:170-224` already strip-extracts size/quality modifiers as nutritional multipliers BEFORE L1 lookup: `grande` (1.5×), `pequeño/a` (0.7×), `enorme` (2.0×), `mini` (0.7×), `media` / `media ración` (0.5×), `extra` (1.5×), `buen[ao]s` (1.0×), `generos[ao]s` (1.0×). Three common modifiers are MISSING from the PATTERNS array:
