@@ -157,7 +157,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 ---
 
-### 2026-04-28 — F-CHARCUTERIE-001: standalone charcuterie atoms missing (Jamón serrano, Cecina, Lomo embuchado)
+### 2026-04-28 — F-CHARCUTERIE-001: standalone charcuterie atoms missing (Jamón serrano, Cecina, Lomo embuchado) [RESOLVED 2026-04-29]
 
 - **Issue**: User reported during F-H10-FU2 spec discussion (2026-04-28) that searching `jamón serrano` always returns `Bocadillo de jamón serrano` rather than the cured charcuterie standalone. Confirmed via grep on `packages/api/prisma/seed-data/spanish-dishes.json`:
   - `Jamón ibérico` exists as standalone embutido atom ✓
@@ -172,9 +172,10 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
   - aliases list (consider: `lomo curado`, `cecina de león`, `lomo ibérico`)
   - source priority tier
   - Portion rows in `standard-portions.csv` (typical serving: 30-50g for cured charcuterie)
-- **Acceptance**: catalog count 317 → 320 (+3); validator passes; alias coverage tested in seed expansion edge-case suite.
+- **Acceptance**: catalog count 316 → 319 (+3 — note: baseline at implementation time was 316 not 317 due to BUG-DATA-DUPLICATE-ATOM-001 collapsing CE-281 between filing and resolution); validator passes; alias coverage tested in seed expansion edge-case suite.
 - **Severity**: P3 — catalog completeness gap; user-facing impact: incorrect routing of bare charcuterie queries to compound dish atoms.
 - **Filed by**: orchestrator post user observation 2026-04-28 during F-H10-FU2 Step 0.
+- **Resolution**: PR #241 squash-merged at `620beab` 2026-04-29. Added 3 atoms (CE-318 Jamón serrano, CE-319 Cecina, CE-320 Lomo embuchado) to `spanish-dishes.json` per BEDCA reference values + 12 standard-portions.csv rows + 15 count assertion updates across 3 test files (f073/f114/fH6) + key_facts.md attribution. Aliases: `jamón curado serrano`, `cecina de león`, `lomo curado`, `lomo ibérico`. Catalog 316 → 319. code-review-specialist APPROVE no blockers (1 MINOR salt/sodium ratio + 3 NIT all optional). Operator action post-merge: reseed dev+prod with `EXPECTED_DISH_COUNT=319` override.
 
 ---
 
