@@ -17,6 +17,21 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-04-30 — BUG-MODIFIERS-CAT-D-INTERACTION-001: F-MODIFIERS-001 strip ordering breaks H7 Cat D `es [phrase]?` recovery [P3 OPEN]
+
+- **Issue**: After F-MODIFIERS-001 deployment (PR #239 `b0d3e87`), one query in the 650-query QA battery regressed: `Q502 el hummus con pan de pita es casero?` was OK Hummus pre-deploy, now NULL post-deploy. Empirical confirmation: post-deploy battery `/tmp/qa-dev-baseline-pm-h6plus3-post-20260430-1057.txt` line 502 shows `NULL result` vs baseline `/tmp/qa-dev-baseline-pm-h6plus3-20260429-1550.txt` line 502 `OK Hummus | 180kcal`.
+- **Root cause**: pipeline ordering. `extractPortionModifier` runs in `conversationCore.ts` BEFORE the L1 cascade (where H7 Cat D fires inside `engineRouter.ts:178-209` retry seam). Pre F-MODIFIERS-001 the chain was: `extractFoodQuery` → L1 Pass 1 (miss) → H7 Cat D pattern `\bes\s+[a-z]+\?$` strips trailing `es casero?` → `el hummus con pan de pita` → L1 retry → Hummus FTS hit. Post F-MODIFIERS-001: `extractPortionModifier` strips bare `casero` first → query becomes `el hummus con pan de pita es ?`. H7 Cat D pattern requires a non-empty phrase between `es` and `?` → no match → no strip → L1 retry stays as-is → still misses → NULL.
+- **Bug class (structural)**: "queries of shape `X (es|está|lleva) <F-MODIFIERS-token>?` where `<F-MODIFIERS-token>` is one of the new modifiers (mediano/mediana/medianos/medianas/gigante/gigantes/casero/casera/caseros/caseras)". F-MODIFIERS strips the predicate token BEFORE Cat D's compound pattern can fire. Theoretical reach: any conversational question of form `<dish> es <new modifier>?` or `<dish> está <new modifier>?` or `<dish> lleva <new modifier>?` (pattern lleva [ingredient] is technically different but follows similar shape).
+- **Empirical scope**: 1 case in 650-query battery (Q502). Risk LOW per realistic-FP count. Class structurally enables more cases as conversational query patterns expand or new F-MODIFIERS tokens are added.
+- **Resolution path** — Standard ~1.5-2h ticket if pursued. Three options:
+  - **R1 — Reorder the pipeline**: run H7 Cat D BEFORE `extractPortionModifier` (move it out of `engineRouter.ts` retry seam into `conversationCore.ts` upstream chain). Risk: H7 Cat D was designed as a retry-seam fallback; moving upstream changes its semantics for non-modifier queries (could over-strip legitimate `está [adj]?` patterns where the adjective is a discriminator).
+  - **R2 — Cat D pattern extension**: add empty-phrase tolerance to Cat D regex (`\bes\s*\?$/i`) so that post-extractPortionModifier residue (`es ?`) gets stripped at retry time. Risk: over-stripping queries where bare `es ?` is intentional/meaningful.
+  - **R3 — extractPortionModifier context-aware**: don't strip bare `casero/mediano/gigante` when they appear inside a Cat D-style trailing question pattern (`(es|está|lleva)\s+\bcaser[oa]s?\s*\?$`). Risk: regex complexity + maintenance.
+- **Severity**: P3 OPEN. Defer until: (a) production traffic surfaces ≥ 2 additional realistic instances of the class beyond Q502, OR (b) BUG-OFF-FALLBACK or other Standard-class lexical ticket pursued in parallel could bundle this fix without scope explosion.
+- **Filed by**: External audit cycle 2026-04-30 during pm-h6plus3 post-deploy verification (battery `qa-dev-baseline-pm-h6plus3-post-20260430-1057.txt` line 502 vs baseline). Tradeoff explicit: the regression is structurally inevitable given F-MODIFIERS-001 single-pass design — accepted as cost of stripping the new modifier tokens upstream of L1, where the F-H10-FU2 over-rejection alleviation (4-5 realistic L1 hits gained) outweighs the 1-case Cat D recovery loss.
+
+---
+
 ### 2026-04-29 — BUG-L1-FTS-SEMANTIC-MISMATCH-001: L1 FTS Strategy 4 returns semantically-wrong food candidate that passesGuardL1 ACCEPTS [P3 OPEN]
 
 - **Issue**: A class of L1 FTS Strategy 4 (food table) hits where `passesGuardL1` ACCEPTS the candidate (Jaccard ≥ 0.25 + every-HI token present in candidate) but the result is semantically wrong (drink vs paté, Spanish omelet vs Mexican flour tortilla, generic adjective vs specific dish). The lexical guard cannot distinguish these because the discriminating token IS shared between query and candidate.
