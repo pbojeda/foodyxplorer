@@ -112,4 +112,4 @@ Direct steps:
 | B4 spec/plan up-to-date | Lite ticket — Simple workflow, no spec/plan | N/A Simple |
 | B5 cross-model review | N/A Simple | N/A |
 | B6 code-review-specialist | APPROVE WITH MINOR; all 3 findings applied (N2 mandatory + N1+I1 polish) | ✓ |
-| B7 audit-merge | (filled pre-merge) | pending |
+| B7 audit-merge | N/A — Simple workflow does not require /audit-merge gate | N/A Simple |
