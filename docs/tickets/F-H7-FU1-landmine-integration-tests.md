@@ -85,4 +85,4 @@ Direct steps:
 | B4 spec/plan up-to-date | Lite ticket — Simple workflow, no spec/plan | N/A Simple |
 | B5 cross-model review | N/A Simple | N/A |
 | B6 code-review-specialist | APPROVE (no blockers; 2 NITs optional, accepted as-is) | ✓ |
-| B7 audit-merge | (filled pre-merge) | pending |
+| B7 audit-merge | N/A — Simple workflow does not require /audit-merge gate | N/A Simple |

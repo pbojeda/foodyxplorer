@@ -125,7 +125,7 @@ No PRIORITY_DISH_MAP update (F-H6 pattern: bulk additions stay out of map; manua
 | B4 spec/plan up-to-date | Lite ticket — Simple workflow, no spec/plan | N/A Simple |
 | B5 cross-model review | N/A Simple | N/A |
 | B6 code-review-specialist | APPROVE (1 MINOR + 3 NIT all optional, accepted as-is) | ✓ |
-| B7 audit-merge | (filled pre-merge) | pending |
+| B7 audit-merge | N/A — Simple workflow does not require /audit-merge gate | N/A Simple |
 
 ---
 
