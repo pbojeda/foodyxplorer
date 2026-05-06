@@ -1,7 +1,7 @@
 # F-MULTITURN-001: Multi-Turn Conversational Follow-Up Resolution
 
 **Feature:** F-MULTITURN-001 | **Type:** Backend-Feature (NLP/Conversation) | **Priority:** High
-**Status:** Planning | **Branch:** feature/F-MULTITURN-001-multi-turn-followup
+**Status:** Review | **Branch:** feature/F-MULTITURN-001-multi-turn-followup
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-06 | **Dependencies:** F037 (chainContext, done), F070 (ConversationCore, done), F085 (portion sizing, done)
 
@@ -1364,85 +1364,85 @@ The `follow_up_refinement` label is intentionally minimal — a small secondary-
 
 ### Classifier — standalone vs follow-up
 
-- [ ] **AC-01** `detectAttributeFollowUp()` correctly classifies Spanish attribute follow-up phrases: "y los carbs?", "y la proteína?", "cuánta fibra tiene?", "y la sal?", "dame las grasas". Returns `null` for standalone queries ("paella valenciana", "big mac", "estoy en mcdonalds").
-- [ ] **AC-02** `detectRefinementFollowUp()` correctly classifies Spanish refinement phrases: "hazlo de pollo en vez de cerdo", "menos cantidad", "sin azúcar", "una ración pequeña". Returns `null` for standalone queries and for attribute follow-ups ("y los carbs?").
-- [ ] **AC-03** Both classifier functions are pure and synchronous — they accept a string and return a result with no I/O, no async, no side effects. Verified by unit tests that run without a Redis or DB connection.
+- [x] **AC-01** `detectAttributeFollowUp()` correctly classifies Spanish attribute follow-up phrases: "y los carbs?", "y la proteína?", "cuánta fibra tiene?", "y la sal?", "dame las grasas". Returns `null` for standalone queries ("paella valenciana", "big mac", "estoy en mcdonalds").
+- [x] **AC-02** `detectRefinementFollowUp()` correctly classifies Spanish refinement phrases: "hazlo de pollo en vez de cerdo", "menos cantidad", "sin azúcar", "una ración pequeña". Returns `null` for standalone queries and for attribute follow-ups ("y los carbs?").
+- [x] **AC-03** Both classifier functions are pure and synchronous — they accept a string and return a result with no I/O, no async, no side effects. Verified by unit tests that run without a Redis or DB connection.
 
 ### Attribute follow-up — happy path
 
-- [ ] **AC-04** When `conv:turn:{actorId}` holds a valid prior estimation for "paella valenciana" and the user sends "y los carbs?", the response has `intent: 'follow_up_attribute'`, `followUpAttribute.nutrientKey === 'carbohydrates'`, and `followUpAttribute.value` matches the carbohydrate value from the prior `EstimateData`. No estimation cascade call is made.
-- [ ] **AC-05** `followUpAttribute.dishName` is populated from `priorEstimation.result.nameEs ?? priorEstimation.result.name`. `followUpAttribute.unit` is `'g'` for carbohydrates, `'kcal'` for calories, `'mg'` for sodium/cholesterol/potassium.
-- [ ] **AC-06** `followUpAttribute.priorEstimation` contains the full prior `EstimateData` so the client can render a complete NutritionCard if desired.
+- [x] **AC-04** When `conv:turn:{actorId}` holds a valid prior estimation for "paella valenciana" and the user sends "y los carbs?", the response has `intent: 'follow_up_attribute'`, `followUpAttribute.nutrientKey === 'carbohydrates'`, and `followUpAttribute.value` matches the carbohydrate value from the prior `EstimateData`. No estimation cascade call is made.
+- [x] **AC-05** `followUpAttribute.dishName` is populated from `priorEstimation.result.nameEs ?? priorEstimation.result.name`. `followUpAttribute.unit` is `'g'` for carbohydrates, `'kcal'` for calories, `'mg'` for sodium/cholesterol/potassium.
+- [x] **AC-06** `followUpAttribute.priorEstimation` contains the full prior `EstimateData` so the client can render a complete NutritionCard if desired.
 
 ### Refinement — happy path
 
-- [ ] **AC-07** When `conv:turn:{actorId}` holds a prior estimation for "paella valenciana" (chainSlug: null) and the user sends "hazlo de pollo en vez de cerdo", the response has `intent: 'follow_up_refinement'`, `followUpRefinement.originalQuery === 'paella valenciana'`, `followUpRefinement.mergedQuery` contains a query string incorporating the protein swap, and `followUpRefinement.estimation` is a valid `EstimateData` from the estimation cascade. For portion-only modifications (e.g., "menos cantidad"), `applyRefinement()` returns `{ mergedQuery: originalQuery, portionMultiplierOverride: 0.5 }` and the cascade is invoked with the explicit override (verified by unit test asserting `estimate()` was called with `portionMultiplier: 0.5`).
-- [ ] **AC-08** After a successful refinement, `conv:turn:{actorId}` is updated to reflect the new query and estimation result. A subsequent "y los carbs?" resolves against the refined dish, not the original.
+- [x] **AC-07** When `conv:turn:{actorId}` holds a prior estimation for "paella valenciana" (chainSlug: null) and the user sends "hazlo de pollo en vez de cerdo", the response has `intent: 'follow_up_refinement'`, `followUpRefinement.originalQuery === 'paella valenciana'`, `followUpRefinement.mergedQuery` contains a query string incorporating the protein swap, and `followUpRefinement.estimation` is a valid `EstimateData` from the estimation cascade. For portion-only modifications (e.g., "menos cantidad"), `applyRefinement()` returns `{ mergedQuery: originalQuery, portionMultiplierOverride: 0.5 }` and the cascade is invoked with the explicit override (verified by unit test asserting `estimate()` was called with `portionMultiplier: 0.5`).
+- [x] **AC-08** After a successful refinement, `conv:turn:{actorId}` is updated to reflect the new query and estimation result. A subsequent "y los carbs?" resolves against the refined dish, not the original.
 
 ### No-context graceful fallback (EC-1, EC-4)
 
-- [ ] **AC-09** When `conv:turn:{actorId}` does not exist in Redis (new chat, expiry, or Redis miss), attribute and refinement follow-up phrases are treated as standalone estimation queries. The response has `intent: 'estimation'` (or other appropriate intent). No error is returned to the caller.
-- [ ] **AC-10** When the prior turn had `estimation.result === null` (estimation miss), a subsequent attribute follow-up returns `intent: 'estimation'` (standalone fallback), not `intent: 'follow_up_attribute'` with undefined data.
+- [x] **AC-09** When `conv:turn:{actorId}` does not exist in Redis (new chat, expiry, or Redis miss), attribute and refinement follow-up phrases are treated as standalone estimation queries. The response has `intent: 'estimation'` (or other appropriate intent). No error is returned to the caller.
+- [x] **AC-10** When the prior turn had `estimation.result === null` (estimation miss), a subsequent attribute follow-up returns `intent: 'estimation'` (standalone fallback), not `intent: 'follow_up_attribute'` with undefined data.
 
 ### Turn state write-back
 
-- [ ] **AC-11** `conv:turn:{actorId}` is written to Redis with TTL `TURN_STATE_TTL_SECONDS` (1800 s, exported named constant) in exactly two cases: (a) `intent: 'estimation'` with non-null `estimation.result` (P1); (b) `intent: 'follow_up_refinement'` regardless of whether `estimation.result` is null (P2). Verified by unit tests that mock Redis and assert `setex`/`set` call for each case, including the null-result P2 case (EC-8).
-- [ ] **AC-12** `conv:turn:{actorId}` is NOT written for `intent: 'menu_estimation'`, `'comparison'`, `'context_set'`, `'reverse_search'`, `'text_too_long'`, or `'follow_up_attribute'`. Verified by unit tests asserting no `set`/`setex` call on Redis mock for each of these intents.
+- [x] **AC-11** `conv:turn:{actorId}` is written to Redis with TTL `TURN_STATE_TTL_SECONDS` (1800 s, exported named constant) in exactly two cases: (a) `intent: 'estimation'` with non-null `estimation.result` (P1); (b) `intent: 'follow_up_refinement'` regardless of whether `estimation.result` is null (P2). Verified by unit tests that mock Redis and assert `setex`/`set` call for each case, including the null-result P2 case (EC-8).
+- [x] **AC-12** `conv:turn:{actorId}` is NOT written for `intent: 'menu_estimation'`, `'comparison'`, `'context_set'`, `'reverse_search'`, `'text_too_long'`, or `'follow_up_attribute'`. Verified by unit tests asserting no `set`/`setex` call on Redis mock for each of these intents.
 
 ### No regressions on existing standalone flows
 
-- [ ] **AC-13** All existing unit tests for `processMessage()` (standalone estimation, comparison, menu_estimation, context_set, reverse_search, text_too_long) pass without modification. The new Step 1.5 is a pure fast-path guard that exits immediately when `prevTurn` is null — existing test fixtures that do not seed `conv:turn` produce null and fall through unchanged.
+- [x] **AC-13** All existing unit tests for `processMessage()` (standalone estimation, comparison, menu_estimation, context_set, reverse_search, text_too_long) pass without modification. The new Step 1.5 is a pure fast-path guard that exits immediately when `prevTurn` is null — existing test fixtures that do not seed `conv:turn` produce null and fall through unchanged.
 
 ### Spanish language coverage
 
-- [ ] **AC-14** NUTRIENT_ALIASES map covers at minimum: calorías/kcal/cal/energía → calories; proteínas/proteína/prot → proteins; carbohidratos/carbs/hidratos/hc → carbohydrates; azúcar/azúcares → sugars; grasas/grasa → fats; fibra → fiber; sal → salt; sodio → sodium. Verified by unit tests against each alias group.
+- [x] **AC-14** NUTRIENT_ALIASES map covers at minimum: calorías/kcal/cal/energía → calories; proteínas/proteína/prot → proteins; carbohidratos/carbs/hidratos/hc → carbohydrates; azúcar/azúcares → sugars; grasas/grasa → fats; fibra → fiber; sal → salt; sodio → sodium. Verified by unit tests against each alias group.
 
 ### Schemas and specs
 
-- [ ] **AC-15** `ConversationTurnStateSchema` is added to `packages/shared/src/schemas/conversation.ts`. `ConversationIntentSchema` is updated to include `'follow_up_attribute'` and `'follow_up_refinement'`. `ConversationMessageDataSchema` is updated with the three new optional fields (`followUpAttribute`, `followUpRefinement`, `followUpMeta`). `followUpAttribute.nutrientKey` is derived from `EstimateNutrientsSchema.shape` (excluding `referenceBasis`) — no hardcoded enum. All Zod schemas parse correctly and TypeScript strict-mode build succeeds.
-- [ ] **AC-16** `docs/specs/api-spec.yaml` is updated: `ConversationIntent` enum includes the two new values; `FollowUpAttributeData`, `FollowUpRefinementData`, and `FollowUpMeta` component schemas are added and referenced from the existing `ConversationMessageResponse` component (NOT a separate `ConversationMessageData` component — the YAML name differs from the Zod schema name). Both `POST /conversation/message` and `POST /conversation/audio` inherit the additions automatically via the shared component reference.
+- [x] **AC-15** `ConversationTurnStateSchema` is added to `packages/shared/src/schemas/conversation.ts`. `ConversationIntentSchema` is updated to include `'follow_up_attribute'` and `'follow_up_refinement'`. `ConversationMessageDataSchema` is updated with the three new optional fields (`followUpAttribute`, `followUpRefinement`, `followUpMeta`). `followUpAttribute.nutrientKey` is derived from `EstimateNutrientsSchema.shape` (excluding `referenceBasis`) — no hardcoded enum. All Zod schemas parse correctly and TypeScript strict-mode build succeeds.
+- [x] **AC-16** `docs/specs/api-spec.yaml` is updated: `ConversationIntent` enum includes the two new values; `FollowUpAttributeData`, `FollowUpRefinementData`, and `FollowUpMeta` component schemas are added and referenced from the existing `ConversationMessageResponse` component (NOT a separate `ConversationMessageData` component — the YAML name differs from the Zod schema name). Both `POST /conversation/message` and `POST /conversation/audio` inherit the additions automatically via the shared component reference.
 
 ### Observability
 
-- [ ] **AC-17** Each follow-up classification emits **exactly one** structured log event (R2 fix — Codex SUGGESTION resolved to single-event model): on a HIT, an `info`-level event with `tag: 'F-MULTITURN-001'`, `classifierType`, `confidence`, `turnStateHit`, plus optional `nutrientKey` (attribute) or `originalQuery`+`mergedQuery` (refinement). On a MISS, a `debug`-level event with `tag: 'F-MULTITURN-001:miss'` and `reason` (`'no_turn_state'` | `'low_confidence'` | `'no_match'`). HIT and MISS are mutually exclusive — never both fire for the same classification call.
+- [x] **AC-17** Each follow-up classification emits **exactly one** structured log event (R2 fix — Codex SUGGESTION resolved to single-event model): on a HIT, an `info`-level event with `tag: 'F-MULTITURN-001'`, `classifierType`, `confidence`, `turnStateHit`, plus optional `nutrientKey` (attribute) or `originalQuery`+`mergedQuery` (refinement). On a MISS, a `debug`-level event with `tag: 'F-MULTITURN-001:miss'` and `reason` (`'no_turn_state'` | `'low_confidence'` | `'no_match'`). HIT and MISS are mutually exclusive — never both fire for the same classification call.
 
 ### Build and quality gates
 
-- [ ] **AC-18** All unit tests pass (`vitest run`). Build succeeds with zero TypeScript errors (`tsc --noEmit`). No new ESLint warnings or errors.
+- [x] **AC-18** All unit tests pass (`vitest run`). Build succeeds with zero TypeScript errors (`tsc --noEmit`). No new ESLint warnings or errors.
 
 ### Query logging
 
-- [ ] **AC-19** `queryLogger.ts` captures both new intents per the defined policy: `follow_up_attribute` logs with `intent: 'follow_up_attribute'`, `queryText: prevTurn.query`, `cacheHit: true`, derived `levelLabel` re-computed from `prevTurn.estimation.level{1,2,3,4}Hit` flags (R3 fix — flags live on `EstimateData`); `follow_up_refinement` logs with `intent: 'follow_up_refinement'`, `queryText: mergedQuery`, `cacheHit: false`, derived `levelLabel` from cascade response `EstimateData.level{1,2,3,4}Hit` flags. NO new column added to `query_logs` table (rigid Prisma shape; `followUpFromQuery` deferred per Query Logging section). Verified by unit test on `queryLogger.ts`.
+- [x] **AC-19** `queryLogger.ts` captures both new intents per the defined policy: `follow_up_attribute` logs with `intent: 'follow_up_attribute'`, `queryText: prevTurn.query`, `cacheHit: true`, derived `levelLabel` re-computed from `prevTurn.estimation.level{1,2,3,4}Hit` flags (R3 fix — flags live on `EstimateData`); `follow_up_refinement` logs with `intent: 'follow_up_refinement'`, `queryText: mergedQuery`, `cacheHit: false`, derived `levelLabel` from cascade response `EstimateData.level{1,2,3,4}Hit` flags. NO new column added to `query_logs` table (rigid Prisma shape; `followUpFromQuery` deferred per Query Logging section). Verified by unit test on `queryLogger.ts`.
 
 ### Web adapter rendering
 
-- [ ] **AC-20** `packages/web/src/components/ResultsArea.tsx` renders `intent: 'follow_up_attribute'` by displaying the requested nutrient value (label + value + unit) highlighted, with the full prior NutritionCard available via `followUpAttribute.priorEstimation`. The component does not render `<EmptyState>` for this intent.
-- [ ] **AC-21** `packages/web/src/components/ResultsArea.tsx` renders `intent: 'follow_up_refinement'` by passing `followUpRefinement.estimation` to `<NutritionCard>` — equivalent to the `estimation` case. TypeScript strict build must pass (no unhandled branches in the switch).
+- [x] **AC-20** `packages/web/src/components/ResultsArea.tsx` renders `intent: 'follow_up_attribute'` by displaying the requested nutrient value (label + value + unit) highlighted, with the full prior NutritionCard available via `followUpAttribute.priorEstimation`. The component does not render `<EmptyState>` for this intent.
+- [x] **AC-21** `packages/web/src/components/ResultsArea.tsx` renders `intent: 'follow_up_refinement'` by passing `followUpRefinement.estimation` to `<NutritionCard>` — equivalent to the `estimation` case. TypeScript strict build must pass (no unhandled branches in the switch).
 
 ### Bot adapter formatting
 
-- [ ] **AC-22** `packages/bot/src/handlers/naturalLanguage.ts` handles `intent: 'follow_up_attribute'` by returning a Telegram MarkdownV2 string containing the dish name, nutrient label, value, and unit (e.g., "Paella valenciana — Carbohidratos: 45 g"). Handles `intent: 'follow_up_refinement'` by delegating to `formatEstimate(data.followUpRefinement.estimation)` with a prefixed refinement note. No `_exhaustive: never` throw for either intent.
-- [ ] **AC-23** `packages/bot/src/handlers/voice.ts` handles both new intents with the same logic as AC-22 (`naturalLanguage.ts`). The switch exhaustiveness check in `voice.ts` also passes — both intents are handled.
+- [x] **AC-22** `packages/bot/src/handlers/naturalLanguage.ts` handles `intent: 'follow_up_attribute'` by returning a Telegram MarkdownV2 string containing the dish name, nutrient label, value, and unit (e.g., "Paella valenciana — Carbohidratos: 45 g"). Handles `intent: 'follow_up_refinement'` by delegating to `formatEstimate(data.followUpRefinement.estimation)` with a prefixed refinement note. No `_exhaustive: never` throw for either intent.
+- [x] **AC-23** `packages/bot/src/handlers/voice.ts` handles both new intents with the same logic as AC-22 (`naturalLanguage.ts`). The switch exhaustiveness check in `voice.ts` also passes — both intents are handled.
 
 ### Nutrient key DRY
 
-- [ ] **AC-24** `followUpAttribute.nutrientKey` schema in `conversation.ts` is derived from `EstimateNutrientsSchema.shape` at schema definition time (excluding `referenceBasis`). No hardcoded array of nutrient key strings appears in `conversation.ts`. Verified by code review: if a new nutrient is added to `EstimateNutrientsSchema`, `followUpAttribute.nutrientKey` automatically accepts it without any change to `conversation.ts`.
+- [x] **AC-24** `followUpAttribute.nutrientKey` schema in `conversation.ts` is derived from `EstimateNutrientsSchema.shape` at schema definition time (excluding `referenceBasis`). No hardcoded array of nutrient key strings appears in `conversation.ts`. Verified by code review: if a new nutrient is added to `EstimateNutrientsSchema`, `followUpAttribute.nutrientKey` automatically accepts it without any change to `conversation.ts`.
 
-- [ ] **AC-25** (Plan-R4 fix — Codex IMP#1) `followUpAttribute.priorTurnQuery` is populated with the exact `prevTurn.query` from the loaded turn state — NOT derived from `prevTurn.estimation.query`. Verified by unit tests asserting `response.followUpAttribute.priorTurnQuery === storedTurnState.query` for both P1-written turn states (standalone estimation) AND P2-written turn states (refinement). Step 5 logging reads `queryText` from `priorTurnQuery` directly.
+- [x] **AC-25** (Plan-R4 fix — Codex IMP#1) `followUpAttribute.priorTurnQuery` is populated with the exact `prevTurn.query` from the loaded turn state — NOT derived from `prevTurn.estimation.query`. Verified by unit tests asserting `response.followUpAttribute.priorTurnQuery === storedTurnState.query` for both P1-written turn states (standalone estimation) AND P2-written turn states (refinement). Step 5 logging reads `queryText` from `priorTurnQuery` directly.
 
-- [ ] **AC-26** (Plan-R4 fix — Codex IMP#2) Refinement preserves prior turn's `chainSlug`. When `prevTurn.chainSlug === null` (generic prior turn) and the user has since set a chain context (`conv:ctx.chainSlug !== null`), the refinement re-estimation uses `chainSlug: null`, NOT the current context. Verified by unit test seeding: prevTurn with `chainSlug: null` + active context with `chainSlug: 'mcdonalds'` + refinement query → assert `estimate()` called with `chainSlug: null`.
+- [x] **AC-26** (Plan-R4 fix — Codex IMP#2) Refinement preserves prior turn's `chainSlug`. When `prevTurn.chainSlug === null` (generic prior turn) and the user has since set a chain context (`conv:ctx.chainSlug !== null`), the refinement re-estimation uses `chainSlug: null`, NOT the current context. Verified by unit test seeding: prevTurn with `chainSlug: null` + active context with `chainSlug: 'mcdonalds'` + refinement query → assert `estimate()` called with `chainSlug: null`.
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] E2E tests updated (if applicable)
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation
+- [x] All acceptance criteria met (AC-01 through AC-26)
+- [x] Unit tests written and passing (api 4381, shared 624, bot 1237, web 499)
+- [x] E2E tests updated (if applicable) — N/A: feature is server-internal + frontend rendering
+- [x] Code follows project standards (lint 0, typecheck clean)
+- [x] No linting errors
+- [x] Build succeeds (root npm run build green)
+- [x] Specs reflect final implementation (api-spec.yaml updated; ticket Spec section authoritative)
 
 ---
 
@@ -1450,9 +1450,9 @@ The `follow_up_refinement` label is intentionally minimal — a small secondary-
 
 - [x] Step 0: `spec-creator` executed, specs updated. /review-spec 4 rounds (Codex + Gemini); both APPROVED at R4.
 - [x] Step 1: Branch created (`feature/F-MULTITURN-001-multi-turn-followup`), ticket generated, tracker updated.
-- [x] Step 2: `backend-planner` + `frontend-planner` executed. /review-plan 6 rounds (Codex + Gemini); 20 findings addressed; APPROVED for implementation (see "Plan Review — Final Status" section).
-- [ ] Step 3: `backend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
+- [x] Step 2: `backend-planner` + `frontend-planner` executed. /review-plan 6 rounds (Codex + Gemini); 20 findings addressed; APPROVED for implementation.
+- [x] Step 3: `backend-developer` + `frontend-developer` executed with TDD. 11 commits, ~1,520 LoC (production+tests).
+- [x] Step 4: `production-code-validator` executed (REQUEST CHANGES → 1 BLOCKER + 1 MAJOR + 2 MINORs; BLOCKER+MAJOR fixed inline `7f42fa3`). Quality gates: lint 0, typecheck clean, build clean, npm test 6741 tests across workspaces.
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed (Standard)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
@@ -1478,6 +1478,10 @@ The `follow_up_refinement` label is intentionally minimal — a small secondary-
 | 2026-05-06 | Step 2 /review-plan R5 | Gemini APPROVED; Codex REVISE (2 IMP). 2 findings addressed |
 | 2026-05-06 | Step 2 /review-plan R6 | Gemini APPROVED (1 IMP); Codex REVISE (2 IMP). 3 findings addressed |
 | 2026-05-06 | Step 2 closed | Plan APPROVED for implementation based on 6-round trail. 20 findings addressed total. 26 ACs (AC-01 through AC-26). Ready for Step 3 implementation. |
+| 2026-05-06 | Step 3 backend-developer | 8 commits implementing Steps 1-8 of plan. ~1,480 LoC (production + tests). All package tests pass: shared 624, api 4379, bot 1237. |
+| 2026-05-06 | Step 3 frontend-developer | 3 commits implementing Steps F-1, F-2, F-3 of plan. ~170 LoC. Web tests: 489 → 499 (+10). |
+| 2026-05-06 | Step 4 quality gates | npm run lint 0 errors. npm run typecheck clean. npm run build clean (all workspaces). npm test green: shared 624 + api 4379 + bot 1237 + web 499 = 6739 tests. |
+| 2026-05-06 | Step 4 production-code-validator | REQUEST CHANGES (1 BLOCKER + 1 MAJOR + 2 MINORs). BLOCKER (AC-26 chainSlug preservation test missing) + MAJOR (classifier defensive length guard) fixed inline `7f42fa3`. MINORs accepted (label drift; threshold-as-constant). api tests 4379 → 4381 (+2). |
 
 ---
 
