@@ -757,10 +757,10 @@ describe('ConversationCore.processMessage() — F-MULTITURN-001 Step 1.5', () =>
   });
 
   // -------------------------------------------------------------------------
-  // AC-26: followUpMeta is present on follow_up_attribute response
+  // followUpMeta presence on follow-up responses (observability — AC-17 sibling)
   // -------------------------------------------------------------------------
 
-  it('AC-26: follow_up_attribute response includes followUpMeta', async () => {
+  it('follow_up_attribute response includes followUpMeta with classifier metadata', async () => {
     mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
     mockDetectAttributeFollowUp.mockReturnValue({ nutrientKey: 'carbohydrates', confidence: 0.95 });
 
@@ -772,7 +772,7 @@ describe('ConversationCore.processMessage() — F-MULTITURN-001 Step 1.5', () =>
     expect(result.followUpMeta!['turnStateHit']).toBe(true);
   });
 
-  it('AC-26: follow_up_refinement response includes followUpMeta', async () => {
+  it('follow_up_refinement response includes followUpMeta with classifier metadata', async () => {
     mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
     mockDetectAttributeFollowUp.mockReturnValue(null);
     mockDetectRefinementFollowUp.mockReturnValue({ modificationText: 'de pollo', confidence: 0.85 });
@@ -784,5 +784,46 @@ describe('ConversationCore.processMessage() — F-MULTITURN-001 Step 1.5', () =>
     expect(result.followUpMeta!['classifierType']).toBe('refinement');
     expect(result.followUpMeta!['confidence']).toBe(0.85);
     expect(result.followUpMeta!['turnStateHit']).toBe(true);
+  });
+
+  // -------------------------------------------------------------------------
+  // AC-26: refinement preserves prior turn's chainSlug — does NOT fall through
+  // to active conv:ctx context. Plan-R4 fix Codex IMP#2.
+  // -------------------------------------------------------------------------
+
+  it('AC-26: refinement preserves prevTurn.chainSlug=null despite active context with non-null chainSlug', async () => {
+    // Active context has chainSlug='mcdonalds-es' (user has set context since the prior turn)
+    mockGetContext.mockResolvedValueOnce({ chainSlug: 'mcdonalds-es', chainName: "McDonald's" });
+    // Prior turn was generic (chainSlug = null)
+    const prevTurnGeneric: ConversationTurnState = { ...VALID_PREV_TURN, chainSlug: null };
+    mockGetTurnState.mockResolvedValue(prevTurnGeneric);
+    mockDetectAttributeFollowUp.mockReturnValue(null);
+    mockDetectRefinementFollowUp.mockReturnValue({ modificationText: 'de pollo', confidence: 0.85 });
+    mockApplyRefinement.mockReturnValue({ mergedQuery: 'paella valenciana de pollo' });
+
+    await processMessage(makeRequest({ text: 'hazlo de pollo' }));
+
+    // Refinement must call estimate with chainSlug=undefined (prior was null), NOT 'mcdonalds-es'
+    expect(mockEstimate).toHaveBeenCalledWith(
+      expect.objectContaining({ chainSlug: undefined })
+    );
+  });
+
+  it('AC-26: refinement preserves prevTurn.chainSlug non-null even if active context differs', async () => {
+    // Active context is a different chain
+    mockGetContext.mockResolvedValueOnce({ chainSlug: 'burger-king-es', chainName: 'Burger King' });
+    // Prior turn was scoped to mcdonalds-es
+    const prevTurnMcDonalds: ConversationTurnState = { ...VALID_PREV_TURN, chainSlug: 'mcdonalds-es' };
+    mockGetTurnState.mockResolvedValue(prevTurnMcDonalds);
+    mockDetectAttributeFollowUp.mockReturnValue(null);
+    mockDetectRefinementFollowUp.mockReturnValue({ modificationText: 'menos cantidad', confidence: 0.85 });
+    mockApplyRefinement.mockReturnValue({ mergedQuery: 'big mac', portionMultiplierOverride: 0.5 });
+
+    await processMessage(makeRequest({ text: 'menos cantidad' }));
+
+    // Refinement must use prior turn's chainSlug ('mcdonalds-es'), NOT current 'burger-king-es'
+    expect(mockEstimate).toHaveBeenCalledWith(
+      expect.objectContaining({ chainSlug: 'mcdonalds-es' })
+    );
   });
 });

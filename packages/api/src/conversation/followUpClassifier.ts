@@ -97,9 +97,17 @@ export const NUTRIENT_ALIASES: Record<string, NutrientMeta> = {
  * Returns { nutrientKey, confidence } on match, null otherwise.
  * Pure and synchronous.
  */
+// Defensive cap — classifiers are pure functions exported for direct use in tests
+// and could theoretically be called outside the conversation pipeline. The pipeline
+// itself caps at MAX_TEXT_LENGTH=500 upstream (conversationCore.ts), but exporting
+// classifiers means we re-assert the limit here to prevent ReDoS-class issues if a
+// caller bypasses the pipeline. (production-code-validator MAJOR-1.)
+const MAX_CLASSIFIER_INPUT_LENGTH = 500;
+
 export function detectAttributeFollowUp(
   text: string,
 ): { nutrientKey: NutrientKey; confidence: number } | null {
+  if (text.length > MAX_CLASSIFIER_INPUT_LENGTH) return null;
   // Normalize: lowercase, strip trailing punctuation, trim
   const normalized = text.toLowerCase().replace(/[¿?¡!.]+$/g, '').trim();
 
@@ -153,6 +161,7 @@ export function detectAttributeFollowUp(
 export function detectRefinementFollowUp(
   text: string,
 ): { modificationText: string; confidence: number } | null {
+  if (text.length > MAX_CLASSIFIER_INPUT_LENGTH) return null;
   const normalized = text.toLowerCase().trim();
 
   const patterns: Array<{ regex: RegExp; confidence: number }> = [
