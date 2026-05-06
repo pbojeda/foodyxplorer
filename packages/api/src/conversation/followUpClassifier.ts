@@ -88,6 +88,19 @@ export const NUTRIENT_ALIASES: Record<string, NutrientMeta> = {
   'alcohol':            { nutrientKey: 'alcohol',             label: 'Alcohol',              unit: 'g' },
 };
 
+// O(1) reverse lookup: canonical NutrientKey → NutrientMeta. Built once at module
+// load by deduping `Object.values(NUTRIENT_ALIASES)` (multiple aliases share the
+// same `{nutrientKey, label, unit}` triple, so any alias is fine).
+// (code-review MAJOR-1: original `NUTRIENT_ALIASES[canonicalKey]` lookup was a
+// dead-code path because keys are Spanish aliases, not canonical English keys.)
+export const NUTRIENT_META_BY_KEY: Partial<Record<NutrientKey, NutrientMeta>> = (() => {
+  const out: Partial<Record<NutrientKey, NutrientMeta>> = {};
+  for (const meta of Object.values(NUTRIENT_ALIASES)) {
+    if (!out[meta.nutrientKey]) out[meta.nutrientKey] = meta;
+  }
+  return out;
+})();
+
 // ---------------------------------------------------------------------------
 // detectAttributeFollowUp
 // ---------------------------------------------------------------------------
@@ -108,8 +121,10 @@ export function detectAttributeFollowUp(
   text: string,
 ): { nutrientKey: NutrientKey; confidence: number } | null {
   if (text.length > MAX_CLASSIFIER_INPUT_LENGTH) return null;
-  // Normalize: lowercase, strip trailing punctuation, trim
-  const normalized = text.toLowerCase().replace(/[¿?¡!.]+$/g, '').trim();
+  // Normalize: NFC (so accented chars like "proteína" match alias keys regardless
+  // of whether the input was NFD-encoded by a mobile keyboard or clipboard paste —
+  // qa-engineer IMPORTANT finding), then lowercase, strip trailing punctuation, trim.
+  const normalized = text.normalize('NFC').toLowerCase().replace(/[¿?¡!.]+$/g, '').trim();
 
   // Build a regex alternation from all alias keys sorted by length (longest first)
   // to avoid partial matches (e.g. "sal" before "grasas saturadas" would shadow "saturadas")
@@ -162,7 +177,8 @@ export function detectRefinementFollowUp(
   text: string,
 ): { modificationText: string; confidence: number } | null {
   if (text.length > MAX_CLASSIFIER_INPUT_LENGTH) return null;
-  const normalized = text.toLowerCase().trim();
+  // NFC normalization for accented Spanish patterns (qa-engineer IMPORTANT finding).
+  const normalized = text.normalize('NFC').toLowerCase().trim();
 
   const patterns: Array<{ regex: RegExp; confidence: number }> = [
     // Swap patterns: "hazlo de X", "ponlo de X", "cambialo de X", "pero de X"

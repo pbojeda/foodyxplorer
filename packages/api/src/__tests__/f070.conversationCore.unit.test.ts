@@ -69,11 +69,18 @@ vi.mock('../conversation/followUpClassifier.js', () => ({
   applyRefinement: mockApplyRefinement,
   ATTRIBUTE_CONFIDENCE_THRESHOLD: 0.75,
   REFINEMENT_CONFIDENCE_THRESHOLD: 0.70,
-  NUTRIENT_ALIASES: {
-    'carbs': { nutrientKey: 'carbohydrates', label: 'Carbohidratos', unit: 'g' },
-    'proteína': { nutrientKey: 'proteins', label: 'Proteínas', unit: 'g' },
-    'sal': { nutrientKey: 'salt', label: 'Sal', unit: 'g' },
-    'calorías': { nutrientKey: 'calories', label: 'Calorías', unit: 'kcal' },
+  // NUTRIENT_META_BY_KEY: keyed by canonical NutrientKey for O(1) lookup at the
+  // call site in conversationCore (code-review MAJOR-1 fix replaced the dead-code
+  // NUTRIENT_ALIASES lookup, so the mock must expose this map instead).
+  NUTRIENT_META_BY_KEY: {
+    carbohydrates: { nutrientKey: 'carbohydrates', label: 'Carbohidratos', unit: 'g' },
+    proteins:      { nutrientKey: 'proteins',      label: 'Proteínas',     unit: 'g' },
+    salt:          { nutrientKey: 'salt',          label: 'Sal',           unit: 'g' },
+    calories:      { nutrientKey: 'calories',      label: 'Calorías',      unit: 'kcal' },
+    fats:          { nutrientKey: 'fats',          label: 'Grasas',        unit: 'g' },
+    fiber:         { nutrientKey: 'fiber',         label: 'Fibra',         unit: 'g' },
+    sodium:        { nutrientKey: 'sodium',        label: 'Sodio',         unit: 'mg' },
+    sugars:        { nutrientKey: 'sugars',        label: 'Azúcares',      unit: 'g' },
   },
 }));
 

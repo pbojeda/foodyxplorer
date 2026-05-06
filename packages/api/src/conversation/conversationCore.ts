@@ -19,7 +19,7 @@ import {
   applyRefinement,
   ATTRIBUTE_CONFIDENCE_THRESHOLD,
   REFINEMENT_CONFIDENCE_THRESHOLD,
-  NUTRIENT_ALIASES,
+  NUTRIENT_META_BY_KEY,
 } from './followUpClassifier.js';
 import { resolveChain } from './chainResolver.js';
 import { estimate } from './estimationOrchestrator.js';
@@ -165,8 +165,10 @@ export async function processMessage(
     if (attrResult !== null && attrResult.confidence >= ATTRIBUTE_CONFIDENCE_THRESHOLD) {
       if (prevTurn.estimation.result !== null) {
         // Extract nutrient value from prior result
-        const nutrientMeta = NUTRIENT_ALIASES[attrResult.nutrientKey]
-          ?? Object.values(NUTRIENT_ALIASES).find((m) => m.nutrientKey === attrResult.nutrientKey);
+        // O(1) canonical-key → metadata lookup (code-review MAJOR-1 fix:
+        // NUTRIENT_ALIASES is keyed by Spanish aliases, not canonical English keys,
+        // so the previous lookup was a dead-code path).
+        const nutrientMeta = NUTRIENT_META_BY_KEY[attrResult.nutrientKey];
         const nutrientValue = prevTurn.estimation.result.nutrients[attrResult.nutrientKey as keyof typeof prevTurn.estimation.result.nutrients];
         const numericValue = typeof nutrientValue === 'number' ? nutrientValue : 0;
         const unit = (nutrientMeta?.unit ?? 'g') as 'kcal' | 'g' | 'mg';
