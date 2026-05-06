@@ -4885,12 +4885,16 @@ paths:
         The bot API key is exempt from this limit (per-user bot rate limiting is
         enforced at the bot handler layer, not at the API level).
 
-        **Per-actor daily limit (F-WEB-MENU-VISION-001, web path only):** Requests
-        carrying an `X-Actor-Id` header are additionally subject to a per-actor daily
-        counter (Redis key `fxp:analyze:daily:<actorId>`, TTL 86400s). Limits by tier:
-        anonymous=10/day, free=10/day, pro=30/day, admin=exempt. Fails open on Redis
-        error (consistent with existing rate-limit pattern). Returns `429 RATE_LIMIT_EXCEEDED`
-        when the daily limit is reached. Bot requests (no `X-Actor-Id`) are not affected.
+        **Per-actor daily limit (existing F069 `actorRateLimit`):** Requests carrying
+        an `X-Actor-Id` header are additionally subject to the existing per-actor daily
+        counter implemented by `plugins/actorRateLimit.ts`. The route `/analyze/menu`
+        is mapped to the `photos` bucket; effective limits per tier are sourced from
+        `DAILY_LIMITS_BY_TIER` in that module (currently anonymous=10, free=20, pro=100,
+        admin=∞). F-WEB-MENU-VISION-001 does NOT change these limits or add a new
+        Redis key — it only switches the web `mode` from `identify` to `auto` by
+        default, so the same `/analyze/menu` request now exercises the multi-dish
+        path under the SAME rate-limit policy as before. Bot requests (no
+        `X-Actor-Id`) are not affected.
 
         **Auth:** Public API key required (`X-API-Key` header). Anonymous requests are
         rejected (HTTP 401). Admin key also accepted.

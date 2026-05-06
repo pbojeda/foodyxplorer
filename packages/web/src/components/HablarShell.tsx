@@ -428,9 +428,12 @@ export function HablarShell() {
   // F-WEB-MENU-VISION-001 — handle dish tap in MenuDishList
   const handleDishSelect = useCallback(
     (dishName: string) => {
-      // Snapshot hasEstimate before clearing photoResults
-      const hasEstimate =
-        photoResults?.dishes.find((d) => d.dishName === dishName)?.estimate !== null;
+      // Snapshot hasEstimate before clearing photoResults.
+      // Use `!= null` (not `!== null`) so a missing dish — defensively
+      // impossible since dishName always comes from a rendered MenuDishItem —
+      // resolves to false rather than true.
+      const dish = photoResults?.dishes.find((d) => d.dishName === dishName);
+      const hasEstimate = dish?.estimate != null;
       trackEvent('menu_dish_selected', { dishName, hasEstimate });
       setPhotoResults(null);
       setResults(null);

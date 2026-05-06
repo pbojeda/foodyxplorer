@@ -744,10 +744,11 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
       expect(screen.queryByText('Se han encontrado 2 platos')).not.toBeInTheDocument();
     });
 
-    // Also assert menu_dish_selected was tracked
+    // Also assert menu_dish_selected was tracked.
+    // Both fixture dishes have estimate: null → hasEstimate must be false.
     expect(mockTrackEvent).toHaveBeenCalledWith(
       'menu_dish_selected',
-      expect.objectContaining({ dishName: 'Paella valenciana' }),
+      { dishName: 'Paella valenciana', hasEstimate: false },
     );
   });
 

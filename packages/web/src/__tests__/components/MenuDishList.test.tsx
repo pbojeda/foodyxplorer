@@ -61,6 +61,23 @@ describe('MenuDishItem', () => {
     expect(screen.getByText('Sin datos')).toBeInTheDocument();
   });
 
+  // M3-3 (qa-engineer follow-up): estimate is non-null but result is null —
+  // a total cascade miss with the wrapper present. Spec: shows "Sin datos".
+  it('displays "Sin datos" when estimate is non-null but estimate.result is null', () => {
+    const dish = createMenuAnalysisDish({
+      dishName: 'Migas extremeñas',
+      estimate: createEstimateData({
+        query: 'migas extremeñas',
+        result: null,
+      }),
+    });
+
+    render(<MenuDishItem dish={dish} onSelect={jest.fn()} />);
+
+    expect(screen.getByText('Migas extremeñas')).toBeInTheDocument();
+    expect(screen.getByText('Sin datos')).toBeInTheDocument();
+  });
+
   it('calls onSelect when clicked', async () => {
     const onSelect = jest.fn();
     const dish = createMenuAnalysisDish({ dishName: 'Gazpacho', estimate: null });

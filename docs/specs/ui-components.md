@@ -655,8 +655,8 @@ Session-only — not persisted to `localStorage`.
 case 'MENU_ANALYSIS_FAILED':
   setInlineError(
     photoAnalysisMode === 'auto'
-      ? 'No he podido leer el menú. Prueba con otra foto o elige "Solo este plato".'
-      : 'No he podido identificar el plato. Intenta con otra foto.'
+      ? "No he podido leer el menú. Prueba con otra foto o elige 'Solo este plato'."
+      : 'No he podido identificar el plato. Prueba con otra foto o asegúrate de que el plato sea visible.'
   );
 ```
 
@@ -1521,7 +1521,7 @@ app/hablar/page.tsx (Server Component — unchanged)
 | API error code | Spanish message |
 |---------------|-----------------|
 | `INVALID_IMAGE` | `'Formato no soportado. Usa JPEG, PNG o WebP.'` |
-| `MENU_ANALYSIS_FAILED` | `'No he podido identificar el plato. Intenta con otra foto.'` |
+| `MENU_ANALYSIS_FAILED` | mode-conditional — see "F-WEB-MENU-VISION-001" section above (lines 727–731). |
 | `PAYLOAD_TOO_LARGE` | `'La foto es demasiado grande. Máximo 10 MB.'` |
 | `RATE_LIMIT_EXCEEDED` | `'Has alcanzado el límite de análisis por foto. Inténtalo más tarde.'` |
 | `UNAUTHORIZED` | `'Error de configuración. Contacta con soporte.'` |
