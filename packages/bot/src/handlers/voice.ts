@@ -159,6 +159,26 @@ export async function handleVoice(
         break;
       }
 
+      case 'follow_up_attribute': {
+        if (!data.followUpAttribute) {
+          responseText = 'No se encontraron datos nutricionales para esta consulta\\.';
+          break;
+        }
+        const { dishName, nutrientLabel, value, unit } = data.followUpAttribute;
+        responseText = `*${escapeMarkdown(dishName)}* — ${escapeMarkdown(nutrientLabel)}: ${escapeMarkdown(String(value))} ${escapeMarkdown(unit)}`;
+        break;
+      }
+
+      case 'follow_up_refinement': {
+        if (!data.followUpRefinement) {
+          responseText = 'No se encontraron datos nutricionales para esta consulta\\.';
+          break;
+        }
+        const prefix = `_\\(refinado: ${escapeMarkdown(data.followUpRefinement.mergedQuery)}\\)_\n`;
+        responseText = prefix + formatEstimate(data.followUpRefinement.estimation);
+        break;
+      }
+
       case 'text_too_long':
         responseText = TOO_LONG_MESSAGE;
         break;
