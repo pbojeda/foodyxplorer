@@ -598,3 +598,63 @@ describe('analyzeMenu', () => {
     expect(result.dishes).toHaveLength(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// AC-B5 (F-WEB-MENU-VISION-001): Verifies that VISION_MODEL='gpt-4o' from
+// config flows through analyzeMenu → callVisionCompletion as the modelName
+// argument. Uses vi.resetModules + vi.doMock to override the config singleton
+// for this test only — see plan-review R1 SUGGESTION (vi.doMock over an
+// optional MenuAnalyzerOptions.visionModel injection).
+// ---------------------------------------------------------------------------
+
+describe('analyzeMenu — VISION_MODEL=gpt-4o (F-WEB-MENU-VISION-001 AC-B5)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('passes config.VISION_MODEL="gpt-4o" to callVisionCompletion', async () => {
+    const localCallVisionCompletion = vi.fn().mockResolvedValue('["Big Mac"]');
+    const localRunCascade = vi.fn().mockResolvedValue(makeCascadeResult('Big Mac'));
+
+    vi.doMock('../config.js', () => ({
+      config: {
+        NODE_ENV: 'test',
+        VISION_MODEL: 'gpt-4o',
+      },
+    }));
+    vi.doMock('../lib/openaiClient.js', () => ({
+      callVisionCompletion: localCallVisionCompletion,
+      callChatCompletion: vi.fn(),
+      callOpenAIEmbeddingsOnce: vi.fn(),
+      getOpenAIClient: vi.fn(),
+      isRetryableError: vi.fn(),
+      sleep: vi.fn(),
+    }));
+    vi.doMock('../estimation/engineRouter.js', () => ({
+      runEstimationCascade: localRunCascade,
+    }));
+    vi.doMock('../lib/imageOcrExtractor.js', () => ({
+      extractTextFromImage: vi.fn(),
+    }));
+    vi.doMock('../lib/pdfParser.js', () => ({
+      extractText: vi.fn(),
+    }));
+
+    const { analyzeMenu: analyzeMenuLocal } = await import('../analyze/menuAnalyzer.js');
+
+    await analyzeMenuLocal({
+      fileBuffer: makeJpegBuffer(),
+      mode: 'vision',
+      db: mockDb,
+      openAiApiKey: 'key',
+      level4Lookup: undefined,
+      logger: mockLogger,
+      signal: makeSignal(),
+    });
+
+    expect(localCallVisionCompletion).toHaveBeenCalledOnce();
+    const callArgs = localCallVisionCompletion.mock.calls[0] as unknown[];
+    // Signature: (apiKey, imageBase64, mimeType, prompt, modelName, logger?, maxTokens?)
+    expect(callArgs[4]).toBe('gpt-4o');
+  });
+});

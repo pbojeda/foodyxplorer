@@ -4841,11 +4841,18 @@ paths:
           `extractTextFromImage` (Tesseract) → `parseDishNames`. No PDF-to-image
           rendering — PDFs use direct text extraction.
         - `vision`: Image only (PDFs rejected with `INVALID_IMAGE`). Vision API
-          (gpt-4o-mini, maxTokens 2048) with menu-extraction prompt → JSON array of
-          dish name strings. OCR fallback on Vision API failure.
+          (model controlled by `VISION_MODEL` env var, default `gpt-4o-mini`, maxTokens 2048)
+          with menu-extraction prompt → JSON array of dish name strings. OCR fallback on
+          Vision API failure.
         - `identify`: Image only (PDFs rejected with `INVALID_IMAGE`). Vision API with
           single-dish-identification prompt → exactly 1 dish. No OCR fallback — if
           Vision fails, `MENU_ANALYSIS_FAILED` is returned.
+
+        **Vision model feature flag:** The `VISION_MODEL` environment variable selects
+        the OpenAI model used for Vision API calls. Accepted values: `gpt-4o-mini`
+        (default, current) and `gpt-4o`. The flag allows an operator to switch models
+        for A/B quality evaluation without a code deploy. No automatic switching logic —
+        the configured model is used for all Vision API calls.
 
         **OCR pipeline (PDF):** `pdf-parse` → text lines → `parseDishNames(lines)` →
         string array of dish names.
@@ -4877,6 +4884,13 @@ paths:
         tier rate limit). Exceeding this limit returns HTTP 429 `RATE_LIMIT_EXCEEDED`.
         The bot API key is exempt from this limit (per-user bot rate limiting is
         enforced at the bot handler layer, not at the API level).
+
+        **Per-actor daily limit (F-WEB-MENU-VISION-001, web path only):** Requests
+        carrying an `X-Actor-Id` header are additionally subject to a per-actor daily
+        counter (Redis key `fxp:analyze:daily:<actorId>`, TTL 86400s). Limits by tier:
+        anonymous=10/day, free=10/day, pro=30/day, admin=exempt. Fails open on Redis
+        error (consistent with existing rate-limit pattern). Returns `429 RATE_LIMIT_EXCEEDED`
+        when the daily limit is reached. Bot requests (no `X-Actor-Id`) are not affected.
 
         **Auth:** Public API key required (`X-API-Key` header). Anonymous requests are
         rejected (HTTP 401). Admin key also accepted.

@@ -750,4 +750,26 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
       expect.objectContaining({ dishName: 'Paella valenciana' }),
     );
   });
+
+  // F-WEB-MENU-VISION-001 — AC-U10: photo_mode_selected telemetry
+  it('fires photo_mode_selected telemetry when the mode toggle is changed', async () => {
+    render(<HablarShell />);
+
+    // Default state: "Menú/carta" (auto) is selected.
+    // Click "Solo este plato" to change to identify.
+    await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
+
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      'photo_mode_selected',
+      { mode: 'identify' },
+    );
+
+    // Switch back to auto and verify the event fires again with 'auto'.
+    await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
+
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      'photo_mode_selected',
+      { mode: 'auto' },
+    );
+  });
 });
