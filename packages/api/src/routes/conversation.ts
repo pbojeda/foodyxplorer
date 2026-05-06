@@ -141,7 +141,52 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
         const intent = capturedData.intent;
         const apiKeyId = request.apiKeyContext?.keyId ?? null;
 
-        if (intent === 'estimation' && capturedData.estimation) {
+        // Shared helper to derive levelHit label from EstimateData level flags
+        const getLevelHit = (est: { level1Hit: boolean; level2Hit: boolean; level3Hit: boolean; level4Hit: boolean }): 'l1' | 'l2' | 'l3' | 'l4' | null => {
+          if (est.level1Hit) return 'l1';
+          if (est.level2Hit) return 'l2';
+          if (est.level3Hit) return 'l3';
+          if (est.level4Hit) return 'l4';
+          return null;
+        };
+
+        if (intent === 'follow_up_attribute' && capturedData.followUpAttribute) {
+          // F-MULTITURN-001: attribute follow-up — log using priorTurnQuery (Plan-R4 fix)
+          const est = capturedData.followUpAttribute.priorEstimation;
+          await writeQueryLog(
+            prisma,
+            {
+              queryText: capturedData.followUpAttribute.priorTurnQuery,
+              chainSlug: est.chainSlug ?? null,
+              restaurantId: null,
+              levelHit: getLevelHit(est),
+              cacheHit: true,
+              responseTimeMs,
+              apiKeyId,
+              actorId: actorIdForLog,
+              source,
+            },
+            request.log,
+          );
+        } else if (intent === 'follow_up_refinement' && capturedData.followUpRefinement) {
+          // F-MULTITURN-001: refinement — log using mergedQuery + cascade result
+          const est = capturedData.followUpRefinement.estimation;
+          await writeQueryLog(
+            prisma,
+            {
+              queryText: capturedData.followUpRefinement.mergedQuery,
+              chainSlug: est.chainSlug ?? null,
+              restaurantId: null,
+              levelHit: getLevelHit(est),
+              cacheHit: false,
+              responseTimeMs,
+              apiKeyId,
+              actorId: actorIdForLog,
+              source,
+            },
+            request.log,
+          );
+        } else if (intent === 'estimation' && capturedData.estimation) {
           const est = capturedData.estimation;
           let levelHit: 'l1' | 'l2' | 'l3' | 'l4' | null = null;
           if (est.level1Hit) levelHit = 'l1';
@@ -166,14 +211,6 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
           );
         } else if (intent === 'comparison' && capturedData.comparison) {
           const { dishA, dishB } = capturedData.comparison;
-
-          const getLevelHit = (est: typeof dishA): 'l1' | 'l2' | 'l3' | 'l4' | null => {
-            if (est.level1Hit) return 'l1';
-            if (est.level2Hit) return 'l2';
-            if (est.level3Hit) return 'l3';
-            if (est.level4Hit) return 'l4';
-            return null;
-          };
 
           await writeQueryLog(
             prisma,
@@ -511,7 +548,52 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
         const intent = capturedData.intent;
         const apiKeyId = request.apiKeyContext?.keyId ?? null;
 
-        if (intent === 'estimation' && capturedData.estimation) {
+        // Shared helper to derive levelHit label from EstimateData level flags
+        const getLevelHit = (est: { level1Hit: boolean; level2Hit: boolean; level3Hit: boolean; level4Hit: boolean }): 'l1' | 'l2' | 'l3' | 'l4' | null => {
+          if (est.level1Hit) return 'l1';
+          if (est.level2Hit) return 'l2';
+          if (est.level3Hit) return 'l3';
+          if (est.level4Hit) return 'l4';
+          return null;
+        };
+
+        if (intent === 'follow_up_attribute' && capturedData.followUpAttribute) {
+          // F-MULTITURN-001: attribute follow-up — log using priorTurnQuery (Plan-R4 fix)
+          const est = capturedData.followUpAttribute.priorEstimation;
+          await writeQueryLog(
+            prisma,
+            {
+              queryText: capturedData.followUpAttribute.priorTurnQuery,
+              chainSlug: est.chainSlug ?? null,
+              restaurantId: null,
+              levelHit: getLevelHit(est),
+              cacheHit: true,
+              responseTimeMs,
+              apiKeyId,
+              actorId: actorIdForLog,
+              source,
+            },
+            request.log,
+          );
+        } else if (intent === 'follow_up_refinement' && capturedData.followUpRefinement) {
+          // F-MULTITURN-001: refinement — log using mergedQuery + cascade result
+          const est = capturedData.followUpRefinement.estimation;
+          await writeQueryLog(
+            prisma,
+            {
+              queryText: capturedData.followUpRefinement.mergedQuery,
+              chainSlug: est.chainSlug ?? null,
+              restaurantId: null,
+              levelHit: getLevelHit(est),
+              cacheHit: false,
+              responseTimeMs,
+              apiKeyId,
+              actorId: actorIdForLog,
+              source,
+            },
+            request.log,
+          );
+        } else if (intent === 'estimation' && capturedData.estimation) {
           const est = capturedData.estimation;
           let levelHit: 'l1' | 'l2' | 'l3' | 'l4' | null = null;
           if (est.level1Hit) levelHit = 'l1';
@@ -536,14 +618,6 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
           );
         } else if (intent === 'comparison' && capturedData.comparison) {
           const { dishA, dishB } = capturedData.comparison;
-
-          const getLevelHit = (est: typeof dishA): 'l1' | 'l2' | 'l3' | 'l4' | null => {
-            if (est.level1Hit) return 'l1';
-            if (est.level2Hit) return 'l2';
-            if (est.level3Hit) return 'l3';
-            if (est.level4Hit) return 'l4';
-            return null;
-          };
 
           await writeQueryLog(
             prisma,

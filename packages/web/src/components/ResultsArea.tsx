@@ -1,5 +1,5 @@
 // ResultsArea — renders the correct state/component based on intent.
-// Handles: loading, error, empty, all 6 intents, and photo results (F092).
+// Handles: loading, error, empty, all 8 intents, and photo results (F092).
 // F091: also renders persistent voice-error states (budget cap, rate limits,
 // Whisper failure, network) so users who miss the overlay toast still see
 // an actionable error in the main area.
@@ -248,6 +248,43 @@ export function ResultsArea({
           {reverseSearch.results.map((result, index) => (
             <NutritionCard key={`${result.name}-${index}`} reverseResult={result} />
           ))}
+        </CardGrid>
+      );
+    }
+
+    case 'follow_up_attribute': {
+      const attr = results.followUpAttribute;
+      if (!attr) return <EmptyStateWrapper />;
+      return (
+        <CardGrid>
+          <div
+            data-testid="nutrient-answer-banner"
+            className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3"
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">
+              {attr.dishName}
+            </p>
+            <p className="mt-1 text-2xl font-extrabold leading-none text-amber-800">
+              {attr.nutrientLabel}:{' '}
+              <span className="text-brand-orange">{attr.value}</span>{' '}
+              <span className="text-sm font-semibold">{attr.unit}</span>
+            </p>
+          </div>
+          <NutritionCard estimateData={attr.priorEstimation} />
+        </CardGrid>
+      );
+    }
+
+    case 'follow_up_refinement': {
+      const ref = results.followUpRefinement;
+      if (!ref) return <EmptyStateWrapper />;
+      return (
+        <CardGrid>
+          <p className="px-1 text-[12px] text-slate-400">
+            <span className="font-semibold text-slate-500">Refinado:</span>{' '}
+            {ref.mergedQuery}
+          </p>
+          <NutritionCard estimateData={ref.estimation} />
         </CardGrid>
       );
     }

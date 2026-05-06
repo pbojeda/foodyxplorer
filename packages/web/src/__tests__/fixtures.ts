@@ -12,6 +12,8 @@ import type {
   MenuAnalysisDish,
   MenuAnalysisData,
   MenuAnalysisResponse,
+  FollowUpAttributeData,
+  FollowUpRefinementData,
 } from '@foodxplorer/shared';
 
 // ---------------------------------------------------------------------------
@@ -84,6 +86,40 @@ export function createEstimateData(overrides: Partial<EstimateData> = {}): Estim
 }
 
 // ---------------------------------------------------------------------------
+// FollowUpAttributeData factory
+// ---------------------------------------------------------------------------
+
+export function createFollowUpAttributeData(
+  overrides: Partial<FollowUpAttributeData> = {}
+): FollowUpAttributeData {
+  return {
+    nutrientKey: 'carbohydrates',
+    nutrientLabel: 'Carbohidratos',
+    value: 46,
+    unit: 'g',
+    dishName: 'Big Mac',
+    priorTurnQuery: 'big mac',
+    priorEstimation: createEstimateData(),
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// FollowUpRefinementData factory
+// ---------------------------------------------------------------------------
+
+export function createFollowUpRefinementData(
+  overrides: Partial<FollowUpRefinementData> = {}
+): FollowUpRefinementData {
+  return {
+    originalQuery: 'big mac',
+    mergedQuery: 'big mac de pollo',
+    estimation: createEstimateData({ query: 'big mac de pollo' }),
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // ConversationMessageData factory
 // ---------------------------------------------------------------------------
 
@@ -94,6 +130,8 @@ type IntentOverrides = {
   reverseSearch?: ReverseSearchData;
   contextSet?: ConversationMessageData['contextSet'];
   ambiguous?: true;
+  followUpAttribute?: ConversationMessageData['followUpAttribute'];
+  followUpRefinement?: ConversationMessageData['followUpRefinement'];
 };
 
 export function createConversationMessageData(
@@ -174,6 +212,18 @@ export function createConversationMessageData(
           results: [createReverseSearchResult()],
           totalMatches: 1,
         },
+        ...overrides,
+      };
+    case 'follow_up_attribute':
+      return {
+        ...base,
+        followUpAttribute: overrides.followUpAttribute ?? createFollowUpAttributeData(),
+        ...overrides,
+      };
+    case 'follow_up_refinement':
+      return {
+        ...base,
+        followUpRefinement: overrides.followUpRefinement ?? createFollowUpRefinementData(),
         ...overrides,
       };
     case 'text_too_long':

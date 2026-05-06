@@ -8,6 +8,8 @@ import {
   createReverseSearchResult,
   createMenuAnalysisData,
   createMenuAnalysisDish,
+  createFollowUpAttributeData,
+  createFollowUpRefinementData,
 } from '../fixtures';
 
 describe('ResultsArea', () => {
@@ -194,6 +196,86 @@ describe('ResultsArea', () => {
       });
       render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
       expect(screen.getByText(/No encontré platos con esas características/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('follow_up_attribute intent (F-MULTITURN-001 AC-20)', () => {
+    it('renders prominent nutrient answer banner for follow_up_attribute', () => {
+      const results = createConversationMessageData('follow_up_attribute');
+      render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
+      const banner = screen.getByTestId('nutrient-answer-banner');
+      expect(banner).toHaveTextContent('Carbohidratos');
+      expect(banner).toHaveTextContent('46');
+      expect(banner).toHaveTextContent('g');
+    });
+
+    it('renders dishName inside the nutrient answer banner', () => {
+      const results = createConversationMessageData('follow_up_attribute');
+      render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
+      const banner = screen.getByTestId('nutrient-answer-banner');
+      expect(banner).toHaveTextContent('Big Mac');
+    });
+
+    it('renders full NutritionCard from priorEstimation for follow_up_attribute (AC-20)', () => {
+      const results = createConversationMessageData('follow_up_attribute');
+      render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
+      const region = screen.getByRole('region', { name: /Resultados de la consulta/i });
+      expect(region).toBeInTheDocument();
+    });
+
+    it('renders highlighted nutrient row via amber callout (AC-20)', () => {
+      const results = createConversationMessageData('follow_up_attribute');
+      render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
+      expect(screen.getByTestId('nutrient-answer-banner')).toBeInTheDocument();
+    });
+
+    it('renders EmptyStateWrapper when followUpAttribute data is absent (defensive guard)', () => {
+      const results = createConversationMessageData('follow_up_attribute', {
+        followUpAttribute: undefined,
+      });
+      render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
+      expect(screen.getByText('¿Qué quieres saber?')).toBeInTheDocument();
+    });
+  });
+
+  describe('follow_up_refinement intent (F-MULTITURN-001 AC-21)', () => {
+    it('renders NutritionCard for follow_up_refinement (AC-21)', () => {
+      const results = createConversationMessageData('follow_up_refinement');
+      render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
+      expect(screen.getByText('Big Mac')).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: /Resultados de la consulta/i })).toBeInTheDocument();
+    });
+
+    it('renders mergedQuery label above the card for follow_up_refinement (AC-21)', () => {
+      const results = createConversationMessageData('follow_up_refinement');
+      render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
+      expect(screen.getByText(/Refinado:/i)).toBeInTheDocument();
+      expect(screen.getByText(/big mac de pollo/i)).toBeInTheDocument();
+    });
+
+    it('renders EmptyStateWrapper when followUpRefinement data is absent (defensive guard)', () => {
+      const results = createConversationMessageData('follow_up_refinement', {
+        followUpRefinement: undefined,
+      });
+      render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
+      expect(screen.getByText('¿Qué quieres saber?')).toBeInTheDocument();
+    });
+  });
+
+  describe('regression — existing intents unchanged after follow_up cases added (F-MULTITURN-001)', () => {
+    it('estimation intent still renders single NutritionCard (regression)', () => {
+      const results = createConversationMessageData('estimation');
+      render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
+      expect(screen.getByText('Big Mac')).toBeInTheDocument();
+      expect(screen.queryByText(/Refinado:/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('nutrient-answer-banner')).not.toBeInTheDocument();
+    });
+
+    it('comparison intent still renders two NutritionCards (regression)', () => {
+      const results = createConversationMessageData('comparison');
+      render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
+      expect(screen.getByText('Big Mac')).toBeInTheDocument();
+      expect(screen.getByText('Whopper')).toBeInTheDocument();
     });
   });
 

@@ -5880,17 +5880,119 @@ components:
         - comparison
         - menu_estimation
         - estimation
+        - reverse_search
+        - follow_up_attribute
+        - follow_up_refinement
         - text_too_long
       description: |
         Resolved intent of the user's message:
-        - `context_set`:      message was recognised as "estoy en <chain>" — context written to Redis.
-        - `comparison`:       message was recognised as a two-dish comparison query.
-        - `menu_estimation`:  message was recognised as a multi-dish query. Triggered by (a) explicit
-                              menú: / de menú: / menú del día: prefix (F076), OR (b) implicit multi-item
-                              phrasing where ≥2 fragments validate as catalog dishes via L1 exact+FTS
-                              lookup (F-MULTI-ITEM-IMPLICIT). Response shape is identical for both paths.
-        - `estimation`:       message was resolved as a single-dish nutritional query.
-        - `text_too_long`:    input exceeded 500 characters and was rejected.
+        - `context_set`:         message was recognised as "estoy en <chain>" — context written to Redis.
+        - `comparison`:          message was recognised as a two-dish comparison query.
+        - `menu_estimation`:     message was recognised as a multi-dish query. Triggered by (a) explicit
+                                 menú: / de menú: / menú del día: prefix (F076), OR (b) implicit multi-item
+                                 phrasing where ≥2 fragments validate as catalog dishes via L1 exact+FTS
+                                 lookup (F-MULTI-ITEM-IMPLICIT). Response shape is identical for both paths.
+        - `estimation`:          message was resolved as a single-dish nutritional query.
+        - `reverse_search`:      message was recognised as a reverse nutrient search query.
+        - `follow_up_attribute`: message was recognised as a follow-up question about a specific nutrient
+                                 from the prior turn (e.g. "y los carbohidratos?"). Requires prior turn state
+                                 in Redis. Payload: `followUpAttribute`. (F-MULTITURN-001)
+        - `follow_up_refinement`: message was recognised as a refinement of the prior turn's dish query
+                                 (e.g. "hazlo de pollo"). Re-estimates with a merged query and writes new
+                                 turn state to Redis. Payload: `followUpRefinement`. (F-MULTITURN-001)
+        - `text_too_long`:       input exceeded 500 characters and was rejected.
+
+    FollowUpMeta:
+      type: object
+      description: |
+        Metadata about the follow-up classification (F-MULTITURN-001). Present when intent is
+        `follow_up_attribute` or `follow_up_refinement`.
+      required:
+        - classifierType
+        - confidence
+        - turnStateHit
+      properties:
+        classifierType:
+          type: string
+          enum:
+            - attribute
+            - refinement
+          description: Which classifier branch matched this turn.
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Classifier confidence score (0–1).
+          example: 0.95
+        turnStateHit:
+          type: boolean
+          description: Whether a prior turn state was found in Redis for this actor.
+
+    FollowUpAttributeData:
+      type: object
+      description: |
+        Payload for a `follow_up_attribute` intent — a specific nutrient value extracted from
+        the prior turn's estimation result (F-MULTITURN-001).
+      required:
+        - nutrientKey
+        - nutrientLabel
+        - value
+        - unit
+        - dishName
+        - priorTurnQuery
+        - priorEstimation
+      properties:
+        nutrientKey:
+          type: string
+          description: Canonical nutrient key (e.g. "carbohydrates", "calories").
+          example: "carbohydrates"
+        nutrientLabel:
+          type: string
+          description: Human-readable Spanish label for the nutrient.
+          example: "Carbohidratos"
+        value:
+          type: number
+          description: Numeric nutrient value from the prior estimation result.
+          example: 45
+        unit:
+          type: string
+          description: Unit string for display (e.g. "g", "kcal", "mg").
+          example: "g"
+        dishName:
+          type: string
+          description: Name of the dish from which the nutrient was extracted.
+          example: "Paella valenciana"
+        priorTurnQuery:
+          type: string
+          description: The query text from the prior turn (stored in Redis turn state).
+          example: "paella valenciana"
+        priorEstimation:
+          $ref: '#/components/schemas/EstimateData'
+          description: The full estimation data from the prior turn.
+
+    FollowUpRefinementData:
+      type: object
+      description: |
+        Payload for a `follow_up_refinement` intent — a re-estimation using a query merged
+        from the prior turn and the user's refinement modifier (F-MULTITURN-001).
+      required:
+        - originalQuery
+        - mergedQuery
+        - estimation
+      properties:
+        originalQuery:
+          type: string
+          description: The query text from the prior turn (before refinement).
+          example: "paella valenciana"
+        mergedQuery:
+          type: string
+          description: The merged query sent to the estimation cascade.
+          example: "paella valenciana de pollo"
+        estimation:
+          $ref: '#/components/schemas/EstimateData'
+          description: |
+            The fresh estimation result for the merged query. Always non-null as a wrapper;
+            `estimation.result` may be null on a total miss.
 
     ConversationContext:
       type: object
@@ -6029,8 +6131,9 @@ components:
       description: |
         Structured response from ConversationCore.processMessage(). The `intent` field
         identifies which data field is populated. Only one of `contextSet`, `estimation`,
-        `comparison`, or `menuEstimation` is present per response. `activeContext` is always
-        present (null if no context is active for this actor).
+        `comparison`, `menuEstimation`, `reverseSearch`, `followUpAttribute`, or
+        `followUpRefinement` is present per response. `activeContext` is always present
+        (null if no context is active for this actor).
       required:
         - intent
         - actorId
@@ -6095,6 +6198,25 @@ components:
             True when chainSlug was injected from active context rather than explicitly
             provided in the query. Bot adapters use this to show context indicators.
             Only meaningful for estimation/comparison intents.
+        followUpAttribute:
+          allOf:
+            - $ref: '#/components/schemas/FollowUpAttributeData'
+          description: |
+            Present when intent is `follow_up_attribute`. Contains the nutrient value
+            extracted from the prior turn's estimation result. Absent for all other intents.
+        followUpRefinement:
+          allOf:
+            - $ref: '#/components/schemas/FollowUpRefinementData'
+          description: |
+            Present when intent is `follow_up_refinement`. Contains the merged query and
+            fresh estimation result. Absent for all other intents.
+        followUpMeta:
+          allOf:
+            - $ref: '#/components/schemas/FollowUpMeta'
+          description: |
+            Present when intent is `follow_up_attribute` or `follow_up_refinement`.
+            Contains classifier metadata (type, confidence, turn state hit). Absent for
+            all other intents.
 
     # -------------------------------------------------------------------------
     # Ingestion
