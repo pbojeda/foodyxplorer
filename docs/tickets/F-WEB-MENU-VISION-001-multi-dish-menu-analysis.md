@@ -1,7 +1,7 @@
 # F-WEB-MENU-VISION-001: Web /hablar — multi-dish menu/carta photo analysis (mode=auto)
 
 **Feature:** F-WEB-MENU-VISION-001 | **Type:** Fullstack-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F-WEB-MENU-VISION-001-multi-dish-menu-analysis
+**Status:** Done | **Branch:** feature/F-WEB-MENU-VISION-001-multi-dish-menu-analysis (merged + deleted)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-06 | **Dependencies:** F034 (POST /analyze/menu backend), F092 (web photo analysis flow), F091 (voice budget pattern reused for vision rate-limiting)
 
@@ -1923,7 +1923,7 @@ from the spec — the verification command catches it.
 - [x] Step 4: `production-code-validator` executed, quality gates pass
 - [x] Step 5: `code-review-specialist` executed (APPROVE WITH MINOR CHANGES → 1 MAJOR + 4 nits resolved inline in `fd752e4`)
 - [x] Step 5: `qa-engineer` executed (Standard) — PASS WITH FOLLOW-UPS, 0 M1/M2, 4 M3 (3 resolved inline in `fd752e4`, M3-1 documented as test-quality nit, not blocking)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted (squash-merged 2026-05-06 as `f41f416`)
 
 ---
 
@@ -1953,6 +1953,10 @@ from the spec — the verification command catches it.
 | 2026-05-06 | Step 5 — `code-review-specialist` (APPROVE WITH MINOR CHANGES) | Independent skeptical review — APPROVE WITH MINOR CHANGES verdict. 1 MAJOR (M1: api-spec.yaml documents a per-actor daily rate limit attributed to F-WEB-MENU-VISION-001 with limits 10/10/30/exempt that contradicts existing F069 photos-bucket limits 10/20/100/∞ and is NOT implemented anywhere — pure spec→impl drift). 5 nits (N1 stale ui-components.md MENU_ANALYSIS_FAILED rows; N2 hasEstimate semantic; N3 magic number 6; N4 vi.doMock pattern fragility; N5 styling duplication; N6 useEffect cleanup for Strict Mode). Praise: Server/Client boundary discipline, metrics counter invariant preserved, ADR-001 respected, mode-conditional copy verbatim. |
 | 2026-05-06 | Step 5 — `qa-engineer` (PASS WITH FOLLOW-UPS) | Standard QA verification. PASS WITH FOLLOW-UPS — all 26 ACs satisfied with file:line evidence. 0 M1, 0 M2, 4 M3 nits (M3-1 weak passthrough assertion; M3-2 menu_dish_selected test missing `hasEstimate` value; M3-3 missing test for estimate.result === null path; M3-4 hasEstimate undefined-vs-false — same root cause as code-review N2). No regressions in F092/F091/text-query flows. Cross-flow cleanup confirmed end-to-end. |
 | 2026-05-06 | Step 5 — Review fix loop, commit `fd752e4` | Resolved 1 MAJOR + 4 nits in single commit. (1) M1 spec drift: rewrote api-spec.yaml "Per-actor daily limit" paragraph to point at the real F069 `DAILY_LIMITS_BY_TIER` source of truth and clarify that this PR does NOT change limits or add a new Redis key. (2) N2/M3-4: HablarShell.tsx hasEstimate now uses `dish?.estimate != null` so the impossible-from-UI undefined dish lookup correctly resolves to false. (3) M3-2: tightened `menu_dish_selected` test to `{ dishName, hasEstimate: false }` strict match. (4) M3-3: added MenuDishItem test for non-null estimate with null result → "Sin datos". (5) N1: ui-components.md two stale MENU_ANALYSIS_FAILED spots (snippet + legacy table row) updated to match implementation. Skipped N3/N4/N5/N6 with documented justification. Verified: web target suite 47 PASS, web typecheck clean, web lint 0 issues. |
+| 2026-05-06 | Step 5 — Ticket/tracker close + MCE fill, commit `cd9e778` | Final tracker + ticket sync. Status In Progress → Review. Workflow Step 5 [x] with verdict notes. Completion Log appended (Step 4 close, push+PR, code-review verdict, qa-engineer verdict, fix loop resolution). Merge Checklist Evidence filled 8/8 with empirical evidence. |
+| 2026-05-06 | Step 5 — `/audit-merge` structural 11/11 + drift 10/11, commit `6fa801e` | Compliance audit clean. Structural: Status lifted Review → Ready for Merge; AC 26/26; DoD 7/7; Workflow 7/8 (Step 6 [ ] pending merge); MCE 8/8; CL 22 entries; tracker step 5/6; key_facts/decisions N/A; merge-base UP TO DATE; working tree clean (.claude/scheduled_tasks.lock reset). Drift: P5 advisory (52 frozen project-wide tickets, out of scope); P8 fixed (added Step 0 dedicated row); P9 fixed (tracker header step ref aligned with detail). All other drift checks PASS first run. |
+| 2026-05-06 | Step 5 — Tracker HEAD refs drift fix, commit `83ad5d4` | User caught drift not covered by P9 (which only checks step refs, not SHAs). Tracker L11 referenced HEAD `cd9e778` and L13 referenced HEAD `fd752e4` — both two commits behind reality. Updated both to `6fa801e` and refreshed commit count 6 → 8 + Next-step text. The auto-recursive HEAD-ref problem (this commit's own SHA replaces 6fa801e) is documented in the commit message and accepted because the squash-merge collapses all commits into one on develop. |
+| 2026-05-06 | Step 6 — Squash-merge `f41f416` to develop | `gh pr merge 248 --squash --delete-branch` succeeded. PR #248 state MERGED, mergeCommit `f41f416750713fd824512f0ce856464dbf2a1a92`. 9 feature-branch commits collapsed into single commit on develop: 32 files changed, +3636 / -38. Remote feature branch deleted; local feature branch was already absent post-pull. develop now at `f41f416` (was `c335262`). Ticket Status → Done. Workflow Checklist Step 6 [x]. |
 
 ---
 
