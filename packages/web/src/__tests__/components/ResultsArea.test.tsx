@@ -203,15 +203,17 @@ describe('ResultsArea', () => {
     it('renders prominent nutrient answer banner for follow_up_attribute', () => {
       const results = createConversationMessageData('follow_up_attribute');
       render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
-      expect(screen.getByText(/Carbohidratos/)).toBeInTheDocument();
-      expect(screen.getByText(/46/)).toBeInTheDocument();
-      expect(screen.getByText(/\bg\b/)).toBeInTheDocument();
+      const banner = screen.getByTestId('nutrient-answer-banner');
+      expect(banner).toHaveTextContent('Carbohidratos');
+      expect(banner).toHaveTextContent('46');
+      expect(banner).toHaveTextContent('g');
     });
 
     it('renders dishName inside the nutrient answer banner', () => {
       const results = createConversationMessageData('follow_up_attribute');
       render(<ResultsArea isLoading={false} results={results} onRetry={() => {}} error={null} />);
-      expect(screen.getByText(/Big Mac/)).toBeInTheDocument();
+      const banner = screen.getByTestId('nutrient-answer-banner');
+      expect(banner).toHaveTextContent('Big Mac');
     });
 
     it('renders full NutritionCard from priorEstimation for follow_up_attribute (AC-20)', () => {
