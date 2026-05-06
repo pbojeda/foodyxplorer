@@ -8,9 +8,9 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-05-06 — F-MULTITURN-001 at **Step 5/6 (Review)** — PR #252 opened, awaiting merge. CI green. Cross-model trail: spec 4 rounds (both APPROVED), plan 6 rounds (20 findings addressed), production-code-validator REQUEST CHANGES → resolved, code-review-specialist APPROVE WITH MINOR → resolved, qa-engineer PASS WITH FOLLOW-UPS → resolved.
+**Last Updated:** 2026-05-06 — F-MULTITURN-001 **SHIPPED** to develop. PR #252 squash-merged at `45aabea`. Branch deleted. 17 commits collapsed (~1,720 LoC production+tests). 26/26 ACs verified. Cross-model trail: spec 4 rounds + plan 6 rounds + production-code-validator + code-review-specialist + qa-engineer. Quality gates: lint 0, typecheck clean, build clean, tests shared 624 + api 4415 + bot 1237 + web 499 = 6,775 passing.
 
-**Active Feature:** F-MULTITURN-001 — Multi-turn conversational follow-up resolution (Standard). **Step 5/6** — pre-merge audit + merge approval pending.
+**Active Feature:** None (F-MULTITURN-001 done). Next pickup: F-CATALOG-COV-001 (Standard). PM mandatory /compact gate triggered after 1 feature complete in this session — **STOP after this Step 6 housekeeping merge** and run `/compact` + `continue pm` to resume with F-CATALOG-COV-001.
 
 **Active PM Session:** pm-conv-polish (Pick A — Conversational Polish). Batch: F-MULTITURN-001 + F-CATALOG-COV-001 (+ F098 deferred to next session post-/compact). L5 PM Autonomous. See `docs/project_notes/pm-session.md`.
 
@@ -415,7 +415,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 
 | ID | Feature | Type | Status | Step | Notes |
 |----|---------|------|--------|------|-------|
-| F-MULTITURN-001 | Multi-turn follow-up resolution: attribute follow-up + refinement (negation deferred to F-MULTITURN-002) | backend (NLP/Conversation) | in-progress | 5/6 | **Standard.** Conversational layer over ConversationCore. PR #252 awaiting merge. 17 commits on `feature/F-MULTITURN-001-multi-turn-followup`. ~1,720 LoC (production+tests). 26 ACs all `[x]`. Cross-model trail: /review-spec 4 rounds (both APPROVED) + /review-plan 6 rounds (20 findings addressed) + production-code-validator REQUEST CHANGES (BLOCKER+MAJOR fixed inline) + code-review-specialist APPROVE WITH MINOR (MAJOR-1 NUTRIENT_META_BY_KEY fixed inline) + qa-engineer PASS WITH FOLLOW-UPS (NFD normalization + 34 edge tests added inline). Tests: shared 624 + api 4415 + bot 1237 + web 499 = 6,775 (delta vs baseline: shared +26, api +143, bot +499 [includes existing helpers], web +10). Lint 0, typecheck clean, build clean. CI green at branch HEAD. |
+| F-MULTITURN-001 | Multi-turn follow-up resolution: attribute follow-up + refinement (negation deferred to F-MULTITURN-002) | backend (NLP/Conversation) | done | 6/6 | **Standard.** PR #252 squash-merged at `45aabea` 2026-05-06. 17 commits collapsed (~1,720 LoC production+tests). 26/26 ACs. Cross-model trail: /review-spec 4 rounds + /review-plan 6 rounds + production-code-validator + code-review-specialist + qa-engineer (all REQUEST CHANGES/PASS WITH FOLLOW-UPS resolved inline). Final tests: shared 624 + api 4415 + bot 1237 + web 499 = 6,775 passing. Lint 0, typecheck clean, build clean. Branch deleted local + remote. **Operator action**: smoke test on prod after next release (deploy /hablar text "y los carbs?" / "hazlo de pollo en vez de cerdo" patterns). |
 | F-CATALOG-COV-001 | Catalog Coverage Round-3: targeted seed/alias expansion based on QA log NULL analysis | backend-feature (data) | pending | 0/6 | **Standard.** Data-driven seed expansion. Inputs: `docs/research/qa-2026-04-21-exhaustive-results.md` + post-Sprint-H6+ QA artifacts + missed_query_tracking table (F079). Goal: identify top NULL-ing query patterns NOT addressed by F-H6/F-H9, batch-add ~30-60 atoms or ~50-100 aliases. Pattern matches F-H6/F-H9 (Standard data-only). **Spec to define**: data source ranking, target NULL→OK delta, atom vs alias decision tree, ADR-019 compliance check. |
 
 ## Features — E009 Personalization & Tracking (Phase C continued)
