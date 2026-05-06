@@ -297,7 +297,8 @@ describe('level3Lookup', () => {
       .mockResolvedValueOnce({ rows: [MOCK_FOOD_NUTRIENT_ROW] }); // food nutrient fetch
 
     const db = buildMockDb() as never;
-    const result = await level3Lookup(db, 'hamburguesa', { openAiApiKey: 'sk-test-key' });
+    // Use 'ternera' to match food_name_es 'Carne de Ternera Picada' (F-H10 lexical guard: token overlap required)
+    const result = await level3Lookup(db, 'ternera', { openAiApiKey: 'sk-test-key' });
 
     expect(result).not.toBeNull();
     if (result === null) throw new Error('Expected non-null result');
@@ -311,7 +312,8 @@ describe('level3Lookup', () => {
       .mockResolvedValueOnce({ rows: [MOCK_FOOD_NUTRIENT_ROW] });
 
     const db = buildMockDb() as never;
-    const result = await level3Lookup(db, 'hamburguesa', { openAiApiKey: 'sk-test-key' });
+    // Use 'ternera' to match food_name_es 'Carne de Ternera Picada' (F-H10 lexical guard: token overlap required)
+    const result = await level3Lookup(db, 'ternera', { openAiApiKey: 'sk-test-key' });
 
     expect(result).not.toBeNull();
     if (result === null) throw new Error('Expected non-null result');
@@ -456,7 +458,8 @@ describe('level3Lookup', () => {
       .mockResolvedValueOnce({ rows: [MOCK_FOOD_NUTRIENT_ROW] });
 
     const db = buildMockDb() as never;
-    const result = await level3Lookup(db, 'hamburguesa', { openAiApiKey: 'sk-test-key' });
+    // Use 'ternera' to match food_name_es 'Carne de Ternera Picada' (F-H10 lexical guard: token overlap required)
+    const result = await level3Lookup(db, 'ternera', { openAiApiKey: 'sk-test-key' });
 
     expect(result).not.toBeNull();
     if (result === null) throw new Error('Expected non-null result');

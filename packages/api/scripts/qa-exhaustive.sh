@@ -134,7 +134,10 @@ try:
       src=(r.get('source',{}).get('name','?'))[:20]
       base_str=f'b={round(bn[\"calories\"])}' if bn else '-'
       pa_str=f'{pa[\"term\"]}/{pa[\"grams\"]}g/{pa[\"source\"][:3]}' if pa else '-'
-      print(f'OK {name} | {kcal}kcal | {pg}g | m={mult} | {base_str} | {pa_str} | {src}')
+      name_es_raw=r.get('nameEs') or '-'
+      name_en_raw=r.get('name') or '-'
+      mt=e.get('matchType','?')
+      print(f'OK {name} | {kcal}kcal | {pg}g | m={mult} | {base_str} | {pa_str} | {src} | mt={mt} | nameEs="{name_es_raw}" | nameEn="{name_en_raw}"')
     else:
       print(f'NULL result')
 except Exception as ex:

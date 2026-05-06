@@ -194,8 +194,10 @@ describe('level1Lookup', () => {
 
     // BUG-PROD-012: scope options (chainSlug) skip the Tier≥1 pre-cascade so this
     // test exercises the (intended) unfiltered cascade path, not the inverse-cascade pass.
+    // Query must overlap lexically with MOCK_DISH_ROW ('Big Mac') — F-H10-FU guard requires
+    // at least one shared token (jaccard('big mac doble', 'big mac') = 2/3 ≥ 0.25).
     const db = buildMockDb() as never;
-    const result = await level1Lookup(db, 'hamburguesa grande', { chainSlug: 'mcdonalds-es' });
+    const result = await level1Lookup(db, 'big mac doble', { chainSlug: 'mcdonalds-es' });
 
     expect(result).not.toBeNull();
     expect(result?.matchType).toBe('fts_dish');

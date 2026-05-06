@@ -344,8 +344,6 @@ The preprocessor is invoked from `POST /ingest/pdf-url` when an optional `chainS
 - (-) Schema migration adds complexity to F032
 - (-) Google Maps integration delayed to Phase 2
 
-**Full plan:** `docs/project_notes/strategic-plan-r1-r6.md`
-
 ### ADR-011: Multi-Modal Menu Analysis Pipeline — OCR vs Vision API Routing (2026-03-26)
 
 **Context:** F034 introduces `POST /analyze/menu`, a stateless endpoint that extracts dish names from restaurant menu photos/PDFs and returns per-dish nutritional estimates via `runEstimationCascade`. The endpoint must handle four distinct input scenarios: PDF menus, menu photos, single dish photos, and forced OCR mode. Each has different optimal extraction strategies, fallback behavior, and failure modes. Key architectural decisions were shaped by external review (Gemini 2.5 Pro: 3C+2I, Codex GPT-5.4: 2I+3S).
@@ -660,3 +658,172 @@ Cross-model consensus: both Codex and Gemini independently recommended Option C 
 - (+) Eliminates silent false-positive dishId mappings — the worst class of data bug.
 - (-) Generator no longer auto-discovers new dishes when `spanish-dishes.json` is extended; a curator must explicitly add an entry to `PRIORITY_DISH_MAP`. This is desirable — the map is a curation artifact, not a search result.
 - 9 priority names currently omitted: `chorizo`, `chuletón`, `arroz`, `bocadillo`, `pintxos`, `alitas de pollo`, `zamburiñas`, `berberechos`, `tostas`. Follow-up ticket **F114** will add `Chuletón de buey`, `Chorizo ibérico embutido`, and `Arroz blanco cocido` canonical entries.
+
+---
+
+### ADR-023: H7-P5 L1-Retry Seam Pattern in `engineRouter.ts` (2026-04-26)
+
+**Date:** 2026-04-26
+**Status:** Accepted
+**Context:** F-H7 requires trailing modifier stripping (e.g. `con sésamo`, `a baja temperatura`, `bien caliente`) that operates post-wrapper, between L1 and L2 in the estimation cascade. Trailing modifiers are conversational context that users append to dish names (`tataki de atún con sésamo`, `gazpachuelo malagueño bien caliente`) — they cause L1 exact-match to miss even though the base dish name (`tataki de atún`, `gazpachuelo malagueño`) is in the catalog. Modifying `extractFoodQuery()` to strip these suffixes before calling the cascade would (a) require a two-pass architecture (strip → extract → cascade), (b) conflate pre-lookup wrapper stripping with post-lookup trailing modifier removal, and (c) produce a query field in the cascade that no longer echoes the user's original text.
+
+**Decision:** Insert a retry seam between L1-null and L2 in `runEstimationCascade()` (in `packages/api/src/estimation/engineRouter.ts`). The seam applies pure-function trailing strip helpers from `packages/api/src/estimation/h7TrailingStrip.ts` (Cat A: conversational suffixes like "por favor", "bien caliente"; Cat B: cooking method suffixes like "a la plancha"; Cat C: trailing `con [tail]` with ≥2 pre-con token guard to prevent single-word landmine strips). If the stripped text differs from the original, L1 is retried once with the stripped text. If retry hits, the response uses `levelHit: 1` and echoes the raw (unstripped) `query` in `data.query`. If retry misses, falls through to L2 with the original `normalizedQuery` (conservative fallback principle).
+
+**Alternatives Considered:**
+- **Option A — Pre-lookup strip in `extractFoodQuery()`**: Strip trailing modifiers before the cascade is called. Rejected: conflates two distinct concerns; requires two-pass design; loses the invariant that `extractFoodQuery` output == user's unambiguous food reference; complicates the wrapper-then-strip composition.
+- **Option B — Post-pipeline normalizer in `estimationOrchestrator.ts`**: Apply strip in the orchestrator before calling `runEstimationCascade`. Rejected: same architectural conflation as Option A; orchestrator doesn't have visibility into which L1-miss produced which result.
+- **Option C — Expand L1 FTS query to handle modifiers via `tsquery`**: Teach the FTS engine to ignore appended modifiers. Rejected: complex query construction; would also match partial dish names incorrectly (e.g. `tataki de atún con gambas` should not hit `tataki de atún` via L1 — that conflation is the point of the retry seam's ≥2 token guard).
+
+**Consequences:**
+- (+) Clean separation of concerns: wrappers in `CONVERSATIONAL_WRAPPER_PATTERNS`, trailing modifiers in `h7TrailingStrip.ts`, cascade wiring in `engineRouter.ts`.
+- (+) Conservative: any strip that produces no L1 hit forwards the original text to L2/L3/L4 — no regression risk.
+- (+) Extensible: future strip categories can be added to `h7TrailingStrip.ts` without modifying the seam wiring.
+- (+) Raw `query` field always echoes the user's original text — no downstream surprise for callers reading `data.query`.
+- (-) One additional L1 DB query on every L1-miss. For queries that ultimately resolve via L2/L3/L4, this adds one extra round-trip. Acceptable for the target user population; L1 queries are indexed and fast.
+- The Cat C ≥2 pre-con token guard is essential: it prevents `arroz con leche` (1 pre-con token: "arroz") from being stripped to `arroz`, and generally protects single-word-dish `con` compounds that are catalog entries.
+
+---
+
+### ADR-024: Lexical Token-Overlap Guard for L3 Similarity Extrapolation (2026-04-27)
+
+**Date:** 2026-04-27
+**Status:** Accepted
+**Context:** L3 similarity extrapolation (pgvector cosine distance) produces false positives when two entity names share a high-weight token but refer to fundamentally different things. Canonical case Q649 (QA 2026-04-27): query `queso fresco con membrillo` matched `CROISSANT CON QUESO FRESC` (distance 0.18 < 0.5 threshold) because the embedding model assigns high proximity to the shared token "queso/fresc". See Spec section of ticket `F-H10-l3-threshold-tuning.md`.
+
+**Decision:** Add a **post-retrieval lexical guard** to `level3Lookup.ts`. After `fetchDishNutrients()` / `fetchFoodNutrients()` returns, compute the word-level Jaccard overlap between the normalized query and the candidate name. If `jaccard < LEXICAL_GUARD_MIN_OVERLAP (0.25)`, the candidate is rejected. Strategy 1 (dish) rejection falls through to Strategy 2 (food); Strategy 2 rejection returns `null`. The guard is a pure deterministic function `computeTokenJaccard(a, b)` operating on lowercase, punctuation-stripped, Spanish-stop-word-removed token sets.
+
+Threshold derivation: Q649 case produces Jaccard = 1/5 = 0.20 (single token "queso" shared across 5-token union). Setting threshold to 0.25 ensures this case is rejected (0.20 < 0.25) while 2-token overlaps on short queries (e.g. "tortilla" in "tortilla española" vs "tortilla de patatas", Jaccard ≈ 0.33) pass.
+
+**Alternatives Considered:**
+- **Strategy A (lower global cosine threshold):** Blind calibration without empirical distance distribution data. High regression risk on legitimate L3 hits.
+- **Strategy C (threshold tightening when overlap is low):** Two interacting parameters. Higher complexity for same outcome.
+- **Strategy D (chain-scoped guard):** Does not generalize to food strategy mismatches.
+
+**Consequences:**
+- (+) Additive and orthogonal to the cosine distance threshold — no existing behavior changed for legitimate hits.
+- (+) Single constant `LEXICAL_GUARD_MIN_OVERLAP` is tunable.
+- (+) Pure function with comprehensive unit tests; no DB interaction.
+- (+) ADR-001 compliance verified: guard is lexical matching (deterministic), not LLM-based nutrient interpretation.
+- (-) Spanish stop-word list is small and domain-specific; defined inline in `level3Lookup.ts`. Future features needing shared stop-word removal should refactor to a shared module.
+- (-) Jaccard operates on exact token strings (no stemming). "fresco" ≠ "fresc" (Catalan apocope) — this is acceptable since the overlap threshold is already calibrated to handle partial matches.
+
+#### ADR-024 Addendum: L1 FTS Extension (F-H10-FU, 2026-04-27)
+
+**Date:** 2026-04-27
+**Status:** Accepted — extends ADR-024
+
+**Context:** F-H10 wired `applyLexicalGuard()` exclusively into `level3Lookup.ts`. Post-deploy QA battery run on 2026-04-27 16:54 confirmed that Q649 (`queso fresco con membrillo`) still produces a false positive: `CROISSANT CON QUESO FRESC` (Starbucks Spain, 343 kcal) is returned at L1 FTS via `ftsDishMatch()` (Strategy 2) before the cascade ever reaches L3. The L3 guard is correct but never executes for this query path.
+
+Root cause: `ftsDishMatch()` uses a bilingual FTS query — `to_tsvector('spanish', COALESCE(d.name_es, d.name)) @@ plainto_tsquery(...)` OR `to_tsvector('english', d.name) @@ plainto_tsquery(...)`. Token overlap with "queso fresc" is sufficient for FTS to match CROISSANT at high confidence, even though the dishes are semantically unrelated (pastry vs cheese+quince plate).
+
+**Decision 1 — Extend guard to L1 FTS Strategies 2 and 4:**
+Wire the lexical guard into `runCascade()` in `level1Lookup.ts` immediately after each FTS strategy returns a hit (Strategies 2 and 4), before constructing and returning the `Level1Result`. Exact-match strategies (1 and 3) are exempt: an exact or alias match is inherently a lexical identity match and cannot be a false positive of this type. Guard-rejected hits fall through to the next strategy (S2 reject → S3; S4 reject → null).
+
+**Decision 2 — Dual-name OR semantics via private `passesGuardEither` helper:**
+L1 FTS is bilingual: a match may occur on the Spanish branch (COALESCE(name_es, name) with Spanish stemmer) OR the English branch (name with English stemmer). The matched branch is not exposed in the result row — only `name_es` and `name` columns are available. Comparing only against `name_es ?? name` (L3 pattern) would reject legitimate English-branch hits (example: query `bacon eggs` hits `Bacon and Eggs` via English FTS; `name_es = 'Beicon con huevos'`; guard against Spanish name alone would reject a valid match).
+
+Solution: private helper `passesGuardEither(query, nameEs, name)` evaluates `applyLexicalGuard` against BOTH names and returns `true` if EITHER clears the threshold (OR semantics). Null/undefined `nameEs` skips the Spanish side. The helper is local to `level1Lookup.ts` (not exported from `level3Lookup.ts`) because the dual-name OR semantics are L1-specific — L3 candidates only have Spanish-side names from `fetchDishNutrients()`.
+
+**Decision 3 — Retain threshold 0.25 for L1 FTS:**
+The same `LEXICAL_GUARD_MIN_OVERLAP = 0.25` constant is reused. L1 FTS is a higher-confidence retrieval mechanism than L3 pgvector (FTS guarantees token presence via `plainto_tsquery`; pgvector only requires proximity). This raises a theoretical risk of over-rejection on legitimate single-token FTS matches, which is resolved by the following analysis:
+
+Minimum safe Jaccard for a single-query-token match against an N-content-token candidate = 1/N (FTS guarantees the query token appears in the document, so intersection ≥ 1). Guard rejects only when N > 4 (1/N < 0.25), i.e., a 1-word query matching a 5+ meaningful-word candidate name where only 1 token overlaps. This is an extremely unlikely legitimate FTS hit for dish/food names in this domain. Empirical verification:
+- `paella` → `Paella valenciana` (N=2): Jaccard = 0.50 ≥ 0.25 → PASS
+- `tortilla` → `Tortilla de patatas` (N=2, after stop-word strip): Jaccard = 0.50 ≥ 0.25 → PASS
+- `gazpacho` → `Gazpacho andaluz` (N=2): Jaccard = 0.50 ≥ 0.25 → PASS
+- `queso fresco membrillo` → `CROISSANT CON QUESO FRESC` (N=3 content tokens, union=5): Jaccard = 0.20 < 0.25 → REJECT (correct)
+
+Pre-flight distribution analysis artifact: `docs/project_notes/F-H10-FU-jaccard-preflight.md` (operator action pending — see AC4 in ticket).
+
+**Guard injection points in `runCascade()`:**
+
+Strategy 2 (was):
+```typescript
+if (ftsDishRow !== undefined) {
+  return { matchType: 'fts_dish', result: mapDishRowToResult(ftsDishRow), rawFoodGroup: null };
+}
+```
+
+Strategy 2 (after):
+```typescript
+if (ftsDishRow !== undefined) {
+  if (passesGuardEither(normalizedQuery, ftsDishRow.dish_name_es, ftsDishRow.dish_name)) {
+    return { matchType: 'fts_dish', result: mapDishRowToResult(ftsDishRow), rawFoodGroup: null };
+  }
+  // Guard rejected on both sides — fall through to Strategy 3
+}
+```
+
+Same pattern for Strategy 4 with `ftsFoodRow.food_name_es` / `ftsFoodRow.food_name`.
+
+**Consequences:**
+- (+) Q649 false positive eliminated at source (L1 FTS layer, before cascade reaches L3).
+- (+) Guard is additive; no existing passing FTS hits are rejected (confirmed by single-token Jaccard analysis and regression test suite).
+- (+) H7-P5 retry seam interaction is safe: guard-induced null on a strippable query enables the desired unmask path (seam fires, retry with stripped form hits the legitimate dish). Guard-induced null on a non-strippable query propagates to L2 without seam firing. No infinite loop risk (seam fires at most once per request).
+- (+) BUG-PROD-012 two-pass interaction is safe: guard runs inside `runCascade()`, applied independently on each pass. Q649 correctly returns null on both passes.
+- (-) `passesGuardEither` is NOT exported — unit tests exercise it via cascade tests (Option A per plan). If direct unit testing of the helper is needed in future, it must be exported or tested via a different mechanism.
+- (-) Pre-flight Jaccard distribution analysis (AC4) was deferred to operator action post-implementation. Risk is low (dual-name OR semantics are strictly more permissive than F-H10's single-name guard), but the artifact should be completed before marking AC4 done.
+
+---
+
+#### ADR-024 Addendum 2: L1 Required-Token Guard (F-H10-FU2, 2026-04-28)
+
+**Date:** 2026-04-28
+**Status:** Accepted — extends ADR-024 and ADR-024 Addendum 1 (F-H10-FU)
+
+**Context:** Post-deploy operator verification on 2026-04-28 confirmed that Q649 (`queso fresco con membrillo` → `CROISSANT CON QUESO FRESCO`) is still accepted at L1 FTS under the Jaccard-only guard shipped in F-H10-FU (commit `73e1c97`). Root cause: the full `nameEs` is `CROISSANT CON QUESO FRESCO`; Jaccard against the full name is 2/4 = 0.50 ≥ 0.25 (threshold) → guard passes. The original spec incorrectly computed Jaccard against the truncated QA-display string `CROISSANT CON QUESO FRESC` (0.20 → reject). Additionally, 5 other false positives (Q178, Q312, Q345, Q378, Q580) were identified in the 2026-04-28 QA battery, 4 of which are rejected by F-H10-FU's Step 1 at the source level (reconciled in `F-H10-FU2-preflight-20260428.md` as a stale deploy artifact), with Q649 and Q378 passing Step 1.
+
+**Failure mode: Jaccard insufficient for multi-token semantic mismatches.** Any threshold sufficient to reject Q649 (> 0.50) would also reject single-token legitimate queries like `paella` → `Paella valenciana` (Jaccard = 0.50). Threshold tuning alone cannot distinguish between:
+- `queso fresco con membrillo` (queryHI={membrillo}) against `CROISSANT CON QUESO FRESCO` — semantic mismatch
+- `paella` against `Paella valenciana` — semantic match
+
+**Decision 4 — Required-token check as Step 2 of combined guard `passesGuardL1`:**
+
+A query token is "high-information" (HI) if it has normalized length ≥ 4 AND is not in `FOOD_STOP_WORDS_EXTENDED`. The combined guard `passesGuardL1` wraps `passesGuardEither` as Step 1, then applies the required-token check as Step 2:
+
+- Step 1: `passesGuardEither(query, nameEs, name)`. If false → REJECT immediately.
+- Step 2: Extract `queryHI = getHighInformationTokens(query)`. If empty → fall through (Jaccard-only behavior, EC-1).
+- Step 2a: If nameEs non-null → tokenize nameEs. If EVERY token in `queryHI` is present → ACCEPT.
+- Step 2b: Tokenize name. If EVERY token in `queryHI` is present → ACCEPT.
+- Otherwise → REJECT.
+
+**Why `every` (not `some`).** Using `some` (accept if ANY HI token is absent) is too strict and would reject legitimate matches where only one HI token is missing. The correct semantics is `every` — accept if ALL HI tokens are present. Empirically verified: `some` would still accept Q178/Q312 because `cola` IS present in `Huevas cocidas de merluza de cola patagónia` (a false positive). `every` correctly rejects because `coca` is absent.
+
+**Decision 5 — `FOOD_STOP_WORDS_EXTENDED` for HI token extraction.**
+
+The HI token filter uses a superset of `SPANISH_STOP_WORDS`:
+1. **Linguistic stop words** (14): `de, del, con, la, el, los, las, un, una, al, y, a, en, por`
+2. **Food-domain modifiers** (12, spec starter): `queso, fresco, leche, agua, plato, racion, tapa, pintxo, media, caliente, frio, natural`
+3. **Quantity/size modifiers** (expanded after Phase 0.2 simulation): `grande, normal, generosa, generoso, cuarto, triple, doble, algunos, algunas, tres, cuatro, cinco`
+4. **Serving containers** (expanded): `copas, copa, pinchos, pincho, rebanadas, rebanada, vaso, vasito, botella, botellin`
+5. **Preparation method modifiers** (expanded): `brasa, frito, frita, fritos, fritas, plancha, asado, asada`
+6. **Conversational filler** (expanded): `favor, para`
+7. **Food packaging/container** (expanded): `sobre, sopa, instantanea, instantaneo, lata`
+8. **Serving format**: `canas, cana` (cañas/caña = beer glass; NFD: caña→cana), `molde, crema`
+9. **Truncation artifact**: `verdu` (truncated "verduras" in QA capture)
+
+**Criteria for inclusion:** token is semantically common across many dish types; its presence alone does not justify a match; removing it does not cause false negatives on known QA battery (136-row simulation, 2026-04-28). DO NOT add primary dish identifiers (pollo, jamon, vino, paella, tortilla, etc.).
+
+**Phase 0.2 simulation result:** v1 starter list (26 tokens) yielded 26 false negatives. Expanded list (59 tokens) reduced to 5 FNs — all truncation artifacts from the QA capture's 40-char limit. Decision gate (≤ 5) passed.
+
+**Decision 6 — `token.length >= 4` heuristic for HI qualification.**
+
+3-character Spanish food words (`pan`, `ron`, `té`, `sal`) appear in many candidate names (`pan de cristal`, `ron caña`, `sal gorda`) and would cause systematic false negatives if treated as HI tokens. The length-4 cutoff is a practical heuristic balancing selectivity vs. coverage. Known limitation: very short food terms (< 4 chars) fall through to Jaccard-only, which may miss rare semantic mismatches. Acceptable for the current QA battery.
+
+**Decision 7 — L1→L3 delegation pattern for over-rejection on elaborated queries.**
+
+With `every` semantics, queries containing HI tokens NOT in the canonical catalog name are rejected at L1 even when semantically equivalent. Example: `tarta de queso casera` → `Tarta de queso` — queryHI = {tarta, casera}; `casera` absent from candidate → REJECT at L1. This is acceptable because the L3 embedding semantic check acts as a safety net. L1 stays strict to suppress noise; L3 catches semantic equivalents. If empirical QA confirms specific quality modifiers cause systematic L1 rejection of legitimate matches, extend `FOOD_STOP_WORDS_EXTENDED` in a follow-up ticket.
+
+**Q378 scope note:** `una copa de oporto` → postStrip (via extractFoodQuery) → `oporto`. queryHI = {oporto}. Candidate `Paté fresco de vino de Oporto` contains `oporto` → step2 ACCEPTS. This is correct L1 behavior — the semantic mismatch (drink vs. pâté) is delegated to L3 embedding. The original spec assumed `copa` would survive extractFoodQuery stripping; empirically it does not.
+
+**Call-site replacement:**
+
+Strategy 2 and Strategy 4 in `runCascade()` now call `passesGuardL1` instead of `passesGuardEither` directly. `passesGuardL1` is private to `level1Lookup.ts`, not exported. Tested exclusively via cascade tests per ADR-024 addendum decision 4.
+
+**Consequences:**
+- (+) All 5 known FPs from Step 2's `every`-HI-token check now rejected at L1 (Q649 ✓, Q178 ✓, Q312 ✓, Q345 ✓, Q580 ✓). Q378 correctly passes L1 and is delegated to L3.
+- (+) Single-token legitimate queries preserved (paella, gazpacho, tortilla, croquetas, etc.) — required-token check does not interfere.
+- (+) NFD normalization handles accented queries (jamón→jamon, ibérico→iberico, caña→cana).
+- (+) Bilingual OR semantics preserved — accept if all HI tokens in nameEs OR all HI tokens in name.
+- (-) Elaborated queries (e.g., `tortilla de patatas` against canonical `tortilla española`) are rejected at L1 and must be caught by L3. Two F-H10-FU regression fixtures required update (`TORTILLA_DISH_ROW`, `GAZPACHO_FOOD_ROW`) to use full canonical names — documented in ticket Completion Log.
+- (-) `FOOD_STOP_WORDS_EXTENDED` list requires ongoing curation. Aggressive extension causes false negatives; conservative extension leaves some FPs. QA battery re-run after each expansion is mandatory.

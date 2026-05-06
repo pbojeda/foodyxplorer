@@ -55,6 +55,37 @@ Write the following sections into the ticket's `## Implementation Plan` section:
 - Specific patterns from the codebase to follow (with file references)
 - Any gotchas or constraints the developer should know
 
+## Pre-Emission Verification (MANDATORY)
+
+Before writing the final plan, **verify every structural claim empirically against the actual code**. Planners that emit claims without verification produce plans with mechanical bugs (wrong paths, stale types, obsolete schemas, missing files, wrong primary key types) that block TDD and force re-planning.
+
+**IMPORTANT — do NOT hallucinate verification**: You MUST use your environment tools (`Grep`, `Read`, `Bash`) to actually execute these checks against the real code. Do NOT write fake commands or fabricated output to satisfy the format. If you have not executed the check, do not list it. Leaving the `Verification commands run` subsection empty is better than fabricating it — the downstream review-plan command is configured to treat empty verification as a flag for stricter review, not as a failure.
+
+For every item you intend to list under `Files to Modify`, `Files to Create`, `Key Patterns`, or `Existing Code to Reuse`:
+
+1. **Grep or read the referenced files** to confirm they exist at the path you cite
+2. **Verify types, enums, and validation schemas** mentioned match the current code. Use `Grep` on exported symbol names across the workspace — shared schemas often live in multiple packages, so one rewrite can leave dangling references
+3. **Verify primary keys, IDs, and foreign keys** by reading the ORM schema file (or equivalent) — don't assume `id` is a positive int when it's a `uuid`, and vice versa. Validator types MUST match the DB column type
+4. **Verify the current state of enums before proposing to drop or replace them** — enum types are often referenced in 2-3 places (TypeScript type, validation schema, ORM enum, DB column). ALL references must be cleaned in the SAME commit or the workspace breaks mid-migration
+5. **For any migration that DROPs a table or type**, confirm the table is either unused or its data has been backed up — add a pre-flight safety check to the plan
+
+After finishing the plan, append a final subsection to the ticket:
+
+### Verification commands run
+
+List every empirical check you executed using this format: `<command> → <observed fact> → <impact on plan>`. One line per check. **Every entry must have all three fields** — a bare command without an observed fact is not verification, it's cargo-culting.
+
+Example format:
+
+- `Grep: "Status" in src/` → 2 hits: `src/domain/order.ts:14`, `src/schemas/enums.ts:8` → both must be updated in the same commit as the migration, listed under "Files to Modify"
+- `Read: prisma/schema.prisma:45-60` → confirmed `id String @id @default(cuid())` → validator uses `z.string().cuid()`, NOT `z.string().uuid()` or `z.number().int()`
+- `Grep: "formatStatusLabel" in src/` → helper does not yet exist → list under "Files to Create" before commits that depend on it
+- (continue with every empirical check)
+
+**If this subsection is empty or missing**, prepend the plan with a warning: `⚠ This plan is text-only and has not been empirically verified against the code. Cross-model reviewers MUST run empirical checks before approving.`
+
+The `review-plan` command reads this subsection to calibrate reviewer effort. An empty or missing subsection is treated as a flag for stricter review.
+
 ## Rules
 
 - **NEVER** write implementation code — only the plan

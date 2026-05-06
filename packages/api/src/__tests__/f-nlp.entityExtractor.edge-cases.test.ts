@@ -34,10 +34,13 @@ describe('F-NLP edge-cases — mid-string wrapper NOT anchored', () => {
     expect(result.query).toBe('de postre me he tomado un flan');
   });
 
-  it('does NOT strip "hoy anoche cené paella" when temporal is repeated oddly', () => {
-    // Pattern 3 requires ^ anchor — "hoy anoche" won't match
+  it('F-H7: "en el restaurante anoche cené paella" NOW strips via H7-P2 (en [lugar] + eat-verb)', () => {
+    // F-H7 added H7-P2 at index 14 which covers "en [lugar] + eat-verb" forms.
+    // "en el restaurante anoche cené paella" — H7-P2 fires: strips "en el restaurante anoche cené "
+    // ARTICLE_PATTERN no-op (no leading article). Result: "paella".
+    // Updated from pre-F-H7 expectation of no-strip — H7-P2 intentionally handles this form.
     const result = extractFoodQuery('en el restaurante anoche cené paella');
-    expect(result.query).toBe('en el restaurante anoche cené paella');
+    expect(result.query).toBe('paella');
   });
 });
 

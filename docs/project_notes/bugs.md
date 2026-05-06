@@ -17,6 +17,232 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-04-30 — BUG-MODIFIERS-CAT-D-INTERACTION-001: F-MODIFIERS-001 strip ordering breaks H7 Cat D `es [phrase]?` recovery [P3 OPEN]
+
+- **Issue**: After F-MODIFIERS-001 deployment (PR #239 `b0d3e87`), one query in the 650-query QA battery regressed: `Q502 el hummus con pan de pita es casero?` was OK Hummus pre-deploy, now NULL post-deploy. Empirical confirmation: post-deploy battery `/tmp/qa-dev-baseline-pm-h6plus3-post-20260430-1057.txt` line 502 shows `NULL result` vs baseline `/tmp/qa-dev-baseline-pm-h6plus3-20260429-1550.txt` line 502 `OK Hummus | 180kcal`.
+- **Root cause**: pipeline ordering. `extractPortionModifier` runs in `conversationCore.ts` BEFORE the L1 cascade (where H7 Cat D fires inside `engineRouter.ts:178-209` retry seam). Pre F-MODIFIERS-001 the chain was: `extractFoodQuery` → L1 Pass 1 (miss) → H7 Cat D pattern `\bes\s+[a-z]+\?$` strips trailing `es casero?` → `el hummus con pan de pita` → L1 retry → Hummus FTS hit. Post F-MODIFIERS-001: `extractPortionModifier` strips bare `casero` first → query becomes `el hummus con pan de pita es ?`. H7 Cat D pattern requires a non-empty phrase between `es` and `?` → no match → no strip → L1 retry stays as-is → still misses → NULL.
+- **Bug class (structural)**: "queries of shape `X (es|está|lleva) <F-MODIFIERS-token>?` where `<F-MODIFIERS-token>` is one of the new modifiers (mediano/mediana/medianos/medianas/gigante/gigantes/casero/casera/caseros/caseras)". F-MODIFIERS strips the predicate token BEFORE Cat D's compound pattern can fire. Theoretical reach: any conversational question of form `<dish> es <new modifier>?` or `<dish> está <new modifier>?` or `<dish> lleva <new modifier>?` (pattern lleva [ingredient] is technically different but follows similar shape).
+- **Empirical scope**: 1 case in 650-query battery (Q502). Risk LOW per realistic-FP count. Class structurally enables more cases as conversational query patterns expand or new F-MODIFIERS tokens are added.
+- **Resolution path** — Standard ~1.5-2h ticket if pursued. Three options:
+  - **R1 — Reorder the pipeline**: run H7 Cat D BEFORE `extractPortionModifier` (move it out of `engineRouter.ts` retry seam into `conversationCore.ts` upstream chain). Risk: H7 Cat D was designed as a retry-seam fallback; moving upstream changes its semantics for non-modifier queries (could over-strip legitimate `está [adj]?` patterns where the adjective is a discriminator).
+  - **R2 — Cat D pattern extension**: add empty-phrase tolerance to Cat D regex (`\bes\s*\?$/i`) so that post-extractPortionModifier residue (`es ?`) gets stripped at retry time. Risk: over-stripping queries where bare `es ?` is intentional/meaningful.
+  - **R3 — extractPortionModifier context-aware**: don't strip bare `casero/mediano/gigante` when they appear inside a Cat D-style trailing question pattern (`(es|está|lleva)\s+\bcaser[oa]s?\s*\?$`). Risk: regex complexity + maintenance.
+- **Severity**: P3 OPEN. Defer until: (a) production traffic surfaces ≥ 2 additional realistic instances of the class beyond Q502, OR (b) BUG-OFF-FALLBACK or other Standard-class lexical ticket pursued in parallel could bundle this fix without scope explosion.
+- **Filed by**: External audit cycle 2026-04-30 during pm-h6plus3 post-deploy verification (battery `qa-dev-baseline-pm-h6plus3-post-20260430-1057.txt` line 502 vs baseline). Tradeoff explicit: the regression is structurally inevitable given F-MODIFIERS-001 single-pass design — accepted as cost of stripping the new modifier tokens upstream of L1, where the F-H10-FU2 over-rejection alleviation (4-5 realistic L1 hits gained) outweighs the 1-case Cat D recovery loss.
+
+---
+
+### 2026-04-29 — BUG-L1-FTS-SEMANTIC-MISMATCH-001: L1 FTS Strategy 4 returns semantically-wrong food candidate that passesGuardL1 ACCEPTS [P3 OPEN]
+
+- **Issue**: A class of L1 FTS Strategy 4 (food table) hits where `passesGuardL1` ACCEPTS the candidate (Jaccard ≥ 0.25 + every-HI token present in candidate) but the result is semantically wrong (drink vs paté, Spanish omelet vs Mexican flour tortilla, generic adjective vs specific dish). The lexical guard cannot distinguish these because the discriminating token IS shared between query and candidate.
+- **Affected user-visible queries** (verified empirically 2026-04-29 post-clean-cache battery):
+  - **Q378 `una copa de oporto`** → `Paté fresco de vino de Oporto` (paté not Port wine) — `level1Hit:true`, `mt:fts_food`. Post-strip query=`oporto`. Candidate tokens={pate, fresco, vino, oporto}. Jaccard 1/4=0.25 boundary PASS Step 1. Step 2 queryHI={oporto}, oporto IS in candidate → ACCEPT. **Realistic FP** (user-typed query: ordering Port at a bar).
+  - **Q394 `tres tortillas`** → `Tortillas Trigo` (Mexican flour tortillas, not Spanish omelet) — `level1Hit:true`, `mt:fts_food`. Post-strip (F-COUNT extracts `tres`)=`tortillas`. Candidate tokens={tortillas, trigo}. Jaccard 1/2=0.5 → ACCEPT. queryHI={tortillas} IS in candidate → ACCEPT. ✗ Unrealistic per user.
+  - **Q530 `un asiático, por favor`** → `Wok Asiático` — `level1Hit:true`, `mt:fts_food`. Post-strip=`asiatico`. Candidate tokens={wok, asiatico}. Jaccard 1/2=0.5 → ACCEPT. queryHI={asiatico} IS in candidate → ACCEPT. ✗ Unrealistic per user.
+- **Class**: "L1 FTS Strategy 4 prefers semantically-wrong candidate when query token superficially overlaps with regional/categorical variant in candidate name". Distinct from BUG-OFF-FALLBACK (l1:false) — these all have `level1Hit:true` because `runCascade` Strategy 4 returns the hit and `passesGuardL1` accepts.
+- **Why F-H10-FU2 Step 2 cannot fix this**: every-HI semantics requires every HI token from query to be present in candidate. In all 3 cases the discriminating token IS present (oporto, tortillas, asiatico) — what differs is the SEMANTIC CATEGORY (drink vs spread, Spanish vs Mexican cuisine, generic adjective vs specific dish). Lexical guards are insufficient by design — semantic check requires embedding similarity OR food-group classifier.
+- **Risk**: LOW per realistic-FP count (1 of 3 realistic per user judgement: Q378). Class structurally enables more cases as catalog grows; future expansions of OFF/Cocina-Española with regional variants could surface additional FPs.
+- **Resolution path** — Standard ~3-4h ticket if pursued. Algorithm options:
+  - **B1 L3 embedding cross-check at L1**: After `runCascade` Strategy 4 returns a hit, compute embedding similarity between query and candidate name; reject if cosine distance > threshold. Cost: latency + OpenAI call per L1 FTS hit (similar to L3). Probably overkill — L3 already does this if L1 misses.
+  - **B2 Food-group classifier**: Detect query category (drink, dish, ingredient) via simple lexicon; reject candidates from incompatible category (drink query → reject non-drink atoms). Requires taxonomy mapping for atoms (BEDCA-style food groups already exist as `food.food_group_es`).
+  - **B3 Inverted threshold**: Tighten Step 1 Jaccard threshold for FTS Strategy 4 specifically when query is short (≤ 2 tokens). Risk: regression on legitimate single-token queries (paella → Paella valenciana already at 0.5 boundary).
+- **Severity**: P3 OPEN. Defer until: (a) production traffic surfaces additional realistic Q378-class FPs, OR (b) BUG-OFF-FALLBACK pursued and same algorithm could close both classes, OR (c) F080-removal product decision (then this class shrinks to L1 only).
+- **Filed by**: Cross-agent audit cycle 2026-04-29 16:00 UTC during pm-h6plus3 pre-sprint analysis. Reclassified Q378 from BUG-OFF-FALLBACK-NO-GUARD-001 (where it was incorrectly attributed) and grouped with newly-discovered Q394 + Q530 from fresh battery sweep `/tmp/qa-dev-baseline-pm-h6plus3-20260429-1550.txt`.
+
+---
+
+### 2026-04-29 — BUG-H7-P5-OVERSTRIP-001: H7-P5 retry seam strips discriminating HI token, defeating F-H10-FU2 Step 2
+
+- **Issue**: After Render manual deploy (with "Clear build cache & deploy") of commit `2dca7a7` confirmed F-H10-FU2 IS active on api-dev (verified via `tarta de queso casera` → REJECT correctly), Q649 `después de la siesta piqué queso fresco con membrillo` STILL returns OK CROISSANT CON QUESO FRESCO with `level1Hit: true`. Direct probe of variations isolated the cause:
+  - `queso fresco con membrillo` → ACCEPT CROISSANT ❌ (the bug)
+  - `queso fresco membrillo` (no `con`) → REJECT ✓
+  - `queso con membrillo` (1 pre-con token) → REJECT ✓
+  - `fresco con membrillo` (1 pre-con token) → REJECT ✓
+- **Root cause**: H7-P5 retry seam in `engineRouter.ts:178-209`. When L1 Pass 1 returns null (correctly rejected by F-H10-FU2 `passesGuardL1` Step 2 because `membrillo` absent from candidate), `applyH7TrailingStrip` is called on the normalized query. H7 Cat C "trailing `con [tail]` strip" applies because pre-con fragment `queso fresco` has 2 tokens (Cat C requires ≥ 2 tokens before `con`). Result: `queso fresco con membrillo` → `queso fresco`. Retry L1 with stripped query:
+  - `passesGuardL1` Step 1: Jaccard(`queso fresco`, `CROISSANT CON QUESO FRESCO`) = 2/3 = 0.667 → PASS
+  - Step 2: queryHI for `queso fresco` = {} (both `queso` and `fresco` are in `FOOD_STOP_WORDS_EXTENDED`) → empty → fall through to Jaccard-only ACCEPT
+  - Returns CROISSANT with `level1Hit: true` (per the H7-P5 return path at engineRouter.ts:192).
+- **Why F-H10-FU2 spec missed this**: EC-6 documented "Two-pass cascade preservation (BUG-PROD-012)" — Tier-filter cascade inside `runCascade`. But H7-P5 retry is OUTSIDE `runCascade`, in `engineRouter.ts`. The spec analyzed Pass 1's behavior correctly but did not trace the post-rejection path through `engineRouter.runEstimationCascade`.
+- **Why the variations work correctly**: H7 Cat C requires ≥ 2 tokens before `con`. `queso con membrillo` and `fresco con membrillo` have only 1 → strip not applied → retry doesn't fire → REJECT preserved. `queso fresco membrillo` has no `con` → no strip → REJECT preserved.
+- **Risk**: HIGH for F-H10-FU2's stated user-visible goal (Q649). The Q580 `pollo al curri con arro blanco` also has `con` but Pass 1 already rejects (Jaccard 0.167 alone) and the retry stripped to `pollo al curri` would also reject because catalog has no exact match. Q649 is the single case where Pass 1 needs Step 2 AND the H7-P5 strip removes the only HI token.
+- **Resolution path** — F-H10-FU3 **DEFERRED to P3 backlog 2026-04-29** (cost-benefit + cross-agent audit findings):
+  - **Option A (cascade signal)**: Differentiate `runCascade` rejection reason. Return `{ rejected: true, by: 'guard' }` vs `null`. H7-P5 retry only fires if `null` (no match found), NOT if `rejected: 'guard'` (rejection was correct). Type change small but spans `runCascade` + `engineRouter.runEstimationCascade`.
+  - **Option B (re-evaluate post-retry against original query)** — **REJECTED 2026-04-29 by cross-agent audit**: empirically confirmed to break ≥ 6 existing tests in F-H7/F-H8 retry coverage. Concrete regression list (verified file:line):
+    - `packages/api/src/__tests__/fH7.engineRouter.integration.test.ts:224` — AC-4 "pollo al ajillo está muy guisado?" → "guisado" not in "Pollo al ajillo" → Option B rejects retry
+    - `packages/api/src/__tests__/fH8.cat24.unit.test.ts:61` — same query
+    - `packages/api/src/__tests__/fH8.cat24.unit.test.ts:88` — "el bonito en escabeche es de lata o casero?" → "casero" not in "Bonito en escabeche" → Option B rejects retry
+    - `packages/api/src/__tests__/fH7.trailing.unit.test.ts:29` — "tiramisú casero de postre" → "casero, postre" not in candidate → Option B rejects retry
+    - `packages/api/src/__tests__/fH7.trailing.unit.test.ts:37` — "michirones para picar" → "picar" not in candidate → Option B rejects retry
+    - `packages/api/src/__tests__/fH7.trailing.unit.test.ts:67` — "burrito de cochinita pibil con extra de picante" → "extra, picante" not in candidate → Option B rejects retry
+    Option B is semantically invasive — it inverts the F-H7/F-H8 retry seam principle ("strip wrappers like guisado/casero/para picar permits matching catalog atoms that the verbose query would not match"). Initial framing as "3-5 lines, easy rollback" was wrong — it's a semantic change with ≥ 6 known regressions.
+  - **Option C (narrow — Cat C only)**: H7 Cat C should not strip the LAST content token when it's the only HI token. Fixes Q649 specifically; leaves other Cats untouched.
+  - **Option C-generalized (PREFERRED if F-H10-FU3 pursued)**: applied to ALL `applyH7TrailingStrip` cats — skip strip when `queryHI(stripped) == empty AND queryHI(original) != empty`. Preserves the 6 legitimate retry tests above (they all have `queryHI(stripped) != empty` because the dish-name token like `tiramisú`, `michirones`, `bonito`, `pollo` survives the strip). Cancels strip only when the strip removes the ONLY HI token.
+- **Cost-benefit verdict (user-driven 2026-04-29)**: Q649 is a **single user-visible FP** in a **narrow pattern** ("X Y con Z" where X+Y are both in FOOD_STOP_WORDS_EXTENDED, Z is the only discriminator, Cat C strip qualifies because pre-con has ≥ 2 tokens, retry's stripped query happens to FTS-match the same wrong candidate). No other case in the 650-query QA battery exhibits this pattern. Standard ~3-4h fix for 1 query is poor ROI compared to BUG-OFF-FALLBACK-NO-GUARD-001 (Simple ~30min, 4 FPs) and other backlog items.
+- **Tests required if pursued** — extend fH10FU2 suite: assert `queso fresco con membrillo` produces null after H7-P5 retry; assert all 6 retry-test cases above still work post-fix; sweep QA battery for other "X Y con Z all-stop-Z-only-HI" patterns.
+- **Severity**: P3 (was P2 pre-audit) — DEFERRED. Single FP in narrow pattern; high regression risk on Option B; better-ROI bugs available.
+- **Reclassification 2026-04-29 (cross-agent audit)**: was Simple ~30min → now Standard ~3-4h IF pursued (full SDD pipeline + cross-model spec review + cross-model plan review + production-code-validator + code-review + qa-engineer + audit-merge). The bug emerges at the intersection of `passesGuardL1` (level1Lookup) + H7-P5 strip (engineRouter) + cascade rejection signaling — non-trivial solution space requires deliberate design.
+- **Filed by**: Operator post-deploy verification 2026-04-29 12:33 UTC. **Audit-revised 2026-04-29 13:00 UTC** after cross-agent review surfaced Option B test breakage and recommended deferral.
+
+---
+
+### 2026-04-29 — BUG-DEPLOY-DRIFT-001 [RESOLVED 2026-04-29 10:31]: api-dev binary stuck pre-F-H10-FU2 due to Render build-filter + docs-only deploy targets
+
+- **Issue**: Three QA batteries (2026-04-28 12:27 pre-redeploy + 2026-04-29 11:30 post-user-redeploy + 2026-04-29 12:01 post-`9baf248`-deploy) are **byte-identical** for the 6 known FPs. Q649 still returns `OK CROISSANT CON QUESO FRESCO` with `matchType: fts_dish`, `level1Hit: true` — the Starbucks Tier 0 chain dish that F-H10-FU2's Step 2 was specifically designed to reject. Direct API probe (uptime 58s post-`9baf248`) confirms `runCascade` Strategy 2 + `passesGuardL1` ACCEPTS — Step 2 NOT executing.
+- **Empirical contrast — what works**: Q178 `una coca cola` correctly returns `level1Hit: false` at L1 (Step 1 Jaccard 0.167 < 0.25 alone rejects — and that's F-H10-FU's existing behavior, NOT F-H10-FU2's contribution). Q580 `pollo al curri con arro blanco` also correctly NULLs (Step 1 0.167 rejects). The Q649 case is the ONLY one that requires F-H10-FU2's Step 2 (Jaccard 0.500 PASS Step 1; queryHI={membrillo} absent from candidate → Step 2 reject).
+- **Root cause CONFIRMED**: per `key_facts.md` line documenting Render configuration:
+  - `nutrixplorer-api-dev` has `autoDeploy=OFF` (set 2026-04-22).
+  - Build filter on api services: `Included = packages/api/**, packages/shared/**, packages/scraper/**, package.json, package-lock.json | Ignored = docs/**, packages/bot/**, **/*.md, **/*.test.ts`.
+  - PR #232 (`3c7cbf6`) and PR #233 (`9baf248`) are 100% docs-only — only `docs/**` and `*.md` files modified.
+  - When user manually deploys targeting these commits, Render evaluates the build filter and reports "no relevant changes" → SKIPS the build → continues serving the previous (older) binary.
+  - The previous binary on api-dev is from before F-H10-FU2 was merged (likely `73e1c97` F-H10-FU only or earlier).
+- **Why we missed this**: vitest harness at HEAD source confirmed F-H10-FU2 algorithm rejects Q649. PD1-PD6 logic assumed "new deploy + new battery = new behavior". The build-filter interaction with docs-only deploy targets was not anticipated.
+- **Risk**: HIGH for F-H10-FU2's stated purpose (Q649 fix). MEDIUM for development workflow — any future docs-only PR after a code change creates the same skip-and-stale pattern unless operator deliberately targets the code-change commit on next manual deploy.
+- **Resolution (operator action)**: in Render dashboard for `nutrixplorer-api-dev`:
+  1. **Manual Deploy → Deploy specific commit** → enter SHA `49770ad` (F-H10-FU2 feat commit, first to touch `packages/api/src/estimation/level1Lookup.ts`).
+  2. Alternative SHAs: `d46fa26` (F-H10-FU2 review fixes), `f70271f` (BUG-DATA-DUPLICATE collapse — also touches `packages/api/`).
+  3. If filter still skips: select **"Clear build cache & deploy"** in the manual deploy dialog.
+  4. Verify post-deploy: `curl https://api-dev.nutrixplorer.com/health` → uptime should be small; then re-run `qa-exhaustive.sh`. Expected outcome: Q649 → NULL (F-H10-FU2 Step 2 rejects); Q178/Q312/Q345/Q378 → still OK (F080 unguarded path — separate fix in BUG-OFF-FALLBACK-NO-GUARD-001).
+- **Prevention**: workflow guideline added — when scheduling manual Render deploys for code changes, operator must target a commit that touches `packages/api/**` (i.e., the code-change commit, NOT the subsequent docs-only housekeeping commit). Consider toggling `autoDeploy=ON` temporarily on `api-dev` when shipping a backend feature, then back to OFF after deploy completes — sidesteps the filter entirely.
+- **Filed by**: Post-deploy verification 2026-04-29 during F-H10-FU2 PD1-PD6 audit. Updated 2026-04-29 12:05 UTC with confirmed root cause after 3 identical batteries proved Render build-filter interaction.
+
+---
+
+### 2026-04-29 — BUG-OFF-FALLBACK-NO-GUARD-001: F080 OFF Tier 3 fallback bypasses lexical guard [P3 DEFERRED 2026-04-29 16:30 UTC]
+
+- **Issue**: F080 OFF Tier 3 fallback at `engineRouter.ts:282` calls `offFallbackFoodMatch` (from `level1Lookup.ts:572`) and returns the result WITHOUT applying any lexical guard. When `runCascade` rejects via `passesGuardL1` and L3 also misses, control falls through to F080 which does an unscoped FTS against OFF products and returns the highest-rank match. Architectural fingerprint of the unguarded path: `level1Hit: false`, `level3Hit: true`, `matchType: fts_food`, `source: Open Food Facts`.
+- **Affected user-visible queries from this path** (verified empirically post-clean-cache battery 2026-04-29 15:50 UTC `/tmp/qa-dev-baseline-pm-h6plus3-20260429-1550.txt`):
+  - Q178: `una coca cola` → Huevas cocidas de merluza de cola patagónia ✓ realistic FP
+  - Q312: `coca cola grande` → same ✓ realistic FP
+  - Q270: `unas cañas` → `natural cana` (Yogur de caña) ✓ realistic FP **[NEW]**
+  - Q362: `acabo de beberme dos cañas` → same ✓ realistic FP **[NEW]**
+  - Q338: `tapa` → Presunto Serrano Tapas ✗ unrealistic (per user 2026-04-29: "tapa solo nadie la busca, siempre tapa de X") **[NEW]**
+  - Q345: `un poco de todo` → Patatas aptas para todo uso ✗ unrealistic **[NEW unrealistic flag]**
+  - Q391: `las paellas` → Verdura para paella ✗ unrealistic **[NEW]**
+  - Q392: `un paellas` → Verdura para paella ✗ unrealistic **[NEW]**
+- **Q378 OUT — moved to BUG-L1-FTS-SEMANTIC-MISMATCH-001**: empirical re-probe 2026-04-29 confirmed Q378 `una copa de oporto` has `level1Hit:true` (passes through L1 FTS Strategy 4 with passesGuardL1 ACCEPT — Jaccard 0.25 boundary + `oporto` token in candidate). NOT F080 path. Original 2026-04-29 12:33 UTC filing incorrectly attributed Q378 to this bug.
+- **Root cause**: Architectural gap. F-H10/F-H10-FU/F-H10-FU2 all wired the lexical guard into the L1 `runCascade` strategies (L1 Strategy 2 + 4 + L3 cascade). The F080 OFF Tier 3 fallback was added by F080 (PR before F-H10) and was never extended to apply the guard.
+- **Why initial fix proposal (option a/b/c) is insufficient — empirically verified 2026-04-29 16:00 UTC via vitest harness**: wrapping `offFallbackFoodMatch` with `applyLexicalGuard` (Jaccard threshold 0.25, no stemming, exact-string token match) breaks **3 legitimate F080 matches** because singular↔plural are distinct tokens:
+  - Q259 `natilla` → `Natillas`: Jaccard = 0/2 = 0.000 → REJECT ❌ regression (correct match today)
+  - Q393 `dos cafes` → `Café`: Jaccard = 0/2 = 0.000 → REJECT ❌ regression (correct match today)
+  - `ciruela` → `Ciruelas Ameixas` (manual probe): Jaccard = 0/3 = 0.000 → REJECT ❌ regression
+  Option (c) refactor to shared `lexicalGuards.ts` module + `passesGuardL1` exhibits same regression because Step 1 = `passesGuardEither` = same `applyLexicalGuard`.
+- **Realistic ROI math (per user judgement on which queries users actually type)**:
+  - F080-fix-covered realistic FPs: 4 (Q178, Q312, Q270, Q362)
+  - F080-fix-covered unrealistic FPs: 4 (Q338, Q345, Q391, Q392)
+  - Realistic legitimates broken: 3 (Q259 natilla, Q393 dos cafes, ciruela)
+  - **Net realistic = +1 fix, with UX asymmetry: wrong-match→null on common queries (natilla, dos cafes) is perceived as "app broken" — more severe than current wrong-match which user re-phrases.**
+- **Algorithm options reconsidered (none trivial)**:
+  - A1 Stemming (Snowball Spanish) in tokenize — Standard ~3-4h, new dependency, resolves plural↔singular cleanly
+  - A2 Prefix-tolerance match (token match if `abs(len(a)-len(b)) ≤ 2 AND prefix overlap ≥ 4`) — Standard ~2-3h heuristic, edge cases
+  - A3 pg_trgm threshold filter in SQL (in `offFallbackFoodMatch` directly) — Standard ~2-3h, leverages existing trgm + needs migration testing
+  - A4 Food-group classifier blacklist (drink queries → block non-drink groups) — Standard ~4-5h, requires taxonomy mapping
+  - A5 Wrap with `applyLexicalGuard` accepting the 3 known regressions — Simple ~30min, net coverage degraded, user-visible regression
+- **Severity**: P2 → **P3 DEFERRED 2026-04-29 16:30 UTC** (cost-benefit + cross-agent audit findings):
+  - Standard ~3-4h work (not Simple ~30min) for any algorithmically-correct fix
+  - Net realistic ROI ~0 to +1 (4 realistic fixes – 3 realistic regressions)
+  - UX asymmetry argument: wrong-match→null regression is worse than wrong-match retention
+  - Better-ROI items available in pm-h6plus3 backlog (F-H7-FU1, F-MODIFIERS-001, F-CHARCUTERIE-001 — Simple, no architectural risk, ~2.5h total)
+  - Pursue if: production traffic surfaces additional realistic F080 FPs that justify Standard work, OR product stakeholder confirms 4 realistic FPs justify ~3-4h algorithm change
+- **Tests required if pursued**: new file `bugOffFallbackGuard.unit.test.ts` covering Q178/Q312/Q270/Q362 fixtures (must REJECT) + Q259/Q393/`ciruela` fixtures (must ACCEPT via chosen algorithm — confirms no regression).
+- **Filed by**: Post-deploy verification 2026-04-29 12:33 UTC. **Cross-agent audit-revised + reclassified P3 DEFERRED 2026-04-29 16:30 UTC** after fresh post-clean-cache battery (650 queries) + 4 cross-agent audit cycles (R1-R4) + empirical Jaccard regression trace surfaced (a) Q378 reclassification, (b) 5 new FPs not previously enumerated, (c) 3 legitimate F080 matches that fix would break.
+
+---
+
+### 2026-04-28 — F-MODIFIERS-001: extractPortionModifier missing `mediano/a`, `gigante`, standalone `casero/a` (filed during F-H10-FU2 spec audit) [RESOLVED 2026-04-29]
+
+- **Issue**: During the F-H10-FU2 spec discussion (required-token L1 guard), the user asked whether existing modifier-strip logic in the project was being duplicated. An Explore-agent audit confirmed `extractPortionModifier()` at `packages/api/src/conversation/entityExtractor.ts:170-224` already strip-extracts size/quality modifiers as nutritional multipliers BEFORE L1 lookup: `grande` (1.5×), `pequeño/a` (0.7×), `enorme` (2.0×), `mini` (0.7×), `media` / `media ración` (0.5×), `extra` (1.5×), `buen[ao]s` (1.0×), `generos[ao]s` (1.0×). Three common modifiers are MISSING from the PATTERNS array:
+  - `mediano/a` — common size descriptor (medium); should be 1.0× (informational, no nutritional change)
+  - `gigante` — common size descriptor (giant); should be 2.0× (parallel to `enorme`)
+  - `casero/a` standalone — currently ONLY handled in the H7 Cat A compound `casero de postre` (`h7TrailingStrip.ts:14`); not as a standalone trailing modifier
+- **Concrete failure modes (under F-H10-FU2's stricter `every`-HI guard)**:
+  - `tarta de queso casera` → L1 sees `tarta queso casera` (queryHI = {tarta, casera} after `queso` stop-worded). Candidate `Tarta de queso` lacks `casera` → required-token rejects at L1. (L3 embedding rescues, but unnecessary delegation.)
+  - `paella mediana` → L1 sees `paella mediana` (queryHI = {paella, mediana}). Candidate `Paella valenciana` lacks `mediana` → reject. Should have been `paella` × 1.0 multiplier.
+  - `pizza gigante` → L1 sees `pizza gigante` (queryHI = {pizza, gigante}). Most pizza atoms lack `gigante` → reject. Should have been `pizza` × 2.0 multiplier.
+- **Risk**: LOW pre-F-H10-FU2 (Jaccard 0.5 still passes for these cases). MEDIUM post-F-H10-FU2 (every-HI semantics is strict; L3 rescues but adds latency + OpenAI cost per call).
+- **Resolution**: Add 3 entries to PATTERNS array in `extractPortionModifier()`:
+  ```typescript
+  { kind: 'fixed', regex: /\bmedian[oa]s?\b/i, multiplier: 1.0 },
+  { kind: 'fixed', regex: /\bgigantes?\b/i,    multiplier: 2.0 },
+  { kind: 'fixed', regex: /\bcaser[oa]s?\b/i,  multiplier: 1.0 },
+  ```
+  Also extend ración-compound patterns at lines 188-197 (`/\bracion?\s+median[oa]s?\s+de\b/i`, etc.) for parity. Tests in `packages/api/src/__tests__/f070.entityExtractor.unit.test.ts` (or current entityExtractor test file).
+- **Severity**: P3 — quality-of-life improvement; not blocking F-H10-FU2 itself.
+- **Filed by**: orchestrator post-Explore audit 2026-04-28 during F-H10-FU2 Step 0.
+- **Resolution**: PR #239 squash-merged at `b0d3e87` 2026-04-29. Added 5 patterns (3 bare + 2 ración compound) to `entityExtractor.ts:170-228`: `mediano/a/s/as` (1.0×), `gigantes?` (2.0×), `casero/a/s/as` (1.0×), `ración mediana` (1.0×), `ración gigante` (2.0×). 24 unit tests in new `f-modifiers.entityExtractor.unit.test.ts` (+3 boundary regression tests for medianoche/gigantesco/medianamente per code-review N1). Default suite 4244 → 4268 (+24); lint 0; build clean. code-review-specialist APPROVE WITH MINOR; all 3 findings (N2 mandatory + N1 + I1) applied. Catalog conflict pre-check verified safe: 2 atoms + 3 aliases with `casero` route correctly post-strip via FTS Strategy 4.
+
+---
+
+### 2026-04-28 — F-CHARCUTERIE-001: standalone charcuterie atoms missing (Jamón serrano, Cecina, Lomo embuchado) [RESOLVED 2026-04-29]
+
+- **Issue**: User reported during F-H10-FU2 spec discussion (2026-04-28) that searching `jamón serrano` always returns `Bocadillo de jamón serrano` rather than the cured charcuterie standalone. Confirmed via grep on `packages/api/prisma/seed-data/spanish-dishes.json`:
+  - `Jamón ibérico` exists as standalone embutido atom ✓
+  - `Chorizo ibérico embutido` exists as standalone atom ✓
+  - `Jamón serrano` is MISSING — only `Bocadillo de jamón serrano` (dish) + alias `montadito de jamón serrano` exist
+  - `Cecina` (cured beef, León DOP) is MISSING entirely
+  - `Lomo embuchado` (cured pork loin) is MISSING — only the dish forms exist (`Lomo a la plancha`, `Cinta de lomo al horno`, `Bocadillo de lomo`, `Lomo con pimientos y patatas`)
+- **Resolution**: Add 3 atoms to `spanish-dishes.json` following the F-H6/F-H9 seed expansion pattern. Each atom needs:
+  - id (next available CE-XXX, currently 317 → would be CE-318/319/320)
+  - name + nameEs (e.g., `Jamón serrano`, `Serrano ham`)
+  - kcal_per_100g, macros, sodium_mg, fiber_g per BEDCA reference
+  - aliases list (consider: `lomo curado`, `cecina de león`, `lomo ibérico`)
+  - source priority tier
+  - Portion rows in `standard-portions.csv` (typical serving: 30-50g for cured charcuterie)
+- **Acceptance**: catalog count 316 → 319 (+3 — note: baseline at implementation time was 316 not 317 due to BUG-DATA-DUPLICATE-ATOM-001 collapsing CE-281 between filing and resolution); validator passes; alias coverage tested in seed expansion edge-case suite.
+- **Severity**: P3 — catalog completeness gap; user-facing impact: incorrect routing of bare charcuterie queries to compound dish atoms.
+- **Filed by**: orchestrator post user observation 2026-04-28 during F-H10-FU2 Step 0.
+- **Resolution**: PR #241 squash-merged at `620beab` 2026-04-29. Added 3 atoms (CE-318 Jamón serrano, CE-319 Cecina, CE-320 Lomo embuchado) to `spanish-dishes.json` per BEDCA reference values + 12 standard-portions.csv rows + 15 count assertion updates across 3 test files (f073/f114/fH6) + key_facts.md attribution. Aliases: `jamón curado serrano`, `cecina de león`, `lomo curado`, `lomo ibérico`. Catalog 316 → 319. code-review-specialist APPROVE no blockers (1 MINOR salt/sodium ratio + 3 NIT all optional). Operator action post-merge: reseed dev+prod with `EXPECTED_DISH_COUNT=319` override.
+
+---
+
+### 2026-04-28 — F-H10-FU2: Jaccard threshold-based guard insufficient to fix Q649 (semantic mismatch problem) [RESOLVED — PR #229 `49770ad`]
+
+- **Issue**: F-H10-FU shipped the L1 lexical guard with `passesGuardEither(query, nameEs, name)` and OR-semantics + threshold 0.25. Post-deploy verification on api-dev (commit `73e1c97`, deploy 2026-04-28 morning) re-runs the QA battery and Q649 STILL returns `CROISSANT CON QUESO FRESCO`. Battery file: `/tmp/qa-dev-post-fH10FU-20260428-1217.txt:649`.
+- **Root cause (definitive empirical analysis)**: F-H10-FU's spec computed Jaccard against the **truncated display name** `CROISSANT CON QUESO FRESC` (25-char QA-output truncation), arriving at Jaccard = 0.20 (would-reject). The actual full dish nameEs is `CROISSANT CON QUESO FRESCO` (with `O` final). With the full name:
+  - Query tokens after stop-word strip: `{queso, fresco, membrillo}` (3 content tokens)
+  - Candidate tokens after stop-word strip: `{croissant, queso, fresco}` (3 content tokens — `con` removed)
+  - Intersection: `{queso, fresco}` = 2 tokens
+  - Union: `{croissant, queso, fresco, membrillo}` = 4 tokens
+  - Jaccard: **2/4 = 0.50** ≥ 0.25 → guard ACCEPTS (incorrectly)
+- **Why threshold tuning alone CANNOT fix this**: raising threshold above 0.50 would correctly reject Q649 BUT also break legitimate single-token queries against 2-content-token candidates, e.g. `paella` → `Paella valenciana` (Jaccard = 0.50). Single-token queries are common (post-wrapper-strip many queries reduce to 1 word). Any threshold > 0.50 has unacceptable false-negative rate.
+- **Other false positives detected in same QA battery** (semantically similar problem, same Jaccard-acceptance signature):
+  - Q178 / Q312: `coca cola` → `Huevas cocidas de merluza de cola patagónia` (sea-food not soda)
+  - Q378: `una copa de oporto` → `Paté fresco de vino de Oporto` (paté not Port wine)
+  - Q345: `un poco de todo` → `Patatas aptas para todo uso culinario` (filler matches catalog noise)
+  - Q580: `pollo al curri con arro blanco` → `Foccacia Pollo al Curry` (catalog gap; semantic mismatch)
+- **Risk**: MEDIUM — multiple false positives confirm the lexical-only approach has structural limits. Most are LOW severity in isolation (kcal estimates plausible) but reputational/correctness risk grows with each. F-H10-FU IS still net-positive: it correctly rejects ~115 candidates that would have been false positives at L1, AND shipped the reusable infrastructure.
+- **Resolution path** — F-H10-FU2 ticket needed (Standard, ~4-6h). Algorithm options:
+  - **Option A (lightweight)**: Required-token check — compute "high-information" tokens of the query (length ≥ 4, not in food-stop-word list like `queso, fresco, leche, agua, plato, ración`); if any HI token absent from candidate, reject. Q649: `membrillo` is HI, not in candidate → reject ✓. paella → Paella valenciana: `paella` is HI, present in candidate → accept ✓.
+  - **Option B (medium)**: TF-IDF or BM25 with food-corpus IDF — common food words like `queso, fresco` get low weight, distinctive ones like `membrillo, oporto, croissant` get high weight. Compute weighted similarity; reject below threshold.
+  - **Option C (heavy)**: Embedding-similarity cross-check at L1 — invoke `callOpenAIEmbeddings` once per FTS hit and verify cosine similarity ≥ threshold against the L1 candidate embedding. Cost: latency + OpenAI API call per L1 FTS hit. Probably overkill for L1; L3 already does this.
+  - **Recommended**: Option A as a quick fix layered on top of existing Jaccard guard. Simple to implement, no extra dependencies, semantic intuition matches the failure mode. If Option A insufficient, escalate to B.
+- **Tests required**: new `fH10FU2.l1RequiredTokenGuard.unit.test.ts`. At minimum cover: Q649 (rejected), Q178/Q312 (rejected), Q378 (rejected), paella → Paella valenciana (accepted), tortilla → Tortilla de patatas (accepted), gazpacho → Gazpacho andaluz (accepted), single-token edge cases.
+- **Severity**: P2 — F-H10-FU's stated goal (Q649 fix) not empirically achieved. Same severity-class as the F-H10-FU follow-up itself. Not a regression — Q649 was broken pre-F-H10 and pre-F-H10-FU.
+- **Filed by**: orchestrator post-deploy verification 2026-04-28. Empirical artifact at `docs/project_notes/F-H10-FU-jaccard-preflight.md`.
+
+### 2026-04-27 — F-H10-FU: lexical guard must extend to L1 FTS (Q649 fix incomplete after F-H10) [PARTIALLY RESOLVED — see F-H10-FU2 above]
+
+- **Issue**: F-H10's lexical guard (`applyLexicalGuard` + `computeTokenJaccard` in `level3Lookup.ts:99`) was wired ONLY into the L3 cascade. Empirical post-deploy QA battery dev (2026-04-27 16:54, `/tmp/qa-dev-post-fH9-fH10-20260427-1654.txt`) confirms Q649 (`queso fresco con membrillo`) still returns `CROISSANT CON QUESO FRESC` (Starbucks Spain, 343 kcal) — identical to pre-F-H10 behavior. F-H10's stated AC-1 (Q649 fix) NOT empirically achieved.
+- **Root Cause**: F-H10 spec assumed the false positive was an L3 vector-similarity issue. Empirically it is an **L1 FTS issue**: `CROISSANT CON QUESO FRESC` is from Starbucks PDF ingest (not in `spanish-dishes.json`), and the L1 FTS search matches `queso fresco` query tokens against `QUESO FRESC` in the dish nameEs with high tsrank, returning the CROISSANT before L3 ever runs. The lexical guard at L3 never executes for this query path.
+- **Risk**: LOW for production correctness — Q649 is a single false positive in 650-query QA battery; the returned dish has plausible kcal (343) so impact is limited. The lexical guard infrastructure SHIPPED in F-H10 is sound and protects L3 path correctly. **Risk is reputational**: F-H10 PR body claims "Q649 false positive correctly rejected" — this claim is empirically false post-deploy. ADR-024 also frames the guard as solving Q649; needs amendment or follow-up note.
+- **Resolution plan**: Standard SDD ticket F-H10-FU.
+  - **Single file change**: `packages/api/src/estimation/level1Lookup.ts` — wire `applyLexicalGuard(query, hit.nameEs ?? hit.name)` after FTS hit, before returning result. If guard rejects, fall through to L2 (existing cascade behavior).
+  - **Reuse**: import `applyLexicalGuard` from `level3Lookup.ts` (already exported as part of F-H10).
+  - **Tests**: new `fH10FU.l1LexicalGuard.unit.test.ts` mirroring the F-H10 test pattern; integration test `fH10FU.q649.unit.test.ts` for the empirical Q649 fixture.
+  - **Risk**: must verify the guard at L1 doesn't reject legitimate FTS matches. Pre-flight: enumerate all current L1 hits in QA battery (pre-F-H10-FU) and compute their Jaccard scores; threshold should remain 0.25 (consistent with F-H10) unless empirical data shows otherwise.
+  - Estimated effort: ~3h (Standard, full cross-model spec/plan review per workflow).
+- **Tracked**: F-H10-FU follow-up (Standard). Empirical evidence: `/tmp/qa-dev-post-fH9-fH10-20260427-1654.txt:649`. Code reuse: 100% from F-H10.
+- **Severity**: P3 — stated feature goal (Q649 fix) not empirically achieved; underlying infrastructure (lexical guard) shipped and reusable. Not a regression — Q649 was already broken pre-F-H10.
+- **Found by**: post-deploy QA battery dev 2026-04-27 (operator action after F-H9+F-H10 merge)
+- **Feature**: F-H10 | **PR**: #222 | **Merge**: `ffd2ece` | **Follow-up**: F-H10-FU (next Standard SDD ticket)
+
+### 2026-04-26 — F-H7-FU1: 4 missing landmine integration tests (qa-engineer F2 follow-up) [RESOLVED 2026-04-29]
+
+- **Issue**: F-H7's `fH7.engineRouter.integration.test.ts` tests only 2 of the 6 landmine corpus dishes specified in the spec for AC-5 verification. Missing: `sepia a la plancha`, `tostada con tomate y aceite`, `café con leche`, `gambas al ajillo`. qa-engineer flagged as LOW severity (F2 finding).
+- **Root Cause**: `fH7.engineRouter.integration.test.ts` uses minimal real-DB fixture inserts to keep test file scope tight. The 4 additional landmines would require additional fixture inserts in `beforeAll` that were deferred during Phase 5b implementation.
+- **Risk**: LOW — the H7-P5 retry-seam architecture protects ALL catalog dishes via L1 Pass 1 (the seam never runs when L1 hits the full text). The Cat C `≥2 pre-con tokens` guard is unit-tested in `fH7.trailing.unit.test.ts` and `fH7.edge-cases.observability.test.ts` (qa added 6 landmine guard verifications at function level). Production protection is independent of the missing integration coverage.
+- **Resolution**: PR #237 squash-merged at `614ea66` 2026-04-29. Added 4 fixture UUIDs (070/071, 080/081, 090/091, 100/101) + 4 `it(...)` blocks in `fH7.engineRouter.integration.test.ts`, each asserting `levelHit === 1` + `data.level1Hit === true`. Integration suite 8 → 12 (+4); default suite 4244/4244 unchanged; lint 0; build clean. code-review-specialist APPROVE no blockers.
+- **Tracked**: Spec AC-5 + AC-7 (architecture-level) covered; integration coverage delta CLOSED.
+
 ### 2026-04-23 — F-NLP-CHAIN-ORDERING: `extractPortionModifier` ran before `extractFoodQuery` wrapper strip
 
 - **Issue**: `POST /conversation/message` silently dropped numeric counts for wrapper-prefixed queries. Input `"me he bebido dos cañas de cerveza"` returned `portionMultiplier=1` (expected 2) because `extractPortionModifier` matched patterns anchored at the start of the raw input — the `"me he bebido"` wrapper prevented the count token from being at index 0. Clitic-form inputs like `"acabo de beberme 3 cañas"` failed doubly: wrapper pattern 5 at `entityExtractor.ts:545` didn't support the clitic suffix at all, so `extractFoodQuery` also failed to strip, leaving the entire query unprocessed.
@@ -55,6 +281,15 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Severity**: P3 (flake only; no product impact, rare occurrence)
 
 ---
+
+### 2026-04-26 — BUG-DATA-DUPLICATE-ATOM-001: CE-281 (Esqueixada de bacallà) is the same dish as pre-existing CE-095 (Esqueixada) [RESOLVED — PR #231 `f70271f`]
+
+- **Issue**: F-H6 introduced CE-281 `Esqueixada de bacallà` as a new atom to resolve Q465 (`media ración de esqueixada de bacallà`). Code-review-specialist (PR #211) flagged that this is the same Catalan salt-cod salad as the pre-existing CE-095 `Esqueixada` (alias `esqueixada de bacalao`). Esqueixada is invariably bacalao-based; the long-form is just the Catalan name. Two atoms with overlapping concept return inconsistent kcal estimates (CE-095: 80 kcal/100g vs CE-281: 120 kcal/100g) for orthographic variants of the same query.
+- **Root Cause**: Spec's pre-check used lowercase grep on alias strings; the Catalan spelling `bacallà/bacalà` did not match `bacalao` so the duplicate-detection failed. The spec's diagnosis was "MISSING ATOM" when the right diagnosis was "ALIAS GAP on CE-095".
+- **Status**: NOT FIXED. F-H6 merged with the duplicate atom (acceptable since not user-blocking — the orthographic form `esqueixada de bacallà` resolves to a valid kcal estimate via CE-281; only inconsistency is between language variants of the same query). Code-reviewer recommended filing this follow-up rather than blocking merge.
+- **Proposed Solution** (next sprint): collapse CE-281 → CE-095. Specifically: (a) move Catalan-spelling aliases (`esqueixada de bacallà`, `esqueixada de bacalà`, `esqueixada catalana`) from CE-281 to CE-095; (b) delete CE-281 (DB rows for Dish/DishNutrient/StandardPortion via revised rollback SQL); (c) re-decrement count 307→306 (key_facts L95 + 3 test assertions); (d) revert dishId/nutrientId hex 0x119 to unused. Workload: ~1h Simple SDD.
+- **Prevention**: Spec pre-check must include orthographic/transliteration variant matching for cross-lingual collisions (e.g., `bacalao` ↔ `bacallà` ↔ `bacalà`; similar concern for `mojo` ↔ `moho` etc.). Future seed expansion specs should use Levenshtein-distance fuzzy matching against existing names+aliases AFTER lowercase grep.
+- **Discovered by**: code-review-specialist on PR #211, Step 5 of F-H6 SDD workflow.
 
 ### 2026-04-22 — BUG-DATA-ALIAS-COLLISION-001: 4 duplicate aliases in `spanish-dishes.json` (pre-existing, surfaced during F-H4)
 
