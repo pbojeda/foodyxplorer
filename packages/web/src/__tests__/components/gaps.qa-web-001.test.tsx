@@ -377,7 +377,8 @@ describe('QA-WEB-001 gaps — F-023: Photo retry after error (BUG-QA-008)', () =
     await selectFile(makeFile());
 
     await waitFor(() => {
-      expect(screen.getByText(/No he podido identificar el plato/i)).toBeInTheDocument();
+      // Default mode=auto → "leer el menú" copy (F-WEB-MENU-VISION-001)
+      expect(screen.getByText(/No he podido leer el menú/i)).toBeInTheDocument();
     });
 
     // Photo error sets inlineError — no ErrorState retry button for photo errors

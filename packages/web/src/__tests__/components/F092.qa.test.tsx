@@ -463,17 +463,17 @@ describe('F092 QA — Inline error cleared on retry', () => {
 
     render(<HablarShell />);
 
-    // First analysis — should show error
+    // First analysis — should show error (default mode=auto → "leer el menú" copy)
     await selectFile(makeFile('attempt1.jpg'));
     await waitFor(() => {
-      expect(screen.getByText(/No he podido identificar/i)).toBeInTheDocument();
+      expect(screen.getByText(/No he podido leer el menú/i)).toBeInTheDocument();
     });
 
     // Second analysis — error should be cleared
     await selectFile(makeFile('attempt2.jpg'));
     await waitFor(() => {
       // After second success, error message should be gone
-      expect(screen.queryByText(/No he podido identificar/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/No he podido leer el menú/i)).not.toBeInTheDocument();
     });
   });
 });

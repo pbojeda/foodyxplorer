@@ -12,6 +12,9 @@ function renderInput(props: Partial<React.ComponentProps<typeof ConversationInpu
     isLoading: false,
     isPhotoLoading: false,
     inlineError: null,
+    // F-WEB-MENU-VISION-001: new required props
+    photoAnalysisMode: 'auto' as const,
+    onPhotoModeChange: jest.fn(),
   };
   return render(<ConversationInput {...defaults} {...props} />);
 }
@@ -123,6 +126,31 @@ describe('ConversationInput', () => {
     it('renders PhotoButton (active, aria-label "Subir foto del plato")', () => {
       renderInput();
       expect(screen.getByRole('button', { name: 'Subir foto del plato' })).toBeInTheDocument();
+    });
+  });
+
+  describe('PhotoModeToggle integration (F-WEB-MENU-VISION-001)', () => {
+    it('renders PhotoModeToggle below the input row', () => {
+      renderInput({ photoAnalysisMode: 'auto', onPhotoModeChange: jest.fn() });
+
+      expect(screen.getByRole('button', { name: 'Menú/carta' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Solo este plato' })).toBeInTheDocument();
+    });
+
+    it('passes disabled=true to PhotoModeToggle when isPhotoLoading=true', () => {
+      renderInput({ isPhotoLoading: true, photoAnalysisMode: 'auto', onPhotoModeChange: jest.fn() });
+
+      expect(screen.getByRole('button', { name: 'Menú/carta' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Solo este plato' })).toBeDisabled();
+    });
+
+    it('calls onPhotoModeChange when toggle option is clicked', async () => {
+      const onPhotoModeChange = jest.fn();
+      renderInput({ photoAnalysisMode: 'auto', onPhotoModeChange });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
+
+      expect(onPhotoModeChange).toHaveBeenCalledWith('identify');
     });
   });
 });

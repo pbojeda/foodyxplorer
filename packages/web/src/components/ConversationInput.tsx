@@ -8,6 +8,7 @@ import type { VoiceState } from '@/types/voice';
 import { SubmitButton } from './SubmitButton';
 import { MicButton } from './MicButton';
 import { PhotoButton } from './PhotoButton';
+import { PhotoModeToggle } from './PhotoModeToggle';
 
 interface ConversationInputProps {
   value: string;
@@ -25,6 +26,9 @@ interface ConversationInputProps {
   budgetCapActive?: boolean;
   /** F091 — exposed so HablarShell can restore focus when the overlay closes (AC15). */
   micButtonRef?: Ref<HTMLButtonElement>;
+  // F-WEB-MENU-VISION-001 — photo analysis mode toggle
+  photoAnalysisMode: 'auto' | 'identify';
+  onPhotoModeChange: (mode: 'auto' | 'identify') => void;
 }
 
 export function ConversationInput({
@@ -41,6 +45,8 @@ export function ConversationInput({
   voiceState,
   budgetCapActive,
   micButtonRef,
+  photoAnalysisMode,
+  onPhotoModeChange,
 }: ConversationInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -98,6 +104,11 @@ export function ConversationInput({
           <SubmitButton onSubmit={onSubmit} isLoading={isLoading} />
         )}
       </div>
+      <PhotoModeToggle
+        value={photoAnalysisMode}
+        onChange={onPhotoModeChange}
+        disabled={isPhotoLoading}
+      />
     </div>
   );
 }
