@@ -1,7 +1,7 @@
 # F-MULTITURN-001: Multi-Turn Conversational Follow-Up Resolution
 
 **Feature:** F-MULTITURN-001 | **Type:** Backend-Feature (NLP/Conversation) | **Priority:** High
-**Status:** Review | **Branch:** feature/F-MULTITURN-001-multi-turn-followup
+**Status:** Ready for Merge | **Branch:** feature/F-MULTITURN-001-multi-turn-followup
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-06 | **Dependencies:** F037 (chainContext, done), F070 (ConversationCore, done), F085 (portion sizing, done)
 
@@ -1453,8 +1453,8 @@ The `follow_up_refinement` label is intentionally minimal — a small secondary-
 - [x] Step 2: `backend-planner` + `frontend-planner` executed. /review-plan 6 rounds (Codex + Gemini); 20 findings addressed; APPROVED for implementation.
 - [x] Step 3: `backend-developer` + `frontend-developer` executed with TDD. 11 commits, ~1,520 LoC (production+tests).
 - [x] Step 4: `production-code-validator` executed (REQUEST CHANGES → 1 BLOCKER + 1 MAJOR + 2 MINORs; BLOCKER+MAJOR fixed inline `7f42fa3`). Quality gates: lint 0, typecheck clean, build clean, npm test 6741 tests across workspaces.
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard)
+- [x] Step 5: `code-review-specialist` executed — APPROVE WITH MINOR (1 MAJOR + 3 MEDIUM + NITs); MAJOR fixed inline in `ebb6117`.
+- [x] Step 5: `qa-engineer` executed (Standard) — PASS WITH FOLLOW-UPS (1 IMPORTANT NFD + 2 MINOR; NFD fixed inline in `ebb6117`; +34 edge-case tests).
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -1482,6 +1482,10 @@ The `follow_up_refinement` label is intentionally minimal — a small secondary-
 | 2026-05-06 | Step 3 frontend-developer | 3 commits implementing Steps F-1, F-2, F-3 of plan. ~170 LoC. Web tests: 489 → 499 (+10). |
 | 2026-05-06 | Step 4 quality gates | npm run lint 0 errors. npm run typecheck clean. npm run build clean (all workspaces). npm test green: shared 624 + api 4379 + bot 1237 + web 499 = 6739 tests. |
 | 2026-05-06 | Step 4 production-code-validator | REQUEST CHANGES (1 BLOCKER + 1 MAJOR + 2 MINORs). BLOCKER (AC-26 chainSlug preservation test missing) + MAJOR (classifier defensive length guard) fixed inline `7f42fa3`. MINORs accepted (label drift; threshold-as-constant). api tests 4379 → 4381 (+2). |
+| 2026-05-06 | Step 5 PR opened | PR #252 against develop. CI green at `bf65be2`: changes/ci-success/test-* all pass. |
+| 2026-05-06 | Step 5 code-review-specialist | APPROVE WITH MINOR (1 MAJOR + 3 MEDIUM + NITs). MAJOR-1 fixed inline (`ebb6117`): replaced dead-code NUTRIENT_ALIASES lookup with new NUTRIENT_META_BY_KEY canonical-key map. MEDIUM-1/3 (Spanish accent boundaries; case-insensitive replace) accepted as known minor edge-case behaviour. MEDIUM-2 (test-label drift in 4-branch description) accepted. NITs (api-spec field length docs) accepted. |
+| 2026-05-06 | Step 5 qa-engineer | PASS WITH FOLLOW-UPS. IMPORTANT (NFD Unicode normalization for accented Spanish input from mobile keyboards) fixed inline (`ebb6117`): `.normalize('NFC')` added to both classifiers' input boundaries. MINOR (AC-12 negative test gap; documented branch-ordering EC-5b clarification) accepted. +34 new edge-case tests in `fMultiturn001.edge-cases.test.ts` covering empty/whitespace/length-guard/compound queries/chitchat/applyRefinement edge cases. api tests 4381 → 4415 (+34). |
+| 2026-05-06 | Step 5 review-fix commit | `ebb6117` consolidated review fixes: NUTRIENT_META_BY_KEY (code-review MAJOR-1) + NFD normalization (qa IMPORTANT) + 34 edge-case tests (qa). Test mock for followUpClassifier updated. Lint 0, typecheck clean, all tests pass. |
 
 ---
 
@@ -1491,14 +1495,14 @@ The `follow_up_refinement` label is intentionally minimal — a small secondary-
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
+| 0. Validate ticket structure | [x] | All 7 sections present: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence. Plus four review-trail subsections (Spec R1+R2+R3+R4 + Plan R1+R2+R3+R4+R5+R6) preserved as audit trail. |
+| 1. Mark all items | [x] | AC: 26/26 [x]. DoD: 7/7 [x]. Workflow: 7/8 [x] (Step 6 pending merge — correct per audit-merge spec). |
+| 2. Verify product tracker | [x] | Active Session updated to F-MULTITURN-001 step 5/6 + branch + Pick A context. Features table row F-MULTITURN-001 in pm-conv-polish section, status `in-progress`, step 5/6. |
+| 3. Update key_facts.md | [x] | N/A — feature is server-internal additions to existing modules; new files are within the established `packages/api/src/conversation/` subsystem (turnStateManager.ts + followUpClassifier.ts) following the `contextManager.ts` pattern. No new infra worth a Reusable Components row at this point; if future work depends on `NUTRIENT_META_BY_KEY` or `applyRefinement()` semantics outside this feature, add the row then. |
+| 4. Update decisions.md | [x] | N/A — no new ADR. The architectural choices (single new Redis key with shorter TTL, non-blocking turn-state writes, intent-based discriminant for response shape) follow established project patterns (ADR-009 conversation state; ADR-018 fail-open Redis). |
+| 5. Commit documentation | [x] | Step 5+ docs committed in `bf65be2` (Step 3+4 close, ACs/DoD marked) and `ebb6117` (review fixes). Latest commit on branch HEAD. |
+| 6. Verify clean working tree | [x] | `git status` clean: no uncommitted changes after the Step 5 review-fix commit `ebb6117`. To be re-verified just before user authorization. |
+| 7. Verify branch up to date | [x] | Branch base commit at `c4c3a32` (develop tip when branched). develop has not advanced since (no other PRs merged after #251). `git merge-base --is-ancestor origin/develop HEAD` = UP TO DATE. |
 
 ---
 

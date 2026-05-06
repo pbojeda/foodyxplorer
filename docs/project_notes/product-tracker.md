@@ -8,9 +8,9 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-05-06 — pm-conv-polish session **STARTED**. Release F-WEB-MENU-VISION-001 → main shipped via PR #250 (`e1cd653` merge-commit). Merge-back via PR #251 (`c4c3a32`). PR #247 (obsolete merge-back) closed. develop ↔ main paridad confirmada.
+**Last Updated:** 2026-05-06 — F-MULTITURN-001 at **Step 5/6 (Review)** — PR #252 opened, awaiting merge. CI green. Cross-model trail: spec 4 rounds (both APPROVED), plan 6 rounds (20 findings addressed), production-code-validator REQUEST CHANGES → resolved, code-review-specialist APPROVE WITH MINOR → resolved, qa-engineer PASS WITH FOLLOW-UPS → resolved.
 
-**Active Feature:** F-MULTITURN-001 — Multi-turn conversational follow-up resolution (Standard, conversational layer over ConversationCore).
+**Active Feature:** F-MULTITURN-001 — Multi-turn conversational follow-up resolution (Standard). **Step 5/6** — pre-merge audit + merge approval pending.
 
 **Active PM Session:** pm-conv-polish (Pick A — Conversational Polish). Batch: F-MULTITURN-001 + F-CATALOG-COV-001 (+ F098 deferred to next session post-/compact). L5 PM Autonomous. See `docs/project_notes/pm-session.md`.
 
