@@ -19,7 +19,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F-MULTITURN-001 | Standard | in-progress | — | Step 2/6 (Plan). Step 0 closed (4 review rounds, both APPROVED). Step 1 done (branch + ticket). 24 ACs. Scope: attribute follow-up + refinement. Negation deferred to F-MULTITURN-002. |
+| F-MULTITURN-001 | Standard | in-progress | — | Step 3/6 (Implement). Step 0 closed (4 review rounds, both APPROVED). Step 1 done (branch + ticket). Step 2 closed (6 review rounds, 20 findings addressed, plan APPROVED for implementation). 26 ACs. Scope: attribute follow-up + refinement. Negation deferred to F-MULTITURN-002. |
 | F-CATALOG-COV-001 | Standard | pending | — | NEW feature. Data-driven catalog gap closure. Spec needs QA log analysis. |
 
 ## Completed Features
