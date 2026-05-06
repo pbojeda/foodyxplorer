@@ -19,15 +19,13 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F-MULTITURN-001 | Standard | in-progress | — | Step 3/6 (Implement). Step 0 closed (4 review rounds, both APPROVED). Step 1 done (branch + ticket). Step 2 closed (6 review rounds, 20 findings addressed, plan APPROVED for implementation). 26 ACs. Scope: attribute follow-up + refinement. Negation deferred to F-MULTITURN-002. |
-| F-CATALOG-COV-001 | Standard | pending | — | NEW feature. Data-driven catalog gap closure. Spec needs QA log analysis. |
+| F-CATALOG-COV-001 | Standard | pending | — | NEW feature. Data-driven catalog gap closure. Spec needs QA log analysis. To be picked up after `/compact` + `continue pm`. |
 
 ## Completed Features
 
-_(Move features here as they complete)_
-
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
+| F-MULTITURN-001 | Standard | ~1 session (very heavy) | DONE 6/6. PR #252 squash-merged at `45aabea` 2026-05-06. 17 commits, ~1,720 LoC. 26/26 ACs. Spec 4 review rounds + Plan 6 review rounds + 3 reviewer agents. Tests: api 4272→4415 (+143), shared 598→624 (+26), web 489→499 (+10). |
 
 ## Blocked Features
 
@@ -44,10 +42,10 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** F-MULTITURN-001
-**Branch:** feature/F-MULTITURN-001-multi-turn-followup
-**Current Step:** 2/6 — Plan (Step 0 + Step 1 closed)
-**Next features:** F-CATALOG-COV-001 (Standard) after F-MULTITURN-001 completes
+**Current feature:** None — F-MULTITURN-001 done.
+**Branch:** N/A
+**Current Step:** N/A — pending Step 6 housekeeping merge (this PR) + /compact gate.
+**Next features:** F-CATALOG-COV-001 (Standard) — pick up after `/compact` + `continue pm`.
 **Blocked:** none
 
 To resume after /compact: run `continue pm`

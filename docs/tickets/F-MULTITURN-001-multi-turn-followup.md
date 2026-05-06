@@ -1,7 +1,7 @@
 # F-MULTITURN-001: Multi-Turn Conversational Follow-Up Resolution
 
 **Feature:** F-MULTITURN-001 | **Type:** Backend-Feature (NLP/Conversation) | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F-MULTITURN-001-multi-turn-followup
+**Status:** Done | **Branch:** feature/F-MULTITURN-001-multi-turn-followup (squash-merged at `45aabea`, branch deleted local + remote)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-06 | **Dependencies:** F037 (chainContext, done), F070 (ConversationCore, done), F085 (portion sizing, done)
 
@@ -1455,7 +1455,7 @@ The `follow_up_refinement` label is intentionally minimal — a small secondary-
 - [x] Step 4: `production-code-validator` executed (REQUEST CHANGES → 1 BLOCKER + 1 MAJOR + 2 MINORs; BLOCKER+MAJOR fixed inline `7f42fa3`). Quality gates: lint 0, typecheck clean, build clean, npm test 6741 tests across workspaces.
 - [x] Step 5: `code-review-specialist` executed — APPROVE WITH MINOR (1 MAJOR + 3 MEDIUM + NITs); MAJOR fixed inline in `ebb6117`.
 - [x] Step 5: `qa-engineer` executed (Standard) — PASS WITH FOLLOW-UPS (1 IMPORTANT NFD + 2 MINOR; NFD fixed inline in `ebb6117`; +34 edge-case tests).
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics; branch squash-merged at `45aabea` via PR #252 + deleted local + remote.
 
 ---
 
@@ -1486,6 +1486,9 @@ The `follow_up_refinement` label is intentionally minimal — a small secondary-
 | 2026-05-06 | Step 5 code-review-specialist | APPROVE WITH MINOR (1 MAJOR + 3 MEDIUM + NITs). MAJOR-1 fixed inline (`ebb6117`): replaced dead-code NUTRIENT_ALIASES lookup with new NUTRIENT_META_BY_KEY canonical-key map. MEDIUM-1/3 (Spanish accent boundaries; case-insensitive replace) accepted as known minor edge-case behaviour. MEDIUM-2 (test-label drift in 4-branch description) accepted. NITs (api-spec field length docs) accepted. |
 | 2026-05-06 | Step 5 qa-engineer | PASS WITH FOLLOW-UPS. IMPORTANT (NFD Unicode normalization for accented Spanish input from mobile keyboards) fixed inline (`ebb6117`): `.normalize('NFC')` added to both classifiers' input boundaries. MINOR (AC-12 negative test gap; documented branch-ordering EC-5b clarification) accepted. +34 new edge-case tests in `fMultiturn001.edge-cases.test.ts` covering empty/whitespace/length-guard/compound queries/chitchat/applyRefinement edge cases. api tests 4381 → 4415 (+34). |
 | 2026-05-06 | Step 5 review-fix commit | `ebb6117` consolidated review fixes: NUTRIENT_META_BY_KEY (code-review MAJOR-1) + NFD normalization (qa IMPORTANT) + 34 edge-case tests (qa). Test mock for followUpClassifier updated. Lint 0, typecheck clean, all tests pass. |
+| 2026-05-06 | Step 5 close + audit-merge | Status → Ready for Merge, Workflow Step 5 boxes [x], Merge Checklist Evidence 8/8 [x] (commit `0feacbe`). Tracker Features row pending → in-progress 5/6 (commit `d87e41f`). audit-merge structural 11/11 + drift CLEAN. CI green at `d87e41f`. |
+| 2026-05-06 | Step 6 squash-merge | PR #252 squash-merged to develop at `45aabea`. 17 commits collapsed (4 docs + 8 backend + 3 frontend + 2 review-fix). Branch deleted local + remote. |
+| 2026-05-06 | Step 6 housekeeping | Status → Done. Tracker Features row → done 6/6. Active Session cleared. pm-session.md F-MULTITURN-001 moved to Completed. |
 
 ---
 
