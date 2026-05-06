@@ -235,3 +235,24 @@ describe('Auth config vars (F026)', () => {
     expect(config.BOT_API_KEY_SEED).toBe('my-seed-value');
   });
 });
+
+describe('Vision model config (F-WEB-MENU-VISION-001)', () => {
+  beforeEach(() => {
+    exitSpy.mockClear();
+  });
+
+  it('defaults VISION_MODEL to "gpt-4o-mini" when absent', () => {
+    const config = parseConfig({ ...VALID_ENV });
+    expect(config.VISION_MODEL).toBe('gpt-4o-mini');
+  });
+
+  it('accepts VISION_MODEL="gpt-4o"', () => {
+    const config = parseConfig({ ...VALID_ENV, VISION_MODEL: 'gpt-4o' });
+    expect(config.VISION_MODEL).toBe('gpt-4o');
+  });
+
+  it('calls process.exit(1) when VISION_MODEL is an invalid value', () => {
+    expect(() => parseConfig({ ...VALID_ENV, VISION_MODEL: 'gpt-3.5-turbo' })).toThrow('process.exit called');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+});
