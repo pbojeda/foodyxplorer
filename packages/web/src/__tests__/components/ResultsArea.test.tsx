@@ -267,7 +267,120 @@ describe('ResultsArea', () => {
       );
       expect(screen.getByText('¿Qué quieres saber?')).toBeInTheDocument();
     });
+
+    // F-WEB-MENU-VISION-001: multi-dish branch
+    it('renders MenuDishList when photoResults.dishCount > 1', () => {
+      const dish1 = createMenuAnalysisDish({ dishName: 'Paella valenciana', estimate: null });
+      const dish2 = createMenuAnalysisDish({ dishName: 'Fideuà', estimate: null });
+      const photoResults = createMenuAnalysisData({
+        mode: 'auto',
+        dishCount: 2,
+        dishes: [dish1, dish2],
+        partial: false,
+      });
+
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          photoResults={photoResults}
+        />
+      );
+
+      expect(screen.getByText('Se han encontrado 2 platos')).toBeInTheDocument();
+    });
+
+    it('renders existing CardGrid/NutritionCard path when photoResults.dishCount === 1', () => {
+      const photoResults = createMenuAnalysisData({
+        mode: 'identify',
+        dishCount: 1,
+        dishes: [
+          createMenuAnalysisDish({
+            dishName: 'Big Mac',
+            estimate: createEstimateData({ query: 'big mac' }),
+          }),
+        ],
+      });
+
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          photoResults={photoResults}
+        />
+      );
+
+      // NutritionCard renders dish name; MenuDishList header should NOT be present
+      expect(screen.getByText('Big Mac')).toBeInTheDocument();
+      expect(screen.queryByText(/Se han encontrado/)).not.toBeInTheDocument();
+    });
+
+    it('calls onDishSelect with dishName when a dish row is clicked in MenuDishList', async () => {
+      const onDishSelect = jest.fn();
+      const dish1 = createMenuAnalysisDish({ dishName: 'Paella valenciana', estimate: null });
+      const dish2 = createMenuAnalysisDish({ dishName: 'Fideuà', estimate: null });
+      const photoResults = createMenuAnalysisData({
+        mode: 'auto',
+        dishCount: 2,
+        dishes: [dish1, dish2],
+      });
+
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          photoResults={photoResults}
+          onDishSelect={onDishSelect}
+        />
+      );
+
+      // Click on the first dish button
+      const dishBtn = screen.getByRole('button', { name: /Paella valenciana/i });
+      dishBtn.click();
+
+      expect(onDishSelect).toHaveBeenCalledWith('Paella valenciana');
+    });
   });
+
+  describe('loading states (F-WEB-MENU-VISION-001)', () => {
+    it('renders single shimmer bar with "Analizando el menú..." when isPhotoLoading=true and photoAnalysisMode="auto"', () => {
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          isPhotoLoading={true}
+          photoAnalysisMode="auto"
+        />
+      );
+
+      expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'Analizando el menú...');
+      expect(screen.queryAllByTestId('skeleton-card')).toHaveLength(0);
+    });
+
+    it('renders two SkeletonCard when isPhotoLoading=true and photoAnalysisMode="identify"', () => {
+      render(
+        <ResultsArea
+          isLoading={false}
+          results={null}
+          onRetry={() => {}}
+          error={null}
+          isPhotoLoading={true}
+          photoAnalysisMode="identify"
+        />
+      );
+
+      expect(screen.getAllByTestId('skeleton-card')).toHaveLength(2);
+    });
+  });
+
 
   describe('text_too_long intent', () => {
     it('does not render ErrorState for text_too_long (inline only)', () => {

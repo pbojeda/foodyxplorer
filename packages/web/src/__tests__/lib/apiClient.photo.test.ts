@@ -111,14 +111,14 @@ describe('sendPhotoAnalysis', () => {
       expect((callArgs.body as FormData).get('file')).toBe(file);
     });
 
-    it('sends mode=identify in FormData body', async () => {
+    it('sends mode=auto in FormData body when no mode argument is passed', async () => {
       global.fetch = makeFetchMock(200, createMenuAnalysisResponse());
       const file = makeFile();
 
       await sendPhotoAnalysis(file, MOCK_ACTOR_ID);
 
       const callArgs = (global.fetch as jest.Mock).mock.calls[0][1];
-      expect((callArgs.body as FormData).get('mode')).toBe('identify');
+      expect((callArgs.body as FormData).get('mode')).toBe('auto');
     });
 
     it('sets X-Actor-Id header', async () => {
@@ -345,5 +345,41 @@ describe('sendPhotoAnalysis', () => {
       const error = await sendPhotoAnalysis(makeFile(), MOCK_ACTOR_ID).catch((e) => e);
       expect(error).toBeInstanceOf(ApiError);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mode parameter (F-WEB-MENU-VISION-001)
+// ---------------------------------------------------------------------------
+
+describe('sendPhotoAnalysis — mode parameter (F-WEB-MENU-VISION-001)', () => {
+  it('defaults to mode=auto when no mode argument is passed', async () => {
+    global.fetch = makeFetchMock(200, createMenuAnalysisResponse());
+    const file = makeFile();
+
+    await sendPhotoAnalysis(file, MOCK_ACTOR_ID);
+
+    const callArgs = (global.fetch as jest.Mock).mock.calls[0][1];
+    expect((callArgs.body as FormData).get('mode')).toBe('auto');
+  });
+
+  it('sends mode=identify when explicitly passed', async () => {
+    global.fetch = makeFetchMock(200, createMenuAnalysisResponse());
+    const file = makeFile();
+
+    await sendPhotoAnalysis(file, MOCK_ACTOR_ID, undefined, 'identify');
+
+    const callArgs = (global.fetch as jest.Mock).mock.calls[0][1];
+    expect((callArgs.body as FormData).get('mode')).toBe('identify');
+  });
+
+  it('sends mode=auto when explicitly passed', async () => {
+    global.fetch = makeFetchMock(200, createMenuAnalysisResponse());
+    const file = makeFile();
+
+    await sendPhotoAnalysis(file, MOCK_ACTOR_ID, undefined, 'auto');
+
+    const callArgs = (global.fetch as jest.Mock).mock.calls[0][1];
+    expect((callArgs.body as FormData).get('mode')).toBe('auto');
   });
 });

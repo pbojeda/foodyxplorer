@@ -223,7 +223,7 @@ describe('QA-WEB-001 edge cases — Photo API error codes', () => {
     });
   });
 
-  it('MENU_ANALYSIS_FAILED → "No he podido identificar el plato. Intenta con otra foto."', async () => {
+  it('MENU_ANALYSIS_FAILED with mode=auto (default) → "No he podido leer el menú..."', async () => {
     mockSendPhotoAnalysis.mockRejectedValue(
       new ApiError('Vision failed', 'MENU_ANALYSIS_FAILED', 422)
     );
@@ -233,7 +233,7 @@ describe('QA-WEB-001 edge cases — Photo API error codes', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('No he podido identificar el plato. Intenta con otra foto.')
+        screen.getByText(/No he podido leer el menú\. Prueba con otra foto o elige 'Solo este plato'\./i)
       ).toBeInTheDocument();
     });
   });

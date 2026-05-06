@@ -366,7 +366,7 @@ describe('HablarShell — photo flow (F092)', () => {
     });
   });
 
-  it('shows inline error for MENU_ANALYSIS_FAILED API error', async () => {
+  it('shows inline error for MENU_ANALYSIS_FAILED API error (mode=auto default)', async () => {
     mockSendPhotoAnalysis.mockRejectedValue(
       new ApiError('Vision failed', 'MENU_ANALYSIS_FAILED', 422)
     );
@@ -375,7 +375,8 @@ describe('HablarShell — photo flow (F092)', () => {
     await selectFile(makeFile());
 
     await waitFor(() => {
-      expect(screen.getByText(/No he podido identificar el plato/i)).toBeInTheDocument();
+      // Default mode is 'auto' — shows menu-mode error copy
+      expect(screen.getByText(/No he podido leer el menú/i)).toBeInTheDocument();
     });
   });
 
@@ -597,5 +598,179 @@ describe('HablarShell — photo flow (F092)', () => {
     await selectFile(makeFile());
 
     expect(screen.getByRole('textbox')).toBeDisabled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F-WEB-MENU-VISION-001: photo mode toggle + multi-dish flow
+// ---------------------------------------------------------------------------
+
+describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
+  const { sendMessage } = jest.requireMock('../../lib/apiClient') as {
+    sendMessage: jest.Mock;
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockResizeImageForUpload.mockImplementation((file: File) => Promise.resolve(file));
+    // Default: sendMessage never resolves (we only check it was called)
+    sendMessage.mockReturnValue(new Promise(() => {}));
+  });
+
+  it('passes mode=auto to sendPhotoAnalysis by default', async () => {
+    mockSendPhotoAnalysis.mockResolvedValue(createMenuAnalysisResponse());
+    render(<HablarShell />);
+
+    await selectFile(makeFile());
+
+    await waitFor(() => {
+      expect(mockSendPhotoAnalysis).toHaveBeenCalledWith(
+        expect.any(File),
+        expect.any(String),
+        expect.anything(),
+        'auto',
+      );
+    });
+  });
+
+  it('passes mode=identify to sendPhotoAnalysis after toggle switch', async () => {
+    mockSendPhotoAnalysis.mockResolvedValue(createMenuAnalysisResponse());
+    render(<HablarShell />);
+
+    // Switch toggle to "Solo este plato"
+    await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
+
+    await selectFile(makeFile());
+
+    await waitFor(() => {
+      expect(mockSendPhotoAnalysis).toHaveBeenCalledWith(
+        expect.any(File),
+        expect.any(String),
+        expect.anything(),
+        'identify',
+      );
+    });
+  });
+
+  it('shows mode-conditional error for MENU_ANALYSIS_FAILED with mode=auto', async () => {
+    mockSendPhotoAnalysis.mockRejectedValue(
+      new ApiError('Vision failed', 'MENU_ANALYSIS_FAILED', 422)
+    );
+    render(<HablarShell />);
+
+    await selectFile(makeFile());
+
+    await waitFor(() => {
+      expect(screen.getByText(/No he podido leer el menú/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows mode-conditional error for MENU_ANALYSIS_FAILED with mode=identify', async () => {
+    mockSendPhotoAnalysis.mockRejectedValue(
+      new ApiError('Vision failed', 'MENU_ANALYSIS_FAILED', 422)
+    );
+    render(<HablarShell />);
+
+    // Switch toggle to "Solo este plato"
+    await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
+
+    await selectFile(makeFile());
+
+    await waitFor(() => {
+      expect(screen.getByText(/No he podido identificar el plato/i)).toBeInTheDocument();
+    });
+  });
+
+  it('renders MenuDishList when photo response has dishCount > 1', async () => {
+    const dish1 = createMenuAnalysisDish({ dishName: 'Paella valenciana', estimate: null });
+    const dish2 = createMenuAnalysisDish({ dishName: 'Gazpacho', estimate: null });
+    const dish3 = createMenuAnalysisDish({ dishName: 'Tortilla española', estimate: null });
+    mockSendPhotoAnalysis.mockResolvedValue(
+      createMenuAnalysisResponse({
+        mode: 'auto',
+        dishCount: 3,
+        dishes: [dish1, dish2, dish3],
+        partial: false,
+      })
+    );
+    render(<HablarShell />);
+
+    await selectFile(makeFile());
+
+    await waitFor(() => {
+      expect(screen.getByText('Se han encontrado 3 platos')).toBeInTheDocument();
+    });
+
+    // Also assert menu_dish_list_shown was tracked
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      'menu_dish_list_shown',
+      { dishCount: 3, partial: false },
+    );
+  });
+
+  it('calls executeQuery with dishName and clears photoResults when dish is tapped', async () => {
+    const dish1 = createMenuAnalysisDish({ dishName: 'Paella valenciana', estimate: null });
+    const dish2 = createMenuAnalysisDish({ dishName: 'Gazpacho', estimate: null });
+    mockSendPhotoAnalysis.mockResolvedValue(
+      createMenuAnalysisResponse({
+        mode: 'auto',
+        dishCount: 2,
+        dishes: [dish1, dish2],
+      })
+    );
+    render(<HablarShell />);
+
+    await selectFile(makeFile());
+
+    // Wait for the dish list to appear
+    await waitFor(() => {
+      expect(screen.getByText('Se han encontrado 2 platos')).toBeInTheDocument();
+    });
+
+    // Tap the first dish
+    await userEvent.click(screen.getByRole('button', { name: /Paella valenciana/i }));
+
+    // sendMessage should be called with the dish name
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith(
+        'Paella valenciana',
+        expect.any(String),
+        expect.anything(),
+      );
+    });
+
+    // The dish list should no longer be visible (photoResults cleared)
+    await waitFor(() => {
+      expect(screen.queryByText('Se han encontrado 2 platos')).not.toBeInTheDocument();
+    });
+
+    // Also assert menu_dish_selected was tracked.
+    // Both fixture dishes have estimate: null → hasEstimate must be false.
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      'menu_dish_selected',
+      { dishName: 'Paella valenciana', hasEstimate: false },
+    );
+  });
+
+  // F-WEB-MENU-VISION-001 — AC-U10: photo_mode_selected telemetry
+  it('fires photo_mode_selected telemetry when the mode toggle is changed', async () => {
+    render(<HablarShell />);
+
+    // Default state: "Menú/carta" (auto) is selected.
+    // Click "Solo este plato" to change to identify.
+    await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
+
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      'photo_mode_selected',
+      { mode: 'identify' },
+    );
+
+    // Switch back to auto and verify the event fires again with 'auto'.
+    await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
+
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      'photo_mode_selected',
+      { mode: 'auto' },
+    );
   });
 });

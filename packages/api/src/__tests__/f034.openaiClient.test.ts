@@ -58,7 +58,7 @@ describe('callVisionCompletion', () => {
   it('returns the content string on success', async () => {
     mockCreate.mockResolvedValue(makeSuccessResponse('["Burger", "Pizza"]'));
 
-    const result = await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT);
+    const result = await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, 'gpt-4o-mini');
 
     expect(result).toBe('["Burger", "Pizza"]');
   });
@@ -66,7 +66,7 @@ describe('callVisionCompletion', () => {
   it('constructs a multimodal message with image_url content', async () => {
     mockCreate.mockResolvedValue(makeSuccessResponse('[]'));
 
-    await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT);
+    await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, 'gpt-4o-mini');
 
     expect(mockCreate).toHaveBeenCalledOnce();
     const callArgs = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -93,19 +93,28 @@ describe('callVisionCompletion', () => {
     expect(imageUrl?.['url']).toBe(`data:${FAKE_MIME};base64,${FAKE_BASE64}`);
   });
 
-  it('uses gpt-4o-mini model by default', async () => {
+  it('uses gpt-4o-mini when that model name is passed', async () => {
     mockCreate.mockResolvedValue(makeSuccessResponse('result'));
 
-    await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT);
+    await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, 'gpt-4o-mini');
 
     const callArgs = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(callArgs?.['model']).toBe('gpt-4o-mini');
   });
 
+  it('uses the modelName parameter passed by the caller', async () => {
+    mockCreate.mockResolvedValue(makeSuccessResponse('result'));
+
+    await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, 'gpt-4o');
+
+    const callArgs = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(callArgs?.['model']).toBe('gpt-4o');
+  });
+
   it('passes maxTokens when provided', async () => {
     mockCreate.mockResolvedValue(makeSuccessResponse('result'));
 
-    await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, undefined, 2048);
+    await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, 'gpt-4o-mini', undefined, 2048);
 
     const callArgs = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(callArgs?.['max_tokens']).toBe(2048);
@@ -117,7 +126,7 @@ describe('callVisionCompletion', () => {
       usage: null,
     });
 
-    const result = await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT);
+    const result = await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, 'gpt-4o-mini');
 
     expect(result).toBeNull();
   });
@@ -126,7 +135,7 @@ describe('callVisionCompletion', () => {
     const err = Object.assign(new Error('Bad request'), { status: 400 });
     mockCreate.mockRejectedValue(err);
 
-    const result = await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT);
+    const result = await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, 'gpt-4o-mini');
 
     expect(result).toBeNull();
     // Only 1 attempt — non-retryable errors short-circuit
@@ -137,7 +146,7 @@ describe('callVisionCompletion', () => {
     const err = Object.assign(new Error('Rate limit'), { status: 429 });
     mockCreate.mockRejectedValue(err);
 
-    const result = await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT);
+    const result = await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, 'gpt-4o-mini');
 
     expect(result).toBeNull();
     // 2 attempts total (MAX_RETRIES = 2)
@@ -150,7 +159,7 @@ describe('callVisionCompletion', () => {
       .mockRejectedValueOnce(serverError)
       .mockResolvedValueOnce(makeSuccessResponse('success'));
 
-    const result = await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT);
+    const result = await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, 'gpt-4o-mini');
 
     expect(result).toBe('success');
     expect(mockCreate).toHaveBeenCalledTimes(2);
@@ -160,7 +169,7 @@ describe('callVisionCompletion', () => {
     mockCreate.mockResolvedValue(makeSuccessResponse('result'));
     const logger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn() };
 
-    await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, logger);
+    await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, 'gpt-4o-mini', logger);
 
     expect(logger.info).toHaveBeenCalledOnce();
     const logCall = logger.info.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -172,7 +181,7 @@ describe('callVisionCompletion', () => {
     mockCreate.mockRejectedValue(new Error('Catastrophic failure'));
     const logger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn() };
 
-    const result = await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, logger);
+    const result = await callVisionCompletion(FAKE_API_KEY, FAKE_BASE64, FAKE_MIME, FAKE_PROMPT, 'gpt-4o-mini', logger);
 
     expect(result).toBeNull();
     expect(logger.warn).toHaveBeenCalled();

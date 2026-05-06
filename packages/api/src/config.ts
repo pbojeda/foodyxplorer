@@ -31,6 +31,10 @@ export const EnvSchema = z.object({
   // No default for OPENAI_CHAT_MODEL — L4 is only active when explicitly configured by operators.
   OPENAI_CHAT_MODEL: z.string().min(1).optional(),
   OPENAI_CHAT_MAX_TOKENS: z.coerce.number().int().min(1).max(4096).default(512),
+  // Vision API model selection (F-WEB-MENU-VISION-001)
+  // Accepted values: 'gpt-4o-mini' (default) | 'gpt-4o'
+  // Changing this value switches the Vision model for all /analyze/menu calls.
+  VISION_MODEL: z.enum(['gpt-4o-mini', 'gpt-4o']).default('gpt-4o-mini'),
   // Auth — F026
   // Required in production (validated at route level, not startup).
   // Optional in test/dev — when absent, admin auth hook is skipped.

@@ -26,6 +26,7 @@ import { extractText } from '../lib/pdfParser.js';
 import { callVisionCompletion } from '../lib/openaiClient.js';
 import { runEstimationCascade } from '../estimation/engineRouter.js';
 import { parseDishNames } from './dishNameParser.js';
+import { config } from '../config.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -163,6 +164,7 @@ async function extractDishNamesFromImage(
     imageBase64,
     mimeType,
     prompt,
+    config.VISION_MODEL,
     logger,
     VISION_MAX_TOKENS,
   );

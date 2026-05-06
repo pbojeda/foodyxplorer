@@ -206,6 +206,34 @@ describe('photo events', () => {
   });
 });
 
+// ---------- new photo menu events (F-WEB-MENU-VISION-001) ----------
+
+describe('new photo menu events (F-WEB-MENU-VISION-001)', () => {
+  it('photo_mode_selected does not increment query/success/error count', () => {
+    trackEvent('photo_mode_selected', { mode: 'auto' });
+    const m = getMetrics();
+    expect(m.queryCount).toBe(0);
+    expect(m.successCount).toBe(0);
+    expect(m.errorCount).toBe(0);
+  });
+
+  it('menu_dish_list_shown does not increment any count', () => {
+    trackEvent('menu_dish_list_shown', { dishCount: 3, partial: false });
+    const m = getMetrics();
+    expect(m.queryCount).toBe(0);
+    expect(m.successCount).toBe(0);
+    expect(m.errorCount).toBe(0);
+  });
+
+  it('menu_dish_selected does not increment any count', () => {
+    trackEvent('menu_dish_selected', { dishName: 'Paella valenciana', hasEstimate: true });
+    const m = getMetrics();
+    expect(m.queryCount).toBe(0);
+    expect(m.successCount).toBe(0);
+    expect(m.errorCount).toBe(0);
+  });
+});
+
 // ---------- voice events (F091) ----------
 
 describe('voice events', () => {

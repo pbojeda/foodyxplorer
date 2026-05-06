@@ -22,7 +22,10 @@ export type MetricEvent =
   | 'photo_resize_fallback'
   | 'voice_start'
   | 'voice_success'
-  | 'voice_error';
+  | 'voice_error'
+  | 'photo_mode_selected'
+  | 'menu_dish_list_shown'
+  | 'menu_dish_selected';
 
 export interface MetricPayload {
   intent?: string;
@@ -31,6 +34,11 @@ export interface MetricPayload {
   dishCount?: number;
   originalKB?: number;
   resizedKB?: number;
+  // F-WEB-MENU-VISION-001
+  mode?: 'auto' | 'identify';
+  dishName?: string;
+  hasEstimate?: boolean;
+  partial?: boolean;
 }
 
 export interface MetricsSnapshot {
@@ -184,6 +192,15 @@ export function trackEvent(event: MetricEvent, payload?: MetricPayload): void {
       if (payload?.errorCode) {
         state.errors[payload.errorCode] = (state.errors[payload.errorCode] ?? 0) + 1;
       }
+      break;
+
+    // F-WEB-MENU-VISION-001 — non-counter events (payload-only telemetry).
+    // Do NOT mutate queryCount/successCount/errorCount — would violate
+    // WebMetricsSnapshotSchema's successCount <= queryCount invariant.
+    case 'photo_mode_selected':
+    case 'menu_dish_list_shown':
+    case 'menu_dish_selected':
+      // payload captured for in-app debug; not persisted to aggregate snapshot
       break;
   }
 
