@@ -195,11 +195,12 @@ export async function callVisionCompletion(
   imageBase64: string,
   mimeType: string,
   prompt: string,
+  modelName: string,
   logger?: OpenAILogger,
   maxTokens?: number,
 ): Promise<string | null> {
   const client = getOpenAIClient(apiKey);
-  const model = 'gpt-4o-mini';
+  const model = modelName;
 
   const messages = [
     {

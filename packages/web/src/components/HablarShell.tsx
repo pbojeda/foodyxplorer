@@ -34,6 +34,9 @@ export function HablarShell() {
   const [photoMode, setPhotoMode] = useState<'idle' | 'analyzing'>('idle');
   const [photoResults, setPhotoResults] = useState<MenuAnalysisData | null>(null);
 
+  // F-WEB-MENU-VISION-001 — photo analysis mode toggle (session-only, not persisted)
+  const [photoAnalysisMode, setPhotoAnalysisMode] = useState<'auto' | 'identify'>('auto');
+
   // Voice state (F091)
   const [isVoiceOverlayOpen, setIsVoiceOverlayOpen] = useState(false);
   const [budgetCapActive, setBudgetCapActive] = useState(false);
@@ -334,7 +337,7 @@ export function HablarShell() {
       // Stale-request guard: if the user submitted another photo while we
       // were resizing, abort before touching the network.
       if (controller.signal.aborted) return;
-      const response = await sendPhotoAnalysis(uploadFile, actorId, controller.signal);
+      const response = await sendPhotoAnalysis(uploadFile, actorId, controller.signal, photoAnalysisMode);
 
       // Stale response guard
       if (controller.signal.aborted) return;
@@ -374,7 +377,11 @@ export function HablarShell() {
             setInlineError('Formato no soportado. Usa JPEG, PNG o WebP.');
             break;
           case 'MENU_ANALYSIS_FAILED':
-            setInlineError('No he podido identificar el plato. Intenta con otra foto.');
+            setInlineError(
+              photoAnalysisMode === 'auto'
+                ? "No he podido leer el menú. Prueba con otra foto o elige 'Solo este plato'."
+                : 'No he podido identificar el plato. Prueba con otra foto o asegúrate de que el plato sea visible.'
+            );
             break;
           case 'PAYLOAD_TOO_LARGE':
             setInlineError('La foto es demasiado grande. Máximo 10 MB.');
@@ -405,7 +412,36 @@ export function HablarShell() {
         setPhotoMode('idle');
       }
     }
-  }, []);
+  }, [photoAnalysisMode]);
+
+  // F-WEB-MENU-VISION-001 — track menu_dish_list_shown when multi-dish result appears.
+  // Cannot fire from MenuDishList (Server Component) — trackEvent is client-only.
+  useEffect(() => {
+    if (photoResults && photoResults.dishCount > 1) {
+      trackEvent('menu_dish_list_shown', {
+        dishCount: photoResults.dishCount,
+        partial: photoResults.partial,
+      });
+    }
+  }, [photoResults]);
+
+  // F-WEB-MENU-VISION-001 — handle dish tap in MenuDishList
+  const handleDishSelect = useCallback(
+    (dishName: string) => {
+      // Snapshot hasEstimate before clearing photoResults.
+      // Use `!= null` (not `!== null`) so a missing dish — defensively
+      // impossible since dishName always comes from a rendered MenuDishItem —
+      // resolves to false rather than true.
+      const dish = photoResults?.dishes.find((d) => d.dishName === dishName);
+      const hasEstimate = dish?.estimate != null;
+      trackEvent('menu_dish_selected', { dishName, hasEstimate });
+      setPhotoResults(null);
+      setResults(null);
+      setQuery(dishName);
+      executeQuery(dishName);
+    },
+    [photoResults, executeQuery],
+  );
 
   function handleSubmit() {
     if (!query.trim()) return;
@@ -440,6 +476,8 @@ export function HablarShell() {
         photoResults={photoResults}
         voiceError={voiceError}
         onVoiceRetry={clearVoiceError}
+        onDishSelect={handleDishSelect}
+        photoAnalysisMode={photoAnalysisMode}
       />
 
       {/* Fixed bottom input */}
@@ -451,6 +489,11 @@ export function HablarShell() {
         isLoading={isLoading}
         isPhotoLoading={photoMode === 'analyzing'}
         inlineError={inlineError}
+        photoAnalysisMode={photoAnalysisMode}
+        onPhotoModeChange={(mode) => {
+          trackEvent('photo_mode_selected', { mode });
+          setPhotoAnalysisMode(mode);
+        }}
         onVoiceTap={openVoiceOverlay}
         onVoiceHoldStart={() => {
           if (budgetCapActive) return;

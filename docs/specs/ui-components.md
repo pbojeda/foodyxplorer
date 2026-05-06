@@ -530,6 +530,207 @@ Fires via `window.gtag` directly. Silent when `window.gtag` undefined.
 
 ---
 
+## Web Package — nutriXplorer (F-WEB-MENU-VISION-001 updates)
+
+**Feature:** F-WEB-MENU-VISION-001 — Web /hablar: multi-dish menu/carta photo analysis
+
+**Package:** `packages/web/` | **Stack:** Next.js App Router + TypeScript strict + Tailwind CSS
+
+### Updated Component Hierarchy
+
+```
+HablarShell (Client — modified)
+├── ConversationInput (Client — new props: photoAnalysisMode, onPhotoModeChange)
+│   ├── PhotoModeToggle (Client — NEW)
+│   └── CameraButton (existing — unchanged)
+├── ResultsArea (Server-compatible — new prop: onDishSelect; new branch for dishCount > 1)
+│   ├── MenuDishList (NEW — rendered when photoResults.dishCount > 1)
+│   │   └── MenuDishItem (NEW — one per dish)
+│   └── NutritionCard (existing — rendered for dishCount === 1 path, unchanged)
+└── VoiceOverlay (existing — unchanged)
+```
+
+---
+
+### PhotoModeToggle (NEW)
+
+**Type:** Primitive | **Client:** Yes (receives props from Client parent; no internal state)
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| value | `'auto' \| 'identify'` | Yes | — | Active mode |
+| onChange | `(mode: 'auto' \| 'identify') => void` | Yes | — | Mode change callback |
+| disabled | `boolean` | No | `false` | When true (during photo upload), both buttons are disabled |
+
+**Rendering:**
+- Inline segmented control with two buttons: "Menú/carta" (auto) and "Solo este plato" (identify).
+- Both options always visible (not hidden when idle).
+- Active button: bg-brand-green text-white (or equivalent brand primary). Inactive: bg-slate-100 text-slate-600.
+- Button height: touch-friendly (min 44px).
+
+**Accessibility:**
+- Wrapper: `role="group"` `aria-label="Tipo de análisis de foto"`.
+- Each button: `aria-pressed={value === thisMode}`, `type="button"`.
+- Keyboard: Tab navigates between buttons; Enter/Space activates. No arrow-key roving (two-item only).
+
+**Interactions:**
+- Click/tap either option → fires `onChange(mode)` → parent (HablarShell) updates `photoAnalysisMode`.
+- Fires `trackEvent('photo_mode_selected', { mode })` on change.
+
+**Loading/Error/Empty States:**
+- Disabled state: both buttons `disabled`, `opacity-50 cursor-not-allowed`. Applied when `isPhotoLoading`.
+
+---
+
+### MenuDishList (NEW)
+
+**Type:** Feature | **Client:** No (pure display — parent passes `onDishSelect` handler)
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| dishes | `MenuAnalysisDish[]` | Yes | — | From `MenuAnalysisData.dishes` (dishCount ≥ 2) |
+| onDishSelect | `(dishName: string) => void` | Yes | — | Called when user taps a dish row |
+| partial | `boolean` | No | `false` | Whether response is partial (timeout mid-analysis) |
+
+**Rendering:**
+- Header row: "Se han encontrado {dishes.length} platos en el menú" — text-sm text-slate-500, px-4 pt-4 pb-2.
+- If `partial === true`: amber chip below header — "Resultado parcial — puede haber más platos."
+  (bg-amber-50 text-amber-700 border border-amber-200, rounded, px-3 py-1, text-xs).
+- Scrollable `<ul>` with `role="list"` containing one `<MenuDishItem>` per dish.
+
+**Telemetry placement:** `MenuDishList` is a Server Component (no `'use client'`).
+Therefore the `menu_dish_list_shown` event is NOT fired here on mount — `trackEvent`
+is client-only. The parent (`HablarShell`, a Client Component) fires the event from
+a `useEffect` watching `photoResults` when `dishCount > 1`. See
+`F-WEB-MENU-VISION-001` plan P-F8 for the exact `useEffect` snippet.
+
+**Empty state:** Not rendered when `dishCount < 2`. Parent controls rendering condition.
+
+**Error state:** Not applicable — parent renders `ErrorState` before reaching this component.
+
+---
+
+### MenuDishItem (NEW)
+
+**Type:** Primitive | **Client:** No (handler passed as prop)
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| dish | `MenuAnalysisDish` | Yes | — | `{ dishName: string, estimate: EstimateData \| null }` |
+| onSelect | `() => void` | Yes | — | Called when user activates this row |
+| isLast | `boolean` | No | `false` | When true, omit bottom border |
+
+**Rendering:**
+- Full-width `<li>` containing a `<button type="button">` spanning the full width.
+- Layout: flex row, items-center, gap-3, py-3 px-4.
+  - Left: dish name (`dish.dishName`), text-base font-semibold text-slate-800, flex-1, text-left.
+  - Center-right: calorie summary — if estimate resolves: `{Math.round(estimate.result.nutrients.calories)} kcal`, text-sm text-slate-500. If no estimate: "Sin datos", text-sm text-slate-400.
+  - Far right: `›` chevron, text-slate-300, aria-hidden.
+- Bottom border: `border-b border-slate-100` unless `isLast`.
+- Hover/active: `hover:bg-slate-50 active:bg-slate-100`.
+
+**Interactions:**
+- Click/tap → `onSelect()` → parent fires `trackEvent('menu_dish_selected', { dishName, hasEstimate })`.
+- Keyboard: Enter/Space triggers `onSelect()`.
+
+---
+
+### Updated HablarShell (modified)
+
+**New state:**
+```ts
+const [photoAnalysisMode, setPhotoAnalysisMode] = useState<'auto' | 'identify'>('auto');
+```
+Session-only — not persisted to `localStorage`.
+
+**Modified `executePhotoAnalysis`:**
+- Signature unchanged externally; internally reads `photoAnalysisMode` from closure.
+- Calls `sendPhotoAnalysis(uploadFile, actorId, controller.signal, photoAnalysisMode)`.
+
+**Modified `MENU_ANALYSIS_FAILED` error message:**
+```ts
+case 'MENU_ANALYSIS_FAILED':
+  setInlineError(
+    photoAnalysisMode === 'auto'
+      ? "No he podido leer el menú. Prueba con otra foto o elige 'Solo este plato'."
+      : 'No he podido identificar el plato. Prueba con otra foto o asegúrate de que el plato sea visible.'
+  );
+```
+
+**New `handleDishSelect` callback:**
+```ts
+const handleDishSelect = useCallback((dishName: string) => {
+  setPhotoResults(null);
+  setQuery(dishName);
+  executeQuery(dishName);
+}, [executeQuery]);
+```
+
+**Props passed to `ConversationInput` (additions):**
+- `photoAnalysisMode={photoAnalysisMode}`
+- `onPhotoModeChange={setPhotoAnalysisMode}`
+
+**Props passed to `ResultsArea` (additions):**
+- `onDishSelect={handleDishSelect}`
+
+---
+
+### Updated ConversationInput (modified)
+
+**New props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| photoAnalysisMode | `'auto' \| 'identify'` | Yes | — | Forwarded from HablarShell |
+| onPhotoModeChange | `(mode: 'auto' \| 'identify') => void` | Yes | — | Forwarded from HablarShell |
+
+**Change:** Renders `<PhotoModeToggle value={photoAnalysisMode} onChange={onPhotoModeChange} disabled={isPhotoLoading} />` **always visible** below the main text input row. No conditional show/hide logic — this placement is locked per the F-WEB-MENU-VISION-001 spec (Functional Requirement #1) and matches the segmented-pill design in `docs/specs/design-guidelines.md` sections W2–W3.
+
+---
+
+### Updated ResultsArea (modified)
+
+**New prop:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| onDishSelect | `(dishName: string) => void` | No | `undefined` | Dish tap handler passed to MenuDishList |
+
+**Modified `photoResults` branch:**
+```
+if (photoResults) {
+  if (photoResults.dishCount > 1) {
+    → render <MenuDishList dishes={photoResults.dishes} onDishSelect={onDishSelect!} partial={photoResults.partial} />
+  } else {
+    → existing CardGrid / NutritionCard render (unchanged)
+  }
+}
+```
+
+---
+
+### New Analytics Events (F-WEB-MENU-VISION-001)
+
+| Event | Trigger | Payload |
+|-------|---------|---------|
+| `photo_mode_selected` | PhotoModeToggle `onChange` (in `HablarShell`) | `{ mode: 'auto' \| 'identify' }` |
+| `menu_dish_list_shown` | `HablarShell` `useEffect` when `photoResults.dishCount > 1` (NOT fired from `MenuDishList` itself — Server Component) | `{ dishCount: number, partial: boolean }` |
+| `menu_dish_selected` | `HablarShell.handleDishSelect` (parent of `MenuDishItem`) | `{ dishName: string, hasEstimate: boolean }` |
+
+All events fired via existing `trackEvent()` in `packages/web/src/lib/metrics.ts`.
+**All three events are non-counter** (no `successCount` / `errorCount` mutation) to
+preserve the `successCount <= queryCount` invariant in `WebMetricsSnapshotSchema`.
+The new payload fields (`mode`, `dishCount`, `partial`, `dishName`, `hasEstimate`)
+are client-local telemetry only — they are not persisted to `web_metrics_events`
+(snapshot only flushes counters/intents/errors).
+
+**`MENU_ANALYSIS_FAILED` error copy** is mode-conditional in `HablarShell`:
+- `mode='auto'`: "No he podido leer el menú. Prueba con otra foto o elige 'Solo este plato'."
+- `mode='identify'`: "No he podido identificar el plato. Prueba con otra foto o asegúrate de que el plato sea visible."
+
+---
+
 ## Shared UI Primitives
 
 List the primitive components available in your project (e.g., from shadcn/ui):
@@ -1320,7 +1521,7 @@ app/hablar/page.tsx (Server Component — unchanged)
 | API error code | Spanish message |
 |---------------|-----------------|
 | `INVALID_IMAGE` | `'Formato no soportado. Usa JPEG, PNG o WebP.'` |
-| `MENU_ANALYSIS_FAILED` | `'No he podido identificar el plato. Intenta con otra foto.'` |
+| `MENU_ANALYSIS_FAILED` | mode-conditional — see "F-WEB-MENU-VISION-001" section above (lines 727–731). |
 | `PAYLOAD_TOO_LARGE` | `'La foto es demasiado grande. Máximo 10 MB.'` |
 | `RATE_LIMIT_EXCEEDED` | `'Has alcanzado el límite de análisis por foto. Inténtalo más tarde.'` |
 | `UNAUTHORIZED` | `'Error de configuración. Contacta con soporte.'` |

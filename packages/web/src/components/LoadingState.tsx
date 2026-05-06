@@ -1,5 +1,12 @@
 // LoadingState — skeleton card placeholders while API is in flight.
+// F-WEB-MENU-VISION-001: supports mode='auto' (single shimmer bar) vs default (two SkeletonCards).
 // Pure presentational — no 'use client' needed.
+
+type LoadingStateProps = {
+  /** F-WEB-MENU-VISION-001: 'auto' renders a single full-width shimmer bar for menu analysis;
+   * undefined/'identify' renders the existing two-SkeletonCard layout. */
+  mode?: 'auto' | 'identify';
+};
 
 function SkeletonCard() {
   return (
@@ -21,7 +28,20 @@ function SkeletonCard() {
   );
 }
 
-export function LoadingState() {
+export function LoadingState({ mode }: LoadingStateProps = {}) {
+  if (mode === 'auto') {
+    return (
+      <div
+        role="status"
+        aria-label="Analizando el menú..."
+        className="flex flex-col"
+      >
+        <p className="text-sm text-slate-500 text-center mb-2">Analizando el menú...</p>
+        <div className="h-[200px] rounded-2xl shimmer-element" />
+      </div>
+    );
+  }
+
   return (
     <div
       role="status"

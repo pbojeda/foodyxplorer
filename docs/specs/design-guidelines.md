@@ -693,3 +693,294 @@ All images are sourced from `/Users/pb/Developer/FiveGuays/foodXPlorerResources/
 *This document is the authoritative reference for all visual decisions in the landing page.
 Frontend developers should not make visual judgment calls — defer to these specifications.
 If a situation is not covered, ask the design lead before improvising.*
+
+---
+
+## Web App `/hablar` — F-WEB-MENU-VISION-001: Multi-dish menu/carta photo analysis
+
+**Package:** `packages/web/` | **Added:** 2026-04-30 | **Status:** Design Approved
+**Applies to:** `HablarShell`, `ConversationInput`, `ResultsArea` and the two new components `PhotoModeToggle` and `MenuDishList`/`MenuDishItem`.
+
+> These notes extend (do not replace) the landing page guidelines above. They apply only to the `/hablar` shell. Reference the existing component vocabulary in `packages/web/src/components/` as documented below.
+
+---
+
+### W1. Visual Context: the /hablar shell
+
+The existing `/hablar` shell is a **white-background, mobile-first chat UI**. Key established patterns:
+
+- Page background: `bg-white` (body default in `globals.css`)
+- Fixed bottom input bar: `bg-white border-t border-slate-200 px-4 py-3`
+- Primary text: `text-slate-700` (slate-700, `#334155`)
+- Cards: `rounded-2xl border border-slate-100 bg-white p-4 shadow-soft`
+- Brand color for interactive chrome: `border-brand-green text-brand-green` (`--color-botanical: #2d5a27`)
+- Touch buttons in the input bar: `h-12 w-12 rounded-xl` (PhotoButton pattern)
+- Skeleton loading: `.shimmer-element` (slate-100 → slate-200 shimmer, `globals.css:82`)
+- Card entrance: `.card-enter` (fade + `translateY(12px)` → 0, 0.35s ease-out, `globals.css:39`)
+
+All new components must feel continuous with this palette. Do not introduce new shadow levels, new border-radius tokens, or new brand colors.
+
+---
+
+### W2. PhotoModeToggle
+
+#### Control type and rationale
+
+Use a **segmented pill control** (two adjacent buttons sharing a common pill container), NOT individual radio buttons and NOT a `<select>`. Rationale:
+
+- Two options only — segmented pill is immediately scannable at a glance. No dropdown overhead.
+- Visually echoes existing icon-button row style in ConversationInput without adding vertical bulk.
+- On mobile, pill controls are faster to tap than a radio group that requires scanning labels with a pointer.
+
+#### Anatomy
+
+```
+┌─────────────────────────────────────────────────┐
+│  [ Menú/carta ▪ ]  [ Solo este plato ]          │
+└─────────────────────────────────────────────────┘
+```
+
+The container is a single rounded pill with a border. The active segment fills with a solid token color; the inactive segment is transparent.
+
+#### Sizing and positioning
+
+- **Container:** `inline-flex rounded-xl border border-slate-200 bg-slate-50 p-0.5` — the outer pill sits inside the ConversationInput below the main `flex items-center gap-2` row.
+- **Placement:** Full-width below the input row, aligned with the textarea left edge. Use `mt-2` separation from the input row. Do not float it to one side — full-width makes the touch target generous on iPhone SE–class devices.
+- **Each segment button:** `flex-1 rounded-[10px] py-1.5 px-3 text-sm font-medium transition-colors duration-150`
+  - Active state: `bg-white text-brand-green shadow-soft border border-brand-green/20` — the active pill visually "lifts" from the container background with a subtle white fill and the brand-green border tint.
+  - Inactive state: `bg-transparent text-slate-500 border-transparent` — understated, does not compete with the input.
+  - Hover (inactive only): `hover:text-slate-700 hover:bg-white/60`
+  - Focus: `focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-1`
+  - Disabled (during upload): `opacity-40 pointer-events-none cursor-not-allowed` on the **container**, not per-button — preserves layout, communicates the whole toggle is unavailable.
+- **Font size:** `text-sm` (14px). Do not go smaller — the UI is used in restaurant lighting conditions.
+- **Minimum tap target:** Each segment button must resolve to ≥ 44px tall in tap coordinates. `py-1.5` (6px top + bottom) + 14px line-height + 1px border = ~29px intrinsic. Compensate by wrapping the container in a `min-h-[44px]` flex row, or increase padding to `py-2.5` (~41px intrinsic). Prefer `py-2` as a minimum (`text-sm` renders at 14px → 14 + 16 = 30px, still short). **Use `py-2.5 px-3`** to clear 40px intrinsic, and accept the OS touch-target expansion to 44px on iOS.
+
+#### Label copy (locked in spec — do not alter)
+
+- Option A (default): **"Menú/carta"** (`value='auto'`)
+- Option B: **"Solo este plato"** (`value='identify'`)
+
+"Solo este plato" is 14 characters and fits comfortably at `text-sm` even on 320px viewports with `flex-1`.
+
+#### Desktop vs mobile
+
+On desktop (≥ `md:` breakpoint), the ConversationInput is centered and width-constrained. The toggle follows the same width as the textarea. No layout change needed — it already responds to the parent container width via `flex-1`.
+
+#### Relationship to PhotoButton
+
+The PhotoButton (`h-12 w-12 rounded-xl border border-brand-green`) sits in the main input row. The toggle is a **secondary affordance below** — it guides intent BEFORE the camera button is tapped, not simultaneously. The visual hierarchy is: textarea → action buttons (photo, mic, submit) → toggle hint below. This ordering matches the reading / interaction sequence.
+
+---
+
+### W3. MenuDishList and MenuDishItem
+
+#### List format: compact rows, not cards
+
+Use **compact full-width rows** with a border-bottom divider, NOT individual cards with shadows. Rationale:
+
+- A restaurant menu typically has 4–12 dishes. Card-per-dish would create an overwhelming card grid in a cramped mobile viewport.
+- Rows scan faster vertically. The user's goal is to identify and tap one dish — a list encourages linear scanning; cards encourage 2D comparison (wrong affordance here).
+- Matches the visual language of native mobile list components (iOS UITableView, Android RecyclerView) which users already associate with "pick one".
+
+#### MenuDishList container
+
+```
+┌─────────────────────────────────────────────────┐
+│ Se han encontrado 6 platos          [chip]       │
+│ ─────────────────────────────────────────────── │
+│ Paella valenciana              640 kcal    ›     │
+│ ─────────────────────────────────────────────── │
+│ Fideuà                         Sin datos   ›     │
+│ ...                                             │
+└─────────────────────────────────────────────────┘
+```
+
+- **Container:** `rounded-2xl border border-slate-100 bg-white overflow-hidden shadow-soft` — matches NutritionCard surface exactly. This makes the list feel like a peer result unit, not a secondary UI.
+- **Header row:** `px-4 py-3 flex items-center justify-between border-b border-slate-100 bg-slate-50/60`
+  - Left: "Se han encontrado N platos" — `text-sm font-semibold text-slate-700`
+  - Right: partial warning chip (conditional — see W3.2)
+- **Entrance animation:** Apply `.card-enter` class to the container — reuses the existing `globals.css` fade + slide-up. No new animation needed.
+- **Scroll behavior:** If `dishes.length > 6`, the container clips at `max-h-[420px] overflow-y-auto`. The user scrolls within the card; the page itself does not scroll to show more dishes. 420px accommodates ~7 rows × 60px before clipping becomes noticeable. Add `-webkit-overflow-scrolling: touch` via `overflow-y-auto` (Tailwind handles this on iOS via `overscroll-contain`).
+
+#### MenuDishItem rows
+
+- **Row container:** `flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-b-0 w-full text-left cursor-pointer active:bg-slate-50 transition-colors duration-100`
+  - The `last:border-b-0` removes the bottom border from the final row — matches iOS list convention.
+  - `active:bg-slate-50` is the tap ripple analog: a subtle background flash on press. No full ripple animation needed — this is a content-list row, not a button CTA.
+- **Minimum row height:** `min-h-[56px]` — safely above the 44px WCAG touch target. The `py-3` (24px padding) + at least one line of text (20px) = 44px. Use `min-h-[56px]` to provide breathing room for two-line dish names.
+- **Left: dish name**
+  - `text-base font-semibold text-slate-800 flex-1 leading-snug` — bold name, can wrap to two lines on long names like "Lomo de merluza a la plancha con verduras".
+  - No character truncation. Let it wrap — the `min-h-[56px]` accommodates two lines.
+- **Right: kcal or "Sin datos"**
+  - **With estimate:** `text-sm font-medium text-slate-500 whitespace-nowrap` — e.g. "640 kcal". Muted but legible. Not the brand-orange used in NutritionCard (that is for the primary card hero display; here it would be noisy across 6+ rows).
+  - **"Sin datos":** `text-sm text-slate-400 whitespace-nowrap` — noticeably lighter than the kcal value, communicating lower information density. Do NOT use a dash or "—" — the spec copy is "Sin datos" and it reads better.
+  - Do NOT use color-coding (no red for "Sin datos") — this is not an error state. It simply means no cascade match yet. The user can still tap and trigger a live query.
+- **Chevron:** `text-slate-300` — `›` character or an inline SVG chevron-right at `16px`. `aria-hidden="true"`. Right-aligned with `flex-shrink-0 ml-2`.
+
+#### Visual contrast: kcal vs "Sin datos"
+
+| Scenario | Color class | Contrast on white | Pass AA? |
+|---|---|---|---|
+| kcal value (`text-slate-500`) | `#64748B` on `#FFFFFF` | 4.6:1 | Yes (body text) |
+| "Sin datos" (`text-slate-400`) | `#94A3B8` on `#FFFFFF` | 2.9:1 | AA Large only |
+
+"Sin datos" at `text-sm` (14px) is body-size text and falls below AA at 4.5:1. Compensate: use `font-medium` weight on "Sin datos" — at 500 weight, 14px passes as "large text" in WCAG 2.1 definition (bold ≥ 14pt / 18.67px OR bold ≥ 14px at 700+ weight). Alternatively, use `text-slate-500` for "Sin datos" and differentiate with an italic style: `italic text-slate-500`. The italic clearly signals "no data" without requiring a red/orange color that would suggest an error. **Preferred approach: `text-sm italic text-slate-400` and accept AA Large (16px bold equivalent context) — this is the most visually intuitive.**
+
+If the project's accessibility policy requires strict AA body compliance, raise "Sin datos" to `text-slate-500` (4.6:1 — passes AA).
+
+---
+
+### W3.2 Partial-results banner
+
+The `partial: true` banner sits inside the `MenuDishList` header row, to the right of the "Se han encontrado N platos" label.
+
+- **Visual:** A small inline chip — `inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold px-2 py-0.5`
+  - Label: "Lista incompleta"
+  - Prepend a warning triangle icon at `14px` stroke `1.5` (amber-600, `aria-hidden`)
+  - Matches the "Estimado" ConfidenceBadge amber palette already in use.
+- **Do NOT use a full-width banner below the header.** A full banner would push all dish rows down and feel alarming for what is a mild informational state. The chip is contained and unobtrusive.
+- **Screen reader announcement:** The chip must carry `role="note"` and the full text "Análisis parcial. Es posible que el menú tenga más platos." — the chip label "Lista incompleta" alone is too terse for a non-visual reading.
+
+---
+
+### W4. Loading and error states
+
+#### Photo upload in progress (between tap and result)
+
+The existing `LoadingState` renders two `SkeletonCard` shimmer cards. For `mode='auto'`, a menu analysis takes noticeably longer than a single-dish identify (Vision API + cascade per dish). The skeleton should signal "analyzing menu", not just "loading":
+
+- **Replace the two-card skeleton with a single full-width shimmer bar** at `h-[200px] rounded-2xl shimmer-element` — this mirrors the eventual `MenuDishList` height, setting correct spatial expectations.
+- **Add a text label above the skeleton:** `"Analizando el menú..."` — `text-sm text-slate-500 text-center mb-2`. For `mode='identify'`, keep the existing copy `"Buscando información nutricional..."` (already in `LoadingState` aria-label).
+- The text label is conditional on mode — `HablarShell` already has `photoMode` state (`'idle' | 'analyzing'`). Pass the current `photoAnalysisMode` to `ResultsArea` → `LoadingState` for the copy.
+- The `isPhotoLoading` prop already feeds into `ResultsArea`. No structural change to the loading branch — only the copy and skeleton shape are different.
+
+#### MENU_ANALYSIS_FAILED error (mode-conditional)
+
+The spec locks the copy:
+- `mode='auto'`: "No he podido leer el menú. Prueba con otra foto o elige 'Solo este plato'."
+- `mode='identify'`: "No he podido identificar el plato. Prueba con otra foto o asegúrate de que el plato sea visible."
+
+Visual treatment: rendered as `inlineError` in ConversationInput — `role="alert" text-sm text-red-600 mb-1.5` (existing pattern). No toast, no modal. The existing error rendering in `ConversationInput.tsx:70` handles this unchanged.
+
+- **Do NOT show the error as a card in `ResultsArea`.** It must appear in the input bar where the user's attention is, not in the results area where there is nothing to show.
+- The mention of "elige 'Solo este plato'" in the `mode='auto'` error copy directly draws the eye down to the `PhotoModeToggle` which is visible immediately below the error. This is the key interaction affordance that guides recovery — the toggle's position adjacent to the error message is intentional.
+
+#### 429 rate-limit error
+
+Existing copy: "Has alcanzado el límite de análisis por foto. Inténtalo más tarde." — rendered as `inlineError`. No visual change.
+
+---
+
+### W5. Accessibility
+
+#### Color contrast targets (new components)
+
+| Element | Foreground | Background | Ratio | Target |
+|---|---|---|---|---|
+| Toggle active label ("Menú/carta") | `text-brand-green` `#2D5A27` | `bg-white` `#FFFFFF` | 7.5:1 | AAA |
+| Toggle inactive label | `text-slate-500` `#64748B` | `bg-slate-50` `#F8FAFC` | ~4.5:1 | AA |
+| Dish name | `text-slate-800` `#1E293B` | `bg-white` | 12.6:1 | AAA |
+| kcal value | `text-slate-500` `#64748B` | `bg-white` | 4.6:1 | AA |
+| "Sin datos" italic | `text-slate-400` `#94A3B8` | `bg-white` | 2.9:1 | AA Large (14px medium weight — acceptable) |
+| Partial chip text | `text-amber-800` `#92400E` | `bg-amber-50` `#FFFBEB` | 5.9:1 | AA |
+| Header text | `text-slate-700` `#334155` | `bg-slate-50/60` `≈#F8FAFC` | ~8:1 | AAA |
+
+#### ARIA roles and attributes (supplementing spec)
+
+- `PhotoModeToggle` container: `role="group" aria-label="Tipo de análisis de foto"` (locked in spec)
+- Each toggle button: `<button aria-pressed={isActive}>`. The pressed button's label must be fully self-describing — "Menú/carta, seleccionado" is communicated by `aria-pressed="true"`; no extra hidden text needed.
+- `MenuDishList`: `role="list" aria-label="Platos encontrados en el menú"` (wrap value in label: "Platos encontrados en el menú, N resultados")
+- Each `MenuDishItem`: `role="listitem"`. The clickable element inside: `<button type="button" aria-label="{dishName}, {kcal} kcal — ver información nutricional">` or `"{dishName}, sin datos de calorías — ver información nutricional"` for null estimates. This prevents the screen reader from just reading "640 kcal ›" without context.
+- Partial banner chip: `role="note" aria-label="Análisis parcial. Es posible que el menú tenga más platos."` — the visual label "Lista incompleta" is insufficient.
+- Loading state: `role="status" aria-live="polite" aria-label="Analizando el menú..."` — overrides existing `LoadingState` copy when `photoAnalysisMode === 'auto'`.
+
+#### Focus order
+
+The `ConversationInput` DOM order after this change:
+
+1. `inlineError` paragraph (non-focusable; read by `role="alert"`)
+2. `textarea` (existing)
+3. `PhotoButton` (existing)
+4. `MicButton` (existing)
+5. `SubmitButton` (existing, conditional)
+6. `PhotoModeToggle` container — segment button A ("Menú/carta")
+7. `PhotoModeToggle` segment button B ("Solo este plato")
+
+This order is correct: primary input actions (2–5) before the secondary modifier (6–7). Tab through the input bar reaches the toggle last, which is appropriate — most users set mode once and forget it.
+
+When `MenuDishList` is rendered in `ResultsArea`, it appears above `ConversationInput` in DOM order. The first `MenuDishItem` button is the first focusable element after the results area is populated. This is correct — keyboard users tab naturally from the result list back down to the input.
+
+#### Keyboard navigation within MenuDishList
+
+- Tab: moves between dish rows sequentially (standard button tabbing — no custom keyboard handler needed).
+- Enter / Space on a dish row: fires `onSelect()` — standard button behavior, no extra handler.
+- Do NOT implement arrow-key navigation (up/down between rows). This is a list of buttons, not a `role="listbox"`. Arrow-key navigation adds complexity and is not expected for button lists.
+
+---
+
+### W6. Mobile-first considerations
+
+**Primary use case:** user is in a restaurant, holding their phone with one hand, photographing a paper menu under variable lighting.
+
+#### One-thumb reachability
+
+On iPhone 14 (390 × 844pt), the reachable thumb zone comfortably covers the bottom ~60% of the screen. The fixed `ConversationInput` bar is at the bottom — fully within the reachable zone.
+
+- `PhotoModeToggle` sits immediately above the safe area inset inside the fixed bar. It is reachable with the right thumb.
+- The toggle's `py-2.5` padding makes each option finger-friendly without requiring precision.
+- "Menú/carta" (the default) is on the LEFT side of the pill — the side closer to the left thumb on right-handed use, and directly reachable for left-handed users operating with their right hand on the right side of the pill. Either way, both options are within the 390pt width and easily reachable.
+
+#### MenuDishList scroll on mobile
+
+- The `max-h-[420px] overflow-y-auto` constraint leaves room for the ConversationInput bar (~80px) and some of the page above the card. On 844px viewport height, 420px = exactly 50% — the user always sees at least some content outside the list, preventing the feeling of being "trapped" in an endless scroll.
+- Add `scroll-pb-4` to the list container to ensure the last item is not obscured by the input bar when scrolled to bottom — though since the list is inside `ResultsArea` (above the fixed bar), this is only a concern if `ResultsArea` itself is overlapped. Verify in implementation.
+- **No momentum scroll jank:** The `overflow-y-auto` on iOS requires the container to be a block-level element (not `display: contents`). Confirm in implementation.
+
+#### Photo quality under restaurant lighting
+
+The toggle label "Menú/carta" should help users understand to take a photo of the physical menu, not the food. No additional guidance UI is needed — the label is self-explanatory. Do not add a tooltip or helper text below the toggle; it adds visual noise in a context where the user is already multitasking.
+
+---
+
+### W7. Animations and motion
+
+#### New animations for this feature
+
+| Trigger | Component | Animation | Spec |
+|---|---|---|---|
+| MenuDishList appears | `MenuDishList` container | Fade + slide-up | Apply `.card-enter` class (existing, `globals.css:43`) |
+| Individual dish rows | `MenuDishItem` | None (renders inside the already-animating container) | Do NOT stagger individual rows — for menus with 10+ items, stagger would feel slow |
+| Toggle mode change | `PhotoModeToggle` | Active pill crossfades | `transition-colors duration-150` on background + color — no slide or scale |
+| Dish tap | `MenuDishItem` | Background flash | `active:bg-slate-50 transition-colors duration-100` |
+
+#### What NOT to animate in this feature
+
+- Do NOT slide individual `MenuDishItem` rows in when the list appears. The container `.card-enter` handles the whole list as a unit.
+- Do NOT animate the `PhotoModeToggle` appearance on page load — it is always visible and should not call attention to itself on mount.
+- Do NOT add a loading spinner inside the toggle during upload — the `opacity-40` disabled state is sufficient communication.
+- Do NOT animate `MenuDishList` exiting when the user taps a dish. The list disappears as `photoResults` clears; an exit animation would delay navigation feedback. Instant removal is correct.
+
+#### prefers-reduced-motion
+
+The existing `globals.css:97-115` block already disables all `.card-enter` and `.shimmer-element` animations system-wide when `prefers-reduced-motion: reduce`. No extra work needed. The `transition-colors duration-150` on the toggle will also be suppressed by the `transition-duration: 0.01ms` override.
+
+---
+
+### W8. Anti-patterns specific to this feature
+
+| Anti-pattern | Why |
+|---|---|
+| Carousel or horizontal scroll for MenuDishList | Dishes are parallel choices, not sequential content. Horizontal swipe is wrong affordance and hidden items. |
+| Modal or bottom sheet for the toggle | The spec locks toggle as always-visible inline. A modal adds friction at the worst moment (in a restaurant, about to take a photo). |
+| "Analizar todo" / "Ver todos los nutrientes" batch CTA | Out of scope per spec. Each dish tap triggers a separate conversational query. |
+| Displaying kcal as a progress bar or ring | No reference range is available. A progress bar implies a limit. Plain numeric is correct. |
+| Color-coding dish rows by kcal level (green/yellow/red) | nutriXplorer explicitly avoids food-as-good/bad framing. Calories are data, not judgments. |
+| Infinite scroll for dishes beyond `max-h` | A single restaurant menu will never have 100 dishes. Clip at `max-h-[420px]` and let the user scroll within the card. Infinite scroll pagination adds engineering cost for zero user benefit here. |
+| Skeleton cards (2-card grid) for menu analysis loading | The multi-card skeleton implies multiple independent cards, not a unified list. Use the single full-width shimmer bar for `mode='auto'` loading. |
+| Putting the mode toggle in a settings panel or behind a gear icon | The toggle must be always visible per spec. Hiding it anywhere defeats the "killer use-case" default positioning. |
+| Showing "Sin datos" in red | Red = error in this design system. Missing calorie data is not an error — it is a data coverage gap. Use italic slate-400. |
+| Truncating long dish names with ellipsis | A truncated "Lomo de merluza a la plancha con..." is not tappable with confidence. Let names wrap to two lines. |
+
+---
+
+*Section added: 2026-04-30 | Feature: F-WEB-MENU-VISION-001 | Designer: ui-ux-designer agent*

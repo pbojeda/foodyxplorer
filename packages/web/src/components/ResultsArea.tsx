@@ -12,6 +12,7 @@ import { EmptyState } from './EmptyState';
 import { ErrorState } from './ErrorState';
 import { NutritionCard } from './NutritionCard';
 import { ContextConfirmation } from './ContextConfirmation';
+import { MenuDishList } from './MenuDishList';
 
 interface ResultsAreaProps {
   isLoading: boolean;
@@ -24,6 +25,10 @@ interface ResultsAreaProps {
   voiceError?: VoiceErrorCode | null;
   /** F091 — called when the user retries a recoverable voice error. */
   onVoiceRetry?: () => void;
+  /** F-WEB-MENU-VISION-001 — called when the user taps a dish in MenuDishList. */
+  onDishSelect?: (dishName: string) => void;
+  /** F-WEB-MENU-VISION-001 — forwarded to LoadingState for mode-conditional skeleton. */
+  photoAnalysisMode?: 'auto' | 'identify';
 }
 
 // Voice error codes that warrant a persistent ErrorState in ResultsArea.
@@ -87,12 +92,14 @@ export function ResultsArea({
   photoResults = null,
   voiceError = null,
   onVoiceRetry,
+  onDishSelect,
+  photoAnalysisMode,
 }: ResultsAreaProps) {
   // Loading state takes priority (text or photo)
   if (isLoading || isPhotoLoading) {
     return (
       <div className="flex-1 overflow-y-auto px-4 pb-24 pt-4">
-        <LoadingState />
+        <LoadingState mode={isPhotoLoading ? photoAnalysisMode : undefined} />
       </div>
     );
   }
@@ -124,8 +131,22 @@ export function ResultsArea({
     );
   }
 
-  // Photo results (F092) — render NutritionCard per dish identified from photo
+  // Photo results (F092/F-WEB-MENU-VISION-001)
   if (photoResults) {
+    // Multi-dish: render MenuDishList (F-WEB-MENU-VISION-001)
+    if (photoResults.dishCount > 1) {
+      return (
+        <div className="flex-1 overflow-y-auto px-4 pb-24 pt-4">
+          <MenuDishList
+            dishes={photoResults.dishes}
+            onDishSelect={onDishSelect ?? (() => {})}
+            partial={photoResults.partial}
+          />
+        </div>
+      );
+    }
+
+    // Single dish: existing CardGrid + NutritionCard render (unchanged)
     return (
       <CardGrid>
         {photoResults.dishes.map((dish, index) => {

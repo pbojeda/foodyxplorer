@@ -4841,11 +4841,18 @@ paths:
           `extractTextFromImage` (Tesseract) → `parseDishNames`. No PDF-to-image
           rendering — PDFs use direct text extraction.
         - `vision`: Image only (PDFs rejected with `INVALID_IMAGE`). Vision API
-          (gpt-4o-mini, maxTokens 2048) with menu-extraction prompt → JSON array of
-          dish name strings. OCR fallback on Vision API failure.
+          (model controlled by `VISION_MODEL` env var, default `gpt-4o-mini`, maxTokens 2048)
+          with menu-extraction prompt → JSON array of dish name strings. OCR fallback on
+          Vision API failure.
         - `identify`: Image only (PDFs rejected with `INVALID_IMAGE`). Vision API with
           single-dish-identification prompt → exactly 1 dish. No OCR fallback — if
           Vision fails, `MENU_ANALYSIS_FAILED` is returned.
+
+        **Vision model feature flag:** The `VISION_MODEL` environment variable selects
+        the OpenAI model used for Vision API calls. Accepted values: `gpt-4o-mini`
+        (default, current) and `gpt-4o`. The flag allows an operator to switch models
+        for A/B quality evaluation without a code deploy. No automatic switching logic —
+        the configured model is used for all Vision API calls.
 
         **OCR pipeline (PDF):** `pdf-parse` → text lines → `parseDishNames(lines)` →
         string array of dish names.
@@ -4877,6 +4884,17 @@ paths:
         tier rate limit). Exceeding this limit returns HTTP 429 `RATE_LIMIT_EXCEEDED`.
         The bot API key is exempt from this limit (per-user bot rate limiting is
         enforced at the bot handler layer, not at the API level).
+
+        **Per-actor daily limit (existing F069 `actorRateLimit`):** Requests carrying
+        an `X-Actor-Id` header are additionally subject to the existing per-actor daily
+        counter implemented by `plugins/actorRateLimit.ts`. The route `/analyze/menu`
+        is mapped to the `photos` bucket; effective limits per tier are sourced from
+        `DAILY_LIMITS_BY_TIER` in that module (currently anonymous=10, free=20, pro=100,
+        admin=∞). F-WEB-MENU-VISION-001 does NOT change these limits or add a new
+        Redis key — it only switches the web `mode` from `identify` to `auto` by
+        default, so the same `/analyze/menu` request now exercises the multi-dish
+        path under the SAME rate-limit policy as before. Bot requests (no
+        `X-Actor-Id`) are not affected.
 
         **Auth:** Public API key required (`X-API-Key` header). Anonymous requests are
         rejected (HTTP 401). Admin key also accepted.
