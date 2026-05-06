@@ -1,7 +1,7 @@
 # F-WEB-MENU-VISION-001: Web /hablar — multi-dish menu/carta photo analysis (mode=auto)
 
 **Feature:** F-WEB-MENU-VISION-001 | **Type:** Fullstack-Feature | **Priority:** High
-**Status:** Review | **Branch:** feature/F-WEB-MENU-VISION-001-multi-dish-menu-analysis
+**Status:** Ready for Merge | **Branch:** feature/F-WEB-MENU-VISION-001-multi-dish-menu-analysis
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-06 | **Dependencies:** F034 (POST /analyze/menu backend), F092 (web photo analysis flow), F091 (voice budget pattern reused for vision rate-limiting)
 
@@ -1931,6 +1931,7 @@ from the spec — the verification command catches it.
 
 | Date | Action | Notes |
 |------|--------|-------|
+| 2026-05-06 | Step 0 — Spec drafted, reviewed, locked | `spec-creator` filled `## Spec` and `## Acceptance Criteria` after reading actual code; `/review-spec` 3 rounds (Gemini + Codex) → APPROVED; `ui-ux-designer` (Step 0c) wrote `docs/specs/design-guidelines.md` "Web App /hablar — F-WEB-MENU-VISION-001" sections W1–W8 + design notes in this ticket. Spec entries below provide round-by-round detail. |
 | 2026-05-06 | Branch created + ticket skeleton initialized | Standard SDD workflow, fullstack feature, base from `develop` per gitflow |
 | 2026-05-06 | Spec drafted by `spec-creator` | Filled `## Spec` and `## Acceptance Criteria` after reading actual code (analyze.ts, menuAnalyzer.ts, apiClient.ts, HablarShell.tsx, fileUpload.ts, ResultsArea.tsx). |
 | 2026-05-06 | `/review-spec` round 1 — Gemini + Codex (REVISE × 2) | Gemini: 1 CRITICAL (new Redis key conflicts with actorRateLimit) + 1 IMPORTANT (proxy bypass) + 1 SUGGESTION (callVisionCompletion signature). Codex: 2 CRITICAL (proxy path collision, tier/auth architecture mismatch) + 3 IMPORTANT (error copy, telemetry GA4 vs local, toggle visibility TBD). All addressed inline. |
@@ -1966,9 +1967,9 @@ from the spec — the verification command catches it.
 | 2. Verify product tracker | [x] | Active Session: step 5/6 (Review) — fix loop complete, awaiting merge audit + approval |
 | 3. Update key_facts.md | [x] | N/A — feature does not add new schemas/migrations/reusable components/error codes; extends existing `callVisionCompletion` signature and adds one optional config field (`VISION_MODEL` with default) — both already documented inline in `config.ts` and api-spec.yaml |
 | 4. Update decisions.md | [x] | N/A — DoD does not require an ADR (Std feature with locked spec via 3-round Codex+Gemini review) |
-| 5. Commit documentation | [x] | Step 4 close `7947ee1`; Step 5 review fixes `fd752e4`; this final tracker/ticket sync (commit hash to be filled below after commit lands) |
-| 6. Verify clean working tree | [x] | After this final tracker/ticket commit, `git status` is clean (sole exception: `.claude/scheduled_tasks.lock` is a session-scoped harness lock, NOT part of the project) |
-| 7. Verify branch up to date | [x] | `git fetch origin develop` + `git merge-base --is-ancestor origin/develop HEAD` → UP TO DATE (no divergence at 2026-05-06 16:30 UTC) |
+| 5. Commit documentation | [x] | Step 4 close `7947ee1`; Step 5 review fixes `fd752e4`; Step 5 ticket+tracker sync `cd9e778`; final audit-merge sync (this commit). |
+| 6. Verify clean working tree | [x] | `git status` clean after resetting `.claude/scheduled_tasks.lock` (session-scoped harness file, tracked but not authored by this feature). |
+| 7. Verify branch up to date | [x] | `git fetch origin develop` + `git merge-base --is-ancestor origin/develop HEAD` → UP TO DATE (no divergence at 2026-05-06 16:30 UTC). |
 
 ---
 
