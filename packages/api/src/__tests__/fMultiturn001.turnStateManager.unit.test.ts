@@ -3,7 +3,7 @@
 // Tests Redis get/set for conv:turn:{actorId} turn state.
 // Redis is mocked via vi.fn() — no real Redis connection.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { ConversationTurnState } from '@foodxplorer/shared';
 
 // ---------------------------------------------------------------------------
