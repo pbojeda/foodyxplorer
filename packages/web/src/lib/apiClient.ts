@@ -167,12 +167,13 @@ export async function sendMessage(
 /**
  * Sends a plate/menu photo to the Next.js Route Handler proxy at /api/analyze.
  * The Route Handler attaches the private API_KEY and proxies to POST /analyze/menu.
- * mode is always "identify" for single-dish photos (F092).
+ * Defaults to mode='auto' (menu/carta analysis). Pass mode='identify' for single-dish.
  *
  * @param file     The image File object selected by the user.
  * @param actorId  The actor UUID (from actorId.ts).
  * @param signal   Optional external AbortSignal (e.g. from AbortController in HablarShell).
  *                 A 65-second timeout is ALWAYS applied in addition.
+ * @param mode     Analysis mode — 'auto' (default, menu/carta) or 'identify' (single dish).
  * @returns        Parsed MenuAnalysisResponse.
  * @throws ApiError on non-2xx responses or malformed JSON.
  * @throws DOMException (AbortError) when the request is aborted — NOT wrapped in ApiError.
@@ -181,6 +182,7 @@ export async function sendPhotoAnalysis(
   file: File,
   actorId: string,
   signal?: AbortSignal,
+  mode: 'auto' | 'identify' = 'auto',
 ): Promise<MenuAnalysisResponse> {
   // Always enforce a 65-second hard timeout (Vision API + cascade takes up to 60s).
   // Merges with any external signal (e.g. stale-request abort from HablarShell).
@@ -193,7 +195,7 @@ export async function sendPhotoAnalysis(
   // the correct multipart/form-data; boundary=... value automatically.
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('mode', 'identify');
+  formData.append('mode', mode);
 
   let response: Response;
   try {
