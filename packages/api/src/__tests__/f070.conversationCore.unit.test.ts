@@ -4,7 +4,7 @@
 // All mocks are vi.fn() passed as ConversationRequest fields.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { EstimateData, EstimateResult } from '@foodxplorer/shared';
+import type { EstimateData, EstimateResult, ConversationTurnState } from '@foodxplorer/shared';
 import type { ConversationRequest } from '../conversation/types.js';
 
 // ---------------------------------------------------------------------------
@@ -39,6 +39,42 @@ const { mockEstimate } = vi.hoisted(() => ({
 
 vi.mock('../conversation/estimationOrchestrator.js', () => ({
   estimate: mockEstimate,
+}));
+
+// F-MULTITURN-001 mocks
+const { mockGetTurnState, mockSetTurnState } = vi.hoisted(() => ({
+  mockGetTurnState: vi.fn(),
+  mockSetTurnState: vi.fn(),
+}));
+
+vi.mock('../conversation/turnStateManager.js', () => ({
+  getTurnState: mockGetTurnState,
+  setTurnState: mockSetTurnState,
+  TURN_STATE_TTL_SECONDS: 1800,
+}));
+
+const {
+  mockDetectAttributeFollowUp,
+  mockDetectRefinementFollowUp,
+  mockApplyRefinement,
+} = vi.hoisted(() => ({
+  mockDetectAttributeFollowUp: vi.fn(),
+  mockDetectRefinementFollowUp: vi.fn(),
+  mockApplyRefinement: vi.fn(),
+}));
+
+vi.mock('../conversation/followUpClassifier.js', () => ({
+  detectAttributeFollowUp: mockDetectAttributeFollowUp,
+  detectRefinementFollowUp: mockDetectRefinementFollowUp,
+  applyRefinement: mockApplyRefinement,
+  ATTRIBUTE_CONFIDENCE_THRESHOLD: 0.75,
+  REFINEMENT_CONFIDENCE_THRESHOLD: 0.70,
+  NUTRIENT_ALIASES: {
+    'carbs': { nutrientKey: 'carbohydrates', label: 'Carbohidratos', unit: 'g' },
+    'proteína': { nutrientKey: 'proteins', label: 'Proteínas', unit: 'g' },
+    'sal': { nutrientKey: 'salt', label: 'Sal', unit: 'g' },
+    'calorías': { nutrientKey: 'calories', label: 'Calorías', unit: 'kcal' },
+  },
 }));
 
 import { processMessage } from '../conversation/conversationCore.js';
@@ -118,6 +154,12 @@ describe('ConversationCore.processMessage()', () => {
     mockSetContext.mockResolvedValue(undefined);
     mockResolveChain.mockReturnValue(null);
     mockEstimate.mockResolvedValue(ESTIMATE_DATA_L1);
+    // F-MULTITURN-001: default to no turn state so existing tests are unaffected (AC-13)
+    mockGetTurnState.mockResolvedValue(null);
+    mockDetectAttributeFollowUp.mockReturnValue(null);
+    mockDetectRefinementFollowUp.mockReturnValue(null);
+    mockApplyRefinement.mockReturnValue({ mergedQuery: 'merged' });
+    mockSetTurnState.mockResolvedValue(undefined);
   });
 
   // -------------------------------------------------------------------------
@@ -351,5 +393,396 @@ describe('ConversationCore.processMessage()', () => {
 
     expect(result.activeContext).toBeNull();
     expect(result.intent).toBe('estimation');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F-MULTITURN-001 — Step 1.5: Follow-Up Classification tests
+// ---------------------------------------------------------------------------
+
+// Shared fixtures for turn state tests
+const PREV_TURN_NUTRIENTS = {
+  calories: 450, proteins: 20, carbohydrates: 65, sugars: 4,
+  fats: 12, saturatedFats: 2, fiber: 3, salt: 1.5, sodium: 600,
+  transFats: 0, cholesterol: 80, potassium: 400,
+  monounsaturatedFats: 6, polyunsaturatedFats: 3, alcohol: 0,
+  referenceBasis: 'per_serving' as const,
+};
+
+const PREV_TURN_RESULT: EstimateResult = {
+  entityType: 'dish',
+  entityId: 'fd000000-0070-4000-a000-000000000011',
+  name: 'Paella Valenciana',
+  nameEs: 'Paella valenciana',
+  restaurantId: null,
+  chainSlug: null,
+  portionGrams: 350,
+  nutrients: PREV_TURN_NUTRIENTS,
+  confidenceLevel: 'high',
+  estimationMethod: 'official',
+  source: { id: 'fd000000-0070-4000-a000-000000000099', name: 'Source', type: 'official', url: 'https://example.com' },
+  similarityDistance: null,
+};
+
+const PREV_TURN_ESTIMATE: EstimateData = {
+  query: 'paella valenciana',
+  chainSlug: null,
+  portionMultiplier: 1,
+  level1Hit: true,
+  level2Hit: false,
+  level3Hit: false,
+  level4Hit: false,
+  matchType: 'exact_dish',
+  result: PREV_TURN_RESULT,
+  cachedAt: null,
+};
+
+const VALID_PREV_TURN: ConversationTurnState = {
+  query: 'paella valenciana',
+  chainSlug: null,
+  estimation: PREV_TURN_ESTIMATE,
+  portionMultiplier: 1,
+  storedAt: Date.now() - 60_000,
+};
+
+describe('ConversationCore.processMessage() — F-MULTITURN-001 Step 1.5', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockGetContext.mockResolvedValue(null);
+    mockSetContext.mockResolvedValue(undefined);
+    mockResolveChain.mockReturnValue(null);
+    mockEstimate.mockResolvedValue(ESTIMATE_DATA_L1);
+    // Default: no turn state, no follow-up detected
+    mockGetTurnState.mockResolvedValue(null);
+    mockDetectAttributeFollowUp.mockReturnValue(null);
+    mockDetectRefinementFollowUp.mockReturnValue(null);
+    mockApplyRefinement.mockReturnValue({ mergedQuery: 'merged query' });
+    mockSetTurnState.mockResolvedValue(undefined);
+  });
+
+  // -------------------------------------------------------------------------
+  // AC-09: No turn state → skip follow-up classification
+  // -------------------------------------------------------------------------
+
+  it('AC-09: prevTurn = null → getTurnState called, classifiers NOT called, falls through to estimation', async () => {
+    mockGetTurnState.mockResolvedValue(null);
+
+    const result = await processMessage(makeRequest({ text: 'big mac' }));
+
+    expect(mockGetTurnState).toHaveBeenCalledOnce();
+    expect(mockDetectAttributeFollowUp).not.toHaveBeenCalled();
+    expect(result.intent).toBe('estimation');
+  });
+
+  // -------------------------------------------------------------------------
+  // AC-04: Attribute follow-up hit + AC-25 priorTurnQuery assertion
+  // -------------------------------------------------------------------------
+
+  it('AC-04 P1: attribute hit returns follow_up_attribute with correct data', async () => {
+    mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
+    mockDetectAttributeFollowUp.mockReturnValue({ nutrientKey: 'carbohydrates', confidence: 0.95 });
+    mockDetectRefinementFollowUp.mockReturnValue(null);
+
+    const result = await processMessage(makeRequest({ text: 'y los carbs?' }));
+
+    expect(result.intent).toBe('follow_up_attribute');
+    expect(result.followUpAttribute).toBeDefined();
+    expect(result.followUpAttribute!['nutrientKey']).toBe('carbohydrates');
+  });
+
+  it('AC-25 P1: priorTurnQuery equals prevTurn.query (P1 standalone turn)', async () => {
+    // P1: prevTurn.query === prevTurn.estimation.query (normal standalone case)
+    mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
+    mockDetectAttributeFollowUp.mockReturnValue({ nutrientKey: 'carbohydrates', confidence: 0.95 });
+
+    const result = await processMessage(makeRequest({ text: 'y los carbs?' }));
+
+    expect(result.followUpAttribute!['priorTurnQuery']).toBe('paella valenciana');
+    // Confirm it equals prevTurn.query, NOT estimated.query
+    expect(result.followUpAttribute!['priorTurnQuery']).toBe(VALID_PREV_TURN.query);
+  });
+
+  it('AC-25 P2: priorTurnQuery equals prevTurn.query even when prevTurn.query !== prevTurn.estimation.query (P2 refinement turn)', async () => {
+    // P2: refinement was written — parseDishExpression normalised the query
+    // prevTurn.query = 'paella valenciana de pollo' (what user typed as merged)
+    // prevTurn.estimation.query = 'paella de pollo' (after parseDishExpression normalisation)
+    const p2TurnState: ConversationTurnState = {
+      query: 'paella valenciana de pollo',          // what we wrote to turn state
+      chainSlug: null,
+      estimation: {
+        ...PREV_TURN_ESTIMATE,
+        query: 'paella de pollo',                   // normalised by parseDishExpression
+      },
+      portionMultiplier: 1,
+      storedAt: Date.now() - 30_000,
+    };
+
+    mockGetTurnState.mockResolvedValue(p2TurnState);
+    mockDetectAttributeFollowUp.mockReturnValue({ nutrientKey: 'carbohydrates', confidence: 0.95 });
+
+    const result = await processMessage(makeRequest({ text: 'y los carbs?' }));
+
+    // Must come from prevTurn.query, NOT prevTurn.estimation.query
+    expect(result.followUpAttribute!['priorTurnQuery']).toBe('paella valenciana de pollo');
+    expect(result.followUpAttribute!['priorTurnQuery']).not.toBe('paella de pollo');
+  });
+
+  // -------------------------------------------------------------------------
+  // AC-05: dishName population
+  // -------------------------------------------------------------------------
+
+  it('AC-05: dishName uses nameEs when available', async () => {
+    mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
+    mockDetectAttributeFollowUp.mockReturnValue({ nutrientKey: 'carbohydrates', confidence: 0.95 });
+
+    const result = await processMessage(makeRequest({ text: 'y los carbs?' }));
+
+    // PREV_TURN_RESULT.nameEs = 'Paella valenciana'
+    expect(result.followUpAttribute!['dishName']).toBe('Paella valenciana');
+  });
+
+  it('AC-05: dishName falls back to name when nameEs is null', async () => {
+    const prevTurnNoNameEs: ConversationTurnState = {
+      ...VALID_PREV_TURN,
+      estimation: {
+        ...PREV_TURN_ESTIMATE,
+        result: {
+          ...PREV_TURN_RESULT,
+          nameEs: null,
+          name: 'Paella Valenciana',
+        },
+      },
+    };
+    mockGetTurnState.mockResolvedValue(prevTurnNoNameEs);
+    mockDetectAttributeFollowUp.mockReturnValue({ nutrientKey: 'carbohydrates', confidence: 0.95 });
+
+    const result = await processMessage(makeRequest({ text: 'y los carbs?' }));
+
+    expect(result.followUpAttribute!['dishName']).toBe('Paella Valenciana');
+  });
+
+  // -------------------------------------------------------------------------
+  // AC-06: priorEstimation equals full stored EstimateData
+  // -------------------------------------------------------------------------
+
+  it('AC-06: priorEstimation equals the full stored estimation', async () => {
+    mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
+    mockDetectAttributeFollowUp.mockReturnValue({ nutrientKey: 'carbohydrates', confidence: 0.95 });
+
+    const result = await processMessage(makeRequest({ text: 'y los carbs?' }));
+
+    expect(result.followUpAttribute!['priorEstimation']).toEqual(PREV_TURN_ESTIMATE);
+  });
+
+  // -------------------------------------------------------------------------
+  // AC-10: Prior estimation result is null → attribute follow-up falls through
+  // -------------------------------------------------------------------------
+
+  it('AC-10: prevTurn.estimation.result = null → attribute fires but falls through to standalone', async () => {
+    const nullResultTurn: ConversationTurnState = {
+      ...VALID_PREV_TURN,
+      estimation: { ...PREV_TURN_ESTIMATE, result: null },
+    };
+    mockGetTurnState.mockResolvedValue(nullResultTurn);
+    mockDetectAttributeFollowUp.mockReturnValue({ nutrientKey: 'carbohydrates', confidence: 0.95 });
+    mockDetectRefinementFollowUp.mockReturnValue(null);
+
+    const result = await processMessage(makeRequest({ text: 'y los carbs?' }));
+
+    expect(result.intent).not.toBe('follow_up_attribute');
+  });
+
+  // -------------------------------------------------------------------------
+  // AC-07: Refinement hit
+  // -------------------------------------------------------------------------
+
+  it('AC-07: refinement hit returns follow_up_refinement with originalQuery, mergedQuery, estimation', async () => {
+    mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
+    mockDetectAttributeFollowUp.mockReturnValue(null);
+    mockDetectRefinementFollowUp.mockReturnValue({ modificationText: 'de pollo', confidence: 0.85 });
+    mockApplyRefinement.mockReturnValue({ mergedQuery: 'paella valenciana de pollo' });
+    mockEstimate.mockResolvedValue(ESTIMATE_DATA_L1);
+
+    const result = await processMessage(makeRequest({ text: 'hazlo de pollo' }));
+
+    expect(result.intent).toBe('follow_up_refinement');
+    expect(result.followUpRefinement).toBeDefined();
+    expect(result.followUpRefinement!['originalQuery']).toBe('paella valenciana');
+    expect(result.followUpRefinement!['mergedQuery']).toBe('paella valenciana de pollo');
+    expect(result.followUpRefinement!['estimation']).toBeDefined();
+  });
+
+  it('AC-07 portion-override: portionMultiplierOverride passed to estimate()', async () => {
+    mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
+    mockDetectAttributeFollowUp.mockReturnValue(null);
+    mockDetectRefinementFollowUp.mockReturnValue({ modificationText: 'menos cantidad', confidence: 0.90 });
+    mockApplyRefinement.mockReturnValue({ mergedQuery: 'paella valenciana', portionMultiplierOverride: 0.5 });
+
+    await processMessage(makeRequest({ text: 'menos cantidad' }));
+
+    // estimate() should have been called with portionMultiplier: 0.5
+    expect(mockEstimate).toHaveBeenCalledWith(
+      expect.objectContaining({ portionMultiplier: 0.5 }),
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // AC-11: Turn-state write-back P1 and P2
+  // -------------------------------------------------------------------------
+
+  it('AC-11 P1: standalone estimation with non-null result → setTurnState called once', async () => {
+    mockGetTurnState.mockResolvedValue(null);
+    mockEstimate.mockResolvedValue(ESTIMATE_DATA_L1);
+
+    await processMessage(makeRequest({ text: 'big mac' }));
+
+    // Wait for the fire-and-forget to settle
+    await vi.waitFor(() => {
+      expect(mockSetTurnState).toHaveBeenCalledOnce();
+    });
+  });
+
+  it('AC-11 P1: standalone estimation with null result → setTurnState NOT called', async () => {
+    mockGetTurnState.mockResolvedValue(null);
+    mockEstimate.mockResolvedValue(ESTIMATE_DATA_MISS);
+
+    await processMessage(makeRequest({ text: 'unknown dish xyz' }));
+
+    // Give a tick for any fire-and-forget
+    await new Promise((r) => setTimeout(r, 10));
+    expect(mockSetTurnState).not.toHaveBeenCalled();
+  });
+
+  it('AC-11 P2: refinement path → setTurnState called regardless of result nullness', async () => {
+    mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
+    mockDetectAttributeFollowUp.mockReturnValue(null);
+    mockDetectRefinementFollowUp.mockReturnValue({ modificationText: 'de pollo', confidence: 0.85 });
+    mockApplyRefinement.mockReturnValue({ mergedQuery: 'paella valenciana de pollo' });
+    mockEstimate.mockResolvedValue(ESTIMATE_DATA_MISS); // null result
+
+    await processMessage(makeRequest({ text: 'hazlo de pollo' }));
+
+    await vi.waitFor(() => {
+      expect(mockSetTurnState).toHaveBeenCalledOnce();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // AC-12: setTurnState NOT called for non-P1/P2 intents
+  // -------------------------------------------------------------------------
+
+  it('AC-12: context_set intent → setTurnState NOT called', async () => {
+    mockGetTurnState.mockResolvedValue(null);
+    mockResolveChain.mockReturnValue({ chainSlug: 'mcdonalds-es', chainName: "McDonald's" });
+
+    await processMessage(makeRequest({ text: 'estoy en mcdonalds' }));
+
+    await new Promise((r) => setTimeout(r, 10));
+    expect(mockSetTurnState).not.toHaveBeenCalled();
+  });
+
+  it('AC-12: follow_up_attribute intent → setTurnState NOT called', async () => {
+    mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
+    mockDetectAttributeFollowUp.mockReturnValue({ nutrientKey: 'carbohydrates', confidence: 0.95 });
+    mockDetectRefinementFollowUp.mockReturnValue(null);
+
+    await processMessage(makeRequest({ text: 'y los carbs?' }));
+
+    await new Promise((r) => setTimeout(r, 10));
+    expect(mockSetTurnState).not.toHaveBeenCalled();
+  });
+
+  it('AC-12: text_too_long intent → setTurnState NOT called', async () => {
+    await processMessage(makeRequest({ text: 'a'.repeat(501) }));
+
+    await new Promise((r) => setTimeout(r, 10));
+    expect(mockSetTurnState).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
+  // AC-13: Regression — existing tests pass unchanged (prevTurn null → no change)
+  // -------------------------------------------------------------------------
+
+  it('AC-13: regression — no prevTurn → estimation path unchanged', async () => {
+    mockGetTurnState.mockResolvedValue(null);
+    mockEstimate.mockResolvedValue(ESTIMATE_DATA_L1);
+
+    const result = await processMessage(makeRequest({ text: 'big mac' }));
+
+    expect(result.intent).toBe('estimation');
+    expect(result.estimation).toEqual(ESTIMATE_DATA_L1);
+    // getTurnState called but classifiers are not (prevTurn is null)
+    expect(mockDetectAttributeFollowUp).not.toHaveBeenCalled();
+    expect(mockDetectRefinementFollowUp).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
+  // AC-17: Observability — structured log events
+  // -------------------------------------------------------------------------
+
+  it('AC-17: attribute hit → logger.info called with tag F-MULTITURN-001', async () => {
+    mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
+    mockDetectAttributeFollowUp.mockReturnValue({ nutrientKey: 'carbohydrates', confidence: 0.95 });
+
+    await processMessage(makeRequest({ text: 'y los carbs?' }));
+
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ tag: 'F-MULTITURN-001', classifierType: 'attribute' }),
+      expect.any(String),
+    );
+  });
+
+  it('AC-17: no turn state → logger.debug called with reason: no_turn_state', async () => {
+    mockGetTurnState.mockResolvedValue(null);
+
+    await processMessage(makeRequest({ text: 'y los carbs?' }));
+
+    expect(mockLogger.debug).toHaveBeenCalledWith(
+      expect.objectContaining({ tag: 'F-MULTITURN-001:miss', reason: 'no_turn_state' }),
+      expect.any(String),
+    );
+  });
+
+  it('AC-17: low-confidence attribute → logger.debug with reason: low_confidence', async () => {
+    mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
+    mockDetectAttributeFollowUp.mockReturnValue({ nutrientKey: 'carbohydrates', confidence: 0.50 }); // below threshold
+    mockDetectRefinementFollowUp.mockReturnValue(null);
+
+    await processMessage(makeRequest({ text: 'algo raro' }));
+
+    expect(mockLogger.debug).toHaveBeenCalledWith(
+      expect.objectContaining({ tag: 'F-MULTITURN-001:miss', reason: 'low_confidence' }),
+      expect.any(String),
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // AC-26: followUpMeta is present on follow_up_attribute response
+  // -------------------------------------------------------------------------
+
+  it('AC-26: follow_up_attribute response includes followUpMeta', async () => {
+    mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
+    mockDetectAttributeFollowUp.mockReturnValue({ nutrientKey: 'carbohydrates', confidence: 0.95 });
+
+    const result = await processMessage(makeRequest({ text: 'y los carbs?' }));
+
+    expect(result.followUpMeta).toBeDefined();
+    expect(result.followUpMeta!['classifierType']).toBe('attribute');
+    expect(result.followUpMeta!['confidence']).toBe(0.95);
+    expect(result.followUpMeta!['turnStateHit']).toBe(true);
+  });
+
+  it('AC-26: follow_up_refinement response includes followUpMeta', async () => {
+    mockGetTurnState.mockResolvedValue(VALID_PREV_TURN);
+    mockDetectAttributeFollowUp.mockReturnValue(null);
+    mockDetectRefinementFollowUp.mockReturnValue({ modificationText: 'de pollo', confidence: 0.85 });
+    mockApplyRefinement.mockReturnValue({ mergedQuery: 'paella valenciana de pollo' });
+
+    const result = await processMessage(makeRequest({ text: 'hazlo de pollo' }));
+
+    expect(result.followUpMeta).toBeDefined();
+    expect(result.followUpMeta!['classifierType']).toBe('refinement');
+    expect(result.followUpMeta!['confidence']).toBe(0.85);
+    expect(result.followUpMeta!['turnStateHit']).toBe(true);
   });
 });

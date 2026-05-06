@@ -12,6 +12,15 @@
 import type { ConversationMessageData, EstimateData, MenuEstimationTotals } from '@foodxplorer/shared';
 import type { ConversationRequest, ConversationContext } from './types.js';
 import { getContext, setContext } from './contextManager.js';
+import { getTurnState, setTurnState } from './turnStateManager.js';
+import {
+  detectAttributeFollowUp,
+  detectRefinementFollowUp,
+  applyRefinement,
+  ATTRIBUTE_CONFIDENCE_THRESHOLD,
+  REFINEMENT_CONFIDENCE_THRESHOLD,
+  NUTRIENT_ALIASES,
+} from './followUpClassifier.js';
 import { resolveChain } from './chainResolver.js';
 import { estimate } from './estimationOrchestrator.js';
 import {
@@ -139,6 +148,160 @@ export async function processMessage(
       actorId,
       activeContext,
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 1.5 — Follow-up classification (F-MULTITURN-001)
+  // Fires AFTER length guard (no point classifying wall-of-text)
+  // Fires BEFORE context-set detection ("estoy en mcdonalds" must never be a follow-up)
+  // -------------------------------------------------------------------------
+
+  const prevTurn = await getTurnState(actorId, redis);
+
+  if (prevTurn !== null) {
+    // Branch A: Attribute follow-up (e.g. "y los carbs?")
+    const attrResult = detectAttributeFollowUp(trimmed);
+
+    if (attrResult !== null && attrResult.confidence >= ATTRIBUTE_CONFIDENCE_THRESHOLD) {
+      if (prevTurn.estimation.result !== null) {
+        // Extract nutrient value from prior result
+        const nutrientMeta = NUTRIENT_ALIASES[attrResult.nutrientKey]
+          ?? Object.values(NUTRIENT_ALIASES).find((m) => m.nutrientKey === attrResult.nutrientKey);
+        const nutrientValue = prevTurn.estimation.result.nutrients[attrResult.nutrientKey as keyof typeof prevTurn.estimation.result.nutrients];
+        const numericValue = typeof nutrientValue === 'number' ? nutrientValue : 0;
+        const unit = (nutrientMeta?.unit ?? 'g') as 'kcal' | 'g' | 'mg';
+        const label = nutrientMeta?.label ?? attrResult.nutrientKey;
+        const dishName = prevTurn.estimation.result.nameEs ?? prevTurn.estimation.result.name;
+
+        logger.info(
+          {
+            tag: 'F-MULTITURN-001',
+            classifierType: 'attribute',
+            confidence: attrResult.confidence,
+            turnStateHit: true,
+            nutrientKey: attrResult.nutrientKey,
+          },
+          'follow-up classified',
+        );
+
+        // DO NOT write turn state for follow_up_attribute (Storage rule P1/P2 only)
+        return {
+          intent: 'follow_up_attribute',
+          actorId,
+          activeContext,
+          followUpAttribute: {
+            nutrientKey: attrResult.nutrientKey,
+            nutrientLabel: label,
+            value: numericValue,
+            unit,
+            dishName,
+            priorTurnQuery: prevTurn.query, // Plan-R4 fix: direct field, not estimation.query
+            priorEstimation: prevTurn.estimation,
+          },
+          followUpMeta: {
+            classifierType: 'attribute',
+            confidence: attrResult.confidence,
+            turnStateHit: true,
+          },
+        };
+      } else {
+        // prevTurn.estimation.result is null → cannot extract nutrient → fall through (EC-2)
+        logger.debug(
+          { tag: 'F-MULTITURN-001:miss', reason: 'low_confidence' },
+          'follow-up classification miss',
+        );
+      }
+    } else if (attrResult !== null) {
+      // Attribute classifier fired but confidence below threshold
+      logger.debug(
+        { tag: 'F-MULTITURN-001:miss', reason: 'low_confidence' },
+        'follow-up classification miss',
+      );
+    }
+
+    // Branch B: Refinement follow-up (e.g. "hazlo de pollo en vez de cerdo")
+    const refResult = detectRefinementFollowUp(trimmed);
+
+    if (refResult !== null && refResult.confidence >= REFINEMENT_CONFIDENCE_THRESHOLD) {
+      const { mergedQuery, portionMultiplierOverride } = applyRefinement(
+        prevTurn.query,
+        refResult.modificationText,
+      );
+
+      // Parse merged query to extract chainSlug (if present in query text)
+      const parsed = parseDishExpression(mergedQuery);
+
+      // Plan-R4 fix — Codex IMP#2: refinement preserves PRIOR turn's chain semantics.
+      // Do NOT fall through to current conv:ctx — only use parsed chainSlug or prevTurn.chainSlug.
+      const effectiveChainSlug = parsed.chainSlug ?? prevTurn.chainSlug;
+
+      const refinedEstimation = await estimate({
+        query: parsed.query,
+        chainSlug: effectiveChainSlug ?? undefined,
+        portionMultiplier: portionMultiplierOverride ?? parsed.portionMultiplier,
+        db,
+        prisma,
+        openAiApiKey,
+        level4Lookup,
+        chainSlugs,
+        logger,
+        originalQuery: mergedQuery,
+      });
+
+      // Storage rule P2: always write turn state for follow_up_refinement, even if result is null.
+      // Non-blocking: void + catch (Plan-R1 fix — never await in response path)
+      void setTurnState(
+        actorId,
+        {
+          query: mergedQuery,
+          chainSlug: effectiveChainSlug ?? null,
+          estimation: refinedEstimation,
+          portionMultiplier: portionMultiplierOverride ?? parsed.portionMultiplier,
+          storedAt: Date.now(),
+        },
+        redis,
+      ).catch(() => {});
+
+      logger.info(
+        {
+          tag: 'F-MULTITURN-001',
+          classifierType: 'refinement',
+          confidence: refResult.confidence,
+          turnStateHit: true,
+          originalQuery: prevTurn.query,
+          mergedQuery,
+        },
+        'follow-up classified',
+      );
+
+      return {
+        intent: 'follow_up_refinement',
+        actorId,
+        activeContext,
+        followUpRefinement: {
+          originalQuery: prevTurn.query,
+          mergedQuery,
+          estimation: refinedEstimation,
+        },
+        followUpMeta: {
+          classifierType: 'refinement',
+          confidence: refResult.confidence,
+          turnStateHit: true,
+        },
+      };
+    }
+
+    // Both classifiers missed → fall through to Step 2 (standalone)
+    logger.debug(
+      { tag: 'F-MULTITURN-001:miss', reason: 'no_match' },
+      'follow-up classification miss',
+    );
+  } else {
+    // No prior turn state → cannot perform follow-up resolution
+    logger.debug(
+      { tag: 'F-MULTITURN-001:miss', reason: 'no_turn_state' },
+      'follow-up classification miss',
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -562,6 +725,22 @@ export async function processMessage(
 
   // Track whether context was injected (no explicit slug in query)
   const usedContextFallback = !explicitSlug && !!effectiveContext?.chainSlug;
+
+  // Storage rule P1: write turn state when estimation.result is non-null (F-MULTITURN-001)
+  // Non-blocking: void + catch — never await in response path (Plan-R1 fix)
+  if (estimationResult.result !== null) {
+    void setTurnState(
+      actorId,
+      {
+        query: extractedQuery,
+        chainSlug: effectiveChainSlug ?? null,
+        estimation: estimationResult,
+        portionMultiplier,
+        storedAt: Date.now(),
+      },
+      redis,
+    ).catch(() => {});
+  }
 
   return {
     intent: 'estimation',
