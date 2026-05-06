@@ -235,9 +235,12 @@ describe('analyzeMenu', () => {
     });
 
     expect(mockCallVisionCompletion).toHaveBeenCalledOnce();
-    // Verify maxTokens=2048 was passed
+    // After F-WEB-MENU-VISION-001 P2: callVisionCompletion signature is
+    // (apiKey, imageBase64, mimeType, prompt, modelName, logger?, maxTokens?)
+    // → modelName is index 4, logger is index 5, maxTokens is index 6.
     const callArgs = mockCallVisionCompletion.mock.calls[0] as unknown[];
-    expect(callArgs[5]).toBe(2048);
+    expect(callArgs[4]).toBe('gpt-4o-mini'); // default VISION_MODEL
+    expect(callArgs[6]).toBe(2048); // VISION_MAX_TOKENS
     expect(result.mode).toBe('vision');
     expect(result.dishes).toHaveLength(3);
   });
