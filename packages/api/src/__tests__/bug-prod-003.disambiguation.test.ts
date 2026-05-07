@@ -118,3 +118,16 @@ describe('BUG-PROD-003 — existing aliases still route correctly', () => {
     expect(owners.map((d) => d.nameEs)).toContain('Agua mineral');
   });
 });
+
+// ---------------------------------------------------------------------------
+// F-CATALOG-COV-001 — bare "flam" disambiguation (ADR-019)
+// ---------------------------------------------------------------------------
+
+describe('F-CATALOG-COV-001 — bare "flam" disambiguation (ADR-019)', () => {
+  it('only one dish claims the alias "flam"', () => {
+    const owners = dishesWithAlias('flam');
+    expect(owners).toHaveLength(1);
+    expect(owners[0]?.nameEs).toBe('Flan casero');
+    expect(owners[0]?.externalId).toBe('CE-171');
+  });
+});
