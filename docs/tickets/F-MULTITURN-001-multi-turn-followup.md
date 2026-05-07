@@ -1437,7 +1437,7 @@ The `follow_up_refinement` label is intentionally minimal — a small secondary-
 ## Definition of Done
 
 - [x] All acceptance criteria met (AC-01 through AC-26)
-- [x] Unit tests written and passing (api 4381, shared 624, bot 1237, web 499)
+- [x] Unit tests written and passing (api 4415, shared 624, bot 1237, web 499; scraper 1221 + landing 232 untouched)
 - [x] E2E tests updated (if applicable) — N/A: feature is server-internal + frontend rendering
 - [x] Code follows project standards (lint 0, typecheck clean)
 - [x] No linting errors
@@ -1489,6 +1489,8 @@ The `follow_up_refinement` label is intentionally minimal — a small secondary-
 | 2026-05-06 | Step 5 close + audit-merge | Status → Ready for Merge, Workflow Step 5 boxes [x], Merge Checklist Evidence 8/8 [x] (commit `0feacbe`). Tracker Features row pending → in-progress 5/6 (commit `d87e41f`). audit-merge structural 11/11 + drift CLEAN. CI green at `d87e41f`. |
 | 2026-05-06 | Step 6 squash-merge | PR #252 squash-merged to develop at `45aabea`. 17 commits collapsed (4 docs + 8 backend + 3 frontend + 2 review-fix). Branch deleted local + remote. |
 | 2026-05-06 | Step 6 housekeeping | Status → Done. Tracker Features row → done 6/6. Active Session cleared. pm-session.md F-MULTITURN-001 moved to Completed. |
+| 2026-05-07 | External audit (post-merge) | APPROVE WITH NOTES from external agent. Structural 11/11 PASS. Code spot-checks PASS (4-branch order, chainSlug preservation, non-blocking writes all confirmed). 5 documentation findings reported: F1 PR #252 body cites "api 4272→4381 (+109)" — stale (true terminal is 4415 after `ebb6117`); accepted-as-lost (closed PRs not edited). F2-F5 fixed in chore docs commit (this entry). Note: `/audit-merge` v0.18.1 P1/P7 recipes failed to detect drift because the format `X → Y (+N)` (arrow) was not matched by the `X/Y` (ratio) regex — pre-existing library bug, queue for v0.18.3 upstream fix. |
+| 2026-05-07 | Audit-driven doc drift fixes | DoD line refreshed (4381 → 4415). MCE Action 1 narrative updated (Workflow 7/8 → 8/8 post-merge). Tracker Last Updated header clarified (full workspace total 8,228 vs feature delta). Tracker F-MULTITURN-001 row clarified bot test counting methodology drift (1237 reflects re-count, ~55 from this feature). |
 
 ---
 
@@ -1499,7 +1501,7 @@ The `follow_up_refinement` label is intentionally minimal — a small secondary-
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | All 7 sections present: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence. Plus four review-trail subsections (Spec R1+R2+R3+R4 + Plan R1+R2+R3+R4+R5+R6) preserved as audit trail. |
-| 1. Mark all items | [x] | AC: 26/26 [x]. DoD: 7/7 [x]. Workflow: 7/8 [x] (Step 6 pending merge — correct per audit-merge spec). |
+| 1. Mark all items | [x] | AC: 26/26 [x]. DoD: 7/7 [x]. Workflow: 8/8 [x] (Step 6 [x] post-merge — squash at `45aabea` + housekeeping at `4ef8c40`). |
 | 2. Verify product tracker | [x] | Active Session updated to F-MULTITURN-001 step 5/6 + branch + Pick A context. Features table row F-MULTITURN-001 in pm-conv-polish section, status `in-progress`, step 5/6. |
 | 3. Update key_facts.md | [x] | N/A — feature is server-internal additions to existing modules; new files are within the established `packages/api/src/conversation/` subsystem (turnStateManager.ts + followUpClassifier.ts) following the `contextManager.ts` pattern. No new infra worth a Reusable Components row at this point; if future work depends on `NUTRIENT_META_BY_KEY` or `applyRefinement()` semantics outside this feature, add the row then. |
 | 4. Update decisions.md | [x] | N/A — no new ADR. The architectural choices (single new Redis key with shorter TTL, non-blocking turn-state writes, intent-based discriminant for response shape) follow established project patterns (ADR-009 conversation state; ADR-018 fail-open Redis). |
