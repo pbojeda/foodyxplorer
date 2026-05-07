@@ -60,8 +60,6 @@ const MAX_TEXT_LENGTH = 500;
  * Deliberately does NOT use the full SERVING_FORMAT_PATTERNS — drink-vessel
  * entries like "cañas de", "tercios de" carry food-semantic value and must not
  * be stripped (e.g., "cañas de cerveza" → the food IS "caña de cerveza").
- *
- * Module-private — not exported.
  */
 export function stripContainerResidual(text: string): string {
   // Pass 1: CONTAINER_PATTERNS (platos de, cuencos de, boles de, vasitos de, ...)

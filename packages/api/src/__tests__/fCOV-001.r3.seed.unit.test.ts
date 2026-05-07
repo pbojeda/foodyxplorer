@@ -56,23 +56,23 @@ describe('F-CATALOG-COV-001 AC-12b: extracted-term seed integrity (7 alias addit
    * All 7 are NEW_ALIAS verdicts from the Step 2 pre-analysis table.
    */
   const aliasExpectations: Array<[string, string, string]> = [
-    ['CE-026', 'croquetas de jamón ibérico', 'Croquetas de jamón'],
-    ['CE-072', 'crema de calabazin', 'Crema de calabacín'],
-    ['CE-139', 'macarrrones con tomate', 'Macarrones con tomate'],
-    ['CE-171', 'flam casero', 'Flan casero'],
-    ['CE-028', 'tortiya de patatas', 'Tortilla de patatas'],
-    ['CE-140', 'espaguettis carbonara', 'Espaguetis carbonara'],
-    ['CE-173', 'tarta de quesso', 'Tarta de queso'],
+    ['CE-026', 'Croquetas de jamón', 'croquetas de jamón ibérico'],
+    ['CE-072', 'Crema de calabacín', 'crema de calabazin'],
+    ['CE-139', 'Macarrones con tomate', 'macarrrones con tomate'],
+    ['CE-171', 'Flan casero', 'flam casero'],
+    ['CE-028', 'Tortilla de patatas', 'tortiya de patatas'],
+    ['CE-140', 'Espaguetis carbonara', 'espaguettis carbonara'],
+    ['CE-173', 'Tarta de queso', 'tarta de quesso'],
   ];
 
   it.each(aliasExpectations)(
     '%s (%s) has alias "%s" in seed JSON',
-    (externalId, alias, _name) => {
+    (externalId, name, alias) => {
       const dish = dishes.find((d) => d.externalId === externalId);
       expect(dish, `Dish ${externalId} not found in seed JSON`).toBeDefined();
       expect(
         (dish?.aliases ?? []).includes(alias),
-        `Alias "${alias}" not found in ${externalId} (${_name}).aliases = ${JSON.stringify(dish?.aliases ?? [])}`,
+        `Alias "${alias}" not found in ${externalId} (${name}).aliases = ${JSON.stringify(dish?.aliases ?? [])}`,
       ).toBe(true);
     },
   );
