@@ -63,7 +63,7 @@ const MAX_TEXT_LENGTH = 500;
  *
  * Module-private — not exported.
  */
-function stripContainerResidual(text: string): string {
+export function stripContainerResidual(text: string): string {
   // Pass 1: CONTAINER_PATTERNS (platos de, cuencos de, boles de, vasitos de, ...)
   for (const pattern of CONTAINER_PATTERNS) {
     const stripped = text.replace(pattern, '').trim();
