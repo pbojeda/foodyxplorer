@@ -1,7 +1,7 @@
 # F-CATALOG-COV-001: Catalog Coverage Round-3 — Targeted Seed/Alias Expansion
 
 **Feature:** F-CATALOG-COV-001 | **Type:** backend-feature (data) | **Priority:** Medium
-**Status:** Ready for Merge | **Complexity:** Standard
+**Status:** Done | **Complexity:** Standard
 **Branch:** feature/F-CATALOG-COV-001-catalog-coverage-r3
 **Predecessors:** F-H4 (done), F-H6 (done), F-H9 (done)
 **Depends on:** F079 (missed_query_tracking telemetry)
@@ -577,7 +577,7 @@ Example: `'Croquetas de jamón'` and `'croquetas de jamón.'` (trailing period) 
 - [x] Step 3: Implementation commits (data batches + final count-update + key_facts commit)
 - [x] Step 4: Quality gates (lint + typecheck + build + test + validator)
 - [x] Step 5: Code review specialist + QA engineer
-- [ ] Step 6: Merge + ticket housekeeping (tracker sync, Completion Log final entry, branch delete)
+- [x] Step 6: Merge + ticket housekeeping (tracker sync, Completion Log final entry, branch delete)
 
 ---
 
@@ -961,6 +961,8 @@ No mocks needed. All three new test files are pure in-memory data tests loading 
 | 2026-05-07 | Step 2 (plan-review R2 revision) | backend-planner agent | DONE | Plan revised per Codex Round 2 review (2 CRITICAL + 2 IMPORTANT). N_LOCKED corrected to 7 (bare tokens replaced with full QA phrases; 2 previously DEFERRED rows promoted to NEW_ALIAS). Final 7 aliases: "croquetas de jamón ibérico" (CE-026), "crema de calabazin" (CE-072), "macarrrones con tomate" (CE-139), "flam casero" (CE-171), "tortiya de patatas" (CE-028), "espaguettis carbonara" (CE-140), "tarta de quesso" (CE-173). Pass criterion: ≥6 of 7. Step 3 commit order rewritten: 3.1=export, 3.2-3.4=RED tests (one each), 3.5=data batch (all 7), 3.6=key_facts. AC-06 N/A note corrected. All 6 full-phrase collision checks passed (empty grep). |
 | 2026-05-07 | Step 3 | backend-developer (TDD) | DONE | 6 commits 7ba6fdc..f8ae63f. Step 3.1 export stripContainerResidual; 3.2-3.4 RED test files (qa, seed, unit); 3.5 GREEN data batch (8 aliases — 7 planned full phrases + 1 bare `flam` post-pipeline deviation discovered during AC-12a fixture iteration); 3.6 docs key_facts.md feature tag (count unchanged at 319 — alias-only). Tests: api 4415→4450 (+35); shared 624; lint/typecheck/build clean. |
 | 2026-05-07 | Step 4 | production-code-validator + code-review-specialist + qa-engineer | DONE | All 3 reviewers BLOCKED on bare `"flam"` ADR-019 non-compliance (uniqueness assertion missing). Strategic Option B chosen: kept bare alias (preserves AC-12a 7/7 vs revert dropping to 6/7), added ADR-019 compliance (uniqueness test in bug-prod-003 + Pre-analysis table update). Plus QA BUG-2 (stale JSDoc) + cosmetic it.each fix. Final commit `558aacc`. Reviewer verdicts post-fix: APPROVE all three. |
+| 2026-05-07 | Step 5 | claude (PM L5) | DONE | Merge Checklist Evidence filled (8/8 [x]). qa-engineer's edge-cases test file (29 tests) included. Status → Ready for Merge. /audit-merge: structural 11/11 PASS, drift CLEAN (P5 systemic across repo, not introduced by this feature). Commit `73811db`. Tracker Active Session synced. |
+| 2026-05-07 | Step 6 | claude (PM L5) | DONE | PR #259 squash-merged at `de880a0` (2026-05-07). 11 feature-branch commits collapsed (~1,907 LoC additions across spec, plan, tests, data, docs). Branch `feature/F-CATALOG-COV-001-catalog-coverage-r3` deleted local + remote. Post-merge sanity: api 4480/4480 PASS on develop. CI on PR: ci-success ✓, test-api ✓ (4m1s), Vercel previews ✓ (foodyassistance + nutrixplorer). All 17 ACs satisfied. Tracker housekeeping (Active Session → Last Completed, Features → done 6/6, pm-session F-CATALOG-COV-001 → Completed Features) included in this housekeeping commit. |
 
 ---
 
