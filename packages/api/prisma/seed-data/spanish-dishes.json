@@ -663,7 +663,8 @@
       "name": "Croquetas de jamón",
       "nameEs": "Croquetas de jamón",
       "aliases": [
-        "croquetas"
+        "croquetas",
+        "croquetas de jamón ibérico"
       ],
       "category": "tapas",
       "portionGrams": 120,
@@ -716,7 +717,8 @@
       "nameEs": "Tortilla de patatas",
       "aliases": [
         "tortilla española",
-        "tortilla de papas"
+        "tortilla de papas",
+        "tortiya de patatas"
       ],
       "category": "tapas",
       "portionGrams": 150,
@@ -1861,7 +1863,8 @@
       "name": "Crema de calabacín",
       "nameEs": "Crema de calabacín",
       "aliases": [
-        "puré de calabacín"
+        "puré de calabacín",
+        "crema de calabazin"
       ],
       "category": "primeros",
       "portionGrams": 300,
@@ -3607,7 +3610,8 @@
       "name": "Macarrones con tomate",
       "nameEs": "Macarrones con tomate",
       "aliases": [
-        "macarrones"
+        "macarrones",
+        "macarrrones con tomate"
       ],
       "category": "arroces",
       "portionGrams": 300,
@@ -3635,7 +3639,8 @@
       "aliases": [
         "carbonara",
         "spaghetti carbonara",
-        "spaguetis carbonara"
+        "spaguetis carbonara",
+        "espaguettis carbonara"
       ],
       "category": "arroces",
       "portionGrams": 300,
@@ -4442,7 +4447,9 @@
       "name": "Flan casero",
       "nameEs": "Flan casero",
       "aliases": [
-        "flan de huevo"
+        "flan de huevo",
+        "flam casero",
+        "flam"
       ],
       "category": "postres",
       "portionGrams": 130,
@@ -4494,7 +4501,8 @@
       "name": "Tarta de queso",
       "nameEs": "Tarta de queso",
       "aliases": [
-        "cheesecake"
+        "cheesecake",
+        "tarta de quesso"
       ],
       "category": "postres",
       "portionGrams": 120,
