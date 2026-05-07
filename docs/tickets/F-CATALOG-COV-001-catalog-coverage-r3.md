@@ -483,7 +483,7 @@ Example: `'Croquetas de jamón'` and `'croquetas de jamón.'` (trailing period) 
   This is a pure data-integrity guard — it catches cases where the alias was accidentally omitted
   from the JSON but the raw-query test would still fail.
 
-- [x] **AC-NEW-qa-battery — Production parity gate (human QA):** At Step 4, the QA Engineer runs
+- [ ] **AC-NEW-qa-battery — Production parity gate (human QA):** _Pending post-deploy verification — to be flipped to [x] once F-CATALOG-COV-001 reaches main and dev API battery confirms ≥6/7 NULL→OK on the 7 N_LOCKED candidates. Mechanical seed-layer gate AC-12a passed 7/7 in pipeline simulation pre-merge._ At Step 4, the QA Engineer runs
   the manual battery from `docs/research/qa-2026-04-21-exhaustive-results.md` against the dev API
   (post-deploy, after data migration applied) and records the post-merge NULL→OK delta in the
   Completion Log. **Pass criterion:** ≥0.75 × N_LOCKED queries return non-NULL on the live dev API.
@@ -554,7 +554,7 @@ Example: `'Croquetas de jamón'` and `'croquetas de jamón.'` (trailing period) 
 
 ## Definition of Done
 
-- [x] All 17 Acceptance Criteria met and checked (AC-01 through AC-15, AC-NEW-export, AC-NEW-qa-battery).
+- [x] All 17 Acceptance Criteria met and checked (AC-01 through AC-15, AC-NEW-export — AC-NEW-qa-battery is `[ ]` pending post-deploy verification per spec design; mechanical AC-12a gate passed 7/7 pre-merge).
 - [x] `npm run lint -w @foodxplorer/api` — 0 errors (F116 baseline preserved).
 - [x] `npm run typecheck -w @foodxplorer/api` (or `tsc --noEmit`) — 0 errors.
 - [x] `npm run build -w @foodxplorer/api` — clean.
@@ -971,7 +971,7 @@ No mocks needed. All three new test files are pure in-memory data tests loading 
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | All sections present: Spec, Inputs, Selection Methodology, Out of Scope, Target Metrics, ACs (17), DoD, Workflow Checklist, Implementation Plan (filled by backend-planner R1+R2), Completion Log (Steps 0-5), Self-Review, Review Response (R1-R6 spec + R1-R2 plan). |
-| 1. Mark all AC/DoD items | [x] | 17/17 ACs `[x]`. DoD 9/9 `[x]`. Workflow Steps 0-5 `[x]`, Step 6 `[ ]` (this merge). |
+| 1. Mark all AC/DoD items | [x] | 16/17 ACs `[x]`; AC-NEW-qa-battery `[ ]` by design (post-deploy gate, flips after main release + dev API battery). DoD 9/9 `[x]`. Workflow 7/7 `[x]` (Step 6 `[x]` post-merge — squash at `de880a0` + housekeeping at `3869fd7`). |
 | 2. Verify product tracker | [x] | `docs/project_notes/product-tracker.md` Active Session reflects 5/6 status; Features table row F-CATALOG-COV-001 status=`in-progress` step=5/6 (flips to done 6/6 on merge). |
 | 3. Update key_facts.md | [x] | `docs/project_notes/key_facts.md:95` appended `+7 aliases by F-CATALOG-COV-001 2026-05-07`. Count stays 319 (alias-only). Commit `f8ae63f`. |
 | 4. Update decisions.md | [x] | N/A — no new ADR. Existing ADR-019/023/024 cited in spec; no project-level decisions changed. |
