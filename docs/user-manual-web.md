@@ -212,6 +212,61 @@ Busca platos por criterios nutricionales. Muestra múltiples tarjetas. Funciona 
 Ejemplo: platos con menos de 300 calorías y más de 20g de proteína
 ```
 
+### Preguntas de seguimiento (memoria de 30 minutos)
+
+El asistente recuerda el **último plato que estimaste** durante 30 minutos. Mientras el plato esté "vivo" en memoria, puedes hacer dos tipos de pregunta sin repetir el nombre:
+
+**1. Preguntar por un nutriente concreto** (no recalcula nada — respuesta instantánea):
+
+```
+Tú: paella valenciana
+Sistema: tarjeta nutricional completa (kcal, proteínas, carbs, fibra, sal, …)
+
+Tú: y los carbs?
+Sistema: banner ámbar con "Paella valenciana — Carbohidratos: 92 g"
+         + la tarjeta completa para contexto
+```
+
+Funcionan ~50 frases distintas mapeadas a 15 nutrientes:
+- `y los carbs?` / `y los hidratos?` / `cuántos hc tiene?` → carbohidratos
+- `y la proteína?` / `cuánta prot?` → proteínas
+- `y la fibra?` / `cuánta fibra tiene?` → fibra
+- `y la sal?` → sal | `y el sodio?` → sodio (mg)
+- `y las grasas?` / `y las grasas saturadas?` → grasas / grasas saturadas
+- `y el colesterol?` → colesterol (mg)
+- `cuántas calorías?` / `kcal?` / `energía?` → calorías
+- `azúcar?` / `azúcares?` → azúcares
+
+Puedes encadenar varios attribute follow-ups sobre el mismo plato — la memoria no se sobrescribe hasta que pidas un plato nuevo o hagas una refinement.
+
+**2. Modificar el plato anterior** (sí recalcula):
+
+| Frase | Comportamiento |
+|-------|----------------|
+| `hazlo de pollo en vez de cerdo` | Si el plato anterior contenía "cerdo", lo sustituye por "pollo" y vuelve a estimar |
+| `menos cantidad` / `más cantidad` | Recalcula el mismo plato con multiplicador 0.5× / 1.5× |
+| `una ración pequeña` / `grande` / `enorme` | Multiplicadores 0.7× / 1.5× / 2.0× |
+| `sin azúcar` / `sin sal` / `sin gluten` | Anexa la modificación a la query y vuelve a estimar |
+
+```
+Tú: lomo de cerdo
+Sistema: tarjeta de lomo de cerdo (250 kcal/100g, 21g grasa)
+
+Tú: hazlo de pollo en vez de cerdo
+Sistema: label "Refinado: lomo de pollo" + tarjeta de lomo de pollo (165 kcal/100g, 4g grasa)
+```
+
+Tras una refinement, la memoria se actualiza al plato refinado — puedes seguir preguntando attribute sobre él (`y los carbs?` resolverá ahora contra "lomo de pollo", no contra "lomo de cerdo").
+
+**Limitaciones conocidas:**
+
+- La memoria **expira a los 30 minutos** sin actividad. Si vuelves después, "y los carbs?" se interpreta como query nueva (probablemente no encuentre nada).
+- La memoria es **por usuario** — tu sesión no se mezcla con la de otro.
+- **Sólo se memoriza estimación de plato único.** Comparaciones, menús (varios platos a la vez) y búsquedas inversas no entran en la memoria.
+- **Negaciones** ("no, eso no") no se reconocen aún — caen a query estándar. Previsto para una futura iteración.
+- **Combinaciones** ("y los carbs si lo hago de pollo?") prevalece la pregunta del nutriente; el cambio de ingrediente se ignora en este caso.
+- Si el plato anterior dio resultado vacío, los follow-ups caen también a query estándar.
+
 ---
 
 ## 6. Analizar una foto

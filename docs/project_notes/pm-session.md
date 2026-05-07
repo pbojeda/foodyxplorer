@@ -1,34 +1,31 @@
 # PM Autonomous Session
 
-**Started:** 2026-04-27
-**Session ID:** pm-h6plus2
+**Started:** 2026-05-06
+**Session ID:** pm-conv-polish
 **Autonomy Level:** L5 (PM Autonomous)
-**Status:** complete (3/3 features done 2026-04-28)
+**Status:** in-progress
 **Target Branch:** develop
 
-**Sprint:** QA Improvement Sprint #3 — Sprint H6+ continuation. Closes residual issues from pm-h6plus session: F-H10-FU (Q649 false-positive at L1 layer not L3 — empirically confirmed in QA battery dev 2026-04-27 16:54) + BUG-DATA-DUPLICATE-ATOM-001 (CE-281 duplicate atom).
+**Sprint:** Conversational Polish (Pick A). User chose this batch over monetization (Pick B) and voice realtime (Pick C) on rationale "max user-visible UX leap (multiturn) + reliability lever (catalog gap closure)". F098 Premium Tier deferred to next session post-/compact.
 
-**Baseline @ session start (develop @ `36be921`):** api lint 0 errors | api build clean | api tests 4151/4151 ✓ (verified post-#224 chore PR drift fixes merge). Re-verification skipped — no commits since baseline.
+**Baseline @ session start (develop @ `c4c3a32`):** lint 0 errors all workspaces | typecheck clean all workspaces | npm test exit 0 (web 489/489 confirmed in log; api/bot/shared/scraper/landing all PASS via vitest/jest workspace runs; release F-WEB-MENU-VISION-001 just shipped to main via PR #250 + merge-back via PR #251). Build not run pre-session — relying on recent merge-back PR #251 CI evidence (test-web pass 1m15s, ci-success pass).
 
-**Merge authorization policy (user-set 2026-04-27, extended 2026-04-28):**
-- F-H10-FU (Standard): user pre-authorized via `start pm` confirmation. Merge after audit-merge passes. **DONE 2026-04-28.**
-- BUG-DATA-DUPLICATE-ATOM-001 (Simple): user pre-authorized via same confirmation. Merge after audit-merge passes. **PENDING.**
-- **F-H10-FU2 (Standard): user pre-authorized 2026-04-28 via "vamos a por el A" after recovery decision tree.** Promoted to tracker as active feature. Merge after audit-merge passes.
+**Merge authorization policy (user-set 2026-05-06 via "Te pongo en modo autónomo. HAz tu mejor esfuerzo"):**
+- F-MULTITURN-001 (Standard, NEW feature): user pre-authorized via `start pm` confirmation. Multi-round Codex+Gemini reviews mandatory. Merge after audit-merge passes.
+- F-CATALOG-COV-001 (Standard, NEW feature): user pre-authorized via same confirmation. Multi-round Codex+Gemini reviews mandatory. Merge after audit-merge passes.
+- F098 (Standard, deferred): NOT in this session — mandatory /compact gate after 2 features.
 
 ## Current Batch
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F-H10-FU2 | Standard | done | ~5h | DONE 6/6. PR #229 squash-merged at `49770ad` 2026-04-28T20:46 UTC. 4189→4244 tests (+55). |
-| BUG-DATA-DUPLICATE-ATOM-001 | Simple | done | ~1h | DONE 5/5. PR #231 squash-merged at `f70271f` 2026-04-28. Catalog 317→316. |
+| F-CATALOG-COV-001 | Standard | pending | — | NEW feature. Data-driven catalog gap closure. Spec needs QA log analysis. To be picked up after `/compact` + `continue pm`. |
 
 ## Completed Features
 
-_(Move features here as they complete)_
-
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
-| F-H10-FU | Standard | ~6h (extended due to multi-round reviews) + ~30min ops verification | DONE 6/6. PR #225 squash-merged at `73e1c97` 2026-04-28. 4166→4189 tests (+23). Cross-model: /review-spec 3R + /review-plan 2R + code-review APPROVE + qa-engineer PASS WITH FOLLOW-UPS resolved + /audit-merge 11/11. **Operator verification 2026-04-28: AC4 [x] (threshold validated empirically); AC3 [ ] EMPIRICAL FAIL → F-H10-FU2 filed in bugs.md (Jaccard threshold structurally insufficient for Q649 — need algorithm change).** |
+| F-MULTITURN-001 | Standard | ~1 session (very heavy) | DONE 6/6. PR #252 squash-merged at `45aabea` 2026-05-06. 17 commits, ~1,720 LoC. 26/26 ACs. Spec 4 review rounds + Plan 6 review rounds + 3 reviewer agents. Tests: api 4272→4415 (+143), shared 598→624 (+26), web 489→499 (+10). |
 
 ## Blocked Features
 
@@ -41,15 +38,14 @@ _(Move features here if blocked)_
 
 | Feature | Complexity | Reason |
 |---------|------------|--------|
-| F-H7-FU1 | Simple/LOW | 4 missing landmine integration tests in `fH7.engineRouter.integration.test.ts`. Filed during F-H7 qa-engineer F2 follow-up. |
-| Release develop→main | Release | When F-H10-FU + BUG-DATA-DUPLICATE-ATOM-001 stable + paridad dev↔prod confirmada. |
+| F098 | Standard | Premium Tier feature gates. Pick A optional 3rd. Deferred per mandatory /compact rule after 2 features. |
 
 ## Recovery Instructions
 
-**Current feature:** None — pm-h6plus2 batch CLOSED (3/3 features done).
+**Current feature:** None — F-MULTITURN-001 done.
 **Branch:** N/A
-**Current Step:** N/A — batch complete. pm-h6plus3 backlog ready: F-MODIFIERS-001 + F-CHARCUTERIE-001 + F-H7-FU1.
-**Next features:** BUG-DATA-DUPLICATE-ATOM-001 (Simple) after F-H10-FU2 completes
+**Current Step:** N/A — pending Step 6 housekeeping merge (this PR) + /compact gate.
+**Next features:** F-CATALOG-COV-001 (Standard) — pick up after `/compact` + `continue pm`.
 **Blocked:** none
 
 To resume after /compact: run `continue pm`

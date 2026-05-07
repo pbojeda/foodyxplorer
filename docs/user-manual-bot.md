@@ -376,6 +376,76 @@ El contexto expira automaticamente tras **2 horas**. El temporizador se reinicia
 - El contexto se almacena por chat (si usas el bot en un grupo, el contexto es compartido por todo el grupo).
 - `/comparar` aplica el contexto a ambos platos, a menos que cada uno tenga su propia cadena.
 
+### Preguntas de seguimiento sobre el ultimo plato (memoria de 30 minutos)
+
+Ademas del contexto de cadena (2 horas), el bot tambien recuerda el **ultimo plato que estimaste** durante 30 minutos. Mientras el plato siga "vivo" en memoria, puedes hacer dos tipos de pregunta sin repetir el nombre.
+
+**1. Preguntar por un nutriente concreto** — sin nueva busqueda en BD, respuesta instantanea:
+
+```
+Usuario: paella valenciana
+Bot:     *Paella valenciana*
+         🔥 Calorias: 620 kcal
+         🥩 Proteinas: 38 g
+         🍞 Hidratos: 92 g
+         ...
+
+Usuario: y los carbs?
+Bot:     *Paella valenciana* — Carbohidratos: 92 g
+
+Usuario: y la fibra?
+Bot:     *Paella valenciana* — Fibra: 4 g
+```
+
+Frases reconocidas (mapeadas a 15 nutrientes):
+- `y los carbs?` / `y los hidratos?` / `cuantos hc tiene?` → carbohidratos
+- `y la proteina?` / `cuanta prot?` → proteinas
+- `y la fibra?` / `cuanta fibra tiene?` → fibra
+- `y la sal?` → sal | `y el sodio?` → sodio (mg)
+- `y las grasas?` / `y las grasas saturadas?` → grasas / grasas saturadas
+- `y el colesterol?` → colesterol (mg)
+- `cuantas calorias?` / `kcal?` / `energia?` → calorias
+- `azucar?` / `azucares?` → azucares
+
+Puedes encadenar varios attribute follow-ups sobre el mismo plato — la memoria no se sobrescribe hasta que pidas un plato nuevo o hagas una refinement.
+
+**2. Modificar el plato anterior** — re-estima con la modificacion aplicada:
+
+| Frase | Comportamiento |
+|-------|----------------|
+| `hazlo de pollo en vez de cerdo` | Si el plato anterior contenia "cerdo", lo sustituye por "pollo" y re-estima |
+| `menos cantidad` / `mas cantidad` | Recalcula el mismo plato con multiplicador 0.5× / 1.5× |
+| `una racion pequena` / `grande` / `enorme` | Multiplicadores 0.7× / 1.5× / 2.0× |
+| `sin azucar` / `sin sal` / `sin gluten` | Anexa la modificacion a la query y re-estima |
+
+```
+Usuario: lomo de cerdo
+Bot:     *Lomo de cerdo*
+         🔥 250 kcal por 100 g
+         ...
+
+Usuario: hazlo de pollo en vez de cerdo
+Bot:     _(refinado: lomo de pollo)_
+         *Lomo de pollo*
+         🔥 165 kcal por 100 g
+         ...
+```
+
+Tras una refinement, la memoria se actualiza al plato refinado — `y los carbs?` despues de la refinement resolvera contra "lomo de pollo".
+
+**Notas y limitaciones:**
+
+- La memoria de turno expira a los **30 minutos** sin actividad (mas corta que el contexto de cadena de 2 horas — se asume que las preguntas de seguimiento decaen en relevancia mas rapido).
+- La memoria es **por chat** (igual que el contexto de cadena). En grupos, todos los miembros comparten la memoria del ultimo plato.
+- Los mensajes de voz tambien funcionan — Whisper transcribe el audio y el bot lo procesa por la misma ruta.
+- Las preguntas de seguimiento NO reinician el contexto de cadena (esos son TTLs independientes).
+- Solo se memoriza la **estimacion de un plato unico**. Resultados de `/comparar`, `/menu`, busqueda inversa o `/receta` no entran en la memoria.
+- **Negaciones** ("no, eso no") no se reconocen aun — caen a query estandar. Previsto para iteracion futura.
+- **Combinaciones** ("y los carbs si lo hago de pollo?") prevalece la pregunta del nutriente; el cambio de ingrediente se ignora en este caso.
+- Si el plato anterior dio resultado vacio, los follow-ups tambien caen a query estandar.
+
+**Refinement preserva la cadena del plato anterior.** Si pides un plato sin contexto activo (`big mac` generico), luego activas contexto McDonald's con `estoy en mcdonalds`, y luego dices `menos cantidad`, el bot refina sobre el `big mac` original (sin cadena), NO toma el contexto activo. La refinement preserva el plato exacto que tenia memoria.
+
 ---
 
 ## 9. Restaurantes y cadenas

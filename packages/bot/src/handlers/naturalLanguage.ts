@@ -199,6 +199,22 @@ export async function handleNaturalLanguage(
       return formatReverseSearch(data.reverseSearch ?? null);
     }
 
+    case 'follow_up_attribute': {
+      if (!data.followUpAttribute) {
+        return 'No se encontraron datos nutricionales para esta consulta\\.';
+      }
+      const { dishName, nutrientLabel, value, unit } = data.followUpAttribute;
+      return `*${escapeMarkdown(dishName)}* — ${escapeMarkdown(nutrientLabel)}: ${escapeMarkdown(String(value))} ${escapeMarkdown(unit)}`;
+    }
+
+    case 'follow_up_refinement': {
+      if (!data.followUpRefinement) {
+        return 'No se encontraron datos nutricionales para esta consulta\\.';
+      }
+      const prefix = `_\\(refinado: ${escapeMarkdown(data.followUpRefinement.mergedQuery)}\\)_\n`;
+      return prefix + formatEstimate(data.followUpRefinement.estimation);
+    }
+
     case 'text_too_long':
       return TOO_LONG_MESSAGE;
 
