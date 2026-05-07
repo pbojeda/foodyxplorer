@@ -19,7 +19,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F-CATALOG-COV-001 | Standard | pending | — | NEW feature. Data-driven catalog gap closure. Spec needs QA log analysis. To be picked up after `/compact` + `continue pm`. |
+| F-CATALOG-COV-001 | Standard | in-progress | — | NEW feature. Data-driven catalog gap closure. Step 0 DONE (6 spec rounds, 17 ACs). Step 1 IN PROGRESS — branch `feature/F-CATALOG-COV-001-catalog-coverage-r3` created. |
 
 ## Completed Features
 
@@ -42,10 +42,10 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** None — F-MULTITURN-001 done.
-**Branch:** N/A
-**Current Step:** N/A — pending Step 6 housekeeping merge (this PR) + /compact gate.
-**Next features:** F-CATALOG-COV-001 (Standard) — pick up after `/compact` + `continue pm`.
+**Current feature:** F-CATALOG-COV-001 (Standard, data-only catalog expansion)
+**Branch:** TBD (Step 1 will create `feature/F-CATALOG-COV-001-catalog-coverage-r3`)
+**Current Step:** 0/6 — Spec (resumed 2026-05-07 post-/compact)
+**Next features:** none in this session — F098 deferred to next PM session post-/compact (mandatory gate after 2 features completed in this session).
 **Blocked:** none
 
 To resume after /compact: run `continue pm`
