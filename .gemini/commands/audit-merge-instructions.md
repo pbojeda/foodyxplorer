@@ -169,9 +169,29 @@ esac
   && flag "P11 drift: ticket Status='$TICKET_STATUS' expects tracker='$EXPECTED' but tracker='$TRACKER_STATUS'"
 ```
 
+**23. P12 — Tracker HEAD references stale (added v0.18.2).** The `**Last Updated:**` and `**Active Feature:**` lines may embed `HEAD <sha>` or `HEAD: <sha>` references that were correct when written but went stale as further commits landed (empirically observed in fx F-WEB-MENU-VISION-001 audit cycle 2026-05-06: tracker said `HEAD: fd752e4` while `git rev-parse HEAD` was `6fa801e` after the agent's own self-edit commit). Compare each extracted SHA against the active branch HEAD. Bidirectional prefix tolerance: a 7-char tracker SHA matches the full 40-char actual HEAD if it's a prefix; a full 40-char tracker SHA matches if its first 7 chars equal the actual short form. Scoped strictly to the two header lines so narrative SHAs in "Last Completed" prose never false-positive-fire.
+```bash
+TRACKER=docs/project_notes/product-tracker.md
+if [ -f "$TRACKER" ]; then
+  ACTUAL_HEAD=$(git rev-parse HEAD 2>/dev/null || true)
+  if [ -n "$ACTUAL_HEAD" ]; then
+    ACTUAL_SHORT=$(printf '%s' "$ACTUAL_HEAD" | cut -c1-7)
+    TRACKER_HEADS=$(grep -E '^\*\*(Last Updated|Active Feature):\*\*' "$TRACKER" 2>/dev/null \
+      | grep -oE 'HEAD[[:space:]:]+`?[a-f0-9]{7,40}`?' \
+      | grep -oE '[a-f0-9]{7,40}' \
+      | sort -u || true)
+    for sha in $TRACKER_HEADS; do
+      case "$ACTUAL_HEAD" in "$sha"*) continue ;; esac
+      case "$sha" in "$ACTUAL_SHORT"*) continue ;; esac
+      flag "P12 drift: tracker HEAD reference $sha does not match git rev-parse HEAD ($ACTUAL_HEAD); refresh tracker"
+    done
+  fi
+fi
+```
+
 ### Execution discipline (added v0.18.1)
 
-For each of the 11 drift checks (P1–P11), if you declare PASS, **include the literal command output** (or its absence — explicit "no rows matched", "extracted: feature/foo", "FROZEN_COUNT=0") as evidence in your report. A bare "PASS" without supporting output is treated as **NOT EXECUTED** by the auditor — re-run with output captured.
+For each of the 12 drift checks (P1–P12), if you declare PASS, **include the literal command output** (or its absence — explicit "no rows matched", "extracted: feature/foo", "FROZEN_COUNT=0") as evidence in your report. A bare "PASS" without supporting output is treated as **NOT EXECUTED** by the auditor — re-run with output captured.
 
 Recommended pattern:
 
@@ -208,7 +228,7 @@ Report two tables — one for **structural (blocking)** compliance, one for **dr
 
 **STRUCTURAL: READY FOR MERGE** (or **STRUCTURAL: NEEDS FIX — N blockers**)
 
-### Drift (12-22) — advisory, refresh before user authorization
+### Drift (12-23) — advisory, refresh before user authorization
 
 | # | Pattern | Status | Detail |
 |---|---------|:------:|--------|
@@ -223,6 +243,7 @@ Report two tables — one for **structural (blocking)** compliance, one for **dr
 | 20 | P9 Tracker header stale | PASS | header = detail |
 | 21 | P10 Duplicate log rows | PASS | no duplicates |
 | 22 | P11 Tracker status mismatch | PASS | status consistent |
+| 23 | P12 Tracker HEAD reference | PASS | tracker HEAD = git HEAD |
 
 **DRIFT: CLEAN** (or **DRIFT: N advisories — refresh before merge**)
 
@@ -254,6 +275,7 @@ Fix them directly:
 - **P9** → refresh `**Last Updated:**` step reference
 - **P10** → remove duplicate rows
 - **P11** → sync tracker Features row status to ticket header Status
+- **P12 (Tracker HEAD reference stale)** → update `**Last Updated:**` and `**Active Feature:**` `HEAD: <sha>` tokens to match `git rev-parse HEAD`. Use `git rev-parse --short HEAD` for the 7-char form.
 
 After fixing, re-run the audit to confirm all checks pass.
 
