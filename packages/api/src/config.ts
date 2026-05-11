@@ -51,6 +51,10 @@ export const EnvSchema = z.object({
   // When set, the API fires a webhook when monthly voice spend crosses
   // 40/70/90/100 EUR thresholds. Optional — no alerts when absent.
   SLACK_WEBHOOK_URL: z.string().url().optional(),
+  // Sentry observability (F030-lite).
+  // When set AND NODE_ENV === 'production', the API initializes Sentry
+  // and forwards 5xx exceptions. Absent in dev/test → Sentry stays inert.
+  SENTRY_DSN: z.string().url().optional(),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

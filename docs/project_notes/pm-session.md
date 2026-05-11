@@ -24,15 +24,13 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F116-lite | Simple | pending | — | CI minimal hardening |
 | F030-lite | Simple | pending | — | Sentry api install + alerts checklist |
 
 ## Completed Features
 
-_(Move features here as they complete)_
-
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
+| F116-lite | Simple | ~2h | DONE 6/6. Squash-merged at `beafc43` via PR #264. 4 commits collapsed. Spec R1 + Plan R1 cross-model (Gemini APPROVED both, Codex REVISE both → fixes inline). code-review APPROVE WITH MINOR (3 IMPORTANT inline). qa-engineer PASS WITH ONE FOLLOW-UP. /audit-merge 11/11+12/12 PASS. CI green run 25662691769 (test-scraper +1 step `Lint scraper`). |
 
 ## Blocked Features
 
@@ -43,10 +41,12 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** F116-lite (about to start Step 0: Spec)
+**Current feature:** F030-lite (about to start)
 **Branch:** (none yet — to be created in Step 1)
-**Next features:** F030-lite (after F116-lite reaches 6/6)
+**Next features:** (none — F030-lite is last in this batch; then mandatory `/compact` + audit pause)
 **Blocked:** none
+
+**Completed in this session so far:** F116-lite (PR #264 `beafc43`).
 
 To resume after /compact: run `continue pm`
 To stop gracefully: run `stop pm`

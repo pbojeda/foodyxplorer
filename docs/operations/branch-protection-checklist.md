@@ -116,3 +116,4 @@ Apply this when you decide to tighten protection. Each step is **reversible** in
 - `docs/project_notes/product-tracker.md:119` — empirical reinterpretation note ("tighten existing ruleset, don't create one").
 - `docs/tickets/F116-lite-ci-hardening.md` — the ticket that produced this doc.
 - GitHub docs: [About rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets) and [Creating rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository).
+- `docs/operations/sentry-observability-checklist.md` — sister operator doc for Sentry observability (F030-lite).
