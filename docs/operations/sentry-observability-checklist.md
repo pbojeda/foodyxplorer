@@ -39,7 +39,7 @@ Everything is reversible — unset the env var to disable.
    - Value: the DSN from Step 1.
    - Mark as **secret** (toggle).
 3. **Save**, then **Manual Deploy** (or push to `main` if a release is imminent).
-4. After redeploy, the api logs should contain a line: `[sentry] initialized (env=production)`. (Logs visible in Render → Logs tab.)
+4. After redeploy, the api logs should contain a line: `[sentry] initialized (env=production)`. (Logs visible in Render → Logs tab.) If the DSN is unset OR `NODE_ENV` is not `production`, the log instead shows `[sentry] inert (env=…, dsn=…)` — grep for these markers to disambiguate "Sentry didn't capture" from "Sentry is disabled".
 
 ### nutrixplorer-api-dev (optional — staging coverage)
 
@@ -99,14 +99,15 @@ Sentry tells you when the api errors. UptimeRobot tells you when the api is unre
 
 After Step 2 redeploys, verify capture works:
 
-1. Wait for an organic error, OR force one:
-   - Temporarily push a commit that adds a `/_smoke-500` route that throws — wait, see Sentry → revert. Better: pick a known 5xx-producing edge case in an existing endpoint and trigger it via curl.
-   - Quickest: hit a route with a known internal contract error (e.g., a POST to `/estimate` with a malformed body that bypasses Zod and reaches a runtime guard).
-2. Within ~30 seconds, the Sentry **Issues** page should show a new issue with:
+1. Trigger a 500 by one of these methods (pick one):
+   - **Option A (preferred)**: wait for the next organic 5xx — useful only if you have inbound traffic.
+   - **Option B (fast)**: add a temporary `/_smoke-500` route that throws, push to main, observe Sentry, then revert.
+   - **Option C (no code change)**: hit an existing endpoint with a known internal-contract error (e.g., POST `/estimate` with a body that satisfies Zod but trips a runtime guard).
+2. Within ~30 seconds, the Sentry **Issues** page should show a new issue. Expected contents:
    - Title: the error message.
    - **Tags**: `environment=production`, `level=error`.
-   - **Additional Data (extra)**: `route`, `method`, `requestId`, `statusCode`, `internalCode`, `actorIdHash`.
-   - **Request**: headers shown with `authorization`, `cookie`, `x-api-key` redacted; body shown as `[Filtered]`; query string as `[Filtered]`.
+   - **Additional Data (extra)**: `route` (without query string), `method`, `requestId`, `statusCode`, `internalCode`, `actorIdHash`.
+   - **Request** section (when populated by the SDK auto-instrumentation): headers with `authorization`/`cookie`/`x-api-key` redacted; body and query string shown as `[Filtered]`. **Note:** with `tracesSampleRate: 0` and no `Sentry.Handlers.requestHandler` wired, the Request section may be sparse — the load-bearing context lives in the Additional Data fields above. That is by design for the lite ticket.
 3. If you see PII (raw request body, real Authorization header, raw actorId) in the issue, **STOP and investigate** — the `beforeSend` scrubber didn't fire. Open a P0 bug.
 4. Once verified, delete the test issue (or leave as a baseline reference).
 

@@ -641,8 +641,17 @@ export function registerErrorHandler(app: FastifyInstance): void {
       // Sentry-side failure can never break the response envelope.
       if (statusCode >= 500) {
         try {
+          // Strip query string from `route` to avoid leaking tokens / emails
+          // / actor ids that the path-level `query_string` scrubber would
+          // otherwise filter. Prefer `routerPath` (e.g. "/restaurants/:id")
+          // when available — it also groups Sentry issues by route template,
+          // not by individual variable values.
+          const routerPath = (request as { routerPath?: string }).routerPath;
+          const rawUrl = request.url;
+          const questionMark = rawUrl.indexOf('?');
+          const route = routerPath ?? (questionMark === -1 ? rawUrl : rawUrl.slice(0, questionMark));
           const ctx = {
-            route: request.url,
+            route,
             method: request.method,
             requestId: request.id,
             statusCode,

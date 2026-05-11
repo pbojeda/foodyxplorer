@@ -74,6 +74,11 @@ function beforeSend(event: Sentry.ErrorEvent): Sentry.ErrorEvent | null {
 export function initSentry(dsn: string | undefined, env: string): void {
   if (initialized) return;
   if (!dsn || env !== 'production') {
+    // Log on the inert path so a misconfigured operator can tell apart
+    // "Sentry didn't capture because it's disabled" from "Sentry tried to
+    // capture but the SDK failed". The checklist tells operators to grep
+    // for these markers.
+    console.log(`[sentry] inert (env=${env}, dsn=${dsn ? 'set' : 'unset'})`);
     return;
   }
   Sentry.init({
@@ -85,6 +90,7 @@ export function initSentry(dsn: string | undefined, env: string): void {
     beforeSend,
   });
   initialized = true;
+  console.log(`[sentry] initialized (env=${env})`);
 }
 
 /**
@@ -107,7 +113,9 @@ export function captureException(err: unknown, context?: SentryContext): void {
  * actor table).
  */
 export function hashActor(actorId: string | undefined): string {
-  return createHash('sha256').update(actorId ?? 'anonymous').digest('hex').slice(0, 8);
+  // `||` (not `??`) so the empty-string actorId also falls back to
+  // 'anonymous' — empty-string is semantically "no actor" not a real id.
+  return createHash('sha256').update(actorId || 'anonymous').digest('hex').slice(0, 8);
 }
 
 /**

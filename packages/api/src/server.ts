@@ -63,8 +63,24 @@ main().catch((err: unknown) => {
   // than only in ephemeral Render logs. Flush before exit so the event
   // actually reaches Sentry — captureException + Sentry.close are no-ops
   // when the SDK was not initialized.
-  captureException(err, { internalCode: 'STARTUP_FAILURE' });
-  void Sentry.close(2000).then(() => {
+  //
+  // Safety net: if anything in the capture/flush path throws synchronously
+  // or hangs past the 2s timeout, the setTimeout still terminates the
+  // process. .unref() prevents this timer from keeping the event loop alive
+  // (we want the process to exit, not linger).
+  const safetyTimer = setTimeout(() => {
+    console.error('[server] startup-error flush exceeded 2.5s, forcing exit');
+    process.exit(1);
+  }, 2500);
+  safetyTimer.unref();
+
+  try {
+    captureException(err, { internalCode: 'STARTUP_FAILURE' });
+  } catch (captureErr: unknown) {
+    console.error('[server] sentry capture failed during startup', captureErr);
+  }
+  Sentry.close(2000).finally(() => {
+    clearTimeout(safetyTimer);
     process.exit(1);
   });
 });
