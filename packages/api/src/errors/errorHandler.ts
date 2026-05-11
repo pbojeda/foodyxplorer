@@ -10,6 +10,7 @@
 
 import { ZodError } from 'zod';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { captureException, hashActor, type SentryContext } from '../lib/sentry.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -633,6 +634,27 @@ export function registerErrorHandler(app: FastifyInstance): void {
       request.log.error({ err: error }, error.message);
 
       const { statusCode, body } = mapError(error);
+
+      // F030-lite: forward 5xx errors to Sentry (4xx are user-facing
+      // validation/auth/rate-limit failures, not bugs — explicitly NOT
+      // forwarded). The captureException call is wrapped in try/catch so a
+      // Sentry-side failure can never break the response envelope.
+      if (statusCode >= 500) {
+        try {
+          const ctx = {
+            route: request.url,
+            method: request.method,
+            requestId: request.id,
+            statusCode,
+            internalCode: body.error.code,
+            actorIdHash: hashActor(request.actorId),
+          } satisfies SentryContext;
+          captureException(error, ctx);
+        } catch (sentryErr: unknown) {
+          request.log.warn({ err: sentryErr }, 'Sentry capture failed (non-fatal)');
+        }
+      }
+
       return reply.status(statusCode).send(body);
     },
   );

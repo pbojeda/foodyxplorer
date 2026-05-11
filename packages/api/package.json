@@ -42,6 +42,7 @@
     "@foodxplorer/scraper": "^0.0.1",
     "@foodxplorer/shared": "*",
     "@prisma/client": "^6.4.1",
+    "@sentry/node": "^8.55.2",
     "crawlee": "^3.0.0",
     "fast-xml-parser": "^5.5.10",
     "fastify": "^5.2.1",

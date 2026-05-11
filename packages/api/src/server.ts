@@ -6,14 +6,21 @@
 // This file is NOT unit tested — it is the process entry point. Tests import
 // buildApp() directly from app.ts and use .inject().
 
+import * as Sentry from '@sentry/node';
 import { buildApp } from './app.js';
 import { config } from './config.js';
 import { prisma } from './lib/prisma.js';
 import { connectRedis, disconnectRedis } from './lib/redis.js';
+import { initSentry, captureException } from './lib/sentry.js';
 
 let shuttingDown = false;
 
 const main = async (): Promise<void> => {
+  // F030-lite: initialize Sentry BEFORE buildApp() so startup errors and
+  // request-path 5xx errors are captured. No-op unless NODE_ENV=production
+  // AND SENTRY_DSN is set (see lib/sentry.ts).
+  initSentry(config.SENTRY_DSN, config.NODE_ENV);
+
   const server = await buildApp();
 
   // Register graceful shutdown handlers before listen() so signals received
@@ -28,6 +35,9 @@ const main = async (): Promise<void> => {
       await server.close();
       await prisma.$disconnect();
       await disconnectRedis();
+      // Flush pending Sentry events with a bounded timeout (no-op when SDK
+      // was not initialized — Sentry.close returns immediately).
+      await Sentry.close(2000);
       console.log('[server] Graceful shutdown complete');
       process.exit(0);
     } catch (err) {
@@ -49,5 +59,12 @@ const main = async (): Promise<void> => {
 
 main().catch((err: unknown) => {
   console.error('[server] Fatal startup error', err);
-  process.exit(1);
+  // Capture the startup failure so beta operators see it in Sentry rather
+  // than only in ephemeral Render logs. Flush before exit so the event
+  // actually reaches Sentry — captureException + Sentry.close are no-ops
+  // when the SDK was not initialized.
+  captureException(err, { internalCode: 'STARTUP_FAILURE' });
+  void Sentry.close(2000).then(() => {
+    process.exit(1);
+  });
 });
