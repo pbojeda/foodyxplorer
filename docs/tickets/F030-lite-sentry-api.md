@@ -403,7 +403,7 @@ The implementation core (Phases 0-7) is realistic in a single PM session (~1-2h)
 | 2. Verify product tracker | [x] | Active Session reflects step 5/6 (Review/Ready for Merge); F030 row updated with shipped api Sentry + 11 deferred items + operator action note. |
 | 3. Update key_facts.md | [x] | N/A — explicit decision (plan R1 Codex IMPORTANT — out of locked scope). Env var documented in `.env.example` and operator checklist. |
 | 4. Update decisions.md | [x] | N/A — no new ADR (lite ticket scope: install + wire; no architecture decision worth a permanent record). |
-| 5. Commit documentation | [x] | 3 commits on branch: `38c559d` (housekeeping bundle), `a686099` (feat), `ba6d841` (code-review fixes). Ticket finalize will be next commit. |
+| 5. Commit documentation | [x] | 4 commits on branch: `38c559d` (housekeeping bundle), `a686099` (feat), `ba6d841` (code-review fixes), `a7524a0` (ticket finalize). All pushed to `origin/feature/F030-lite-sentry-api`. |
 | 6. Verify clean working tree | [x] | `git status`: only `.claude/scheduled_tasks.lock` modified (harness runtime state, never committed in this PR). |
 | 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` succeeds — feature branch contains all develop commits. |
 
