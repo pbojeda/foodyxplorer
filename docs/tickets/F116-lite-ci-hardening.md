@@ -251,7 +251,7 @@ P6.4. Return control to PM Orchestrator → start F030-lite.
 | 2. Verify product tracker | [x] | Active Session reflects step 5/6 (Review/Ready for Merge), Active Feature F116-lite, batch `pm-hardening`. F116 row in Features table updated with 3 DONE / 5 DEFERRED. |
 | 3. Update key_facts.md | [x] | N/A — explicitly out of scope per plan R1 (Codex IMPORTANT). The rulesets-vs-branch-protection distinction is fully in the new doc. |
 | 4. Update decisions.md | [x] | N/A — no architectural decision in this ticket (CI hygiene + docs only). |
-| 5. Commit documentation | [x] | Commits: `3bdd5f6` initial, `54bdf01` code-review fixup. Ticket updates to follow in next commit before merge. |
+| 5. Commit documentation | [x] | 3 commits: `3bdd5f6` initial (7 files +466/-28), `54bdf01` code-review fixup (4 files, 3 IMPORTANT findings inline), `bbff52f` ticket finalize (checkboxes + Merge Evidence). All pushed to `origin/feature/F116-lite-ci-hardening`. |
 | 6. Verify clean working tree | [x] | `git status`: only `.claude/scheduled_tasks.lock` modified (harness runtime state, gitignored at content level, never committed in this PR). |
 | 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` succeeds — feature branch contains all develop commits (created from `81eea5c` which is current develop HEAD). |
 

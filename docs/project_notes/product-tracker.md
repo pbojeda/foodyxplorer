@@ -8,9 +8,9 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-05-11 — PM session `pm-hardening` STARTED (Batch 1 of roadmap `/Users/pb/.claude/plans/twinkly-booping-marble.md`). Baseline @ `81eea5c`: tests/lint/build all exit 0, working tree clean. Active feature F116-lite (Simple-scope rigor-Standard). Step 0 Spec authored + Codex review R1 REVISE → 2 IMPORTANT + 1 SUGGESTION addressed inline (rulesets vs branch-protection distinction surfaced; required-checks list corrected to only `ci-success`). Empirical verification 2026-05-11: ruleset id `14883955` (named `develop`) active, covering BOTH `develop` AND `main` via dual `refs/heads/...` include. Previous session `pm-conv-polish` archived to `pm-session-pm-conv-polish.md`.
+**Last Updated:** 2026-05-11 — F116-lite step **5/6 (Ready for Merge)**. PR #264 open against develop, CI green (ci-success + 6/6 test-* + Vercel deployments), 3 commits (`3bdd5f6` initial, `54bdf01` code-review fixup, `bbff52f` ticket finalize). Cross-model review trail: /review-spec R1 (Gemini APPROVED, Codex REVISE→fixed); /review-plan R1 (Gemini APPROVED, Codex REVISE→fixed); code-review-specialist APPROVE WITH MINOR (3 IMPORTANT addressed in `54bdf01`); qa-engineer PASS WITH ONE FOLLOW-UP (CI confirmed green post-fixup). Empirical ruleset state captured: id `14883955` (named `develop`) active, covers BOTH `develop` AND `main`, ci-success sole required check + `bypass_actors:[]`. Previous session `pm-conv-polish` archived to `pm-session-pm-conv-polish.md`.
 
-**Active Feature:** F116-lite (CI Hardening Minimal) — step 1/6, branch `feature/F116-lite-ci-hardening`.
+**Active Feature:** F116-lite (CI Hardening Minimal) — step **5/6 (Ready for Merge)**, branch `feature/F116-lite-ci-hardening` HEAD `bbff52f`.
 
 **Active PM Session:** pm-hardening (Hardening Batch 1 per `/Users/pb/.claude/plans/twinkly-booping-marble.md`). Batch: F116-lite (in_progress) + F030-lite (pending). L5 PM Autonomous. See `docs/project_notes/pm-session.md`. Pause for audit summary after both merge to develop; ADR-025 (auth provider) before Batch 2.
 
