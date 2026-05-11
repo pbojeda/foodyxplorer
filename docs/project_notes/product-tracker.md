@@ -8,11 +8,11 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-05-11 — F116-lite step **5/6 (Ready for Merge)**. PR #264 open against develop, CI green (ci-success + 6/6 test-* + Vercel deployments), 3 commits (`3bdd5f6` initial, `54bdf01` code-review fixup, `bbff52f` ticket finalize). Cross-model review trail: /review-spec R1 (Gemini APPROVED, Codex REVISE→fixed); /review-plan R1 (Gemini APPROVED, Codex REVISE→fixed); code-review-specialist APPROVE WITH MINOR (3 IMPORTANT addressed in `54bdf01`); qa-engineer PASS WITH ONE FOLLOW-UP (CI confirmed green post-fixup). Empirical ruleset state captured: id `14883955` (named `develop`) active, covers BOTH `develop` AND `main`, ci-success sole required check + `bypass_actors:[]`. Previous session `pm-conv-polish` archived to `pm-session-pm-conv-polish.md`.
+**Last Updated:** 2026-05-11 — **F116-lite SHIPPED** at `beafc43` (PR #264). F030-lite step **4/6 (Finalize → Review)**: implementation complete on branch `feature/F030-lite-sentry-api`. 13 new tests pass locally (10 unit + 3 integration). lib/sentry.ts (~110 LoC) + config.ts SENTRY_DSN field + server.ts init+startup-capture+SIGTERM flush + errorHandler 5xx forwarding + operator checklist doc.
 
-**Active Feature:** F116-lite (CI Hardening Minimal) — step **5/6 (Ready for Merge)**, branch `feature/F116-lite-ci-hardening` HEAD `bbff52f`.
+**Active Feature:** F030-lite (Sentry api install — minimal observability) — step **4/6 (Finalize)**, branch `feature/F030-lite-sentry-api`.
 
-**Active PM Session:** pm-hardening (Hardening Batch 1 per `/Users/pb/.claude/plans/twinkly-booping-marble.md`). Batch: F116-lite (in_progress) + F030-lite (pending). L5 PM Autonomous. See `docs/project_notes/pm-session.md`. Pause for audit summary after both merge to develop; ADR-025 (auth provider) before Batch 2.
+**Active PM Session:** pm-hardening (Hardening Batch 1 per `/Users/pb/.claude/plans/twinkly-booping-marble.md`). Batch: ~~F116-lite~~ ✅ + F030-lite (next). L5 PM Autonomous. See `docs/project_notes/pm-session.md`. Pause for audit summary after F030-lite merges; ADR-025 (auth provider) before Batch 2.
 
 **Pending PRs (housekeeping)**: PR #245 telemetry research doc (user's branch, not blocking).
 
@@ -226,7 +226,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F027 | Telegram Bot — Command Handler | backend | done | 6/6 | Standard. 227 tests, PR #24, SHA 3461f10 |
 | F028 | Telegram Bot — Natural Language Handler | backend | done | 6/6 | Standard. 307 tests, PR #25, SHA 0ddc21a |
 | F029 | Query Log & Analytics | backend | done | 6/6 | Standard. query_logs table, fire-and-forget logging, GET /analytics/queries |
-| F030 | Monitoring & Alerting | backend | pending | — | |
+| F030 | Monitoring & Alerting | backend | pending | — | **F030-lite shipped 2026-05-11 (Batch 1 of `pm-hardening`)** — api-only Sentry SDK install + 5xx capture + startup-failure capture + PII scrubbing (`beforeSend` + `sendDefaultPii: false` + `SentryContext` compile-time allowlist) + operator checklist at `docs/operations/sentry-observability-checklist.md`. **DEFERRED to F030-FU (tracked here):** bot SDK install, web SDK install (`@sentry/nextjs`), landing SDK install, source map upload to Sentry releases (CI step), performance tracing, profiling, custom metrics, formal SLOs, runbooks, Slack/PagerDuty routing, UptimeRobot config itself (operator action only). F030-lite ticket: `docs/tickets/F030-lite-sentry-api.md`. Operator action pending post-merge: user creates Sentry project + sets `SENTRY_DSN` env var on Render `nutrixplorer-api-prod` + configures 2 email alert rules (see checklist). Overall F030 remains `pending` because deferred items remain. |
 
 ## Features — E005 Advanced Analysis & UX
 

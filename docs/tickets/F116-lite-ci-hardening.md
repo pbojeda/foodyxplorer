@@ -1,7 +1,7 @@
 # F116-lite: CI Hardening Minimal — remove api lint suppression + wire scraper lint + document branch protection
 
 **Feature:** F116-lite | **Type:** Backend-Refactor | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F116-lite-ci-hardening
+**Status:** Done | **Branch:** feature/F116-lite-ci-hardening (deleted post-merge)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-11 | **Dependencies:** F115 (done, PR #91 `2eda357`)
 
@@ -222,7 +222,7 @@ P6.4. Return control to PM Orchestrator → start F030-lite.
 - [x] Step 4: Quality gates pass (`npm test` ✓ + `npm run lint` ✓ + `npm run build` ✓). `production-code-validator` skipped with rationale (no production code in this ticket — CI yaml + docs only).
 - [x] Step 5: `code-review-specialist` executed — APPROVE WITH MINOR (3 IMPORTANT addressed inline in fixup commit `54bdf01`)
 - [x] Step 5: `qa-engineer` executed — PASS WITH ONE FOLLOW-UP (CI green confirmed post-fixup push)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted, tracker housekeeping done (post-merge)
+- [x] Step 6: Ticket Status `Done`, branch deleted (local + remote via `--delete-branch`), tracker housekeeping done. Squash-merged at `beafc43` via PR #264.
 
 ---
 
@@ -237,6 +237,9 @@ P6.4. Return control to PM Orchestrator → start F030-lite.
 | 2026-05-11 | PR opened | #264 against develop. |
 | 2026-05-11 | code-review-specialist | APPROVE WITH MINOR CHANGES. 3 IMPORTANT all addressable inline (stale `ci.yml:329` citations after the new step shifted lines; ticket-internal contradiction "main has NO ruleset" vs doc "covers both"; AC3(e) `key_facts.md` mismatch with plan R1) — all 3 fixed inline in fixup commit. 2 MINOR (UI navigation hint, narrative paragraph at bugs.md:1073 — acceptable historical record), 2 NIT — accepted. |
 | 2026-05-11 | qa-engineer | PASS WITH ONE FOLLOW-UP. All 5 static ACs verified (AC1/AC2/AC3/AC5/AC6). Empirical ruleset claims match `gh api` response exactly (id 14883955, dual include develop+main, only ci-success required, bypass_actors:[]). CI green still pending (run 25662161894 in_progress at QA time — `Lint scraper` first execution). |
+| 2026-05-11 | CI green confirmed | Run 25662691769 on final commit `039a9cf`: ci-success PASS + test-api 4m8s + test-bot 1m36s + test-landing 1m21s + test-scraper 1m28s (Lint scraper step's first execution PASSED) + test-shared 1m18s + test-web 1m49s + Vercel deployments PASS. |
+| 2026-05-11 | /audit-merge | 11/11 structural PASS + 12/12 drift PASS post-fixes (P9 tracker step refresh + P2 aspirational row 5 made past-tense). |
+| 2026-05-11 | MERGED | PR #264 squash-merged at `beafc43` via `gh pr merge --squash --delete-branch`. Remote branch deleted automatically; local feature branch deleted via `git branch -D feature/F116-lite-ci-hardening`. |
 
 ---
 
