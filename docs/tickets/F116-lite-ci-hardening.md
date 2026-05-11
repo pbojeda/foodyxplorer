@@ -1,7 +1,7 @@
 # F116-lite: CI Hardening Minimal — remove api lint suppression + wire scraper lint + document branch protection
 
 **Feature:** F116-lite | **Type:** Backend-Refactor | **Priority:** High
-**Status:** Spec | **Branch:** feature/F116-lite-ci-hardening
+**Status:** Ready for Merge | **Branch:** feature/F116-lite-ci-hardening
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-11 | **Dependencies:** F115 (done, PR #91 `2eda357`)
 
@@ -187,47 +187,42 @@ P6.4. Return control to PM Orchestrator → start F030-lite.
 
 ## Acceptance Criteria
 
-- [ ] **AC1**: `.github/workflows/ci.yml` line 182 contains `run: npm run lint -w @foodxplorer/api` (no `|| true`).
-- [ ] **AC2**: `test-scraper` job in `.github/workflows/ci.yml` contains a `Lint scraper` step running `npm run lint -w @foodxplorer/scraper`, placed between `Typecheck scraper` and `Test scraper`.
-- [ ] **AC3**: New file `docs/operations/branch-protection-checklist.md` exists with (sections listed in spec):
-  - (a) Intro explaining BUG-DEV-CI-001 history AND the rulesets-vs-classic-branch-protection distinction (citing `product-tracker.md:119` empirical evidence).
-  - (b) Inventory step (UI path Settings → Rules → Rulesets, plus `gh api repos/{owner}/{repo}/rulesets` CLI snippet).
-  - (c) **Mandatory configuration**: required status check = **only** `ci-success` (citing the `ci-success` rollup block in `.github/workflows/ci.yml` and its preceding comment "the ONLY required check in branch protection"), restrict pushes (PR-only), block force pushes. With explicit warning against listing individual `test-*` jobs.
-  - (d) **Recommended tightening** (clearly marked optional, each with one-line rationale): ≥1 review, dismiss stale, linear history, block admin bypass, apply same rules to `main`.
-  - (e) Operator action checklist with numbered steps (inventory → confirm mandatory → decide recommended → apply → re-verify post-change).
-- [ ] **AC4**: CI on the feature PR runs `test-api` (now without `|| true`) and `test-scraper` (now with Lint scraper step) and both report success.
-- [ ] **AC5**: `docs/project_notes/bugs.md` BUG-DEV-CI-001 entry has a `**Status update 2026-05-11 (F116-lite):**` paragraph appended noting that the documentation deliverable shipped and the manual UI configuration remains pending the engineer.
-- [ ] **AC6**: `docs/project_notes/product-tracker.md` F116 row has its Notes column updated to: (a) list 3 sub-items DONE with their F116-lite reference, (b) list remaining sub-items DEFERRED with one-line rationale per item, (c) overall status remains `pending` until a future F116-FU ticket closes the deferred items.
-- [ ] Lint passes on all workspaces after edits (`npm run lint` exits 0).
-- [ ] Build passes (`npm run build` exits 0).
-- [ ] Existing test suite passes (`npm test` exits 0, no regression vs baseline 8,228 tests).
-- [ ] Specs updated: no api-spec / ui-components / Zod changes (this ticket is CI-only).
+- [x] **AC1**: `.github/workflows/ci.yml` api lint step contains `run: npm run lint -w @foodxplorer/api` (no `|| true`). Verified by qa-engineer.
+- [x] **AC2**: `test-scraper` job in `.github/workflows/ci.yml` contains a `Lint scraper` step running `npm run lint -w @foodxplorer/scraper`, placed between `Typecheck scraper` and `Test scraper`. Verified by qa-engineer (6-space indent, byte-perfect with surrounding steps).
+- [x] **AC3**: New file `docs/operations/branch-protection-checklist.md` exists with all 5 required sections. Verified by qa-engineer.
+- [x] **AC4**: CI green on PR #264 — `ci-success` rollup PASS (see PR #264 status checks).
+- [x] **AC5**: `docs/project_notes/bugs.md` BUG-DEV-CI-001 entry has the 2026-05-11 status update paragraph appended. Verified by qa-engineer.
+- [x] **AC6**: `docs/project_notes/product-tracker.md` F116 row updated: 3 sub-items DONE explicit (api lint suppression removed, Lint scraper CI step added, branch-protection audit + doc), 5 sub-items DEFERRED with rationale, overall status `pending` (rolling). Verified by qa-engineer.
+- [x] Lint passes on all workspaces (`npm run lint` exit 0 post-fixes 2026-05-11).
+- [x] Build passes (`npm run build` exit 0).
+- [x] Existing test suite passes (`npm test` exit 0, no regression vs baseline 8,228 tests).
+- [x] Specs updated: N/A — CI-only ticket, no api-spec / ui-components / Zod changes.
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] No new tests required (no production code changed)
-- [ ] Existing tests still green
-- [ ] Code follows project standards (CI yaml indentation matches surrounding style)
-- [ ] No linting errors anywhere
-- [ ] Build succeeds
-- [ ] Docs reflect final implementation
-- [ ] Cross-model review (`/review-spec` ≥ 1 round, `/review-plan` ≥ 1 round) APPROVED
+- [x] All acceptance criteria met
+- [x] No new tests required (no production code changed)
+- [x] Existing tests still green (8,228+ tests, exit 0)
+- [x] Code follows project standards (CI yaml indentation matches surrounding style — byte-verified by code-reviewer)
+- [x] No linting errors anywhere
+- [x] Build succeeds
+- [x] Docs reflect final implementation (code-reviewer fix-loop applied: stale citations + main-ruleset contradiction + AC3(e) `key_facts.md` mismatch all corrected in commit `54bdf01`)
+- [x] Cross-model review (`/review-spec` ≥ 1 round, `/review-plan` ≥ 1 round) APPROVED (Gemini APPROVED both; Codex REVISE both → fixes applied inline)
 
 ---
 
 ## Workflow Checklist
 
-- [ ] Step 0: Spec authored + cross-model review APPROVED
-- [ ] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: Plan authored + cross-model review APPROVED
-- [ ] Step 3: Implementation complete (CI yaml edits + new doc + bugs.md / tracker updates)
-- [ ] Step 4: Quality gates pass (`npm test`, `npm run lint`, `npm run build`), `production-code-validator` executed
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed
-- [ ] Step 6: Ticket updated with final metrics, branch deleted, tracker housekeeping done
+- [x] Step 0: Spec authored + cross-model review APPROVED (R1: Gemini APPROVED, Codex REVISE→fixed)
+- [x] Step 1: Branch created (`feature/F116-lite-ci-hardening`), ticket generated, tracker updated
+- [x] Step 2: Plan authored + cross-model review APPROVED (R1: Gemini APPROVED, Codex REVISE→fixed)
+- [x] Step 3: Implementation complete (CI yaml edits + new doc + bugs.md + tracker)
+- [x] Step 4: Quality gates pass (`npm test` ✓ + `npm run lint` ✓ + `npm run build` ✓). `production-code-validator` skipped with rationale (no production code in this ticket — CI yaml + docs only).
+- [x] Step 5: `code-review-specialist` executed — APPROVE WITH MINOR (3 IMPORTANT addressed inline in fixup commit `54bdf01`)
+- [x] Step 5: `qa-engineer` executed — PASS WITH ONE FOLLOW-UP (CI green confirmed post-fixup push)
+- [ ] Step 6: Ticket updated with final metrics, branch deleted, tracker housekeeping done (post-merge)
 
 ---
 
@@ -251,14 +246,14 @@ P6.4. Return control to PM Orchestrator → start F030-lite.
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
+| 0. Validate ticket structure | [x] | All 7 sections present: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence. |
+| 1. Mark all items | [x] | AC: 10/10, DoD: 8/8, Workflow: 7/8 (Step 6 pending — post-merge). Status set to `Ready for Merge`. |
+| 2. Verify product tracker | [x] | Active Session reflects step 5/6 (Review/Ready for Merge), Active Feature F116-lite, batch `pm-hardening`. F116 row in Features table updated with 3 DONE / 5 DEFERRED. |
+| 3. Update key_facts.md | [x] | N/A — explicitly out of scope per plan R1 (Codex IMPORTANT). The rulesets-vs-branch-protection distinction is fully in the new doc. |
+| 4. Update decisions.md | [x] | N/A — no architectural decision in this ticket (CI hygiene + docs only). |
+| 5. Commit documentation | [x] | Commits: `3bdd5f6` initial, `54bdf01` code-review fixup. Ticket updates to follow in next commit before merge. |
+| 6. Verify clean working tree | [x] | `git status`: only `.claude/scheduled_tasks.lock` modified (harness runtime state, gitignored at content level, never committed in this PR). |
+| 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` succeeds — feature branch contains all develop commits (created from `81eea5c` which is current develop HEAD). |
 
 ---
 
