@@ -179,7 +179,7 @@ jobs:
         run: npm run typecheck -w @foodxplorer/api
 
       - name: Lint API
-        run: npm run lint -w @foodxplorer/api || true
+        run: npm run lint -w @foodxplorer/api
 
       - name: Test API
         run: npm run test -w @foodxplorer/api
@@ -248,6 +248,9 @@ jobs:
 
       - name: Typecheck scraper
         run: npm run typecheck -w @foodxplorer/scraper
+
+      - name: Lint scraper
+        run: npm run lint -w @foodxplorer/scraper
 
       - name: Test scraper
         run: npm run test -w @foodxplorer/scraper
