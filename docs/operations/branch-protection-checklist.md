@@ -51,7 +51,7 @@ Ruleset id `14883955`, name `develop`, enforcement `active`. Conditions: `includ
 | `require_code_owner_review` | `false` | — |
 | `require_last_push_approval` | `false` | — |
 | `allowed_merge_methods` | `["merge", "squash", "rebase"]` | All three allowed. **Candidate for tightening** if linear history desired. |
-| `required_status_checks` | `["ci-success"]` only | ✓ Correct per `ci.yml:329` rationale. |
+| `required_status_checks` | `["ci-success"]` only | ✓ Correct per the `ci-success` rollup block in `.github/workflows/ci.yml` (comment: "the ONLY required check in branch protection") rationale. |
 | `strict_required_status_checks_policy` | `true` | ✓ Forces branch to be up-to-date before merge. |
 | `do_not_enforce_on_create` | `false` | ✓ Enforced on branch creation too. |
 | `bypass_actors` | `[]` | ✓ Nobody can bypass. |
@@ -62,7 +62,7 @@ Ruleset id `14883955`, name `develop`, enforcement `active`. Conditions: `includ
 
 These are the **non-negotiable** items. If your inventory shows any of them are missing or different from below, fix them:
 
-- ✅ **Required status check is exactly `ci-success`** — the rollup job defined in `.github/workflows/ci.yml`. **Do NOT list individual `test-*` jobs as required checks.** Source: `.github/workflows/ci.yml:329` (block comment: "the ONLY required check in branch protection"). Rationale: `ci-success` passes when all per-package test jobs pass **or were skipped** (docs-only PRs intentionally skip many test jobs via path filters). Requiring `test-shared` / `test-api` / `test-bot` / `test-scraper` / `test-landing` / `test-web` directly as required checks would block legitimate docs-only PRs from ever merging.
+- ✅ **Required status check is exactly `ci-success`** — the rollup job defined in `.github/workflows/ci.yml`. **Do NOT list individual `test-*` jobs as required checks.** Source: the `ci-success` rollup block in `.github/workflows/ci.yml` (block comment: "the ONLY required check in branch protection"). Rationale: `ci-success` passes when all per-package test jobs pass **or were skipped** (docs-only PRs intentionally skip many test jobs via path filters). Requiring `test-shared` / `test-api` / `test-bot` / `test-scraper` / `test-landing` / `test-web` directly as required checks would block legitimate docs-only PRs from ever merging.
 - ✅ **`pull_request` rule type enabled** — no direct pushes allowed to `develop` or `main`.
 - ✅ **`strict_required_status_checks_policy: true`** — forces branches to be up-to-date with the target before merge.
 - ✅ **`bypass_actors` empty** OR audit-logged if non-empty.
@@ -103,7 +103,7 @@ Apply this when you decide to tighten protection. Each step is **reversible** in
 ## (e) Notes for future maintainers
 
 - **Rulesets vs Branch Protection:** GitHub has two distinct mechanisms with overlapping functionality. Rulesets are the newer model and the one this repo uses. If you see `404 Branch not protected` from `/branches/{branch}/protection`, it does NOT mean the branch is unprotected — check `/rulesets` too.
-- **Do not "fix" this doc by enumerating individual `test-*` jobs.** They are intentionally NOT required checks. `ci-success` is the single rollup; it is the contract between the CI workflow and branch protection. Changing this requires also changing `.github/workflows/ci.yml:329-347` and revising the path-filtered job design — not a doc-only change.
+- **Do not "fix" this doc by enumerating individual `test-*` jobs.** They are intentionally NOT required checks. `ci-success` is the single rollup; it is the contract between the CI workflow and branch protection. Changing this requires also changing the `ci-success` rollup block in `.github/workflows/ci.yml` and revising the path-filtered job design — not a doc-only change.
 - **CODEOWNERS** — none currently exists. If you adopt code-owner-required reviews, create `.github/CODEOWNERS` with the relevant patterns.
 - **Audit log** — if you ever enable a `bypass_actors` entry, also enable repo-level audit logging (Settings → Audit log) so the bypass is observable.
 
@@ -111,7 +111,7 @@ Apply this when you decide to tighten protection. Each step is **reversible** in
 
 ## References
 
-- `.github/workflows/ci.yml:329-347` — `ci-success` rollup job + the comment that documents its role as the only required check.
+- `.github/workflows/ci.yml` → the `ci-success` rollup job block + its preceding comment ("the ONLY required check in branch protection") — documents the job's role as the only required check.
 - `docs/project_notes/bugs.md` → BUG-DEV-CI-001 — original discovery + status updates.
 - `docs/project_notes/product-tracker.md:119` — empirical reinterpretation note ("tighten existing ruleset, don't create one").
 - `docs/tickets/F116-lite-ci-hardening.md` — the ticket that produced this doc.

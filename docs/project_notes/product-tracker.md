@@ -8,7 +8,7 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-05-11 — PM session `pm-hardening` STARTED (Batch 1 of roadmap `/Users/pb/.claude/plans/twinkly-booping-marble.md`). Baseline @ `81eea5c`: tests/lint/build all exit 0, working tree clean. Active feature F116-lite (Simple-scope rigor-Standard). Step 0 Spec authored + Codex review R1 REVISE → 2 IMPORTANT + 1 SUGGESTION addressed inline (rulesets vs branch-protection distinction surfaced; required-checks list corrected to only `ci-success`). Empirical verification 2026-05-11: develop ruleset id `14883955` active; main currently has NO ruleset (gap to fix via the doc deliverable). Previous session `pm-conv-polish` archived to `pm-session-pm-conv-polish.md`.
+**Last Updated:** 2026-05-11 — PM session `pm-hardening` STARTED (Batch 1 of roadmap `/Users/pb/.claude/plans/twinkly-booping-marble.md`). Baseline @ `81eea5c`: tests/lint/build all exit 0, working tree clean. Active feature F116-lite (Simple-scope rigor-Standard). Step 0 Spec authored + Codex review R1 REVISE → 2 IMPORTANT + 1 SUGGESTION addressed inline (rulesets vs branch-protection distinction surfaced; required-checks list corrected to only `ci-success`). Empirical verification 2026-05-11: ruleset id `14883955` (named `develop`) active, covering BOTH `develop` AND `main` via dual `refs/heads/...` include. Previous session `pm-conv-polish` archived to `pm-session-pm-conv-polish.md`.
 
 **Active Feature:** F116-lite (CI Hardening Minimal) — step 1/6, branch `feature/F116-lite-ci-hardening`.
 

@@ -37,7 +37,7 @@ None.
 - New file `docs/operations/branch-protection-checklist.md`: audit + tightening guide for the EXISTING GitHub configuration on `develop` and `main`. Important distinction (per empirical discovery during BUG-PROD-004-FU1, `product-tracker.md:119`): this repo uses **GitHub Repository Rulesets** (Settings → Rules → Rulesets), NOT legacy Branch Protection (Settings → Branches). The legacy API returns 404 for `develop` but rulesets already enforce `ci-success` required check + PR-only (GH013 on direct push). The doc must explicitly cover:
    1. **Inventory step**: how to view existing rulesets via UI (Settings → Rules → Rulesets) and via CLI (`gh api repos/{owner}/{repo}/rulesets`).
    2. **Mandatory configuration (current state, verify):**
-      - Required status check: **only** `ci-success` (NOT individual `test-*` jobs). Rationale: `ci-success` is the rollup that handles pass-or-skipped semantics across path-filtered jobs (see `.github/workflows/ci.yml:329` comment "the ONLY required check in branch protection"). Requiring `test-shared`/`test-api`/etc. directly would block merges of docs-only PRs because path filters skip those jobs.
+      - Required status check: **only** `ci-success` (NOT individual `test-*` jobs). Rationale: `ci-success` is the rollup that handles pass-or-skipped semantics across path-filtered jobs (see the `ci-success` block in `.github/workflows/ci.yml`, preceding comment "the ONLY required check in branch protection"). Requiring `test-shared`/`test-api`/etc. directly would block merges of docs-only PRs because path filters skip those jobs.
       - Restrict pushes (PR-only).
       - Block force pushes.
    3. **Recommended tightening (optional but encouraged for beta period, document each with rationale):**
@@ -46,8 +46,8 @@ None.
       - Require linear history (squash policy alignment).
       - Block bypass for repository admins (or enable audit log if bypass kept).
       - Apply same rules to `main`.
-   4. **Why NOT to add individual `test-*` jobs as required checks** — explicit warning with citation to `ci.yml:329` comment, so a future engineer doesn't "fix" the doc by enumerating them.
-   5. **Operator action checklist**: numbered steps for the user to apply (a) inventory current state, (b) confirm the mandatory items are set, (c) decide on recommended items, (d) apply, (e) record the resulting ruleset ID/name in `key_facts.md` for future reference.
+   4. **Why NOT to add individual `test-*` jobs as required checks** — explicit warning citing the `ci-success` rollup block in `ci.yml`, so a future engineer doesn't "fix" the doc by enumerating them.
+   5. **Operator action checklist**: numbered steps for the user to apply (a) inventory current state, (b) confirm the mandatory items are set, (c) decide on recommended items, (d) apply, (e) re-verify post-change via the inventory CLI snippet.
 - `docs/project_notes/bugs.md` → BUG-DEV-CI-001: append a `**Status update 2026-05-11 (F116-lite):**` paragraph noting (a) the audit-and-tighten doc deliverable shipped (correcting the prior misconception that protection didn't exist), (b) state transition `partially mitigated` → `mitigated (docs + audit)`, (c) operator action pending for any tightening decisions the user adopts.
 - `docs/project_notes/product-tracker.md` → F116 row: mark sub-items (1)/(a) [api lint — verified already clean, suppression removed], (2-half)/(b-scraper-CI-step) [scraper lint CI step], and (7)/(g) [branch protection **audit + doc**, scope already reinterpreted in `product-tracker.md:119`] as DONE. Sub-items (2-full)/(b)/(no-this-alias-cleanup), (3), (4), (5), (6) DEFERRED with brief rationale next to each. Tracker still tracks F116 as `pending` overall (rolling) because the deferred sub-items remain open.
 
@@ -83,7 +83,7 @@ P0.1. **Confirm baseline lint clean** (already done in pm-session.md baseline, r
 P0.2. **Confirm empirical state of GitHub protection** via `gh api`:
 - `gh api repos/pbojeda/foodyxplorer/rulesets` → record the response (ID + name + target branches).
 - For each ruleset, `gh api repos/pbojeda/foodyxplorer/rulesets/{id}` → record rules (status check requirement, restrictions).
-- Verified at spec-review time 2026-05-11: develop ruleset id `14883955` exists active; main has NO ruleset.
+- Verified at spec-review time 2026-05-11: ruleset id `14883955` (named `develop`) is active and covers BOTH `refs/heads/develop` AND `refs/heads/main` (single ruleset, dual include). Initial mis-read corrected after fetching full ruleset detail via `gh api repos/.../rulesets/14883955`.
 
 P0.3. **Locate exact ci.yml lines** (line numbers may shift if file is edited elsewhere first):
 - Find `npm run lint -w @foodxplorer/api || true` in `.github/workflows/ci.yml` (currently line 182).
@@ -111,19 +111,17 @@ P2.1. **Create `docs/operations/branch-protection-checklist.md`** (creates the p
 - Title + one-line summary + last-updated date.
 - (a) Intro + history (BUG-DEV-CI-001 + reference to `product-tracker.md:119` + the rulesets-vs-branch-protection distinction).
 - (b) Inventory step (UI path Settings → Rules → Rulesets + `gh api repos/{owner}/{repo}/rulesets` CLI snippet).
-- (c) **Mandatory configuration — verbatim required**: "the ONLY required status check is **`ci-success`** (NOT individual `test-*` jobs). Source: `.github/workflows/ci.yml:329` (`ci-success` rollup job comment: 'the ONLY required check in branch protection'). Rationale: `ci-success` passes when all jobs pass OR were skipped (docs-only PRs), so requiring individual `test-*` jobs would block legitimate docs-only PRs that path-filter-skip those jobs." Also state: restrict pushes (PR-only), block force pushes.
-- (d) Recommended tightening (each marked "optional, encouraged for beta period", with a one-line rationale): require ≥1 review, dismiss stale reviews on new commits, require linear history, block admin bypass, apply same rules to `main`.
-- (e) Operator action checklist (numbered steps: inventory → confirm mandatory → decide recommended → apply → record resulting ruleset ID in `key_facts.md` if helpful).
-- Empirical state footer @ 2026-05-11: "develop has ruleset id `14883955` active; main has no ruleset (gap — must create equivalent ruleset on main as part of operator action)".
+- (c) **Mandatory configuration — verbatim required**: "the ONLY required status check is **`ci-success`** (NOT individual `test-*` jobs). Source: the `ci-success` rollup block in `.github/workflows/ci.yml` (block comment: 'the ONLY required check in branch protection'). Rationale: `ci-success` passes when all jobs pass OR were skipped (docs-only PRs), so requiring individual `test-*` jobs would block legitimate docs-only PRs that path-filter-skip those jobs." Also state: restrict pushes (PR-only), block force pushes.
+- (d) Recommended tightening (each marked "optional, encouraged for beta period", with a one-line rationale): require ≥1 review, dismiss stale reviews on new commits, require linear history, block admin bypass.
+- (e) Operator action checklist (numbered steps: inventory → confirm mandatory → decide recommended → apply → re-verify post-change via the inventory CLI snippet).
+- Empirical state footer @ 2026-05-11: ruleset id `14883955` (named `develop`) active, covering BOTH `refs/heads/develop` AND `refs/heads/main` via a single dual-include configuration.
 
 P2.2. **Self-review the doc**: re-read with a "future engineer who hasn't seen this" lens. Confirm UI path matches current GitHub UI (Settings → Rules → Rulesets → New ruleset / Edit existing). Confirm the warning against listing individual `test-*` jobs is unmissable (bolded callout near top of mandatory section).
-
-P2.3. **Self-review the doc**: re-read with a "future engineer who hasn't seen this" lens. Confirm UI paths match current GitHub UI (Settings → Rules → Rulesets → New ruleset / Edit existing). Confirm the warning against listing individual `test-*` jobs is unmissable.
 
 ### Phase 3 — Cross-cutting docs updates
 
 P3.1. **Update `docs/project_notes/bugs.md` → BUG-DEV-CI-001** entry:
-- Append a `**Status update 2026-05-11 (F116-lite):**` paragraph (3-5 sentences) noting (a) audit-and-tighten doc shipped at `docs/operations/branch-protection-checklist.md`, (b) empirical verification: develop ruleset 14883955 active, main unprotected (gap), (c) state transition `partially mitigated` → `mitigated (docs + audit)`, (d) operator action pending for any tightening the user adopts and for main ruleset creation.
+- Append a `**Status update 2026-05-11 (F116-lite):**` paragraph (3-5 sentences) noting (a) audit-and-tighten doc shipped at `docs/operations/branch-protection-checklist.md`, (b) empirical verification: ruleset 14883955 active and covers both develop and main, (c) state transition `partially mitigated` → `mitigated (docs + audit)`, (d) operator action pending for any tightening the user adopts.
 
 P3.2. **Update `docs/project_notes/product-tracker.md` → F116 row Notes column**:
 - Add a `**F116-lite (2026-05-11)**: ` section listing 3 DONE sub-items with PR reference (TBD until PR open).
@@ -194,9 +192,9 @@ P6.4. Return control to PM Orchestrator → start F030-lite.
 - [ ] **AC3**: New file `docs/operations/branch-protection-checklist.md` exists with (sections listed in spec):
   - (a) Intro explaining BUG-DEV-CI-001 history AND the rulesets-vs-classic-branch-protection distinction (citing `product-tracker.md:119` empirical evidence).
   - (b) Inventory step (UI path Settings → Rules → Rulesets, plus `gh api repos/{owner}/{repo}/rulesets` CLI snippet).
-  - (c) **Mandatory configuration**: required status check = **only** `ci-success` (citing `.github/workflows/ci.yml:329` rationale), restrict pushes (PR-only), block force pushes. With explicit warning against listing individual `test-*` jobs.
+  - (c) **Mandatory configuration**: required status check = **only** `ci-success` (citing the `ci-success` rollup block in `.github/workflows/ci.yml` and its preceding comment "the ONLY required check in branch protection"), restrict pushes (PR-only), block force pushes. With explicit warning against listing individual `test-*` jobs.
   - (d) **Recommended tightening** (clearly marked optional, each with one-line rationale): ≥1 review, dismiss stale, linear history, block admin bypass, apply same rules to `main`.
-  - (e) Operator action checklist with numbered steps (inventory → confirm mandatory → decide recommended → apply → record ruleset ID in `key_facts.md`).
+  - (e) Operator action checklist with numbered steps (inventory → confirm mandatory → decide recommended → apply → re-verify post-change).
 - [ ] **AC4**: CI on the feature PR runs `test-api` (now without `|| true`) and `test-scraper` (now with Lint scraper step) and both report success.
 - [ ] **AC5**: `docs/project_notes/bugs.md` BUG-DEV-CI-001 entry has a `**Status update 2026-05-11 (F116-lite):**` paragraph appended noting that the documentation deliverable shipped and the manual UI configuration remains pending the engineer.
 - [ ] **AC6**: `docs/project_notes/product-tracker.md` F116 row has its Notes column updated to: (a) list 3 sub-items DONE with their F116-lite reference, (b) list remaining sub-items DEFERRED with one-line rationale per item, (c) overall status remains `pending` until a future F116-FU ticket closes the deferred items.
@@ -240,6 +238,10 @@ P6.4. Return control to PM Orchestrator → start F030-lite.
 | 2026-05-11 | Ticket created | F116-lite scope: 3 of 7 F116 sub-items (api `\|\| true` removal, scraper Lint CI step, branch-protection doc) |
 | 2026-05-11 | Spec review R1 | Gemini APPROVED (1 IMPORTANT — invalid, lint already wired for shared/bot/landing/web at ci.yml:90/216/282/320; scraper is the only gap). Codex REVISE (2 IMPORTANT + 1 SUGGESTION — all valid, addressed inline): (i) AC3 required-checks list contradicted `ci.yml:329` rationale that `ci-success` is the ONLY required check; (ii) doc framing assumed no existing protection — project memory at `product-tracker.md:119` shows rulesets already enforce `ci-success` + PR-only, so deliverable reframed as **audit + tighten**; (iii) mandatory-vs-optional distinction now explicit in spec. |
 | 2026-05-11 | Plan review R1 | Gemini APPROVED. Codex REVISE (2 IMPORTANT + 3 SUGGESTION — all addressed inline): (i) P2.2 vague on `ci-success` citation → P2.1 now spells out verbatim required text + cites `ci.yml:329`; (ii) P3.3 key_facts.md update is scope creep → removed; (iii) P4.1 broad gates risk false-positive failures → reordered to targeted-first; (iv) P1.3 generic yaml check no value → removed; (v) P2.1 mkdir is noise → folded into Write step. |
+| 2026-05-11 | Commit | `3bdd5f6` chore(ci): F116-lite (7 files, +466/-28). |
+| 2026-05-11 | PR opened | #264 against develop. |
+| 2026-05-11 | code-review-specialist | APPROVE WITH MINOR CHANGES. 3 IMPORTANT all addressable inline (stale `ci.yml:329` citations after the new step shifted lines; ticket-internal contradiction "main has NO ruleset" vs doc "covers both"; AC3(e) `key_facts.md` mismatch with plan R1) — all 3 fixed inline in fixup commit. 2 MINOR (UI navigation hint, narrative paragraph at bugs.md:1073 — acceptable historical record), 2 NIT — accepted. |
+| 2026-05-11 | qa-engineer | PASS WITH ONE FOLLOW-UP. All 5 static ACs verified (AC1/AC2/AC3/AC5/AC6). Empirical ruleset claims match `gh api` response exactly (id 14883955, dual include develop+main, only ci-success required, bypass_actors:[]). CI green still pending (run 25662161894 in_progress at QA time — `Lint scraper` first execution). |
 
 ---
 
