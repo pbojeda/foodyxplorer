@@ -256,3 +256,25 @@ describe('Vision model config (F-WEB-MENU-VISION-001)', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });
+
+describe('Sentry config (F030-lite)', () => {
+  beforeEach(() => {
+    exitSpy.mockClear();
+  });
+
+  it('SENTRY_DSN is optional — absent → undefined', () => {
+    const config = parseConfig({ ...VALID_ENV });
+    expect(config.SENTRY_DSN).toBeUndefined();
+  });
+
+  it('SENTRY_DSN accepts a valid URL', () => {
+    const dsn = 'https://abc123@o111.ingest.sentry.io/2222';
+    const config = parseConfig({ ...VALID_ENV, SENTRY_DSN: dsn });
+    expect(config.SENTRY_DSN).toBe(dsn);
+  });
+
+  it('calls process.exit(1) when SENTRY_DSN is malformed (not a URL)', () => {
+    expect(() => parseConfig({ ...VALID_ENV, SENTRY_DSN: 'not-a-url' })).toThrow('process.exit called');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+});
