@@ -1,7 +1,7 @@
 # F030-lite: Install + initialize Sentry in `packages/api` (minimal observability)
 
 **Feature:** F030-lite | **Type:** Backend-Refactor | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F030-lite-sentry-api
+**Status:** Done | **Branch:** feature/F030-lite-sentry-api (deleted post-merge)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-11 | **Dependencies:** F116-lite (done, PR #264 `beafc43`)
 
@@ -372,7 +372,7 @@ The implementation core (Phases 0-7) is realistic in a single PM session (~1-2h)
 - [x] Step 4: Quality gates pass (`npm test`, `npm run lint`, `npm run build`, `npm run typecheck`). `production-code-validator` executed → 0 findings, READY FOR PRODUCTION.
 - [x] Step 5: `code-review-specialist` executed — APPROVE WITH MINOR CHANGES (3 IMPORTANT + several MINOR/NIT; 3 IMPORTANT fixed inline in `ba6d841`).
 - [x] Step 5: `qa-engineer` executed — PASS WITH ONE FOLLOW-UP (hashActor `||` vs `??`; fixed in `ba6d841`). 14 edge-case tests authored by QA agent included in fixup commit.
-- [ ] Step 6: Ticket Status `Done`, branch deleted, tracker housekeeping (post-merge).
+- [x] Step 6: Ticket Status `Done`, branch deleted (local + remote via `--delete-branch`), tracker housekeeping done. Squash-merged at `a585c37` via PR #265.
 
 ---
 
@@ -389,6 +389,11 @@ The implementation core (Phases 0-7) is realistic in a single PM session (~1-2h)
 | 2026-05-11 | code-review-specialist | APPROVE WITH MINOR CHANGES. 3 IMPORTANT: (a) `route: request.url` leaked query string to Sentry — fixed with `routerPath ?? slice('?')`; (b) `main().catch` race on sync throw — wrapped in try/catch + 2.5s setTimeout safety net + `.finally`; (c) checklist Step 2.4 promised `[sentry] initialized` log not emitted by code — added log on both init paths. 4 MINOR/NIT deferred to F030-FU (beforeSend contexts/breadcrumbs, case-variants `set-cookie`/`proxy-authorization`, inner try/catch test). |
 | 2026-05-11 | qa-engineer | PASS WITH ONE FOLLOW-UP. All 10 ACs empirically PASS. QA created `__tests__/lib/sentry.edge-cases.test.ts` (14 edge-case tests). Follow-up: `hashActor('')` produced sha256('') not 'anonymous' hash (`??` semantic) — fixed in `ba6d841` (changed to `||`). 5 pre-existing test failures in `health.test.ts`/`f004.edge-cases.test.ts`/`f005.edge-cases.test.ts` confirmed to pre-date F030-lite (same on develop base `beafc43`) — not blocking, not regressions. |
 | 2026-05-11 | Code-review fixes commit `ba6d841` | 5 files +216/-11. Three IMPORTANT + one QA follow-up addressed. 27/27 tests in sentry suite + lint + typecheck green post-fix. |
+| 2026-05-11 | Ticket finalize commit `a7524a0` | All checkboxes marked, Merge Evidence table filled (8/8 with concrete evidence). |
+| 2026-05-11 | /audit-merge | Structural 11/11 PASS. Drift: P2 (row 5 aspirational) + P12 (HEAD ref stale) detected and fixed in commit `b5c2543`. |
+| 2026-05-11 | CI green confirmed | Run 25664827138 on final commit `b5c2543`: ci-success + 6/6 test-* + Vercel deployments PASS. |
+| 2026-05-11 | MERGED | PR #265 squash-merged at `a585c37` via `gh pr merge --squash --delete-branch`. Bundle: 5 commits collapsed (38c559d housekeeping + a686099 feat + ba6d841 code-review fix + a7524a0 ticket finalize + b5c2543 audit-merge drift fix). |
+| 2026-05-11 | Post-merge sanity | `npm test` exit 0 on develop @ `a585c37`. No regressions. |
 
 ---
 

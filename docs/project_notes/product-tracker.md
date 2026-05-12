@@ -8,11 +8,11 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-05-11 — **F116-lite SHIPPED** at `beafc43` (PR #264). F030-lite step **5/6 (Ready for Merge)**. PR #265 open with 3 commits (`38c559d` + `a686099` + `ba6d841` code-review fixup). production-code-validator 0 findings; code-review APPROVE WITH MINOR (3 IMPORTANT fixed); qa-engineer PASS WITH ONE FOLLOW-UP (fixed). 30 new tests pass (13 + 14 edge + 3 SENTRY_DSN config); no regressions.
+**Last Updated:** 2026-05-11 — **PM session `pm-hardening` COMPLETE**: F116-lite at `beafc43` (PR #264) + F030-lite at `a585c37` (PR #265) both shipped to develop. Post-merge sanity green. **Paused for user audit before Batch 2** (Auth core + trust signal). ADR-025 (auth provider) required pre-Batch-2.
 
-**Active Feature:** F030-lite (Sentry api install — minimal observability) — step **5/6 (Ready for Merge)**, branch `feature/F030-lite-sentry-api` HEAD `a7524a0`.
+**Active Feature:** None — pm-hardening PM session COMPLETE. 2 features shipped + verified end-to-end. Awaiting user audit confirmation + ADR-025 before starting Batch 2.
 
-**Active PM Session:** pm-hardening (Hardening Batch 1 per `/Users/pb/.claude/plans/twinkly-booping-marble.md`). Batch: ~~F116-lite~~ ✅ + F030-lite (next). L5 PM Autonomous. See `docs/project_notes/pm-session.md`. Pause for audit summary after F030-lite merges; ADR-025 (auth provider) before Batch 2.
+**Active PM Session:** pm-hardening — COMPLETED. Batch 1: ~~F116-lite~~ ✅ + ~~F030-lite~~ ✅. Next: Batch 2 (F107a Auth + F105 Coverage Showcase) per `/Users/pb/.claude/plans/twinkly-booping-marble.md` once ADR-025 is in place.
 
 **Pending PRs (housekeeping)**: PR #245 telemetry research doc (user's branch, not blocking).
 
