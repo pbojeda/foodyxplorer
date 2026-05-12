@@ -240,6 +240,8 @@ P6.4. Return control to PM Orchestrator → start F030-lite.
 | 2026-05-11 | CI green confirmed | Run 25662691769 on final commit `039a9cf`: ci-success PASS + test-api 4m8s + test-bot 1m36s + test-landing 1m21s + test-scraper 1m28s (Lint scraper step's first execution PASSED) + test-shared 1m18s + test-web 1m49s + Vercel deployments PASS. |
 | 2026-05-11 | /audit-merge | 11/11 structural PASS + 12/12 drift PASS post-fixes (P9 tracker step refresh + P2 aspirational row 5 made past-tense). |
 | 2026-05-11 | MERGED | PR #264 squash-merged at `beafc43` via `gh pr merge --squash --delete-branch`. Remote branch deleted automatically; local feature branch deleted via `git branch -D feature/F116-lite-ci-hardening`. |
+| 2026-05-12 | RELEASED to main | Bundled in release PR #267 (`2e0a58e`, merge commit `develop → main`) together with F030-lite. Merge-back to develop via PR #268 (`67f8642`). |
+| 2026-05-12 | Operator action — branch protection tightening APPLIED | Per recommendations in `docs/operations/branch-protection-checklist.md` section (c): ruleset `14883955` patched via `gh api PUT` to set `required_approving_review_count: 0 → 1` and `dismiss_stale_reviews_on_push: false → true`. `allowed_merge_methods` unchanged (kept all 3 to preserve gitflow release flow). `bypass_actors` unchanged (empty). Empirical verification: post-PATCH `gh api` confirms new values. **F116 sub-item (7) Operator Action: COMPLETED.** |
 
 ---
 

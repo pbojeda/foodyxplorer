@@ -394,6 +394,11 @@ The implementation core (Phases 0-7) is realistic in a single PM session (~1-2h)
 | 2026-05-11 | CI green confirmed | Run 25664827138 on final commit `b5c2543`: ci-success + 6/6 test-* + Vercel deployments PASS. |
 | 2026-05-11 | MERGED | PR #265 squash-merged at `a585c37` via `gh pr merge --squash --delete-branch`. Bundle: 5 commits collapsed (38c559d housekeeping + a686099 feat + ba6d841 code-review fix + a7524a0 ticket finalize + b5c2543 audit-merge drift fix). |
 | 2026-05-11 | Post-merge sanity | `npm test` exit 0 on develop @ `a585c37`. No regressions. |
+| 2026-05-12 | RELEASED to main | Bundled in release PR #267 (`2e0a58e`, merge commit `develop → main`) together with F116-lite. CI on release PR: ci-success PASS (initial run had flaky `test-shared` in `webMetrics.schemas.edge-cases` time-boundary test; rerun passed). Merge-back to develop via PR #268 (`67f8642`). |
+| 2026-05-12 | Operator action — Sentry project + DSN | Operator created Sentry project `nutrixplorer-api` (Node.js platform, EU region — `o4510872637210624.ingest.de.sentry.io`). `SENTRY_DSN` set on Render `nutrixplorer-api-prod` as Secret + `NODE_ENV=production` verified. Render auto-redeploy triggered post-merge. |
+| 2026-05-12 | Operator action — Sentry init verified in prod | After Render redeploy, logs of `nutrixplorer-api-prod` confirm `[sentry] initialized (env=production)`. `curl https://api.nutrixplorer.com/health` returned 200 (`{"status":"ok","timestamp":"2026-05-12T15:26:52.047Z","version":"0.0.1","uptime":139.47964144}`). Latency unaffected (no measurable change vs pre-deploy). |
+| 2026-05-12 | Operator action — Sentry alert rules configured | 2 email alert rules created in Sentry project: (Rule A) `New error issue → email` — fires on new issue with `level:error`; (Rule B) `Error spike (>10/5min) → email` — fires on issue seen >10 times in 5min. Destinatario: operator email. **F030-lite operator action checklist: COMPLETED** (only the optional UptimeRobot step remains deferred). |
+| 2026-05-12 | End-to-end Sentry capture | NOT yet verified empirically (no organic 5xx and no forced smoke test). Deferred to passive observation: first organic 5xx in prod will validate the full capture → alert email chain. If no 5xx after 1-2 weeks, a `/_smoke-500` PR cycle can be done. |
 
 ---
 
