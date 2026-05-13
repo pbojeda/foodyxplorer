@@ -8,11 +8,11 @@
 
 > **Read this section first** when starting a new session or after context compaction. Provides instant context recovery.
 
-**Last Updated:** 2026-05-12 — **PM session `pm-hardening` Batch 1 SHIPPED TO PRODUCTION**. Release PR #267 (`2e0a58e`, merge commit develop→main) + merge-back PR #268 (`67f8642`). Render `nutrixplorer-api-prod` redeployed; `[sentry] initialized (env=production)` verified in Render Logs; `/health` returns 200. Sentry alert rules configured (new-issue + spike). Branch protection ruleset `14883955` tightened: `required_approving_review_count: 1` + `dismiss_stale_reviews_on_push: true` (BUG-DEV-CI-001 closed). **Paused for next batch** (Batch 2: Auth core + trust signal). ADR-025 (auth provider) required pre-Batch-2.
+**Last Updated:** 2026-05-13 — **ADR-025 R3 (Auth Provider) + ADR-026 (Pause Telegram Bot) drafted in `decisions.md`** on branch `docs/adr-025-auth-provider` off `develop@6765357`. Both ADRs went through cross-model review (Codex GPT-5.4 + Gemini 2.5 Pro, 2 rounds). R2 review surfaced 1 CRITICAL bot-related complexity → strategic decision to pause bot pre-beta. ADR-026 closes a pre-existing CRITICAL (qa-audit-2026-04-06 A1 telegram actor spoofing) as a side-effect. **State: WORKING TREE — no commit yet, pending user review**. Pending: (a) user approval, (b) `actorResolver.ts` code change to remove `telegram:` branch + tests, (c) operator actions (Render bot service suspend + BotFather webhook off).
 
-**Active Feature:** None — pm-hardening PM session COMPLETE, both features shipped to main + all operator actions executed. Awaiting ADR-025 before starting Batch 2.
+**Active Feature:** None — Architecture decision work in progress (ADR-025+026). Awaiting user review for commit + the actorResolver code change.
 
-**Active PM Session:** pm-hardening — COMPLETED + RELEASED. Batch 1: ~~F116-lite~~ ✅ (PR #264 develop, PR #267 main, ruleset tightened 2026-05-12) + ~~F030-lite~~ ✅ (PR #265 develop, PR #267 main, Sentry live in prod 2026-05-12). Next: Batch 2 (F107a Auth + F105 Coverage Showcase) per `/Users/pb/.claude/plans/twinkly-booping-marble.md` once ADR-025 is in place.
+**Active PM Session:** pm-hardening — COMPLETED + RELEASED. Batch 1: ~~F116-lite~~ ✅ (PR #264 develop, PR #267 main, ruleset tightened 2026-05-12) + ~~F030-lite~~ ✅ (PR #265 develop, PR #267 main, Sentry live in prod 2026-05-12). Next: Batch 2 (F107a Auth + F105 Coverage Showcase) per `/Users/pb/.claude/plans/twinkly-booping-marble.md` once ADR-025 commits to main.
 
 **Pending PRs (housekeeping)**: PR #245 telemetry research doc (user's branch, not blocking).
 
@@ -339,7 +339,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F085 | Portion Sizing Matrix (Spanish portions) | backend | done | 6/6 | Simple. PR #77. 30 tests (2 files). enrichWithPortionSizing() helper, 9 terms, word boundary matching. Code review: APPROVED |
 | F086 | Reverse Search ("¿qué como con X kcal?") | backend | done | 6/6 | Standard. GET /reverse-search endpoint + conversation intent. 136 tests. PR #78, e67164d |
 | F087 | "El Tupper" Meal Prep | backend | done | 6/6 | Simple. PR #80, 1ae778c. 33 tests. Optional `portions` param, `perPortion` nutrients, bot tupper detection |
-| F088 | Community Inline Corrections | bot | postponed | — | Standard. "Cálculo incorrecto" inline button. User proposes adjustment. Stored for review. Feeds demand pipeline |
+| F088 | Community Inline Corrections | bot | backlog | — | Standard. Was bot-inline "Cálculo incorrecto" button + adjustment proposal stored for review. **Moved to backlog 2026-05-13 per ADR-026** (bot paused pre-beta). Re-scope as web-only feature post-beta if user feedback demands it. |
 | F089 | "Modo Tapeo" (shared portions) | bot | done | 6/6 | Simple. PR #81, ef5dbe6. 22 tests. Diners extraction + perPerson in menu estimation |
 
 > **Phase B Audit Bugfixes (before Phase C)**
@@ -437,7 +437,7 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 | F104 | "Índice Saciedad vs Precio" Viral Content | frontend | pending | — | Simple. Data journalism: "Los 10 platos que dan más proteína por euro". Landing page content |
 | F105 | Landing Coverage Showcase | frontend | pending | — | Simple. Show actual coverage numbers on landing. Chains + dishes + common Spanish foods |
 | F106 | Google Maps Restaurant Discovery | fullstack | pending | — | Complex. Premium. Legal review required (ToS). See product-evolution-analysis Sec 7 |
-| F107 | Auth Upgrade: Google Identity Platform | fullstack | pending | — | Standard. Actor merge flow. Multi-provider. See product-evolution-analysis Appendix B |
+| F107 | Auth Upgrade: Supabase Auth (web) | fullstack | pending | — | Standard. **ADR-025** selects Supabase Auth (was "Google Identity Platform" pre-2026-05-13). Split into F107a (auth core: `auth.users` + new `public.accounts` table + `actor.account_id` FK + bearer JWT verify via JWKS+jose) and F107b (account merge: anonymous_web → authenticated). Scope is web-only — Telegram bot paused per ADR-026. F107c bot magic-link cancelled. |
 | F108 | PWA Shell | frontend | pending | — | Standard. If /hablar validates, create installable PWA. Offline basic tracking |
 | F109 | Apple Health / Google Fit Export | fullstack | pending | — | Standard. Export daily totals to health apps. Requires tracking (F099) |
 

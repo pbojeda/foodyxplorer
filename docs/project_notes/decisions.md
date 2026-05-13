@@ -827,3 +827,179 @@ Strategy 2 and Strategy 4 in `runCascade()` now call `passesGuardL1` instead of 
 - (+) Bilingual OR semantics preserved — accept if all HI tokens in nameEs OR all HI tokens in name.
 - (-) Elaborated queries (e.g., `tortilla de patatas` against canonical `tortilla española`) are rejected at L1 and must be caught by L3. Two F-H10-FU regression fixtures required update (`TORTILLA_DISH_ROW`, `GAZPACHO_FOOD_ROW`) to use full canonical names — documented in ticket Completion Log.
 - (-) `FOOD_STOP_WORDS_EXTENDED` list requires ongoing curation. Aggressive extension causes false negatives; conservative extension leaves some FPs. QA battery re-run after each expansion is mandatory.
+
+### ADR-025: Auth Provider Selection — Supabase Auth for F107 (2026-05-13)
+
+**Status:** Accepted — R3 (incorporates Codex+Gemini R1 + R2 cross-model review; scope simplified after the parallel decision to pause the Telegram bot — see ADR-026).
+
+**Context:**
+
+F107 will add authentication to nutriXplorer, ending the auth-free posture established by ADR-016. The trigger is F099 (user profiles — BMR/targets), which requires per-user persistence of personal health data (weight/height/age/activity) — a RGPD Art. 9 category that is unsafe to attach to a localStorage-only `actor_id`. F098 (premium tier gates), F102 (B2B API), and F109 (Apple Health/Google Fit export) also depend on a stable user identity.
+
+ADR-016 anticipated this transition. Its migration sketch (`docs/project_notes/decisions.md:517-521`) — "set `actor.type='authenticated'`, `external_id=<user_id>`; multi-device creates new `actor_id`, linked to same `user_id`" — is **internally inconsistent** with the `@@unique([type, externalId])` constraint on `actors` (`docs/tickets/F069-anonymous-identity.md:55-59`): once one actor row holds `(authenticated, <user_id>)`, a second device cannot flip to the same pair without violating uniqueness. This was caught by Codex in R1. **This ADR therefore supersedes ADR-016's migration contract**, replacing it with an account-keyed model (Decision §3 below) while keeping the rest of ADR-016 intact: anonymous-first posture, per-actor rate limiting (`packages/api/src/plugins/actorRateLimit.ts`), and the F069 `actors` table itself.
+
+**R3 scope simplification (2026-05-13):** During R2 discussion, the user and reviewers agreed to **pause the Telegram bot pre-beta** (documented separately as **ADR-026**). This closes the pre-existing telegram actor spoofing CRITICAL (qa-api-audit 2026-04-06 A1), removes the bot/web merge complexity, and lets F107 focus on a single client surface. R3 therefore: (a) drops the bot link protocol that R2 introduced, (b) tightens the transport precedence rule per Gemini+Codex R2 feedback, (c) makes the F099 boundary explicit per Codex R2 SUGGESTION, (d) corrects Auth0 Professional-tier price.
+
+Constraints (R3):
+
+1. **Solo-dev operation** — no team, no CODEOWNERS, no shared on-call. Anything that adds operational surface (custom IdP, multi-region tuning, manual user CRUD UI) compounds against me.
+2. **Active client surface — web only** (Next.js 15 App Router, `packages/web/`). Landing (Next.js 14) is marketing-only, no authenticated state. Telegram bot is paused pre-beta per **ADR-026** (code preserved but service offline, `telegram:` resolution removed from `actorResolver.ts`). Auth scope therefore covers web only; bot revival would re-introduce a multi-surface merge protocol as a separate ADR.
+3. **Backend is Fastify, not Next.js API routes** — disqualifies provider patterns that assume the auth runtime lives inside Next.js.
+4. **Cross-domain auth transport** — web at `app.nutrixplorer.com`, API at `api.nutrixplorer.com`. Cross-domain cookies were deferred in F090 (`docs/project_notes/decisions.md:511`). Auth transport must work across origins without re-opening that complexity.
+5. **Supabase already in the stack** for PostgreSQL (pooler quirks at `docs/project_notes/key_facts.md:66`). Single-vendor simplification is a real lever.
+6. **Pre-beta scale: <500 users** — effectively-free pricing required; growth ramp non-punitive through ≤50K MAU.
+7. **F099 RGPD posture** — EU data residency + a clean session→consent→profile chain. Consent timestamps must live somewhere durable that is app-owned, not provider-owned.
+
+**Decision: Supabase Auth, with a new app-owned `accounts` table and `actor.account_id` FK as the merge seam.**
+
+1. **Provider.** Adopt **Supabase Auth** (GoTrue-backed; bundled with the Supabase project we already use for PostgreSQL). Day-1 providers for web: Email+Password and Google OAuth. Apple Sign-In and Magic Link evaluated as fast-follow.
+
+2. **Backend verification.** Fastify verifies Supabase-issued JWTs via Supabase's JWKS endpoint using `jose`. No Supabase JS SDK on the API hot path; the SDK is web-only.
+
+3. **Data model** (supersedes ADR-016's migration sketch):
+   - **`auth.users`** (Supabase-managed) — source of truth for identity (email, OAuth providers, hashed credentials).
+   - **`public.accounts`** (NEW, app-owned) — durable app-level **account** state. Columns: `id UUID PK`, `auth_user_id UUID UNIQUE` (logical reference to `auth.users.id`; no hard FK to a managed schema), `created_at`, `updated_at`, `deleted_at` (soft delete), `consent_health_data_at`, `consent_marketing_at` (RGPD timestamps), `billing_customer_id NULL` (Stripe etc, populated when F098 lands). **F099 split (made explicit post-R2):** body/health profile fields (weight, height, age, activity, BMR targets) do **NOT** live on `accounts` — they go on a separate `public.profiles` table keyed to `accounts.id`, designed in F099 spec time. Rationale: `accounts` is identity/consent/billing; `profiles` is RGPD Art. 9 health data with its own retention rules.
+   - **`public.actors`** (existing F069 table, **extended**) — channel/device identity. New column: `account_id UUID NULL` (FK to `public.accounts.id`). The existing `ActorType` enum value `'telegram'` is retained for backwards compatibility but is **dormant** per ADR-026 (no new rows; existing rows untouched). New actors are created with `type='anonymous_web'` only. The `type='authenticated'` enum value is also retained but unused — the merge sets `account_id` instead of flipping `type`.
+
+4. **Merge semantics** (F107b implementation contract, web-only):
+   - **First-device login.** User signs in on web → API receives bearer JWT → upsert `accounts` row by `auth_user_id` → `UPDATE actors SET account_id=<accounts.id> WHERE id=<request.actorId>`. Idempotent.
+   - **Second-device login.** New browser visits → fresh `(anonymous_web, <new_uuid>)` actor with `account_id=NULL` → user signs in → the same `accounts` row is found by `auth_user_id` → `UPDATE actors SET account_id=<existing accounts.id>`. **No uniqueness conflict**, because `actors.account_id` is non-unique by design — N devices → N actors → 1 account.
+
+5. **Transport.** Web client sends `Authorization: Bearer <jwt>` on API requests (Supabase-issued access token, refreshed by the Supabase JS client). `X-Actor-Id` is still sent **alongside** for the anonymous fallback path. **`actorResolver` precedence (strict — addresses Gemini+Codex R2 IMPORTANT):**
+   - `Authorization` **absent** → fall through to existing `X-Actor-Id` anonymous flow (current behavior preserved).
+   - `Authorization` **present and JWT verification succeeds** → resolve `accounts` from JWT `sub` claim → resolve or attach the actor accordingly; `X-Actor-Id` is ignored for identity selection (still observed for the merge target).
+   - `Authorization` **present and JWT verification fails** (expired, malformed, signature invalid) → **respond 401 immediately**. Do NOT silently fall back to anonymous resolution — a present-but-invalid token is a client error or attack, not a downgrade signal.
+   - Cross-domain cookies remain deferred — bearer-header transport sidesteps the issue entirely.
+
+6. **EU region.** Configure the Supabase project to **EU (Frankfurt)** to co-locate with Render (Frankfurt API) and the existing Sentry EU project (`docs/project_notes/key_facts.md:68`).
+
+7. **Free-tier inactivity mitigation.** Add a Render cron job hitting `GET /health?db=true` on api-prod every 24h. The `?db=true` branch issues `SELECT 1` against Supabase (`packages/api/src/routes/health.ts`), which keeps the project warm. (The existing plain `/health` path does NOT touch the DB and so cannot keep the project warm; the cron is needed regardless of any other monitoring.)
+
+8. **Defer RLS.** Row-Level Security policies deferred to F107b/F099 spec time. F107a continues to enforce authorization at the Fastify route layer.
+
+9. **Anonymous flow preserved for first-visit web.** Anonymous actors remain the default for first-visit web traffic. ADR-016's anonymous-first posture stands; only its specific migration sketch is superseded.
+
+**Why Supabase Auth over the alternatives** (full ranking in *Alternatives considered* below):
+
+1. **Smallest footprint for solo-dev.** Already in the bill, no new dashboard, no new IAM admin. Marginal operational complexity vs zero-auth-today is the lowest of any option.
+2. **`auth.users` lives inside our database.** `accounts.auth_user_id → auth.users.id` is a same-DB logical reference. The login-time merge is one DB round-trip with no third-party API call. Clerk/Auth0 would require an external API call on every link or identity-fetch.
+3. **Free tier covers the next ≥18 months.** 50K MAU on Supabase Auth's free plan, included in the free DB plan we already use. No new bill.
+4. **Bounded vendor lock-in via OSS engine** (narrowed post-R1 SUGGESTION). GoTrue is Apache-2.0 and self-hostable. If managed Supabase becomes uninvestable, we can stay on GoTrue self-hosted — at the cost of taking on TLS, backups, HA, monitoring, and security patching. This is "same-engine continuity", **not** "easy switch to a different provider"; the latter is a real data migration. See *Reversibility analysis* below.
+5. **EU region available without surcharge.**
+6. **JWT is standards-based** (RS256 via JWKS) — backend verification works with any JOSE library; no Supabase SDK on the hot path.
+
+**Reviewed by:**
+- **R1 (Codex GPT-5.4 + Gemini 2.5 Pro, parallel, 2026-05-13).** Codex: 1 CRITICAL + 5 IMPORTANT + 1 SUGGESTION. Gemini: 1 CRITICAL + 2 IMPORTANT + 2 SUGGESTION. All 9 distinct findings addressed in R2 — multi-device merge contract rewritten via `accounts` table, transport spec'd, bot link protocol added (later removed in R3), warm-keep mitigation corrected, Clerk/Auth0 pricing corrected, OSS escape hatch reframed, ADR-016 supersession explicit, bot magic-link fast-follow captured.
+- **R2 (Codex GPT-5.4 + Gemini 2.5 Pro, parallel, 2026-05-13).** Gemini: 9/9 R1 FIXED + 1 IMPORTANT regression (bearer precedence on invalid token). Codex: 6/9 R1 FIXED + 3 PARTIAL + 1 CRITICAL (pre-existing telegram spoofing escalated by `accounts` exposure) + 3 IMPORTANT (atomicity of bot link redemption; bot-link rate-limit claim ficticio; bearer precedence) + 1 SUGGESTION (F099 split explicit).
+- **R3 (this revision).** Resolves R2 findings by: (a) bearer precedence rule rewritten as strict 401-on-invalid (Decision §5); (b) bot link protocol + bot-link rate-limit claim + atomicity concern all REMOVED — moot under ADR-026 bot pause; (c) F099 body-profile split made explicit (Decision §3 — `profiles` table separate from `accounts`); (d) Auth0 Professional-tier price corrected to $240/mo at 500 MAU (was stated 1K). Codex's R2 CRITICAL on telegram spoofing is dispatched by ADR-026 + the actorResolver code change that removes the `telegram:` resolution path.
+
+**Consequences:**
+
+- (+) Single vendor for DB + Auth — one bill, one dashboard, one region setting, one outage to track.
+- (+) **Multi-device safe by construction.** `actors.account_id` is non-unique; N devices → N actors → 1 account. No `@@unique` constraint conflict (the R1 CRITICAL).
+- (+) **Telegram spoofing vector closed** as a side-effect of ADR-026: `actorResolver.ts` no longer accepts `X-Actor-Id: telegram:<chatId>`, so the pre-existing CRITICAL (qa-api-audit 2026-04-06 A1) is resolved in the same change set.
+- (+) Historical data preserved on merge. Query logs / favorites / meal logs that reference `actor_id` keep referencing it after auth; the join to user-level data goes through `actors.account_id`.
+- (+) `accounts` table is the durable home for RGPD consent timestamps, soft-delete state, billing customer ids. `profiles` (F099, separate) is the home for body/health data — clean separation of concerns at migration time.
+- (+) Cross-domain auth via bearer header. No cross-domain cookie work; no CORS `credentials: 'include'` toggle; one fewer thing to break.
+- (+) JWT verification offline-friendly. JWKS is cached; a Supabase Auth outage does NOT immediately invalidate active sessions — only blocks new logins and token refreshes. Active session bound by access-token TTL (default 1h).
+- (+) **Strict bearer precedence** prevents silent auth downgrades — present-but-invalid tokens fail loud (401), not anonymous.
+- (+) Free at our scale and the next 50× of it.
+- (–) New `accounts` table = Prisma migration + Zod schema (`@foodxplorer/shared`) + KyselyDB type regen. Modest one-time cost in F107a.
+- (–) New `profiles` table will be a separate F099 migration (not in F107a scope).
+- (–) Retroactive backfill: every existing anonymous actor has `account_id=NULL`. Logged-in users get their actor linked at login time only. Acceptable.
+- (–) Supabase outage now affects auth AND data simultaneously. Mitigation: bounded session windows (see (+) above). Sentry alerts (F030-lite) catch error spikes.
+- (–) Hosted login UI is functional but not infinitely customizable. If branding demands custom flow, run the Supabase JS client against our own pages (supported by SDK).
+- (–) Locking ourselves to GoTrue's account-linking semantics for cross-provider users (e.g., Email then Google). GoTrue v2 stores this in `auth.identities`; we inherit that model. Confirmatory query in F107a spec.
+- (–) Supabase free-tier projects pause after 1 week of inactivity. Mitigated by the explicit Render cron in Decision §7.
+- (–) If/when the Telegram bot is revived (ADR-026 re-evaluation triggers), a multi-surface link protocol must be designed as a separate ADR — not retrofitted here. The simple web-only model in this ADR does not generalize without an explicit bot identity proof (HMAC or bot-credential-gated `/link` endpoint).
+
+**Reversibility analysis** (post-R1 narrowing of "OSS escape hatch"):
+
+- **Stay on managed Supabase, switch to self-hosted GoTrue.** Feasible: GoTrue is OSS (Apache-2.0), schema is portable, JWTs interoperate. Shifts operational burden — TLS termination, backups, HA, monitoring, security patching — onto us. Reasonable fallback IF managed Supabase pricing degrades; **not** a casual switch.
+- **Switch to a different provider entirely** (Clerk, Auth0, custom). Real migration: export users from `auth.users`, recreate them on the new provider (which assigns new ids), rewire `accounts.auth_user_id` to the new id space. Doable but non-trivial — expect 1-2 weeks of careful work plus a user-visible re-login event. **The OSS escape hatch is provider-stickiness mitigation, not full vendor reversibility.**
+
+**Alternatives considered:**
+
+1. **Google Identity Platform (GIP)** — `docs/project_notes/decisions.md:493`, `docs/research/product-evolution-analysis-2026-03-31.md:1441`. **Rejected.** Generous free tier (50K MAU) and battle-tested. In 2026 the entry point for new projects is Firebase Auth; "Identity Platform" is the paid multi-tenancy upgrade. Adopting GIP requires standing up a separate GCP project (we have zero GCP footprint today), configuring IAM, and managing two vendors (Supabase data + Google identity). The merge requires a Google JWT verification path with no same-DB join. Marginal operational cost > marginal feature value at our scale.
+
+2. **NextAuth.js / Auth.js v5** — listed in the user's recovery prompt. **Rejected.** Designed for Next.js server runtimes (`/api/auth/[...nextauth]`); auth state lives inside the Next.js process and is exposed to other clients via JWT. Our backend is Fastify. We could emit JWTs from Next.js and verify them in Fastify, but NextAuth then collapses to a JWT-issuer wrapper around providers we'd configure ourselves — its main value (Next.js-side session helpers) we wouldn't use. Auth.js v5 is also still in `beta` as of 2026-05.
+
+3. **Clerk** (corrected post-R1 — Codex IMPORTANT + Gemini CRITICAL). Verified at `clerk.com/pricing` on 2026-05-13: Free **Hobby tier offers 50,000 MRU per app and includes Custom Domain support** — better than the R1 draft's understated claim. EU data residency is also on the free tier (the R1 "EU only on paid" claim was wrong). **Still rejected (close second).** Reasons that remain valid: (a) user records live on Clerk's servers, not in our DB — the same-DB merge advantage of Supabase Auth is unavailable; F107b would require a Clerk Backend API round-trip per link/identity-fetch. (b) No OSS engine — 100% vendor lock-in, no equivalent of the GoTrue self-host fallback. (c) Paid tier kicks in past 50K MRU at $25/mo base + per-MAU, while Supabase Auth's free tier is more linearly priced past its 50K cap. The corrected facts make Clerk meaningfully more attractive than the R1 draft suggested, but (a) and (b) still tip toward Supabase Auth at our scale + RGPD posture.
+
+4. **Auth0** (corrected post-R1+R2 — Codex IMPORTANT both rounds). Verified at `auth0.com/pricing` on 2026-05-13: Free tier is **25,000 MAU and includes Custom Domains** (R1 draft's "7K MAU / no custom domain" was stale); paid **Professional starts at $240/mo for 500 MAU** (R2 draft's "1K MAU" at that price was off by 2×). **Still rejected.** The corrected free tier is genuinely usable for beta. But: (a) paid tier escalation is steep ($35/mo for 500 MAU on Essentials, $240/mo for 500 MAU on Professional — faster than Clerk and Supabase Auth past free). (b) User records on Auth0; same same-DB-merge disadvantage as Clerk. (c) No OSS engine. (d) Universal capability matters less when our auth surface is "Email + Google OAuth + RGPD consent" — well within Supabase Auth's scope.
+
+5. **Custom JWT + magic links (Resend/Postmark)** — listed in the user's recovery prompt. **Rejected.** Tempting: no vendor lock-in. But the burden is substantial: email deliverability (DKIM/SPF/DMARC, sender reputation), magic-link rate limiting, refresh-token rotation, MFA if ever needed, CVE patching on `jose`/`jsonwebtoken`/email library. Worst risk: a single auth bug exposes the entire user base. Solo-dev cannot afford this. Revisit only with full-time engineering staffing.
+
+6. **Firebase Auth** — added during analysis. **Rejected.** Stripped-down GIP with a similarly generous free tier (no MAU cap on Spark plan for Email/Password and most social providers), but still requires standing up GCP, runs its own identity store separate from our DB, and Google has signaled (Sept 2025 blog) that Firebase Auth will be merged under "Firebase Authentication with Identity Platform" — medium-term roadmap unclear, a bad property for an auth provider.
+
+**Re-evaluation triggers** (when this ADR should be revisited):
+- **Scale:** crossing 25K MAU (50% of Supabase free tier) — re-evaluate pricing.
+- **Outage incident:** if Supabase availability hurts auth uptime, evaluate adding an auth redundancy path.
+- **Compliance change:** if RGPD posture demands EU sovereignty (not just region) or SOC 2 Type II, re-evaluate.
+- **Product change:** if we add native iOS/Android apps (F108 PWA expanding into native), re-evaluate Sign in with Apple readiness — Supabase Auth supports it natively, so this is not a forced exit. If ADR-026 is reversed and the bot is revived, draft a separate ADR for the multi-surface link protocol (HMAC-signed bot identity proof, gated `/link` endpoint).
+- **Team change:** when team grows to ≥2 contributors, custom JWT + magic links becomes operationally viable; re-evaluate cost.
+
+### ADR-026: Pause Telegram Bot for Pre-Beta Focus (2026-05-13)
+
+**Status:** Accepted.
+
+**Context:**
+
+The Telegram bot (`packages/bot/`) was a first-class channel in the original product vision (ADR-016, line 491+). It currently runs as two Render services (`nutrixplorer-bot-dev` + `nutrixplorer-bot-prod`), responds to Telegram via webhook, and is identified server-side via `X-Actor-Id: telegram:<chatId>` resolved by `packages/api/src/plugins/actorResolver.ts` lines 66-73.
+
+Three facts converged during the **ADR-025** (auth provider) cross-model review on 2026-05-13:
+
+1. **Zero realised value pre-beta.** No real users today; waitlist + closed beta will start via web (`app.nutrixplorer.com`). The bot serves no current traffic and has not been validated as an acquisition or retention channel.
+2. **Real complexity cost on F107.** Cross-model review of ADR-025 R2 surfaced three IMPORTANT findings tied specifically to the bot/web merge: (a) non-atomic redemption races in a `/link` protocol, (b) absence of a `/link` rate-limit bucket in `actorRateLimit.ts`, (c) the bot/web identity bridge being under-specified. Each is solvable but each adds spec/test surface to a feature whose only consumer today is hypothetical.
+3. **Pre-existing CRITICAL spoofing flaw.** `docs/archive/audits/qa-api-audit-2026-04-06.md` line 83 (`A1 — Actor impersonation`) flagged that `X-Actor-Id: telegram:<chatId>` is trusted at face value with no bot authenticity proof. The flaw is dormant while there are no telegram-linked accounts, but **becomes exploitable cross-surface impersonation the moment ADR-025's `accounts` table starts attaching to telegram actors**. Fixing the flaw inside an active bot service requires a non-trivial HMAC bot-identity protocol that has no other immediate justification.
+
+The cost/benefit at pre-beta tilts strongly toward closing the surface: it simultaneously simplifies F107 (web-only auth), closes the A1 CRITICAL, and frees solo-dev attention for the features that actually drive beta launch.
+
+**Decision: Pause the Telegram bot pre-beta. Preserve all code. Reversible.**
+
+1. **Suspend Render services** (operator action — manual, dashboard). Suspend both `nutrixplorer-bot-dev` and `nutrixplorer-bot-prod`. Do NOT delete. `autoDeploy` was already OFF on both per `docs/project_notes/key_facts.md:63`, so suspension is the only step needed to stop request processing.
+2. **Disable Telegram webhook** (operator action — manual, via BotFather). Clear the webhook URL so Telegram's servers stop attempting to deliver updates to the suspended Render service. The bot token itself remains valid for future reactivation; it is not revoked.
+3. **Remove `telegram:` resolution path from `actorResolver.ts`** (code change). Lines 35 (`TELEGRAM_PREFIX` constant) and 66-73 (the `telegram:` branch) are deleted. The resolver now accepts only valid UUIDs (anonymous web actors) or generates a new one. Any inbound `X-Actor-Id: telegram:<chatId>` header is silently treated as "missing/invalid" and triggers anonymous actor creation. This closes the A1 spoofing CRITICAL by eliminating the trusted-header code path entirely.
+4. **Preserve `packages/bot/` in the repo.** No file deletions in `packages/bot/`. The code remains a frozen reference for future revival. Its `package.json` stays in `npm workspaces`, its imports from `@foodxplorer/shared` continue to type-check on shared changes.
+5. **Preserve CI `test-bot` job.** `.github/workflows/ci.yml` keeps the `test-bot` job and its place in the `ci-success` rollup. Rationale: bot tests act as a guard against silent type drift from `@foodxplorer/shared` changes that would otherwise rot `packages/bot/` and make future revival expensive. The job is path-filtered, so it only fires on actual bot/shared changes — negligible CI cost.
+6. **`ActorType` enum value `'telegram'` retained in Prisma schema.** No migration needed. The enum value is dormant: no new rows are created with it, and existing rows (if any) remain valid. Re-introducing it later is an enum value usage, not a schema change.
+7. **Backlog hygiene.** Features that were bot-anchored move to backlog with a re-evaluation note:
+   - **F088 Community Inline Corrections (bot)** → backlog. Re-evaluate as web-only feature post-beta.
+   - **F107c Bot magic-link auto-account** → cancelled (was a fast-follow consequence of the old bot link protocol, now moot).
+   - Bot-targeted intents in F076 (`/menu` command) and F075 (audio) continue to ship as **API endpoints** (`/conversation/message`, `/conversation/audio`); both are already consumed by web and remain useful regardless of bot status. No code changes there.
+8. **No changes to operational tooling.** Render build filters for the bot services stay configured (would be re-used on revival). Sentry bot SDK remains deferred (F030-FU). `render.yaml` bot service blocks remain documented intent.
+
+**Reviewed by:** Inline discussion between user and Claude during ADR-025 R2 review, 2026-05-13. Not a multi-model review — the strategic decision (close the surface) was raised in conversation after technical review of ADR-025 R2 made the cost of keeping the bot visible. Cross-model review was not warranted: this is a product/scope decision with low technical surface (code change is 8 lines + tests).
+
+**Consequences:**
+
+- (+) **ADR-025 simplifies materially.** Bot link protocol, multi-surface merge complexity, and `/link` rate-limit considerations all drop from the auth design.
+- (+) **A1 CRITICAL closed in the same change set** as a side-effect of removing the `telegram:` resolution path. No separate hardening work needed pre-beta.
+- (+) **Reduced operational surface.** Two fewer Render services watching for issues. One fewer health monitoring concern.
+- (+) **CI guard preserved.** `test-bot` ensures `packages/bot/` does not silently rot from shared schema changes — revival cost stays low.
+- (+) **Code museum, not graveyard.** All bot code remains git-versioned and runnable locally. The user could `git checkout` any commit and run the bot against a fresh Telegram token in minutes.
+- (+) **Solo-dev focus.** One less surface to maintain in the L5 PM-autonomous workflow. Every `@foodxplorer/shared` schema change still typechecks against bot, but no production deploys to verify.
+- (–) **No Telegram acquisition channel pre-beta.** Theoretical loss of Telegram's organic discovery (search, groups, viral DMs). Not realised today (no users); becomes a real cost only if beta validates that "Telegram as second channel" was a key acquisition path.
+- (–) **Bot work to date partially shelved.** `packages/bot/` (~30+ files: api client, voice handler, `/menu` intent, admin handlers, voice infra) remains in repo unused. Sunk cost in code-museum form — the **infrastructure** investments (api endpoints, audio duration parser, voice budget Lua, Whisper wrapper) remain in `packages/api/` and are still leveraged by web.
+- (–) **F088 displaced.** Community inline corrections via bot is no longer a near-term feature. Either repackage as web feature or accept the gap. Decision deferred to post-beta.
+- (–) **Re-enabling has a non-zero cost** — estimated ~1 week of work: rotate Telegram token in BotFather, redeploy Render services, verify `actorResolver.ts` restoration, re-test the bot end-to-end against current API surface, validate any shared schema changes that accumulated. Not catastrophic, but not free.
+- (–) **The original ADR-016 channel vision is partially walked back.** The product is now "web-first with bot reactivatable on demand", not "bot+web parallel from day one". Worth being honest about: this is a product-direction shift, not just a tactical pause.
+
+**Reversibility:**
+
+- **Resume in days, not weeks.** The reversal path: (a) reactivate Render services (1 click each), (b) issue new Telegram webhook URL via BotFather, (c) restore the 8-line `telegram:` branch in `actorResolver.ts` (or replace with the HMAC-gated version per ADR-025 R3 note), (d) deploy + smoke-test. If shared schema has drifted in ways `test-bot` flagged, fix imports.
+- **Token strategy.** Telegram bot tokens persist across Render service suspension. No rotation needed for revival unless the user proactively revokes via BotFather. Long-term inactivity does not invalidate tokens server-side at Telegram.
+
+**Re-evaluation triggers** (when to consider reversing this ADR):
+
+- **Beta feedback validates need for a second channel.** Real users explicitly ask for Telegram, or web-only proves to be a friction point for the target demographic.
+- **Specific bot-only use case** emerges: push notifications, async meal logging, sharing in groups. Web cannot natively do any of these.
+- **Bot infrastructure rewrite** would solve a different problem (e.g., adding RCS/WhatsApp Business support). The bot infrastructure could be retrofitted as the abstraction.
+- **Available capacity expands** (team grows, dedicated engineering hire). The maintenance cost of keeping the bot warm becomes affordable.
+
+**Cross-references:**
+- ADR-016 (`decisions.md:491`) — the original "anonymous identity + bot+web parallel surfaces" vision this ADR partially walks back.
+- ADR-025 (`decisions.md:831`) — the auth-provider ADR whose R2 review surfaced the cost/benefit case.
+- `docs/archive/audits/qa-api-audit-2026-04-06.md:83` — A1 CRITICAL "Actor impersonation" — closed as a side-effect of Decision §3 above.
+- `packages/api/src/plugins/actorResolver.ts:66-73` — the code lines being removed.
+- `docs/project_notes/key_facts.md:63` — Render services + autoDeploy state.
