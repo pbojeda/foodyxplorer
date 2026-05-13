@@ -1,7 +1,7 @@
 # Branch Protection Checklist (GitHub Rulesets)
 
 > **Audit and tightening guide** for the existing GitHub configuration on `develop` and `main`.
-> **Last updated:** 2026-05-12 (recommended tightening applied — review_count + dismiss_stale).
+> **Last updated:** 2026-05-13 (review_count tightening rolled back due to solo-dev workflow constraint; dismiss_stale retained).
 
 ---
 
@@ -39,15 +39,15 @@ gh api repos/{owner}/{repo}/rulesets | jq '.[] | {id, name, enforcement, target}
 gh api repos/{owner}/{repo}/rulesets/<id> | jq '{name, conditions, rules: [.rules[] | {type, parameters}], bypass_actors}'
 ```
 
-### Current empirical state @ 2026-05-12
+### Current empirical state @ 2026-05-13
 
-Ruleset id `14883955`, name `develop`, enforcement `active`. Conditions: `include = [refs/heads/develop, refs/heads/main]`. Rules (after 2026-05-12 tightening — F116-lite operator action):
+Ruleset id `14883955`, name `develop`, enforcement `active`. Conditions: `include = [refs/heads/develop, refs/heads/main]`. Rules (after 2026-05-13 rollback of `review_count` for solo-dev workflow):
 
 | Rule | Current value | Notes |
 |------|---------------|-------|
 | `pull_request` rule type | enabled | This is what enforces PR-only (no direct pushes). |
-| `required_approving_review_count` | **`1`** | ✓ **TIGHTENED 2026-05-12** — was `0`. Forces 1 approval before merge (incl. self-approval for solo flows). |
-| `dismiss_stale_reviews_on_push` | **`true`** | ✓ **TIGHTENED 2026-05-12** — was `false`. Approvals auto-invalidate on new commits. |
+| `required_approving_review_count` | `0` | **REVERTED 2026-05-13** — was tightened to `1` on 2026-05-12 but rolled back same-day after discovering GitHub prohibits self-approval (hard-coded; not configurable). Solo-dev workflow requires either (a) `0`, (b) `bypass_actors` admin entry, or (c) a second collaborator. Chose (a) for now; revisit when team grows to 2+ contributors. |
+| `dismiss_stale_reviews_on_push` | **`true`** | ✓ **TIGHTENED 2026-05-12 (retained)** — was `false`. No-op while `review_count=0`, but future-proofs the config: when `review_count` is raised again, stale approvals will auto-dismiss on push without a separate config change. |
 | `require_code_owner_review` | `false` | — (no CODEOWNERS file in repo yet; deferred). |
 | `require_last_push_approval` | `false` | — |
 | `allowed_merge_methods` | `["merge", "squash", "rebase"]` | All three retained intentionally — `merge` is required for gitflow release PRs (`develop → main`), `squash` for features, `rebase` rarely used. Restricting to squash only would break the release flow. |
@@ -75,8 +75,8 @@ Adoption decisions made 2026-05-12 pre-beta. Each item independent and reversibl
 
 | Item | Status | Rationale / Trade-off |
 |------|--------|----------------------|
-| `required_approving_review_count: 1` | ✅ **ADOPTED 2026-05-12** | Forces at least 1 review per PR (including self-review for solo flows). Trade-off accepted: ~1 click extra per PR; offset by catching obvious mistakes before merge. |
-| `dismiss_stale_reviews_on_push: true` | ✅ **ADOPTED 2026-05-12** | Prevents old approval carrying over into substantially different commits. Trade-off accepted: small re-review cost on push-after-approval. |
+| `required_approving_review_count: 1` | ❌ **ROLLED BACK 2026-05-13** | Adopted 2026-05-12 then reverted same-day after discovering GitHub hard-codes "author cannot self-approve". With single contributor, the gate blocks ALL PRs indefinitely. Workarounds (admin bypass, service-account reviewer) considered overkill for current stage. Will re-adopt when team grows to ≥2 active contributors; until then, `0`. The earlier doc claim about "self-review allowed" was an empirical error in this very file — caught when PR #269 became the first PR to hit the gate. Lesson: GitHub's PR-author-cannot-approve constraint is hard-coded and supersedes any ruleset config. |
+| `dismiss_stale_reviews_on_push: true` | ✅ **ADOPTED 2026-05-12 (retained)** | No-op while `review_count: 0`, but config retained so re-raising `review_count` is a single-field change. |
 | Restrict `allowed_merge_methods` to `["squash"]` only | ❌ **REJECTED 2026-05-12** | Would break gitflow release PRs that need merge-commit (e.g., #267). Kept all 3 methods. Linear history on `develop` is already de-facto squash via convention. |
 | `require_code_owner_review: true` + CODEOWNERS file | ⏸️ **DEFERRED** | No CODEOWNERS file exists yet; needed only when team grows past solo. Revisit when 2+ contributors. |
 | Configure for `main` separately | ⏸️ **DEFERRED** | Single ruleset covers both branches today; differentiating (e.g., 2 reviews on main, 1 on develop) only valuable post-beta. |
