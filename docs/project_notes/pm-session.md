@@ -1,19 +1,24 @@
 # PM Autonomous Session
 
-**Started:** 2026-05-06
-**Session ID:** pm-conv-polish
+**Started:** 2026-05-11
+**Session ID:** pm-hardening
 **Autonomy Level:** L5 (PM Autonomous)
-**Status:** completed
+**Status:** completed (Batch 1 COMPLETE — awaiting user audit before Batch 2)
 **Target Branch:** develop
 
-**Sprint:** Conversational Polish (Pick A). User chose this batch over monetization (Pick B) and voice realtime (Pick C) on rationale "max user-visible UX leap (multiturn) + reliability lever (catalog gap closure)". F098 Premium Tier deferred to next session post-/compact.
+**Sprint:** Hardening Batch 1 (per roadmap `/Users/pb/.claude/plans/twinkly-booping-marble.md` — Batch 1). User pre-authorized batch via plan approval 2026-05-11. **Pause requirement**: detailed audit summary after both features merge to develop, BEFORE proceeding to Batch 2 (Auth + ADR-025).
 
-**Baseline @ session start (develop @ `c4c3a32`):** lint 0 errors all workspaces | typecheck clean all workspaces | npm test exit 0 (web 489/489 confirmed in log; api/bot/shared/scraper/landing all PASS via vitest/jest workspace runs; release F-WEB-MENU-VISION-001 just shipped to main via PR #250 + merge-back via PR #251). Build not run pre-session — relying on recent merge-back PR #251 CI evidence (test-web pass 1m15s, ci-success pass).
+**Baseline @ session start (develop @ `81eea5c`):**
+- `npm test` exit 0 (web 499/499 latest sample; full suite 8.228 tests per previous merge of `pm-conv-polish`)
+- `npm run lint` exit 0 across all workspaces (shared, api, bot, scraper, landing, web)
+- `npm run build` exit 0
+- Working tree clean
 
-**Merge authorization policy (user-set 2026-05-06 via "Te pongo en modo autónomo. HAz tu mejor esfuerzo"):**
-- F-MULTITURN-001 (Standard, NEW feature): user pre-authorized via `start pm` confirmation. Multi-round Codex+Gemini reviews mandatory. Merge after audit-merge passes.
-- F-CATALOG-COV-001 (Standard, NEW feature): user pre-authorized via same confirmation. Multi-round Codex+Gemini reviews mandatory. Merge after audit-merge passes.
-- F098 (Standard, deferred): NOT in this session — mandatory /compact gate after 2 features.
+**Scope reduction confirmed (user-approved 2026-05-11):**
+- **F116-lite** = `F116` reduced to: (1) remove `|| true` from `ci.yml:182` api lint, (2) add `Lint scraper` CI step, (3) branch protection on develop+main (manual GH UI task w/ checklist). DEFERRED: scraper `no-this-alias` cleanup, `defaults.run.shell` hardening, `package.json` scripts audit, `test-landing` context refactor, api lint cleanup (api lint already clean post-F115 — verified `npm run lint -w @foodxplorer/api` exit 0).
+- **F030-lite** = `F030` reduced to: install + init Sentry SDK in api, basic error handler integration, env var docs, post-merge alert config checklist. DEFERRED: formal SLOs, runbooks, custom metrics, bot/web/landing instrumentation.
+
+**Complexity reclassification (post-baseline inspection):** Original plan tagged both as Standard. After empirical baseline (lint clean, no Sentry install) both qualify as **Simple** lite versions. Will run as Simple-equivalent through development-workflow.
 
 ## Current Batch
 
@@ -26,8 +31,8 @@ _(All features in batch completed — see Completed Features below.)_
 
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
-| F-MULTITURN-001 | Standard | ~1 session (very heavy) | DONE 6/6. PR #252 squash-merged at `45aabea` 2026-05-06. 17 commits, ~1,720 LoC. 26/26 ACs. Spec 4 review rounds + Plan 6 review rounds + 3 reviewer agents. Tests: api 4272→4415 (+143), shared 598→624 (+26), web 489→499 (+10). |
-| F-CATALOG-COV-001 | Standard | ~1 session (resumed post-/compact) | DONE 6/6. PR #259 squash-merged at `de880a0` 2026-05-07. 11 commits, ~1,907 LoC. 17/17 ACs. Spec 6 review rounds + Plan 2 review rounds + 3 reviewer agents (all REQUEST CHANGES on bare-`flam` ADR-019 → fixed). 8 aliases added to `spanish-dishes.json`. Production change: 1-keyword `export`. Tests api 4415→4480 (+65), shared 624 unchanged. PRIMARY F079 endpoint unreachable in env → SECONDARY-only fallback (qa-improvement-sprint-report-2026-04-21.md). |
+| F116-lite | Simple | ~2h | DONE 6/6. Squash-merged at `beafc43` via PR #264. 4 commits collapsed. Spec R1 + Plan R1 cross-model (Gemini APPROVED both, Codex REVISE both → fixes inline). code-review APPROVE WITH MINOR (3 IMPORTANT inline). qa-engineer PASS WITH ONE FOLLOW-UP. /audit-merge 11/11+12/12 PASS. CI green run 25662691769 (test-scraper +1 step `Lint scraper`). |
+| F030-lite | Simple | ~3h | DONE 6/6. Squash-merged at `a585c37` via PR #265. 5 commits collapsed. Spec R1 (Gemini REVISE + Codex REVISE, 6 findings inline) + Plan R1 (Gemini REVISE + Codex REVISE, 8 findings inline). production-code-validator 0 findings READY FOR PRODUCTION. code-review APPROVE WITH MINOR (3 IMPORTANT inline ba6d841). qa-engineer PASS WITH ONE FOLLOW-UP (fixed inline). /audit-merge 11/11 + drift fixed (P2 + P12) PASS. CI green run 25664827138. 30 new tests (10 unit + 14 edge + 3 integration + 3 SENTRY_DSN config). |
 
 ## Blocked Features
 
@@ -36,19 +41,16 @@ _(Move features here if blocked)_
 | Feature | Reason | Step |
 |---------|--------|------|
 
-## Backlog (deferred — post post-/compact 2-feature window)
-
-| Feature | Complexity | Reason |
-|---------|------------|--------|
-| F098 | Standard | Premium Tier feature gates. Pick A optional 3rd. Deferred per mandatory /compact rule after 2 features. |
-
 ## Recovery Instructions
 
-**Current feature:** None — pm-conv-polish session COMPLETE (both features shipped).
+**Current feature:** None — Batch 1 COMPLETE.
 **Branch:** N/A
-**Current Step:** N/A
-**Next features:** F098 Premium Tier — deferred to next PM session. Run `start pm` after `/compact` to begin a new batch.
-**Blocked:** none
+**Next features:** F107a + F105 (Batch 2 — Auth core + Trust signal) per roadmap. **REQUIRES**: (a) user audit of Batch 1, (b) ADR-025 (auth provider selection — Google Identity Platform vs Supabase Auth vs custom) authored BEFORE Batch 2 starts.
+**Blocked:** awaiting user audit confirmation before starting Batch 2.
+
+**Completed in this session:** F116-lite (PR #264 `beafc43`) + F030-lite (PR #265 `a585c37`).
+
+To resume after /compact: run `start pm` with Batch 2 args after user audit + ADR-025.
 
 To resume after /compact: run `continue pm`
 To stop gracefully: run `stop pm`

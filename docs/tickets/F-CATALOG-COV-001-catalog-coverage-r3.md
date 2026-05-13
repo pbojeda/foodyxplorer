@@ -1,7 +1,7 @@
 # F-CATALOG-COV-001: Catalog Coverage Round-3 — Targeted Seed/Alias Expansion
 
 **Feature:** F-CATALOG-COV-001 | **Type:** backend-feature (data) | **Priority:** Medium
-**Status:** Done | **Complexity:** Standard
+**Status:** Done (full E2E verified) | **Complexity:** Standard
 **Branch:** feature/F-CATALOG-COV-001-catalog-coverage-r3
 **Predecessors:** F-H4 (done), F-H6 (done), F-H9 (done)
 **Depends on:** F079 (missed_query_tracking telemetry)
@@ -483,7 +483,7 @@ Example: `'Croquetas de jamón'` and `'croquetas de jamón.'` (trailing period) 
   This is a pure data-integrity guard — it catches cases where the alias was accidentally omitted
   from the JSON but the raw-query test would still fail.
 
-- [ ] **AC-NEW-qa-battery — Production parity gate (human QA):** _Pending post-deploy verification — to be flipped to [x] once F-CATALOG-COV-001 reaches main and dev API battery confirms ≥6/7 NULL→OK on the 7 N_LOCKED candidates. Mechanical seed-layer gate AC-12a passed 7/7 in pipeline simulation pre-merge._ At Step 4, the QA Engineer runs
+- [x] **AC-NEW-qa-battery — Production parity gate (human QA):** _**PASSED 2026-05-07 post-release.** Dev API battery (`./packages/api/scripts/qa-exhaustive.sh` against `api-dev.nutrixplorer.com`) confirmed **7 of 7** N_LOCKED candidates flip NULL→OK (gate was ≥6/7 = ⌈0.75 × 7⌉). All 7 resolve via `mt=exact_dish` (L1 alias hit). Pre-seed: 430/650 OK; Post-seed: 437/650 OK; delta +7 matches exactly the 7 candidates. Zero F-CATALOG-COV-001 regressions. 3 unrelated transient script-parse FAILs documented as not regressions. Snapshot: `docs/research/qa-2026-05-07-exhaustive-results.md`. Both dev + prod DBs reseeded via `reseed-all-envs.sh --prod --skip-embeddings`._ At Step 4, the QA Engineer runs
   the manual battery from `docs/research/qa-2026-04-21-exhaustive-results.md` against the dev API
   (post-deploy, after data migration applied) and records the post-merge NULL→OK delta in the
   Completion Log. **Pass criterion:** ≥0.75 × N_LOCKED queries return non-NULL on the live dev API.
@@ -554,7 +554,7 @@ Example: `'Croquetas de jamón'` and `'croquetas de jamón.'` (trailing period) 
 
 ## Definition of Done
 
-- [x] All 17 Acceptance Criteria met and checked (AC-01 through AC-15, AC-NEW-export — AC-NEW-qa-battery is `[ ]` pending post-deploy verification per spec design; mechanical AC-12a gate passed 7/7 pre-merge).
+- [x] All 17 Acceptance Criteria met and checked (AC-01 through AC-15, AC-NEW-export, AC-NEW-qa-battery PASSED 7/7 post-release on dev — see `docs/research/qa-2026-05-07-exhaustive-results.md`).
 - [x] `npm run lint -w @foodxplorer/api` — 0 errors (F116 baseline preserved).
 - [x] `npm run typecheck -w @foodxplorer/api` (or `tsc --noEmit`) — 0 errors.
 - [x] `npm run build -w @foodxplorer/api` — clean.
@@ -963,6 +963,9 @@ No mocks needed. All three new test files are pure in-memory data tests loading 
 | 2026-05-07 | Step 4 | production-code-validator + code-review-specialist + qa-engineer | DONE | All 3 reviewers BLOCKED on bare `"flam"` ADR-019 non-compliance (uniqueness assertion missing). Strategic Option B chosen: kept bare alias (preserves AC-12a 7/7 vs revert dropping to 6/7), added ADR-019 compliance (uniqueness test in bug-prod-003 + Pre-analysis table update). Plus QA BUG-2 (stale JSDoc) + cosmetic it.each fix. Final commit `558aacc`. Reviewer verdicts post-fix: APPROVE all three. |
 | 2026-05-07 | Step 5 | claude (PM L5) | DONE | Merge Checklist Evidence filled (8/8 [x]). qa-engineer's edge-cases test file (29 tests) included. Status → Ready for Merge. /audit-merge: structural 11/11 PASS, drift CLEAN (P5 systemic across repo, not introduced by this feature). Commit `73811db`. Tracker Active Session synced. |
 | 2026-05-07 | Step 6 | claude (PM L5) | DONE | PR #259 squash-merged at `de880a0` (2026-05-07). 11 feature-branch commits collapsed (~1,907 LoC additions across spec, plan, tests, data, docs). Branch `feature/F-CATALOG-COV-001-catalog-coverage-r3` deleted local + remote. Post-merge sanity: api 4480/4480 PASS on develop. CI on PR: ci-success ✓, test-api ✓ (4m1s), Vercel previews ✓ (foodyassistance + nutrixplorer). All 17 ACs satisfied. Tracker housekeeping (Active Session → Last Completed, Features → done 6/6, pm-session F-CATALOG-COV-001 → Completed Features) included in this housekeeping commit. |
+| 2026-05-07 | Release develop→main | claude (PM L5, user-authorized direct merge) | DONE | PR #261 squash-merged to main at `a624b42`. Merge-back via PR #262 → develop at `f7a1dc1` (gitflow parity). 6 commits in release diff. Render auto-deploy triggered for both dev (api-dev.nutrixplorer.com) and prod (api.nutrixplorer.com). |
+| 2026-05-07 | Post-deploy seed reload | claude (PM L5, user-authorized) | DONE | Reseed via `./packages/api/scripts/reseed-all-envs.sh --prod --skip-embeddings EXPECTED_DISH_COUNT=319`. Both dev + prod Supabase DBs upserted: 319 Spanish dishes (idempotent — alias arrays refreshed for the 7 affected CE-IDs). 328 standard portions seeded (unchanged). OFF skipped (default). Embeddings skipped (alias-only, no new dishes need embedding regeneration). |
+| 2026-05-07 | AC-NEW-qa-battery production parity | claude (PM L5, user-authorized API key use) | PASS | `./packages/api/scripts/qa-exhaustive.sh` against `api-dev.nutrixplorer.com` (650 queries, ~5 min). **7 of 7 N_LOCKED candidates flipped NULL→OK** (gate ≥6/7). All 7 resolve via `mt=exact_dish` (L1 alias hit). Pre-seed 430/650 OK → post-seed 437/650 OK (delta +7 matches exactly the 7 candidates). Zero F-CATALOG-COV-001 regressions. 3 unrelated transient FAILs (script-side parse errors on lines 628/629/635) documented as not regressions. Full snapshot: `docs/research/qa-2026-05-07-exhaustive-results.md`. AC-NEW-qa-battery flipped from `[ ]` pending → `[x]` PASSED. Status: Done → Done (full E2E verified). |
 
 ---
 

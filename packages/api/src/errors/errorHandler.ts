@@ -10,6 +10,7 @@
 
 import { ZodError } from 'zod';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { captureException, hashActor, type SentryContext } from '../lib/sentry.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -633,6 +634,36 @@ export function registerErrorHandler(app: FastifyInstance): void {
       request.log.error({ err: error }, error.message);
 
       const { statusCode, body } = mapError(error);
+
+      // F030-lite: forward 5xx errors to Sentry (4xx are user-facing
+      // validation/auth/rate-limit failures, not bugs — explicitly NOT
+      // forwarded). The captureException call is wrapped in try/catch so a
+      // Sentry-side failure can never break the response envelope.
+      if (statusCode >= 500) {
+        try {
+          // Strip query string from `route` to avoid leaking tokens / emails
+          // / actor ids that the path-level `query_string` scrubber would
+          // otherwise filter. Prefer `routerPath` (e.g. "/restaurants/:id")
+          // when available — it also groups Sentry issues by route template,
+          // not by individual variable values.
+          const routerPath = (request as { routerPath?: string }).routerPath;
+          const rawUrl = request.url;
+          const questionMark = rawUrl.indexOf('?');
+          const route = routerPath ?? (questionMark === -1 ? rawUrl : rawUrl.slice(0, questionMark));
+          const ctx = {
+            route,
+            method: request.method,
+            requestId: request.id,
+            statusCode,
+            internalCode: body.error.code,
+            actorIdHash: hashActor(request.actorId),
+          } satisfies SentryContext;
+          captureException(error, ctx);
+        } catch (sentryErr: unknown) {
+          request.log.warn({ err: sentryErr }, 'Sentry capture failed (non-fatal)');
+        }
+      }
+
       return reply.status(statusCode).send(body);
     },
   );
