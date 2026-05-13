@@ -2,6 +2,9 @@
 //
 // Tests for actor resolution middleware logic.
 // Uses mock PrismaClient to avoid DB dependency.
+//
+// 2026-05-13: Telegram resolution tests removed per ADR-026 (bot paused).
+// The resolver now only handles anonymous_web actors.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -50,17 +53,11 @@ describe('F069 — Actor Resolution', () => {
       expect(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(invalid)).toBe(false);
     });
 
-    it('recognizes telegram: prefix', () => {
-      const header = 'telegram:123456789';
-      expect(header.startsWith('telegram:')).toBe(true);
-      expect(header.slice('telegram:'.length)).toBe('123456789');
-    });
-
-    it('handles empty telegram prefix', () => {
-      const header = 'telegram:';
-      const chatId = header.slice('telegram:'.length);
-      expect(chatId).toBe('');
-      expect(chatId.length).toBe(0);
+    it('rejects legacy telegram: prefix as non-UUID (post ADR-026)', () => {
+      // ADR-026: telegram: headers are no longer a special case — they fail
+      // the UUID test and trigger anonymous actor creation.
+      const legacyTelegram = 'telegram:123456789';
+      expect(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(legacyTelegram)).toBe(false);
     });
   });
 
@@ -83,22 +80,6 @@ describe('F069 — Actor Resolution', () => {
       expect(mockPrisma.actor.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { type_externalId: { type: 'anonymous_web', externalId } },
-        }),
-      );
-    });
-
-    it('upserts with type telegram for telegram: prefix', async () => {
-      const chatId = '123456789';
-      await mockPrisma.actor.upsert({
-        where: { type_externalId: { type: 'telegram', externalId: chatId } },
-        update: { lastSeenAt: new Date() },
-        create: { type: 'telegram', externalId: chatId, lastSeenAt: new Date() },
-        select: { id: true },
-      });
-
-      expect(mockPrisma.actor.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { type_externalId: { type: 'telegram', externalId: chatId } },
         }),
       );
     });
