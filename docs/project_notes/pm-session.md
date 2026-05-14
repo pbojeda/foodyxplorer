@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F107a — Auth core (Supabase Auth) | Standard | in-progress | — | Step 5/6 — Review. Implementation shipped 16 commits + 1 build fix (`34e5062`). production-code-validator APPROVED (0 findings). All 27 ACs + 9 DoD [x]. Pending: push, open PR, code-review-specialist + qa-engineer, merge-checklist, /audit-merge. |
+| F107a — Auth core (Supabase Auth) | Standard | in-progress | — | Step 5/6 — Review COMPLETE. PR #279 open. production-code-validator APPROVED (0 findings). code-review-specialist: 1 BLOCKER + 3 MAJOR + 5 MINOR — BLOCKER + MAJORs fixed in `bdccbe6`. qa-engineer: 4 MAJORs — all fixed (AC8 spec deviation, AC27 rate-limit unit test added, F3 JWKS rotation test corrected by qa-engineer, AC16 Retry-After test added). Status: Ready for Merge. 49 F107a tests passing. Pending: /audit-merge + user merge approval. |
 | F105 — Landing Coverage Showcase | Simple | pending | — | After /compact post F107a. Frontend only on packages/landing. |
 
 ## Completed Features
