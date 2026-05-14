@@ -72,6 +72,8 @@ In the ticket, fill the `## Merge Checklist Evidence` table. For each action (0â
 | 0. Validate ticket structure | [x] | Sections verified: Spec, Plan, AC, DoD, Workflow, Log, Evidence |
 | 1. Mark all items | [x] | AC: 12/12, DoD: 7/7, Workflow: 0-5/6 |
 
+**Canonical form for the AC count claim:** write `AC: <marked>/<total>` â€” `marked` is the count of `[x]` Acceptance Criteria, `total` is the count of all AC items including any intentionally deferred `[ ]`. When all are checked use the matching form `AC: N/N` (or the shorthand `all N marked`). The `/audit-merge` P6 drift check parses both forms.
+
 ## Action 9: Run compliance audit
 
 Run `/audit-merge` to verify all compliance checks pass automatically. If any check fails, fix it and re-run until all pass.

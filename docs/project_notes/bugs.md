@@ -17,6 +17,24 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-05-13 — BUG-API-HEALTH-PRISMA-MOCK-001: 5 health-route tests fail on `?db=true` / `?db=true&redis=true` happy paths [P3 OPEN]
+
+- **Issue**: `npm test -w @foodxplorer/api` on `develop@6765357` (pre-ADR-025 work) fails 5 tests, all in `health.test.ts` + `f004.edge-cases.test.ts` + `f005.edge-cases.test.ts`:
+  - `health.test.ts > GET /health > returns db: "connected" when ?db=true and prisma succeeds` — expected 200, got 500.
+  - `health.test.ts > GET /health?redis=true — Redis available > returns db and redis fields when ?db=true&redis=true and both succeed` — expected 200, got 500.
+  - `health.test.ts > GET /health?redis=true — Redis unavailable > returns 500 REDIS_UNAVAILABLE when ?db=true&redis=true and DB succeeds but Redis fails` — expected `REDIS_UNAVAILABLE`, got `DB_UNAVAILABLE`.
+  - `f004.edge-cases.test.ts > GET /health — ?db query param coercion > ?db=true triggers DB check` — analogous shape.
+  - `f005.edge-cases.test.ts > GET /health?db=true&redis=true — DB up, Redis down > returns 500 REDIS_UNAVAILABLE (not DB_UNAVAILABLE) when DB is up but Redis is down` — analogous.
+- **Pattern**: every failing test exercises the **DB happy path** (prisma mocked to succeed). Tests that exercise the **DB failure path** (`?db=true — DB unavailable > returns 500 with DB_UNAVAILABLE error envelope when prisma throws`) pass. Tests for Redis-only paths (`?redis=true` succeed / fail) pass in isolation. The combined `?db=true&redis=true` path always returns DB_UNAVAILABLE because the DB check fails first regardless of Redis state.
+- **Root cause hypothesis (not verified)**: commit `89efa6f` ("fix(api): add Kysely health check to /health?db=true for staging diagnosis") layered a Kysely check on top of the existing Prisma check inside the `?db=true` branch of `packages/api/src/routes/health.ts`. The test mocks (in `health.test.ts`, `f004.edge-cases.test.ts`, `f005.edge-cases.test.ts`) inject a mocked Prisma but **do not inject Kysely**, so the Kysely call fails → the route throws → 500 → `DB_UNAVAILABLE`. Tests that already expected an error (prisma throws) pass coincidentally because any error → 500 → DB_UNAVAILABLE. Tests that expected a success path (200 with `{ db: 'connected' }`) fail because of the unmocked Kysely call.
+- **Pre-existing status**: verified pre-existing on `develop@6765357` (before any ADR-025 work) by stashing the ADR-025 work and running the same tests — same 5 failures, identical assertion deltas. NOT a regression introduced by ADR-025 or ADR-026 work.
+- **Scope**: tests-only failure. The `/health?db=true` endpoint behaviour in production is unaffected (the Kysely check in real prod uses a real DB connection, not a mock). No user-facing impact, no risk to live observability.
+- **Workaround for now**: api test suite reports 5 failures but `lint`/`typecheck`/`build` are clean, and all other 4503 tests pass. Merges that don't touch the health route can proceed past this baseline. The 5 failures should be flagged in any PR's "Quality gates" section as "pre-existing per BUG-API-HEALTH-PRISMA-MOCK-001".
+- **Fix proposal** (separate ticket): mock the Kysely instance in `health.test.ts` / `f004.edge-cases.test.ts` / `f005.edge-cases.test.ts` the same way Prisma is mocked — inject a `Kysely`-shaped object via `buildApp` options whose `executeQuery` (or whatever shape the health route uses) resolves successfully in the happy-path tests and rejects in the failure-path tests. Cross-reference: `89efa6f` introduced the Kysely call without test updates.
+- **Re-evaluation triggers**: if the api test suite needs to be the merge gate for a feature touching `/health` or DB connectivity, prioritize the fix; otherwise schedule as Simple ticket during a quality-cleanup window.
+
+---
+
 ### 2026-04-30 — BUG-MODIFIERS-CAT-D-INTERACTION-001: F-MODIFIERS-001 strip ordering breaks H7 Cat D `es [phrase]?` recovery [P3 OPEN]
 
 - **Issue**: After F-MODIFIERS-001 deployment (PR #239 `b0d3e87`), one query in the 650-query QA battery regressed: `Q502 el hummus con pan de pita es casero?` was OK Hummus pre-deploy, now NULL post-deploy. Empirical confirmation: post-deploy battery `/tmp/qa-dev-baseline-pm-h6plus3-post-20260430-1057.txt` line 502 shows `NULL result` vs baseline `/tmp/qa-dev-baseline-pm-h6plus3-20260429-1550.txt` line 502 `OK Hummus | 180kcal`.
