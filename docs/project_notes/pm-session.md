@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F107a — Auth core (Supabase Auth) | Standard | in-progress | — | Step 3/6 — Implement. Spec `a97ad58` + Plan `77db268`. 27 ACs. backend-developer + frontend-developer running in PARALLEL (user choice). Supabase mocked via vi.mock + jose local keypair (no real keys needed until Step 4 manual smoke). |
+| F107a — Auth core (Supabase Auth) | Standard | in-progress | — | Step 5/6 — Review. Implementation shipped 16 commits + 1 build fix (`34e5062`). production-code-validator APPROVED (0 findings). All 27 ACs + 9 DoD [x]. Pending: push, open PR, code-review-specialist + qa-engineer, merge-checklist, /audit-merge. |
 | F105 — Landing Coverage Showcase | Simple | pending | — | After /compact post F107a. Frontend only on packages/landing. |
 
 ## Completed Features
