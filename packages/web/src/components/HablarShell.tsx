@@ -10,13 +10,15 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ConversationMessageData, MenuAnalysisData } from '@foodxplorer/shared';
 import type { VoiceBudgetData, VoiceErrorCode, VoiceState } from '@/types/voice';
 import { getActorId } from '@/lib/actorId';
-import { sendMessage, sendPhotoAnalysis, ApiError } from '@/lib/apiClient';
+import { sendMessage, sendPhotoAnalysis, setAuthToken, ApiError } from '@/lib/apiClient';
 import { resizeImageForUpload } from '@/lib/imageResize';
 import { trackEvent, flushMetrics } from '@/lib/metrics';
+import { useAuth } from '@/hooks/useAuth';
 import { useVoiceSession } from '@/hooks/useVoiceSession';
 import { useTtsPlayback } from '@/hooks/useTtsPlayback';
 import { ConversationInput } from './ConversationInput';
 import { ResultsArea } from './ResultsArea';
+import { UserMenu } from './UserMenu';
 import { VoiceOverlay } from './VoiceOverlay';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -61,6 +63,15 @@ export function HablarShell() {
   if (!actorIdRef.current && typeof window !== 'undefined') {
     actorIdRef.current = getActorId();
   }
+
+  // F107a — auth integration (ADR-025 R3 §4+§6)
+  const { user, session, loading: authLoading } = useAuth();
+
+  // Sync Supabase session token to apiClient module state
+  useEffect(() => {
+    setAuthToken(session?.access_token ?? null);
+  }, [session]);
+
   const voiceSession = useVoiceSession(actorIdRef.current);
   const tts = useTtsPlayback({ enabled: ttsEnabled, voiceName: selectedVoiceName });
 
@@ -283,6 +294,8 @@ export function HablarShell() {
   }, []);
 
   const executePhotoAnalysis = useCallback(async (file: File) => {
+    // F107a: guard against race condition where auth state has not resolved yet
+    if (authLoading) return;
     // Client-side validation: MIME type
     // Allow empty file.type through (older mobile browsers — let API validate magic bytes)
     if (file.type !== '' && !VALID_MIME_TYPES.has(file.type)) {
@@ -412,7 +425,7 @@ export function HablarShell() {
         setPhotoMode('idle');
       }
     }
-  }, [photoAnalysisMode]);
+  }, [photoAnalysisMode, authLoading]);
 
   // F-WEB-MENU-VISION-001 — track menu_dish_list_shown when multi-dish result appears.
   // Cannot fire from MenuDishList (Server Component) — trackEvent is client-only.
@@ -445,6 +458,8 @@ export function HablarShell() {
 
   function handleSubmit() {
     if (!query.trim()) return;
+    // F107a: guard against race condition where auth state has not resolved yet
+    if (authLoading) return;
     // Push hablar_query_sent immediately on submit — no PII, no query text.
     // Uses init pattern to guarantee queue exists even before gtag loads.
     window.dataLayer = window.dataLayer ?? [];
@@ -464,6 +479,7 @@ export function HablarShell() {
       {/* Minimal app bar */}
       <header className="flex h-[52px] flex-shrink-0 items-center border-b border-slate-100 bg-white px-4">
         <span className="text-base font-bold text-brand-green">nutriXplorer</span>
+        {user && <UserMenu user={user} />}  {/* F107a — ADR-025 R3 §6 */}
       </header>
 
       {/* Results area — scrollable */}
