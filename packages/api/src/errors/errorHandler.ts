@@ -411,6 +411,65 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // TOKEN_EXPIRED — bearer JWT has expired (F107a, ADR-025 R3 §5)
+  if (asAny['code'] === 'TOKEN_EXPIRED') {
+    return {
+      statusCode: 401,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'TOKEN_EXPIRED',
+        },
+      },
+    };
+  }
+
+  // INVALID_TOKEN — bearer JWT signature invalid, malformed, or wrong scheme (F107a)
+  if (asAny['code'] === 'INVALID_TOKEN') {
+    return {
+      statusCode: 401,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'INVALID_TOKEN',
+        },
+      },
+    };
+  }
+
+  // AUTH_PROVIDER_UNAVAILABLE — JWKS fetch failed or Supabase env vars absent (F107a)
+  // Returns 503; Retry-After: 30 header is set in registerErrorHandler (not here —
+  // mapError is pure and cannot set headers).
+  if (asAny['code'] === 'AUTH_PROVIDER_UNAVAILABLE') {
+    return {
+      statusCode: 503,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'AUTH_PROVIDER_UNAVAILABLE',
+        },
+      },
+    };
+  }
+
+  // PROVIDER_NOT_ENABLED — requested OAuth provider is not enabled (F107a — AC5)
+  // Day-1: only email magic link; google returns this code.
+  if (asAny['code'] === 'PROVIDER_NOT_ENABLED') {
+    return {
+      statusCode: 400,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'PROVIDER_NOT_ENABLED',
+        },
+      },
+    };
+  }
+
   // UNAUTHORIZED — invalid or missing API key (F026)
   if (asAny['code'] === 'UNAUTHORIZED') {
     return {
@@ -662,6 +721,13 @@ export function registerErrorHandler(app: FastifyInstance): void {
         } catch (sentryErr: unknown) {
           request.log.warn({ err: sentryErr }, 'Sentry capture failed (non-fatal)');
         }
+      }
+
+      // AUTH_PROVIDER_UNAVAILABLE: set Retry-After header (F107a).
+      // Done here (in the Fastify closure) rather than in mapError because
+      // mapError is a pure function that cannot set reply headers.
+      if (body.error.code === 'AUTH_PROVIDER_UNAVAILABLE') {
+        reply.header('Retry-After', '30');
       }
 
       return reply.status(statusCode).send(body);
