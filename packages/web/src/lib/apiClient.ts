@@ -15,6 +15,22 @@ import type { ConversationMessageResponse, MenuAnalysisResponse } from '@foodxpl
 import { persistActorId } from './actorId';
 
 // ---------------------------------------------------------------------------
+// F107a — Auth token state (ADR-025 R3 §4)
+// Module-level singleton: set by HablarShell via useAuth session changes.
+// ---------------------------------------------------------------------------
+
+let authToken: string | null = null;
+
+/**
+ * Sets the current auth token for outbound API requests.
+ * Called by HablarShell whenever the Supabase session changes.
+ * Pass null to clear (anonymous mode).
+ */
+export function setAuthToken(token: string | null): void {
+  authToken = token;
+}
+
+// ---------------------------------------------------------------------------
 // ApiError — typed error for non-2xx or malformed responses
 // ---------------------------------------------------------------------------
 
@@ -99,6 +115,7 @@ export async function sendMessage(
         'Content-Type': 'application/json',
         'X-Actor-Id': actorId,
         'X-FXP-Source': 'web',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       },
       body: JSON.stringify({ text }),
       signal: combinedSignal,
@@ -199,6 +216,8 @@ export async function sendPhotoAnalysis(
 
   let response: Response;
   try {
+    // F107a: bearer not sent via /api/analyze proxy — out of scope until analyze
+    // endpoint is auth-gated. The proxy Route Handler attaches X-API-Key server-side.
     response = await fetch('/api/analyze', {
       method: 'POST',
       headers: {
@@ -328,6 +347,7 @@ export async function sendVoiceMessage(
         'X-Actor-Id': actorId,
         'X-FXP-Source': 'web',
         // NO X-API-Key — voice is open to all tiers, keyed on actor/IP
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       },
       body: formData,
       signal: combinedSignal,
