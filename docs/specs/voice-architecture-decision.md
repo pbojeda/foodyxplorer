@@ -791,3 +791,108 @@ The recommended architecture (Option 12 for both F091 and, via variant 12a, F095
 - [faster-whisper — SYSTRAN/faster-whisper](https://github.com/SYSTRAN/faster-whisper) — accessed 2026-04-09, purpose: Option 13 self-hosted STT baseline
 - [AWS EC2 On-Demand Pricing](https://aws.amazon.com/ec2/pricing/on-demand/) — accessed 2026-04-09, purpose: g4dn.xlarge baseline at $0.526/hr for Option 13 hosting cost
 - [Render community — "Does Render offer GPUs?"](https://community.render.com/t/does-render-offer-gpus/11222) — accessed 2026-04-09, purpose: confirming Render does not offer GPU instances in 2026, forcing AWS g4dn baseline for Option 13
+
+---
+
+## 12. Addendum 2026-05-14 — Re-evaluation post OpenAI Realtime 2026 announcements
+
+**Trigger:** user-requested analysis of 4 recent OpenAI announcements against the F094 decision and current voice state.
+
+**Inputs evaluated** (URLs accessed 2026-05-12):
+- `gpt-realtime-2` — flagship speech-to-speech, multimodal IN (text+audio+image), 128K/32K context, audio pricing $32/$0.40 cached/$64 per 1M tokens, function calling supported, **structured outputs not supported on Realtime endpoint** ([developers.openai.com/api/docs/models/gpt-realtime-2](https://developers.openai.com/api/docs/models/gpt-realtime-2))
+- `gpt-realtime-translate` — streaming speech-to-speech translation, $0.034/min, 16K context, NO function calling, NO structured outputs ([developers.openai.com/api/docs/models/gpt-realtime-translate](https://developers.openai.com/api/docs/models/gpt-realtime-translate))
+- `gpt-realtime-whisper` — streaming STT, $0.017/min, no WER published, no language list published ([developers.openai.com/api/docs/models/gpt-realtime-whisper](https://developers.openai.com/api/docs/models/gpt-realtime-whisper))
+- Perplexity Computer post — production lessons from Realtime-1.5 at "millions of sessions/month": Voice Lock UX, restaurant-noise-calibrated VAD, <10 tools, 2K-token chunked truncation, JSON-with-`require_repeat_verbatim`, WebRTC + Opus 48kHz mono + APM ([developers.openai.com/blog/realtime-perplexity-computer](https://developers.openai.com/blog/realtime-perplexity-computer))
+
+**Catalog state verified 2026-05-12**: there is NO public `gpt-realtime-mini-2` / `gpt-realtime-2-mini` SKU; current Realtime family is `gpt-realtime-2`, `gpt-realtime-1.5`, `gpt-realtime-mini`, `gpt-realtime-translate`, `gpt-realtime-whisper`. Waiting for a hypothetical mini-2 is not a planning strategy.
+
+### 12.1 Cost re-projection under §3 workload model
+
+Re-using the audio-tokens-per-minute ratio implicit in F094 §4.7 ($100/1M ⇒ $0.06/min ⇒ ~600 tokens/min):
+
+| Option | $/voice-min (1:1) | Tier 1 (15K min) | Tier 2 (150K min) | vs €100/mo cap |
+|---|---|---|---|---|
+| `gpt-realtime-2` flagship | ~$0.058–0.115 | ~$864–$1,725 | ~$8,640–$17,250 | 9–17× over |
+| `gpt-realtime-mini` (current) | ~$0.030 | ~$450 | ~$4,500 | 4.5× over |
+| `gpt-realtime-whisper` (STT only) | $0.017/min | ~$255 | ~$2,550 | 2.5× over |
+| `gpt-realtime-translate` | $0.034/min | ~$510 | ~$5,100 | 5× over |
+| Option 12 canonical (F091 today) | n/a (push-to-talk) | $90 | $900 | within |
+| Option 12 variant 12a (Deepgram + SpeechSynthesis) | n/a (streaming) | $115.5 | $1,155 | within at T1, breaks at T2 |
+
+Note on tokens-per-minute ratio: OpenAI does not publish a single canonical conversion for Realtime audio tokens. Codex Round 1 used a 2:1 output:input ratio (assistant audio longer than user audio) which raises the gpt-realtime-2 figure to ~$1,440/mo Tier 1. The exact number does not change the qualitative verdict; all four new models break the €100/mo cap by 2.5× or more at Tier 1.
+
+### 12.2 Round 1 cross-model review (2026-05-12)
+
+Reviewers: Codex GPT-5 + Gemini 2.5 Pro. Brief at `/tmp/voice-analysis-2026-05-12/brief.md`, responses in same directory.
+
+**Independent unanimity on these points:**
+1. **SKIP `gpt-realtime-2`** for core nutrition voice loop. Cost + ADR-001 risk (function-calling only, no structured outputs to lock JSON-typed responses) is unchanged from F094 §4.7 even at the new 3.125× cheaper per-token price.
+2. **SKIP `gpt-realtime-whisper`** as STT module. At $0.017/min it is 2.2× more expensive than Deepgram Nova-3 streaming ($0.0077/min) with no published Spanish WER advantage. Vendor consolidation does not justify the premium pre-revenue.
+3. **SKIP `gpt-realtime-translate`** for the current product scope. Useful for a future tourist-mode feature (French/EN/DE visitor querying a Spanish menu) but no current need; lacks function calling so cannot serve the nutrition loop.
+4. **ADOPT** Perplexity UX patterns selectively (see §12.4). Free, validated at production scale.
+
+**Original blind-spots surfaced by reviewers:**
+- **Codex**: F094 §3 cost model assumes 1 voice-minute = 1 self-contained turn. In a Realtime loop the conversation history is re-injected with each turn, so cost grows turn-by-turn (potentially quadratically) without aggressive truncation. The cached input audio rate ($0.40/1M = 80× discount) is the only lever that could rescue Realtime economics, but it requires a stable system prompt + tools schema and a high cache hit rate. F094 did not model this; if F095 is ever revived, the workload model needs a multi-turn cost variable.
+- **Gemini**: F094 focused on STT cost; the TTS leg's quality (browser `SpeechSynthesis` varies by OS, Android in particular) is a brand-perception risk for a Pro tier voice feature. Not urgent pre-revenue, but worth pricing into the Pro tier proposition (e.g., ElevenLabs Flash at $0.18–$0.30/1K chars as opt-in premium voice).
+
+### 12.3 Decision (after Round 2 cross-model alignment, 2026-05-14)
+
+**DEFER F095 / F096 / F097 entirely. Maintain F091 Option 12 canonical as the only voice surface.**
+
+Round 2 reviewers: Codex GPT-5 (92% confidence) + Gemini 2.5 Pro (95% confidence) — both selected this option as the recommended path. Threshold per `feedback_multi_round_review.md` is 85%; both pass.
+
+**Evidence gate for revisiting F095 (Codex Round 2 wording, adopted):**
+> Revisit voice realtime only when **ALL THREE** are true:
+> - **(a)** ADR-025 (auth provider) is closed and F107a deployed.
+> - **(b)** Closed beta in production with ≥20 real active users.
+> - **(c)** Explicit demand signal for realtime voice from those users (NPS comment, support ticket, or telemetry showing voice:text usage ratio > 30%).
+>
+> Revenue arriving before condition (c) is not sufficient — revenue can come from monetizing engine auditability without voice being a driver.
+
+**Why this gate over "wait for revenue":** revenue is correlated with the product working overall, not with voice being the differentiating UX. Without an explicit demand signal, building F095 post-revenue would be the same premature optimization currently being avoided.
+
+### 12.4 Pre-work captured as F091 follow-up tickets (NOT YET OPENED — backlog only)
+
+The Round 1 analysis surfaced two F091 improvements that compound on the existing infrastructure without any architectural debt and are independently valuable regardless of the F095 outcome. **Listed here as backlog identifiers; tickets are NOT created until the user prioritises them in a future session.**
+
+| Ticket ID (proposed) | Complexity | Effort | What |
+|---|---|---|---|
+| **F091-FU1 — Speech Budget Mode** | Simple | ~1h | In `packages/api/src/conversation/messageFormatter.ts`, when `mode: "voice"`: default response = 1 sentence with the engine's primary number + optional CTA "¿Te detallo proteínas y grasas?". Detail expands only on next-turn request (multi-turn already supported by F-MULTITURN-001). UX win in noisy restaurants + reduces output audio (the dominant cost lever if Realtime is ever revived). |
+| **F091-FU2 — Voice Cap Degraded Mode + a11y dismiss + verbatim contract** | Simple | ~2-3h | (a) Replace the `503 VOICE_BUDGET_EXHAUSTED` hard kill-switch with a **degraded-mode banner** ("Voz pausada hasta fin de mes — toda la información sigue disponible escribiendo") + hidden `MicButton`; rest of UX unaffected. (b) `VoiceOverlay` terminal errors (`rate_limit`, `ip_limit`, `budget_cap`, `mic_permission`) become sticky with explicit dismiss button (WCAG 2.2: ≥5s reachable for >25-char messages). (c) Document `require_repeat_verbatim` contract in `messageFormatter` JSDoc — the engine's numeric output goes through the formatter as verbatim tokens that the response template MUST preserve unmodified (textual codification of ADR-001 for the voice layer). |
+
+Both tickets are independently shippable. Both apply to F091 as currently in production. Neither depends on F095 or any new vendor.
+
+### 12.5 Perplexity UX patterns mapped to current `/hablar` components
+
+For when F091-FU1/FU2 (or any future voice work) is done. Not all are immediate:
+
+| Perplexity pattern | Where it lands | When to apply |
+|---|---|---|
+| **Voice Lock** (tap-to-start + tap-to-stop instead of hold-to-talk) | `MicButton.tsx` — 3-state machine: `idle` / `ambient-listen` / `hold-floor`. Codex Round 1 sketch. | Can be applied to F091 NOW as a third Simple ticket (F091-FU3) if user wants. Not gated on F095. |
+| **Calibrated VAD for restaurant noise** | Server-side STT layer — only applicable when streaming STT is in the loop. | Gated on F095 (Deepgram or whoever wins). |
+| **WebRTC + Opus 48kHz + APM (echo cancel, AGC, noise suppression)** | `MediaRecorder` config in `useVoiceSession.ts`: `getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true, sampleRate:48000 } })`. | Can be applied to F091 NOW as part of F091-FU2 if the user wants noise robustness for the existing push-to-talk flow. |
+| **<10 core tools** | Estimation engine entry points exposed to any future Realtime tool-calling layer. Already aligned by design. | Architectural note only. |
+| **2K-token chunked context truncation** | Multi-turn conversation state in `conversationCore.ts`. F-MULTITURN-001 already trims; explicit 2K cap not implemented. | Gated on F095 (single-turn doesn't need it). |
+| **`require_repeat_verbatim` JSON flag** | `messageFormatter.ts` contract. **Textual implementation of ADR-001.** | Part of F091-FU2 above. |
+
+### 12.6 Project memory updates required when this addendum lands
+
+After commit:
+- `/Users/pb/.claude/projects/-Users-pb-Developer-FiveGuays-foodXPlorer/memory/project_voice_architecture.md` — line 18 currently reads "F095-F097 = OpenAI Realtime mini". Update to point at this §12 and the evidence gate. Reverse pointer: from memory → this section.
+- `/Users/pb/Developer/FiveGuays/foodXPlorer/docs/project_notes/product-tracker.md` — F095/F096/F097 rows under "Phase C: Conversational Web Assistant + Realtime Voice" need their Notes column updated with the deferral flag and a pointer to this §12 (done as part of this same change).
+
+### 12.7 What is NOT decided here
+
+- Whether F091 should adopt Voice Lock UX (Perplexity pattern). Codex Round 1 was enthusiastic; the user has not committed. Could be a third Simple ticket (F091-FU3) if validated against real-world push-to-talk friction telemetry, which we do not have yet.
+- Whether ElevenLabs Flash should be the future Pro-tier premium voice. Gemini's blind-spot is valid but addressing it requires a Pro tier monetization path that does not yet exist.
+- Whether bot reactivation post-beta (per ADR-026 reversibility note) should bring voice along. F075's Whisper STT pipeline still works; the bot dormancy frees ~30% of the Whisper budget headroom (small, not load-bearing).
+
+### 12.8 References used by this addendum
+
+- F094 § 3 (workload model), § 4.7 (Realtime API rejection rationale), § 6 (recommendation), § 10 (open risks R11-R16)
+- ADR-001 (estimation engine vs LLM separation)
+- ADR-026 (bot suspension 2026-05-13 — bot dormancy frees a small fraction of Whisper budget, not material to this decision)
+- Project memory `project_voice_architecture.md` (current state of F091 + outdated F095 target)
+- `feedback_multi_round_review.md` (85% cross-model confidence threshold)
+- Cross-model briefs and responses archived at `/tmp/voice-analysis-2026-05-12/` (Round 1: `brief.md` + `gemini-response.md` + `codex-response.md`; Round 2: `brief-round2.md` + `gemini-r2-response.md` + `codex-r2-response.md`). These are session-temp files; the synthesis above is the durable record.
+
