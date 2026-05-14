@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F107a — Auth core (Supabase Auth) | Standard | in-progress | — | Step 2/6 — Plan. Step 0 Spec committed `a97ad58`. Gemini APPROVED R1, Codex R1 empirical (drift fixed), Codex R2 CLI failure (ignored per /review-spec). 25 ACs. 3 SUGGESTIONs for planner: non-Bearer scheme, AC14 upsert determinism, AC22 callback error enumeration. |
+| F107a — Auth core (Supabase Auth) | Standard | in-progress | — | Step 3/6 — Implement. Spec `a97ad58` + Plan `77db268`. 27 ACs. backend-developer + frontend-developer running in PARALLEL (user choice). Supabase mocked via vi.mock + jose local keypair (no real keys needed until Step 4 manual smoke). |
 | F105 — Landing Coverage Showcase | Simple | pending | — | After /compact post F107a. Frontend only on packages/landing. |
 
 ## Completed Features

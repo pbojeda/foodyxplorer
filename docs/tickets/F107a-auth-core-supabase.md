@@ -1,7 +1,7 @@
 # F107a: Auth core (Supabase Auth — web)
 
 **Feature:** F107a | **Type:** Fullstack-Feature | **Priority:** High
-**Status:** Planning | **Branch:** feature/F107a-auth-core
+**Status:** In Progress | **Branch:** feature/F107a-auth-core
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-14 | **Dependencies:** ADR-025 R3 (Supabase Auth selected) ✓ ACCEPTED; F069 actor identity ✓ DONE; F107b (account merge) — OUT OF SCOPE (separate ticket Batch 3)
 
@@ -871,8 +871,8 @@ Confirm `@supabase/ssr` >= 0.5.2 (async cookie adapter compatible with Next.js 1
 
 - [x] Step 0: `spec-creator` executed, specs updated
 - [x] Step 1: Branch created, ticket generated, tracker updated
-- [ ] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
-- [ ] Step 3: `backend-developer` + `frontend-developer` executed with TDD
+- [x] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
+- [x] Step 3: `backend-developer` + `frontend-developer` executed with TDD
 - [ ] Step 4: `production-code-validator` executed, quality gates pass
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed (Standard)
@@ -892,6 +892,8 @@ Confirm `@supabase/ssr` >= 0.5.2 (async cookie adapter compatible with Next.js 1
 | 2026-05-14 | Step 2 Plan — drafted | `backend-planner` + `frontend-planner` ran in parallel. Backend Plan: 12 ordered TDD steps, ~11h, 3 migrations + authBearer plugin + actorResolver extension + 3 routes + errorHandler + supabaseAdmin lazy singleton + config + tests. Empirical verification: `jose` and `@supabase/supabase-js` NOT in api package.json. Frontend Plan: 17 new files + 5 modified, ~10h, Supabase SSR factories + AuthProvider/useAuth + LoginPage + AuthCallback route handler + UserMenu + apiClient setAuthToken + HablarShell wiring + 7 Jest tests + 1 Playwright spec. Empirical verification: web uses Jest (NOT Vitest); no Radix/shadcn-ui present (UserMenu uses plain Tailwind + aria); no Playwright present (+1.5h install effort). Both plans address SUGGESTIONs from Step 0 self-review (S1 non-Bearer scheme, S2 upsert determinism, S3 callback error enumeration). Total effort: ~21h. |
 | 2026-05-14 | Step 2 Plan — Gemini review Round 1 | Verdict: REVISE. 1 IMPORTANT (claimed Prisma schema syntax error `@docs/tickets/...` — **verified Gemini hallucination**, input bundle line 162 contains correct `@map("account_id")` syntax; no action needed) + 1 SUGGESTION (pin dependency versions explicitly). Codex CLI broken in this env — Gemini-only review per /review-plan skill ("ignore failed reviewers"). |
 | 2026-05-14 | Step 2 Plan — version pinning applied | Per Gemini SUGGESTION: pinned `jose@^5.9.0`, `@supabase/supabase-js@^2.45.0`, `@supabase/ssr@^0.5.2`, `@playwright/test@^1.48.0`. Also corrected outdated `>=0.0.10` reference for @supabase/ssr to `>= 0.5.2` (Next.js 15 async cookies adapter). |
+| 2026-05-14 | Step 3 Implement — backend + frontend parallel agents shipped | 16 commits on `feature/F107a-auth-core` (10 backend `4b2fd0c`..`7cb25b7`, 6 frontend `7375324`..`500ea77`). Backend: 35 new F107a tests + 20 shared auth schema tests (api 4556 / shared 644 total, all passing). Frontend: 54 new tests across 7 files (web 552 total). Lint + tsc clean both packages. Backend note: 3 migrations applied to local test DB AND Supabase DEV (additive, NULL-safe, no real risk). Frontend deviation: runbook docs/operations/supabase-auth-setup.md was authored by frontend agent (backend agent's Step 12 was supposed to but frontend handled it). Backend skipped app.logger.test.ts because Fastify uses `logger: false` in NODE_ENV=test (redaction wired in dev/prod loggers only — architecturally sound). |
+| 2026-05-14 | Step 4 Finalize — build bug fixed | Initial `npm run build` failed: `/login` page used `useSearchParams()` at top level, which requires `<Suspense>` for Next.js 15 static prerendering. Fix: split `packages/web/src/app/login/page.tsx` into Server Component wrapper + new Client Component `packages/web/src/components/LoginForm.tsx`. Matches existing `HablarAnalytics` pattern. Build re-ran clean. Test (9/9 LoginPage) still passes against wrapper. /login is now statically prerendered (○), /auth/callback is dynamic (ƒ) as expected. |
 | 2026-05-14 | Step 2 Plan — structured self-review applied | User caught missing self-review. Performed structured review across 7 dimensions (coverage / error handling / TDD clarity / wrong assumptions / step ordering / over-engineering / coverage of all 25 ACs). 1 IMPORTANT + 7 SUGGESTIONs identified. User triage: ALL accepted. Applied: **F1** Deploy order section in AC24 runbook + new **AC26** verification; **F2** /me per-bearer rate limit 30/min/accountId + new **AC27** + integration test; **F3** JWKS cache invalidation test added to authBearer Step 5 (covers risk 5 Supabase key rotation); **F4** cookieStore mock with get/set/remove methods (would have failed at runtime); **F5** `@supabase/ssr` pin tightened ^0.5.0 → ^0.5.2 (async-cookies stable); **F6** rollback comments in all 3 migration SQL files (DROP-safe additive); **F7** Playwright deferred to F107a-FU1 — replaced with Step 4 manual smoke checklist (frontend effort 10h → 8.5h); **F8** Authorization header redaction in Fastify pino logger config + test (defensive against JWT in Render logs). Total ACs: 25 → 27. Total effort: ~21h → ~20h (backend +0.5h for F8 + AC27 test; frontend -1.5h for F7 defer). |
 
 ---
