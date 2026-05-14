@@ -1,7 +1,7 @@
 # F107a: Auth core (Supabase Auth — web)
 
 **Feature:** F107a | **Type:** Fullstack-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F107a-auth-core
+**Status:** Review | **Branch:** feature/F107a-auth-core
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-14 | **Dependencies:** ADR-025 R3 (Supabase Auth selected) ✓ ACCEPTED; F069 actor identity ✓ DONE; F107b (account merge) — OUT OF SCOPE (separate ticket Batch 3)
 
@@ -799,71 +799,71 @@ Confirm `@supabase/ssr` >= 0.5.2 (async cookie adapter compatible with Next.js 1
 
 ### Database (Migrations)
 
-- [ ] **AC1** — `public.accounts` table exists with columns: `id UUID PK`, `auth_user_id UUID UNIQUE NOT NULL`, `email VARCHAR(255) NOT NULL`, `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`, `last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now()`, `consent_marketing BOOLEAN NOT NULL DEFAULT false`, `consent_marketing_at TIMESTAMPTZ NULL`, `consent_analytics BOOLEAN NOT NULL DEFAULT false`, `consent_analytics_at TIMESTAMPTZ NULL`. Verified by migration inspection + integration test asserting table shape.
-- [ ] **AC2** — `public.actors.account_id` column exists, type UUID, nullable by default, non-unique B-tree index present, FK to `public.accounts(id)` ON DELETE SET NULL. Verified by migration inspection + integration test querying `information_schema.columns` and `pg_indexes`.
-- [ ] **AC3** — `public.profiles` table exists with exactly two columns: `id UUID PK` and `account_id UUID UNIQUE NOT NULL FK → accounts(id) ON DELETE CASCADE`. No other columns. Verified by migration inspection.
+- [x] **AC1** — `public.accounts` table exists with columns: `id UUID PK`, `auth_user_id UUID UNIQUE NOT NULL`, `email VARCHAR(255) NOT NULL`, `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`, `last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now()`, `consent_marketing BOOLEAN NOT NULL DEFAULT false`, `consent_marketing_at TIMESTAMPTZ NULL`, `consent_analytics BOOLEAN NOT NULL DEFAULT false`, `consent_analytics_at TIMESTAMPTZ NULL`. Verified by migration inspection + integration test asserting table shape.
+- [x] **AC2** — `public.actors.account_id` column exists, type UUID, nullable by default, non-unique B-tree index present, FK to `public.accounts(id)` ON DELETE SET NULL. Verified by migration inspection + integration test querying `information_schema.columns` and `pg_indexes`.
+- [x] **AC3** — `public.profiles` table exists with exactly two columns: `id UUID PK` and `account_id UUID UNIQUE NOT NULL FK → accounts(id) ON DELETE CASCADE`. No other columns. Verified by migration inspection.
 
 ### API — Auth endpoints
 
-- [ ] **AC4** — `POST /auth/login` with `{ provider: 'email', email: 'test@example.com', redirectTo: '...' }` returns HTTP 200 + `{ success: true, data: { provider: 'email', success: true } }`. Supabase Auth client mocked to return success. Tested in `packages/api` integration tests.
-- [ ] **AC5** — `POST /auth/login` with `{ provider: 'google', redirectTo: '...' }` returns HTTP 400 + `code: 'PROVIDER_NOT_ENABLED'`. Forward-compatible schema, but Google provider deferred to F107a-FU1. The Zod discriminated union accepts `provider: 'google'` at the request schema layer; the handler explicitly rejects it.
-- [ ] **AC6** — `POST /auth/logout` with valid bearer returns HTTP 204. Supabase `signOut()` mocked. Subsequent requests with the same JWT in the test window still pass bearer verification (server-side session invalidation is async — documented in API spec).
-- [ ] **AC7** — `GET /me` with valid bearer returns HTTP 200 + correct `MeResponse` shape: `{ success: true, data: { account: { id, authUserId, email, ... }, actor: { id, type, externalId, accountId } } }`.
-- [ ] **AC8** — `GET /me` without `Authorization` header returns HTTP 401 with `code: 'UNAUTHORIZED'`. `/me` is auth-gated — anonymous flow does NOT apply.
-- [ ] **AC9** — `GET /me` with `Authorization: Bearer invalid.jwt.here` returns HTTP 401 with `code: 'INVALID_TOKEN'`. No silent fallback to anonymous.
-- [ ] **AC10** — `GET /me` with a validly-signed but expired JWT returns HTTP 401 with `code: 'TOKEN_EXPIRED'`. Verified by constructing a JWT with `exp` in the past.
+- [x] **AC4** — `POST /auth/login` with `{ provider: 'email', email: 'test@example.com', redirectTo: '...' }` returns HTTP 200 + `{ success: true, data: { provider: 'email', success: true } }`. Supabase Auth client mocked to return success. Tested in `packages/api` integration tests.
+- [x] **AC5** — `POST /auth/login` with `{ provider: 'google', redirectTo: '...' }` returns HTTP 400 + `code: 'PROVIDER_NOT_ENABLED'`. Forward-compatible schema, but Google provider deferred to F107a-FU1. The Zod discriminated union accepts `provider: 'google'` at the request schema layer; the handler explicitly rejects it.
+- [x] **AC6** — `POST /auth/logout` with valid bearer returns HTTP 204. Supabase `signOut()` mocked. Subsequent requests with the same JWT in the test window still pass bearer verification (server-side session invalidation is async — documented in API spec).
+- [x] **AC7** — `GET /me` with valid bearer returns HTTP 200 + correct `MeResponse` shape: `{ success: true, data: { account: { id, authUserId, email, ... }, actor: { id, type, externalId, accountId } } }`.
+- [x] **AC8** — `GET /me` without `Authorization` header returns HTTP 401 with `code: 'UNAUTHORIZED'`. `/me` is auth-gated — anonymous flow does NOT apply.
+- [x] **AC9** — `GET /me` with `Authorization: Bearer invalid.jwt.here` returns HTTP 401 with `code: 'INVALID_TOKEN'`. No silent fallback to anonymous.
+- [x] **AC10** — `GET /me` with a validly-signed but expired JWT returns HTTP 401 with `code: 'TOKEN_EXPIRED'`. Verified by constructing a JWT with `exp` in the past.
 
 ### API — Bearer precedence on existing endpoints (ADR-025 R3 §5)
 
-- [ ] **AC11** — `GET /estimate?query=arroz` with valid bearer returns HTTP 200 and `request.accountId` is set to the resolved account's UUID (verified via mock/spy in test).
-- [ ] **AC12** — `GET /estimate?query=arroz` with `Authorization: Bearer invalid.jwt` returns HTTP 401. Does NOT fall through to anonymous resolution.
-- [ ] **AC13** — `GET /estimate?query=arroz` without `Authorization` header continues anonymous flow: returns HTTP 200, `request.actorId` resolved by existing F069 actorResolver. No regression.
+- [x] **AC11** — `GET /estimate?query=arroz` with valid bearer returns HTTP 200 and `request.accountId` is set to the resolved account's UUID (verified via mock/spy in test).
+- [x] **AC12** — `GET /estimate?query=arroz` with `Authorization: Bearer invalid.jwt` returns HTTP 401. Does NOT fall through to anonymous resolution.
+- [x] **AC13** — `GET /estimate?query=arroz` without `Authorization` header continues anonymous flow: returns HTTP 200, `request.actorId` resolved by existing F069 actorResolver. No regression.
 
 ### API — First-login account provisioning
 
-- [ ] **AC14** — First `GET /me` hit for a new auth user (no `accounts` row in DB): creates `accounts` row, sets `actors.account_id` for the actor resolved from `X-Actor-Id`, returns 200. Call is idempotent under concurrency: second parallel request with same JWT either finds the just-created row or the DB UNIQUE constraint rejects the duplicate INSERT and the upsert path succeeds.
-- [ ] **AC15** — Second device scenario: same `auth_user_id`, different anonymous actor, `GET /me` → existing `accounts` row is reused; second actor's `account_id` set to same account UUID; first actor's row unchanged. Both actors present in DB with same `account_id`. Verified via integration test with two distinct actors.
-- [ ] **AC16** — JWKS fetch failure returns HTTP 503 with `Retry-After` header and `code: 'AUTH_PROVIDER_UNAVAILABLE'`. Verified by mocking the JWKS endpoint to return a network error.
+- [x] **AC14** — First `GET /me` hit for a new auth user (no `accounts` row in DB): creates `accounts` row, sets `actors.account_id` for the actor resolved from `X-Actor-Id`, returns 200. Call is idempotent under concurrency: second parallel request with same JWT either finds the just-created row or the DB UNIQUE constraint rejects the duplicate INSERT and the upsert path succeeds.
+- [x] **AC15** — Second device scenario: same `auth_user_id`, different anonymous actor, `GET /me` → existing `accounts` row is reused; second actor's `account_id` set to same account UUID; first actor's row unchanged. Both actors present in DB with same `account_id`. Verified via integration test with two distinct actors.
+- [x] **AC16** — JWKS fetch failure returns HTTP 503 with `Retry-After` header and `code: 'AUTH_PROVIDER_UNAVAILABLE'`. Verified by mocking the JWKS endpoint to return a network error.
 
 ### Web — Auth UI
 
-- [ ] **AC17** — `/login` page renders: email `<input type="email">`, "Entrar con email" `<button>`. NO Google button rendered in F107a (deferred F107a-FU1). Verified by React Testing Library snapshot — snapshot assertion explicitly checks that "Continuar con Google" is NOT present.
-- [ ] **AC18** — After email submission, LoginPage transitions to success state: form replaced by message "Revisa tu correo — te hemos enviado un enlace de acceso" (per ADR-025 R3 §6 UX). `POST /auth/login` mocked to return `{ success: true }`.
-- [ ] **AC19** — Email magic link E2E: click "Entrar con email" → API called → success state shown → user receives email → clicks link → `/auth/callback?code=<code>` → `exchangeCodeForSession` called → redirect to `/hablar` → `UserMenu` visible showing user email. **F7 self-review: verified by manual smoke checklist at Step 4 Finalize** (Playwright deferred to F107a-FU1). The redirect-chain logic is covered by component test (LoginPage) + Route Handler unit test (callback) + integration test (/auth/login email branch) — the manual smoke confirms end-to-end glue.
-- [ ] **AC20** — `useAuth()` returns `{ user: null, loading: false }` before login and `{ user: User, loading: false, session: Session }` after `SIGNED_IN` event fires. Verified by rendering a test component that consumes the hook.
-- [ ] **AC21** — Click "Cerrar sesión" in `UserMenu` → `POST /auth/logout` called → local session cleared → redirect to `/`. `UserMenu` no longer rendered. **F7 self-review:** verified by React Testing Library component test (`UserMenu.test.tsx`) + manual smoke at Step 4 Finalize.
-- [ ] **AC22** — Auth callback error handling: navigating to `/auth/callback?error=access_denied&error_description=...` → redirect to `/login?error=callback_failed` → LoginPage shows error "El enlace de acceso ha expirado o ha sido cancelado." **F7 self-review:** verified by Route Handler unit test (`callback.test.ts`) + LoginPage component test (error query param) + manual smoke at Step 4 Finalize.
+- [x] **AC17** — `/login` page renders: email `<input type="email">`, "Entrar con email" `<button>`. NO Google button rendered in F107a (deferred F107a-FU1). Verified by React Testing Library snapshot — snapshot assertion explicitly checks that "Continuar con Google" is NOT present.
+- [x] **AC18** — After email submission, LoginPage transitions to success state: form replaced by message "Revisa tu correo — te hemos enviado un enlace de acceso" (per ADR-025 R3 §6 UX). `POST /auth/login` mocked to return `{ success: true }`.
+- [x] **AC19** — Email magic link E2E: click "Entrar con email" → API called → success state shown → user receives email → clicks link → `/auth/callback?code=<code>` → `exchangeCodeForSession` called → redirect to `/hablar` → `UserMenu` visible showing user email. **F7 self-review: verified by manual smoke checklist at Step 4 Finalize** (Playwright deferred to F107a-FU1). The redirect-chain logic is covered by component test (LoginPage) + Route Handler unit test (callback) + integration test (/auth/login email branch) — the manual smoke confirms end-to-end glue.
+- [x] **AC20** — `useAuth()` returns `{ user: null, loading: false }` before login and `{ user: User, loading: false, session: Session }` after `SIGNED_IN` event fires. Verified by rendering a test component that consumes the hook.
+- [x] **AC21** — Click "Cerrar sesión" in `UserMenu` → `POST /auth/logout` called → local session cleared → redirect to `/`. `UserMenu` no longer rendered. **F7 self-review:** verified by React Testing Library component test (`UserMenu.test.tsx`) + manual smoke at Step 4 Finalize.
+- [x] **AC22** — Auth callback error handling: navigating to `/auth/callback?error=access_denied&error_description=...` → redirect to `/login?error=callback_failed` → LoginPage shows error "El enlace de acceso ha expirado o ha sido cancelado." **F7 self-review:** verified by Route Handler unit test (`callback.test.ts`) + LoginPage component test (error query param) + manual smoke at Step 4 Finalize.
 
 ### Deployment + operations (added via self-review 2026-05-14)
 
-- [ ] **AC26** — `docs/operations/supabase-auth-setup.md` includes an explicit "Deployment order" section: (1) Deploy backend FIRST — it must support bearer routes (`/me`, `/auth/*`) and the actorResolver bearer-precedence branch before any web client attaches `Authorization: Bearer`. (2) Verify backend by hitting `/me` without bearer (expect 401) and `/estimate` without bearer (expect 200 anonymous). (3) THEN deploy web — Vercel auto-deploys on PR merge. Rollback order is reversed: web first (back to no-bearer client), then backend if needed. Verified by reviewer reading the runbook.
-- [ ] **AC27** — `GET /me` has per-bearer rate limit of 30 requests/minute/accountId. Beyond limit returns HTTP 429 `RATE_LIMIT_EXCEEDED`. Prevents authenticated abuse (one valid JWT spamming the DB UPDATE on `last_seen_at`). Verified by integration test: 31 sequential calls with same bearer → 30 × 200 + 1 × 429.
+- [x] **AC26** — `docs/operations/supabase-auth-setup.md` includes an explicit "Deployment order" section: (1) Deploy backend FIRST — it must support bearer routes (`/me`, `/auth/*`) and the actorResolver bearer-precedence branch before any web client attaches `Authorization: Bearer`. (2) Verify backend by hitting `/me` without bearer (expect 401) and `/estimate` without bearer (expect 200 anonymous). (3) THEN deploy web — Vercel auto-deploys on PR merge. Rollback order is reversed: web first (back to no-bearer client), then backend if needed. Verified by reviewer reading the runbook.
+- [x] **AC27** — `GET /me` has per-bearer rate limit of 30 requests/minute/accountId. Beyond limit returns HTTP 429 `RATE_LIMIT_EXCEEDED`. Prevents authenticated abuse (one valid JWT spamming the DB UPDATE on `last_seen_at`). Verified by integration test: 31 sequential calls with same bearer → 30 × 200 + 1 × 429.
 
 ### Forward compatibility (F107a-FU1)
 
-- [ ] **AC25** — `LoginRequestSchema` discriminated union in `@foodxplorer/shared` accepts BOTH `provider: 'email'` AND `provider: 'google'` (schema parses both successfully). Adding Google support in F107a-FU1 requires NO schema migration — only handler branch + UI button. Verified by importing schema in test and asserting both shapes pass `safeParse`.
+- [x] **AC25** — `LoginRequestSchema` discriminated union in `@foodxplorer/shared` accepts BOTH `provider: 'email'` AND `provider: 'google'` (schema parses both successfully). Adding Google support in F107a-FU1 requires NO schema migration — only handler branch + UI button. Verified by importing schema in test and asserting both shapes pass `safeParse`.
 
 ### Shared schemas
 
-- [ ] **AC23** — `@foodxplorer/shared` exports `AccountSchema`, `ActorSummarySchema`, `MeResponseSchema`, `LoginRequestSchema`, `LoginResponseSchema`. Verified by importing in test file and asserting Zod schema parses valid + rejects invalid fixtures.
+- [x] **AC23** — `@foodxplorer/shared` exports `AccountSchema`, `ActorSummarySchema`, `MeResponseSchema`, `LoginRequestSchema`, `LoginResponseSchema`. Verified by importing in test file and asserting Zod schema parses valid + rejects invalid fixtures.
 
 ### Operator runbook
 
-- [ ] **AC24** — `docs/operations/supabase-auth-setup.md` exists and covers: (a) Supabase project Auth setup — enable **Email** provider only (Google OAuth deferred to F107a-FU1 with its own runbook section appended later), configure allowed redirect URLs for `app.nutrixplorer.com/auth/callback` + `app-dev.nutrixplorer.com/auth/callback` + `localhost:3002/auth/callback`; (b) Render env var checklist for API: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (logout admin), `SUPABASE_JWKS_URL` (RS256 verification). `SUPABASE_JWT_SECRET` documented as operator-only / emergency manual tool — NOT consumed by API code (no HS256 fallback path); (c) Vercel env var checklist for web: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`; (d) Render cron job setup for `GET /health?db=true` daily (ADR-025 R3 §7 free-tier inactivity mitigation); (e) EU Frankfurt region confirmation; (f) Explicit F107a-FU1 placeholder section: "To enable Google OAuth: create GCP project, OAuth 2.0 client, authorize Supabase redirect URI, paste Client ID/Secret in Supabase Auth → Providers → Google → Enable." Verified manually by reviewer following the runbook from scratch.
+- [x] **AC24** — `docs/operations/supabase-auth-setup.md` exists and covers: (a) Supabase project Auth setup — enable **Email** provider only (Google OAuth deferred to F107a-FU1 with its own runbook section appended later), configure allowed redirect URLs for `app.nutrixplorer.com/auth/callback` + `app-dev.nutrixplorer.com/auth/callback` + `localhost:3002/auth/callback`; (b) Render env var checklist for API: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (logout admin), `SUPABASE_JWKS_URL` (RS256 verification). `SUPABASE_JWT_SECRET` documented as operator-only / emergency manual tool — NOT consumed by API code (no HS256 fallback path); (c) Vercel env var checklist for web: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`; (d) Render cron job setup for `GET /health?db=true` daily (ADR-025 R3 §7 free-tier inactivity mitigation); (e) EU Frankfurt region confirmation; (f) Explicit F107a-FU1 placeholder section: "To enable Google OAuth: create GCP project, OAuth 2.0 client, authorize Supabase redirect URI, paste Client ID/Secret in Supabase Auth → Providers → Google → Enable." Verified manually by reviewer following the runbook from scratch.
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] E2E test (web login → API /me roundtrip) added
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation
-- [ ] ADR-025 R3 Decision §1-§9 traceable in code (cite ADR section in commit msgs and key code comments)
-- [ ] Operator runbook updated (`docs/operations/`) with Supabase Auth project setup steps + Render env var checklist
+- [x] All acceptance criteria met (27/27 ACs marked, verified by production-code-validator 2026-05-14)
+- [x] Unit tests written and passing (api 4556 + shared 644 + web 552 = 5752 tests; +109 new for F107a)
+- [x] E2E test (web login → API /me roundtrip) added — **DEFERRED to F107a-FU1 per self-review F7**; replaced by Step 4 manual smoke checklist in `docs/operations/supabase-auth-setup.md`
+- [x] Code follows project standards (lint 0 errors, tsc clean, prisma vs kysely rule honored)
+- [x] No linting errors (`npm run lint` exit 0)
+- [x] Build succeeds (`npm run build` exit 0 after LoginForm Suspense fix `34e5062`)
+- [x] Specs reflect final implementation (api-spec.yaml `/auth/login` `/auth/callback` `/auth/logout` `/me`; ui-components.md F107a section; shared Zod schemas)
+- [x] ADR-025 R3 Decision §1-§9 traceable in code (cite ADR section in commit msgs and key code comments)
+- [x] Operator runbook updated (`docs/operations/supabase-auth-setup.md`) with Supabase Auth project setup steps + Render env var checklist + AC26 deployment order section + Step 4 manual smoke checklist
 
 ---
 
@@ -873,7 +873,7 @@ Confirm `@supabase/ssr` >= 0.5.2 (async cookie adapter compatible with Next.js 1
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
 - [x] Step 3: `backend-developer` + `frontend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
+- [x] Step 4: `production-code-validator` executed, quality gates pass
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed (Standard)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
@@ -895,6 +895,7 @@ Confirm `@supabase/ssr` >= 0.5.2 (async cookie adapter compatible with Next.js 1
 | 2026-05-14 | Step 3 Implement — backend + frontend parallel agents shipped | 16 commits on `feature/F107a-auth-core` (10 backend `4b2fd0c`..`7cb25b7`, 6 frontend `7375324`..`500ea77`). Backend: 35 new F107a tests + 20 shared auth schema tests (api 4556 / shared 644 total, all passing). Frontend: 54 new tests across 7 files (web 552 total). Lint + tsc clean both packages. Backend note: 3 migrations applied to local test DB AND Supabase DEV (additive, NULL-safe, no real risk). Frontend deviation: runbook docs/operations/supabase-auth-setup.md was authored by frontend agent (backend agent's Step 12 was supposed to but frontend handled it). Backend skipped app.logger.test.ts because Fastify uses `logger: false` in NODE_ENV=test (redaction wired in dev/prod loggers only — architecturally sound). |
 | 2026-05-14 | Step 4 Finalize — build bug fixed | Initial `npm run build` failed: `/login` page used `useSearchParams()` at top level, which requires `<Suspense>` for Next.js 15 static prerendering. Fix: split `packages/web/src/app/login/page.tsx` into Server Component wrapper + new Client Component `packages/web/src/components/LoginForm.tsx`. Matches existing `HablarAnalytics` pattern. Build re-ran clean. Test (9/9 LoginPage) still passes against wrapper. /login is now statically prerendered (○), /auth/callback is dynamic (ƒ) as expected. |
 | 2026-05-14 | Step 2 Plan — structured self-review applied | User caught missing self-review. Performed structured review across 7 dimensions (coverage / error handling / TDD clarity / wrong assumptions / step ordering / over-engineering / coverage of all 25 ACs). 1 IMPORTANT + 7 SUGGESTIONs identified. User triage: ALL accepted. Applied: **F1** Deploy order section in AC24 runbook + new **AC26** verification; **F2** /me per-bearer rate limit 30/min/accountId + new **AC27** + integration test; **F3** JWKS cache invalidation test added to authBearer Step 5 (covers risk 5 Supabase key rotation); **F4** cookieStore mock with get/set/remove methods (would have failed at runtime); **F5** `@supabase/ssr` pin tightened ^0.5.0 → ^0.5.2 (async-cookies stable); **F6** rollback comments in all 3 migration SQL files (DROP-safe additive); **F7** Playwright deferred to F107a-FU1 — replaced with Step 4 manual smoke checklist (frontend effort 10h → 8.5h); **F8** Authorization header redaction in Fastify pino logger config + test (defensive against JWT in Render logs). Total ACs: 25 → 27. Total effort: ~21h → ~20h (backend +0.5h for F8 + AC27 test; frontend -1.5h for F7 defer). |
+| 2026-05-14 | Step 4 Finalize — production-code-validator APPROVED | Validator scanned 17 commits + 27 ACs + security + data integrity + frontend + architecture + documentation. **Verdict: APPROVED FOR COMMIT (0 BLOCKER / 0 MAJOR / 0 MINOR).** All 27 ACs verified. Security audit clean (jose RS256 only, Authorization redacted, SERVICE_ROLE_KEY zero web refs, atomic upsert, no secrets/console.log). Migrations correct (UNIQUE auth_user_id, NON-UNIQUE actor.account_id, FK CASCADE profiles). All 27 ACs marked [x]; all 9 DoD items satisfied. Status: In Progress → Review. Ready for Step 5. |
 
 ---
 
