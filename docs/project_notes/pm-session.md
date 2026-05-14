@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F107a — Auth core (Supabase Auth) | Standard | in-progress | — | Step 0/6 — Spec. Base: ADR-025 R3. Web-only. Auth core only (F107b merge OUT OF SCOPE). |
+| F107a — Auth core (Supabase Auth) | Standard | in-progress | — | Step 2/6 — Plan. Step 0 Spec committed `a97ad58`. Gemini APPROVED R1, Codex R1 empirical (drift fixed), Codex R2 CLI failure (ignored per /review-spec). 25 ACs. 3 SUGGESTIONs for planner: non-Bearer scheme, AC14 upsert determinism, AC22 callback error enumeration. |
 | F105 — Landing Coverage Showcase | Simple | pending | — | After /compact post F107a. Frontend only on packages/landing. |
 
 ## Completed Features
