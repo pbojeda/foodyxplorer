@@ -186,15 +186,33 @@ TICKET_STATUS=$(grep -E "^\*\*Status:\*\*" "$TICKET" | head -1 \
     | sed -E 's/[[:space:]]+(\(.*\)|—.*|–.*|-.*)$//' \
     | sed -E 's/\*\*[[:space:]]*$//' \
     | sed -E 's/[[:space:]]+$//')
-FEATURE_ID=$(basename "$TICKET" .md | sed -E 's/-[a-z].*//')
-TRACKER_STATUS=$(grep -F "$FEATURE_ID" docs/project_notes/product-tracker.md | grep -oE "\| (in-progress|done|pending|blocked) \|" | head -1 | sed -E 's/\| ([a-z-]+) \|/\1/')
-case "$TICKET_STATUS" in
-  "Ready for Merge"|"Review"|"In Progress"|"Planning"|"Spec") EXPECTED="in-progress" ;;
-  "Done") EXPECTED="done" ;;
-  *) EXPECTED="" ;;
+TICKET_BASENAME=$(basename "$TICKET" .md)
+# v0.18.4 P11-B: sub-scope tickets (-lite / -FU / -FU[0-9]*) close a partial
+# scope of a parent feature; the parent tracker row stays at its parent status
+# (typically `pending` or `in-progress`) while the sub-scope ticket reaches
+# `Done`. P11 must NOT enforce status mapping across this boundary. Pattern
+# scope: empirically derived from fx convention (uppercase -FU + -lite). If
+# future projects introduce -spike / -mini / -aux variants, expand here.
+case "$TICKET_BASENAME" in
+  *-lite|*-lite-*|*-FU|*-FU-*|*-FU[0-9]*)
+    echo "P11 N/A: $TICKET_BASENAME is a sub-scope ticket — parent tracker row status independent" >&2
+    ;;
+  *)
+    FEATURE_ID=$(echo "$TICKET_BASENAME" | sed -E 's/-[a-z].*//')
+    # v0.18.4 P11-B drive-by hardening: anchor tracker lookup to pipe-table row
+    # (FEATURE_ID as first cell). Mirrors v0.18.3 P16 idiom — prevents narrative
+    # mentions earlier in the tracker from silencing or false-firing the check.
+    TRACKER_STATUS=$(grep -E "^\|[[:space:]]*$FEATURE_ID[[:space:]]*\|" docs/project_notes/product-tracker.md \
+        | grep -oE "\| (in-progress|done|pending|blocked) \|" | head -1 | sed -E 's/\| ([a-z-]+) \|/\1/')
+    case "$TICKET_STATUS" in
+      "Ready for Merge"|"Review"|"In Progress"|"Planning"|"Spec") EXPECTED="in-progress" ;;
+      "Done") EXPECTED="done" ;;
+      *) EXPECTED="" ;;
+    esac
+    [ -n "$EXPECTED" ] && [ -n "$TRACKER_STATUS" ] && [ "$TRACKER_STATUS" != "$EXPECTED" ] \
+      && flag "P11 drift: ticket Status='$TICKET_STATUS' expects tracker='$EXPECTED' but tracker='$TRACKER_STATUS'"
+    ;;
 esac
-[ -n "$EXPECTED" ] && [ -n "$TRACKER_STATUS" ] && [ "$TRACKER_STATUS" != "$EXPECTED" ] \
-  && flag "P11 drift: ticket Status='$TICKET_STATUS' expects tracker='$EXPECTED' but tracker='$TRACKER_STATUS'"
 ```
 
 **23. P12 — Tracker HEAD references stale (added v0.18.2).** The `**Last Updated:**` and `**Active Feature:**` lines may embed `HEAD <sha>` or `HEAD: <sha>` references that were correct when written but went stale as further commits landed (empirically observed in fx F-WEB-MENU-VISION-001 audit cycle 2026-05-06: tracker said `HEAD: fd752e4` while `git rev-parse HEAD` was `6fa801e` after the agent's own self-edit commit). Compare each extracted SHA against the active branch HEAD. Bidirectional prefix tolerance: a 7-char tracker SHA matches the full 40-char actual HEAD if it's a prefix; a full 40-char tracker SHA matches if its first 7 chars equal the actual short form. Scoped strictly to the two header lines so narrative SHAs in "Last Completed" prose never false-positive-fire.
