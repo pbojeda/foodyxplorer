@@ -909,7 +909,7 @@ Confirm `@supabase/ssr` >= 0.5.2 (async cookie adapter compatible with Next.js 1
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | Sections verified: Spec (L10), Implementation Plan (L189), Acceptance Criteria (L798), Definition of Done (L856), Workflow Checklist (L870), Completion Log (L883), Merge Checklist Evidence (L905). All 7 mandatory sections present. |
-| 1. Mark all items | [x] | AC: 27/27, DoD: 9/9, Workflow: 5/6 (Step 6 pending merge). Status updated `Review` → `Ready for Merge`. |
+| 1. Mark all items | [x] | AC: 27/27, DoD: 9/9, Workflow: 7/8 checked (Step 6 unchecked — the merge itself). Status updated `Review` → `Ready for Merge`. |
 | 2. Verify product tracker | [x] | Active Session at step 5/6 (Review) with PM session `pm-auth-core` context; Features table row for F107a shows `in-progress` + `5/6 (Review)`. Both updated as of commit `c97f2cb` + `1508da5`. |
 | 3. Update key_facts.md | [x] | Updated 2026-05-14 in `docs/project_notes/key_facts.md`: (a) Auth bullet at line 113 — full Supabase Auth implementation summary (endpoints, tables, error codes, bearer precedence, log redaction, runbook pointer, F107b deferred). (b) Prisma schema line 120 — model count 16→17 (Account added), Actor.accountId field documented, profiles table SQL-only. (c) Migrations line 121 — count 17→20, three new F107a migrations listed by name. Commit covers these in this housekeeping batch. |
 | 4. Update decisions.md | [x] | N/A — ADR-025 R3 already exists at `decisions.md` line 831+ (shipped 2026-05-13 via PR #273). F107a is implementation of that ADR; no new ADR required. ADR-026 (bot pause) also pre-existing. |
