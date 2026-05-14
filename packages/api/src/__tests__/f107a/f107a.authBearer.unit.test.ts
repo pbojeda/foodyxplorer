@@ -3,8 +3,8 @@
 // Tests verifyBearerJwt using a local RS256 keypair — no real Supabase needed.
 // JWKS fetch is intercepted via module mocking.
 
-import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
-import { generateKeyPair, exportJWK, SignJWT } from 'jose';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { generateKeyPair, SignJWT } from 'jose';
 
 // ---------------------------------------------------------------------------
 // We mock createRemoteJWKSet from jose to inject our local keypair
@@ -12,8 +12,6 @@ import { generateKeyPair, exportJWK, SignJWT } from 'jose';
 
 // Store factory so tests can swap keys for rotation tests
 let currentPublicKey: Awaited<ReturnType<typeof generateKeyPair>>['publicKey'] | null = null;
-let callCount = 0;
-
 vi.mock('jose', async (importOriginal) => {
   const original = await importOriginal<typeof import('jose')>();
   return {
@@ -22,7 +20,6 @@ vi.mock('jose', async (importOriginal) => {
       // Return a function that jose expects (JWKS get key function)
       return async (_header: { alg?: string; kid?: string }) => {
         if (!currentPublicKey) throw new TypeError('fetch failed');
-        callCount++;
         return currentPublicKey;
       };
     }),
@@ -69,10 +66,6 @@ async function makeJwt(
     .setIssuedAt()
     .sign(privateKey);
 }
-
-afterEach(() => {
-  callCount = 0;
-});
 
 // ---------------------------------------------------------------------------
 // Tests

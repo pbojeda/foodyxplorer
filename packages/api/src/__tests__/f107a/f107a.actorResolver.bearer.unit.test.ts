@@ -4,7 +4,7 @@
 // Uses mock prisma and mock verifyBearerJwt.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 
 // ---------------------------------------------------------------------------
 // Mock verifyBearerJwt — controls AC11/AC12/AC13 scenarios
@@ -61,16 +61,6 @@ function createMockRequest(headers: Record<string, string | undefined> = {}): Mo
 
 function createMockReply() {
   return { header: vi.fn().mockReturnThis() };
-}
-
-// Minimal mock FastifyInstance
-function createMockApp(onRequestHook: (req: unknown, reply: unknown) => Promise<void>) {
-  return {
-    addHook: vi.fn((_event: string, fn: typeof onRequestHook) => {
-      onRequestHook = fn;
-    }),
-    _runHook: async (req: unknown, reply: unknown) => onRequestHook(req, reply),
-  };
 }
 
 // ---------------------------------------------------------------------------

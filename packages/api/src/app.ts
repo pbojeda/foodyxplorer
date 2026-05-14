@@ -45,6 +45,7 @@ import { waitlistRoutes } from './routes/waitlist.js';
 import { conversationRoutes } from './routes/conversation.js';
 import { reverseSearchRoutes } from './routes/reverseSearch.js';
 import { webMetricsRoutes } from './routes/webMetrics.js';
+import authRoutes from './routes/auth.js';
 import { getKysely } from './lib/kysely.js';
 
 // ---------------------------------------------------------------------------
@@ -71,12 +72,25 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   // accepts boolean false to suppress all log output.
   let app: FastifyInstance;
 
+  // F8 self-review: Redact sensitive headers from pino request logs.
+  // Bearer JWTs in Render logs are a leak risk — remove them at log time.
+  // Applied to all non-test environments (test uses logger:false).
+  const logRedact = {
+    paths: [
+      'req.headers.authorization',
+      'req.headers["x-api-key"]',
+      'res.headers["set-cookie"]',
+    ],
+    remove: true,
+  };
+
   if (cfg.NODE_ENV === 'test') {
     app = Fastify({ logger: false, trustProxy: true });
   } else if (cfg.NODE_ENV === 'development') {
     app = Fastify({
       logger: {
         level: cfg.LOG_LEVEL,
+        redact: logRedact,
         transport: {
           target: 'pino-pretty',
         },
@@ -87,6 +101,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     app = Fastify({
       logger: {
         level: cfg.LOG_LEVEL,
+        redact: logRedact,
       },
       trustProxy: true,
     });
@@ -137,6 +152,8 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(conversationRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient });
   await app.register(reverseSearchRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(webMetricsRoutes, { db: getKysely(), prisma: prismaClient });
+  // F107a — Auth routes (POST /auth/login, POST /auth/logout, GET /me)
+  await app.register(authRoutes, { prisma: prismaClient, config: cfg });
 
   return app;
 }
