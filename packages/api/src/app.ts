@@ -107,7 +107,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await registerSwagger(app, cfg);
   await registerCors(app, cfg);
   await registerAuthMiddleware(app, { prisma: prismaClient, config: cfg });
-  await registerActorResolver(app, { prisma: prismaClient });
+  await registerActorResolver(app, { prisma: prismaClient, config: cfg });
   await registerRateLimit(app, cfg);
   await registerActorRateLimit(app, { redis: redisClient });
   await registerVoiceIpRateLimit(app, { redis: redisClient });
