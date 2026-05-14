@@ -467,9 +467,33 @@ model Actor {
   locale     String?   @db.VarChar(10)
   createdAt  DateTime  @default(now()) @map("created_at")
   lastSeenAt DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz
+  accountId  String?   @map("account_id") @db.Uuid
+  account    Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
   @@unique([type, externalId])
+  @@index([accountId])
   @@map("actors")
+}
+
+// ---------------------------------------------------------------------------
+// F107a — Accounts (Authenticated Identity — ADR-025 R3)
+// ---------------------------------------------------------------------------
+
+model Account {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  authUserId          String    @unique @map("auth_user_id") @db.Uuid
+  email               String    @db.VarChar(255)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  lastSeenAt          DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz
+  consentMarketing    Boolean   @default(false) @map("consent_marketing")
+  consentMarketingAt  DateTime? @map("consent_marketing_at") @db.Timestamptz
+  consentAnalytics    Boolean   @default(false) @map("consent_analytics")
+  consentAnalyticsAt  DateTime? @map("consent_analytics_at") @db.Timestamptz
+
+  actors Actor[]
+
+  @@index([email])
+  @@map("accounts")
 }
 
 // ---------------------------------------------------------------------------
