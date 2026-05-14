@@ -112,11 +112,13 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
     '/auth/logout',
     {},
     async (request: FastifyRequest, reply: FastifyReply) => {
-      // Route-level bearer verification (bearer required — not optional here)
+      // Route-level bearer verification (bearer required — not optional here).
+      // AC8 / spec api-spec.yaml:465: absent bearer → 401 UNAUTHORIZED
+      // (semantically distinct from INVALID_TOKEN: "no credentials" vs "broken token").
       const authHeader = request.headers['authorization'];
       if (!authHeader) {
         throw Object.assign(new Error('Authorization Bearer token is required'), {
-          code: 'INVALID_TOKEN',
+          code: 'UNAUTHORIZED',
         });
       }
 
@@ -159,11 +161,13 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
       },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      // Route-level bearer verification (bearer required)
+      // Route-level bearer verification (bearer required).
+      // AC8 / spec api-spec.yaml:465: absent bearer → 401 UNAUTHORIZED
+      // (semantically distinct from INVALID_TOKEN: "no credentials" vs "broken token").
       const authHeader = request.headers['authorization'];
       if (!authHeader) {
         throw Object.assign(new Error('Authorization Bearer token is required for /me'), {
-          code: 'INVALID_TOKEN',
+          code: 'UNAUTHORIZED',
         });
       }
 
@@ -208,9 +212,19 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
         }
 
         if (!actorId) {
-          // No usable actor header — create a transient actor
-          const newActor = await prisma.actor.create({
-            data: { type: 'anonymous_web', externalId: `me-${payload.sub.slice(0, 8)}`, lastSeenAt: new Date() },
+          // No usable actor header — upsert a deterministic anchor actor by auth_user_id.
+          // BLOCKER fix from code-review-specialist 2026-05-14: previously this used
+          // `prisma.actor.create` with deterministic externalId = `me-${sub.slice(0,8)}`,
+          // which would violate `actors.@@unique([type, externalId])` on the second call
+          // for the same user (Prisma P2002 → 500). Switching to upsert makes it idempotent
+          // and converges concurrent first calls to the same actor row.
+          // Note: derived externalId includes 'me-' prefix to namespace it away from
+          // anonymous_web client UUIDs (which are not prefixed).
+          const externalId = `me-${payload.sub.slice(0, 8)}`;
+          const newActor = await prisma.actor.upsert({
+            where: { type_externalId: { type: 'anonymous_web', externalId } },
+            create: { type: 'anonymous_web', externalId, lastSeenAt: new Date() },
+            update: { lastSeenAt: new Date() },
             select: { id: true },
           });
           actorId = newActor.id;

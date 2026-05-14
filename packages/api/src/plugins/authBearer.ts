@@ -95,10 +95,16 @@ export async function verifyBearerJwt(
 
   const token = authorizationHeader.slice('Bearer '.length);
 
-  // Attempt verification — with key rotation retry on signature failure
+  // Attempt verification — with key rotation retry on signature failure.
+  // E3 self-review (qa-engineer 2026-05-14): require `sub` claim explicitly.
+  // jose v5 jwtVerify does NOT mandate `sub` by default; a JWT without `sub` would
+  // pass verification and produce `payload.sub === undefined`, breaking downstream
+  // accounts upsert (UUID cast error → 500). Listing `sub` in requiredClaims makes
+  // jose throw JWTClaimValidationFailed → already mapped to INVALID_TOKEN.
+  const verifyOpts = { requiredClaims: ['sub'] };
   const getKey = getOrCreateJwks(jwksUrl);
   try {
-    const { payload } = await jwtVerify(token, getKey);
+    const { payload } = await jwtVerify(token, getKey, verifyOpts);
     return payload as unknown as JwtPayload;
   } catch (err) {
     // Key rotation: Supabase rotated keys → JWSSignatureVerificationFailed
@@ -107,7 +113,7 @@ export async function verifyBearerJwt(
       invalidateJwksCache();
       const freshGetKey = getOrCreateJwks(jwksUrl);
       try {
-        const { payload } = await jwtVerify(token, freshGetKey);
+        const { payload } = await jwtVerify(token, freshGetKey, verifyOpts);
         return payload as unknown as JwtPayload;
       } catch (retryErr) {
         return mapJoseError(retryErr);

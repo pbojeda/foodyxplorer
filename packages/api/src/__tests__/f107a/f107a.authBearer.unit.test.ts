@@ -143,14 +143,15 @@ describe('F107a — verifyBearerJwt', () => {
     });
 
     it('throws INVALID_TOKEN for JWT signed by wrong key', async () => {
-      currentPublicKey = publicKeyA; // JWKS has keyA
+      currentPublicKey = publicKeyA; // JWKS has keyA both initially and after retry
       const token = await makeJwt(privateKeyB); // but token signed with keyB
       const err = await verifyBearerJwt(`Bearer ${token}`, JWKS_URL).catch((e) => e);
 
       expect(err).toBeInstanceOf(Error);
-      // Could be INVALID_TOKEN or trigger key refresh — either is correct
-      const code = (err as Record<string, unknown>)['code'];
-      expect(['INVALID_TOKEN', 'INVALID_TOKEN']).toContain(code);
+      // M3 code-review fix: prior assertion `toContain(['INVALID_TOKEN','INVALID_TOKEN'])`
+      // was a no-op tautology. The post-refresh code path also fails (keyA never matches
+      // sig from keyB), so the final mapped code is INVALID_TOKEN.
+      expect((err as Record<string, unknown>)['code']).toBe('INVALID_TOKEN');
     });
   });
 
