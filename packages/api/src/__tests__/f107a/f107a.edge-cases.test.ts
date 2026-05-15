@@ -16,8 +16,7 @@
 // NOTE: FINDING-1 and FINDING-7 have tests that FAIL against current code — they expose
 // spec deviations. All others document gaps or characterize current behavior.
 
-import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
-import { generateKeyPair, SignJWT } from 'jose';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Module-level mocks (hoisted by Vitest — must be top-level)
