@@ -17,6 +17,14 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-05-15 — BUG-DEV-SHARED-WEBMETRICS-BOUNDARY-FLAKE-001: `webMetrics.schemas.edge-cases.test.ts:174` 24h boundary test is time-sensitive [P3 OPEN]
+
+- **Issue**: CI run `25921061510` first attempt failed `test-shared` with assertion at `packages/shared/src/__tests__/webMetrics.schemas.edge-cases.test.ts:174` — `expect(result.success).toBe(true)` got `false`. Test passes locally and on CI auto-retry. Empirically observed during F107a PR #279 merge-approval cycle 2026-05-15.
+- **Root Cause**: Test computes `Date.now()` to construct an "exactly at 24h ago" timestamp, then calls `WebMetricsSnapshotSchema.safeParse(...)`. The schema's validator computes ITS OWN `Date.now()` internally during validation. If a millisecond elapses between the test's `Date.now()` and the schema's `Date.now()`, the constructed timestamp is no longer exactly at the boundary — it is now `1ms past` 24h — and the schema rejects it (as the adjacent test at line 177-183 expects).
+- **Pre-existing**: bug existed before F107a; just first observed during this PR's CI cycle. Confirmed pre-existing by passing locally on F107a branch in `npm test -w @foodxplorer/shared` deterministically (~5ms duration, no clock drift on local).
+- **Solution (not applied — out of F107a scope)**: use `vi.useFakeTimers()` + `vi.setSystemTime(fixedDate)` in the test setup, OR adjust the assertion to construct timestamp slightly inside the boundary (e.g. `Date.now() - 24*60*60*1000 + 100`) so a 1-2ms clock drift cannot push it past 24h. Either approach makes the test deterministic. Fix tracked as P3 tech-debt; bundle into next shared-package housekeeping.
+- **Workaround until fix**: re-run failed CI job. `gh run rerun <run-id> --failed` produces deterministic re-pass on local-clock systems.
+
 ### 2026-05-13 — BUG-API-HEALTH-PRISMA-MOCK-001: 5 health-route tests fail on `?db=true` / `?db=true&redis=true` happy paths [P3 OPEN]
 
 - **Issue**: `npm test -w @foodxplorer/api` on `develop@6765357` (pre-ADR-025 work) fails 5 tests, all in `health.test.ts` + `f004.edge-cases.test.ts` + `f005.edge-cases.test.ts`:
