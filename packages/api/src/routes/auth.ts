@@ -19,6 +19,7 @@ import type { Config } from '../config.js';
 import { verifyBearerJwt } from '../plugins/authBearer.js';
 import { getSupabaseAdmin } from '../lib/supabaseAdmin.js';
 import { LoginRequestSchema } from '@foodxplorer/shared';
+import { captureMessage, hashActor } from '../lib/sentry.js';
 
 // Raw DB account row shape (before serialization to Zod Account)
 interface RawAccountRow {
@@ -213,20 +214,10 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
 
         if (!actorId) {
           // No usable actor header — upsert a deterministic anchor actor by auth_user_id.
-          // BLOCKER fix from code-review-specialist 2026-05-14: previously this used
-          // `prisma.actor.create` with deterministic externalId = `me-${sub.slice(0,8)}`,
-          // which would violate `actors.@@unique([type, externalId])` on the second call
-          // for the same user (Prisma P2002 → 500). Switching to upsert makes it idempotent
-          // and converges concurrent first calls to the same actor row.
+          // Uses provisionFallbackActor helper (DRY — same logic reused in collision path).
           // Note: derived externalId includes 'me-' prefix to namespace it away from
           // anonymous_web client UUIDs (which are not prefixed).
-          const externalId = `me-${payload.sub.slice(0, 8)}`;
-          const newActor = await prisma.actor.upsert({
-            where: { type_externalId: { type: 'anonymous_web', externalId } },
-            create: { type: 'anonymous_web', externalId, lastSeenAt: new Date() },
-            update: { lastSeenAt: new Date() },
-            select: { id: true },
-          });
+          const newActor = await provisionFallbackActor(prisma, payload.sub);
           actorId = newActor.id;
         }
       }
@@ -264,31 +255,98 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
       const accountId = rawAccount.id;
 
       // -----------------------------------------------------------------------
-      // Link actor to account (skip no-op via IS DISTINCT FROM)
+      // Safe link UPDATE: only matches actor rows in two safe states:
+      //   (a) account_id IS NULL — anonymous actor, promote to bearer's account
+      //   (b) account_id = accountId — already linked to same account, idempotent
+      //
+      // Any actor already linked to a DIFFERENT account produces updateResult = 0.
+      // This is the real collision — handled below.
       // -----------------------------------------------------------------------
       const updateResult = await prisma.$executeRaw`
         UPDATE actors
         SET account_id = ${accountId}::uuid
         WHERE id = ${actorId}::uuid
-          AND account_id IS DISTINCT FROM ${accountId}::uuid
+          AND (account_id IS NULL OR account_id = ${accountId}::uuid)
       `;
 
-      // Identity collision check: actor was already linked to a different account
       if (updateResult === 0) {
+        // Fetch to determine which sub-path we're in.
         const currentActor = await prisma.actor.findUnique({
           where: { id: actorId },
-          select: { accountId: true },
+          select: { accountId: true, externalId: true },
         });
-        if (currentActor?.accountId && currentActor.accountId !== accountId) {
-          request.log.warn(
-            {
-              actorId,
-              existingAccountId: currentActor.accountId,
-              bearerAccountId: accountId,
-            },
-            'F107a: identity collision — actor.account_id differs from bearer account; bearer wins',
-          );
+
+        const isSameAccountRace =
+          currentActor !== null && currentActor.accountId === accountId;
+        const isTrueCollision =
+          currentActor !== null &&
+          currentActor.accountId !== null &&
+          currentActor.accountId !== accountId;
+
+        if (!isSameAccountRace) {
+          // Three sub-paths converge here:
+          //   1. currentActor === null              (actor row deleted — transient)
+          //   2. currentActor.accountId === null    (UPDATE missed — MVCC artifact)
+          //   3. isTrueCollision                    (actor owned by different account)
+          // All three need a working linked fallback actor for the bearer.
+          // Only sub-path 3 emits the security telemetry.
+
+          if (isTrueCollision && currentActor) {
+            request.log.warn(
+              {
+                event: 'actor_link_collision',
+                collisionActorId: actorId,
+                victimAccountId: currentActor.accountId,
+                hijackerAccountId: accountId,
+                externalId: currentActor.externalId,
+                requestId: request.id,
+              },
+              'F107a-FU2: actor_link_collision — actor already owned by different account; falling back to me-<sub> actor',
+            );
+
+            captureMessage(
+              'actor_link_collision: actor already owned by different account',
+              'warning',
+              {
+                collisionActorIdHash: hashActor(actorId),
+                victimAccountIdHash: hashActor(currentActor.accountId ?? undefined),
+                hijackerAccountIdHash: hashActor(accountId),
+                externalIdHash: hashActor(currentActor.externalId ?? undefined),
+              },
+              { feature: 'F107a-FU2', event_type: 'actor_link_collision' },
+            );
+          }
+
+          // Common fallback path (all 3 sub-paths).
+          const fallbackActor = await provisionFallbackActor(prisma, payload.sub);
+
+          // Re-run the safe link UPDATE on the fallback actor.
+          // The upsert does NOT set account_id; this UPDATE links it.
+          await prisma.$executeRaw`
+            UPDATE actors
+            SET account_id = ${accountId}::uuid
+            WHERE id = ${fallbackActor.id}::uuid
+              AND (account_id IS NULL OR account_id = ${accountId}::uuid)
+          `;
+
+          // Defense-in-depth: confirm the fallback is linked.
+          const linkCheck = await prisma.actor.findUnique({
+            where: { id: fallbackActor.id },
+            select: { accountId: true },
+          });
+          if (linkCheck?.accountId !== accountId) {
+            throw Object.assign(
+              new Error('Fallback actor could not be linked to bearer account'),
+              { code: 'FALLBACK_LINK_FAILED' },
+            );
+          }
+
+          // Re-target actorId so the existing final fetch + response
+          // construction below operates on the fallback actor.
+          // NO early return; NO hoisting of accountForResponse needed.
+          actorId = fallbackActor.id;
         }
+        // isSameAccountRace: actorId unchanged → existing final fetch is idempotent.
       }
 
       // -----------------------------------------------------------------------
@@ -343,6 +401,29 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Provision (upsert) the deterministic me-<sub> fallback actor for a bearer.
+ *
+ * The externalId `me-<sub.slice(0,8)>` is namespaced to avoid colliding with
+ * anonymous_web client UUIDs (which are not prefixed). The upsert is idempotent
+ * under concurrency: two concurrent callers for the same sub converge on the
+ * same actor row via the @@unique([type, externalId]) constraint.
+ *
+ * NOTE: this does NOT set account_id — the caller must run the safe UPDATE after.
+ */
+async function provisionFallbackActor(
+  prisma: PrismaClient,
+  sub: string,
+): Promise<{ id: string }> {
+  const externalId = `me-${sub.slice(0, 8)}`;
+  return prisma.actor.upsert({
+    where: { type_externalId: { type: 'anonymous_web', externalId } },
+    create: { type: 'anonymous_web', externalId, lastSeenAt: new Date() },
+    update: { lastSeenAt: new Date() },
+    select: { id: true },
+  });
+}
 
 function resolveJwksUrl(config: Config): string {
   if (config.SUPABASE_JWKS_URL) return config.SUPABASE_JWKS_URL;
