@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import Script from 'next/script';
+import { AuthProvider } from '@/components/AuthProvider';
 import '../styles/globals.css';
 
 const inter = Inter({
@@ -39,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" className={inter.variable} suppressHydrationWarning>
       <body className="font-sans">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
         {/* GA4 — conditional: only injected when NEXT_PUBLIC_GA_MEASUREMENT_ID is set.
             strategy="afterInteractive" avoids hydration warnings from raw script tags.
             send_page_view: false — page views are fired manually per route (HablarAnalytics)

@@ -20,6 +20,17 @@ import type {
   MissedQueryStatus,
 } from "./kysely-enums";
 
+export type Account = {
+  id: Generated<string>;
+  auth_user_id: string;
+  email: string;
+  created_at: Generated<Timestamp>;
+  last_seen_at: Generated<Timestamp>;
+  consent_marketing: Generated<boolean>;
+  consent_marketing_at: Timestamp | null;
+  consent_analytics: Generated<boolean>;
+  consent_analytics_at: Timestamp | null;
+};
 export type Actor = {
   id: string;
   type: ActorType;
@@ -27,6 +38,7 @@ export type Actor = {
   locale: string | null;
   created_at: Generated<Timestamp>;
   last_seen_at: Generated<Timestamp>;
+  account_id: string | null;
 };
 export type ApiKey = {
   id: string;
@@ -286,6 +298,7 @@ export type WebMetricsEvent = {
   ip_hash: string | null;
 };
 export type DB = {
+  accounts: Account;
   actors: Actor;
   api_keys: ApiKey;
   cooking_methods: CookingMethod;

@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@foodxplorer/shared": "*",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.45.0",
     "clsx": "^2.1.1",
     "next": "^15.5.14",
     "react": "^18.3.1",

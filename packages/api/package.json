@@ -33,6 +33,7 @@
     "seed:admin-key": "tsx src/scripts/seedApiKey.ts --tier admin"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
     "@fastify/cors": "^10.0.2",
     "@fastify/formbody": "^8.0.0",
     "@fastify/multipart": "^9.4.0",
@@ -49,6 +50,7 @@
     "fastify-plugin": "^5.1.0",
     "fastify-type-provider-zod": "^4.0.2",
     "ioredis": "^5.4.2",
+    "jose": "^5.9.0",
     "kysely": "^0.27.5",
     "node-html-parser": "^6.0.0",
     "openai": "^6.31.0",

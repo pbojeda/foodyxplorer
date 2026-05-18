@@ -113,8 +113,386 @@ tags:
       No public read endpoints are defined for F072 — the profiles are an internal data
       layer consumed by GET /estimate and POST /calculate/recipe. Admin seed/introspection
       endpoints may be added in a future ticket.
+  - name: Auth
+    description: |
+      Authentication endpoints (F107a). Supabase Auth (GoTrue) is the identity provider
+      per ADR-025 R3. Web clients authenticate via Email magic link or Google OAuth.
+      Fastify verifies Supabase-issued JWTs via JWKS (jose library) — no Supabase SDK
+      on the API hot path.
+
+      **Bearer precedence rule (ADR-025 R3 §5 — strict):**
+      - `Authorization` header absent → anonymous flow (existing F069 actorResolver behaviour).
+      - `Authorization` present + JWT valid → authenticated flow; `X-Actor-Id` is observed
+        only as the merge target for the actor link, not for identity selection.
+      - `Authorization` present + JWT invalid/expired/malformed → **401 immediately**.
+        Do NOT silently fall through to anonymous resolution.
+
+      **Session token format:** Supabase-issued RS256 JWT. Access token TTL: 1 hour (default).
+      Web client (Supabase JS SDK) handles silent refresh automatically before expiry.
+
+      **Scope:** Web only. Telegram bot is paused (ADR-026) — no bot auth paths in this spec.
+      Landing app (`packages/landing/`) is marketing-only — no authenticated state.
 
 paths:
+  # ---------------------------------------------------------------------------
+  # F107a — Auth (Supabase Auth, web)
+  # ADR-025 R3 §1-§9
+  # ---------------------------------------------------------------------------
+
+  /auth/login:
+    post:
+      summary: Initiate Supabase Auth login (email magic link or Google OAuth)
+      description: |
+        Initiates a Supabase Auth login flow for web clients.
+
+        **Email magic link (provider=email):**
+        Calls `supabase.auth.signInWithOtp({ email, emailRedirectTo: redirectTo })` on the
+        API side. Returns `{ success: true }` when Supabase accepts the request; the magic
+        link is sent to the user's inbox. No session is created at this point — the session
+        is established when the user clicks the link and the web app handles the callback at
+        `/auth/callback`.
+
+        **Google OAuth (provider=google) — F107a-FU1, NOT enabled in F107a:**
+        Returns HTTP 400 + `code: 'PROVIDER_NOT_ENABLED'` in F107a. The request body schema
+        accepts `provider: 'google'` (forward-compatibility with F107a-FU1, no schema break),
+        but the handler explicitly rejects the branch until F107a-FU1 ships.
+        When F107a-FU1 lands, the handler will call
+        `supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } })`
+        and return `{ url }` (200 response shape is documented below for forward-compat).
+
+        **No session is created by this endpoint.** Session creation always happens on the
+        web app via the Supabase JS SDK callback handler (`/auth/callback` — see below).
+
+        **Rate limit:** 5 requests/minute per IP (Fastify rate limiter). Exceeding returns 429.
+        This is in addition to Supabase's built-in magic link rate limiting.
+
+        **ADR-025 R3 §1** — providers: Email magic link ships in F107a; Google OAuth deferred to F107a-FU1 (operator does not yet have GCP project). LoginRequestSchema is forward-compatible (accepts both providers); the F107a handler returns 400 `PROVIDER_NOT_ENABLED` for Google requests.
+      operationId: authLogin
+      tags:
+        - Auth
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              emailMagicLink:
+                summary: Email magic link
+                value:
+                  provider: email
+                  email: "user@example.com"
+                  redirectTo: "https://app.nutrixplorer.com/auth/callback"
+              googleOAuth:
+                summary: Google OAuth
+                value:
+                  provider: google
+                  redirectTo: "https://app.nutrixplorer.com/auth/callback"
+      responses:
+        '200':
+          description: |
+            Login initiated successfully.
+            - Email: `{ success: true }` — magic link sent to inbox.
+            - Google: `{ url }` — caller must redirect browser to this URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginApiResponse'
+              examples:
+                emailSuccess:
+                  summary: Email magic link sent
+                  value:
+                    success: true
+                    data:
+                      provider: email
+                      success: true
+                googleRedirect:
+                  summary: Google OAuth redirect URL
+                  value:
+                    success: true
+                    data:
+                      provider: google
+                      url: "https://oixxxxxxxx.supabase.co/auth/v1/authorize?provider=google&redirect_to=..."
+        '400':
+          description: |
+            Validation error (missing or invalid fields) OR Google provider requested in F107a
+            (PROVIDER_NOT_ENABLED — F107a-FU1 will enable this branch).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validationError:
+                  summary: Validation error
+                  value:
+                    success: false
+                    error:
+                      message: "Validation failed"
+                      code: "VALIDATION_ERROR"
+                      details:
+                        - path: ["email"]
+                          message: "Invalid email"
+                          code: "invalid_string"
+                providerNotEnabled:
+                  summary: Google provider requested in F107a (deferred to F107a-FU1)
+                  value:
+                    success: false
+                    error:
+                      message: "Google OAuth is not yet enabled. Use email magic link, or wait for F107a-FU1."
+                      code: "PROVIDER_NOT_ENABLED"
+        '429':
+          description: Rate limit exceeded (5 req/min per IP).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Too many login attempts — try again in 60 seconds"
+                  code: "RATE_LIMIT_EXCEEDED"
+        '503':
+          description: |
+            Supabase Auth unavailable (JWKS fetch or Auth API call failed).
+            Includes `Retry-After` header (seconds). Do NOT fail-open.
+            ADR-025 R3 §2 — strict precedence: JWKS failure → 503, not anonymous fallback.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds to wait before retrying.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Auth provider unavailable — please retry shortly"
+                  code: "AUTH_PROVIDER_UNAVAILABLE"
+
+  /auth/callback:
+    get:
+      summary: Web-only auth callback — handled by Supabase JS SDK in the browser
+      description: |
+        This endpoint is NOT implemented in the Fastify API backend.
+        It is handled entirely by the Next.js web app (`packages/web/`) using the
+        Supabase JS SDK (`supabase.auth.exchangeCodeForSession()`).
+
+        Flow:
+        1. Supabase redirects browser to `https://app.nutrixplorer.com/auth/callback?code=<code>`.
+        2. The Next.js route handler at `app/auth/callback/route.ts` calls
+           `supabase.auth.exchangeCodeForSession(code)`.
+        3. On success: session stored in browser (Supabase JS SDK manages cookies/localStorage).
+        4. Redirect to `/hablar` with user menu showing authenticated state.
+        5. On error (cancelled OAuth, expired magic link): display user-facing error message.
+
+        Documented here for completeness — not a Fastify API route.
+
+        **ADR-025 R3 §4** — cross-domain auth transport via bearer header; session established
+        client-side by the Supabase JS SDK.
+      operationId: authCallbackWebOnly
+      tags:
+        - Auth
+      x-handled-by: web
+      x-web-package: packages/web
+      x-web-path: app/auth/callback/route.ts
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: PKCE authorization code provided by Supabase after OAuth/magic-link flow.
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Error code from Supabase if auth was cancelled or failed.
+        - name: error_description
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Human-readable error description.
+      responses:
+        '302':
+          description: |
+            Redirect on success (→ /hablar) or error (→ /login?error=...).
+            All logic is in the web app, not the API.
+
+  /auth/logout:
+    post:
+      summary: Invalidate the current Supabase session
+      description: |
+        Calls `supabase.auth.signOut()` via the Supabase admin client using the bearer
+        token from the `Authorization` header to revoke the session server-side.
+
+        **Important:** Supabase session invalidation is asynchronous server-side. After
+        this endpoint returns 204, in-flight requests carrying the same JWT may still
+        succeed for a brief window (bounded by the Supabase auth event propagation delay,
+        typically <1s). The web client MUST clear the local session state immediately on
+        204 regardless of this window.
+
+        **Auth required:** Must send `Authorization: Bearer <jwt>`. Returns 401 if no valid
+        JWT is present (strict precedence per ADR-025 R3 §5).
+
+        **ADR-025 R3 §5** — bearer header transport.
+      operationId: authLogout
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Session invalidated. No response body.
+        '401':
+          description: No valid bearer token present.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noBearer:
+                  summary: Authorization header absent
+                  value:
+                    success: false
+                    error:
+                      message: "Authentication required"
+                      code: "UNAUTHORIZED"
+                expiredJwt:
+                  summary: Token expired
+                  value:
+                    success: false
+                    error:
+                      message: "Token has expired"
+                      code: "TOKEN_EXPIRED"
+        '503':
+          description: Supabase Auth unavailable. Includes Retry-After header.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Auth provider unavailable — please retry shortly"
+                  code: "AUTH_PROVIDER_UNAVAILABLE"
+
+  /me:
+    get:
+      summary: Return account and actor for the authenticated request
+      description: |
+        Returns the authenticated user's account row and the actor associated with the
+        current request. Requires a valid `Authorization: Bearer <jwt>` header.
+
+        **First-login behaviour (ADR-025 R3 §4 merge semantics):**
+        If the authenticated user has no `public.accounts` row yet (new signup), this
+        endpoint creates one (upsert on `auth_user_id` — idempotent under concurrent
+        requests from two devices). Then it links `actors.account_id` to the new/existing
+        account for the actor resolved from `X-Actor-Id`. Subsequent calls return 200
+        with the existing row.
+
+        **Multi-device behaviour:** A second device with a different anonymous actor hits
+        `/me` after login → the same `accounts` row is found by `auth_user_id` → that
+        actor's `account_id` is set → both actors coexist with the same `account_id`.
+        No uniqueness conflict (ADR-025 R3 §3 — `actors.account_id` is non-unique by design).
+
+        **Identity collision (deferred to F107b):** If `actor.account_id` is already set
+        to a DIFFERENT account than the current bearer's account, the API logs a warning
+        and returns the bearer's account (bearer wins). It does NOT auto-merge. Anonymous
+        → authenticated merge is F107b scope.
+
+        **Orphan reconciliation:** If `auth.users` has a row for the JWT `sub` but no
+        `public.accounts` row exists (incomplete prior migration), this endpoint creates
+        the accounts row on first hit.
+
+        **Auth required:** 401 if no/invalid/expired bearer. NOT anonymous — `/me` is
+        strictly auth-gated. ADR-025 R3 §5.
+      operationId: getMe
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Authenticated user's account and actor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeApiResponse'
+              example:
+                success: true
+                data:
+                  account:
+                    id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                    authUserId: "f0e1d2c3-b4a5-6789-abcd-ef0123456789"
+                    email: "user@example.com"
+                    createdAt: "2026-05-14T10:00:00.000Z"
+                    lastSeenAt: "2026-05-14T11:30:00.000Z"
+                    consentMarketing: false
+                    consentMarketingAt: null
+                    consentAnalytics: false
+                    consentAnalyticsAt: null
+                  actor:
+                    id: "11111111-2222-3333-4444-555555555555"
+                    type: "anonymous_web"
+                    externalId: "88888888-9999-aaaa-bbbb-cccccccccccc"
+                    accountId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        '401':
+          description: |
+            No bearer token, invalid token, or expired token.
+            ADR-025 R3 §5 strict precedence — present-but-invalid never falls through to
+            anonymous flow.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noBearer:
+                  summary: Authorization header absent
+                  value:
+                    success: false
+                    error:
+                      message: "Authentication required"
+                      code: "UNAUTHORIZED"
+                expiredJwt:
+                  summary: Token expired
+                  value:
+                    success: false
+                    error:
+                      message: "Token has expired"
+                      code: "TOKEN_EXPIRED"
+                invalidJwt:
+                  summary: Invalid signature or malformed JWT
+                  value:
+                    success: false
+                    error:
+                      message: "Invalid or malformed token"
+                      code: "INVALID_TOKEN"
+        '503':
+          description: Supabase JWKS fetch failed. Includes Retry-After header.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Auth provider unavailable — please retry shortly"
+                  code: "AUTH_PROVIDER_UNAVAILABLE"
+
   /ingest/pdf:
     post:
       summary: Ingest nutritional data from a PDF upload
@@ -9653,7 +10031,226 @@ components:
           format: date-time
           example: "2026-04-03T00:00:00.000Z"
 
+    # -------------------------------------------------------------------------
+    # F107a — Auth schemas
+    # ADR-025 R3 §3 data model
+    # -------------------------------------------------------------------------
+
+    Account:
+      type: object
+      description: |
+        App-owned account row (public.accounts). Created on first successful login.
+        Stores identity, consent timestamps, and (in future) billing state.
+        Body/health fields are NOT here — they belong to public.profiles (F099).
+        ADR-025 R3 §3.
+      required:
+        - id
+        - authUserId
+        - email
+        - createdAt
+        - lastSeenAt
+        - consentMarketing
+        - consentAnalytics
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        authUserId:
+          type: string
+          format: uuid
+          description: |
+            Logical reference to auth.users.id (Supabase-managed). UNIQUE in public.accounts.
+            Not a hard FK to the managed auth schema — logical reference only.
+          example: "f0e1d2c3-b4a5-6789-abcd-ef0123456789"
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: "user@example.com"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-05-14T10:00:00.000Z"
+        lastSeenAt:
+          type: string
+          format: date-time
+          example: "2026-05-14T11:30:00.000Z"
+        consentMarketing:
+          type: boolean
+          default: false
+          description: RGPD marketing consent flag (ADR-025 R3 §7).
+          example: false
+        consentMarketingAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when marketing consent was last toggled. Null if never set.
+          example: null
+        consentAnalytics:
+          type: boolean
+          default: false
+          description: RGPD analytics consent flag.
+          example: false
+        consentAnalyticsAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when analytics consent was last toggled. Null if never set.
+          example: null
+
+    ActorSummary:
+      type: object
+      description: Actor info embedded in MeResponse. Current request's resolved actor.
+      required:
+        - id
+        - type
+        - externalId
+        - accountId
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "11111111-2222-3333-4444-555555555555"
+        type:
+          type: string
+          enum: [anonymous_web, telegram, authenticated]
+          description: |
+            Actor type. `telegram` is dormant per ADR-026 (bot paused).
+            `authenticated` is retained for schema compatibility but unused — merge sets
+            account_id instead of flipping type (ADR-025 R3 §3).
+          example: "anonymous_web"
+        externalId:
+          type: string
+          maxLength: 255
+          description: UUID for anonymous_web actors; chat ID for telegram (dormant).
+          example: "88888888-9999-aaaa-bbbb-cccccccccccc"
+        accountId:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            FK to public.accounts.id. NULL for actors not yet linked to an account
+            (pre-login anonymous actors). Set on first /me hit after login.
+            NON-UNIQUE — N devices → N actors → 1 account (ADR-025 R3 §3, §4).
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    MeData:
+      type: object
+      description: Payload for GET /me.
+      required:
+        - account
+        - actor
+      properties:
+        account:
+          $ref: '#/components/schemas/Account'
+        actor:
+          $ref: '#/components/schemas/ActorSummary'
+
+    MeApiResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/MeData'
+
+    LoginRequest:
+      type: object
+      description: |
+        POST /auth/login request body. Discriminated on `provider`.
+        - provider=email: requires `email` field.
+        - provider=google: `email` is not used.
+        Both require `redirectTo` (the web app callback URL).
+      required:
+        - provider
+        - redirectTo
+      properties:
+        provider:
+          type: string
+          enum: [email, google]
+          description: Auth provider to use.
+          example: "email"
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Required when provider=email. Ignored for Google OAuth.
+          example: "user@example.com"
+        redirectTo:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: |
+            Callback URL for Supabase to redirect to after auth. Must be an allowed
+            redirect URL configured in the Supabase Auth project dashboard.
+            For web app: `https://app.nutrixplorer.com/auth/callback`.
+          example: "https://app.nutrixplorer.com/auth/callback"
+
+    LoginEmailSuccess:
+      type: object
+      description: Response data when provider=email — magic link sent.
+      required:
+        - provider
+        - success
+      properties:
+        provider:
+          type: string
+          enum: [email]
+        success:
+          type: boolean
+          enum: [true]
+
+    LoginGoogleRedirect:
+      type: object
+      description: Response data when provider=google — OAuth redirect URL.
+      required:
+        - provider
+        - url
+      properties:
+        provider:
+          type: string
+          enum: [google]
+        url:
+          type: string
+          format: uri
+          description: Supabase OAuth redirect URL. Browser must be redirected here.
+          example: "https://oixxxxxxxx.supabase.co/auth/v1/authorize?provider=google&redirect_to=..."
+
+    LoginApiResponse:
+      type: object
+      description: POST /auth/login success envelope.
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/LoginEmailSuccess'
+            - $ref: '#/components/schemas/LoginGoogleRedirect'
+          discriminator:
+            propertyName: provider
+
   securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Supabase-issued RS256 JWT. Sent as `Authorization: Bearer <token>` on API requests.
+        Verified by Fastify via Supabase JWKS endpoint using the `jose` library.
+        No Supabase JS SDK on the API hot path — pure JWKS verification (ADR-025 R3 §2).
+
+        **Strict precedence (ADR-025 R3 §5):**
+        - Header absent → anonymous flow (F069 actorResolver).
+        - Header present + valid → authenticated flow.
+        - Header present + invalid/expired → 401 immediately. No silent downgrade.
+
+        **Token refresh:** Supabase JS SDK (web client) handles silent token refresh
+        before expiry (1h TTL). Expired tokens always return 401 TOKEN_EXPIRED.
     ApiKeyAuth:
       type: apiKey
       in: header

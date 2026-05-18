@@ -1896,3 +1896,259 @@ class ApiError extends Error {
 ```
 
 All existing call sites (`sendMessage`, `sendPhotoAnalysis`) parse `body.error?.details` when present and pass to the `ApiError` constructor. Existing tests that redeclare `ApiError` inline must be updated to include the new optional field (no test should break — `details` is optional).
+
+---
+
+## Web Package — nutriXplorer (F107a: Auth core — Supabase Auth, web)
+
+**Feature:** F107a | **Package:** `packages/web/` | **ADR:** ADR-025 R3
+
+Auth scope is web-only. Landing app (`packages/landing/`) has no authenticated state.
+Telegram bot is paused (ADR-026). All components below live in `packages/web/`.
+
+### Updated Component Hierarchy (F107a additions)
+
+```
+App (packages/web/)
+├── RootLayout (Server)
+│   └── AuthProvider (Client — NEW: wraps all routes with Supabase session context)
+├── /login (route — NEW)
+│   └── LoginPage (Client)
+│       ├── EmailLoginForm (Client)
+│       └── OAuthButton (Client — Google)
+├── /auth/callback (route — NEW, Next.js route handler)
+│   └── AuthCallbackPage (Client — token exchange + redirect)
+├── /hablar (existing route — UPDATED)
+│   └── HablarShell (Client — UPDATED: reads useAuth() for accountId)
+│       └── Header (updated: conditionally renders UserMenu)
+│           └── UserMenu (Client — NEW: avatar dropdown)
+└── hooks/
+    └── useAuth() (Client hook — NEW)
+```
+
+---
+
+### AuthProvider (NEW)
+
+**Type:** Layout | **Client:** Yes (`'use client'`)
+**File:** `src/components/AuthProvider.tsx`
+
+Wraps all app routes. Creates the Supabase browser client and provides session context
+via React Context so any child can call `useAuth()` without prop-drilling.
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| children | `React.ReactNode` | Yes | — | App subtree |
+
+**State (context value):**
+- `user: User | null` — Supabase `auth.User` object; null when unauthenticated.
+- `session: Session | null` — Supabase `Session` with access token; null when unauthenticated.
+- `loading: boolean` — true during initial session hydration (before first `onAuthStateChange` fires).
+- `signIn(provider, email?, redirectTo)` — calls `POST /auth/login` API.
+- `signOut()` — calls `POST /auth/logout` API then clears local session.
+
+**Behaviour:**
+- Calls `supabase.auth.onAuthStateChange()` on mount to receive session updates.
+- On `SIGNED_IN`: sets `user` + `session`, updates `loading=false`.
+- On `SIGNED_OUT`: clears `user` + `session`.
+- On `TOKEN_REFRESHED`: updates `session` with new access token (Supabase SDK handles this automatically — component just receives the event).
+- Supabase browser client configured with `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` (ADR-025 R3 §4 — cross-domain bearer transport).
+
+**Loading/Error/Empty States:**
+- Loading: while `loading=true`, `useAuth()` consumers render a skeleton/null (each consumer's responsibility).
+- Error: auth errors surface via `useAuth().error` (see hook spec below).
+
+---
+
+### useAuth() hook (NEW)
+
+**Type:** Hook | **Client:** Yes
+**File:** `src/hooks/useAuth.ts`
+
+Reads the auth context provided by `AuthProvider`. Must be used inside a component
+that is a descendant of `AuthProvider`.
+
+**Returns:**
+```typescript
+{
+  user: User | null;         // Supabase User object; null when unauthenticated
+  session: Session | null;   // Supabase Session; null when unauthenticated
+  loading: boolean;          // true during initial session hydration
+  error: string | null;      // auth error message (e.g. 'Token expired')
+  signIn: (
+    provider: 'email' | 'google',
+    email?: string,
+    redirectTo?: string
+  ) => Promise<void>;
+  signOut: () => Promise<void>;
+}
+```
+
+**Contract:**
+- `signIn(provider='email', email, redirectTo)`: calls `POST /auth/login`, transitions UI.
+- `signIn(provider='google', redirectTo)`: calls `POST /auth/login`, receives `{ url }`, redirects browser.
+- `signOut()`: calls `POST /auth/logout`, clears local session, redirects to `/`.
+- Throws from `signIn`/`signOut` are caught internally; surfaced via `error` field.
+
+---
+
+### LoginPage (NEW)
+
+**Type:** Page | **Client:** Yes (`'use client'`)
+**File:** `src/app/login/page.tsx`
+**Route:** `/login`
+
+**Props:** None (Next.js page — no props from parent)
+
+**State:**
+- `status: 'idle' | 'loading' | 'success' | 'error'` — submission state.
+- `errorMessage: string | null` — inline error text.
+- `provider: 'email' | 'google' | null` — which provider is in flight (drives loading indicator placement).
+
+**Interactions:**
+- Email field + "Entrar con email" button → calls `useAuth().signIn('email', email, redirectTo)`.
+- "Continuar con Google" button → calls `useAuth().signIn('google', undefined, redirectTo)`.
+- `redirectTo` defaults to `${window.location.origin}/auth/callback`.
+
+**Loading/Error/Empty States:**
+- Loading (email): spinner inside email button, button disabled, Google button disabled.
+- Loading (Google): spinner inside Google button, email form disabled.
+- Success (email): replaces form with "Revisa tu correo — te hemos enviado un enlace de acceso" (per ADR-025 R3 §6 UX).
+- Error: inline error below the triggering control. Google cancel is NOT an error — if `error_description` from callback is `'cancelled by user'`, show nothing.
+- Empty: default idle state — email field + two provider buttons.
+
+**Accessibility:**
+- `<main role="main">`, `<h1>` — "Accede a nutriXplorer".
+- Email field: `<label>` linked via `htmlFor`, `aria-describedby` for error.
+- Buttons: `aria-busy={status === 'loading'}`.
+- Error message: `role="alert"`.
+
+---
+
+### AuthCallbackPage (NEW)
+
+**Type:** Page | **Client:** Yes (`'use client'`)
+**File:** `src/app/auth/callback/route.ts`
+
+Next.js **Route Handler** (not a Client Component — this is a server-side Route Handler
+that runs the PKCE code exchange).
+
+**Behaviour:**
+1. Reads `code` query param from URL.
+2. Calls `supabase.auth.exchangeCodeForSession(code)`.
+3. On success: `redirect('/hablar')` (Next.js redirect).
+4. On error (missing code, expired code, cancelled OAuth): `redirect('/login?error=callback_failed')`.
+
+**State:** None (server-side route handler — no React state).
+
+**No React rendering** — this is a server redirect, not a page component. Any user-visible error message is shown by `LoginPage` reading the `error` query param.
+
+**Client error display** is in `LoginPage`: when `error` query param is present, show
+`errorMessage` based on the code:
+- `callback_failed` → "El enlace de acceso ha expirado o ha sido cancelado. Inténtalo de nuevo."
+- `cancelled_oauth` → no message shown (Google cancel, per ADR-025 R3 §6 UX).
+
+---
+
+### UserMenu (NEW)
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+**File:** `src/components/UserMenu.tsx`
+
+Authenticated avatar + dropdown in the app header. Only rendered when `useAuth().user` is non-null.
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| user | `User` | Yes | — | Supabase User object from useAuth() |
+
+**State:**
+- `isOpen: boolean` — dropdown open/closed.
+
+**Rendering (closed):**
+- Circular avatar button (32px) — user initials or generic avatar icon.
+- `aria-haspopup="menu"` `aria-expanded={isOpen}`.
+
+**Rendering (open — dropdown):**
+- Email address (read-only, truncated at 200px).
+- Separator.
+- "Cerrar sesión" button → calls `useAuth().signOut()`.
+
+**Interactions:**
+- Click avatar → toggles dropdown.
+- Click outside / `Escape` → closes dropdown.
+- "Cerrar sesión" → `signOut()` → redirect to `/`.
+
+**Loading/Error/Empty States:**
+- Loading: while `signOut()` is in-flight, "Cerrar sesión" button shows spinner + is disabled.
+- Error: if `signOut()` fails, shows inline error "Error al cerrar sesión — inténtalo de nuevo."
+- Empty/unauthenticated: component is not rendered (parent guards on `user !== null`).
+
+**Accessibility:**
+- `role="menu"` on dropdown, `role="menuitem"` on items.
+- Keyboard: Enter/Space on avatar → open/close; Arrow Down → first item; Escape → close.
+- Focus trap: Tab cycles within open dropdown.
+
+---
+
+### Updated: HablarShell (F107a additions)
+
+**File:** `src/components/HablarShell.tsx`
+
+**New state:** None added directly — reads `useAuth()` hook.
+
+**Changes:**
+- Reads `useAuth().session?.access_token` and includes it as `Authorization: Bearer <token>`
+  in all outbound API calls (`sendMessage`, `sendPhotoAnalysis`, `sendVoiceMessage`) via
+  a shared request interceptor in `apiClient.ts`. Bearer header is omitted when
+  `session` is null (anonymous flow — existing behaviour preserved, ADR-025 R3 §5).
+- `X-Actor-Id` header continues to be sent alongside bearer (observed for actor merge seam).
+- No behavioral changes to conversation logic — auth is transport-layer only for F107a.
+  F107b will handle actor→account merge.
+
+---
+
+### Updated: apiClient.ts (F107a additions)
+
+**File:** `src/lib/apiClient.ts`
+
+**New export:** `setAuthToken(token: string | null) => void`
+
+All API call functions (`sendMessage`, `sendPhotoAnalysis`, `sendVoiceMessage`) read the
+current token from module-level state and attach `Authorization: Bearer <token>` when non-null.
+`AuthProvider` calls `setAuthToken(session?.access_token ?? null)` on auth state changes.
+
+---
+
+### New env vars (F107a — web package)
+
+| Var | Scope | Description |
+|-----|-------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Client + Server | Supabase project URL (EU Frankfurt) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Client + Server | Supabase public anon key |
+
+**Server-only (API package):**
+
+| Var | Scope | Description |
+|-----|-------|-------------|
+| `SUPABASE_URL` | Server only | Supabase project URL (same as above, but server-only reference) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server only | Supabase service role key (used for `POST /auth/logout` server-side signOut) |
+| `SUPABASE_JWT_SECRET` | Server only | Used ONLY as fallback if JWKS endpoint is unavailable (HS256 fallback — document with warning in runbook) |
+| `SUPABASE_JWKS_URL` | Server only | JWKS endpoint URL (e.g. `https://<project>.supabase.co/auth/v1/.well-known/jwks.json`) |
+
+See `docs/operations/supabase-auth-setup.md` for full env var setup instructions.
+
+---
+
+### Auth Analytics Events (F107a)
+
+| Event | Trigger | Payload |
+|-------|---------|---------|
+| `auth_login_start` | User clicks email or Google button on LoginPage | `{ provider: 'email' \| 'google' }` |
+| `auth_login_success` | `onAuthStateChange` fires `SIGNED_IN` | `{ provider: 'email' \| 'google' }` |
+| `auth_login_error` | Login attempt returns error | `{ provider: 'email' \| 'google', code: string }` |
+| `auth_logout` | UserMenu "Cerrar sesión" clicked | `{}` |
+
+All events fired via existing `trackEvent()` or `window.gtag` in `packages/web/src/lib/metrics.ts`.
+Non-PII — no email addresses in payloads.

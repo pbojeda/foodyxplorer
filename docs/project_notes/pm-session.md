@@ -1,38 +1,24 @@
 # PM Autonomous Session
 
-**Started:** 2026-05-11
-**Session ID:** pm-hardening
+**Started:** 2026-05-14
+**Session ID:** pm-auth-core
 **Autonomy Level:** L5 (PM Autonomous)
-**Status:** completed (Batch 1 COMPLETE — awaiting user audit before Batch 2)
+**Status:** in-progress
 **Target Branch:** develop
-
-**Sprint:** Hardening Batch 1 (per roadmap `/Users/pb/.claude/plans/twinkly-booping-marble.md` — Batch 1). User pre-authorized batch via plan approval 2026-05-11. **Pause requirement**: detailed audit summary after both features merge to develop, BEFORE proceeding to Batch 2 (Auth + ADR-025).
-
-**Baseline @ session start (develop @ `81eea5c`):**
-- `npm test` exit 0 (web 499/499 latest sample; full suite 8.228 tests per previous merge of `pm-conv-polish`)
-- `npm run lint` exit 0 across all workspaces (shared, api, bot, scraper, landing, web)
-- `npm run build` exit 0
-- Working tree clean
-
-**Scope reduction confirmed (user-approved 2026-05-11):**
-- **F116-lite** = `F116` reduced to: (1) remove `|| true` from `ci.yml:182` api lint, (2) add `Lint scraper` CI step, (3) branch protection on develop+main (manual GH UI task w/ checklist). DEFERRED: scraper `no-this-alias` cleanup, `defaults.run.shell` hardening, `package.json` scripts audit, `test-landing` context refactor, api lint cleanup (api lint already clean post-F115 — verified `npm run lint -w @foodxplorer/api` exit 0).
-- **F030-lite** = `F030` reduced to: install + init Sentry SDK in api, basic error handler integration, env var docs, post-merge alert config checklist. DEFERRED: formal SLOs, runbooks, custom metrics, bot/web/landing instrumentation.
-
-**Complexity reclassification (post-baseline inspection):** Original plan tagged both as Standard. After empirical baseline (lint clean, no Sentry install) both qualify as **Simple** lite versions. Will run as Simple-equivalent through development-workflow.
 
 ## Current Batch
 
-_(All features in batch completed — see Completed Features below.)_
-
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
+| F107a — Auth core (Supabase Auth) | Standard | in-progress | — | Step 5/6 — Review COMPLETE. PR #279 open. production-code-validator APPROVED (0 findings). code-review-specialist: 1 BLOCKER + 3 MAJOR + 5 MINOR — BLOCKER + MAJORs fixed in `bdccbe6`. qa-engineer: 4 MAJORs — all fixed (AC8 spec deviation, AC27 rate-limit unit test added, F3 JWKS rotation test corrected by qa-engineer, AC16 Retry-After test added). Status: Ready for Merge. 49 F107a tests passing. Pending: /audit-merge + user merge approval. |
+| F105 — Landing Coverage Showcase | Simple | pending | — | After /compact post F107a. Frontend only on packages/landing. |
 
 ## Completed Features
 
+_(Move features here as they complete)_
+
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
-| F116-lite | Simple | ~2h | DONE 6/6. Squash-merged at `beafc43` via PR #264. 4 commits collapsed. Spec R1 + Plan R1 cross-model (Gemini APPROVED both, Codex REVISE both → fixes inline). code-review APPROVE WITH MINOR (3 IMPORTANT inline). qa-engineer PASS WITH ONE FOLLOW-UP. /audit-merge 11/11+12/12 PASS. CI green run 25662691769 (test-scraper +1 step `Lint scraper`). |
-| F030-lite | Simple | ~3h | DONE 6/6. Squash-merged at `a585c37` via PR #265. 5 commits collapsed. Spec R1 (Gemini REVISE + Codex REVISE, 6 findings inline) + Plan R1 (Gemini REVISE + Codex REVISE, 8 findings inline). production-code-validator 0 findings READY FOR PRODUCTION. code-review APPROVE WITH MINOR (3 IMPORTANT inline ba6d841). qa-engineer PASS WITH ONE FOLLOW-UP (fixed inline). /audit-merge 11/11 + drift fixed (P2 + P12) PASS. CI green run 25664827138. 30 new tests (10 unit + 14 edge + 3 integration + 3 SENTRY_DSN config). |
 
 ## Blocked Features
 
@@ -43,14 +29,24 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** None — Batch 1 COMPLETE.
-**Branch:** N/A
-**Next features:** F107a + F105 (Batch 2 — Auth core + Trust signal) per roadmap. **REQUIRES**: (a) user audit of Batch 1, (b) ADR-025 (auth provider selection — Google Identity Platform vs Supabase Auth vs custom) authored BEFORE Batch 2 starts.
-**Blocked:** awaiting user audit confirmation before starting Batch 2.
+**Current feature:** F107a (Auth core — Supabase Auth)
+**Branch:** (to be created at Step 1 Setup)
+**Next features:** F105 (Landing Coverage Showcase) after /compact
+**Blocked:** none
 
-**Completed in this session:** F116-lite (PR #264 `beafc43`) + F030-lite (PR #265 `a585c37`).
-
-To resume after /compact: run `start pm` with Batch 2 args after user audit + ADR-025.
+**Operator dependency:** Supabase Auth setup in dev + prod projects (in progress — Task #18). Step 3 Implement blocked until ENV vars in place. Steps 0–2 (Spec + Setup + Plan) proceed in parallel.
 
 To resume after /compact: run `continue pm`
 To stop gracefully: run `stop pm`
+
+## Auto-Approved Decisions
+
+| Date | Step | Decision | Rationale |
+|------|------|----------|-----------|
+
+## Baseline (verified 2026-05-14 pre-batch)
+
+- `npm test` (full monorepo): exit 0 ✓
+- `npm run lint` (full monorepo): exit 0 ✓
+- `git status`: clean on develop@5d81bf0
+- Known pre-existing: BUG-API-HEALTH-PRISMA-MOCK-001 (5 health tests fail when run via `npm test -w @foodxplorer/api` in isolation; not surfaced in full monorepo run — env-dependent)
