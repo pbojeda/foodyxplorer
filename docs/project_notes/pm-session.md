@@ -3,20 +3,19 @@
 **Started:** 2026-05-14
 **Session ID:** pm-auth-core
 **Autonomy Level:** L5 (PM Autonomous)
-**Status:** in-progress
+**Status:** completed
 **Target Branch:** develop
 
 ## Current Batch
 
-| Feature | Complexity | Status | Duration | Notes |
-|---------|------------|--------|----------|-------|
-| F105 — Landing Coverage Showcase | Simple | in-progress | — | Step 5/6 (Review) 2026-05-18. PR #281 (commit `62ae3d5`). code-review-specialist APPROVED + M1 `<dl>` content-model + M2 aria redundancy fixed inline. CI green (ci-success SUCCESS, mergeStateStatus CLEAN). 11 new tests pass. Awaiting merge approval. |
+_(Batch complete — see Completed Features below.)_
 
 ## Completed Features
 
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
 | F107a — Auth core (Supabase Auth) | Standard | 4 days (2026-05-14 → 2026-05-18) | Shipped via PR #279 squash `b359885`. 20 feature-branch commits collapsed. 27 ACs + 9 DoD. 109 new tests (api 55, web 54). production-code-validator APPROVED. code-review + qa-engineer REQUEST CHANGES → all BLOCKER/MAJORs fixed inline. 2 external audit cycles (1st REJECT → fixed in `8435253`; 2nd APPROVED). Post-merge sanity green. Operator action pending (Supabase Auth Email provider + Render/Vercel env + manual smoke per `docs/operations/supabase-auth-setup.md`). |
+| F105 — Landing Coverage Showcase | Simple | ~1.5h (2026-05-18) | Shipped via PR #281 squash `101f6fc`. 4 feature-branch commits collapsed. 9 ACs + 6 DoD. 11 new tests (6 drift + 5 component). code-review-specialist APPROVED with 2 MAJORs fixed inline (M1 `<dl>` content-model + M2 redundant aria), 4 NITs declined per Simple YAGNI. `/audit-merge` 11/11 structural PASS. Post-merge sanity green (60 suites, 749/752). Empirical seed counts shipped: 319 platos · 564 alimentos · 10 categorías · 4 niveles de confianza. |
 
 ## Blocked Features
 
@@ -27,11 +26,10 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** F105 — Landing Coverage Showcase (Simple). Step 1/6 (Setup) complete.
-**Branch:** `feature/F105-landing-coverage-showcase` off develop@81e40c5.
-**Ticket:** `docs/tickets/F105-landing-coverage-showcase.md`.
-**Next step:** Step 3 Implement — TDD on `packages/landing`: (a) helper `src/lib/coverage-counts.ts` with Vitest fixtures, (b) `CoverageShowcaseSection.tsx` component, (c) i18n entry `coverageShowcase` in `es.ts`, (d) wire in `app/page.tsx` between `RestaurantsSection` and `WaitlistCTASection`.
-**Blocked:** none — F105 is independent of F107a operator dependency.
+**Current feature:** None — Batch 2 complete.
+**Branch:** `develop` (clean post-merge `101f6fc`).
+**Next:** Release bundle develop → main (open release PR collecting #277 voice §12 + #278 SDD 0.18.4 + #279 F107a + #280 housekeeping + #281 F105) and then `start pm` for Batch 3 `pm-profiles` (F107b actor merge + F099-lite profiles).
+**Blocked:** none.
 
 **Operator dependency (F107a, separate from F105):** Supabase Auth Email provider + Render/Vercel env vars + manual smoke checklist in `docs/operations/supabase-auth-setup.md`. Pending out-of-repo. /login page currently renders with placeholder Supabase client (auth API calls fail loud until real env vars set in Vercel — per `8435253` defensive fallback).
 
