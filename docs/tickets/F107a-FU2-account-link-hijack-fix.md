@@ -790,8 +790,8 @@ This helper is private to the module and does NOT need its own test file — it 
 | 2. Verify product tracker | [x] | Active Session shows step 5/6 with PR #283 context; Features table row F107a-FU2 = `in-progress` at step `5/6`. |
 | 3. Update key_facts.md | [x] | Auth bullet (line 113) extended with F107a-FU2 hotfix summary: predicate change + graceful fallback + `captureMessage` wrapper + `SentryContext` allowlist extension + `FALLBACK_LINK_FAILED` sentinel. |
 | 4. Update decisions.md | [x] | N/A — no new ADR; fix is a bug correction within ADR-025 R3 bounds. |
-| 5. Commit documentation | [x] | Step 5 commit `3ed0aa6` (review + QA edge cases + MVCC comment) + this MCE-fill commit (next). |
-| 6. Verify clean working tree | [x] | `git status` will be clean after the MCE-fill commit (next). |
+| 5. Commit documentation | [x] | Commits: `3ed0aa6` (Step 5 review + QA edge cases + MVCC comment) and `d6d7db7` (MCE fill + key_facts update). |
+| 6. Verify clean working tree | [x] | `git status` clean on HEAD `d6d7db7`. |
 | 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` → UP TO DATE (verified post-Step 5 push). |
 
 ---
