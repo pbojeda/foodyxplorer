@@ -73,9 +73,9 @@ N/A — Simple task.
 - [x] AC3: New section component `packages/landing/src/components/sections/CoverageShowcaseSection.tsx` renders 4 stat cards with the live counts. Heading + subline + 4 cells in Spanish, design-token-consistent with existing landing surfaces (Tailwind tokens `bg-paper` / `text-slate-*` / `card-surface` / `section-shell`).
 - [x] AC4: Section is inserted into `packages/landing/src/app/page.tsx` in all 3 layout variants (A/C/F), wrapped in `<SectionObserver sectionId="coverage-showcase" variant={variant}>` for analytics parity. Placement: between `ComparisonSection`/`EmotionalBlock`/`RestaurantsSection` (variant-dependent) and the FAQ block, close to the conversion ask.
 - [x] AC5: i18n entry `coverageShowcase` added to BOTH `packages/landing/src/lib/i18n/locales/es.ts` and `en.ts`, wired through `dict.coverageShowcase` in the page component.
-- [x] AC6: Counts are evaluated at build time (`next build` does not fail; static prerender works). Verified with `npm run build -w @foodxplorer/landing` (10/10 static pages, /  74.6 kB).
+- [x] AC6: Counts are evaluated at build time (`next build` does not fail; static prerender works). Verified with `npm run build -w @foodxplorer/landing` (all 10 static pages, /  74.6 kB).
 - [x] AC7: Jest unit test for `coverage-counts.ts` (6 tests) — opens seed JSON at test runtime and asserts the helper constants match the empirical counts. Component test (5 tests) verifies `CoverageShowcaseSection` renders 4 cards with the live numbers via i18n.
-- [x] AC8: `npm test` 749 pass + 3 todo / 752 total (60 suites), `npm run lint` 0 warnings, `npm run typecheck` clean, `npm run build` 10/10 static pages green on the feature branch.
+- [x] AC8: `npm test` 749 pass + 3 todo / 752 total (60 suites), `npm run lint` 0 warnings, `npm run typecheck` clean, `npm run build` all 10 static pages green on the feature branch.
 - [x] AC9: `docs/specs/ui-components.md` updated with one-row entry for `CoverageShowcaseSection` in the component tree (both occurrences of the tree).
 
 ---
@@ -97,7 +97,7 @@ N/A — Simple task.
 
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 3: TDD implementation (counts helper → section component → wiring) — 11 tests RED → GREEN
-- [x] Step 4: Quality gates (test 749/752 + 3 todo, lint 0, typecheck clean, build 10/10 static pages)
+- [x] Step 4: Quality gates (test 749/752 + 3 todo, lint 0, typecheck clean, build all 10 static pages)
 - [x] Step 5: PR #281 + code-review-specialist APPROVED (2 MAJORs fixed inline, 4 NITs declined per Simple YAGNI). Simple tier skips qa-engineer.
 - [ ] Step 6: Ticket finalized, branch deleted
 
@@ -109,7 +109,7 @@ N/A — Simple task.
 |------|--------|-------|
 | 2026-05-18 | Step 1 setup | Branch `feature/F105-landing-coverage-showcase` off develop@81e40c5. Lite ticket created with 9 ACs + 6 DoD. Empirical seed-data counts verified pre-spec: dishes=319, BEDCA-linked=50, USDA=514, categories=10. Roadmap "47 BEDCA + 14 chains" claims were inaccurate vs seed-data; spec pivoted to verified 319/564/10/4 quartet for honest trust signaling. |
 | 2026-05-18 | Step 3 implement (TDD) | RED: `coverage-counts.test.ts` (6 tests) + `CoverageShowcaseSection.test.tsx` (5 tests) failing on missing module. GREEN: helper `src/lib/coverage-counts.ts` (4 typed constants + `COVERAGE_COUNTS` aggregate, no JSON import — avoids static-export bundle bloat per AC1), component `src/components/sections/CoverageShowcaseSection.tsx` (4-cell `<dl>` grid, mobile 2×2 / desktop 4×1, Tailwind tokens consistent with RestaurantsSection), i18n entries in es.ts and en.ts (eyebrow/headline/subtitle + ordered `stats[]`), wire in all 3 variants of `page.tsx` between previous quantitative-or-qualitative trust section and FAQ. Added `'coverage-showcase'` to `SectionId` union. All 11/11 F105 tests pass. |
-| 2026-05-18 | Step 4 quality gates | Full landing suite: 749 pass + 3 todo / 752 / 60 suites. Lint: 0 warnings. Typecheck: clean. Build: 10/10 static pages, `/` 74.6 kB First Load JS (no measurable bloat from F105). ui-components.md updated with `CoverageShowcaseSection` row in both occurrences of the component tree. |
+| 2026-05-18 | Step 4 quality gates | Full landing suite: 749 pass + 3 todo / 752 / 60 suites. Lint: 0 warnings. Typecheck: clean. Build: all 10 static pages, `/` 74.6 kB First Load JS (no measurable bloat from F105). ui-components.md updated with `CoverageShowcaseSection` row in both occurrences of the component tree. |
 | 2026-05-18 | Step 5 PR + review | PR #281 opened against develop. Initial commit `62ae3d5`. CI green: ci-success SUCCESS, test-landing SUCCESS, mergeStateStatus CLEAN. `code-review-specialist` agent: APPROVED with 2 MAJORs + 4 NITs. M1 (`<dl>` content-model: `<p>` sibling of `<dt>`/`<dd>` invalid; moved note into `<dd>` as `<span class="block">`) + M2 (redundant `aria-label` on section with `aria-labelledby` already present; dropped `aria-label`) fixed inline. NITs declined per Simple YAGNI scope (drift-test tautology N1, comment phrasing N2, STAT_ORDER coupling N3, order-pinning component test N4). Post-fix: 11/11 F105 tests pass, lint clean, typecheck clean, build green. Simple tier skips qa-engineer per workflow. |
 
 ---
