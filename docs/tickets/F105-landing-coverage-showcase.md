@@ -1,7 +1,7 @@
 # F105: Landing Coverage Showcase
 
 **Feature:** F105 | **Type:** Frontend-Feature | **Priority:** Medium
-**Status:** In Progress | **Branch:** feature/F105-landing-coverage-showcase
+**Status:** Ready for Merge | **Branch:** feature/F105-landing-coverage-showcase
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-18 | **Dependencies:** None
 **Complexity:** Simple (PM Orchestrator `pm-auth-core`, Batch 2 feature 2/2)
@@ -98,7 +98,7 @@ N/A — Simple task.
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 3: TDD implementation (counts helper → section component → wiring) — 11 tests RED → GREEN
 - [x] Step 4: Quality gates (test 749/752 + 3 todo, lint 0, typecheck clean, build 10/10 static pages)
-- [ ] Step 5: PR + code-review-specialist (Simple tier skips qa-engineer)
+- [x] Step 5: PR #281 + code-review-specialist APPROVED (2 MAJORs fixed inline, 4 NITs declined per Simple YAGNI). Simple tier skips qa-engineer.
 - [ ] Step 6: Ticket finalized, branch deleted
 
 ---
@@ -110,6 +110,7 @@ N/A — Simple task.
 | 2026-05-18 | Step 1 setup | Branch `feature/F105-landing-coverage-showcase` off develop@81e40c5. Lite ticket created with 9 ACs + 6 DoD. Empirical seed-data counts verified pre-spec: dishes=319, BEDCA-linked=50, USDA=514, categories=10. Roadmap "47 BEDCA + 14 chains" claims were inaccurate vs seed-data; spec pivoted to verified 319/564/10/4 quartet for honest trust signaling. |
 | 2026-05-18 | Step 3 implement (TDD) | RED: `coverage-counts.test.ts` (6 tests) + `CoverageShowcaseSection.test.tsx` (5 tests) failing on missing module. GREEN: helper `src/lib/coverage-counts.ts` (4 typed constants + `COVERAGE_COUNTS` aggregate, no JSON import — avoids static-export bundle bloat per AC1), component `src/components/sections/CoverageShowcaseSection.tsx` (4-cell `<dl>` grid, mobile 2×2 / desktop 4×1, Tailwind tokens consistent with RestaurantsSection), i18n entries in es.ts and en.ts (eyebrow/headline/subtitle + ordered `stats[]`), wire in all 3 variants of `page.tsx` between previous quantitative-or-qualitative trust section and FAQ. Added `'coverage-showcase'` to `SectionId` union. All 11/11 F105 tests pass. |
 | 2026-05-18 | Step 4 quality gates | Full landing suite: 749 pass + 3 todo / 752 / 60 suites. Lint: 0 warnings. Typecheck: clean. Build: 10/10 static pages, `/` 74.6 kB First Load JS (no measurable bloat from F105). ui-components.md updated with `CoverageShowcaseSection` row in both occurrences of the component tree. |
+| 2026-05-18 | Step 5 PR + review | PR #281 opened against develop. Initial commit `62ae3d5`. CI green: ci-success SUCCESS, test-landing SUCCESS, mergeStateStatus CLEAN. `code-review-specialist` agent: APPROVED with 2 MAJORs + 4 NITs. M1 (`<dl>` content-model: `<p>` sibling of `<dt>`/`<dd>` invalid; moved note into `<dd>` as `<span class="block">`) + M2 (redundant `aria-label` on section with `aria-labelledby` already present; dropped `aria-label`) fixed inline. NITs declined per Simple YAGNI scope (drift-test tautology N1, comment phrasing N2, STAT_ORDER coupling N3, order-pinning component test N4). Post-fix: 11/11 F105 tests pass, lint clean, typecheck clean, build green. Simple tier skips qa-engineer per workflow. |
 
 ---
 
@@ -119,14 +120,14 @@ N/A — Simple task.
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/9, DoD: _/6, Workflow: _/5 |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A — Simple feature, no ADR |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/develop |
+| 0. Validate ticket structure | [x] | Sections verified: Spec · Implementation Plan (N/A — Simple) · Acceptance Criteria · Definition of Done · Workflow Checklist · Completion Log · Merge Checklist Evidence (all 7 present). |
+| 1. Mark all items | [x] | AC: 9/9, DoD: 6/6, Workflow: 4/5 (Step 6 stays `[ ]` per workflow — flipped post-merge). |
+| 2. Verify product tracker | [x] | Active Session: F105 at step 5/6 (Review) on develop@81e40c5. Features table row F105 = `in-progress` at step `5/6`. |
+| 3. Update key_facts.md | [x] | N/A — F105 adds no new infrastructure (no model, migration, endpoint, module, or shared util). Pure landing-only addition. |
+| 4. Update decisions.md | [x] | N/A — Simple feature, no ADR. No architectural decision changes. |
+| 5. Commit documentation | [x] | Step 5 review log + MCE evidence in commit landing alongside M1/M2 code fixes (next commit before merge approval). |
+| 6. Verify clean working tree | [ ] | Will be verified after committing fixes — `git status` expected clean. |
+| 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` = UP TO DATE (verified 2026-05-18 post-fixes). |
 
 ---
 

@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F105 — Landing Coverage Showcase | Simple | in-progress | — | Step 1/6 (Setup) 2026-05-18. Branch `feature/F105-landing-coverage-showcase`. Lite ticket created (9 ACs + 6 DoD). Empirical seed counts verified: 319/564/10/4. Next: Step 3 Implement (TDD). |
+| F105 — Landing Coverage Showcase | Simple | in-progress | — | Step 5/6 (Review) 2026-05-18. PR #281 (commit `62ae3d5`). code-review-specialist APPROVED + M1 `<dl>` content-model + M2 aria redundancy fixed inline. CI green (ci-success SUCCESS, mergeStateStatus CLEAN). 11 new tests pass. Awaiting merge approval. |
 
 ## Completed Features
 

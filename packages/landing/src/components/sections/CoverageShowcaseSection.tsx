@@ -21,7 +21,6 @@ export function CoverageShowcaseSection({ dict }: CoverageShowcaseSectionProps) 
   return (
     <section
       aria-labelledby="coverage-showcase-heading"
-      aria-label={dict.headline}
       data-section="coverage-showcase"
       className="bg-paper py-12 lg:py-16"
     >
@@ -55,8 +54,10 @@ export function CoverageShowcaseSection({ dict }: CoverageShowcaseSectionProps) 
                   <dt className="text-sm font-medium text-slate-500">{stat.label}</dt>
                   <dd className="mt-1 text-4xl font-bold tracking-tight text-brand-green md:text-5xl">
                     {value}
+                    <span className="mt-2 block text-xs font-normal text-botanical sm:text-sm">
+                      {stat.note}
+                    </span>
                   </dd>
-                  <p className="mt-2 text-xs text-botanical sm:text-sm">{stat.note}</p>
                 </div>
               );
             })}
