@@ -17,7 +17,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
-### 2026-05-18 — BUG-API-AUTH-ACTOR-HIJACK-001: /me endpoint hijacks actor.account_id across users sharing X-Actor-Id [P1 OPEN — fix in progress F107a-FU2]
+### 2026-05-18 — BUG-API-AUTH-ACTOR-HIJACK-001: /me endpoint hijacks actor.account_id across users sharing X-Actor-Id [P1 FIXED — F107a-FU2 commit aebacdc]
 
 - **Issue**: `GET /me` silently overwrites `actors.account_id` with the bearer's account when the actor is already linked to a different account. Empirically reproduced at `packages/api/src/routes/auth.ts:269-274`. A shared-browser scenario (two users with the same `X-Actor-Id` in localStorage) causes User B's bearer to re-key User A's actor to account_B. User A's query history (`query_logs.actor_id`) becomes accessible under account_B on any future history-surface endpoint.
 - **Root Cause**: The UPDATE predicate `AND account_id IS DISTINCT FROM <bearer's accountId>` fires when the current `account_id` differs from the bearer's — which is TRUE even when the actor is already owned by a third account. The post-update collision check at lines 277-292 is logically inverted: it lives in `if (updateResult === 0)` (no-op case) and therefore can never fire during a real hijack (hijack → `updateResult = 1`).
@@ -25,7 +25,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Fix**: Replace `IS DISTINCT FROM` guard with `(account_id IS NULL OR account_id = <bearer's accountId>)`. On `updateResult = 0`, confirm true collision, emit Pino warn + Sentry, fall back to deterministic `me-<sub.slice(0,8)>` actor. Victim actor never re-keyed. Bearer gets 200 with fallback actor.
 - **Ticket**: `docs/tickets/F107a-FU2-account-link-hijack-fix.md`
 - **Scope confirmed**: `packages/api/src/plugins/actorResolver.ts` reviewed — no `IS DISTINCT FROM` on `account_id`, no fix required there.
-- **Status**: Open — fix in progress F107a-FU2. Update to "Fixed by F107a-FU2 (commit: <hash>)" on merge.
+- **Status**: Fixed by F107a-FU2 — commit aebacdc (`fix(auth): replace IS DISTINCT FROM with safe predicate + collision fallback`).
 
 ---
 
