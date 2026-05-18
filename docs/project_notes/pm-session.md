@@ -10,15 +10,13 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F107a — Auth core (Supabase Auth) | Standard | in-progress | — | Step 5/6 — Review COMPLETE. PR #279 open. production-code-validator APPROVED (0 findings). code-review-specialist: 1 BLOCKER + 3 MAJOR + 5 MINOR — BLOCKER + MAJORs fixed in `bdccbe6`. qa-engineer: 4 MAJORs — all fixed (AC8 spec deviation, AC27 rate-limit unit test added, F3 JWKS rotation test corrected by qa-engineer, AC16 Retry-After test added). Status: Ready for Merge. 49 F107a tests passing. Pending: /audit-merge + user merge approval. |
-| F105 — Landing Coverage Showcase | Simple | pending | — | After /compact post F107a. Frontend only on packages/landing. |
+| F105 — Landing Coverage Showcase | Simple | pending | — | /compact recommended before start (orchestrator context-cliff heuristic — F107a involved 4+ agent invocations + 2 external audit cycles). Frontend only on packages/landing. |
 
 ## Completed Features
 
-_(Move features here as they complete)_
-
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
+| F107a — Auth core (Supabase Auth) | Standard | 4 days (2026-05-14 → 2026-05-18) | Shipped via PR #279 squash `b359885`. 20 feature-branch commits collapsed. 27 ACs + 9 DoD. 109 new tests (api 55, web 54). production-code-validator APPROVED. code-review + qa-engineer REQUEST CHANGES → all BLOCKER/MAJORs fixed inline. 2 external audit cycles (1st REJECT → fixed in `8435253`; 2nd APPROVED). Post-merge sanity green. Operator action pending (Supabase Auth Email provider + Render/Vercel env + manual smoke per `docs/operations/supabase-auth-setup.md`). |
 
 ## Blocked Features
 
@@ -29,12 +27,12 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** F107a (Auth core — Supabase Auth)
-**Branch:** (to be created at Step 1 Setup)
-**Next features:** F105 (Landing Coverage Showcase) after /compact
-**Blocked:** none
+**Current feature:** None — F107a done, F105 not yet started.
+**Branch:** `develop` (clean post-merge).
+**Next features:** F105 (Landing Coverage Showcase, Simple).
+**Blocked:** none — F105 is independent of F107a operator dependency.
 
-**Operator dependency:** Supabase Auth setup in dev + prod projects (in progress — Task #18). Step 3 Implement blocked until ENV vars in place. Steps 0–2 (Spec + Setup + Plan) proceed in parallel.
+**Operator dependency (F107a, separate from F105):** Supabase Auth Email provider + Render/Vercel env vars + manual smoke checklist in `docs/operations/supabase-auth-setup.md`. Pending out-of-repo. /login page currently renders with placeholder Supabase client (auth API calls fail loud until real env vars set in Vercel — per `8435253` defensive fallback).
 
 To resume after /compact: run `continue pm`
 To stop gracefully: run `stop pm`
