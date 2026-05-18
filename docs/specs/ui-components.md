@@ -73,6 +73,7 @@ Landing App (landing/)
 │   ├── ForWhoSection (Server) — 4 user profile cards (fitness, family/allergies, senior/health, professional)
 │   ├── EmotionalBlock (Server) — social/emotional scenes with real scenarios
 │   ├── ComparisonSection (Server) — competitive cards vs fitness apps, restaurant apps, guessing
+│   ├── CoverageShowcaseSection (Server) — 4 stat cards (dishes/foods/categories/confidence levels) — F105
 │   ├── WaitlistCTASection (Client) — final conversion section with WaitlistForm
 │   └── Footer (Server) — legal links, secondary waitlist CTA
 ├── ScrollTracker (Client) — fires scroll_depth events at 25/50/75/100%
@@ -766,6 +767,7 @@ Landing App (landing/)
 │   ├── ForWhoSection (Server) — 4 user profile cards (fitness, family/allergies, senior/health, professional)
 │   ├── EmotionalBlock (Server) — social/emotional scenes with real scenarios
 │   ├── ComparisonSection (Server) — competitive cards vs fitness apps, restaurant apps, guessing
+│   ├── CoverageShowcaseSection (Server) — 4 stat cards (dishes/foods/categories/confidence levels) — F105
 │   ├── WaitlistCTASection (Client) — final conversion section with WaitlistForm
 │   └── Footer (Server) — legal links, secondary waitlist CTA
 ├── CookieBanner (Client) — GDPR consent banner; gates GA4 events + A/B cookie on accept

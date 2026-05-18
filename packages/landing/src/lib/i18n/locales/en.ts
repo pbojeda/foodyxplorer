@@ -210,6 +210,20 @@ export const en: Dictionary = {
       { label: 'Local restaurants', note: 'Inferred by similarity' },
     ],
   },
+  coverageShowcase: {
+    eyebrow: 'Verifiable data',
+    headline: 'Open, measurable catalog',
+    subtitle:
+      'These are the real numbers behind every answer. Our coverage is public — it grows in plain sight.',
+    // NOTE: order must match STAT_ORDER in CoverageShowcaseSection.tsx
+    // (dishes → foods → categories → confidenceLevels).
+    stats: [
+      { label: 'Spanish dishes', note: 'Mapped with macros and portions' },
+      { label: 'reference foods', note: 'BEDCA + USDA, official sources' },
+      { label: 'culinary categories', note: 'Breakfasts, tapas, starters…' },
+      { label: 'confidence levels', note: 'You always know what is behind' },
+    ],
+  },
   audienceGrid: {
     eyebrow: 'Who is starting today',
     headline: 'Who is starting today',
