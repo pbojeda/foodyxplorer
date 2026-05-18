@@ -10,6 +10,7 @@ import { TrustEngineSection } from '@/components/sections/TrustEngineSection';
 import { ForWhoSection } from '@/components/sections/ForWhoSection';
 import { ComparisonSection } from '@/components/sections/ComparisonSection';
 import { RestaurantsSection } from '@/components/sections/RestaurantsSection';
+import { CoverageShowcaseSection } from '@/components/sections/CoverageShowcaseSection';
 import { WaitlistCTASection } from '@/components/sections/WaitlistCTASection';
 import { FAQSection } from '@/components/sections/FAQSection';
 import { Footer } from '@/components/sections/Footer';
@@ -81,6 +82,10 @@ function VariantALayout({ dict, variant, hablarBaseUrl }: { dict: Dictionary; va
         <RestaurantsSection dict={dict.restaurants} />
       </SectionObserver>
 
+      <SectionObserver sectionId="coverage-showcase" variant={variant}>
+        <CoverageShowcaseSection dict={dict.coverageShowcase} />
+      </SectionObserver>
+
       {dict.faq.items.length > 0 && (
         <SectionObserver sectionId="faq" variant={variant}>
           <FAQSection dict={dict.faq} />
@@ -134,6 +139,10 @@ function VariantCLayout({ dict, variant, hablarBaseUrl }: { dict: Dictionary; va
         <ComparisonSection dict={dict.comparison} />
       </SectionObserver>
 
+      <SectionObserver sectionId="coverage-showcase" variant={variant}>
+        <CoverageShowcaseSection dict={dict.coverageShowcase} />
+      </SectionObserver>
+
       {dict.faq.items.length > 0 && (
         <SectionObserver sectionId="faq" variant={variant}>
           <FAQSection dict={dict.faq} />
@@ -181,6 +190,10 @@ function VariantFLayout({ dict, variant, hablarBaseUrl }: { dict: Dictionary; va
 
       <SectionObserver sectionId="emotional" variant={variant}>
         <EmotionalBlock dict={dict.emotionalBlock} />
+      </SectionObserver>
+
+      <SectionObserver sectionId="coverage-showcase" variant={variant}>
+        <CoverageShowcaseSection dict={dict.coverageShowcase} />
       </SectionObserver>
 
       {dict.faq.items.length > 0 && (
