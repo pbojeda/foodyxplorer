@@ -696,54 +696,54 @@ This helper is private to the module and does NOT need its own test file — it 
 ## Acceptance Criteria
 
 ### SQL Correctness
-- [ ] **AC1:** The UPDATE predicate in `/me` uses `(account_id IS NULL OR account_id = <bearer's accountId>)` — the `IS DISTINCT FROM <bearer's accountId>` clause is removed entirely.
-- [ ] **AC2:** When `account_id IS NULL`, the UPDATE succeeds (`updateResult ≥ 1`) and the actor gains `account_id = bearer's accountId`. Normal response path proceeds with the linked actor.
-- [ ] **AC3:** When `account_id` already equals `bearer's accountId`, the UPDATE is idempotent — the actor row is unchanged and the response returns the same actor. (Concurrent same-user calls produce the same 200 response.)
+- [x] **AC1:** The UPDATE predicate in `/me` uses `(account_id IS NULL OR account_id = <bearer's accountId>)` — the `IS DISTINCT FROM <bearer's accountId>` clause is removed entirely.
+- [x] **AC2:** When `account_id IS NULL`, the UPDATE succeeds (`updateResult ≥ 1`) and the actor gains `account_id = bearer's accountId`. Normal response path proceeds with the linked actor.
+- [x] **AC3:** When `account_id` already equals `bearer's accountId`, the UPDATE is idempotent — the actor row is unchanged and the response returns the same actor. (Concurrent same-user calls produce the same 200 response.)
 
 ### Collision Detection
-- [ ] **AC4:** When `updateResult === 0`, the handler fetches `actor.accountId`. If it is non-NULL and not equal to the bearer's `accountId`, a true collision is confirmed.
-- [ ] **AC5:** On true collision, the colliding actor's `account_id` is **never** changed. A subsequent `SELECT account_id FROM actors WHERE id = <collisionActorId>` returns the original `victimAccountId`.
-- [ ] **AC6:** On true collision, the response HTTP status is **200** (not 409). The bearer's request succeeds.
+- [x] **AC4:** When `updateResult === 0`, the handler fetches `actor.accountId`. If it is non-NULL and not equal to the bearer's `accountId`, a true collision is confirmed.
+- [x] **AC5:** On true collision, the colliding actor's `account_id` is **never** changed. A subsequent `SELECT account_id FROM actors WHERE id = <collisionActorId>` returns the original `victimAccountId`.
+- [x] **AC6:** On true collision, the response HTTP status is **200** (not 409). The bearer's request succeeds.
 
 ### Observability
-- [ ] **AC7:** On true collision, a Pino warn log is emitted with exactly the fields: `event`, `collisionActorId`, `victimAccountId`, `hijackerAccountId`, `externalId`, `requestId`.
-- [ ] **AC8:** On true collision, the project's `captureMessage` wrapper (in `packages/api/src/lib/sentry.ts`) is called with level `"warning"`, the message `"actor_link_collision: actor already owned by different account"`, the extra context fields, and the Sentry tags `{ feature: 'F107a-FU2', event_type: 'actor_link_collision' }`. The handler does NOT import `@sentry/node` directly.
-- [ ] **AC8b (Gemini I2 R1 + Codex C-I2 R1):** `packages/api/src/lib/sentry.ts` exports a new `captureMessage(message, level, context, tags)` function implemented via `Sentry.withScope` (sets extras + tags within scope, then calls `Sentry.captureMessage`). Init-aware no-op when Sentry is uninitialized. Unit tests for the wrapper MUST use the existing `__resetForTests()` helper and cover:
+- [x] **AC7:** On true collision, a Pino warn log is emitted with exactly the fields: `event`, `collisionActorId`, `victimAccountId`, `hijackerAccountId`, `externalId`, `requestId`.
+- [x] **AC8:** On true collision, the project's `captureMessage` wrapper (in `packages/api/src/lib/sentry.ts`) is called with level `"warning"`, the message `"actor_link_collision: actor already owned by different account"`, the extra context fields, and the Sentry tags `{ feature: 'F107a-FU2', event_type: 'actor_link_collision' }`. The handler does NOT import `@sentry/node` directly.
+- [x] **AC8b (Gemini I2 R1 + Codex C-I2 R1):** `packages/api/src/lib/sentry.ts` exports a new `captureMessage(message, level, context, tags)` function implemented via `Sentry.withScope` (sets extras + tags within scope, then calls `Sentry.captureMessage`). Init-aware no-op when Sentry is uninitialized. Unit tests for the wrapper MUST use the existing `__resetForTests()` helper and cover:
   - (a) Uninitialized state: `captureMessage(...)` is called → underlying `@sentry/node` `Sentry.captureMessage` is NOT invoked (mock asserts zero calls).
   - (b) Initialized state: `captureMessage(...)` is called → `Sentry.captureMessage(message, level)` IS invoked exactly once; `scope.setExtras(context)` and `scope.setTags(tags)` are both invoked with the provided values.
   - (c) Compile-time `SentryContext` allowlist: the `sentry.test.ts:154` `@ts-expect-error` test is updated to include the 4 new allowlisted fields (`collisionActorIdHash`, `victimAccountIdHash`, `hijackerAccountIdHash`, `externalIdHash`) AND assert that a non-allowlisted field still produces `@ts-expect-error`.
 
 ### Fallback Actor
-- [ ] **AC9:** On true collision, the response `data.actor` reflects the `me-<sub.slice(0,8)>` fallback actor (not the colliding actor). The fallback actor's `externalId` matches `me-${payload.sub.slice(0, 8)}`.
-- [ ] **AC9b (Codex C-I1 R1):** On true collision, the response `data.actor.accountId === bearer's accountId`. The fallback actor is linked to the bearer's account via the safe UPDATE clause AFTER the me-<sub> upsert (the upsert alone does NOT set account_id; the spec mandates a second UPDATE call). A direct DB assertion `SELECT account_id FROM actors WHERE id = <fallback.id>` returns the bearer's accountId.
-- [ ] **AC10:** The `me-<sub>` fallback upsert is idempotent: if called twice for the same bearer, the same actor row is returned both times (no `P2002` unique-constraint error).
+- [x] **AC9:** On true collision, the response `data.actor` reflects the `me-<sub.slice(0,8)>` fallback actor (not the colliding actor). The fallback actor's `externalId` matches `me-${payload.sub.slice(0, 8)}`.
+- [x] **AC9b (Codex C-I1 R1):** On true collision, the response `data.actor.accountId === bearer's accountId`. The fallback actor is linked to the bearer's account via the safe UPDATE clause AFTER the me-<sub> upsert (the upsert alone does NOT set account_id; the spec mandates a second UPDATE call). A direct DB assertion `SELECT account_id FROM actors WHERE id = <fallback.id>` returns the bearer's accountId.
+- [x] **AC10:** The `me-<sub>` fallback upsert is idempotent: if called twice for the same bearer, the same actor row is returned both times (no `P2002` unique-constraint error).
 
 ### Tests
-- [ ] **AC11:** Unit test (mocked Prisma): `updateResult = 0` + actor has different `accountId` → collision branch fires, Pino warn emitted, fallback actor returned. Uses `vi.fn()` mocks, no DB required.
-- [ ] **AC12:** Integration test against the real Postgres test container (port 5433, `foodxplorer_test` DB): Two Supabase accounts (A and B), both call `GET /me` with the same `X-Actor-Id`. Account A calls first → actor linked to account_A. Account B calls second → `updateResult = 0` detected → fallback actor returned → **B's response actor satisfies: `externalId` starts with `me-`, `accountId === account_B.id`** (verified via SELECT) — AND original actor's `account_id` is still account_A.id (verified via SELECT) — confirms (1) no hijack, (2) B got a linked fallback (not unlinked).
-- [ ] **AC13:** Regression: all existing F107a integration and unit tests continue to pass (no new failures beyond pre-existing BUG-API-HEALTH-PRISMA-MOCK-001 baseline).
-- [ ] **AC14:** Concurrent `/me` test: two parallel calls from the same bearer + same `X-Actor-Id` → both return 200 with the same actor (idempotent). No `P2002` error thrown.
+- [x] **AC11:** Unit test (mocked Prisma): `updateResult = 0` + actor has different `accountId` → collision branch fires, Pino warn emitted, fallback actor returned. Uses `vi.fn()` mocks, no DB required.
+- [x] **AC12:** Integration test against the real Postgres test container (port 5433, `foodxplorer_test` DB): Two Supabase accounts (A and B), both call `GET /me` with the same `X-Actor-Id`. Account A calls first → actor linked to account_A. Account B calls second → `updateResult = 0` detected → fallback actor returned → **B's response actor satisfies: `externalId` starts with `me-`, `accountId === account_B.id`** (verified via SELECT) — AND original actor's `account_id` is still account_A.id (verified via SELECT) — confirms (1) no hijack, (2) B got a linked fallback (not unlinked).
+- [x] **AC13:** Regression: all existing F107a integration and unit tests continue to pass (no new failures beyond pre-existing BUG-API-HEALTH-PRISMA-MOCK-001 baseline).
+- [x] **AC14:** Concurrent `/me` test: two parallel calls from the same bearer + same `X-Actor-Id` → both return 200 with the same actor (idempotent). No `P2002` error thrown.
 
 ### Constraints
-- [ ] **AC15:** No new database table is created. No migration file is added. The fix is runtime-only DML + a TypeScript-level Sentry wrapper addition.
-- [ ] **AC16 (Runbook):** `docs/operations/supabase-auth-setup.md` includes a `## Triage: actor_link_collision alert` section covering Sentry/Pino query steps, verification query, remediation, and escalation threshold.
+- [x] **AC15:** No new database table is created. No migration file is added. The fix is runtime-only DML + a TypeScript-level Sentry wrapper addition.
+- [x] **AC16 (Runbook):** `docs/operations/supabase-auth-setup.md` includes a `## Triage: actor_link_collision alert` section covering Sentry/Pino query steps, verification query, remediation, and escalation threshold.
 
 ---
 
 ## Definition of Done
 
-- [ ] All 17 acceptance criteria met (16 numbered + AC8b wrapper coverage + AC9b fallback-link guarantee)
-- [ ] Unit tests (AC11) and integration tests (AC12, AC13, AC14) written and passing
-- [ ] `actorResolver.ts` confirmed clear (no `IS DISTINCT FROM` on `account_id`) — no change needed
-- [ ] `lib/sentry.ts` exports `captureMessage` wrapper + unit test
-- [ ] Inverted `if (updateResult === 0)` block at original `auth.ts:277-292` fully removed (not just disabled)
-- [ ] Code follows project standards (Pino log format, Sentry PII policy)
-- [ ] No linting or typecheck errors
-- [ ] Build succeeds
-- [ ] `docs/project_notes/bugs.md` entry `BUG-API-AUTH-ACTOR-HIJACK-001` status updated to "Fixed by F107a-FU2" with commit reference
-- [ ] `docs/operations/supabase-auth-setup.md` runbook section added
-- [ ] `api-spec.yaml` confirmed unchanged (response shape identical — no update needed)
-- [ ] `docs/project_notes/key_facts.md` reviewed — no new entries required for this fix
+- [x] All 17 acceptance criteria met (16 numbered + AC8b wrapper coverage + AC9b fallback-link guarantee)
+- [x] Unit tests (AC11) and integration tests (AC12, AC13, AC14) written and passing
+- [x] `actorResolver.ts` confirmed clear (no `IS DISTINCT FROM` on `account_id`) — no change needed
+- [x] `lib/sentry.ts` exports `captureMessage` wrapper + unit test
+- [x] Inverted `if (updateResult === 0)` block at original `auth.ts:277-292` fully removed (not just disabled)
+- [x] Code follows project standards (Pino log format, Sentry PII policy)
+- [x] No linting or typecheck errors
+- [x] Build succeeds
+- [x] `docs/project_notes/bugs.md` entry `BUG-API-AUTH-ACTOR-HIJACK-001` status updated to "Fixed by F107a-FU2" with commit reference
+- [x] `docs/operations/supabase-auth-setup.md` runbook section added
+- [x] `api-spec.yaml` confirmed unchanged (response shape identical — no update needed)
+- [x] `docs/project_notes/key_facts.md` reviewed — no new entries required for this fix
 
 ---
 
@@ -752,7 +752,7 @@ This helper is private to the module and does NOT need its own test file — it 
 - [x] Step 0: `spec-creator` executed, R1 + R2 cross-model APPROVED (Codex + Gemini converged)
 - [x] Step 1: Branch `feature/F107a-FU2-account-link-hijack-fix` created off develop@3bb9e8b; ticket Status → In Progress; tracker updated
 - [x] Step 2: `backend-planner` executed; self-review (1 I + 1 S applied); /review-plan R1 (1 CRITICAL + 3 IMPORTANT + 2 SUGGESTION applied) + R2 (2 editorial IMPORTANT + 1 SUGGESTION applied); plan LOCKED at 4-5h estimate
-- [ ] Step 3: `backend-developer` executed with TDD
+- [x] Step 3: `backend-developer` executed with TDD
 - [ ] Step 4: `production-code-validator` executed, quality gates pass
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed
@@ -772,6 +772,7 @@ This helper is private to the module and does NOT need its own test file — it 
 | 2026-05-18 | Spec self-review | 3 IMPORTANT + 3 SUGGESTION findings all applied: (I1) explicit removal of inverted `if (updateResult === 0)` block at orig lines 277-292; (I2) explicit preservation of actor upsert at orig lines 204-231; (I3) `captureMessage` wrapper added to `lib/sentry.ts` instead of importing `@sentry/node` directly (consistent with project init-aware pattern); (S1) helper extraction suggestion `provisionFallbackActor` noted to planner; (S2) explicit `### Out of scope` section added; (S3) test harness reuses existing F107a JWT mock pattern. AC count 15 → 16 (AC8b wrapper coverage). |
 | 2026-05-18 | Spec /review-spec R1 | Codex + Gemini parallel. Both VERDICT: REVISE. Codex 2 IMPORTANT + 1 SUGGESTION + Gemini 2 IMPORTANT + 1 SUGGESTION. Applied: F1 fallback actor must re-run safe UPDATE on me-<sub> to link to bearer (was unlinked → bug fix gap; AC9b added); F2 SentryContext allowlist requires extending with 4 new hash-only fields + `hashActor()` for IDs (preserves PII guarantee); F3 wrapper uses `Sentry.withScope` pattern; F4 AC8b explicit on `__resetForTests()` + 3 sub-cases (uninitialized no-op, initialized call, allowlist enforcement); F5 32-bit namespace limitation documented. Declined: F6 (renaming `victim/hijacker` → `existing/bearer` — legacy log being deleted, victim/hijacker is semantically clearer for security telemetry; decision recorded inline). AC count 16 → 17 (AC9b added). |
 | 2026-05-18 | Spec /review-spec R2 | Codex + Gemini parallel. BOTH APPROVED. All 5 R1 findings verified closed: F1 step 2.d + AC9b pin the DB-linked guarantee; F2 hash split (Pino raw / Sentry hashed) preserves PII scrubbing per truncated-SHA256 `hashActor`; F3 `withScope` is correct Sentry v7+ pattern; F4 AC8b 3 sub-cases sufficient with `__resetForTests()`; F5 namespace note acknowledges 32-bit constraint as hotfix-acceptable. F6 decline confirmed defensible. No new MVCC/race/isolation/observability issues. Confidence > 85% per memory rule — spec LOCKED. |
+| 2026-05-18 | Step 3 Implementation | backend-developer TDD. 4 commits: Phase 1 `62a96f8` (sentry captureMessage wrapper + SentryContext 4 fields, 3 new tests); Phase 2 `aebacdc` (auth.ts safe predicate + collision fallback, 9 unit tests); Phase 3 `04a34ab` (2 integration tests AC12+AC14); Phase 4 `182a1a5` (runbook + bugs.md close). Tests added: 3 sentry + 9 unit + 2 integration = 14 new tests. Total suite: 252 files / 4584 tests passing. Deviations: (1) Fixture UUIDs changed from plan's `fua20000-` prefix to `f7220000-` because `fua` contains non-hex char `u` (plan had invalid UUIDs). (2) `mockResolvedValue` used instead of `mockResolvedValueOnce` in integration test because `actorResolver` also calls `verifyBearerJwt` — consuming the first `Once` mock before the /me handler could use it (race in mock sequencing). Both are mechanical deviations only; spec behavior is identical. All 17 ACs satisfied. |
 
 ---
 
