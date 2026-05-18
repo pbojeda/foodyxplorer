@@ -271,6 +271,11 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
 
       if (updateResult === 0) {
         // Fetch to determine which sub-path we're in.
+        // MVCC note (per code-review S1): under READ COMMITTED, a stale read here
+        // can only show pre-UPDATE state; the original actor row is never mutated
+        // by this code path regardless of concurrent activity (the SET clause is
+        // gated by the safe predicate, so a hijack is impossible even under
+        // adversarial interleavings).
         const currentActor = await prisma.actor.findUnique({
           where: { id: actorId },
           select: { accountId: true, externalId: true },

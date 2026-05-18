@@ -17,6 +17,26 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-05-18 — BUG-API-AUTH-FU2-FALLBACK-OBS-001: FALLBACK_LINK_FAILED throws without Sentry event [P3 OPEN]
+
+- **Issue**: When `linkCheck.accountId !== bearer` after the fallback safe-link UPDATE (real but extremely unlikely scenario: concurrent `me-<sub.slice(0,8)>` collision between two distinct subs), the F107a-FU2 handler throws `Object.assign(new Error(...), { code: 'FALLBACK_LINK_FAILED' })` which the global error mapper surfaces as 500 INTERNAL_ERROR. No dedicated `captureMessage` is emitted before the throw, so operators see an untagged 500 in Sentry instead of a specific `feature: F107a-FU2, event_type: fallback_link_failed` event.
+- **Root Cause**: Code-review S2 and qa-engineer Follow-up #1 (both raised during F107a-FU2 R1 review). Out-of-scope intentional decision for the hotfix (one-line operator-visibility addition deferred).
+- **Severity**: P3 — observability gap, not a functional defect. The path is genuine defense-in-depth and is statistically extremely rare.
+- **Proposed fix**: Add `captureMessage('actor_link_collision: fallback_link_failed', 'error', { hijackerAccountIdHash, collisionActorIdHash }, { feature: 'F107a-FU2', event_type: 'fallback_link_failed' })` immediately before the throw at `packages/api/src/routes/auth.ts` around line 340.
+- **Source**: F107a-FU2 code-review-specialist S2 + qa-engineer Follow-up #1, both Step 5 review of PR #283.
+
+---
+
+### 2026-05-18 — BUG-API-AUTH-FU2-PINO-FIELD-ASSERT-001: AC7 Pino field assertion not actually verified by any F107a-FU2 test [P3 OPEN]
+
+- **Issue**: F107a-FU2 AC7 mandates that the Pino warn log emit `{ event, collisionActorId, victimAccountId, hijackerAccountId, externalId, requestId }`. The unit test cannot intercept `request.log.warn` in `buildApp` mode (Fastify pino is wired internally). The integration test does NOT assert Pino fields. Net result: nothing automated verifies that all 6 field names + values land in the structured log.
+- **Root Cause**: qa-engineer Follow-up #2. Mechanical test-coverage gap; the code does emit the fields correctly (verified by code-review reading `auth.ts:296-303`), but no automated assertion exists.
+- **Severity**: P3 — coverage gap, not a functional defect.
+- **Proposed fix**: Add a unit test that uses a custom logger (pino test transport) or `vi.spyOn(request.log, 'warn')` via the Fastify-app option `logger: customLogger` to capture the warn call. Alternative: integration-test post-call log scrape via Render API (more complex).
+- **Source**: F107a-FU2 qa-engineer Follow-up #2, Step 5 review of PR #283.
+
+---
+
 ### 2026-05-18 — BUG-API-AUTH-ACTOR-HIJACK-001: /me endpoint hijacks actor.account_id across users sharing X-Actor-Id [P1 FIXED — F107a-FU2 commit aebacdc]
 
 - **Issue**: `GET /me` silently overwrites `actors.account_id` with the bearer's account when the actor is already linked to a different account. Empirically reproduced at `packages/api/src/routes/auth.ts:269-274`. A shared-browser scenario (two users with the same `X-Actor-Id` in localStorage) causes User B's bearer to re-key User A's actor to account_B. User A's query history (`query_logs.actor_id`) becomes accessible under account_B on any future history-surface endpoint.
