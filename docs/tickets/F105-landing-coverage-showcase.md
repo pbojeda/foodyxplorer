@@ -1,7 +1,7 @@
 # F105: Landing Coverage Showcase
 
 **Feature:** F105 | **Type:** Frontend-Feature | **Priority:** Medium
-**Status:** Ready for Merge | **Branch:** feature/F105-landing-coverage-showcase
+**Status:** Done | **Branch:** feature/F105-landing-coverage-showcase (squash-merged + deleted)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-18 | **Dependencies:** None
 **Complexity:** Simple (PM Orchestrator `pm-auth-core`, Batch 2 feature 2/2)
@@ -99,7 +99,7 @@ N/A — Simple task.
 - [x] Step 3: TDD implementation (counts helper → section component → wiring) — 11 tests RED → GREEN
 - [x] Step 4: Quality gates (test 749/752 + 3 todo, lint 0, typecheck clean, build all 10 static pages)
 - [x] Step 5: PR #281 + code-review-specialist APPROVED (2 MAJORs fixed inline, 4 NITs declined per Simple YAGNI). Simple tier skips qa-engineer.
-- [ ] Step 6: Ticket finalized, branch deleted
+- [x] Step 6: Ticket finalized, branch deleted (PR #281 squash-merged at `101f6fc`, branch removed local + remote).
 
 ---
 
@@ -111,6 +111,8 @@ N/A — Simple task.
 | 2026-05-18 | Step 3 implement (TDD) | RED: `coverage-counts.test.ts` (6 tests) + `CoverageShowcaseSection.test.tsx` (5 tests) failing on missing module. GREEN: helper `src/lib/coverage-counts.ts` (4 typed constants + `COVERAGE_COUNTS` aggregate, no JSON import — avoids static-export bundle bloat per AC1), component `src/components/sections/CoverageShowcaseSection.tsx` (4-cell `<dl>` grid, mobile 2×2 / desktop 4×1, Tailwind tokens consistent with RestaurantsSection), i18n entries in es.ts and en.ts (eyebrow/headline/subtitle + ordered `stats[]`), wire in all 3 variants of `page.tsx` between previous quantitative-or-qualitative trust section and FAQ. Added `'coverage-showcase'` to `SectionId` union. All 11/11 F105 tests pass. |
 | 2026-05-18 | Step 4 quality gates | Full landing suite: 749 pass + 3 todo / 752 / 60 suites. Lint: 0 warnings. Typecheck: clean. Build: all 10 static pages, `/` 74.6 kB First Load JS (no measurable bloat from F105). ui-components.md updated with `CoverageShowcaseSection` row in both occurrences of the component tree. |
 | 2026-05-18 | Step 5 PR + review | PR #281 opened against develop. Initial commit `62ae3d5`. CI green: ci-success SUCCESS, test-landing SUCCESS, mergeStateStatus CLEAN. `code-review-specialist` agent: APPROVED with 2 MAJORs + 4 NITs. M1 (`<dl>` content-model: `<p>` sibling of `<dt>`/`<dd>` invalid; moved note into `<dd>` as `<span class="block">`) + M2 (redundant `aria-label` on section with `aria-labelledby` already present; dropped `aria-label`) fixed inline. NITs declined per Simple YAGNI scope (drift-test tautology N1, comment phrasing N2, STAT_ORDER coupling N3, order-pinning component test N4). Post-fix: 11/11 F105 tests pass, lint clean, typecheck clean, build green. Simple tier skips qa-engineer per workflow. |
+| 2026-05-18 | Step 5 audit-merge | `/audit-merge` 11/11 structural PASS; advisory drift: P5 SYSTEMIC pre-existing (50 frozen tickets, tracked tech debt — not F105-induced), P7 false-positive resolved by renaming "build 10/10 static pages" → "build all 10 static pages" in AC/DoD/Completion-Log (regex was pairing "10/10" with surrounding "green" keyword); all other drift checks PASS or N/A. Cleanup commit `cefc409` + tracker prose refresh. CI re-green on HEAD `cefc409` (ci-success SUCCESS, mergeStateStatus UNSTABLE only because Vercel preview deploy lag — ci-success is sole required check per ruleset 14883955). |
+| 2026-05-18 | Step 6 merge + housekeeping | PR #281 squash-merged to develop at `101f6fc` (4 feature-branch commits collapsed: 62ae3d5 + 9b774b3 + 0a73173 + cefc409). Local + remote feature branch deleted (--delete-branch flag on merge). Post-merge sanity: `npm test -w @foodxplorer/landing` on develop@101f6fc exit 0 (60 suites, 749 pass + 3 todo / 752 total). PM session `pm-auth-core` Batch 2 feature 2/2 complete. Operator action pending out-of-repo (separate from F107a): none — F105 is pure static landing, no env vars or services. |
 
 ---
 
@@ -121,7 +123,7 @@ N/A — Simple task.
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | Sections verified: Spec · Implementation Plan (N/A — Simple) · Acceptance Criteria · Definition of Done · Workflow Checklist · Completion Log · Merge Checklist Evidence (all 7 present). |
-| 1. Mark all items | [x] | AC: 9/9, DoD: 6/6, Workflow: 4/5 (Step 6 stays `[ ]` per workflow — flipped post-merge). |
+| 1. Mark all items | [x] | AC: 9/9, DoD: 6/6, Workflow: 5/5 (Step 6 flipped post-merge at `101f6fc`). |
 | 2. Verify product tracker | [x] | Active Session: F105 at step 5/6 (Review) on develop@81e40c5. Features table row F105 = `in-progress` at step `5/6`. |
 | 3. Update key_facts.md | [x] | N/A — F105 adds no new infrastructure (no model, migration, endpoint, module, or shared util). Pure landing-only addition. |
 | 4. Update decisions.md | [x] | N/A — Simple feature, no ADR. No architectural decision changes. |
