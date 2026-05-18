@@ -125,8 +125,8 @@ N/A — Simple task.
 | 2. Verify product tracker | [x] | Active Session: F105 at step 5/6 (Review) on develop@81e40c5. Features table row F105 = `in-progress` at step `5/6`. |
 | 3. Update key_facts.md | [x] | N/A — F105 adds no new infrastructure (no model, migration, endpoint, module, or shared util). Pure landing-only addition. |
 | 4. Update decisions.md | [x] | N/A — Simple feature, no ADR. No architectural decision changes. |
-| 5. Commit documentation | [x] | Step 5 review log + MCE evidence in commit landing alongside M1/M2 code fixes (next commit before merge approval). |
-| 6. Verify clean working tree | [ ] | Will be verified after committing fixes — `git status` expected clean. |
+| 5. Commit documentation | [x] | Commit `9b774b3` — M1/M2 fixes + Step 5 review log + MCE evidence (pushed to `feature/F105-landing-coverage-showcase`). |
+| 6. Verify clean working tree | [x] | `git status` clean post-commit; HEAD = `9b774b3`. |
 | 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` = UP TO DATE (verified 2026-05-18 post-fixes). |
 
 ---
