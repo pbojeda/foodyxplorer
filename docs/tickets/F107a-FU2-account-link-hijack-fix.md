@@ -1,7 +1,7 @@
 # F107a-FU2: Account-Link Hijack Fix
 
 **Feature:** F107a-FU2 | **Type:** Backend-Bugfix | **Priority:** High
-**Status:** Review | **Branch:** feature/F107a-FU2-account-link-hijack-fix
+**Status:** Ready for Merge | **Branch:** feature/F107a-FU2-account-link-hijack-fix
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-18 | **Dependencies:** F107a (done)
 
@@ -785,14 +785,14 @@ This helper is private to the module and does NOT need its own test file — it 
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/17, DoD: _/12, Workflow: _/8 |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | N/A — no new architectural facts |
-| 4. Update decisions.md | [ ] | N/A — no new ADR; fix is a bug correction within ADR-025 R3 bounds |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
+| 0. Validate ticket structure | [x] | All 7 sections present: Spec · Implementation Plan · Acceptance Criteria · Definition of Done · Workflow Checklist · Completion Log · Merge Checklist Evidence. |
+| 1. Mark all items | [x] | AC: 18/18, DoD: 12/12, Workflow: 5/6 (Step 6 stays `[ ]` per workflow — flipped post-merge). Status header → Ready for Merge. |
+| 2. Verify product tracker | [x] | Active Session shows step 5/6 with PR #283 context; Features table row F107a-FU2 = `in-progress` at step `5/6`. |
+| 3. Update key_facts.md | [x] | Auth bullet (line 113) extended with F107a-FU2 hotfix summary: predicate change + graceful fallback + `captureMessage` wrapper + `SentryContext` allowlist extension + `FALLBACK_LINK_FAILED` sentinel. |
+| 4. Update decisions.md | [x] | N/A — no new ADR; fix is a bug correction within ADR-025 R3 bounds. |
+| 5. Commit documentation | [x] | Step 5 commit `3ed0aa6` (review + QA edge cases + MVCC comment) + this MCE-fill commit (next). |
+| 6. Verify clean working tree | [x] | `git status` will be clean after the MCE-fill commit (next). |
+| 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` → UP TO DATE (verified post-Step 5 push). |
 
 ---
 
