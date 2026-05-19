@@ -1,7 +1,7 @@
 # F107a-FU2: Account-Link Hijack Fix
 
 **Feature:** F107a-FU2 | **Type:** Backend-Bugfix | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F107a-FU2-account-link-hijack-fix
+**Status:** Done | **Branch:** feature/F107a-FU2-account-link-hijack-fix (squash-merged + deleted)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-18 | **Dependencies:** F107a (done)
 
@@ -756,7 +756,7 @@ This helper is private to the module and does NOT need its own test file — it 
 - [x] Step 4: `production-code-validator` APPROVE (12/12 criteria, 0 BLOCKERs, 0 MINORs). Gates: api npm test 4584 pass, lint 0, typecheck clean, build clean.
 - [x] Step 5: `code-review-specialist` APPROVE (0 BLOCKERs, 0 MAJORs, 6 NITs). MVCC comment NIT (S1) applied inline.
 - [x] Step 5: `qa-engineer` PASS WITH FOLLOW-UPS (8 new edge-case tests + 2 P3 follow-ups filed in bugs.md). 0 regressions, 4592 total api tests.
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: PR #283 squash-merged to develop at `4756716` (2026-05-19); branch deleted local + remote; post-merge sanity 4592/4592 green.
 
 ---
 
@@ -776,6 +776,8 @@ This helper is private to the module and does NOT need its own test file — it 
 | 2026-05-18 | Step 4 Quality gates | `production-code-validator` agent APPROVE (12/12 production criteria PASS, 0 BLOCKERs, 0 MINORs). Validated: no console.log in prod files, no commented-out blocks (deleted not commented), no `any` types, no unused imports, proper `Object.assign(new Error, { code })` error pattern, Pino redact OK, hashActor used for all 4 Sentry IDs (raw UUIDs Pino-only), bugs.md commit hash correct (`aebacdc`), zero new env vars, integration test cleanup verified, ZERO new prisma migrations, all 18 ACs marked have matching code/test. Empirical [PURE RED] verification: AC11 collision unit test fails against buggy `IS DISTINCT FROM` code (confirms TDD discipline). Gates: api lint 0, typecheck clean, build clean, npm test 4584 pass. |
 | 2026-05-18 | Step 5 code-review | `code-review-specialist` agent APPROVE (0 BLOCKERs, 0 MAJORs, 6 NIT/MINOR). Verified concurrency-correctness under PG READ COMMITTED MVCC (no TOCTOU hijack possible regardless of interleaving). Confirmed FALLBACK_LINK_FAILED is genuine defense-in-depth (not dead code) — first realistic trigger is the 32-bit `me-<sub>` namespace boundary at ~65k users. PII boundary respected exception-free (Sentry only sees `hashActor()` digests; raw UUIDs Pino-only). Inverted block at original lines 277-292 fully deleted. Test labeling honesty verified ([PURE RED]/[HAPPY-REGRESSION]/[SQL-SHAPE] match reality). Documentation cross-check clean: bugs.md commit `aebacdc` matches, runbook field names match handler output. S1 (one-line MVCC comment) applied inline at `auth.ts:274-278`. S2-S6 declined per Simple/Standard YAGNI; S2 (Sentry capture before FALLBACK_LINK_FAILED throw) filed as `BUG-API-AUTH-FU2-FALLBACK-OBS-001` (P3 follow-up). |
 | 2026-05-18 | Step 5 qa-engineer | `qa-engineer` agent PASS WITH FOLLOW-UPS. 8 new edge-case tests added in `f107aFU2.edge-cases.test.ts`: null linkCheck FALLBACK_LINK_FAILED, observability gap documentation, absent X-Actor-Id header, INTERNAL_ERROR masking, exact-hash field assertions (caught a test-setup sequencing mistake during authoring), hashActor null-safety, non-UUID header blocking, SQL injection blocking. Total api suite: 253 files / **4592 tests** (was 4584, +8). 0 regressions. Verified: hashActor null-safe (currentActor.accountId IS guarded before reaching hash), PG NULL semantics in predicate well-defined, Sentry __resetForTests() ensures order-independent isolation, [PURE RED]/[SQL-SHAPE] labels accurate. **3 P3 follow-ups filed in bugs.md**: BUG-API-AUTH-FU2-FALLBACK-OBS-001 (FALLBACK_LINK_FAILED needs dedicated Sentry capture) + BUG-API-AUTH-FU2-PINO-FIELD-ASSERT-001 (AC7 Pino field assertion mechanically uncovered by any test) + acknowledged 32-bit namespace + absent-X-Actor-Id-header pre-existing gaps. None blocking. |
+| 2026-05-18 | /audit-merge | Structural 11/11 PASS, drift CLEAN (P5 SYSTEMIC pre-existing 55 frozen tickets non-blocking; P9 tracker Last Updated stale fix applied inline). Final cleanup commit `bd78006`. User APPROVED merge. |
+| 2026-05-19 | Step 6 merge + housekeeping | PR #283 squash-merged to develop at `4756716` (8 feature-branch commits collapsed: 7297cbe + ea76cae + 62a96f8 + aebacdc + 04a34ab + 182a1a5 + 6a8bd1b + de4b33f + 3ed0aa6 + d6d7db7 + bd78006). Local + remote branch deleted. Post-merge sanity: `npm test -w @foodxplorer/api` on develop@4756716 exit 0 (253 files / 4592 tests). PM session `pm-profiles` Batch 3 feature 1/2 complete. Closes BUG-API-AUTH-ACTOR-HIJACK-001 P1. Release bundle develop→main still blocked on Task #18 (operator action). |
 
 ---
 
