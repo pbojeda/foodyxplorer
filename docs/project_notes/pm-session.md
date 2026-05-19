@@ -10,12 +10,16 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F107a-FU2 — Account-link hijack fix | Standard | in-progress | — | P1 security hotfix on F107a `/me` UPDATE clause. Empirical bug surfaced during F107b spec investigation. Fix: scoped UPDATE WHERE (account_id IS NULL OR = bearer) + collision graceful-fallback to `me-<sub>` + Pino+Sentry. NO new DB table. Step 0 Spec in flight. |
 | F099-lite — User Profiles BMR + targets | Standard | pending | — | Sequential after F107a-FU2 ships. RGPD Art.9 gate (privacy policy update with health data fields) prerequisite out-of-repo. |
 
 ## Completed Features
 
-_(Move features here as they complete)_
+| Feature | Complexity | Duration | Notes |
+|---------|------------|----------|-------|
+| F107a-FU2 — Account-link hijack fix | Standard | 1 day (2026-05-18 → 2026-05-19) | Shipped via PR #283 squash `4756716`. 11 feature-branch commits collapsed. 17 ACs (16 numbered + AC8b + AC9b) + 12 DoD. **22 new tests** (14 dev + 8 qa edge cases). Spec + Plan both R1+R2 cross-model APPROVED (Codex + Gemini converged). production-code-validator 12/12, code-review-specialist 0 BLOCKERs/MAJORs + 6 NITs (S1 applied), qa-engineer PASS WITH FOLLOW-UPS (3 P3 in bugs.md). `/audit-merge` 11/11 structural + drift CLEAN. Post-merge sanity 4592/4592 green. Closes BUG-API-AUTH-ACTOR-HIJACK-001 P1 (silent cross-user actor.account_id hijack via shared X-Actor-Id). NO new DB table (Pino+Sentry observability only). |
+
+<!-- legacy Completed Features section retained below for historical entries if any -->
+<!-- Move features here as they complete -->
 
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
@@ -29,10 +33,10 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** F107a-FU2 — Account-link hijack fix (Standard, backend hotfix).
-**Branch:** (not yet created — Step 0 Spec in flight; Step 1 next).
-**Next features:** F099-lite (User Profiles BMR + targets, Standard) — sequential after F107a-FU2 ships. RGPD gate prerequisite.
-**Blocked:** none.
+**Current feature:** None — F107a-FU2 done.
+**Branch:** `develop` (clean post-merge `4756716`).
+**Next features:** F099-lite (User Profiles BMR + targets, Standard). Requires `/compact` before starting per orchestrator rule (1 feature complete in this session; next would be feature 2/2). RGPD Art.9 gate prerequisite out-of-repo (privacy policy + ToS update with health-data fields).
+**Blocked:** none for F099-lite code work; RGPD gate is non-technical operator dependency.
 
 **Pivot context** (2026-05-18): originally pm-profiles was F107b + F099-lite. After empirical investigation surfaced F107b's premise as incorrect AND surfaced a real P1 hijack bug in F107a, the batch was recomposed: F107a-FU2 (the hotfix) replaces F107b. F107b ticket closed with `Status: Closed - Not Needed` + re-evaluation triggers.
 
