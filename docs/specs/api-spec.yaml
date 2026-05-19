@@ -405,10 +405,14 @@ paths:
         actor's `account_id` is set → both actors coexist with the same `account_id`.
         No uniqueness conflict (ADR-025 R3 §3 — `actors.account_id` is non-unique by design).
 
-        **Identity collision (deferred to F107b):** If `actor.account_id` is already set
-        to a DIFFERENT account than the current bearer's account, the API logs a warning
-        and returns the bearer's account (bearer wins). It does NOT auto-merge. Anonymous
-        → authenticated merge is F107b scope.
+        **Identity collision (F107a-FU2):** If `actor.account_id` is already set
+        to a DIFFERENT account than the current bearer's account (e.g., two users share
+        a browser with the same stored `X-Actor-Id`), the colliding actor is NOT
+        re-keyed. Instead, the handler falls back to provisioning a deterministic
+        `me-<sub.slice(0,8)>` actor for the bearer, emits a Pino warn log (event:
+        `actor_link_collision`) and a Sentry warning, and returns 200 with the fallback
+        actor. The victim's actor ownership is preserved. Anonymous → authenticated
+        history merge is F107b scope (deferred indefinitely).
 
         **Orphan reconciliation:** If `auth.users` has a row for the JWT `sub` but no
         `public.accounts` row exists (incomplete prior migration), this endpoint creates

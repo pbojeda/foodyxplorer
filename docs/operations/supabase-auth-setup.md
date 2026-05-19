@@ -88,6 +88,38 @@ Run this against local dev (`npm run dev` on both api + web) with real Supabase 
 
 ---
 
+## Triage: actor_link_collision alert
+
+### What the alert means
+
+Two Supabase-authenticated users shared a browser/device where the same anonymous actor UUID was stored in `localStorage` under `X-Actor-Id`. User A linked the actor to their account first. User B presented the same actor UUID with a different bearer; the safe UPDATE predicate (`account_id IS NULL OR account_id = bearer`) returned 0 rows, confirming User A still owns the actor. The system self-healed: User B received a new `me-<sub>` fallback actor linked to their account. No confidentiality breach occurred.
+
+### How to find the event
+
+- **Sentry:** Open the project → Issues → filter by tag `event_type: actor_link_collision`. Each event includes hashed IDs for correlation (`collisionActorIdHash`, `victimAccountIdHash`, `hijackerAccountIdHash`, `externalIdHash`).
+- **Pino (Render log stream):** Filter log stream by `event = "actor_link_collision"`. Raw UUIDs are present in the Pino log (`collisionActorId`, `victimAccountId`, `hijackerAccountId`, `externalId`) for DB-level verification.
+
+### Verification query
+
+Confirm the victim actor was NOT hijacked:
+
+```sql
+SELECT account_id FROM actors WHERE id = '<collisionActorId from Pino log>';
+-- Should still equal victimAccountId from the same log entry.
+```
+
+### Remediation
+
+None required per incident. The system self-healed; the hijacking bearer received a functional `me-<sub>` fallback actor linked to their account.
+
+If the same `hijackerAccountId` or `externalId` appears repeatedly, consider whether a malicious actor is probing actor IDs systematically (see Escalation threshold below).
+
+### Escalation threshold
+
+> 5 `actor_link_collision` events in 60 minutes from **distinct** `hijackerAccountId` values → investigate for systematic actor-ID enumeration. Review Sentry by tag `feature: F107a-FU2`.
+
+---
+
 ## F107a-FU1 Placeholder — Google OAuth (AC24f)
 
 When the GCP project is ready:

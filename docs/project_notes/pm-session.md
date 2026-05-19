@@ -1,21 +1,24 @@
 # PM Autonomous Session
 
-**Started:** 2026-05-14
-**Session ID:** pm-auth-core
+**Started:** 2026-05-18
+**Session ID:** pm-profiles
 **Autonomy Level:** L5 (PM Autonomous)
-**Status:** completed
+**Status:** in-progress
 **Target Branch:** develop
 
-## Current Batch
+## Current Batch (RECOMPOSED 2026-05-18 post-pivot)
 
-_(Batch complete — see Completed Features below.)_
+| Feature | Complexity | Status | Duration | Notes |
+|---------|------------|--------|----------|-------|
+| F107a-FU2 — Account-link hijack fix | Standard | in-progress | — | P1 security hotfix on F107a `/me` UPDATE clause. Empirical bug surfaced during F107b spec investigation. Fix: scoped UPDATE WHERE (account_id IS NULL OR = bearer) + collision graceful-fallback to `me-<sub>` + Pino+Sentry. NO new DB table. Step 0 Spec in flight. |
+| F099-lite — User Profiles BMR + targets | Standard | pending | — | Sequential after F107a-FU2 ships. RGPD Art.9 gate (privacy policy update with health data fields) prerequisite out-of-repo. |
 
 ## Completed Features
 
+_(Move features here as they complete)_
+
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
-| F107a — Auth core (Supabase Auth) | Standard | 4 days (2026-05-14 → 2026-05-18) | Shipped via PR #279 squash `b359885`. 20 feature-branch commits collapsed. 27 ACs + 9 DoD. 109 new tests (api 55, web 54). production-code-validator APPROVED. code-review + qa-engineer REQUEST CHANGES → all BLOCKER/MAJORs fixed inline. 2 external audit cycles (1st REJECT → fixed in `8435253`; 2nd APPROVED). Post-merge sanity green. Operator action pending (Supabase Auth Email provider + Render/Vercel env + manual smoke per `docs/operations/supabase-auth-setup.md`). |
-| F105 — Landing Coverage Showcase | Simple | ~1.5h (2026-05-18) | Shipped via PR #281 squash `101f6fc`. 4 feature-branch commits collapsed. 9 ACs + 6 DoD. 11 new tests (6 drift + 5 component). code-review-specialist APPROVED with 2 MAJORs fixed inline (M1 `<dl>` content-model + M2 redundant aria), 4 NITs declined per Simple YAGNI. `/audit-merge` 11/11 structural PASS. Post-merge sanity green (60 suites, 749/752). Empirical seed counts shipped: 319 platos · 564 alimentos · 10 categorías · 4 niveles de confianza. |
 
 ## Blocked Features
 
@@ -26,12 +29,12 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** None — Batch 2 complete.
-**Branch:** `develop` (clean post-merge `101f6fc`).
-**Next:** Release bundle develop → main (open release PR collecting #277 voice §12 + #278 SDD 0.18.4 + #279 F107a + #280 housekeeping + #281 F105) and then `start pm` for Batch 3 `pm-profiles` (F107b actor merge + F099-lite profiles).
+**Current feature:** F107a-FU2 — Account-link hijack fix (Standard, backend hotfix).
+**Branch:** (not yet created — Step 0 Spec in flight; Step 1 next).
+**Next features:** F099-lite (User Profiles BMR + targets, Standard) — sequential after F107a-FU2 ships. RGPD gate prerequisite.
 **Blocked:** none.
 
-**Operator dependency (F107a, separate from F105):** Supabase Auth Email provider + Render/Vercel env vars + manual smoke checklist in `docs/operations/supabase-auth-setup.md`. Pending out-of-repo. /login page currently renders with placeholder Supabase client (auth API calls fail loud until real env vars set in Vercel — per `8435253` defensive fallback).
+**Pivot context** (2026-05-18): originally pm-profiles was F107b + F099-lite. After empirical investigation surfaced F107b's premise as incorrect AND surfaced a real P1 hijack bug in F107a, the batch was recomposed: F107a-FU2 (the hotfix) replaces F107b. F107b ticket closed with `Status: Closed - Not Needed` + re-evaluation triggers.
 
 To resume after /compact: run `continue pm`
 To stop gracefully: run `stop pm`
@@ -40,10 +43,11 @@ To stop gracefully: run `stop pm`
 
 | Date | Step | Decision | Rationale |
 |------|------|----------|-----------|
+| 2026-05-18 | Phase 1 batch composition | Run F107b alone this session; defer F099-lite | Orchestrator constraint: F099-lite depends on F107b which is also in batch → default to splitting (per skill phase 1 step 6). Plus mandatory `/compact` rule fires at 2 features per session; splitting avoids mid-session context cliff. Plus F099-lite has a non-technical RGPD gate that should land before its deploy. User pre-authorized Batch 3 contents in roadmap; the SAFER subset interpretation is locked in. |
+| 2026-05-18 | Pivot — F107b → F107a-FU2 | Close F107b "Not Needed"; replace with F107a-FU2 hotfix in this batch | Empirical investigation of F107a `/me` handler (`packages/api/src/routes/auth.ts:180-292`) showed (a) F107b's "merge actor_A into actor_B" premise didn't hold — F107a UPDATEs the existing actor in place, no separate post-auth actor exists; (b) a real P1 hijack bug surfaced (`IS DISTINCT FROM` semantics invert hijack-prevention). User-explicit approval of pivot plan with 3 refinements: graceful-fallback on collision (NOT 409), no new audit table in hotfix (Pino+Sentry only), close F107b explicitly with re-evaluation triggers (not "deferred to Batch N"). Sequence: F107a-FU2 → F099-lite → release bundle. |
 
-## Baseline (verified 2026-05-14 pre-batch)
+## Baseline (verified 2026-05-18 pre-batch)
 
-- `npm test` (full monorepo): exit 0 ✓
-- `npm run lint` (full monorepo): exit 0 ✓
-- `git status`: clean on develop@5d81bf0
-- Known pre-existing: BUG-API-HEALTH-PRISMA-MOCK-001 (5 health tests fail when run via `npm test -w @foodxplorer/api` in isolation; not surfaced in full monorepo run — env-dependent)
+- `npm test -w @foodxplorer/landing`: exit 0 (60 suites, 749 + 3 todo / 752) — post-F105 merge sanity ✓
+- `git status`: clean on develop@3bb9e8b
+- Known pre-existing: BUG-API-HEALTH-PRISMA-MOCK-001 (P3), BUG-DEV-SHARED-WEBMETRICS-BOUNDARY-FLAKE-001 (P3) — neither affects F107b scope.
