@@ -9,6 +9,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import ws from 'ws';
 import type { Config } from '../config.js';
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,14 @@ export function getSupabaseAdmin(config: Pick<Config, 'SUPABASE_URL' | 'SUPABASE
         autoRefreshToken: false,
         persistSession: false,
       },
+      // BUG-PROD-012: createClient eagerly constructs a RealtimeClient, whose
+      // constructor throws on Node < 22 ("Node.js 20 detected without native
+      // WebSocket support") because there is no global WebSocket. We never use
+      // Realtime (only auth.signInWithOtp + auth.admin.signOut), but the client
+      // is built eagerly, so we supply the `ws` transport to satisfy it. Can be
+      // dropped once the runtime is Node >= 22 (global WebSocket). See ticket
+      // docs/tickets/BUG-PROD-012-supabase-ws-node20-login-500.md.
+      realtime: { transport: ws as unknown as typeof WebSocket },
     });
     _configKey = cacheKey;
   }
