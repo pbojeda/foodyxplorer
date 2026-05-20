@@ -17,6 +17,19 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-05-20 — BUG-PROD-012: `/auth/login` 500 because supabase-js createClient throws on Node 20 (no native WebSocket) [HIGH — FIXED on branch, deploy pending]
+
+- **Issue**: Email login on the develop Vercel Preview returns "Internal server error". Live `curl -i POST /auth/login` → `HTTP 500 {"code":"INTERNAL_ERROR"}`. CORS headers + `x-actor-id` present, so the request reaches the handler and throws inside it. Every login/logout on Render is broken; blocks F107a magic-link smoke (Task #18) and the develop→main release bundle.
+- **Root Cause**: `@supabase/supabase-js` `^2.45.0` drifted in the lockfile to **2.105.4**. `createClient()` eagerly constructs a `RealtimeClient`; its constructor calls `getWebSocketConstructor()`, which on **Node < 22 (no global `WebSocket`)** throws `Node.js 20 detected without native WebSocket support`. Render runs Node 20 (EOL 2026-04-30); the throw carries no `code`, so `mapError` returns generic 500 INTERNAL_ERROR (NOT the 503 AUTH_PROVIDER_UNAVAILABLE config path — env vars are correct). We never use Realtime (only `auth.signInWithOtp` + `auth.admin.signOut`), but the client is built eagerly.
+- **Why not caught**: (1) all f107a route tests `vi.mock('@supabase/supabase-js')` so the real createClient never runs; (2) CI runs Node 22 (has global WebSocket) so the throw can't reproduce there; (3) `supabaseAdmin.ts` had no test.
+- **Severity**: High — login 100% broken on the deployed environment. Pre-beta (no real users), but a release blocker.
+- **Solution**: `realtime: { transport: ws }` on the eager Realtime client (the remedy named in the error message; supported way to run supabase-js on Node < 22). `ws` promoted to a direct dep, `@types/ws` added, lockfile resynced. New `supabaseAdmin.test.ts` with a deterministic anti-regression test that deletes `globalThis.WebSocket` to simulate Node < 22 regardless of CI's Node version. Full api suite 4596/4596.
+- **Prevention**: Test the REAL `createClient` (don't mock the auth client in at least one supabaseAdmin unit test). Be alert to lockfile drift on caret ranges (same class as the `@types/react` Vercel `npm ci` break). Align Render's Node version with CI's (Node 22) — tracked as a decoupled follow-up; Node 22's global WebSocket makes the `ws` transport removable.
+- **Ticket**: `docs/tickets/BUG-PROD-012-supabase-ws-node20-login-500.md`
+- **Status**: Fixed on branch `fix/api-auth-supabase-ws-node20`; PR + Render redeploy + login E2E verification pending.
+
+---
+
 ### 2026-05-18 — BUG-API-AUTH-FU2-FALLBACK-OBS-001: FALLBACK_LINK_FAILED throws without Sentry event [P3 OPEN]
 
 - **Issue**: When `linkCheck.accountId !== bearer` after the fallback safe-link UPDATE (real but extremely unlikely scenario: concurrent `me-<sub.slice(0,8)>` collision between two distinct subs), the F107a-FU2 handler throws `Object.assign(new Error(...), { code: 'FALLBACK_LINK_FAILED' })` which the global error mapper surfaces as 500 INTERNAL_ERROR. No dedicated `captureMessage` is emitted before the throw, so operators see an untagged 500 in Sentry instead of a specific `feature: F107a-FU2, event_type: fallback_link_failed` event.
