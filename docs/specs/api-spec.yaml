@@ -152,6 +152,16 @@ paths:
         is established when the user clicks the link and the web app handles the callback at
         `/auth/callback`.
 
+        **Magic-link email template (F107a-FU3):** The Supabase "Magic Link" email template
+        is configured to use `{{ .TokenHash }}` (not `{{ .ConfirmationURL }}`), so the emailed
+        link resolves to `<web_origin>/auth/callback?token_hash={{ .TokenHash }}&type=email`.
+        The callback handler verifies this server-side via `supabase.auth.verifyOtp({ token_hash, type: 'email' })`.
+        The `redirectTo`/`emailRedirectTo` field in the request body is retained in the API
+        contract for forward-compatibility with the Google OAuth flow (F107a-FU1), which uses it
+        as the PKCE authorize redirect. For magic links it does NOT determine the landing URL
+        (the email template link is fixed); however the `signInWithOtp` call still passes it
+        to remain forward-compatible with the Supabase API.
+
         **Google OAuth (provider=google) — F107a-FU1, NOT enabled in F107a:**
         Returns HTTP 400 + `code: 'PROVIDER_NOT_ENABLED'` in F107a. The request body schema
         accepts `provider: 'google'` (forward-compatibility with F107a-FU1, no schema break),
@@ -275,24 +285,38 @@ paths:
 
   /auth/callback:
     get:
-      summary: Web-only auth callback — handled by Supabase JS SDK in the browser
+      summary: Web-only auth callback — dual-dispatch for magic-link (verifyOtp) and OAuth PKCE
       description: |
         This endpoint is NOT implemented in the Fastify API backend.
-        It is handled entirely by the Next.js web app (`packages/web/`) using the
-        Supabase JS SDK (`supabase.auth.exchangeCodeForSession()`).
+        It is handled entirely by the Next.js web app (`packages/web/`) as a Route Handler at
+        `app/auth/callback/route.ts`.
 
-        Flow:
-        1. Supabase redirects browser to `https://app.nutrixplorer.com/auth/callback?code=<code>`.
-        2. The Next.js route handler at `app/auth/callback/route.ts` calls
-           `supabase.auth.exchangeCodeForSession(code)`.
-        3. On success: session stored in browser (Supabase JS SDK manages cookies/localStorage).
-        4. Redirect to `/hablar` with user menu showing authenticated state.
-        5. On error (cancelled OAuth, expired magic link): display user-facing error message.
+        **F107a-FU3 dual-dispatch logic (evaluated in priority order):**
+
+        1. `?error` present → error path: `access_denied` → `redirect('/login')` (silent);
+           any other value → `redirect('/login?error=callback_failed')`.
+
+        2. `?token_hash` present → **Magic-link path (F107a-FU3).**
+           The Supabase "Magic Link" email template is configured to emit:
+           `<web_origin>/auth/callback?token_hash={{ .TokenHash }}&type=email`
+           The route handler calls `supabase.auth.verifyOtp({ token_hash, type })` using the
+           SSR server client (`getSupabaseServerClient()`). Allowed `EmailOtpType` values:
+           `'email'` (default, emitted by template) and `'magiclink'` (robustness guard).
+           Any other `type` value is treated as invalid → `redirect('/login?error=callback_failed')`.
+           On success → session cookies written by the `setAll` cookie adapter → `redirect('/hablar')`.
+           On verifyOtp error (expired, already used, invalid) → `redirect('/login?error=callback_failed')`.
+
+        3. `?code` present (no `token_hash`) → **OAuth PKCE path (F107a-FU1, forward-compat).**
+           The route handler calls `supabase.auth.exchangeCodeForSession(code)`.
+           On success → `redirect('/hablar')`. On error → `redirect('/login?error=callback_failed')`.
+           This branch is preserved from the pre-F107a-FU3 implementation.
+
+        4. Neither `token_hash` nor `code` present → `redirect('/login?error=callback_failed')`.
 
         Documented here for completeness — not a Fastify API route.
 
         **ADR-025 R3 §4** — cross-domain auth transport via bearer header; session established
-        client-side by the Supabase JS SDK.
+        server-side via Supabase SSR verifyOtp (magic link) or exchangeCodeForSession (OAuth).
       operationId: authCallbackWebOnly
       tags:
         - Auth
@@ -300,12 +324,35 @@ paths:
       x-web-package: packages/web
       x-web-path: app/auth/callback/route.ts
       parameters:
+        - name: token_hash
+          in: query
+          required: false
+          schema:
+            type: string
+          description: |
+            Magic-link token hash emitted by the Supabase email template
+            (`{{ .TokenHash }}`). Present on the magic-link path (F107a-FU3).
+            When present, `supabase.auth.verifyOtp({ token_hash, type })` is called
+            server-side. Takes precedence over `code` if both are present.
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [email, magiclink]
+            default: email
+          description: |
+            OTP type for the `verifyOtp` call. Valid values: `email` (default, emitted by
+            the Supabase magic-link template) and `magiclink` (accepted for robustness).
+            Only relevant when `token_hash` is present. Any other value → callback_failed.
         - name: code
           in: query
           required: false
           schema:
             type: string
-          description: PKCE authorization code provided by Supabase after OAuth/magic-link flow.
+          description: |
+            PKCE authorization code provided by Supabase after an OAuth flow (F107a-FU1).
+            Used only when `token_hash` is absent. Triggers `exchangeCodeForSession(code)`.
         - name: error
           in: query
           required: false
@@ -321,7 +368,7 @@ paths:
       responses:
         '302':
           description: |
-            Redirect on success (→ /hablar) or error (→ /login?error=...).
+            Redirect on success (→ /hablar) or error (→ /login or /login?error=callback_failed).
             All logic is in the web app, not the API.
 
   /auth/logout:

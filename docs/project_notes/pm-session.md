@@ -10,7 +10,8 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F099-lite — User Profiles BMR + targets | Standard | pending | — | Sequential after F107a-FU2 ships. RGPD Art.9 gate (privacy policy update with health data fields) prerequisite out-of-repo. |
+| F107a-FU3 — Magic-link callback fix (token_hash + verifyOtp) | Standard | in-progress | — | Inserted 2026-05-21. Frontend bugfix, release-blocking: magic-link login broken (callback expects PKCE `?code`, but server-initiated OTP yields implicit fragment). Step 2/6. Operator dep: Supabase email template change (dev+prod). |
+| F099-lite — User Profiles BMR + targets | Standard | pending | — | Sequential after F107a-FU3 + release bundle. RGPD Art.9 gate (privacy policy update with health data fields) prerequisite out-of-repo. |
 
 ## Completed Features
 
