@@ -26,6 +26,7 @@
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → Service Role key | Used for `signOut` admin invalidation |
 | `SUPABASE_JWKS_URL` | `{SUPABASE_URL}/auth/v1/.well-known/jwks.json` | Used by `jose` for RS256 JWT verification |
 | `SUPABASE_JWT_SECRET` | Supabase → Settings → API → JWT Secret | Emergency operator tool only. NOT consumed by API code (no HS256 fallback path). |
+| `CORS_ORIGINS` | Comma-separated list of allowed web origins | **Required in production** (`NODE_ENV=production`). If unset → `origin: false` → the API blocks all cross-origin requests → browser `fetch` fails with "Load Failed" on `/login`. Dev: the stable develop Vercel Preview alias `https://foodyassistance-git-develop-pbojedas-projects.vercel.app`. Prod: `https://app.nutrixplorer.com`. No trailing slash, no quotes. See `packages/api/src/plugins/cors.ts:38-57`. |
 
 ### Vercel — Web app
 
@@ -59,6 +60,8 @@ Set up a Render Cron Job to ping the API daily:
 - **Schedule:** `0 8 * * *` (08:00 UTC daily)
 - **URL:** `GET https://<api-render-domain>/health?db=true`
 - This keeps the service warm and verifies DB connectivity.
+
+**Operator note (2026-05-20):** we use **UptimeRobot** instead of a Render Cron — free, 5-min HTTP(s) interval (keeps the service warmer than daily) and doubles as uptime alerting. Monitors configured against `https://nutrixplorer-api-dev.onrender.com/health?db=true` (and `-prod` once live), 5-min interval, email alerts. Confirmed live in the Render log stream (`UptimeRobot/2.0` user-agent on `/health?db=true`).
 
 ---
 
