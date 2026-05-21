@@ -1,7 +1,7 @@
 # F107a-FU3: Magic-link callback fails — switch to token_hash + verifyOtp
 
 **Feature:** F107a-FU3 | **Type:** Frontend-Bugfix | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F107a-FU3-magic-link-verifyotp
+**Status:** Ready for Merge | **Branch:** feature/F107a-FU3-magic-link-verifyotp
 **Created:** 2026-05-21 | **Dependencies:** F107a (auth core), F107a-FU2 (merged). Operator dependency: Supabase Magic Link email template change (dev + prod projects).
 
 ---
@@ -311,10 +311,10 @@ This criterion must be checked off at Step 6 (deploy), not at code-merge.
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: `frontend-planner` executed, plan approved (cross-model: Codex REVISE 2 IMPORTANT addressed + Gemini APPROVED)
 - [x] Step 3: `frontend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard/Complex)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 4: `production-code-validator` executed, quality gates pass (APPROVE 0 BLOCKERs; web 576/576, typecheck/lint/build clean)
+- [x] Step 5: `code-review-specialist` executed (APPROVE; 2 MINOR + 2 NIT — rethrowIfRedirect helper extraction + redundant cast removal applied)
+- [x] Step 5: `qa-engineer` executed (QA VERIFIED; +16 edge-case tests, AC1–AC18 covered, AC19 deploy-deferred)
+- [ ] Step 6: Ticket updated with final metrics, branch deleted (post-merge)
 
 ---
 
@@ -326,6 +326,8 @@ This criterion must be checked off at Step 6 (deploy), not at code-merge.
 | 2026-05-21 | Spec revision | Cross-model review (Codex REVISE: 2 IMPORTANT + 1 SUGGESTION; Gemini APPROVED: 1 SUGGESTION) — all addressed: api-spec.yaml `/auth/callback` + `/auth/login` updated to reflect token_hash/verifyOtp magic-link path and retained `?code` OAuth path (Finding 1); deploy-time operator-verification AC19 added (Finding 2); type=magiclink AC18 + implementation note added (Finding 3); link_used UX distinction deferred as YAGNI in Edge Cases (Finding 4). Final AC count: AC1–AC19 (AC19 deploy-time). |
 | 2026-05-21 | Plan cross-model review | Codex REVISE: 2 IMPORTANT [doc-files-in-scope, turbo→npm/jest] + 1 SUGGESTION [test count 8→9]; Gemini APPROVED — all addressed: api-spec.yaml + ui-components.md added to Files to Modify tagged Step-0 (Finding 1); all turbo/bare npm commands replaced with npm-workspace forms (`npm test/typecheck/build/lint -w @foodxplorer/web`), AC12 updated to Jest, AC15 updated to typecheck+build (Finding 2); existing test count corrected to 9 throughout (Finding 3). |
 | 2026-05-21 | Implementation (Step 3) | TDD: Red (8 new tests written, failing) → Green (handler rewritten to 4-priority dispatch) → all 17 tests pass (9 existing + 8 new). Quality gates: typecheck clean, lint clean, build clean (560/560 tests). AC1–AC18 satisfied; AC19 deferred to Step 6 (deploy-time operator action). |
+| 2026-05-21 | Finalize (Step 4) | `production-code-validator` APPROVE (0 BLOCKERs/MAJORs). Quality gates re-verified independently: `npm test -w @foodxplorer/web` 560/560, typecheck clean, lint clean, build OK (`/auth/callback` dynamic route handler). |
+| 2026-05-21 | Review (Step 5) | `code-review-specialist` APPROVE (0 BLOCKER/MAJOR; 2 MINOR + 2 NIT). `qa-engineer` QA VERIFIED (+16 edge-case tests in `callback.edge-cases.test.ts`; AC1–AC18 covered, 1 informational empty-`?error=` note, no fix needed). Polish applied: extracted `rethrowIfRedirect()` shared helper, dropped redundant `as EmailOtpType` cast + unused import. Web suite 576/576 post-polish. |
 
 ---
 
@@ -335,14 +337,14 @@ This criterion must be checked off at Step 6 (deploy), not at code-merge.
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
+| 0. Validate ticket structure | [x] | All 7 sections present: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 18/19 (AC19 deploy-deferred), DoD: 7/8 (operator smoke deploy-deferred), Workflow: 0–5/6 marked (Step 6 post-merge) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6 (Review); pm-session Features table: F107a-FU3 in-progress |
+| 3. Update key_facts.md | [x] | Auth section (line 113): added F107a-FU3 note — web magic-link callback now token_hash + verifyOtp dual-dispatch |
+| 4. Update decisions.md | [x] | N/A — no new ADR (canonical Supabase SSR pattern, not a project-specific architecture decision; documented in ticket + api-spec + runbook) |
+| 5. Commit documentation | [x] | Commit: docs(F107a-FU3) Step 4+5 merge-prep (this commit) |
+| 6. Verify clean working tree | [x] | `git status` clean after docs commit |
+| 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` → 0 (develop@632ae62 is ancestor; no merge needed) |
 
 ---
 
