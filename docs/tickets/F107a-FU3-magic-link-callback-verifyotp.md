@@ -294,13 +294,13 @@ This criterion must be checked off at Step 6 (deploy), not at code-merge.
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met (AC1–AC18 at code-merge; AC19 at deploy)
-- [ ] Unit tests written and passing
-- [ ] E2E tests updated (if applicable)
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation (api-spec.yaml + ui-components.md updated)
+- [x] All acceptance criteria met (AC1–AC18 at code-merge; AC19 at deploy)
+- [x] Unit tests written and passing
+- [x] E2E tests updated (if applicable)
+- [x] Code follows project standards
+- [x] No linting errors
+- [x] Build succeeds
+- [x] Specs reflect final implementation (api-spec.yaml + ui-components.md updated)
 - [ ] Operator E2E smoke (AC19) completed and confirmed in both dev + prod Supabase at Step 6
 
 ---
@@ -310,7 +310,7 @@ This criterion must be checked off at Step 6 (deploy), not at code-merge.
 - [x] Step 0: `spec-creator` executed, specs updated (cross-model: Codex REVISE 2 IMPORTANT addressed + Gemini APPROVED)
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: `frontend-planner` executed, plan approved (cross-model: Codex REVISE 2 IMPORTANT addressed + Gemini APPROVED)
-- [ ] Step 3: `frontend-developer` executed with TDD
+- [x] Step 3: `frontend-developer` executed with TDD
 - [ ] Step 4: `production-code-validator` executed, quality gates pass
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed (Standard/Complex)
@@ -325,6 +325,7 @@ This criterion must be checked off at Step 6 (deploy), not at code-merge.
 | 2026-05-21 | Triage | Production defect found during F107a operator action. Root cause confirmed empirically (admin client implicit flow + server callback expecting PKCE ?code). Standard tier, cross-model review on spec + plan. |
 | 2026-05-21 | Spec revision | Cross-model review (Codex REVISE: 2 IMPORTANT + 1 SUGGESTION; Gemini APPROVED: 1 SUGGESTION) — all addressed: api-spec.yaml `/auth/callback` + `/auth/login` updated to reflect token_hash/verifyOtp magic-link path and retained `?code` OAuth path (Finding 1); deploy-time operator-verification AC19 added (Finding 2); type=magiclink AC18 + implementation note added (Finding 3); link_used UX distinction deferred as YAGNI in Edge Cases (Finding 4). Final AC count: AC1–AC19 (AC19 deploy-time). |
 | 2026-05-21 | Plan cross-model review | Codex REVISE: 2 IMPORTANT [doc-files-in-scope, turbo→npm/jest] + 1 SUGGESTION [test count 8→9]; Gemini APPROVED — all addressed: api-spec.yaml + ui-components.md added to Files to Modify tagged Step-0 (Finding 1); all turbo/bare npm commands replaced with npm-workspace forms (`npm test/typecheck/build/lint -w @foodxplorer/web`), AC12 updated to Jest, AC15 updated to typecheck+build (Finding 2); existing test count corrected to 9 throughout (Finding 3). |
+| 2026-05-21 | Implementation (Step 3) | TDD: Red (8 new tests written, failing) → Green (handler rewritten to 4-priority dispatch) → all 17 tests pass (9 existing + 8 new). Quality gates: typecheck clean, lint clean, build clean (560/560 tests). AC1–AC18 satisfied; AC19 deferred to Step 6 (deploy-time operator action). |
 
 ---
 

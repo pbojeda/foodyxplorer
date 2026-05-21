@@ -1,16 +1,20 @@
 // F107a: AuthCallback Route Handler tests — AC22 server side.
-// Tests: code exchange success, all S3 error codes, missing code, exchange throws.
+// F107a-FU3: Extended for dual-dispatch (token_hash/verifyOtp + code/exchangeCodeForSession).
+// Tests: code exchange success, all S3 error codes, missing code, exchange throws,
+//        verifyOtp happy path, verifyOtp error/throw, invalid type, precedence.
 
 // ---------------------------------------------------------------------------
 // Module mocks — must be declared before imports
 // ---------------------------------------------------------------------------
 
 const mockExchangeCodeForSession = jest.fn();
+const mockVerifyOtp = jest.fn();
 
 jest.mock('../../lib/supabase/server', () => ({
   getSupabaseServerClient: jest.fn().mockResolvedValue({
     auth: {
       exchangeCodeForSession: (...args: unknown[]) => mockExchangeCodeForSession(...args),
+      verifyOtp: (...args: unknown[]) => mockVerifyOtp(...args),
     },
   }),
 }));
@@ -50,6 +54,7 @@ describe('AuthCallback Route Handler (AC22)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockExchangeCodeForSession.mockResolvedValue({ data: {}, error: null });
+    mockVerifyOtp.mockResolvedValue({ data: {}, error: null });
   });
 
   it('calls exchangeCodeForSession and redirects to /hablar on success', async () => {
@@ -134,5 +139,93 @@ describe('AuthCallback Route Handler (AC22)', () => {
     );
 
     expect(mockRedirect).toHaveBeenCalledWith('/login?error=callback_failed');
+  });
+
+  // ---------------------------------------------------------------------------
+  // F107a-FU3: verifyOtp (token_hash) dispatch tests
+  // ---------------------------------------------------------------------------
+
+  // AC1 — token_hash + type=email → verifyOtp called, exchangeCodeForSession NOT called, /hablar
+  it('AC1: calls verifyOtp with token_hash+type=email and redirects to /hablar', async () => {
+    await expect(
+      GET(makeRequest({ token_hash: 'valid-hash', type: 'email' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/hablar');
+
+    expect(mockVerifyOtp).toHaveBeenCalledWith({ token_hash: 'valid-hash', type: 'email' });
+    expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
+    expect(mockRedirect).toHaveBeenCalledWith('/hablar');
+  });
+
+  // AC2 — token_hash, no type → defaults to 'email'
+  it('AC2: token_hash without type defaults type to email and redirects to /hablar', async () => {
+    await expect(
+      GET(makeRequest({ token_hash: 'valid-hash' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/hablar');
+
+    expect(mockVerifyOtp).toHaveBeenCalledWith({ token_hash: 'valid-hash', type: 'email' });
+    expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
+  // AC3 — verifyOtp returns error → callback_failed
+  it('AC3: redirects to /login?error=callback_failed when verifyOtp returns error', async () => {
+    mockVerifyOtp.mockResolvedValueOnce({ data: null, error: { message: 'Token expired' } });
+
+    await expect(
+      GET(makeRequest({ token_hash: 'expired-hash', type: 'email' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/login?error=callback_failed');
+
+    expect(mockRedirect).toHaveBeenCalledWith('/login?error=callback_failed');
+  });
+
+  // AC4 — verifyOtp throws → callback_failed
+  it('AC4: redirects to /login?error=callback_failed when verifyOtp throws', async () => {
+    mockVerifyOtp.mockRejectedValueOnce(new Error('Network failure'));
+
+    await expect(
+      GET(makeRequest({ token_hash: 'valid-hash', type: 'email' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/login?error=callback_failed');
+
+    expect(mockRedirect).toHaveBeenCalledWith('/login?error=callback_failed');
+  });
+
+  // AC5 — invalid type (not in allowed set) → callback_failed, neither fn called
+  it('AC5: redirects to /login?error=callback_failed for invalid type param, no fn called', async () => {
+    await expect(
+      GET(makeRequest({ token_hash: 'valid-hash', type: 'phone' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/login?error=callback_failed');
+
+    expect(mockVerifyOtp).not.toHaveBeenCalled();
+    expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
+    expect(mockRedirect).toHaveBeenCalledWith('/login?error=callback_failed');
+  });
+
+  // AC10 — both token_hash AND code present → token_hash wins (verifyOtp called, not exchangeCodeForSession)
+  it('AC10: token_hash takes precedence over code when both present', async () => {
+    await expect(
+      GET(makeRequest({ token_hash: 'hash-x', code: 'code-y', type: 'email' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/hablar');
+
+    expect(mockVerifyOtp).toHaveBeenCalledWith({ token_hash: 'hash-x', type: 'email' });
+    expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
+  });
+
+  // AC11 — error param takes precedence over token_hash
+  it('AC11: error param takes precedence over token_hash — silent /login for access_denied', async () => {
+    await expect(
+      GET(makeRequest({ token_hash: 'hash-x', error: 'access_denied' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/login');
+
+    expect(mockRedirect).toHaveBeenCalledWith('/login');
+    expect(mockVerifyOtp).not.toHaveBeenCalled();
+  });
+
+  // AC18 — type=magiclink accepted
+  it('AC18: type=magiclink is accepted and calls verifyOtp with type=magiclink', async () => {
+    await expect(
+      GET(makeRequest({ token_hash: 'valid-hash', type: 'magiclink' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/hablar');
+
+    expect(mockVerifyOtp).toHaveBeenCalledWith({ token_hash: 'valid-hash', type: 'magiclink' });
+    expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
   });
 });
