@@ -19,7 +19,6 @@
 //     → /login?error=callback_failed
 
 import { redirect } from 'next/navigation';
-import type { EmailOtpType } from '@supabase/supabase-js';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 
 const ALLOWED_OTP_TYPES = ['email', 'magiclink'] as const;
@@ -31,6 +30,16 @@ function narrowOtpType(raw: string | null): AllowedOtpType | null {
     return value as AllowedOtpType;
   }
   return null;
+}
+
+// next/navigation redirect() throws a NEXT_REDIRECT control-flow error; it must
+// be re-thrown when it surfaces inside a catch so the redirect actually happens
+// (a swallowed redirect would silently break auth). Defined once and shared by
+// both verification branches to keep this security-sensitive idiom in one place.
+function rethrowIfRedirect(err: unknown): void {
+  if (err instanceof Error && (err as Error & { digest?: string }).digest?.startsWith('NEXT_REDIRECT')) {
+    throw err;
+  }
 }
 
 export async function GET(request: Request): Promise<never> {
@@ -58,17 +67,14 @@ export async function GET(request: Request): Promise<never> {
       const supabase = await getSupabaseServerClient();
       const { error: verifyError } = await supabase.auth.verifyOtp({
         token_hash: tokenHash,
-        type: otpType as EmailOtpType,
+        type: otpType,
       });
 
       if (verifyError) {
         redirect('/login?error=callback_failed');
       }
     } catch (err) {
-      const isRedirectError =
-        err instanceof Error && (err as Error & { digest?: string }).digest?.startsWith('NEXT_REDIRECT');
-      if (isRedirectError) throw err;
-
+      rethrowIfRedirect(err);
       redirect('/login?error=callback_failed');
     }
 
@@ -85,10 +91,7 @@ export async function GET(request: Request): Promise<never> {
         redirect('/login?error=callback_failed');
       }
     } catch (err) {
-      const isRedirectError =
-        err instanceof Error && (err as Error & { digest?: string }).digest?.startsWith('NEXT_REDIRECT');
-      if (isRedirectError) throw err;
-
+      rethrowIfRedirect(err);
       redirect('/login?error=callback_failed');
     }
 
