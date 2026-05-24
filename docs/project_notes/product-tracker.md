@@ -174,6 +174,17 @@ After import: `npm run embeddings:generate -w @foodxplorer/api`.
 
 ---
 
+## Research artifacts
+
+> Cross-cutting research documents. Read before designing related features. No tickets pre-created — tickets are filed when implementation starts (YAGNI).
+
+| Document | Scope | Date | Read before designing |
+|---|---|---|---|
+| [product-evolution-analysis-2026-03-31.md](../research/product-evolution-analysis-2026-03-31.md) | Phase 2 roadmap, F068-F109 strategy | 2026-03-31 | Any spec for F068-F109 (mandatory) |
+| [telemetry-audit-2026-04-29.md](../research/telemetry-audit-2026-04-29.md) | /hablar telemetry, GDPR posture, auth/tier/registro roadmap | 2026-04-29 | Telemetry features, GDPR work, F098/F099/F107 specs |
+
+---
+
 ## Epics — Phase 1
 
 | Epic | Name | Status | Features | Dependencies |
