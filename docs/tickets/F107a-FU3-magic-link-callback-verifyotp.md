@@ -1,7 +1,7 @@
 # F107a-FU3: Magic-link callback fails — switch to token_hash + verifyOtp
 
 **Feature:** F107a-FU3 | **Type:** Frontend-Bugfix | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F107a-FU3-magic-link-verifyotp
+**Status:** Done | **Branch:** feature/F107a-FU3-magic-link-verifyotp (merged + deleted)
 **Created:** 2026-05-21 | **Dependencies:** F107a (auth core), F107a-FU2 (merged). Operator dependency: Supabase Magic Link email template change (dev + prod projects).
 
 ---
@@ -301,7 +301,7 @@ This criterion must be checked off at Step 6 (deploy), not at code-merge.
 - [x] No linting errors
 - [x] Build succeeds
 - [x] Specs reflect final implementation (api-spec.yaml + ui-components.md updated)
-- [ ] Operator E2E smoke (AC19) completed and confirmed in both dev + prod Supabase at Step 6
+- [~] Operator E2E smoke (AC19) — dev template updated by operator 2026-05-25 (uses `app-dev.nutrixplorer.com`); pending user dev login re-test to confirm empirically. Prod template + prod smoke coordinated with the develop→main release bundle.
 
 ---
 
@@ -314,7 +314,7 @@ This criterion must be checked off at Step 6 (deploy), not at code-merge.
 - [x] Step 4: `production-code-validator` executed, quality gates pass (APPROVE 0 BLOCKERs; web 576/576, typecheck/lint/build clean)
 - [x] Step 5: `code-review-specialist` executed (APPROVE; 2 MINOR + 2 NIT — rethrowIfRedirect helper extraction + redundant cast removal applied)
 - [x] Step 5: `qa-engineer` executed (QA VERIFIED; +16 edge-case tests, AC1–AC18 covered, AC19 deploy-deferred)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted (post-merge)
+- [x] Step 6: Ticket updated with final metrics, branch deleted (merged at `816799e` squash via PR #288; feature branch deleted local + remote)
 
 ---
 
@@ -328,6 +328,8 @@ This criterion must be checked off at Step 6 (deploy), not at code-merge.
 | 2026-05-21 | Implementation (Step 3) | TDD: Red (8 new tests written, failing) → Green (handler rewritten to 4-priority dispatch) → all 17 tests pass (9 existing + 8 new). Quality gates: typecheck clean, lint clean, build clean (560/560 tests). AC1–AC18 satisfied; AC19 deferred to Step 6 (deploy-time operator action). |
 | 2026-05-21 | Finalize (Step 4) | `production-code-validator` APPROVE (0 BLOCKERs/MAJORs). Quality gates re-verified independently: `npm test -w @foodxplorer/web` 560/560, typecheck clean, lint clean, build OK (`/auth/callback` dynamic route handler). |
 | 2026-05-21 | Review (Step 5) | `code-review-specialist` APPROVE (0 BLOCKER/MAJOR; 2 MINOR + 2 NIT). `qa-engineer` QA VERIFIED (+16 edge-case tests in `callback.edge-cases.test.ts`; AC1–AC18 covered, 1 informational empty-`?error=` note, no fix needed). Polish applied: extracted `rethrowIfRedirect()` shared helper, dropped redundant `as EmailOtpType` cast + unused import. Web suite 576/576 post-polish. |
+| 2026-05-25 | Merge (Step 5→6) | PR #288 CI green (`ci-success` SUCCESS, `test-web` SUCCESS, others path-skipped; UNSTABLE = Vercel preview only). `/audit-merge` structural 11/11 + drift CLEAN. User merge-approved. Squash-merged to develop at `816799e`; feature branch deleted local + remote. |
+| 2026-05-25 | Step 6 housekeeping | Status → Done; tracker + pm-session synced. Operator updated the Supabase **dev** Magic Link template to `app-dev.nutrixplorer.com/auth/callback?token_hash={{ .TokenHash }}&type=email`. **AC19 dev smoke pending user re-test.** Prod template + prod smoke deferred to the develop→main release bundle (coordinated deploy + template change). |
 
 ---
 

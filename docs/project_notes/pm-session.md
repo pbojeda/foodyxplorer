@@ -10,13 +10,13 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F107a-FU3 — Magic-link callback fix (token_hash + verifyOtp) | Standard | in-progress | — | Inserted 2026-05-21. Frontend bugfix, release-blocking: magic-link login broken (callback expects PKCE `?code`, but server-initiated OTP yields implicit fragment). Step 2/6. Operator dep: Supabase email template change (dev+prod). |
 | F099-lite — User Profiles BMR + targets | Standard | pending | — | Sequential after F107a-FU3 + release bundle. RGPD Art.9 gate (privacy policy update with health data fields) prerequisite out-of-repo. |
 
 ## Completed Features
 
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
+| F107a-FU3 — Magic-link callback fix (token_hash + verifyOtp) | Standard | 2026-05-21 → 2026-05-25 | Shipped via PR #288 squash `816799e`. Frontend bugfix: rewrote `auth/callback/route.ts` from PKCE-only to 4-priority dispatch (token_hash+verifyOtp for magic link; `?code`+exchangeCodeForSession retained for future OAuth). 19 ACs (AC1-18 code, AC19 operator E2E smoke deploy-deferred). callback.test.ts 9→17 + callback.edge-cases.test.ts (16); web 576/576. Spec + Plan both cross-model (Codex REVISE→addressed + Gemini APPROVED). production-code-validator APPROVE, code-review-specialist APPROVE (2 MINOR+2 NIT applied), qa-engineer QA VERIFIED. /audit-merge 11/11 + drift CLEAN. **AC19 pending**: dev template updated 2026-05-25 (`app-dev.nutrixplorer.com`), awaiting user dev re-test; prod template + smoke at release. |
 | F107a-FU2 — Account-link hijack fix | Standard | 1 day (2026-05-18 → 2026-05-19) | Shipped via PR #283 squash `4756716`. 11 feature-branch commits collapsed. 17 ACs (16 numbered + AC8b + AC9b) + 12 DoD. **22 new tests** (14 dev + 8 qa edge cases). Spec + Plan both R1+R2 cross-model APPROVED (Codex + Gemini converged). production-code-validator 12/12, code-review-specialist 0 BLOCKERs/MAJORs + 6 NITs (S1 applied), qa-engineer PASS WITH FOLLOW-UPS (3 P3 in bugs.md). `/audit-merge` 11/11 structural + drift CLEAN. Post-merge sanity 4592/4592 green. Closes BUG-API-AUTH-ACTOR-HIJACK-001 P1 (silent cross-user actor.account_id hijack via shared X-Actor-Id). NO new DB table (Pino+Sentry observability only). |
 
 <!-- legacy Completed Features section retained below for historical entries if any -->
