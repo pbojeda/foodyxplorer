@@ -26,7 +26,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Prevention**: Add a route test that exercises `/conversation/*` with a valid bearer (not just anonymous). Treat "authenticated principal" as a first-class request concept (stop overloading anonymous `actorId`).
 - **Found by**: Post-auth strategic analysis + cross-model review (Gemini + Codex, 2 rounds), 2026-05-25. See `docs/research/post-auth-strategic-analysis-2026-05-25.md`.
 - **Severity**: High (core broken when authenticated; low current blast radius — pre-beta).
-- **Status**: Confirmed by code reading (3 evidences) + Codex independent verification; operator manual repro + SDD fix (bug-workflow Path B Standard, base develop) pending.
+- **Status**: FIXED — operator-confirmed repro 2026-05-25; merged to develop via **PR #292** (squash `68caa0b`). **AC8 operator post-deploy smoke pending** (manual `nutrixplorer-api-dev` deploy → login → "paella" → 200). Account linking + tier-by-account = P0b (F-WEB-TIER).
 
 ---
 

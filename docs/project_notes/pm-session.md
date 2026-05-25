@@ -10,7 +10,7 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| BUG-PROD-013 — Authed `/conversation/*` 500 (actorId not set on bearer path) | Standard | pending | — | **P0 fundación. PIVOT 2026-05-25: reemplaza a F099-lite.** bug-workflow Path B (base develop). Fix reusa la resolución de actor de `/me` (X-Actor-Id → provisionFallbackActor + link seguro) en el path bearer del actorResolver. Doc: `docs/research/post-auth-strategic-analysis-2026-05-25.md` |
+| BUG-PROD-013 — Authed `/conversation/*` 500 (actorId not set on bearer path) | Standard | done | 2026-05-25 | **DONE — merged PR #292 squash `68caa0b`; AC8 operator deploy pending. P0 fundación. PIVOT 2026-05-25: reemplazó a F099-lite.** bug-workflow Path B (base develop). Fix reusa la resolución de actor de `/me` (X-Actor-Id → provisionFallbackActor + link seguro) en el path bearer del actorResolver. Doc: `docs/research/post-auth-strategic-analysis-2026-05-25.md` |
 | F-WEB-TIER + F-WEB-AUTH-CTA — registro con valor | Standard | pending | — | Tras BUG-PROD-013. Cuenta ⇒ tier `free` (incl. foto vía proxy) + entry point login en `/hablar`. Signup abierto, waitlist=marketing. |
 | F-WEB-HISTORY — histórico de búsquedas (faseado) | Standard | pending | — | Tras tier/CTA. Fase 1 transcript LOCAL (mide uso) → Fases 2-3 persistencia. |
 | F099-lite — User Profiles BMR + targets | Standard | DEFERRED | — | **Diferido 2026-05-25 (owner):** alta fricción + retención sin validar + gate RGPD Art.9. Revisar tras señal de beta. |
@@ -39,7 +39,7 @@ _(Move features here if blocked)_
 
 **Current feature:** None — F107a-FU3 done + auth RELEASED to prod (PR #290 `cf906b8`). **Strategic pivot 2026-05-25.**
 **Branch:** `develop` (clean).
-**Next features:** **BUG-PROD-013** (P0 — authed `/conversation/*` 500) FIRST → F-WEB-TIER + F-WEB-AUTH-CTA → F-WEB-HISTORY (faseado). Plan en `docs/research/post-auth-strategic-analysis-2026-05-25.md` (cross-model 2 rondas, Gemini+Codex). **F099-lite DIFERIDO.**
+**Next features:** **BUG-PROD-013 DONE** (PR #292) → next: **P0b / F-WEB-TIER** (account↔actor linking + tier-por-cuenta, incl. foto vía proxy) + **F-WEB-AUTH-CTA** → **F-WEB-HISTORY** (faseado, local primero). Plan en `docs/research/post-auth-strategic-analysis-2026-05-25.md` (cross-model 2 rondas, Gemini+Codex). **F099-lite DIFERIDO.** **Operator pending: manual api-dev deploy + AC8 smoke.**
 **Blocked:** none.
 
 **Pivot context** (2026-05-18): originally pm-profiles was F107b + F099-lite. After empirical investigation surfaced F107b's premise as incorrect AND surfaced a real P1 hijack bug in F107a, the batch was recomposed: F107a-FU2 (the hotfix) replaces F107b. F107b ticket closed with `Status: Closed - Not Needed` + re-evaluation triggers.
