@@ -1919,7 +1919,7 @@ App (packages/web/)
 │       ├── EmailLoginForm (Client)
 │       └── OAuthButton (Client — Google)
 ├── /auth/callback (route — NEW, Next.js route handler)
-│   └── AuthCallbackPage (Client — token exchange + redirect)
+│   └── AuthCallbackPage (Server Route Handler — token_hash/verifyOtp + PKCE fallback → redirect)
 ├── /hablar (existing route — UPDATED)
 │   └── HablarShell (Client — UPDATED: reads useAuth() for accountId)
 │       └── Header (updated: conditionally renders UserMenu)
@@ -2028,28 +2028,34 @@ that is a descendant of `AuthProvider`.
 
 ---
 
-### AuthCallbackPage (NEW)
+### AuthCallbackPage (UPDATED — F107a-FU3)
 
-**Type:** Page | **Client:** Yes (`'use client'`)
+**Type:** Server Route Handler | **Client:** No
 **File:** `src/app/auth/callback/route.ts`
 
-Next.js **Route Handler** (not a Client Component — this is a server-side Route Handler
-that runs the PKCE code exchange).
+Next.js **Route Handler** (server-side only — no React state, no rendering). Handles all auth callback flows via a priority-ordered dispatch table.
 
-**Behaviour:**
-1. Reads `code` query param from URL.
-2. Calls `supabase.auth.exchangeCodeForSession(code)`.
-3. On success: `redirect('/hablar')` (Next.js redirect).
-4. On error (missing code, expired code, cancelled OAuth): `redirect('/login?error=callback_failed')`.
+**Dispatch table (evaluated in order):**
 
-**State:** None (server-side route handler — no React state).
+| Priority | Condition | Action |
+|----------|-----------|--------|
+| 1 | `?error` param present | `access_denied` → `redirect('/login')` (silent, ADR-025 R3 §6); any other value → `redirect('/login?error=callback_failed')`. |
+| 2 | `?token_hash` param present | Magic-link / email OTP path. Read `type` param; default `'email'` if absent. Validate `type` ∈ `['email', 'magiclink']`; invalid → `redirect('/login?error=callback_failed')`. Call `supabase.auth.verifyOtp({ token_hash, type })` using `getSupabaseServerClient()`. Success → `redirect('/hablar')`. Error or throw → `redirect('/login?error=callback_failed')`. |
+| 3 | `?code` param present (no `token_hash`) | OAuth PKCE path (F107a-FU1 forward-compat). Call `supabase.auth.exchangeCodeForSession(code)`. Success → `redirect('/hablar')`. Error or throw → `redirect('/login?error=callback_failed')`. |
+| 4 | Neither param present | `redirect('/login?error=callback_failed')`. |
 
-**No React rendering** — this is a server redirect, not a page component. Any user-visible error message is shown by `LoginPage` reading the `error` query param.
+**State:** None (server-side route handler).
 
-**Client error display** is in `LoginPage`: when `error` query param is present, show
-`errorMessage` based on the code:
-- `callback_failed` → "El enlace de acceso ha expirado o ha sido cancelado. Inténtalo de nuevo."
-- `cancelled_oauth` → no message shown (Google cancel, per ADR-025 R3 §6 UX).
+**No React rendering** — all outcomes are server redirects. User-visible error messages are rendered by `LoginForm` reading `?error=callback_failed` from the redirect destination.
+
+**Client error display** is in `LoginForm`: when `error` query param is present, show `errorMessage` based on the code:
+- `callback_failed` → "El enlace de acceso ha expirado o ha sido cancelado. Solicita uno nuevo."
+- `auth_required` → "Inicia sesión para continuar."
+
+**Notes:**
+- Priority 2 (`token_hash`) fixes the F107a-FU3 production defect: the admin client's `signInWithOtp` uses implicit flow; the Supabase-generated link carries tokens in the URL fragment, which is inaccessible server-side. The `token_hash` template variable produces query params readable by the server handler.
+- Priority 3 (`code`) is preserved for the future Google OAuth PKCE flow (F107a-FU1), where the browser holds the PKCE `code_verifier` cookie and `exchangeCodeForSession` is the correct call.
+- When both `token_hash` and `code` are present (unexpected), `token_hash` takes priority.
 
 ---
 

@@ -16,6 +16,55 @@
 
 ---
 
+## Magic Link Email Template — token_hash format (F107a-FU3)
+
+**Required operator action — must be done in BOTH dev and prod Supabase projects BEFORE deploying F107a-FU3.**
+
+**Why:** The default Supabase Magic Link email template uses `{{ .ConfirmationURL }}`, which redirects via `/auth/v1/verify` and then sends the session tokens in the URL fragment (`#access_token=…`). Server-side Next.js Route Handlers cannot read URL fragments. The `token_hash` template variable produces a query parameter that is readable server-side, enabling the canonical SSR `verifyOtp` pattern.
+
+### Steps
+
+1. Open Supabase Dashboard → Authentication → Email Templates → **Magic Link**.
+2. Locate the link `<a href="{{ .ConfirmationURL }}">` (or equivalent) in the template body.
+3. Replace it with a link using `{{ .TokenHash }}` in this exact format:
+
+   ```
+   <a href="<web_origin>/auth/callback?token_hash={{ .TokenHash }}&type=email">Acceder a nutriXplorer</a>
+   ```
+
+   Where `<web_origin>` is:
+   - Dev: `https://app-dev.nutrixplorer.com` (or `http://localhost:3002` for local testing)
+   - Prod: `https://app.nutrixplorer.com`
+
+   Example for prod:
+   ```
+   <a href="https://app.nutrixplorer.com/auth/callback?token_hash={{ .TokenHash }}&type=email">Acceder a nutriXplorer</a>
+   ```
+
+4. Save the template.
+5. Repeat steps 1–4 for the **other** Supabase project (dev ↔ prod).
+
+### Key values
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| Template variable | `{{ .TokenHash }}` | Supabase Go template — exact syntax, including braces |
+| `type` query param | `email` | Matches `EmailOtpType` for `signInWithOtp` email magic link; required by `supabase.auth.verifyOtp` |
+| Route | `/auth/callback` | Must match the configured Allowed Redirect URL |
+
+### Verification
+
+After updating the template, trigger a magic link for a test email address via Supabase Dashboard → Authentication → Users → Send Magic Link (or via `POST /auth/login`). Confirm:
+- The link in the received email contains `?token_hash=…&type=email` (query params, no fragment).
+- Clicking the link redirects to `/hablar` (session established).
+- No `?error=callback_failed` appears.
+
+### Rollback
+
+To revert: restore the original `{{ .ConfirmationURL }}` template. Note that this re-introduces the production defect (F107a-FU3 bug) — only roll back if the `verifyOtp` code change is also being reverted.
+
+---
+
 ## Environment Variables (AC24b, AC24c)
 
 ### Render — API service
