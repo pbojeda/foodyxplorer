@@ -1,6 +1,6 @@
 # BUG-PROD-013 — Authenticated `/conversation/*` returns 500 (`actorId` never set on bearer path)
 
-**Status:** Ready for Merge
+**Status:** Done
 **Severity:** High (core broken when authenticated; low current blast radius — pre-beta, ~0 users)
 **Type:** Bug (backend, auth) — bug-workflow **Path B (Standard)**
 **Branch:** `bugfix/api-auth-actor-bearer-500` (base `develop`)
@@ -74,7 +74,7 @@ The web **never calls `/me`**, so the F107a account↔actor link (the F107a-FU2 
 - [x] Step 3: Investigate (root cause confirmed code + operator repro)
 - [x] Step 4: Fix (TDD)
 - [x] Step 5: Validate + review
-- [ ] Step 6: Document + PR + merge
+- [x] Step 6: Document + PR + merge (PR #292 squash `68caa0b`; branch deleted local+remote)
 
 ## Completion Log
 | Date | Step | Notes |
@@ -82,12 +82,13 @@ The web **never calls `/me`**, so the F107a account↔actor link (the F107a-FU2 
 | 2026-05-25 | 1-3 | Triage HIGH→Path B; branch created; root cause confirmed (actorResolver bearer early-return, sole actorId setter l.119; conversation 500 guards l.83/l.430; apiClient sends X-Actor-Id+bearer). Operator reproduced the 500 in deployed env. |
 | 2026-05-25 | 4 | Fix (TDD): new `lib/bearerActor.ts` (`resolveBearerActorId` + `provisionFallbackActor`); actorResolver bearer path sets `request.actorId` (try/catch graceful degrade); `/me` reuses shared helper (DRY). api suite 4596→4609 green. |
 | 2026-05-25 | 5 | Reviews: code-review-specialist **APPROVE** (0 CRITICAL); cross-model **Gemini + Codex** both REQUEST CHANGES → all addressed (R-MAJOR resilience try/catch; R-MAJOR integration test on `/conversation/message`; bugs.md wording; UUID_RE dedup; call-site comment). +4 tests → api suite **4613** green; lint/typecheck/build clean. |
+| 2026-05-25 | 6 | Merged to develop via **PR #292** (squash `68caa0b`); branch `bugfix/api-auth-actor-bearer-500` deleted local+remote. CI `ci-success` + `test-api` SUCCESS on PR HEAD `8e85ebb`, mergeState CLEAN. /audit-merge: structural ready, drift clean (P5 systemic + P16 NIT pre-existing/by-convention). **AC8 operator post-deploy smoke pending** (manual api-dev deploy → login → "paella" → 200). Linking + tier-by-account = P0b (F-WEB-TIER). |
 
 ## Merge Checklist Evidence
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | Sections present: Spec, Acceptance Criteria, Test Plan, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence |
-| 1. Mark items + Status | [x] | Status → Ready for Merge; AC: 7/8 (AC8 operator post-deploy deferred [ ]); Workflow Steps 1-5 [x], Step 6 [ ]; Completion Log filled |
+| 1. Mark items + Status | [x] | Status → Done; AC: 7/8 (AC8 operator post-deploy pending); Workflow Steps 1-6 [x]; Completion Log filled |
 | 2. Product tracker | [x] | Active Session → BUG-PROD-013, Step 5/6 (Review), in-progress |
 | 3. key_facts.md | [x] | Auth bullet updated: BUG-PROD-013 fix (bearer path resolves actorId via lib/bearerActor.ts; linking still /me-only; try/catch resilience) |
 | 4. decisions.md | [x] | N/A — no ADR (reuses existing F107a/FU2 patterns; no new architectural decision) |
