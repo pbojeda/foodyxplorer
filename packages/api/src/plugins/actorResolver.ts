@@ -22,6 +22,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import type { Config } from '../config.js';
 import { verifyBearerJwt } from './authBearer.js';
+import { resolveBearerActorId, UUID_RE } from '../lib/bearerActor.js';
 
 // ---------------------------------------------------------------------------
 // Fastify type augmentation
@@ -35,12 +36,6 @@ declare module 'fastify' {
     // authPayload is declared in authBearer.ts.
   }
 }
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ---------------------------------------------------------------------------
 // registerActorResolver
@@ -96,9 +91,24 @@ export async function registerActorResolver(
       request.accountId = payload.sub;
       request.authPayload = payload;
 
-      // Bearer path: do NOT run anonymous actor resolution below.
-      // actorId may still be set by downstream hooks (not needed here).
-      // Return early — route handler handles account → actor linking in /me.
+      // BUG-PROD-013 fix: resolve actorId for bearer-authenticated requests.
+      // Without this, /conversation/* guards (actorId check) return 500.
+      // resolveBearerActorId reads X-Actor-Id header (web client sends both);
+      // falls back to me-<sub.slice(0,8)> actor for non-web bearer clients.
+      // Does NOT perform account linking (that remains /me only — ADR-025 R3 §5).
+      //
+      // The resolved actor is an anonymous_web actor with account_id = NULL —
+      // authenticated query_logs attach to an unlinked anonymous actor until
+      // /me links it (account↔actor linking + tier/history-by-account = P0b, out of scope here).
+      try {
+        request.actorId = await resolveBearerActorId(prisma, payload, request);
+      } catch (err) {
+        // Transient DB error: degrade gracefully — leave actorId undefined.
+        // /conversation/* routes will still guard on missing actorId, but non-actor
+        // routes (e.g. /auth/logout) continue unaffected. verifyBearerJwt (above)
+        // is intentionally OUTSIDE this try — invalid bearer still throws (ADR-025 R3 §5).
+        request.log.warn({ event: 'bearer_actor_resolution_failed', errMessage: err instanceof Error ? err.message : String(err) }, 'Bearer actor resolution failed; actorId left unset');
+      }
       return;
     }
 

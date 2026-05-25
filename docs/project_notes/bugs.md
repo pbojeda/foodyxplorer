@@ -17,6 +17,19 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-05-25 — BUG-PROD-013: authenticated `/conversation/*` returns 500 (`actorId` never set on bearer path) [HIGH — confirmed by code+cross-model, fix pending]
+
+- **Issue**: A logged-in web user submitting a text query (`POST /conversation/message`) or voice query (`POST /conversation/audio`) gets `HTTP 500 {code:'INTERNAL_ERROR', message:'Actor resolution failed'}`. The core product does not work while authenticated. Current real-user impact ~nil (pre-beta, ~0 users; the anonymous path — the majority — works), but it is a hard blocker for the post-auth plan (tier, history, authenticated voice all depend on authenticated identity working).
+- **Root Cause**: `actorResolver.ts` bearer path (l.78-103) sets `request.accountId` and `return`s early **without** setting `request.actorId` (sole setter is l.119, anonymous path). Both `/conversation/message` (`conversation.ts` l.83-89) and `/conversation/audio` (l.430-436) do `if (!actorId) return reply.code(500)`. The web client attaches the bearer on both (`apiClient.ts` l.118/l.350) when a session exists. ⇒ bearer present → no `actorId` → 500. Collateral: the web **never calls `/me`**, so the F107a account↔actor link (the F107a-FU2 hijack-safe UPDATE) never fires from web.
+- **Why not caught**: AC19 (F107a-FU3) confirmed login reaching `/hablar` while authenticated, but no authenticated *query* was submitted during that smoke. Route tests likely set `request.actorId` directly or only exercise the anonymous path.
+- **Solution**: Extracted `/me`'s actor-resolution (`X-Actor-Id` valid UUID → upsert `anonymous_web` actor; else → `provisionFallbackActor(sub)`) into a shared `packages/api/src/lib/bearerActor.ts`, invoked in the `actorResolver` bearer path to set `request.actorId`. Fixes the 500. **Account↔actor LINKING is explicitly NOT done in the resolver** (it writes no `account_id`); linking stays `/me`-only with the F107a-FU2 anti-hijack predicate. Consequence (by design, P0b): authenticated `/conversation/*` queries now run + log under the resolved **anonymous, unlinked** actor (AC7 non-null `actor_id` satisfied) until resolver-side linking + tier/history-by-account land in P0b (F-WEB-TIER). Strict bearer precedence (ADR-025 R3 §5) preserved; invalid bearer still throws. Resolver actor-resolution wrapped in try/catch so a transient DB error degrades gracefully (does not 500 non-actor routes like `/auth/logout`).
+- **Prevention**: Add a route test that exercises `/conversation/*` with a valid bearer (not just anonymous). Treat "authenticated principal" as a first-class request concept (stop overloading anonymous `actorId`).
+- **Found by**: Post-auth strategic analysis + cross-model review (Gemini + Codex, 2 rounds), 2026-05-25. See `docs/research/post-auth-strategic-analysis-2026-05-25.md`.
+- **Severity**: High (core broken when authenticated; low current blast radius — pre-beta).
+- **Status**: Confirmed by code reading (3 evidences) + Codex independent verification; operator manual repro + SDD fix (bug-workflow Path B Standard, base develop) pending.
+
+---
+
 ### 2026-05-20 — BUG-PROD-012: `/auth/login` 500 because supabase-js createClient throws on Node 20 (no native WebSocket) [HIGH — FIXED on branch, deploy pending]
 
 - **Issue**: Email login on the develop Vercel Preview returns "Internal server error". Live `curl -i POST /auth/login` → `HTTP 500 {"code":"INTERNAL_ERROR"}`. CORS headers + `x-actor-id` present, so the request reaches the handler and throws inside it. Every login/logout on Render is broken; blocks F107a magic-link smoke (Task #18) and the develop→main release bundle.

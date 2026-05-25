@@ -10,7 +10,10 @@
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
-| F099-lite — User Profiles BMR + targets | Standard | pending | — | Sequential after F107a-FU3 + release bundle. RGPD Art.9 gate (privacy policy update with health data fields) prerequisite out-of-repo. |
+| BUG-PROD-013 — Authed `/conversation/*` 500 (actorId not set on bearer path) | Standard | pending | — | **P0 fundación. PIVOT 2026-05-25: reemplaza a F099-lite.** bug-workflow Path B (base develop). Fix reusa la resolución de actor de `/me` (X-Actor-Id → provisionFallbackActor + link seguro) en el path bearer del actorResolver. Doc: `docs/research/post-auth-strategic-analysis-2026-05-25.md` |
+| F-WEB-TIER + F-WEB-AUTH-CTA — registro con valor | Standard | pending | — | Tras BUG-PROD-013. Cuenta ⇒ tier `free` (incl. foto vía proxy) + entry point login en `/hablar`. Signup abierto, waitlist=marketing. |
+| F-WEB-HISTORY — histórico de búsquedas (faseado) | Standard | pending | — | Tras tier/CTA. Fase 1 transcript LOCAL (mide uso) → Fases 2-3 persistencia. |
+| F099-lite — User Profiles BMR + targets | Standard | DEFERRED | — | **Diferido 2026-05-25 (owner):** alta fricción + retención sin validar + gate RGPD Art.9. Revisar tras señal de beta. |
 
 ## Completed Features
 
@@ -34,10 +37,10 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** None — F107a-FU2 done.
-**Branch:** `develop` (clean post-merge `4756716`).
-**Next features:** F099-lite (User Profiles BMR + targets, Standard). Requires `/compact` before starting per orchestrator rule (1 feature complete in this session; next would be feature 2/2). RGPD Art.9 gate prerequisite out-of-repo (privacy policy + ToS update with health-data fields).
-**Blocked:** none for F099-lite code work; RGPD gate is non-technical operator dependency.
+**Current feature:** None — F107a-FU3 done + auth RELEASED to prod (PR #290 `cf906b8`). **Strategic pivot 2026-05-25.**
+**Branch:** `develop` (clean).
+**Next features:** **BUG-PROD-013** (P0 — authed `/conversation/*` 500) FIRST → F-WEB-TIER + F-WEB-AUTH-CTA → F-WEB-HISTORY (faseado). Plan en `docs/research/post-auth-strategic-analysis-2026-05-25.md` (cross-model 2 rondas, Gemini+Codex). **F099-lite DIFERIDO.**
+**Blocked:** none.
 
 **Pivot context** (2026-05-18): originally pm-profiles was F107b + F099-lite. After empirical investigation surfaced F107b's premise as incorrect AND surfaced a real P1 hijack bug in F107a, the batch was recomposed: F107a-FU2 (the hotfix) replaces F107b. F107b ticket closed with `Status: Closed - Not Needed` + re-evaluation triggers.
 
@@ -50,6 +53,7 @@ To stop gracefully: run `stop pm`
 |------|------|----------|-----------|
 | 2026-05-18 | Phase 1 batch composition | Run F107b alone this session; defer F099-lite | Orchestrator constraint: F099-lite depends on F107b which is also in batch → default to splitting (per skill phase 1 step 6). Plus mandatory `/compact` rule fires at 2 features per session; splitting avoids mid-session context cliff. Plus F099-lite has a non-technical RGPD gate that should land before its deploy. User pre-authorized Batch 3 contents in roadmap; the SAFER subset interpretation is locked in. |
 | 2026-05-18 | Pivot — F107b → F107a-FU2 | Close F107b "Not Needed"; replace with F107a-FU2 hotfix in this batch | Empirical investigation of F107a `/me` handler (`packages/api/src/routes/auth.ts:180-292`) showed (a) F107b's "merge actor_A into actor_B" premise didn't hold — F107a UPDATEs the existing actor in place, no separate post-auth actor exists; (b) a real P1 hijack bug surfaced (`IS DISTINCT FROM` semantics invert hijack-prevention). User-explicit approval of pivot plan with 3 refinements: graceful-fallback on collision (NOT 409), no new audit table in hotfix (Pino+Sentry only), close F107b explicitly with re-evaluation triggers (not "deferred to Batch N"). Sequence: F107a-FU2 → F099-lite → release bundle. |
+| 2026-05-25 | Pivot — F099-lite → tanda post-auth | Diferir F099-lite; nueva tanda: BUG-PROD-013 (P0) + F-WEB-TIER/CTA + F-WEB-HISTORY; voz tras beta | Discusión de producto con el owner + cross-model review 2 rondas (Gemini+Codex). F099 = alta fricción + retención sin validar + gate RGPD Art.9. La review destapó BUG-PROD-013 (authed `/conversation/*` 500) como fundación rota. Decisiones owner: signup abierto (waitlist=marketing), tier+CTA antes que histórico, hotfix BUG-PROD-013 ya. Doc: `docs/research/post-auth-strategic-analysis-2026-05-25.md` |
 
 ## Baseline (verified 2026-05-18 pre-batch)
 
