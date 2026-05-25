@@ -55,6 +55,19 @@ export const EnvSchema = z.object({
   // When set AND NODE_ENV === 'production', the API initializes Sentry
   // and forwards 5xx exceptions. Absent in dev/test → Sentry stays inert.
   SENTRY_DSN: z.string().url().optional(),
+  // Supabase Auth (F107a — ADR-025 R3)
+  // All three are optional at startup; route handlers validate at invocation
+  // time and throw AUTH_PROVIDER_UNAVAILABLE when absent in a request context
+  // where they are required. Pattern matches ADMIN_API_KEY + OPENAI_API_KEY.
+  // SUPABASE_URL: used by supabaseAdmin client (login/logout) and as the
+  //   default JWKS URL base: ${SUPABASE_URL}/auth/v1/.well-known/jwks.json
+  SUPABASE_URL: z.string().url().optional(),
+  // SUPABASE_SERVICE_ROLE_KEY: used ONLY by admin SDK (login/logout).
+  //   Min 100 chars to prevent weak secrets (Supabase JWTs are ~200+ chars).
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(100).optional(),
+  // SUPABASE_JWKS_URL: optional override — defaults to
+  //   ${SUPABASE_URL}/auth/v1/.well-known/jwks.json at route invocation time.
+  SUPABASE_JWKS_URL: z.string().url().optional(),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

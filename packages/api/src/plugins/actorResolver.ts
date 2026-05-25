@@ -20,6 +20,8 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
+import type { Config } from '../config.js';
+import { verifyBearerJwt } from './authBearer.js';
 
 // ---------------------------------------------------------------------------
 // Fastify type augmentation
@@ -28,6 +30,9 @@ import type { PrismaClient } from '@prisma/client';
 declare module 'fastify' {
   interface FastifyRequest {
     actorId?: string;
+    // accountId is set when a valid Bearer JWT is present (F107a, ADR-025 R3 §5)
+    // Declared here (alongside actorId) per module augmentation pattern.
+    // authPayload is declared in authBearer.ts.
   }
 }
 
@@ -43,11 +48,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 interface RegisterActorResolverOptions {
   prisma: PrismaClient;
+  config: Config;
 }
 
 export async function registerActorResolver(
   app: FastifyInstance,
-  { prisma }: RegisterActorResolverOptions,
+  { prisma, config }: RegisterActorResolverOptions,
 ): Promise<void> {
   app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     const url = request.routeOptions.url;
@@ -61,6 +67,42 @@ export async function registerActorResolver(
       (url === '/analytics/web-events' && request.method === 'POST')
     ) return;
 
+    // ---------------------------------------------------------------------------
+    // F107a Bearer pre-check (ADR-025 R3 §5 — strict bearer precedence)
+    //
+    // If Authorization header is present:
+    //   - Valid bearer → set request.accountId; skip anonymous flow
+    //   - Invalid bearer → throw immediately (NEVER silent downgrade)
+    // If Authorization header is absent → fall through to anonymous flow
+    // ---------------------------------------------------------------------------
+    const authHeader = request.headers['authorization'];
+    if (authHeader !== undefined) {
+      // Derive JWKS URL: use explicit override if set, else derive from SUPABASE_URL
+      const jwksUrl =
+        config.SUPABASE_JWKS_URL ??
+        (config.SUPABASE_URL
+          ? `${config.SUPABASE_URL}/auth/v1/.well-known/jwks.json`
+          : undefined);
+
+      if (!jwksUrl) {
+        throw Object.assign(new Error('Auth provider is not configured'), {
+          code: 'AUTH_PROVIDER_UNAVAILABLE',
+        });
+      }
+
+      // verifyBearerJwt throws on any invalid bearer (TOKEN_EXPIRED, INVALID_TOKEN,
+      // AUTH_PROVIDER_UNAVAILABLE). Errors propagate to errorHandler — no catch here.
+      const payload = await verifyBearerJwt(authHeader, jwksUrl);
+      request.accountId = payload.sub;
+      request.authPayload = payload;
+
+      // Bearer path: do NOT run anonymous actor resolution below.
+      // actorId may still be set by downstream hooks (not needed here).
+      // Return early — route handler handles account → actor linking in /me.
+      return;
+    }
+
+    // Anonymous flow (unchanged from F069)
     const rawHeader = request.headers['x-actor-id'];
     const headerValue = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
 

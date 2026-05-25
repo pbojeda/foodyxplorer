@@ -518,4 +518,64 @@ describe('mapError', () => {
       expect(result.body.error.message).toBe('Content-Type must be multipart/form-data');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // F107a — Auth error codes
+  // ---------------------------------------------------------------------------
+
+  describe('TOKEN_EXPIRED (F107a — AC10)', () => {
+    it('maps to 401 with TOKEN_EXPIRED code', () => {
+      const err = Object.assign(new Error('JWT has expired'), { code: 'TOKEN_EXPIRED' });
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(401);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('TOKEN_EXPIRED');
+      expect(result.body.error.message).toBe('JWT has expired');
+    });
+  });
+
+  describe('INVALID_TOKEN (F107a — AC9)', () => {
+    it('maps to 401 with INVALID_TOKEN code', () => {
+      const err = Object.assign(new Error('JWT is invalid'), { code: 'INVALID_TOKEN' });
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(401);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('INVALID_TOKEN');
+      expect(result.body.error.message).toBe('JWT is invalid');
+    });
+  });
+
+  describe('AUTH_PROVIDER_UNAVAILABLE (F107a — AC16)', () => {
+    it('maps to 503 with AUTH_PROVIDER_UNAVAILABLE code', () => {
+      const err = Object.assign(
+        new Error('Auth provider JWKS endpoint is unavailable'),
+        { code: 'AUTH_PROVIDER_UNAVAILABLE' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(503);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('AUTH_PROVIDER_UNAVAILABLE');
+    });
+  });
+
+  describe('PROVIDER_NOT_ENABLED (F107a — AC5)', () => {
+    it('maps to 400 with PROVIDER_NOT_ENABLED code', () => {
+      const err = Object.assign(
+        new Error('OAuth provider google is not enabled'),
+        { code: 'PROVIDER_NOT_ENABLED' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(400);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('PROVIDER_NOT_ENABLED');
+    });
+  });
 });

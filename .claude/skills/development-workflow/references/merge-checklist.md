@@ -74,6 +74,14 @@ In the ticket, fill the `## Merge Checklist Evidence` table. For each action (0�
 
 **Canonical form for the AC count claim:** write `AC: <marked>/<total>` — `marked` is the count of `[x]` Acceptance Criteria, `total` is the count of all AC items including any intentionally deferred `[ ]`. When all are checked use the matching form `AC: N/N` (or the shorthand `all N marked`). The `/audit-merge` P6 drift check parses both forms.
 
+**Sub-scope ticket naming convention (recognized by `/audit-merge` P11 since v0.18.4):** when a feature is too large to close in one ticket, split it into sub-scope tickets using one of these suffixes on the basename:
+
+- `<FEATURE_ID>-lite-<descriptor>.md` — minimal viable closure of a partial scope (e.g. `F116-lite-ci-hardening.md`)
+- `<FEATURE_ID>-FU.md` — single follow-up closing a deferred piece
+- `<FEATURE_ID>-FU<N>.md` — numbered follow-ups (e.g. `F-H7-FU1.md`, `F-H10-FU2.md`)
+
+Sub-scope tickets reach `Status: Done` independently while the parent feature's tracker row stays at its parent status (typically `pending` or `in-progress`) until ALL sub-scopes close. `/audit-merge` P11 detects the suffix and emits `P11 N/A` instead of flagging the parent/sub-scope status divergence as drift.
+
 ## Action 9: Run compliance audit
 
 Run `/audit-merge` to verify all compliance checks pass automatically. If any check fails, fix it and re-run until all pass.

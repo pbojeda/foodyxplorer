@@ -29,6 +29,11 @@ export interface SentryContext {
   statusCode?: number;
   internalCode?: string;
   actorIdHash?: string;
+  // F107a-FU2: collision detection hash fields (PII-scrubbed via hashActor()).
+  collisionActorIdHash?: string;
+  victimAccountIdHash?: string;
+  hijackerAccountIdHash?: string;
+  externalIdHash?: string;
 }
 
 let initialized = false;
@@ -103,6 +108,28 @@ export function captureException(err: unknown, context?: SentryContext): void {
   // SentryContext interface is structurally narrower; coerce explicitly
   // (no runtime conversion — the SDK accepts any record-shaped object).
   Sentry.captureException(err, { extra: context as Record<string, unknown> | undefined });
+}
+
+/**
+ * Emit a structured message to Sentry at the specified level, with optional
+ * allowlisted context and filterable tags.
+ * No-op when Sentry was not initialized (dev/test/missing-DSN paths).
+ *
+ * Uses `Sentry.withScope` so extras and tags are scoped to this event only
+ * (does not pollute the global scope).
+ */
+export function captureMessage(
+  message: string,
+  level: 'warning' | 'error' | 'info',
+  context?: SentryContext,
+  tags?: Record<string, string>,
+): void {
+  if (!initialized) return;
+  Sentry.withScope((scope) => {
+    if (context) scope.setExtras(context as Record<string, unknown>);
+    if (tags) scope.setTags(tags);
+    Sentry.captureMessage(message, level);
+  });
 }
 
 /**

@@ -25,7 +25,12 @@ export type MetricEvent =
   | 'voice_error'
   | 'photo_mode_selected'
   | 'menu_dish_list_shown'
-  | 'menu_dish_selected';
+  | 'menu_dish_selected'
+  // F107a auth events (ADR-025 R3 §6)
+  | 'auth_login_start'
+  | 'auth_login_success'
+  | 'auth_login_error'
+  | 'auth_logout';
 
 export interface MetricPayload {
   intent?: string;
@@ -39,6 +44,8 @@ export interface MetricPayload {
   dishName?: string;
   hasEstimate?: boolean;
   partial?: boolean;
+  // F107a auth events
+  provider?: 'email' | 'google';
 }
 
 export interface MetricsSnapshot {
@@ -201,6 +208,14 @@ export function trackEvent(event: MetricEvent, payload?: MetricPayload): void {
     case 'menu_dish_list_shown':
     case 'menu_dish_selected':
       // payload captured for in-app debug; not persisted to aggregate snapshot
+      break;
+
+    // F107a — auth events: payload-only telemetry, no query counter mutation.
+    case 'auth_login_start':
+    case 'auth_login_success':
+    case 'auth_login_error':
+    case 'auth_logout':
+      // payload (provider) captured for analytics; does not alter query/success/error counts
       break;
   }
 

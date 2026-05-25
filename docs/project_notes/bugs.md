@@ -17,6 +17,59 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-05-20 — BUG-PROD-012: `/auth/login` 500 because supabase-js createClient throws on Node 20 (no native WebSocket) [HIGH — FIXED on branch, deploy pending]
+
+- **Issue**: Email login on the develop Vercel Preview returns "Internal server error". Live `curl -i POST /auth/login` → `HTTP 500 {"code":"INTERNAL_ERROR"}`. CORS headers + `x-actor-id` present, so the request reaches the handler and throws inside it. Every login/logout on Render is broken; blocks F107a magic-link smoke (Task #18) and the develop→main release bundle.
+- **Root Cause**: `@supabase/supabase-js` `^2.45.0` drifted in the lockfile to **2.105.4**. `createClient()` eagerly constructs a `RealtimeClient`; its constructor calls `getWebSocketConstructor()`, which on **Node < 22 (no global `WebSocket`)** throws `Node.js 20 detected without native WebSocket support`. Render runs Node 20 (EOL 2026-04-30); the throw carries no `code`, so `mapError` returns generic 500 INTERNAL_ERROR (NOT the 503 AUTH_PROVIDER_UNAVAILABLE config path — env vars are correct). We never use Realtime (only `auth.signInWithOtp` + `auth.admin.signOut`), but the client is built eagerly.
+- **Why not caught**: (1) all f107a route tests `vi.mock('@supabase/supabase-js')` so the real createClient never runs; (2) CI runs Node 22 (has global WebSocket) so the throw can't reproduce there; (3) `supabaseAdmin.ts` had no test.
+- **Severity**: High — login 100% broken on the deployed environment. Pre-beta (no real users), but a release blocker.
+- **Solution**: `realtime: { transport: ws }` on the eager Realtime client (the remedy named in the error message; supported way to run supabase-js on Node < 22). `ws` promoted to a direct dep, `@types/ws` added, lockfile resynced. New `supabaseAdmin.test.ts` with a deterministic anti-regression test that deletes `globalThis.WebSocket` to simulate Node < 22 regardless of CI's Node version. Full api suite 4596/4596.
+- **Prevention**: Test the REAL `createClient` (don't mock the auth client in at least one supabaseAdmin unit test). Be alert to lockfile drift on caret ranges (same class as the `@types/react` Vercel `npm ci` break). Align Render's Node version with CI's (Node 22) — tracked as a decoupled follow-up; Node 22's global WebSocket makes the `ws` transport removable.
+- **Ticket**: `docs/tickets/BUG-PROD-012-supabase-ws-node20-login-500.md`
+- **Status**: Fixed on branch `fix/api-auth-supabase-ws-node20`; PR + Render redeploy + login E2E verification pending.
+
+---
+
+### 2026-05-18 — BUG-API-AUTH-FU2-FALLBACK-OBS-001: FALLBACK_LINK_FAILED throws without Sentry event [P3 OPEN]
+
+- **Issue**: When `linkCheck.accountId !== bearer` after the fallback safe-link UPDATE (real but extremely unlikely scenario: concurrent `me-<sub.slice(0,8)>` collision between two distinct subs), the F107a-FU2 handler throws `Object.assign(new Error(...), { code: 'FALLBACK_LINK_FAILED' })` which the global error mapper surfaces as 500 INTERNAL_ERROR. No dedicated `captureMessage` is emitted before the throw, so operators see an untagged 500 in Sentry instead of a specific `feature: F107a-FU2, event_type: fallback_link_failed` event.
+- **Root Cause**: Code-review S2 and qa-engineer Follow-up #1 (both raised during F107a-FU2 R1 review). Out-of-scope intentional decision for the hotfix (one-line operator-visibility addition deferred).
+- **Severity**: P3 — observability gap, not a functional defect. The path is genuine defense-in-depth and is statistically extremely rare.
+- **Proposed fix**: Add `captureMessage('actor_link_collision: fallback_link_failed', 'error', { hijackerAccountIdHash, collisionActorIdHash }, { feature: 'F107a-FU2', event_type: 'fallback_link_failed' })` immediately before the throw at `packages/api/src/routes/auth.ts` around line 340.
+- **Source**: F107a-FU2 code-review-specialist S2 + qa-engineer Follow-up #1, both Step 5 review of PR #283.
+
+---
+
+### 2026-05-18 — BUG-API-AUTH-FU2-PINO-FIELD-ASSERT-001: AC7 Pino field assertion not actually verified by any F107a-FU2 test [P3 OPEN]
+
+- **Issue**: F107a-FU2 AC7 mandates that the Pino warn log emit `{ event, collisionActorId, victimAccountId, hijackerAccountId, externalId, requestId }`. The unit test cannot intercept `request.log.warn` in `buildApp` mode (Fastify pino is wired internally). The integration test does NOT assert Pino fields. Net result: nothing automated verifies that all 6 field names + values land in the structured log.
+- **Root Cause**: qa-engineer Follow-up #2. Mechanical test-coverage gap; the code does emit the fields correctly (verified by code-review reading `auth.ts:296-303`), but no automated assertion exists.
+- **Severity**: P3 — coverage gap, not a functional defect.
+- **Proposed fix**: Add a unit test that uses a custom logger (pino test transport) or `vi.spyOn(request.log, 'warn')` via the Fastify-app option `logger: customLogger` to capture the warn call. Alternative: integration-test post-call log scrape via Render API (more complex).
+- **Source**: F107a-FU2 qa-engineer Follow-up #2, Step 5 review of PR #283.
+
+---
+
+### 2026-05-18 — BUG-API-AUTH-ACTOR-HIJACK-001: /me endpoint hijacks actor.account_id across users sharing X-Actor-Id [P1 FIXED — F107a-FU2 commit aebacdc]
+
+- **Issue**: `GET /me` silently overwrites `actors.account_id` with the bearer's account when the actor is already linked to a different account. Empirically reproduced at `packages/api/src/routes/auth.ts:269-274`. A shared-browser scenario (two users with the same `X-Actor-Id` in localStorage) causes User B's bearer to re-key User A's actor to account_B. User A's query history (`query_logs.actor_id`) becomes accessible under account_B on any future history-surface endpoint.
+- **Root Cause**: The UPDATE predicate `AND account_id IS DISTINCT FROM <bearer's accountId>` fires when the current `account_id` differs from the bearer's — which is TRUE even when the actor is already owned by a third account. The post-update collision check at lines 277-292 is logically inverted: it lives in `if (updateResult === 0)` (no-op case) and therefore can never fire during a real hijack (hijack → `updateResult = 1`).
+- **Severity**: P1 — confidentiality breach. Pre-beta only (Vercel Preview URLs public-facing, no production users). Zero production impact today; must be fixed before develop → main release.
+- **Fix**: Replace `IS DISTINCT FROM` guard with `(account_id IS NULL OR account_id = <bearer's accountId>)`. On `updateResult = 0`, confirm true collision, emit Pino warn + Sentry, fall back to deterministic `me-<sub.slice(0,8)>` actor. Victim actor never re-keyed. Bearer gets 200 with fallback actor.
+- **Ticket**: `docs/tickets/F107a-FU2-account-link-hijack-fix.md`
+- **Scope confirmed**: `packages/api/src/plugins/actorResolver.ts` reviewed — no `IS DISTINCT FROM` on `account_id`, no fix required there.
+- **Status**: Fixed by F107a-FU2 — commit aebacdc (`fix(auth): replace IS DISTINCT FROM with safe predicate + collision fallback`).
+
+---
+
+### 2026-05-15 — BUG-DEV-SHARED-WEBMETRICS-BOUNDARY-FLAKE-001: `webMetrics.schemas.edge-cases.test.ts:174` 24h boundary test is time-sensitive [P3 OPEN]
+
+- **Issue**: CI run `25921061510` first attempt failed `test-shared` with assertion at `packages/shared/src/__tests__/webMetrics.schemas.edge-cases.test.ts:174` — `expect(result.success).toBe(true)` got `false`. Test passes locally and on CI auto-retry. Empirically observed during F107a PR #279 merge-approval cycle 2026-05-15.
+- **Root Cause**: Test computes `Date.now()` to construct an "exactly at 24h ago" timestamp, then calls `WebMetricsSnapshotSchema.safeParse(...)`. The schema's validator computes ITS OWN `Date.now()` internally during validation. If a millisecond elapses between the test's `Date.now()` and the schema's `Date.now()`, the constructed timestamp is no longer exactly at the boundary — it is now `1ms past` 24h — and the schema rejects it (as the adjacent test at line 177-183 expects).
+- **Pre-existing**: bug existed before F107a; just first observed during this PR's CI cycle. Confirmed pre-existing by passing locally on F107a branch in `npm test -w @foodxplorer/shared` deterministically (~5ms duration, no clock drift on local).
+- **Solution (not applied — out of F107a scope)**: use `vi.useFakeTimers()` + `vi.setSystemTime(fixedDate)` in the test setup, OR adjust the assertion to construct timestamp slightly inside the boundary (e.g. `Date.now() - 24*60*60*1000 + 100`) so a 1-2ms clock drift cannot push it past 24h. Either approach makes the test deterministic. Fix tracked as P3 tech-debt; bundle into next shared-package housekeeping.
+- **Workaround until fix**: re-run failed CI job. `gh run rerun <run-id> --failed` produces deterministic re-pass on local-clock systems.
+
 ### 2026-05-13 — BUG-API-HEALTH-PRISMA-MOCK-001: 5 health-route tests fail on `?db=true` / `?db=true&redis=true` happy paths [P3 OPEN]
 
 - **Issue**: `npm test -w @foodxplorer/api` on `develop@6765357` (pre-ADR-025 work) fails 5 tests, all in `health.test.ts` + `f004.edge-cases.test.ts` + `f005.edge-cases.test.ts`:

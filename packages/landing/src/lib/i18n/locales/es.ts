@@ -208,6 +208,20 @@ export const es = {
       { label: 'Restaurantes locales', note: 'Inferido por similitud' },
     ],
   },
+  coverageShowcase: {
+    eyebrow: 'Datos verificables',
+    headline: 'Catálogo abierto y medible',
+    subtitle:
+      'Estos son los números reales detrás de cada respuesta. La cobertura es pública: crece a la vista de todos.',
+    // NOTE: order matters — must match STAT_ORDER in CoverageShowcaseSection.tsx
+    // (dishes → foods → categories → confidenceLevels).
+    stats: [
+      { label: 'platos españoles', note: 'Mapeados con macros y porciones' },
+      { label: 'alimentos referenciados', note: 'BEDCA + USDA, fuentes oficiales' },
+      { label: 'categorías culinarias', note: 'Desayunos, tapas, primeros…' },
+      { label: 'niveles de confianza', note: 'Siempre sabes qué hay detrás' },
+    ],
+  },
   audienceGrid: {
     eyebrow: 'Para quién empieza hoy',
     headline: 'Para quién empieza hoy',

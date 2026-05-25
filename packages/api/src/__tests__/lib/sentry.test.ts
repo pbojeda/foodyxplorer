@@ -1,24 +1,36 @@
 // Unit tests for lib/sentry.ts (F030-lite)
 //
 // 8 runtime cases + 1 compile-time `@ts-expect-error` case = 9 total per AC6.
+// F107a-FU2: adds 3 new tests (AC8b) for captureMessage wrapper + 4 new
+// SentryContext fields (collisionActorIdHash, victimAccountIdHash,
+// hijackerAccountIdHash, externalIdHash).
 //
 // The wrapper imports @sentry/node lazily inside its functions — we mock the
 // SDK via vi.mock so we can assert init/captureException were called (or not).
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
+// Mock scope for withScope callback
+const mockScope = {
+  setExtras: vi.fn(),
+  setTags: vi.fn(),
+};
+
 // Mock @sentry/node BEFORE importing the wrapper so the wrapper resolves
 // to the mocked module.
 vi.mock('@sentry/node', () => ({
   init: vi.fn(),
   captureException: vi.fn(),
+  captureMessage: vi.fn(),
   close: vi.fn().mockResolvedValue(true),
+  withScope: vi.fn((cb: (scope: typeof mockScope) => void) => cb(mockScope)),
 }));
 
 import * as Sentry from '@sentry/node';
 import {
   initSentry,
   captureException,
+  captureMessage,
   hashActor,
   __resetForTests,
   type SentryContext,
@@ -26,11 +38,17 @@ import {
 
 const mockedInit = Sentry.init as ReturnType<typeof vi.fn>;
 const mockedCapture = Sentry.captureException as ReturnType<typeof vi.fn>;
+const mockedCaptureMessage = Sentry.captureMessage as ReturnType<typeof vi.fn>;
+const mockedWithScope = Sentry.withScope as ReturnType<typeof vi.fn>;
 
 describe('lib/sentry', () => {
   beforeEach(() => {
     mockedInit.mockClear();
     mockedCapture.mockClear();
+    mockedCaptureMessage.mockClear();
+    mockedWithScope.mockClear();
+    mockScope.setExtras.mockClear();
+    mockScope.setTags.mockClear();
     __resetForTests();
   });
 
@@ -156,10 +174,55 @@ describe('lib/sentry', () => {
     const okCtx: SentryContext = { route: '/x', method: 'GET' };
     expect(okCtx.route).toBe('/x');
 
+    // F107a-FU2: new hash fields are now allowlisted.
+    const collisionCtx: SentryContext = {
+      collisionActorIdHash: 'abcd1234',
+      victimAccountIdHash: 'dead5678',
+      hijackerAccountIdHash: 'cafe9abc',
+      externalIdHash: 'f00d0001',
+    };
+    expect(collisionCtx.collisionActorIdHash).toBe('abcd1234');
+
     // @ts-expect-error — `body` is not an allowlisted SentryContext field.
     const badCtx: SentryContext = { body: 'leak' };
     // Runtime: use the variable so eslint doesn't drop it; compile-time is what matters.
     expect(badCtx).toBeDefined();
+  });
+
+  // ---------------------------------------------------------------------------
+  // captureMessage — AC8b (F107a-FU2)
+  // ---------------------------------------------------------------------------
+
+  it('10. captureMessage is a no-op when not initialized', () => {
+    // Not calling initSentry — Sentry is uninitialized.
+    captureMessage('test msg', 'warning');
+    expect(mockedWithScope).not.toHaveBeenCalled();
+    expect(mockedCaptureMessage).not.toHaveBeenCalled();
+  });
+
+  it('11. captureMessage calls withScope, setExtras, setTags, and Sentry.captureMessage when initialized', () => {
+    initSentry('https://x@sentry.io/1', 'production');
+    const ctx: SentryContext = {
+      collisionActorIdHash: 'abcd1234',
+      victimAccountIdHash: 'dead5678',
+      hijackerAccountIdHash: 'cafe9abc',
+      externalIdHash: 'f00d0001',
+    };
+    const tags = { feature: 'F107a-FU2', event_type: 'actor_link_collision' };
+    captureMessage('actor_link_collision: test', 'warning', ctx, tags);
+    expect(mockedWithScope).toHaveBeenCalledTimes(1);
+    expect(mockScope.setExtras).toHaveBeenCalledWith(ctx);
+    expect(mockScope.setTags).toHaveBeenCalledWith(tags);
+    expect(mockedCaptureMessage).toHaveBeenCalledWith('actor_link_collision: test', 'warning');
+  });
+
+  it('12. captureMessage with no context/tags: withScope still called, setExtras and setTags skipped', () => {
+    initSentry('https://x@sentry.io/1', 'production');
+    captureMessage('bare msg', 'info');
+    expect(mockedWithScope).toHaveBeenCalledTimes(1);
+    expect(mockScope.setExtras).not.toHaveBeenCalled();
+    expect(mockScope.setTags).not.toHaveBeenCalled();
+    expect(mockedCaptureMessage).toHaveBeenCalledWith('bare msg', 'info');
   });
 
   // ---------------------------------------------------------------------------

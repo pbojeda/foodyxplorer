@@ -278,3 +278,57 @@ describe('Sentry config (F030-lite)', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });
+
+describe('Supabase config vars (F107a)', () => {
+  beforeEach(() => {
+    exitSpy.mockClear();
+  });
+
+  it('SUPABASE_URL is optional — absent → undefined', () => {
+    const config = parseConfig({ ...VALID_ENV });
+    expect(config.SUPABASE_URL).toBeUndefined();
+  });
+
+  it('SUPABASE_URL accepts a valid URL', () => {
+    const config = parseConfig({ ...VALID_ENV, SUPABASE_URL: 'https://abc.supabase.co' });
+    expect(config.SUPABASE_URL).toBe('https://abc.supabase.co');
+  });
+
+  it('calls process.exit(1) when SUPABASE_URL is malformed (not a URL)', () => {
+    expect(() => parseConfig({ ...VALID_ENV, SUPABASE_URL: 'not-a-url' })).toThrow('process.exit called');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('SUPABASE_SERVICE_ROLE_KEY is optional — absent → undefined', () => {
+    const config = parseConfig({ ...VALID_ENV });
+    expect(config.SUPABASE_SERVICE_ROLE_KEY).toBeUndefined();
+  });
+
+  it('SUPABASE_SERVICE_ROLE_KEY accepts a JWT-length string (>=100 chars)', () => {
+    const key = 'a'.repeat(100);
+    const config = parseConfig({ ...VALID_ENV, SUPABASE_SERVICE_ROLE_KEY: key });
+    expect(config.SUPABASE_SERVICE_ROLE_KEY).toBe(key);
+  });
+
+  it('calls process.exit(1) when SUPABASE_SERVICE_ROLE_KEY is too short (<100 chars)', () => {
+    const key = 'a'.repeat(99);
+    expect(() => parseConfig({ ...VALID_ENV, SUPABASE_SERVICE_ROLE_KEY: key })).toThrow('process.exit called');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('SUPABASE_JWKS_URL is optional — absent → undefined', () => {
+    const config = parseConfig({ ...VALID_ENV });
+    expect(config.SUPABASE_JWKS_URL).toBeUndefined();
+  });
+
+  it('SUPABASE_JWKS_URL accepts a valid URL', () => {
+    const jwksUrl = 'https://abc.supabase.co/auth/v1/.well-known/jwks.json';
+    const config = parseConfig({ ...VALID_ENV, SUPABASE_JWKS_URL: jwksUrl });
+    expect(config.SUPABASE_JWKS_URL).toBe(jwksUrl);
+  });
+
+  it('calls process.exit(1) when SUPABASE_JWKS_URL is malformed (not a URL)', () => {
+    expect(() => parseConfig({ ...VALID_ENV, SUPABASE_JWKS_URL: 'not-a-url' })).toThrow('process.exit called');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+});

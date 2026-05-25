@@ -1,38 +1,29 @@
 # PM Autonomous Session
 
-**Started:** 2026-05-11
-**Session ID:** pm-hardening
+**Started:** 2026-05-18
+**Session ID:** pm-profiles
 **Autonomy Level:** L5 (PM Autonomous)
-**Status:** completed (Batch 1 COMPLETE — awaiting user audit before Batch 2)
+**Status:** in-progress
 **Target Branch:** develop
 
-**Sprint:** Hardening Batch 1 (per roadmap `/Users/pb/.claude/plans/twinkly-booping-marble.md` — Batch 1). User pre-authorized batch via plan approval 2026-05-11. **Pause requirement**: detailed audit summary after both features merge to develop, BEFORE proceeding to Batch 2 (Auth + ADR-025).
-
-**Baseline @ session start (develop @ `81eea5c`):**
-- `npm test` exit 0 (web 499/499 latest sample; full suite 8.228 tests per previous merge of `pm-conv-polish`)
-- `npm run lint` exit 0 across all workspaces (shared, api, bot, scraper, landing, web)
-- `npm run build` exit 0
-- Working tree clean
-
-**Scope reduction confirmed (user-approved 2026-05-11):**
-- **F116-lite** = `F116` reduced to: (1) remove `|| true` from `ci.yml:182` api lint, (2) add `Lint scraper` CI step, (3) branch protection on develop+main (manual GH UI task w/ checklist). DEFERRED: scraper `no-this-alias` cleanup, `defaults.run.shell` hardening, `package.json` scripts audit, `test-landing` context refactor, api lint cleanup (api lint already clean post-F115 — verified `npm run lint -w @foodxplorer/api` exit 0).
-- **F030-lite** = `F030` reduced to: install + init Sentry SDK in api, basic error handler integration, env var docs, post-merge alert config checklist. DEFERRED: formal SLOs, runbooks, custom metrics, bot/web/landing instrumentation.
-
-**Complexity reclassification (post-baseline inspection):** Original plan tagged both as Standard. After empirical baseline (lint clean, no Sentry install) both qualify as **Simple** lite versions. Will run as Simple-equivalent through development-workflow.
-
-## Current Batch
-
-_(All features in batch completed — see Completed Features below.)_
+## Current Batch (RECOMPOSED 2026-05-18 post-pivot)
 
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
+| F099-lite — User Profiles BMR + targets | Standard | pending | — | Sequential after F107a-FU3 + release bundle. RGPD Art.9 gate (privacy policy update with health data fields) prerequisite out-of-repo. |
 
 ## Completed Features
 
 | Feature | Complexity | Duration | Notes |
 |---------|------------|----------|-------|
-| F116-lite | Simple | ~2h | DONE 6/6. Squash-merged at `beafc43` via PR #264. 4 commits collapsed. Spec R1 + Plan R1 cross-model (Gemini APPROVED both, Codex REVISE both → fixes inline). code-review APPROVE WITH MINOR (3 IMPORTANT inline). qa-engineer PASS WITH ONE FOLLOW-UP. /audit-merge 11/11+12/12 PASS. CI green run 25662691769 (test-scraper +1 step `Lint scraper`). |
-| F030-lite | Simple | ~3h | DONE 6/6. Squash-merged at `a585c37` via PR #265. 5 commits collapsed. Spec R1 (Gemini REVISE + Codex REVISE, 6 findings inline) + Plan R1 (Gemini REVISE + Codex REVISE, 8 findings inline). production-code-validator 0 findings READY FOR PRODUCTION. code-review APPROVE WITH MINOR (3 IMPORTANT inline ba6d841). qa-engineer PASS WITH ONE FOLLOW-UP (fixed inline). /audit-merge 11/11 + drift fixed (P2 + P12) PASS. CI green run 25664827138. 30 new tests (10 unit + 14 edge + 3 integration + 3 SENTRY_DSN config). |
+| F107a-FU3 — Magic-link callback fix (token_hash + verifyOtp) | Standard | 2026-05-21 → 2026-05-25 | Shipped via PR #288 squash `816799e`. Frontend bugfix: rewrote `auth/callback/route.ts` from PKCE-only to 4-priority dispatch (token_hash+verifyOtp for magic link; `?code`+exchangeCodeForSession retained for future OAuth). 19 ACs (AC1-18 code, AC19 operator E2E smoke deploy-deferred). callback.test.ts 9→17 + callback.edge-cases.test.ts (16); web 576/576. Spec + Plan both cross-model (Codex REVISE→addressed + Gemini APPROVED). production-code-validator APPROVE, code-review-specialist APPROVE (2 MINOR+2 NIT applied), qa-engineer QA VERIFIED. /audit-merge 11/11 + drift CLEAN. **AC19 pending**: dev template updated 2026-05-25 (`app-dev.nutrixplorer.com`), awaiting user dev re-test; prod template + smoke at release. |
+| F107a-FU2 — Account-link hijack fix | Standard | 1 day (2026-05-18 → 2026-05-19) | Shipped via PR #283 squash `4756716`. 11 feature-branch commits collapsed. 17 ACs (16 numbered + AC8b + AC9b) + 12 DoD. **22 new tests** (14 dev + 8 qa edge cases). Spec + Plan both R1+R2 cross-model APPROVED (Codex + Gemini converged). production-code-validator 12/12, code-review-specialist 0 BLOCKERs/MAJORs + 6 NITs (S1 applied), qa-engineer PASS WITH FOLLOW-UPS (3 P3 in bugs.md). `/audit-merge` 11/11 structural + drift CLEAN. Post-merge sanity 4592/4592 green. Closes BUG-API-AUTH-ACTOR-HIJACK-001 P1 (silent cross-user actor.account_id hijack via shared X-Actor-Id). NO new DB table (Pino+Sentry observability only). |
+
+<!-- legacy Completed Features section retained below for historical entries if any -->
+<!-- Move features here as they complete -->
+
+| Feature | Complexity | Duration | Notes |
+|---------|------------|----------|-------|
 
 ## Blocked Features
 
@@ -43,14 +34,25 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** None — Batch 1 COMPLETE.
-**Branch:** N/A
-**Next features:** F107a + F105 (Batch 2 — Auth core + Trust signal) per roadmap. **REQUIRES**: (a) user audit of Batch 1, (b) ADR-025 (auth provider selection — Google Identity Platform vs Supabase Auth vs custom) authored BEFORE Batch 2 starts.
-**Blocked:** awaiting user audit confirmation before starting Batch 2.
+**Current feature:** None — F107a-FU2 done.
+**Branch:** `develop` (clean post-merge `4756716`).
+**Next features:** F099-lite (User Profiles BMR + targets, Standard). Requires `/compact` before starting per orchestrator rule (1 feature complete in this session; next would be feature 2/2). RGPD Art.9 gate prerequisite out-of-repo (privacy policy + ToS update with health-data fields).
+**Blocked:** none for F099-lite code work; RGPD gate is non-technical operator dependency.
 
-**Completed in this session:** F116-lite (PR #264 `beafc43`) + F030-lite (PR #265 `a585c37`).
-
-To resume after /compact: run `start pm` with Batch 2 args after user audit + ADR-025.
+**Pivot context** (2026-05-18): originally pm-profiles was F107b + F099-lite. After empirical investigation surfaced F107b's premise as incorrect AND surfaced a real P1 hijack bug in F107a, the batch was recomposed: F107a-FU2 (the hotfix) replaces F107b. F107b ticket closed with `Status: Closed - Not Needed` + re-evaluation triggers.
 
 To resume after /compact: run `continue pm`
 To stop gracefully: run `stop pm`
+
+## Auto-Approved Decisions
+
+| Date | Step | Decision | Rationale |
+|------|------|----------|-----------|
+| 2026-05-18 | Phase 1 batch composition | Run F107b alone this session; defer F099-lite | Orchestrator constraint: F099-lite depends on F107b which is also in batch → default to splitting (per skill phase 1 step 6). Plus mandatory `/compact` rule fires at 2 features per session; splitting avoids mid-session context cliff. Plus F099-lite has a non-technical RGPD gate that should land before its deploy. User pre-authorized Batch 3 contents in roadmap; the SAFER subset interpretation is locked in. |
+| 2026-05-18 | Pivot — F107b → F107a-FU2 | Close F107b "Not Needed"; replace with F107a-FU2 hotfix in this batch | Empirical investigation of F107a `/me` handler (`packages/api/src/routes/auth.ts:180-292`) showed (a) F107b's "merge actor_A into actor_B" premise didn't hold — F107a UPDATEs the existing actor in place, no separate post-auth actor exists; (b) a real P1 hijack bug surfaced (`IS DISTINCT FROM` semantics invert hijack-prevention). User-explicit approval of pivot plan with 3 refinements: graceful-fallback on collision (NOT 409), no new audit table in hotfix (Pino+Sentry only), close F107b explicitly with re-evaluation triggers (not "deferred to Batch N"). Sequence: F107a-FU2 → F099-lite → release bundle. |
+
+## Baseline (verified 2026-05-18 pre-batch)
+
+- `npm test -w @foodxplorer/landing`: exit 0 (60 suites, 749 + 3 todo / 752) — post-F105 merge sanity ✓
+- `git status`: clean on develop@3bb9e8b
+- Known pre-existing: BUG-API-HEALTH-PRISMA-MOCK-001 (P3), BUG-DEV-SHARED-WEBMETRICS-BOUNDARY-FLAKE-001 (P3) — neither affects F107b scope.
