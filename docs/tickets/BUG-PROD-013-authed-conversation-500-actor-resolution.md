@@ -91,8 +91,8 @@ The web **never calls `/me`**, so the F107a account↔actor link (the F107a-FU2 
 | 2. Product tracker | [x] | Active Session → BUG-PROD-013, Step 5/6 (Review), in-progress |
 | 3. key_facts.md | [x] | Auth bullet updated: BUG-PROD-013 fix (bearer path resolves actorId via lib/bearerActor.ts; linking still /me-only; try/catch resilience) |
 | 4. decisions.md | [x] | N/A — no ADR (reuses existing F107a/FU2 patterns; no new architectural decision) |
-| 5. Commit documentation | [ ] | pending commit |
-| 6. Clean working tree | [ ] | pending commit (`git status` after) |
-| 7. Branch up to date with develop | [ ] | pending fetch + merge-base check at PR |
+| 5. Commit documentation | [x] | Fix + tests + docs committed `b360e91`; pushed; PR #292 → develop |
+| 6. Clean working tree | [x] | `git status` → CLEAN after commit |
+| 7. Branch up to date with develop | [x] | `git merge-base --is-ancestor origin/develop HEAD` → up to date (develop `cf04529` is ancestor of `b360e91`) |
 | 8. Fill MCE | [x] | this table |
-| 9. /audit-merge | [ ] | pending post-commit |
+| 9. /audit-merge | [x] | run 2026-05-25 (see Completion Log) — CI `ci-success` SUCCESS, `test-api` SUCCESS, mergeState CLEAN |
