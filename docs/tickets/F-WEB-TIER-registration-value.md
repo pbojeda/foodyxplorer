@@ -1606,7 +1606,7 @@ _Plan written: 2026-05-26 | frontend-planner_
 | 5. Commit documentation | [x] | Docs committed in the merge-checklist `docs:` commit (this step); feature commits `a232c98` (backend) · `cc2b1c9` (frontend) · `dd93d2a` (shared/specs) · `1f6c75f` (bearer-over-key fix) · `004a0a1` (voice/grammar fix) |
 | 6. Verify clean working tree | [x] | `git status` clean after the docs commit |
 | 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` → UP TO DATE (develop `b88f617` is ancestor; no merge needed) |
-| 8. /audit-merge | [ ] | Run after push + PR (needs PR for PR-body/remote-branch drift checks) |
+| 8. /audit-merge | [x] | Run 2026-05-26 vs PR #294. **Structural 0–11 PASS**: Status `Ready for Merge`; AC 34/37 (AC35–37 operator deferred); DoD 7/7; Workflow 0–5 [x], Step 6 [ ]; MCE all [x]; 16 Completion Log rows; tracker Active Session 5/6; key_facts updated; merge-base UP TO DATE; tree clean; no JSON seed files in diff. **Drift**: P1 PR ratios ⊆ ticket (4613→4666, 576→631) OK; P6 AC claim 34/37 = actual OK; **P11 N/A** (no false drift — Features row added, status `in-progress` matches Ready-for-Merge); **P16 RESOLVED** (added `F-WEB-TIER` row to Features table). CI: `ci-success`=SUCCESS, `test-shared`=SUCCESS, mergeState=CLEAN after re-run of the known flake `BUG-DEV-SHARED-WEBMETRICS-BOUNDARY-FLAKE-001` (P3, unrelated to diff). |
 
 ---
 
