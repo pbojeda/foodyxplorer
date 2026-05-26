@@ -507,6 +507,18 @@ is independent of the meter.
 `GET /me/usage` is bearer-only (401 for anonymous). The frontend only calls it when `user !== null`,
 so an anonymous user never triggers it; they see `<LoginCta>` + the 429 nudge instead.
 
+#### E16 — Usage is per-actor via `X-Actor-Id` (accepted model behaviour; future hardening)
+
+`GET /me/usage` reads counters for the actor resolved from `X-Actor-Id` (or the bearer fallback),
+NOT scoped by `account_id`. A caller with a valid `bearer_A` + a forged `X-Actor-Id=B` could read
+**actor B's daily usage counts** (the *tier* still comes from A). Impact is LOW — it leaks daily
+*counts*, not content or PII, and requires knowing a victim's actor UUID. This is **pre-existing
+model behaviour**, not a F-WEB-TIER regression: the entire actor model trusts `X-Actor-Id` per
+ADR-016 (anonymous identity), and `/conversation/*` has the identical property. Accepted for MVP.
+**Future hardening (post-beta):** scope `/me/usage` (and the conversation counters) by `account_id`
+once linking is universal — resolve the account's canonical actor server-side instead of trusting
+`X-Actor-Id`. (External-audit NIT-1, 2026-05-26.)
+
 ---
 
 ### Open design forks (for owner decision at Spec checkpoint)
