@@ -15,12 +15,15 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import fastifyPlugin from 'fastify-plugin';
 import type { PrismaClient } from '@prisma/client';
+import type { Redis } from 'ioredis';
 import type { Config } from '../config.js';
 import { verifyBearerJwt } from '../plugins/authBearer.js';
 import { getSupabaseAdmin } from '../lib/supabaseAdmin.js';
 import { LoginRequestSchema } from '@foodxplorer/shared';
 import { captureMessage, hashActor } from '../lib/sentry.js';
-import { provisionFallbackActor, UUID_RE } from '../lib/bearerActor.js';
+import { provisionFallbackActor, resolveBearerActorId, UUID_RE } from '../lib/bearerActor.js';
+import { resolveAccountTier } from '../lib/accountTier.js';
+import { computeResetAt, DAILY_LIMITS_BY_TIER } from '../plugins/actorRateLimit.js';
 
 // Raw DB account row shape (before serialization to Zod Account)
 interface RawAccountRow {
@@ -33,6 +36,7 @@ interface RawAccountRow {
   consentMarketingAt: Date | string | null;
   consentAnalytics: boolean;
   consentAnalyticsAt: Date | string | null;
+  tier: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -42,13 +46,14 @@ interface RawAccountRow {
 interface AuthRoutesOptions {
   prisma: PrismaClient;
   config: Config;
+  redis: Redis;
 }
 
 // ---------------------------------------------------------------------------
 // Route plugin
 // ---------------------------------------------------------------------------
 
-const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, config }) => {
+const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, config, redis }) => {
   // ---------------------------------------------------------------------------
   // POST /auth/login
   // ---------------------------------------------------------------------------
@@ -233,7 +238,8 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
           consent_marketing AS "consentMarketing",
           consent_marketing_at AS "consentMarketingAt",
           consent_analytics AS "consentAnalytics",
-          consent_analytics_at AS "consentAnalyticsAt"
+          consent_analytics_at AS "consentAnalyticsAt",
+          tier::text
       `;
       const rawAccount = accountRows[0];
       if (!rawAccount) {
@@ -375,6 +381,7 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
         consentMarketingAt: toIso(rawAccount.consentMarketingAt),
         consentAnalytics: rawAccount.consentAnalytics,
         consentAnalyticsAt: toIso(rawAccount.consentAnalyticsAt),
+        tier: rawAccount.tier as 'free' | 'pro' | 'admin',
       };
 
       return reply.status(200).send({
@@ -387,6 +394,76 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
             externalId: actor.externalId,
             accountId: actor.accountId,
           },
+        },
+      });
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // GET /me/usage — Read-only daily usage meter (F-WEB-TIER)
+  //
+  // Bearer-only (401 for absent/invalid token).
+  // Reads current-day rate-limit counters from Redis with GET (never INCR).
+  // NOT in ROUTE_BUCKET_MAP — calling this endpoint consumes no quota (E12/AC27).
+  // Fails gracefully on Redis failure (used: 0, no 500 — E14).
+  // ---------------------------------------------------------------------------
+  app.get(
+    '/me/usage',
+    {},
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      // Bearer gate (same pattern as /me)
+      const authHeader = request.headers['authorization'];
+      if (!authHeader) {
+        throw Object.assign(new Error('Authorization Bearer token is required for /me/usage'), {
+          code: 'UNAUTHORIZED',
+        });
+      }
+
+      const jwksUrl = resolveJwksUrl(config);
+      const payload = await verifyBearerJwt(authHeader, jwksUrl);
+
+      const sub = payload.sub;
+
+      // Resolve actorId — mirror /me fallback (resolver may leave unset on transient DB failure)
+      // Do NOT 401 a valid bearer whose request.actorId is unset (P-I3).
+      let actorId = request.actorId;
+      if (!actorId) {
+        actorId = await resolveBearerActorId(prisma, payload, request);
+      }
+
+      // Resolve tier (Redis-cached, fail-open free)
+      const tier = await resolveAccountTier(redis, prisma, sub, request.log);
+
+      // Build usage for each bucket
+      const dateKey = new Date().toISOString().slice(0, 10);
+      const resetAt = computeResetAt(dateKey);
+
+      const buckets = ['queries', 'photos', 'voice'] as const;
+      type BucketName = (typeof buckets)[number];
+
+      const bucketResults: Record<BucketName, { used: number; limit: number | null; remaining: number | null }> = {
+        queries: { used: 0, limit: null, remaining: null },
+        photos:  { used: 0, limit: null, remaining: null },
+        voice:   { used: 0, limit: null, remaining: null },
+      };
+
+      for (const bucket of buckets) {
+        const redisKey = `actor:limit:${actorId}:${dateKey}:${bucket}`;
+        // E14: Redis GET failure → used: 0, no 500
+        const raw = await redis.get(redisKey).catch(() => null);
+        const used = raw ? parseInt(raw, 10) : 0;
+        const limit = tier === 'admin' ? null : (DAILY_LIMITS_BY_TIER[tier]?.[bucket] ?? null);
+        const remaining = tier === 'admin' ? null : Math.max(0, (limit ?? 0) - used);
+
+        bucketResults[bucket] = { used, limit, remaining };
+      }
+
+      return reply.status(200).send({
+        success: true,
+        data: {
+          tier,
+          resetAt,
+          buckets: bucketResults,
         },
       });
     },
