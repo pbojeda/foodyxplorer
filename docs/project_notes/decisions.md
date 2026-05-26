@@ -1003,3 +1003,29 @@ The cost/benefit at pre-beta tilts strongly toward closing the surface: it simul
 - `docs/archive/audits/qa-api-audit-2026-04-06.md:83` — A1 CRITICAL "Actor impersonation" — closed as a side-effect of Decision §3 above.
 - `packages/api/src/plugins/actorResolver.ts:66-73` — the code lines being removed.
 - `docs/project_notes/key_facts.md:63` — Render services + autoDeploy state.
+
+### ADR-027: Account-Tier Wiring — `/me`-on-login Provisioning + Bearer-over-API-Key Precedence (F-WEB-TIER, 2026-05-26)
+
+**Status:** Accepted — owner-decided during F-WEB-TIER (PM session pm-profiles). Reuses ADR-025 R3 §5; no new auth provider or transport. Cross-model reviewed (Spec 6 findings + Plan 3 findings) + code-review caught the photo-tier gap.
+
+**Context.** F107a shipped auth but registering granted no tangible value: tier was resolved ONLY from `request.apiKeyContext` (API keys), so a logged-in web user fell through to `anonymous`. Two structural facts forced design decisions during F-WEB-TIER:
+
+1. **`actors.account_id` is a FK to `accounts.id` (app PK), and the `accounts` row is created ONLY by `/me`'s upsert.** The web never calls `/me` (research §H0), so resolver-side actor↔account linking would never find an `accounts.id` → a silent no-op for exactly the web users we care about. BUG-PROD-013 also deliberately kept the `actorResolver` onRequest hook write-free.
+2. **The photo path (`/analyze/menu`) always carries the shared web `X-API-Key`** (proxy gateway credential), and tier resolution was API-key-first → the shared key shadowed the bearer, so authed photos got the shared key's tier, not the account tier.
+
+**Decision.**
+1. **Provisioning + linking via `GET /me` on session establish (Option A).** `AuthProvider` calls `GET /me` on `SIGNED_IN`/`INITIAL_SESSION` (NOT `TOKEN_REFRESHED`); `/me` upserts the account + links the actor using the **unchanged** F107a-FU2 safe predicate. The `actorResolver` write-path stays clean (resolves `actorId` only). Multi-device is covered (each device calls `/me` at its own login). Rejected alternatives: resolver-side linking (no-op without the account row + adds account writes to the hot path); a gated resolver-side upsert (re-introduces writes BUG-PROD-013 removed).
+2. **Bearer-over-API-key tier precedence.** When a valid bearer is present (`request.accountId` set), tier resolves from the account (`resolveAccountTier`) **even if `apiKeyContext` is also present**. The shared `X-API-Key` is an infrastructure/gateway credential, not a per-user tier grant — ADR-025 R3 §5 makes the bearer the authoritative identity channel. API-key-only clients (no bearer) are unaffected. Only `/analyze/menu` (bearer + shared key) changes: authed photos now get account limits (free = 20).
+3. **Fail-open to `free` (never `anonymous`) for a verified bearer** with no `accounts` row yet or on DB error — every registered user is ≥ free. `AccountSchema.tier` is `.optional()` on parse for rolling-deploy skew (web auto-deploys on Vercel; api-dev is a manual deploy).
+
+**Consequences.**
+- (+) Registering delivers real value (free 100/20/30 incl. photos) without requiring resolver write-path changes; reuses F107a-FU2 verbatim (anti-hijack surface unchanged).
+- (+) Read-only `GET /me/usage` powers the usage meter without consuming quota.
+- (–) Linking depends on the frontend calling `/me` at session establish (one extra call per login). Acceptable: it's the canonical F107a provisioning point and was always intended.
+- (–) Tier resolution adds a cached DB read on rate-limited authed requests (mitigated: Redis cache TTL 60s, mirrors API-key auth).
+
+**Cross-references:**
+- ADR-025 R3 §5 (`decisions.md:831`) — strict bearer precedence; this ADR applies it to tier resolution.
+- BUG-PROD-013 (`docs/tickets/BUG-PROD-013-*.md`) — the bearer-actorId fix that kept the resolver write-free; F-WEB-TIER builds on it.
+- `docs/tickets/F-WEB-TIER-registration-value.md` — full spec/plan/ACs + the cross-model + review trail.
+- `packages/api/src/plugins/actorRateLimit.ts` — bearer-first tier precedence; `packages/api/src/lib/accountTier.ts` — `resolveAccountTier`.

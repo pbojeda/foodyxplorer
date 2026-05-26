@@ -1,7 +1,7 @@
 # F-WEB-TIER: Registration value — account→`free` tier + actor↔account linking + login/register CTA
 
 **Feature:** F-WEB-TIER (incl. F-WEB-AUTH-CTA) | **Type:** Fullstack-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F-WEB-TIER-registration-value
+**Status:** Ready for Merge | **Branch:** feature/F-WEB-TIER-registration-value
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-25 | **Dependencies:** F107a (auth core, shipped), F107a-FU2 (anti-hijack predicate), BUG-PROD-013 (bearer actorId resolution — done)
 
@@ -1551,8 +1551,8 @@ _Plan written: 2026-05-26 | frontend-planner_
 - [x] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
 - [x] Step 3: `backend-developer` + `frontend-developer` executed with TDD
 - [x] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard/Complex)
+- [x] Step 5: `code-review-specialist` executed
+- [x] Step 5: `qa-engineer` executed (Standard/Complex)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -1574,6 +1574,7 @@ _Plan written: 2026-05-26 | frontend-planner_
 | 2026-05-26 | Step 3 (frontend, TDD) | `frontend-developer` executed. **Test delta: 576 → 617 (+41 tests, 56 suites).** New files: `components/LoginCta.tsx`, `components/UsageMeter.tsx`, `components/RateLimitNudge.tsx`. Modified: `components/AuthProvider.tsx` (P-I1: setAuthToken before getMe, event discrimination SIGNED_IN/INITIAL_SESSION, account state), `components/HablarShell.tsx` (LoginCta+UsageMeter+RateLimitNudge wiring, P-I2 sibling nudge, dynamic 429 message, authenticated flag on trackEvent, usageRefreshRef), `lib/apiClient.ts` (sendPhotoAnalysis bearer, getMe, getUsage, MeEnvelope/UsageEnvelope), `lib/metrics.ts` (5 new MetricEvent values, authenticated+tier in MetricPayload), `app/api/analyze/route.ts` (Authorization forwarding). New tests: `__tests__/auth/apiClient.fWebTier.test.ts` (11), `__tests__/api/analyze.proxy.fWebTier.test.ts` (3), `__tests__/auth/AuthProvider.fWebTier.test.tsx` (7), `__tests__/components/LoginCta.test.tsx` (5), `__tests__/components/UsageMeter.test.tsx` (7), `__tests__/components/HablarShell.fWebTier.test.tsx` (8). Updated 9 existing test files with F-WEB-TIER mock set (next/navigation, LoginCta/UsageMeter/RateLimitNudge null mocks, getMe/getUsage in apiClient mock). Also fixed useAuth.test.tsx pre-existing getMe/fetch conflict by adding apiClient mock. **Gates:** test ✅ (617/617), lint ✅, typecheck ✅, build ✅. **ACs satisfied: AC6 (frontend), AC10–AC13, AC17–AC25, AC30–AC34.** |
 | 2026-05-26 | Step 3 (finalize commit) | Committed the shared schema + spec/design docs that the api commit referenced but left uncommitted (`dd93d2a`) — `packages/shared/src/schemas/auth.ts` (AccountTier/Usage schemas), `api-spec.yaml`, `ui-components.md`, `design-guidelines.md`, tracking. Cross-workspace typecheck (shared/api/web/bot/scraper/landing) all clean — shared schema change has no ripple. Branch now complete + buildable (3 commits: a232c98, cc2b1c9, dd93d2a). |
 | 2026-05-26 | Step 4 (Finalize) | `production-code-validator` → **APPROVE WITH MINOR.** All 9 critical invariants verified in the diff (actorResolver UNCHANGED; /me safe-link UNCHANGED; precedence; fail-open free; /me/usage read-only; tier optional; P-I1 setAuthToken-before-getMe; P-I2 nudge sibling; photo bearer forward). Gates re-run green: api 4643/4643, web 617/617, lint/typecheck/build clean. 34/37 automated ACs covered (AC35–37 operator). MINOR: DoD checkboxes (now [x]) + MCE table (Step 5). No blockers. DoD [x]; Workflow Step 4 [x]. |
+| 2026-05-26 | Step 5 (Review + QA) | `code-review-specialist` → **APPROVE WITH MINOR**: auth core verified clean in the diff (actorResolver UNCHANGED, /me safe-link UNCHANGED, precedence, fail-open free, /me/usage read-only); **1 MAJOR** (photo-tier inert — API-key shadowed bearer) + 4 MINOR. `qa-engineer` → **PASS WITH FOLLOW-UPS**: all 34 automated ACs verified + 31 adversarial tests added (api 4643→4661, web 617→630, all green); **BUG-001 (LOW)** voice meter refresh. **Owner decision on MAJOR: Option A** (bearer wins over shared API key — ADR-025 R3 §5). All findings resolved in the two fix rows below. |
 | 2026-05-26 | Step 5 fix — bearer-over-API-key precedence + photo-tier integration test + E14 unit + QA edge-case commit | **Code-review fix (Option A owner-approved).** Root cause: `actorRateLimit.ts` was API-key-first; the web proxy's shared `X-API-Key` took precedence over the bearer, so `resolveAccountTier` was never called for `/analyze/menu` → free accounts got anonymous/shared-key photo limits (feature goal #3 / research §H3 unmet). **Fix:** inverted precedence to bearer-first: `if (hasBearerAuth) → resolveAccountTier; else if (hasApiKey) → key tier; else → 'anonymous'`. ADR-025 R3 §5 + fork D4 alignment. **Unit test updated:** `fWebTier.actorRateLimit.tier.unit.test.ts` — replaced "apiKeyContext present → resolveAccountTier NOT called" (was wrong after bearer-first) with two cases: (a) apiKeyContext + accountId → bearer wins, resolveAccountTier IS called; (b) apiKeyContext + no accountId → key tier used, resolveAccountTier NOT called. **New integration test:** `fWebTier.photoTier.integration.test.ts` (3 tests) — free bearer + /analyze/menu: 21st photo → 429 with `tier:free,limit:20`; 20th allowed; anonymous contrast 11th → 429 with `tier:anonymous,limit:10`. **E14 direct unit test:** `fWebTier.usageE14.unit.test.ts` (1 test) — redis.get rejects → 200 with used:0 (no 500). **QA edge-case file committed:** `fWebTier.edge-cases.unit.test.ts` (18 tests, written by qa-engineer, previously untracked). **Impact on other routes:** `/conversation/message` and `/conversation/audio` are bearer-only (no shared X-API-Key) → behavior unchanged. `/estimate` likewise. Only `/analyze/menu` (bearer + shared key) changes: authed users now get account tier. **Test delta: 4661 → 4666 (+5 tests, 260 → 262 files).** Gates: test ✅, lint ✅, typecheck ✅, build ✅. |
 | 2026-05-26 | Step 5 (frontend fix) — BUG-001 voice usage-meter refresh + 429 grammar + QA edge-case tests | **Two QA/code-review fixes applied with TDD.** (1) **BUG-001 (qa, LOW):** `HablarShell.tsx` voice-success `useEffect` (`voiceSession.state === 'done'`) was missing `usageRefreshRef.current?.()` — the meter was refreshed after query/photo success but NOT after voice success. Added the call after `trackEvent('voice_success')` to mirror the query/photo paths. New test in `HablarShell.fWebTier.test.tsx` (BUG-001 describe block): renders with logged-in user + idle voice, injects a refreshSpy into `usageRefreshRef` via `capturedOnRefreshReady`, rerenders with `state='done'`, asserts spy called once. (2) **MINOR — 429 grammar when `limit` is null:** `setError` interpolation was `"…límite diario${limitStr} consultas…"` which produced "…límite diario consultas…" (missing "de"). Fixed to `"…límite diario de ${limitStr}consultas…"` — with limit: "…de 50 consultas…"; without limit: "…de consultas…". Updated `fWebTier.edge-cases.test.tsx` assertions (two tests) from `/límite diario consultas/i` to `/límite diario de consultas/i`. (3) **QA edge-case file committed:** `fWebTier.edge-cases.test.tsx` (previously untracked, 13 tests, written by qa-engineer). **Web test delta: 630 → 631 (+1 test, 57 suites).** Gates: test ✅ (631/631), lint ✅, typecheck ✅, build ✅. |
 
@@ -1585,14 +1586,15 @@ _Plan written: 2026-05-26 | frontend-planner_
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
+| 0. Validate ticket structure | [x] | All 7 sections present: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 34/37 (AC35–AC37 = operator post-deploy smokes, intentionally deferred); DoD: 7/7; Workflow: Steps 0–5 [x], Step 6 [ ] (pending merge). Status → Ready for Merge |
+| 2. Verify product tracker | [x] | Active Session → Step 5/6 (Review), `Ready for Merge`, branch + 5 commits noted; pm-session.md synced |
+| 3. Update key_facts.md | [x] | Added "Account tier resolution (F-WEB-TIER)" bullet (accounts.tier + AccountTier enum + resolveAccountTier + bearer-first precedence + GET /me/usage + Option A provisioning + LoginCta/UsageMeter/RateLimitNudge + tier-optional deploy-skew); `computeResetAt` export noted on the actorRateLimit bullet |
+| 4. Update decisions.md | [x] | **ADR-027** added (Option A `/me`-on-login provisioning + bearer-over-API-key tier precedence; reuses ADR-025 R3 §5) |
+| 5. Commit documentation | [x] | Docs committed in the merge-checklist `docs:` commit (this step); feature commits `a232c98` (backend) · `cc2b1c9` (frontend) · `dd93d2a` (shared/specs) · `1f6c75f` (bearer-over-key fix) · `004a0a1` (voice/grammar fix) |
+| 6. Verify clean working tree | [x] | `git status` clean after the docs commit |
+| 7. Verify branch up to date | [x] | `git merge-base --is-ancestor origin/develop HEAD` → UP TO DATE (develop `b88f617` is ancestor; no merge needed) |
+| 8. /audit-merge | [ ] | Run after push + PR (needs PR for PR-body/remote-branch drift checks) |
 
 ---
 
