@@ -181,13 +181,44 @@ describe('Tier resolution — AC1: bearer accountId → resolveAccountTier', () 
     expect(mockResolveAccountTier).not.toHaveBeenCalled();
   });
 
-  it('AC2 regression: apiKeyContext.tier = pro → tier pro, resolveAccountTier NOT called', async () => {
+  // After the bearer-over-API-key precedence fix (ADR-025 R3 §5 / fork D4):
+  // when BOTH apiKeyContext AND accountId are present (e.g. /analyze/menu with shared X-API-Key
+  // + forwarded bearer), the bearer WINS — resolveAccountTier IS called and the API key tier
+  // is IGNORED. This is the fix for the photo-tier gap (feature goal #3 / research §H3).
+  it('bearer + apiKeyContext: bearer wins → resolveAccountTier IS called, API key tier ignored', async () => {
+    const hook = await getHook();
+    const request = buildMockRequest({
+      url: '/analyze/menu',
+      actorId: 'f7f00000-0001-4000-a000-000000000099',
+      apiKeyContext: { tier: 'pro' }, // shared key is pro-tier
+      accountId: 'f7f00000-0010-4000-a000-000000000010', // valid bearer — should win
+    });
+    const reply = buildMockReply();
+
+    mockResolveAccountTier.mockResolvedValue('free'); // account is free
+    mockRedisIncr.mockResolvedValue(1);
+
+    await hook(request as never, reply as never);
+
+    // Bearer wins: resolveAccountTier MUST be called with the accountId
+    expect(mockResolveAccountTier).toHaveBeenCalledWith(
+      mockRedis,
+      mockPrisma,
+      'f7f00000-0010-4000-a000-000000000010',
+      expect.anything(),
+    );
+    // Request not blocked (used=1, free photo limit=20)
+    expect(reply._sent).toBe(false);
+  });
+
+  // API-key-only (no bearer) → key tier used, resolveAccountTier NOT called
+  it('apiKeyContext present + NO accountId → key tier used, resolveAccountTier NOT called', async () => {
     const hook = await getHook();
     const request = buildMockRequest({
       url: '/conversation/message',
       actorId: 'f7f00000-0001-4000-a000-000000000099',
       apiKeyContext: { tier: 'pro' },
-      accountId: 'f7f00000-0010-4000-a000-000000000010', // accountId present but should be ignored
+      accountId: undefined, // no bearer
     });
     const reply = buildMockReply();
 
@@ -195,8 +226,9 @@ describe('Tier resolution — AC1: bearer accountId → resolveAccountTier', () 
 
     await hook(request as never, reply as never);
 
-    // API key takes precedence — resolveAccountTier should NOT be called
+    // No bearer → API key tier used, resolveAccountTier not called
     expect(mockResolveAccountTier).not.toHaveBeenCalled();
+    expect(reply._sent).toBe(false);
   });
 });
 

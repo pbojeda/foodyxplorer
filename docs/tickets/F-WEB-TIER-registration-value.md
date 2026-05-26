@@ -1397,6 +1397,16 @@ _Plan written: 2026-05-26 | frontend-planner_
   `packages/web/src/app/api/analyze/route.ts` forwards `Authorization` header from incoming
   browser request to the upstream Fastify call when present. Verified by unit test on the
   Route Handler.
+  **Note (Step 5 fix, 2026-05-26):** AC11+AC12 ship the bearer to Fastify correctly, but
+  feature goal #3 ("photo rate limits are per-account, not shared") was NOT fully delivered because
+  `actorRateLimit.ts` was **API-key-first** — the shared `X-API-Key` took precedence over the
+  bearer and the account tier was never resolved for `/analyze/menu`. The bearer-over-API-key
+  precedence fix (Step 5 commit) delivers the missing backend half: when `request.accountId` is
+  set (valid bearer), the account tier is now resolved via `resolveAccountTier` even when
+  `apiKeyContext` is also present. End-to-end coverage: integration test
+  `fWebTier.photoTier.integration.test.ts` — authenticated free user at 21 photos → 429 with
+  `tier: 'free', limit: 20` (not pro/anonymous). Unit test `fWebTier.actorRateLimit.tier.unit.test.ts`
+  covers bearer + apiKeyContext present → `resolveAccountTier` IS called (bearer wins).
 
 - [x] **AC13 — Photo analysis: anonymous user (no bearer) is unaffected:**
   When `authToken` is null, `sendPhotoAnalysis` does NOT attach `Authorization`. Proxy
@@ -1524,13 +1534,13 @@ _Plan written: 2026-05-26 | frontend-planner_
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] E2E tests updated (if applicable)
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation
+- [x] All acceptance criteria met _(34/37 automated met; AC35–AC37 are operator post-deploy smokes)_
+- [x] Unit tests written and passing _(api 4613→4643 +30 (Step 3); api 4661→4666 +5 (Step 5 fix: photo-tier integration + E14 unit + QA edge-cases); web 576→617 +41)_
+- [x] E2E tests updated (if applicable) _(N/A — covered by integration + RTL component tests)_
+- [x] Code follows project standards
+- [x] No linting errors _(api + web lint clean)_
+- [x] Build succeeds _(api tsc + web Next build clean)_
+- [x] Specs reflect final implementation _(api-spec.yaml, ui-components.md, design-guidelines W9–W14, shared schemas)_
 
 ---
 
@@ -1540,7 +1550,7 @@ _Plan written: 2026-05-26 | frontend-planner_
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
 - [x] Step 3: `backend-developer` + `frontend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
+- [x] Step 4: `production-code-validator` executed, quality gates pass
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed (Standard/Complex)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
@@ -1562,6 +1572,9 @@ _Plan written: 2026-05-26 | frontend-planner_
 | 2026-05-26 | Step 2 (provisioning fork) | **backend-planner surfaced a design gap (verified FK):** `actors.account_id` → `accounts.id` (app PK); the `accounts` row is created ONLY by `/me`; the web never calls `/me` → resolver-side linking would be a silent no-op + no account row for tier. **Owner decision: Option A** — `AuthProvider` calls `GET /me` on session establish (reuses F107a provisioning + safe-link verbatim; multi-device covered). **Resolver-side linking DROPPED** (D2 reversed); `actorResolver` write-path unchanged (BUG-PROD-013 clean). `resolveAccountTier` returns `free` for a verified bearer with no account row. Spec updated: Goal §2, E1–E4, internal contracts, AC6–AC10. backend-planner plan to be revised accordingly. |
 | 2026-05-26 | Step 3 (backend, TDD) | `backend-developer` executed. **Test delta: 4613 → 4643 (+30 tests, 259 files).** Migration `20260526130000_add_account_tier` applied to local test DB + Supabase dev. Prisma client regenerated. New files: `lib/accountTier.ts`, `prisma/migrations/20260526130000_add_account_tier/migration.sql`, `__tests__/f-web-tier/fWebTier.resolveAccountTier.unit.test.ts` (9 tests), `__tests__/f-web-tier/fWebTier.actorRateLimit.tier.unit.test.ts` (12 tests), `__tests__/f-web-tier/fWebTier.usageEndpoint.integration.test.ts` (8 tests, integration). Modified: `actorRateLimit.ts` (3-way tier, export computeResetAt, prisma param, hasBearerAuth fail-open), `routes/auth.ts` (tier in /me response, redis param, GET /me/usage route), `app.ts` (prisma+redis wired), `prisma/schema.prisma` (AccountTier enum + accounts.tier). Extended: `f107a.authSchemas.test.ts` (+18 Zod schema tests), `f107a.authRoutes.integration.test.ts` (+AC15 tier test). **Gates:** test ✅, lint ✅, typecheck (api+shared+web) ✅, build ✅. Integration tests (`fWebTier.usageEndpoint`) ran locally (local Postgres 5433 + Redis 6380 available) — all 8 passed. **ACs satisfied: AC1–AC5, AC7–AC9, AC14–AC16, AC26–AC29.** AC6/AC10 backend regression covered (F107a existing tests stay green). `actorResolver.ts` UNCHANGED (Option A invariant). /me linking block UNCHANGED. |
 | 2026-05-26 | Step 3 (frontend, TDD) | `frontend-developer` executed. **Test delta: 576 → 617 (+41 tests, 56 suites).** New files: `components/LoginCta.tsx`, `components/UsageMeter.tsx`, `components/RateLimitNudge.tsx`. Modified: `components/AuthProvider.tsx` (P-I1: setAuthToken before getMe, event discrimination SIGNED_IN/INITIAL_SESSION, account state), `components/HablarShell.tsx` (LoginCta+UsageMeter+RateLimitNudge wiring, P-I2 sibling nudge, dynamic 429 message, authenticated flag on trackEvent, usageRefreshRef), `lib/apiClient.ts` (sendPhotoAnalysis bearer, getMe, getUsage, MeEnvelope/UsageEnvelope), `lib/metrics.ts` (5 new MetricEvent values, authenticated+tier in MetricPayload), `app/api/analyze/route.ts` (Authorization forwarding). New tests: `__tests__/auth/apiClient.fWebTier.test.ts` (11), `__tests__/api/analyze.proxy.fWebTier.test.ts` (3), `__tests__/auth/AuthProvider.fWebTier.test.tsx` (7), `__tests__/components/LoginCta.test.tsx` (5), `__tests__/components/UsageMeter.test.tsx` (7), `__tests__/components/HablarShell.fWebTier.test.tsx` (8). Updated 9 existing test files with F-WEB-TIER mock set (next/navigation, LoginCta/UsageMeter/RateLimitNudge null mocks, getMe/getUsage in apiClient mock). Also fixed useAuth.test.tsx pre-existing getMe/fetch conflict by adding apiClient mock. **Gates:** test ✅ (617/617), lint ✅, typecheck ✅, build ✅. **ACs satisfied: AC6 (frontend), AC10–AC13, AC17–AC25, AC30–AC34.** |
+| 2026-05-26 | Step 3 (finalize commit) | Committed the shared schema + spec/design docs that the api commit referenced but left uncommitted (`dd93d2a`) — `packages/shared/src/schemas/auth.ts` (AccountTier/Usage schemas), `api-spec.yaml`, `ui-components.md`, `design-guidelines.md`, tracking. Cross-workspace typecheck (shared/api/web/bot/scraper/landing) all clean — shared schema change has no ripple. Branch now complete + buildable (3 commits: a232c98, cc2b1c9, dd93d2a). |
+| 2026-05-26 | Step 4 (Finalize) | `production-code-validator` → **APPROVE WITH MINOR.** All 9 critical invariants verified in the diff (actorResolver UNCHANGED; /me safe-link UNCHANGED; precedence; fail-open free; /me/usage read-only; tier optional; P-I1 setAuthToken-before-getMe; P-I2 nudge sibling; photo bearer forward). Gates re-run green: api 4643/4643, web 617/617, lint/typecheck/build clean. 34/37 automated ACs covered (AC35–37 operator). MINOR: DoD checkboxes (now [x]) + MCE table (Step 5). No blockers. DoD [x]; Workflow Step 4 [x]. |
+| 2026-05-26 | Step 5 fix — bearer-over-API-key precedence + photo-tier integration test + E14 unit + QA edge-case commit | **Code-review fix (Option A owner-approved).** Root cause: `actorRateLimit.ts` was API-key-first; the web proxy's shared `X-API-Key` took precedence over the bearer, so `resolveAccountTier` was never called for `/analyze/menu` → free accounts got anonymous/shared-key photo limits (feature goal #3 / research §H3 unmet). **Fix:** inverted precedence to bearer-first: `if (hasBearerAuth) → resolveAccountTier; else if (hasApiKey) → key tier; else → 'anonymous'`. ADR-025 R3 §5 + fork D4 alignment. **Unit test updated:** `fWebTier.actorRateLimit.tier.unit.test.ts` — replaced "apiKeyContext present → resolveAccountTier NOT called" (was wrong after bearer-first) with two cases: (a) apiKeyContext + accountId → bearer wins, resolveAccountTier IS called; (b) apiKeyContext + no accountId → key tier used, resolveAccountTier NOT called. **New integration test:** `fWebTier.photoTier.integration.test.ts` (3 tests) — free bearer + /analyze/menu: 21st photo → 429 with `tier:free,limit:20`; 20th allowed; anonymous contrast 11th → 429 with `tier:anonymous,limit:10`. **E14 direct unit test:** `fWebTier.usageE14.unit.test.ts` (1 test) — redis.get rejects → 200 with used:0 (no 500). **QA edge-case file committed:** `fWebTier.edge-cases.unit.test.ts` (18 tests, written by qa-engineer, previously untracked). **Impact on other routes:** `/conversation/message` and `/conversation/audio` are bearer-only (no shared X-API-Key) → behavior unchanged. `/estimate` likewise. Only `/analyze/menu` (bearer + shared key) changes: authed users now get account tier. **Test delta: 4661 → 4666 (+5 tests, 260 → 262 files).** Gates: test ✅, lint ✅, typecheck ✅, build ✅. |
 
 ---
 

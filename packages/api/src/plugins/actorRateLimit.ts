@@ -92,14 +92,25 @@ export async function registerActorRateLimit(
     const actorId = request.actorId;
     if (!actorId) return; // No actor = no limit check (shouldn't happen)
 
-    // Resolve tier: API key → bearer accountId → anonymous
+    // Resolve tier: bearer > API key > anonymous
+    //
+    // ADR-025 R3 §5 + fork D4: bearer is the authoritative identity channel.
+    // When a valid bearer is present (request.accountId set by actorResolver), the
+    // account tier is resolved from the DB/cache — even when apiKeyContext is ALSO
+    // present (e.g. /analyze/menu where the web proxy sends the shared X-API-Key AND
+    // forwards the user's Authorization: Bearer). This ensures authenticated users
+    // get their account photo/query/voice limits, not the shared key's tier.
+    //
+    // API-key-only clients (bot/external callers that send X-API-Key without a bearer)
+    // have no accountId set, so they still take the key-tier branch (unchanged).
+    // Anonymous callers (no bearer, no key) resolve to 'anonymous' (unchanged).
     const hasApiKey = request.apiKeyContext !== undefined;
     const hasBearerAuth = !!request.accountId;
     let tier: Tier;
-    if (hasApiKey && request.apiKeyContext) {
-      tier = request.apiKeyContext.tier as Tier;
-    } else if (hasBearerAuth && request.accountId) {
+    if (hasBearerAuth && request.accountId) {
       tier = await resolveAccountTier(redis, prisma, request.accountId, request.log);
+    } else if (hasApiKey && request.apiKeyContext) {
+      tier = request.apiKeyContext.tier as Tier;
     } else {
       tier = 'anonymous';
     }
