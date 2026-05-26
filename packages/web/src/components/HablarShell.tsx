@@ -145,6 +145,8 @@ export function HablarShell() {
       setIsVoiceOverlayOpen(false);
       setVoiceError(null);
       trackEvent('voice_success', { intent: data.intent });
+      // F-WEB-TIER: refresh usage meter after successful voice query (BUG-001)
+      usageRefreshRef.current?.();
 
       // Speak a short summary — presentation layer only; engine already
       // calculated the numbers (ADR-001).
@@ -291,8 +293,8 @@ export function HablarShell() {
         if (err.code === 'RATE_LIMIT_EXCEEDED') {
           // F-WEB-TIER: dynamic message from details.limit (cross-model F6)
           const limit = typeof err.details?.['limit'] === 'number' ? err.details['limit'] : null;
-          const limitStr = limit !== null ? ` de ${limit}` : '';
-          setError(`Has alcanzado el límite diario${limitStr} consultas. Vuelve mañana.`);
+          const limitStr = limit !== null ? `${limit} ` : '';
+          setError(`Has alcanzado el límite diario de ${limitStr}consultas. Vuelve mañana.`);
           // E9: show nudge only for anonymous users
           if (user === null) {
             setShowRateLimitNudge(true);

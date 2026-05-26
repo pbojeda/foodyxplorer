@@ -1,6 +1,7 @@
 // F-WEB-TIER: HablarShell integration tests.
 // AC22 (anonymous 429 shows RateLimitNudge), AC23 (logged-in 429 no nudge),
 // AC24 (nudge events), AC25 (authenticated flag on query_sent/query_success).
+// BUG-001: voice success fires usageRefreshRef (usage meter refresh on voice).
 
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -23,8 +24,38 @@ jest.mock('../../components/LoginCta', () => ({
   LoginCta: () => <button data-testid="login-cta">Iniciar sesión</button>,
 }));
 
+jest.mock('../../components/UserMenu', () => ({
+  UserMenu: () => null,
+}));
+
+// UsageMeter mock: captures the onRefreshReady prop reference so tests can
+// directly invoke it to set usageRefreshRef inside HablarShell.
+// The mock does NOT call onRefreshReady during render — that way a test can
+// call capturedOnRefreshReady(mySpy) at any point without a re-render clobbering it.
+let capturedOnRefreshReady: ((fn: () => void) => void) | undefined;
 jest.mock('../../components/UsageMeter', () => ({
-  UsageMeter: () => null,
+  UsageMeter: ({ onRefreshReady }: { onRefreshReady?: (fn: () => void) => void }) => {
+    // Store the prop reference — test can then call capturedOnRefreshReady(spy)
+    // which is equivalent to calling usageRefreshRef.current = spy inside HablarShell.
+    capturedOnRefreshReady = onRefreshReady;
+    return null;
+  },
+}));
+
+// useVoiceSession mock — default idle; overridden per test for voice-success scenarios
+const mockUseVoiceSession = jest.fn();
+jest.mock('../../hooks/useVoiceSession', () => ({
+  useVoiceSession: (...args: unknown[]) => mockUseVoiceSession(...args),
+}));
+
+jest.mock('../../hooks/useTtsPlayback', () => ({
+  useTtsPlayback: jest.fn().mockReturnValue({
+    play: jest.fn(),
+    cancel: jest.fn(),
+    isSpeaking: false,
+    selectedVoice: null,
+    ttsEnabled: true,
+  }),
 }));
 
 jest.mock('../../lib/imageResize', () => ({
@@ -102,10 +133,23 @@ const anonymousAuth = {
   signOut: jest.fn(),
 };
 
+const idleVoiceSession = {
+  state: 'idle' as const,
+  mimeType: 'audio/webm',
+  durationMs: 0,
+  lastResponse: null,
+  error: null,
+  start: jest.fn(),
+  stop: jest.fn(),
+  cancel: jest.fn(),
+  retry: jest.fn(),
+};
+
 describe('HablarShell — F-WEB-TIER', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseAuth.mockReturnValue(anonymousAuth);
+    mockUseVoiceSession.mockReturnValue(idleVoiceSession);
   });
 
   // -------------------------------------------------------------------------
@@ -292,5 +336,96 @@ describe('HablarShell — F-WEB-TIER', () => {
     await waitFor(() => {
       expect(mockTrackEvent).toHaveBeenCalledWith('query_sent', expect.objectContaining({ authenticated: true }));
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BUG-001: voice success fires usageRefreshRef (usage meter refresh on voice)
+// ---------------------------------------------------------------------------
+
+describe('HablarShell — BUG-001: usage meter refreshed on voice success', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseAuth.mockReturnValue({
+      user: { id: 'user-uuid', email: 'test@example.com' } as never,
+      session: { access_token: 'tok' } as never,
+      account: null,
+      loading: false,
+      error: null,
+      signIn: jest.fn(),
+      signOut: jest.fn(),
+    });
+    mockUseVoiceSession.mockReturnValue(idleVoiceSession);
+  });
+
+  it('BUG-001: usageRefreshRef.current is called when voiceSession transitions to done', async () => {
+    // The UsageMeter mock stores the onRefreshReady prop in capturedOnRefreshReady.
+    // Calling capturedOnRefreshReady(fn) sets usageRefreshRef.current = fn inside
+    // HablarShell. We inject refreshSpy this way after the initial render (so no
+    // subsequent re-render overwrites the ref), then trigger voice-done and assert
+    // the spy was called — verifying BUG-001 is fixed.
+
+    const refreshSpy = jest.fn();
+
+    // Step 1: render with idle voice session
+    const { rerender } = render(<HablarShell />);
+
+    // Step 2: inject spy into usageRefreshRef via the captured onRefreshReady prop.
+    // capturedOnRefreshReady = (fn) => { usageRefreshRef.current = fn; }
+    capturedOnRefreshReady?.(refreshSpy);
+
+    // Step 3: transition voiceSession to 'done'
+    const voiceResult = {
+      intent: 'estimation' as const,
+      actorId: 'actor-uuid',
+      activeContext: null,
+      estimation: {
+        query: 'bocata de jamón',
+        chainSlug: null,
+        portionMultiplier: 1,
+        level1Hit: true,
+        level2Hit: false,
+        level3Hit: false,
+        level4Hit: false,
+        matchType: 'exact_dish' as const,
+        cachedAt: null,
+        result: {
+          entityType: 'dish' as const,
+          entityId: '00000000-0000-4000-a000-000000000001',
+          name: 'Bocata de jamón',
+          nameEs: 'Bocata de jamón',
+          restaurantId: null,
+          chainSlug: null,
+          portionGrams: 200,
+          nutrients: {
+            calories: 350, proteins: 20, carbohydrates: 40, sugars: 2,
+            fats: 10, saturatedFats: 3, fiber: 2, salt: 1, sodium: 0.4,
+            transFats: 0, cholesterol: 0, potassium: 0,
+            monounsaturatedFats: 0, polyunsaturatedFats: 0, alcohol: 0,
+            referenceBasis: 'per_portion' as const,
+          },
+          confidenceLevel: 'high' as const,
+          estimationMethod: 'level1_exact' as const,
+          source: { id: '00000000-0000-4000-a000-000000000002', name: 'T', type: 'official_chain' as const, url: 'https://t.co' },
+          similarityDistance: null,
+        },
+      },
+    };
+
+    mockUseVoiceSession.mockReturnValue({
+      ...idleVoiceSession,
+      state: 'done',
+      lastResponse: { data: voiceResult },
+    });
+
+    rerender(<HablarShell />);
+
+    // The voice-done useEffect fires: trackEvent('voice_success') + usageRefreshRef.current?.()
+    await waitFor(() => {
+      expect(mockTrackEvent).toHaveBeenCalledWith('voice_success', expect.objectContaining({ intent: 'estimation' }));
+    });
+
+    // BUG-001: refresh spy must have been called once (was NOT called before this fix)
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
   });
 });
