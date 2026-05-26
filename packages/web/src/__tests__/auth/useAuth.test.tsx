@@ -32,6 +32,14 @@ jest.mock('../../lib/supabase/browser', () => ({
   getSupabaseBrowserClient: jest.fn(() => mockSupabaseClient),
 }));
 
+// F-WEB-TIER: AuthProvider now calls getMe on SIGNED_IN. Mock it here so
+// it doesn't call global.fetch and consume mock responses meant for signIn/signOut.
+jest.mock('../../lib/apiClient', () => ({
+  setAuthToken: jest.fn(),
+  getMe: jest.fn().mockResolvedValue({ success: true, data: { account: { tier: 'free' } } }),
+  getUsage: jest.fn(),
+}));
+
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 process.env['NEXT_PUBLIC_API_URL'] = 'https://api.example.com';

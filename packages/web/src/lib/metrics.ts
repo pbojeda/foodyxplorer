@@ -30,7 +30,13 @@ export type MetricEvent =
   | 'auth_login_start'
   | 'auth_login_success'
   | 'auth_login_error'
-  | 'auth_logout';
+  | 'auth_logout'
+  // F-WEB-TIER funnel events
+  | 'login_cta_shown'
+  | 'login_cta_clicked'
+  | 'rate_limit_nudge_shown'
+  | 'rate_limit_nudge_clicked'
+  | 'usage_meter_shown';
 
 export interface MetricPayload {
   intent?: string;
@@ -46,6 +52,9 @@ export interface MetricPayload {
   partial?: boolean;
   // F107a auth events
   provider?: 'email' | 'google';
+  // F-WEB-TIER funnel payload
+  authenticated?: boolean;
+  tier?: string;
 }
 
 export interface MetricsSnapshot {

@@ -1357,7 +1357,7 @@ _Plan written: 2026-05-26 | frontend-planner_
 
 ### Account provisioning + linking via `/me` (Option A)
 
-- [ ] **AC6 — `AuthProvider` calls `GET /me` on session establish → account provisioned + actor linked:**
+- [x] **AC6 — `AuthProvider` calls `GET /me` on session establish → account provisioned + actor linked:**
   (a) _Frontend:_ on login AND on session restore, `AuthProvider` calls `apiClient.getMe()` exactly
   once per session establish (verified by component test with `apiClient` mocked). (b) _Backend
   regression:_ `GET /me` upserts the `accounts` row (`ON CONFLICT auth_user_id`) and links the
@@ -1380,7 +1380,7 @@ _Plan written: 2026-05-26 | frontend-planner_
   `actorResolver` performs NO account writes (unchanged from BUG-PROD-013). Verified by existing
   suite (no regression) + a tampered-JWT 401 test.
 
-- [ ] **AC10 — Provisioning/linking failure is non-fatal:**
+- [x] **AC10 — Provisioning/linking failure is non-fatal:**
   If `GET /me` fails (network/DB), `AuthProvider` does NOT break `/hablar` — the user can still
   query (tier falls back to `free`, the meter renders "—"). Verified by component test with
   `getMe` rejecting. (The `actorResolver` is unchanged; non-actor routes like `/auth/logout` are
@@ -1388,17 +1388,17 @@ _Plan written: 2026-05-26 | frontend-planner_
 
 ### Backend — Photo path
 
-- [ ] **AC11 — Photo analysis: bearer forwarded from proxy to Fastify:**
+- [x] **AC11 — Photo analysis: bearer forwarded from proxy to Fastify:**
   When `apiClient.sendPhotoAnalysis` is called with a non-null `authToken`, the outgoing fetch
   to `/api/analyze` includes `Authorization: Bearer <token>`. Verified by unit test on
   `apiClient.ts` inspecting fetch call headers.
 
-- [ ] **AC12 — Photo proxy: bearer forwarded to Fastify upstream:**
+- [x] **AC12 — Photo proxy: bearer forwarded to Fastify upstream:**
   `packages/web/src/app/api/analyze/route.ts` forwards `Authorization` header from incoming
   browser request to the upstream Fastify call when present. Verified by unit test on the
   Route Handler.
 
-- [ ] **AC13 — Photo analysis: anonymous user (no bearer) is unaffected:**
+- [x] **AC13 — Photo analysis: anonymous user (no bearer) is unaffected:**
   When `authToken` is null, `sendPhotoAnalysis` does NOT attach `Authorization`. Proxy
   behaviour for anonymous requests is unchanged. Verified by unit test.
 
@@ -1421,45 +1421,45 @@ _Plan written: 2026-05-26 | frontend-planner_
 
 ### Frontend — CTA
 
-- [ ] **AC17 — `<LoginCta>` renders in header when logged out:**
+- [x] **AC17 — `<LoginCta>` renders in header when logged out:**
   On `/hablar` with no authenticated session, the header contains a "Iniciar sesión" button.
   Verified by component test (RTL) or E2E smoke: render `HablarShell` with `user=null,
   authLoading=false`.
 
-- [ ] **AC18 — `<LoginCta>` does not render while `authLoading`:**
+- [x] **AC18 — `<LoginCta>` does not render while `authLoading`:**
   When `authLoading=true`, neither `<UserMenu>` nor `<LoginCta>` renders. Verified by
   component test.
 
-- [ ] **AC19 — `<LoginCta>` does not render for authenticated user:**
+- [x] **AC19 — `<LoginCta>` does not render for authenticated user:**
   When `user` is non-null, `<LoginCta>` is not in the DOM; `<UserMenu>` is. Verified by
   component test.
 
-- [ ] **AC20 — `login_cta_shown` event fires on mount:**
+- [x] **AC20 — `login_cta_shown` event fires on mount:**
   When `<LoginCta>` mounts, `trackEvent('login_cta_shown')` is called exactly once. Verified
   by component test with `trackEvent` mocked.
 
-- [ ] **AC21 — `login_cta_clicked` event fires and navigation occurs:**
+- [x] **AC21 — `login_cta_clicked` event fires and navigation occurs:**
   Clicking `<LoginCta>` calls `trackEvent('login_cta_clicked')` and triggers navigation to
   `/login`. Verified by component test.
 
 ### Frontend — Rate-limit nudge
 
-- [ ] **AC22 — Anonymous user sees nudge on 429:**
+- [x] **AC22 — Anonymous user sees nudge on 429:**
   When `executeQuery` receives a 429 `RATE_LIMIT_EXCEEDED` and `user === null`, the
   `<RateLimitNudge>` component renders below the error message. Verified by component test
   with `sendMessage` mocked to throw `ApiError('...', 'RATE_LIMIT_EXCEEDED', 429)`.
 
-- [ ] **AC23 — Logged-in user does NOT see nudge on 429:**
+- [x] **AC23 — Logged-in user does NOT see nudge on 429:**
   When `user !== null` and 429 is received, `<RateLimitNudge>` does not render. Plain error
   message shown. Verified by component test.
 
-- [ ] **AC24 — `rate_limit_nudge_shown` and `rate_limit_nudge_clicked` events fire:**
+- [x] **AC24 — `rate_limit_nudge_shown` and `rate_limit_nudge_clicked` events fire:**
   `<RateLimitNudge>` fires `trackEvent('rate_limit_nudge_shown')` on mount and
   `trackEvent('rate_limit_nudge_clicked')` when the CTA is clicked. Verified by component test.
 
 ### Frontend — Funnel instrumentation
 
-- [ ] **AC25 — `query_sent` / `query_success` include `authenticated` boolean:**
+- [x] **AC25 — `query_sent` / `query_success` include `authenticated` boolean:**
   `trackEvent('query_sent', { authenticated: true })` when user is logged in;
   `trackEvent('query_sent', { authenticated: false })` when not. Verified by component test
   checking `trackEvent` call arguments.
@@ -1486,23 +1486,23 @@ _Plan written: 2026-05-26 | frontend-planner_
 
 ### Frontend — Usage meter
 
-- [ ] **AC30 — `<UsageMeter>` renders used/limit per bucket for logged-in user:**
+- [x] **AC30 — `<UsageMeter>` renders used/limit per bucket for logged-in user:**
   With `user !== null` and `getUsage` mocked, the header shows consultas/fotos/voz as `used/limit`
   (e.g. "12/100", "3/20", "5/30"). Verified by component test (RTL).
 
-- [ ] **AC31 — `<UsageMeter>` NOT shown for anonymous:**
+- [x] **AC31 — `<UsageMeter>` NOT shown for anonymous:**
   With `user === null`, no meter renders (`<LoginCta>` shown instead). `getUsage` is not called.
   Verified by component test.
 
-- [ ] **AC32 — Meter refreshes after a successful query:**
+- [x] **AC32 — Meter refreshes after a successful query:**
   After a `query_success` (and photo/voice success), `<UsageMeter>` re-fetches `GET /me/usage`
   (or updates) so the displayed count reflects the new usage. Verified by component test with
   `apiClient` mocked (getUsage called again after success).
 
-- [ ] **AC33 — `usage_meter_shown` event fires on mount:**
+- [x] **AC33 — `usage_meter_shown` event fires on mount:**
   `trackEvent('usage_meter_shown')` is called once when `<UsageMeter>` mounts. Verified by test.
 
-- [ ] **AC34 — Meter degrades gracefully on fetch failure:**
+- [x] **AC34 — Meter degrades gracefully on fetch failure:**
   When `getUsage` rejects (e.g. usage endpoint degraded), `<UsageMeter>` renders nothing / a muted
   "—" and does NOT throw or block `/hablar`. Verified by component test with `getUsage` rejecting.
 
@@ -1539,7 +1539,7 @@ _Plan written: 2026-05-26 | frontend-planner_
 - [x] Step 0: `spec-creator` executed, specs updated
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: `backend-planner` + `frontend-planner` executed, plan approved
-- [ ] Step 3: `backend-developer` + `frontend-developer` executed with TDD
+- [x] Step 3: `backend-developer` + `frontend-developer` executed with TDD
 - [ ] Step 4: `production-code-validator` executed, quality gates pass
 - [ ] Step 5: `code-review-specialist` executed
 - [ ] Step 5: `qa-engineer` executed (Standard/Complex)
@@ -1561,6 +1561,7 @@ _Plan written: 2026-05-26 | frontend-planner_
 | 2026-05-26 | Step 2 (Plan + review) | `backend-planner` (Option A) + `frontend-planner` wrote `### Backend Plan` + `### Frontend Plan`. Self-review clean (no stale resolver-linking refs; both have `Verification commands run`). `/review-plan` cross-model: **Gemini APPROVED**; **Codex REVISE — 3 IMPORTANT (all verified + fixed):** P-I1 `AuthProvider` must call `setAuthToken(access_token)` before `getMe()` (apiClient bearer singleton was set only by HablarShell → getMe would 401); P-I2 `<RateLimitNudge>` renders as sibling below `<ResultsArea>` (ErrorState has no slot — props `{message,onRetry}` only); P-I3 `GET /me/usage` resolves actorId via `resolveBearerActorId` fallback (don't 401 a valid bearer whose actorId is unset on resolver degrade — mirrors `/me`). Plan updated. |
 | 2026-05-26 | Step 2 (provisioning fork) | **backend-planner surfaced a design gap (verified FK):** `actors.account_id` → `accounts.id` (app PK); the `accounts` row is created ONLY by `/me`; the web never calls `/me` → resolver-side linking would be a silent no-op + no account row for tier. **Owner decision: Option A** — `AuthProvider` calls `GET /me` on session establish (reuses F107a provisioning + safe-link verbatim; multi-device covered). **Resolver-side linking DROPPED** (D2 reversed); `actorResolver` write-path unchanged (BUG-PROD-013 clean). `resolveAccountTier` returns `free` for a verified bearer with no account row. Spec updated: Goal §2, E1–E4, internal contracts, AC6–AC10. backend-planner plan to be revised accordingly. |
 | 2026-05-26 | Step 3 (backend, TDD) | `backend-developer` executed. **Test delta: 4613 → 4643 (+30 tests, 259 files).** Migration `20260526130000_add_account_tier` applied to local test DB + Supabase dev. Prisma client regenerated. New files: `lib/accountTier.ts`, `prisma/migrations/20260526130000_add_account_tier/migration.sql`, `__tests__/f-web-tier/fWebTier.resolveAccountTier.unit.test.ts` (9 tests), `__tests__/f-web-tier/fWebTier.actorRateLimit.tier.unit.test.ts` (12 tests), `__tests__/f-web-tier/fWebTier.usageEndpoint.integration.test.ts` (8 tests, integration). Modified: `actorRateLimit.ts` (3-way tier, export computeResetAt, prisma param, hasBearerAuth fail-open), `routes/auth.ts` (tier in /me response, redis param, GET /me/usage route), `app.ts` (prisma+redis wired), `prisma/schema.prisma` (AccountTier enum + accounts.tier). Extended: `f107a.authSchemas.test.ts` (+18 Zod schema tests), `f107a.authRoutes.integration.test.ts` (+AC15 tier test). **Gates:** test ✅, lint ✅, typecheck (api+shared+web) ✅, build ✅. Integration tests (`fWebTier.usageEndpoint`) ran locally (local Postgres 5433 + Redis 6380 available) — all 8 passed. **ACs satisfied: AC1–AC5, AC7–AC9, AC14–AC16, AC26–AC29.** AC6/AC10 backend regression covered (F107a existing tests stay green). `actorResolver.ts` UNCHANGED (Option A invariant). /me linking block UNCHANGED. |
+| 2026-05-26 | Step 3 (frontend, TDD) | `frontend-developer` executed. **Test delta: 576 → 617 (+41 tests, 56 suites).** New files: `components/LoginCta.tsx`, `components/UsageMeter.tsx`, `components/RateLimitNudge.tsx`. Modified: `components/AuthProvider.tsx` (P-I1: setAuthToken before getMe, event discrimination SIGNED_IN/INITIAL_SESSION, account state), `components/HablarShell.tsx` (LoginCta+UsageMeter+RateLimitNudge wiring, P-I2 sibling nudge, dynamic 429 message, authenticated flag on trackEvent, usageRefreshRef), `lib/apiClient.ts` (sendPhotoAnalysis bearer, getMe, getUsage, MeEnvelope/UsageEnvelope), `lib/metrics.ts` (5 new MetricEvent values, authenticated+tier in MetricPayload), `app/api/analyze/route.ts` (Authorization forwarding). New tests: `__tests__/auth/apiClient.fWebTier.test.ts` (11), `__tests__/api/analyze.proxy.fWebTier.test.ts` (3), `__tests__/auth/AuthProvider.fWebTier.test.tsx` (7), `__tests__/components/LoginCta.test.tsx` (5), `__tests__/components/UsageMeter.test.tsx` (7), `__tests__/components/HablarShell.fWebTier.test.tsx` (8). Updated 9 existing test files with F-WEB-TIER mock set (next/navigation, LoginCta/UsageMeter/RateLimitNudge null mocks, getMe/getUsage in apiClient mock). Also fixed useAuth.test.tsx pre-existing getMe/fetch conflict by adding apiClient mock. **Gates:** test ✅ (617/617), lint ✅, typecheck ✅, build ✅. **ACs satisfied: AC6 (frontend), AC10–AC13, AC17–AC25, AC30–AC34.** |
 
 ---
 
