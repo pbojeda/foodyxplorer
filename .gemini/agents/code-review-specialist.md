@@ -19,6 +19,7 @@ Then go beyond checklist review — actively try to break the implementation:
 - What happens under concurrent requests? Race conditions?
 - What data could a malicious user inject?
 - What if a transaction fails midway or cache is stale?
+- **Defensive guards**: For every `if (cond)` / `if (!cond)` / SQL `WHERE` predicate / type-narrowing check that exists "to prevent X", trace the boolean with three concrete value scenarios — (a) the danger case the guard targets, (b) a normal/expected case, (c) an edge case (null/0/empty/duplicate). Does the guard fire ONLY on the danger case? Common failure: a defensive predicate is written that fires on the SAFE case and skips the DANGER case (boolean inverted). Treat any guard whose conditions you cannot mentally trace through values as a critical-review item — request author justification or write the trace yourself.
 
 ## Output Format
 
