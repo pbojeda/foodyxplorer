@@ -189,6 +189,53 @@ if (typeof globalThis.crypto === 'undefined' || typeof globalThis.crypto.randomU
   });
 }
 
+// ---------------------------------------------------------------------------
+// F-WEB-HISTORY: IntersectionObserver stub
+// ---------------------------------------------------------------------------
+// jsdom does not implement IntersectionObserver. This stub allows tests for
+// HistoryLoadMoreSentinel to work. The last created instance is stored on
+// globalThis._lastIntersectionObserver so tests can trigger it manually:
+//   (globalThis as { _lastIntersectionObserver?: MockIntersectionObserver })
+//     ._lastIntersectionObserver?.trigger({ isIntersecting: true })
+
+class MockIntersectionObserver {
+  private callback: IntersectionObserverCallback;
+  observe = jest.fn();
+  unobserve = jest.fn();
+  disconnect = jest.fn();
+
+  constructor(callback: IntersectionObserverCallback) {
+    this.callback = callback;
+    // Store last instance globally for test access
+    (globalThis as Record<string, unknown>)['_lastIntersectionObserver'] = this;
+  }
+
+  // Test helper: manually fire the observer callback with a mock entry
+  trigger(entry: Partial<IntersectionObserverEntry> = { isIntersecting: true }) {
+    this.callback(
+      [entry as IntersectionObserverEntry],
+      this as unknown as IntersectionObserver
+    );
+  }
+}
+
+// @ts-expect-error global mock for test env
+globalThis.IntersectionObserver = MockIntersectionObserver;
+
+// ---------------------------------------------------------------------------
+// F-WEB-HISTORY: ResizeObserver stub (needed by some dialog/focus-trap paths)
+// ---------------------------------------------------------------------------
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  class MockResizeObserver {
+    observe = jest.fn();
+    unobserve = jest.fn();
+    disconnect = jest.fn();
+  }
+  // @ts-expect-error global mock for test env
+  globalThis.ResizeObserver = MockResizeObserver;
+}
+
+// ---------------------------------------------------------------------------
 // Polyfill AbortSignal.timeout and AbortSignal.any for jsdom test environment.
 // These are available in Node 18+ and modern browsers but not always exposed by jsdom.
 if (typeof AbortSignal.timeout !== 'function') {
