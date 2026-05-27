@@ -9,7 +9,7 @@
 //   - extra fields stripped by Zod (not rejected)
 //   - errors record key max-length boundary (exactly 100 chars)
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   WebMetricsSnapshotSchema,
   WebMetricsQueryParamsSchema,
@@ -161,17 +161,23 @@ describe('WebMetricsSnapshotSchema — retryCount', () => {
 // ---------------------------------------------------------------------------
 
 describe('WebMetricsSnapshotSchema — sessionStartedAt edge cases', () => {
-  it('rejects sessionStartedAt exactly at 24h ago boundary (exclusive — should fail)', () => {
-    // The spec says "not older than 24 hours". The check is: ts < now - 24*60*60*1000
-    // A timestamp exactly 24 hours ago is ts === now - 86400000 → condition is ts < threshold
-    // So exactly at 24h ago: ts === threshold → NOT less than → this should PASS
-    const exactlyAt24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const result = WebMetricsSnapshotSchema.safeParse(
-      validSnapshot({ sessionStartedAt: exactlyAt24h }),
-    );
-    // Exactly at the 24h boundary passes (ts < now - 24h is the rejection condition,
-    // equality is allowed — this is the boundary inclusion behavior)
-    expect(result.success).toBe(true);
+  it('accepts sessionStartedAt exactly at the 24h ago boundary (inclusive)', () => {
+    // Deterministic via frozen clock: the test's `now` and the schema's internal
+    // `Date.now()` must read the SAME instant. With a live clock, sub-ms drift between
+    // the two reads pushes the constructed timestamp just past 24h, so the schema
+    // rejects it → flaky failure (BUG-DEV-SHARED-WEBMETRICS-BOUNDARY-FLAKE-001).
+    // Spec rejection condition is `ts < now - 24h`, so exactly-at-boundary is accepted.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-27T12:00:00.000Z'));
+    try {
+      const exactlyAt24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const result = WebMetricsSnapshotSchema.safeParse(
+        validSnapshot({ sessionStartedAt: exactlyAt24h }),
+      );
+      expect(result.success).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('rejects sessionStartedAt 1ms past 24h ago', () => {
