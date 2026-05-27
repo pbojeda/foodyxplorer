@@ -240,6 +240,21 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // INVALID_CURSOR — malformed or undecipherable pagination cursor (F-WEB-HISTORY)
+  // 400 status: the client passed bad input; retrying with a corrected cursor is the fix.
+  if (asAny['code'] === 'INVALID_CURSOR') {
+    return {
+      statusCode: 400,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'INVALID_CURSOR',
+        },
+      },
+    };
+  }
+
   // INVALID_IMAGE — downloaded file is not a valid image (magic bytes not JPEG/PNG)
   if (asAny['code'] === 'INVALID_IMAGE') {
     return {

@@ -80,3 +80,8 @@ export const MissedQueryStatus = {
     ignored: "ignored"
 } as const;
 export type MissedQueryStatus = (typeof MissedQueryStatus)[keyof typeof MissedQueryStatus];
+export const SearchHistoryKind = {
+    text: "text",
+    voice: "voice"
+} as const;
+export type SearchHistoryKind = (typeof SearchHistoryKind)[keyof typeof SearchHistoryKind];

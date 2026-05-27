@@ -4,7 +4,7 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   : ColumnType<T, T | undefined, T>;
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
-import type { DataSourceType, ConfidenceLevel, EstimationMethod, PortionConfidence, FoodType, NutrientReferenceBasis, DishAvailability, ApiKeyTier, AccountTier, ActorType, QueryLogLevelHit, QueryLogSource, MissedQueryStatus } from "./kysely-enums";
+import type { DataSourceType, ConfidenceLevel, EstimationMethod, PortionConfidence, FoodType, NutrientReferenceBasis, DishAvailability, ApiKeyTier, AccountTier, ActorType, QueryLogLevelHit, QueryLogSource, MissedQueryStatus, SearchHistoryKind } from "./kysely-enums";
 
 export type Account = {
     id: Generated<string>;
@@ -247,6 +247,14 @@ export type Restaurant = {
     created_at: Generated<Timestamp>;
     updated_at: Timestamp;
 };
+export type SearchHistory = {
+    id: Generated<string>;
+    account_id: string;
+    kind: SearchHistoryKind;
+    query_text: string;
+    result_jsonb: unknown;
+    created_at: Generated<Timestamp>;
+};
 export type StandardPortion = {
     id: string;
     dish_id: string;
@@ -304,6 +312,7 @@ export type DB = {
     recipe_ingredients: RecipeIngredient;
     recipes: Recipe;
     restaurants: Restaurant;
+    search_history: SearchHistory;
     standard_portions: StandardPortion;
     waitlist_submissions: WaitlistSubmission;
     web_metrics_events: WebMetricsEvent;
