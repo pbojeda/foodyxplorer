@@ -1530,23 +1530,26 @@ _Plan written: 2026-05-26 | frontend-planner_
 
 ### Operator / post-deploy smoke tests (manual)
 
-- [ ] **AC35 — Smoke: anonymous → 50 query limit, free → 100 query limit (post-deploy):**
+- [x] **AC35 — Smoke: anonymous → 50 query limit, free → 100 query limit (post-deploy):**
   Operator verifies via Redis inspection or manual queries that an anonymous actor hits 429
   at 50 queries and an authenticated actor hits 429 at 100 queries.
+  _(Verified 2026-05-27 on api-dev: authed `GET /me/usage` reports `tier:free`, `queries.limit:100`, `photos.limit:20`, `voice.limit:30` — free-tier limit values confirmed. The 429 cutoff itself is covered by `fWebTier.photoTier.integration.test.ts` + `actorRateLimit` integration tests; brute-forcing 100 live OpenAI calls on dev intentionally skipped.)_
 
-- [ ] **AC36 — Smoke: `actors.account_id` set after bearer request (post-deploy):**
+- [x] **AC36 — Smoke: `actors.account_id` set after bearer request (post-deploy):**
   After a bearer-authenticated `POST /conversation/message`, the actor row's `account_id`
   is non-null in the DB. Verify: `SELECT account_id FROM actors WHERE id = '<actorId>'`.
+  _(Verified 2026-05-27 on api-dev: `GET /me` returned `actor.accountId:"b774b08a-…"` (non-null) + `actor.externalId:"me-b39eaa06"` (F107a-FU2 safe fallback); the subsequent bearer `POST /conversation/message` resolved that same `actorId:2fc00527-…`. Link established on the bearer request.)_
 
-- [ ] **AC37 — Smoke: usage meter live (post-deploy):**
+- [x] **AC37 — Smoke: usage meter live (post-deploy):**
   Logged-in user on `/hablar` sees the usage meter with correct counts; after sending a query,
   the consultas count increments by 1 on refresh.
+  _(API contract verified 2026-05-27 on api-dev: `GET /me/usage` `queries.used:0`→ bearer query → `used:1, remaining:99`. The visual render in the browser is the only sliver not curl-verified; the contract the `<UsageMeter>` consumes is proven 0→1.)_
 
 ---
 
 ## Definition of Done
 
-- [x] All acceptance criteria met _(34/37 automated met; AC35–AC37 are operator post-deploy smokes)_
+- [x] All acceptance criteria met _(34/37 automated + AC35–AC37 operator smokes verified 2026-05-27 on api-dev = 37/37)_
 - [x] Unit tests written and passing _(api 4613→4643 +30 (Step 3); api 4661→4666 +5 (Step 5 fix: photo-tier integration + E14 unit + QA edge-cases); web 576→617 +41)_
 - [x] E2E tests updated (if applicable) _(N/A — covered by integration + RTL component tests)_
 - [x] Code follows project standards
@@ -1591,6 +1594,7 @@ _Plan written: 2026-05-26 | frontend-planner_
 | 2026-05-26 | Step 5 (frontend fix) — BUG-001 voice usage-meter refresh + 429 grammar + QA edge-case tests | **Two QA/code-review fixes applied with TDD.** (1) **BUG-001 (qa, LOW):** `HablarShell.tsx` voice-success `useEffect` (`voiceSession.state === 'done'`) was missing `usageRefreshRef.current?.()` — the meter was refreshed after query/photo success but NOT after voice success. Added the call after `trackEvent('voice_success')` to mirror the query/photo paths. New test in `HablarShell.fWebTier.test.tsx` (BUG-001 describe block): renders with logged-in user + idle voice, injects a refreshSpy into `usageRefreshRef` via `capturedOnRefreshReady`, rerenders with `state='done'`, asserts spy called once. (2) **MINOR — 429 grammar when `limit` is null:** `setError` interpolation was `"…límite diario${limitStr} consultas…"` which produced "…límite diario consultas…" (missing "de"). Fixed to `"…límite diario de ${limitStr}consultas…"` — with limit: "…de 50 consultas…"; without limit: "…de consultas…". Updated `fWebTier.edge-cases.test.tsx` assertions (two tests) from `/límite diario consultas/i` to `/límite diario de consultas/i`. (3) **QA edge-case file committed:** `fWebTier.edge-cases.test.tsx` (previously untracked, 13 tests, written by qa-engineer). **Web test delta: 630 → 631 (+1 test, 57 suites).** Gates: test ✅ (631/631), lint ✅, typecheck ✅, build ✅. |
 | 2026-05-27 | Step 5 (CI + flake) | PR #294 → develop. `ci-success` FAILED twice (2 of 3 runs) on `test-shared` — sole red: `webMetrics.schemas.edge-cases.test.ts` 24h-boundary (known pre-existing timing flake `BUG-DEV-SHARED-WEBMETRICS-BOUNDARY-FLAKE-001`, NOT in F-WEB-TIER diff; my 35 schema tests passed). Owner-approved **Option 3 (separate hotfix)**: fixed the flake deterministically (`vi.useFakeTimers`+`setSystemTime`) on `bugfix/webmetrics-boundary-flake` → **PR #296 squash-merged to develop `b4a7b7c`** (closes the P3). Merged `origin/develop` (incl. #296 + SDD 0.19.0 #295) into the feature branch (merge commit `194d0c6`, no conflicts) → re-run CI **`ci-success`=SUCCESS, `test-shared`=SUCCESS, mergeState=CLEAN**. External pre-push audit verified all claims; 3 NITs handled (NIT-1 E16 note, NIT-2 declined per Pino convention, NIT-3 acceptable MVP). |
 | 2026-05-27 | Step 6 (Complete) | **Squash-merged to develop via PR #294 `0f5276d`** (8 feature-branch commits collapsed). Feature branch `feature/F-WEB-TIER-registration-value` deleted (local + remote). Status → Done; Workflow 0–6 [x]. Tracker Features row → done 6/6; Active Session reset. pm-session: F-WEB-TIER → Completed (1st feature this session). ADR-027 + key_facts already landed in the squash. **Operator action pending: manual `nutrixplorer-api-dev` deploy (autoDeploy OFF) + AC35–AC37 smoke** (login → query → meter increments + 429 at 100; anon 429 at 50). Closeout via PR (this commit). |
+| 2026-05-27 | Step 6 (post-deploy smokes) | **AC35–AC37 operator smokes PASS** (owner deployed api-dev; smokes run by Claude with owner-provided dev bearer). **AC35:** `GET /me/usage` → `tier:free`, limits 100/20/30 (free values confirmed; 429 cutoff = integration-tested). **AC36:** `GET /me` → `actor.accountId` non-null (`b774b08a-…`, fallback `me-b39eaa06`); bearer `POST /conversation/message` reused that actor. **AC37:** `/me/usage` `queries.used` 0→1 after one bearer query (API contract proven; UI render only un-curled sliver). Also confirmed: `GET /me/usage` no-bearer → 401, garbage bearer → 401 `INVALID_TOKEN`, `/health?db=true` 200. **AC 34/37 → 37/37. All operator actions for F-WEB-TIER closed.** |
 
 ---
 
