@@ -2392,3 +2392,277 @@ All events via existing `trackEvent()` in `packages/web/src/lib/metrics.ts`.
 
 All events fired via existing `trackEvent()` or `window.gtag` in `packages/web/src/lib/metrics.ts`.
 Non-PII — no email addresses in payloads.
+
+---
+
+## Web Package — nutriXplorer (F-WEB-HISTORY: Session transcript + persisted history)
+
+**Feature:** F-WEB-HISTORY | **Package:** `packages/web/` | **Added:** 2026-05-27
+
+> Design notes are in `docs/specs/design-guidelines.md` sections W15–W26. This section defines the component contract only.
+
+### Component Hierarchy
+
+```
+HablarShell (Client — UPDATED: feed state replaces singleton result state)
+└── TranscriptFeed (Client — NEW)
+    ├── HistoryLoadMoreSentinel (Client — NEW, invisible, at top)
+    ├── TranscriptEntry[] (Client — NEW, renders one per query+result pair)
+    │   ├── EntryHeader (internal — query echo + timestamp + delete button)
+    │   │   └── DeleteEntryButton (Client — NEW, with inline confirm)
+    │   └── [result body: existing NutritionCard / ContextConfirmation / MenuDishList / ErrorState — UNCHANGED]
+    ├── HistoryPersistenceNudge (Client — NEW, anonymous only, ≥2 entries)
+    ├── HistoryEmptyState (Client — NEW, logged-in only, no entries)
+    └── ClearHistoryButton (Client — NEW, logged-in only, with modal confirm)
+```
+
+---
+
+### TranscriptEntryData (client-only type, not a component)
+
+**File:** `src/types/history.ts` (or co-located in `HablarShell.tsx`)
+
+This is the in-memory representation of one query+result pair in the feed. It is NOT a Zod schema (it lives only in the web package). The `useSearchHistory` hook maps `SearchHistoryEntry` (shared schema) into this shape; `HablarShell` also constructs it for new session queries.
+
+```typescript
+interface TranscriptEntryData {
+  // Stable ID. For persisted entries: search_history.id (UUID).
+  // For session-only entries: a client-generated UUID (crypto.randomUUID()).
+  entryId: string;
+
+  // The user-submitted query (text input or Whisper transcript).
+  queryText: string;
+
+  // Input modality. 'photo' entries are session-only (never persisted, never fetched).
+  inputMode: 'text' | 'voice' | 'photo';
+
+  // Wall-clock time of the query (for persisted entries: search_history.created_at).
+  timestamp: Date;
+
+  // True for entries loaded from GET /history (pre-loaded or infinite-scroll).
+  // False for entries created during the current browser session.
+  // Controls "Guardado" badge display and delete affordance (only persisted entries have server IDs).
+  isPersisted: boolean;
+
+  // True while the API response is in-flight (shows shimmer card).
+  isLoading: boolean;
+
+  // The result payload from the API. Null while loading or on error.
+  result: import('@foodxplorer/shared').ConversationMessageData | null;
+
+  // Per-entry error (set when the API call fails). Null otherwise.
+  error: string | null;
+}
+```
+
+---
+
+### TranscriptFeed
+
+**Type:** Feature | **Client:** Yes
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `entries` | `TranscriptEntryData[]` | Yes | — | Ordered list of query+result pairs (oldest first). Managed by HablarShell. |
+| `isLoadingMore` | `boolean` | No | `false` | True while fetching older history from server (scroll-triggered). |
+| `hasMoreHistory` | `boolean` | No | `false` | False when the API returns an empty page (hides sentinel, shows end-cap). |
+| `onLoadMore` | `() => void` | No | — | Callback fired by sentinel when it enters viewport. |
+| `onDeleteEntry` | `(entryId: string) => void` | No | — | Signals HablarShell to remove an entry from state. |
+| `onClearAll` | `() => void` | No | — | Signals HablarShell to clear all persisted history. |
+| `isAuthenticated` | `boolean` | No | `false` | Controls "Guardado" badge on pre-loaded entries and ClearHistoryButton visibility. |
+| `showPersistenceNudge` | `boolean` | No | `false` | Parent-controlled: show after ≥2 entries for anonymous users. |
+| `onNudgeDismiss` | `() => void` | No | — | Dismiss callback for HistoryPersistenceNudge. |
+
+**State:**
+- `shouldAutoScroll: boolean` — true when `scrollTop + clientHeight >= scrollHeight - 100`. Checked before each append.
+
+**Accessibility:**
+- `role="feed"` `aria-label="Historial de consultas"` `aria-busy={isLoadingMore}`
+- Scroll container must be a real scrollable DOM element (not `display: contents`) for iOS `-webkit-overflow-scrolling`.
+
+---
+
+### TranscriptEntry
+
+**Type:** Feature | **Client:** Yes
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `entryId` | `string` | Yes | — | Stable ID for delete operations. |
+| `queryText` | `string` | Yes | — | The user's original query (shown in echo header). |
+| `inputMode` | `'text' \| 'voice' \| 'photo'` | Yes | — | Controls modality icon in header. |
+| `timestamp` | `Date` | Yes | — | Time of query. Rendered as "HH:mm" (today) or "DD MMM · HH:mm" (prior days). |
+| `isPersisted` | `boolean` | No | `false` | Shows "Guardado" badge on the header when true. |
+| `isLoading` | `boolean` | No | `false` | Shows shimmer result body (in-flight query). |
+| `onDelete` | `(entryId: string) => void` | No | — | Propagates delete to parent. |
+| `children` | `React.ReactNode` | Yes | — | The result body: existing cards, ErrorState, or shimmer. |
+
+**Accessibility:**
+- `role="article"` `aria-label="{queryText truncated to 60 chars} — resultado"`
+
+---
+
+### DeleteEntryButton
+
+**Type:** Primitive | **Client:** Yes
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `entryId` | `string` | Yes | — | Forwarded to `onConfirm`. |
+| `queryText` | `string` | Yes | — | Used in `aria-label` for screen readers. |
+| `onConfirm` | `(entryId: string) => void` | Yes | — | Called after user confirms deletion. |
+
+**State:**
+- `confirmState: 'idle' | 'confirming'` — toggles between trash icon and inline confirm row.
+- Auto-reverts to `'idle'` after 5000ms of inactivity via `setTimeout`.
+
+**Accessibility:**
+- Trash icon button: `aria-label="Eliminar consulta: {queryText truncated to 40 chars}"`
+- Cancel button: `aria-label="Cancelar eliminación"`
+- Confirm button: `aria-label="Confirmar eliminación"`
+- Escape key: reverts to `'idle'`.
+
+---
+
+### ClearHistoryButton
+
+**Type:** Feature | **Client:** Yes
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `onConfirm` | `() => void` | Yes | — | Called after modal "Borrar todo" is confirmed. |
+
+**State:**
+- `isDialogOpen: boolean`
+
+**Accessibility:**
+- `role="alertdialog"` `aria-modal="true"` `aria-labelledby="clear-history-dialog-title"` on dialog.
+- Focus: trap inside dialog while open. Initial focus on Cancel button.
+- Escape: closes dialog.
+- Focus return: to `ClearHistoryButton` trigger on close.
+
+---
+
+### HistoryPersistenceNudge
+
+**Type:** Feature | **Client:** Yes
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `onSignUpClick` | `() => void` | Yes | — | Navigates to `/login`. |
+| `onDismiss` | `() => void` | Yes | — | Hides the nudge for the session. |
+
+**Rendering condition:** rendered by `TranscriptFeed` only when `showPersistenceNudge === true`. Never rendered when `isAuthenticated === true`.
+
+---
+
+### HistoryEmptyState
+
+**Type:** Feature | **Client:** No (Server Component)
+
+**Props:** none — pure presentational.
+
+**Rendering condition:** rendered by `TranscriptFeed` when `isAuthenticated === true` and `entries.length === 0`.
+
+**Do NOT** merge with the existing `EmptyState` component — they address different states (anonymous first-use vs logged-in no-history) and may diverge in copy or imagery.
+
+---
+
+### New: useSearchHistory hook (F-WEB-HISTORY)
+
+**Type:** Hook | **Client:** Yes
+**File:** `src/hooks/useSearchHistory.ts`
+
+Encapsulates all server history interactions: initial mount fetch (`GET /history?limit=10`), infinite-scroll backwards (`GET /history?cursor=<next>`), per-entry delete (`DELETE /history/{id}`), and clear-all (`DELETE /history`). Called by `HablarShell` when `user !== null`. Returns empty/no-op state when `user === null` so `HablarShell` does not need conditional hook calls.
+
+**Parameters:**
+
+| Param | Type | Description |
+|---|---|---|
+| `authToken` | `string \| null` | Bearer token from `useAuth()`. Null → hook is a no-op. |
+
+**Returns:**
+
+```typescript
+{
+  persistedEntries: TranscriptEntryData[];  // Entries from server, oldest-first after reversal.
+  hasMoreHistory: boolean;                  // False when nextCursor is null.
+  isLoadingMore: boolean;                   // True while a cursor fetch is in-flight.
+  loadMore: () => void;                     // Call to fetch the next older page.
+  deleteEntry: (entryId: string) => Promise<void>;  // Calls DELETE /history/{id}; removes from local state optimistically.
+  clearAll: () => Promise<void>;            // Calls DELETE /history; empties persistedEntries.
+}
+```
+
+**Mount behavior:** On first render with a non-null `authToken`, fires `GET /history?limit=10`. On success, sets `persistedEntries` (reversed to oldest-first). On 4xx/5xx, logs warning and returns `persistedEntries: []` (graceful degradation — session feed still works).
+
+**`loadMore` behavior:** Increments page cursor. Called by `HistoryLoadMoreSentinel`. Fires `GET /history?cursor=<nextCursor>&limit=10`. Prepends results to `persistedEntries`. Sets `hasMoreHistory: false` when `nextCursor` is null.
+
+**`deleteEntry` behavior:** Calls `DELETE /history/{id}`. Removes the entry from `persistedEntries` optimistically before the request resolves. On 404 (already gone), the entry was already removed — no-op. On other errors, log warning (do not re-add the entry to state — the user's intent was to delete it).
+
+**`clearAll` behavior:** Calls `DELETE /history`. On 204, sets `persistedEntries: []`.
+
+---
+
+### New: HistoryLoadMoreSentinel (F-WEB-HISTORY)
+
+**Type:** Primitive | **Client:** Yes
+**File:** `src/components/HistoryLoadMoreSentinel.tsx`
+
+An invisible `div` placed at the very top of `TranscriptFeed` (before the first entry). Uses `IntersectionObserver` to fire `onLoadMore` when it scrolls into the viewport. Unmounts or stops observing when `hasMoreHistory` is false.
+
+**Props:**
+
+| Prop | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `onLoadMore` | `() => void` | Yes | — | Called when the sentinel enters the viewport. |
+| `hasMoreHistory` | `boolean` | Yes | — | When false, the observer is disconnected and the element renders null. |
+| `isLoading` | `boolean` | No | `false` | When true, the observer is paused (avoids double-trigger while a fetch is in-flight). |
+
+**Keyboard fallback (W23):** When `hasMoreHistory` is true, also renders a visually-hidden `<button aria-label="Cargar consultas anteriores">` as a keyboard-accessible alternative for users who cannot scroll.
+
+---
+
+### Updated: HablarShell (F-WEB-HISTORY additions)
+
+**File:** `src/components/HablarShell.tsx`
+
+**State changes:**
+
+| Old state | New state | Notes |
+|---|---|---|
+| `results: ConversationMessageData \| null` | `entries: TranscriptEntryData[]` | Replaces singleton with append-only array |
+| `photoResults: MenuAnalysisData \| null` | merged into `entries` | Photo results become `inputMode: 'photo'` entries |
+| `error: string \| null` | per-entry error in `TranscriptEntryData` | Errors are scoped to the entry that produced them |
+| `isLoading: boolean` | per-entry `isLoading` in the in-flight entry | The in-flight entry shows shimmer; resolved entries show result cards |
+
+**New state:**
+- `historyPage: number` — cursor for backwards infinite scroll.
+- `hasMoreHistory: boolean` — false when server returns empty page.
+- `isLoadingMoreHistory: boolean` — true while fetching older entries.
+- `showPersistenceNudge: boolean` — set to `true` when `entries.length === 2` and `user === null`.
+
+**Key behavioral changes:**
+- `executeQuery` appends a new `TranscriptEntryData` with `isLoading: true` immediately (optimistic echo), then populates `result` or `error` when the request settles.
+- `executePhotoAnalysis` follows the same pattern — photo results appear as an entry with `inputMode: 'photo'`, never persisted.
+- Voice result (`voiceSession.state === 'done'`) also appends an entry with `inputMode: 'voice'`.
+- On mount (authenticated): fetch most recent ~10 persisted entries and prepend them to `entries` with `isPersisted: true`.
+
+---
+
+### Telemetry summary (F-WEB-HISTORY new events)
+
+| Event | Trigger | Payload |
+|-------|---------|---------|
+| `history_entry_deleted` | `DeleteEntryButton.onConfirm` | `{ entryId: string, inputMode: 'text' \| 'voice' }` |
+| `history_cleared` | `ClearHistoryButton.onConfirm` | `{}` |
+| `history_loaded` | mount fetch resolves (authenticated) | `{ count: number }` |
+| `history_load_more` | sentinel fires `onLoadMore` | `{ page: number }` |
+| `history_persistence_nudge_shown` | `HistoryPersistenceNudge` mount | `{}` |
+| `history_persistence_nudge_cta` | "Crear cuenta gratis" clicked | `{}` |
+| `history_persistence_nudge_dismissed` | dismiss `×` clicked | `{}` |

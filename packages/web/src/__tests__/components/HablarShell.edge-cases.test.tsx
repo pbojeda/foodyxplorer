@@ -48,11 +48,27 @@ jest.mock('../../hooks/useAuth', () => ({
   }),
 }));
 
+// F-WEB-HISTORY: mock useSearchHistory — no-op by default
+jest.mock('../../hooks/useSearchHistory', () => ({
+  useSearchHistory: jest.fn(() => ({
+    persistedEntries: [],
+    hasMoreHistory: false,
+    isLoadingMore: false,
+    isLoadingHistory: false,
+    loadMore: jest.fn(),
+    deleteEntry: jest.fn(),
+    clearAll: jest.fn(),
+  })),
+}));
+
 jest.mock('../../lib/apiClient', () => ({
   sendMessage: jest.fn(),
   setAuthToken: jest.fn(), // F107a
   getMe: jest.fn(),        // F-WEB-TIER
   getUsage: jest.fn(),     // F-WEB-TIER
+  getHistory: jest.fn(),        // F-WEB-HISTORY
+  deleteHistoryEntry: jest.fn(), // F-WEB-HISTORY
+  clearHistory: jest.fn(),       // F-WEB-HISTORY
   ApiError: class ApiError extends Error {
     code: string;
     status: number | undefined;
@@ -167,8 +183,11 @@ describe('HablarShell — edge cases', () => {
     await userEvent.type(textarea, 'big mac');
     await userEvent.type(textarea, '{Enter}');
 
-    // LoadingState should appear (first request still in-flight)
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    // Loading shimmer should appear (first request still in-flight — aria-busy article)
+    await waitFor(() => {
+      const busyArticle = screen.getByRole('article');
+      expect(busyArticle).toHaveAttribute('aria-busy', 'true');
+    });
 
     // The textarea is DISABLED while loading — per spec the SubmitButton is
     // also disabled, so a second rapid submit via keyboard won't work.

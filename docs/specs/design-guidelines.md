@@ -1305,3 +1305,468 @@ On desktop, the usage counter groups are visual-only (`aria-hidden`) — screen 
 ---
 
 *Section added: 2026-05-26 | Feature: F-WEB-TIER | Designer: ui-ux-designer agent*
+
+---
+
+## Web App `/hablar` — F-WEB-HISTORY: Session transcript + persisted history
+
+**Package:** `packages/web/` | **Added:** 2026-05-27 | **Status:** Design Approved
+**Applies to:** `HablarShell`, `ResultsArea`, and the new components: `TranscriptFeed`, `TranscriptEntry`, `HistoryEmptyState`, `HistoryPersistenceNudge`, `DeleteEntryButton`, `ClearHistoryButton`.
+
+> These notes extend the existing W1–W14 block. All new surfaces share the same white-background, brand-green, slate palette established in W1. Do not introduce new shadow tokens, new border-radius values, or new brand colors.
+
+---
+
+### W15. Architecture: two-tier model
+
+F-WEB-HISTORY has two distinct layers that share a **single visual surface** — the transcript feed.
+
+**Tier 1 — Session transcript (everyone):** the existing single-result area becomes an append-only vertical list. Each query+result pair is a `TranscriptEntry`. Entries stack oldest-at-top, newest-at-bottom (see W16 for the rationale). Anonymous users only ever see Tier 1.
+
+**Tier 2 — Persisted history (logged-in only):** on page load, authenticated accounts have their last ~10 entries pre-populated into the same feed from the API. New results still append below. Scrolling up past the first pre-loaded entry triggers a backwards-loading sequence (infinite scroll upwards). There is no separate panel, drawer, or route for persisted history — it lives inside the same feed.
+
+**Single surface rationale:** the current `/hablar` layout is a single column constrained to `lg:max-w-2xl lg:mx-auto` (established in `ResultsArea.tsx:312`). A second panel (side drawer, route `/hablar/historial`) would break this single-column constraint and require responsive coordination that adds significant complexity. A unified feed is simpler, and the distinction between "just-searched" and "pre-loaded from history" is communicated through visual treatment on the entry header, not through separate UI regions.
+
+---
+
+### W16. Session transcript feed layout
+
+#### Feed order: oldest at top, newest at bottom
+
+The input is at the **bottom** of the screen (`ConversationInput` is the last element in `HablarShell`'s flex column, `HablarShell.tsx:547`). New results arrive at the bottom — adjacent to the input that produced them. This matches reading gravity: the user's last action is always visible at the bottom without scrolling. Oldest results scroll upward and off screen — they are historical context, not the primary focus.
+
+Contrast with chat apps (newest at bottom, input at bottom) — this is the **same** convention. The current shell already has this shape; the refactor makes it explicit.
+
+**Do NOT** invert the order (newest at top). A search tool is not a social feed. Inverting creates cognitive dissonance: you type at the bottom, the result appears at the top, you must scroll up to read it. That is the wrong reading direction for this interaction.
+
+#### Feed container
+
+The existing `ResultsArea` flex region (`flex-1 overflow-y-auto`) becomes the `TranscriptFeed` container:
+
+```
+┌───────────────────────────────────────┐  ← header (h-[52px], fixed)
+│  [header: logo + auth slot]           │
+├───────────────────────────────────────┤
+│                                       │  ← TranscriptFeed (flex-1 overflow-y-auto)
+│  [older entries — scroll up]          │
+│  ─────────────────────────────────── │  ← entry divider
+│  TranscriptEntry N-1                  │
+│  ─────────────────────────────────── │
+│  TranscriptEntry N  ← most recent    │
+│                                       │
+├───────────────────────────────────────┤
+│  [RateLimitNudge — conditional]       │
+├───────────────────────────────────────┤
+│  [ConversationInput — fixed bar]      │
+└───────────────────────────────────────┘
+```
+
+- Container: `flex-1 overflow-y-auto px-4 pt-4 pb-6` — note `pb-6` rather than the current `pb-24` (the `pb-24` in `CardGrid` was compensating for the fixed input bar; with a proper flex layout the feed should use `pb-4` or `pb-6` and rely on the ConversationInput occupying its own flex row, not overlapping).
+- Max-width constraint: `lg:max-w-2xl lg:mx-auto` (inherited, unchanged).
+- After a new result is added, auto-scroll the container to its bottom: `scrollTo({ top: container.scrollHeight, behavior: 'smooth' })`. Smooth scroll, not instant — the user must see the result arrive, not snap to it.
+- **Do NOT auto-scroll** if the user has manually scrolled upward (reviewing older entries). Detect this by comparing `scrollTop + clientHeight` against `scrollHeight` before auto-scrolling — only auto-scroll when the user is already near the bottom (within 100px). This prevents the feed from hijacking the user's position when they are reviewing history.
+
+#### Entry spacing and dividers
+
+Between entries, use a **horizontal rule** as the divider:
+
+```
+<hr class="border-t border-slate-100 my-4" aria-hidden="true" />
+```
+
+- `border-slate-100` (`#F1F5F9`) — the lightest border token already in use. Visible but unobtrusive.
+- `my-4` (16px top + bottom) — enough breathing room to read as a distinct entry boundary without wasted space.
+- Do NOT use card grouping (wrapping each entry in a white card with shadow) — that would visually compete with the result cards inside each entry. The divider is correct.
+- Do NOT use large timestamp banners as the primary separator. A timestamp appears inside the entry header (W17), not as a full-width separator.
+
+#### Empty state (no entries, anonymous or first-time logged-in)
+
+When the feed has zero entries on load:
+
+- Reuse the existing `EmptyState` component (currently in `packages/web/src/components/EmptyState.tsx`) — it renders the zero-query prompt. No design change needed.
+- Position: centered vertically in the feed region — `flex flex-1 items-center justify-center` (existing pattern from `ResultsArea.tsx:181`).
+
+---
+
+### W17. TranscriptEntry anatomy
+
+Each entry in the feed contains two sub-regions: the **query echo** (header) and the **result body** (the existing result cards).
+
+#### Query echo header
+
+Every entry opens with a compact header line showing what was asked:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  🕐  13:42  ·  "tortilla española con chorizo"    [×] │
+└─────────────────────────────────────────────────────┘
+```
+
+- Container: `flex items-center gap-2 mb-3`
+- Timestamp: `text-[11px] text-slate-400 whitespace-nowrap tabular-nums` — e.g. "13:42" (time only for today's entries; date + time for entries from prior days, e.g. "26 may · 13:42"). Use the user's local timezone.
+- Separator dot: `·` in `text-slate-300` — `mx-1` spacing
+- Query text: `text-sm font-medium text-slate-600 truncate flex-1` — truncated with `…` if it exceeds one line. The full query text is available on hover via `title={queryText}` attribute. This prevents very long queries from breaking the feed rhythm.
+- Source type indicator (icon, `aria-hidden`): a small inline icon (16px, stroke 1.5) communicating the input modality:
+  - Text query: no icon (text is the default; adding an icon for "text" is noise)
+  - Voice query: microphone icon in `text-slate-400` — `mr-1`
+  - Photo query: camera icon in `text-slate-400` — `mr-1` (photo results in session only; never persisted — see W18)
+- Delete button `[×]`: see W21 for full spec. Visible only on `hover` (desktop) or always visible (mobile). Positioned at the far right with `ml-auto flex-shrink-0`.
+
+**Logged-in vs session-only distinction:**
+
+Entries preloaded from persisted history receive a subtle marker so users can orient themselves:
+
+- Prepend a small `"Guardado"` badge on the timestamp line: `inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 bg-slate-50 border border-slate-200 rounded-full px-1.5 py-0.5 mr-1`
+  - Label: "Guardado" (no icon — the text is sufficient)
+  - This badge only appears on entries fetched from the server. Entries added during the current session do NOT get this badge — their recency is sufficient context.
+  - Do NOT show this badge for anonymous session entries (they are never persisted).
+
+#### Result body
+
+Below the query echo, the result body renders the **existing result cards unchanged**:
+
+- `NutritionCard` — estimation, comparison, menu_estimation, follow_up_*, reverse_search
+- `ContextConfirmation` — context_set
+- `MenuDishList` — multi-dish photo result (session only)
+- `ErrorState` — per-entry inline error (see W19)
+
+No structural change to the result cards is needed. They are reused as-is. The `TranscriptEntry` wraps them; it does not modify them.
+
+**Photo results** appear in the live session feed (showing `MenuDishList` or a single-dish `NutritionCard`) but are explicitly excluded from persisted history (research doc §D "D3: foto en histórico fuera de v1"). Photo entries therefore never get the "Guardado" badge and do not survive a page refresh for logged-in users — they are session-only, same as anonymous.
+
+---
+
+### W18. Persisted history — loading and scroll
+
+#### Pre-load on mount (~10 entries)
+
+On page load for authenticated users, the feed pre-populates with the most recent ~10 persisted entries, oldest first (so entry #1 is at the top, entry #10 is just above the empty input). The feed then scrolls to the bottom immediately on mount (no animation — the initial position should feel like arriving at the current state, not replaying history).
+
+```
+Feed on mount (logged-in, has history):
+
+  ─── (load-more sentinel, invisible, at the top)
+  TranscriptEntry  1  [Guardado]  ← oldest pre-loaded
+  ──────────────────────────────
+  TranscriptEntry  2  [Guardado]
+  ...
+  ──────────────────────────────
+  TranscriptEntry 10  [Guardado]  ← most recent pre-loaded
+  ─────────────────────────────── ← (current session starts here)
+  (empty — user hasn't searched yet this session)
+```
+
+The 10 pre-loaded entries and the current session entries are **not** visually separated by a banner or header. The "Guardado" badge on the pre-loaded entries is the only distinction. Do not add a "Historial anterior" section header — it over-partitions a naturally continuous feed.
+
+#### Infinite scroll backwards (load more older entries)
+
+A sentinel element sits at the very top of the feed, above all entries. When the user scrolls to the top and the sentinel enters the viewport, the next page of history loads above the current oldest entry.
+
+**Loading skeleton while fetching older entries:**
+
+```
+┌─────────────────────────────────────────────────┐
+│  [shimmer bar — 40px tall, rounded-xl]           │  ← query echo skeleton
+│  [shimmer card — 120px tall, rounded-2xl]        │  ← result skeleton
+└─────────────────────────────────────────────────┘
+```
+
+- Query echo skeleton: `h-4 w-48 rounded-full shimmer-element mb-3`
+- Result skeleton: `h-[120px] rounded-2xl shimmer-element` (single card; matches NutritionCard rough height)
+- Show 2–3 skeleton entries while loading. They appear above the current topmost entry.
+- After data arrives, the skeletons are replaced and the scroll position is adjusted to maintain the user's viewport position (the entry they were reading should not jump). This requires the implementation to record `scrollTop` before the insert and restore it after.
+
+**Load-more trigger visual:** the sentinel itself is invisible (`h-px w-full` — a zero-height spacer). Do NOT show a "Cargar más" button. Infinite scroll backwards is the correct affordance for a continuous log; a manual load button interrupts the scroll rhythm.
+
+**End of history:** when the API returns an empty page (no more older entries):
+
+- Remove the sentinel.
+- Optionally insert a muted end-cap label at the very top of the feed: `"Inicio del historial"` — `text-center text-[11px] text-slate-400 py-3`. This tells the user they have reached the earliest saved entry, preventing infinite upward scroll confusion.
+
+---
+
+### W19. In-feed loading and error states
+
+#### In-flight query (new result arriving)
+
+While a new query is in flight, a **loading entry** is appended to the bottom of the feed immediately after submission. It occupies the position the result will land in:
+
+```
+TranscriptEntry N (just added)
+  [query echo: "tortilla española..." ]
+  [single shimmer card: h-[100px] rounded-2xl shimmer-element]
+```
+
+- The query text is shown in the echo immediately (optimistic) — the user sees their query echoed right away.
+- The shimmer card below is the loading placeholder. Use one shimmer card for text/voice queries (a single NutritionCard is the most common result). For photo analysis, use a taller shimmer (`h-[200px]`) matching the W4 pattern.
+- This replaces the current `LoadingState` full-screen takeover (`ResultsArea.tsx:99-105`). The loading state is now scoped to the in-flight entry, not the whole results area.
+
+#### Per-entry error state
+
+When a query fails, the error renders **inside the entry** at the result body position — replacing the shimmer:
+
+```
+TranscriptEntry N
+  [query echo: "tortilla española..." ]
+  ┌─────────────────────────────────────┐
+  │  ⚠  Sin conexión. Comprueba tu red.  │
+  │     [Reintentar]                     │
+  └─────────────────────────────────────┘
+```
+
+- Container: `rounded-xl border border-red-100 bg-red-50 px-4 py-3 flex items-start gap-3` — uses the existing semantic error palette (red-50 background).
+- Warning icon: 20px inline SVG, `text-red-500`, `flex-shrink-0 mt-0.5`.
+- Message: `text-sm text-red-700 flex-1` — the existing Spanish error strings from `HablarShell` (unchanged copy).
+- Retry button: `mt-2 text-sm font-medium text-brand-green underline underline-offset-2 hover:opacity-80 transition-opacity` — text link style, not a filled button. The entry is already in an error state; a heavy retry button would dominate the layout. A text link is sufficient and keeps visual weight low.
+- `role="alert"` on the container — announced immediately by screen readers.
+
+**Do NOT** clear the error entry from the feed when the user retries. The retry should add a NEW entry below (with the same query) rather than mutating the failed entry in place. Mutating in-place is confusing in a feed — the user loses the failure signal. New entry on retry is the correct pattern.
+
+**Inline error (text_too_long, photo validation):** these remain in `ConversationInput` as before (current `inlineError` pattern, `HablarShell.tsx:553`). They do NOT create a `TranscriptEntry` because no query was sent.
+
+---
+
+### W20. Anonymous vs logged-in: persistence nudge
+
+Anonymous users see the session transcript (Tier 1 only). When the session has accumulated at least 2 entries, display a gentle persistence nudge **above the current session's first entry** — between the "start of session" conceptual boundary and the first result:
+
+```
+  ────────────────────────────────────────────────
+  ┌──────────────────────────────────────────────┐
+  │  Guarda tu historial entre sesiones           │
+  │  Regístrate para no perder tus consultas.     │
+  │  [Crear cuenta gratis]                        │
+  └──────────────────────────────────────────────┘
+  ────────────────────────────────────────────────
+  TranscriptEntry 1
+  ────────────────────────────────────────────────
+  TranscriptEntry 2
+```
+
+- Trigger: show only when `entries.length >= 2` (user has demonstrated use). Never show on first result — it feels predatory.
+- Show once per session (dismiss on first render; do NOT re-show if the user scrolls past it).
+- Position: above the first session entry, NOT above the input, NOT as a floating sticky element, NOT as a modal. It blends into the feed as an informational card.
+- Container: `rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 mb-4`
+  - Header: `text-sm font-semibold text-slate-700 mb-1` — "Guarda tu historial entre sesiones"
+  - Body: `text-sm text-slate-500 leading-relaxed mb-3` — "Regístrate para no perder tus consultas."
+  - CTA button: same spec as `RateLimitNudge` CTA (`bg-brand-green text-white text-sm font-semibold rounded-lg px-4 py-2`) — but label changes to **"Crear cuenta gratis"**
+  - Dismiss `×` button: `absolute top-2 right-2 text-slate-400 hover:text-slate-600 p-1 rounded focus-visible:ring-2 focus-visible:ring-brand-green` — allows users to close the nudge without acting. `aria-label="Cerrar sugerencia"`.
+  - Container: `relative` to contain the dismiss button.
+
+**Relationship to existing `<LoginCta>` and `<RateLimitNudge>`:**
+
+| Component | Trigger | Tone | Placement |
+|---|---|---|---|
+| `<LoginCta>` (W10) | Always visible (logged-out) | Passive / secondary | Header right slot |
+| `<RateLimitNudge>` (W12) | 429 error + anonymous | Urgent / benefit-framing | Below error in ResultsArea |
+| `HistoryPersistenceNudge` (W20) | ≥2 session entries + anonymous | Gentle / informational | Inline feed, above entry 1 |
+
+These three components serve different moments in the anonymous user journey. They must NOT all appear simultaneously in a confusing stack. Rule: if `RateLimitNudge` is currently visible (user hit 429), suppress `HistoryPersistenceNudge` — the nudge hierarchy is rate-limit > persistence (one is about immediate loss, the other is a longer-term benefit).
+
+**Logged-in users** never see `HistoryPersistenceNudge`. The nudge renders `null` when `user !== null`.
+
+---
+
+### W21. Delete UX
+
+#### Per-entry delete
+
+The delete affordance for a single entry:
+
+```
+[timestamp] · [query text truncated]          [trash icon]
+                                              ← ml-auto, flex-shrink-0
+```
+
+- **Element:** `<button type="button">` — `p-1.5 rounded-md text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1`
+- **Icon:** 16px inline SVG trash icon, `aria-hidden="true"`. Stroke 1.5.
+- **Visibility:**
+  - Desktop (≥ `md:`): hidden by default, visible on `group-hover` of the entry header row. Use Tailwind `group` on the entry header and `group-hover:opacity-100 opacity-0` on the button.
+  - Mobile (< `md:`): always visible at `opacity-60` (reduced, not hidden — hover does not exist on touch). Tap to activate.
+- **`aria-label`:** `"Eliminar consulta: {queryText truncated to 40 chars}"` — gives screen readers context about which entry is being deleted.
+- **Confirmation step:** a **small inline confirm row** replaces the delete button immediately on click:
+  ```
+  ¿Eliminar esta consulta?  [Cancelar]  [Eliminar]
+  ```
+  - Confirm row container: `flex items-center gap-2 text-sm` — appears in-place where the delete icon was (within the entry header, far right).
+  - Prompt text: `text-slate-500 text-xs whitespace-nowrap`
+  - Cancel: `text-slate-500 text-xs underline underline-offset-2 hover:opacity-80` (text link)
+  - Confirm (destructive): `text-red-600 text-xs font-semibold underline underline-offset-2 hover:opacity-80`
+  - Auto-dismiss the confirm row after 5 seconds of inactivity (revert to the trash icon) — prevents orphaned confirmation states if the user gets distracted.
+  - On mobile, this inline confirm is preferred over a swipe-to-delete gesture. Swipe requires gesture discovery (invisible affordance), conflicts with the scroll gesture in the feed, and has no native equivalent in the web browser without a dedicated library. The inline confirm is simpler and consistent across all devices.
+
+**Recommendation: inline confirm (no undo toast).** Undo requires maintaining deleted data in memory and managing a timer+toast system. For a history entry, the loss is low-stakes — the user can simply re-run the query. Inline confirm is the right cost/benefit trade-off. If the owner decides undo is needed later, it can be added without changing the visual delete affordance.
+
+#### "Borrar todo el historial" (clear all)
+
+This action is not in the feed itself — it belongs in a settings surface. For v1 (pre-settings route), place it as a **text link button at the top of the pre-loaded history block**, visible only to logged-in users with at least 1 persisted entry:
+
+```
+  ── [Borrar todo el historial] ──────────────────    ← top of feed, above oldest entry
+  TranscriptEntry 1  [Guardado]
+  ...
+```
+
+- Element: `<button type="button">` — ghost link style: `text-xs text-slate-400 hover:text-red-500 underline underline-offset-2 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1`
+- Placement: `flex justify-end mb-3` — right-aligned above the oldest persisted entry.
+- **Confirmation step:** because this is destructive for ALL data, use a **confirmation modal / dialog** rather than the inline confirm pattern:
+
+```
+┌──────────────────────────────────────────────────┐
+│                                                  │
+│   Vas a eliminar todo tu historial de búsqueda.  │
+│   Esta acción no se puede deshacer.              │
+│                                                  │
+│   [Cancelar]          [Borrar todo]              │
+│                                                  │
+└──────────────────────────────────────────────────┘
+```
+
+- Dialog: `fixed inset-0 z-50 flex items-center justify-center` backdrop + centered card.
+- Backdrop: `bg-slate-900/50` (semi-opaque, not a full black overlay — the content is still partially visible).
+- Card: `bg-white rounded-2xl shadow-layered px-6 py-5 max-w-sm mx-4`
+- Title: `text-base font-semibold text-slate-800 mb-2` — "Borrar todo el historial"
+- Body: `text-sm text-slate-500 leading-relaxed mb-5` — "Vas a eliminar todo tu historial de búsqueda. Esta acción no se puede deshacer."
+- Cancel button: `border border-slate-200 text-slate-700 text-sm font-medium rounded-xl px-4 py-2 hover:bg-slate-50 transition-colors duration-150`
+- Confirm (destructive): `bg-red-500 text-white text-sm font-semibold rounded-xl px-4 py-2 hover:opacity-90 active:scale-[0.98] transition-all duration-150`
+- Button row: `flex gap-3 justify-end` — cancel on the left, destructive on the right (standard destructive dialog convention).
+- `role="alertdialog" aria-modal="true" aria-labelledby="dialog-title"` — traps focus inside while open.
+- Focus: on open, move focus to the **Cancel button** (not the destructive button) — WCAG 3.3.4 (non-destructive default).
+- Escape key: closes the dialog (same as Cancel).
+
+After successful deletion: the feed empties to `HistoryEmptyState` (see W22). The "Borrar todo el historial" button disappears (no entries remain). No success toast needed — the visible empty feed is sufficient feedback.
+
+---
+
+### W22. Empty state (post-delete, first-time logged-in)
+
+When a logged-in user has no persisted history (first use or after clear-all):
+
+```
+┌─────────────────────────────────────────────────┐
+│                                                 │
+│   (magnifier icon, 32px, text-slate-300)        │
+│                                                 │
+│   Aún no tienes historial                       │
+│   Tus consultas de texto y voz se guardarán     │
+│   aquí automáticamente.                         │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+- Outer container: `flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center py-12`
+- Icon: 32px magnifier inline SVG, `text-slate-300` — same icon family as the rest of the app (stroke 1.5, `aria-hidden="true"`).
+- Heading: `text-[15px] font-semibold text-slate-500` — "Aún no tienes historial"
+- Body: `text-sm text-slate-400 leading-relaxed max-w-[240px]` — "Tus consultas de texto y voz se guardarán aquí automáticamente."
+- Note that photos are excluded from persistence (D3 decision) — do NOT mention photos in this copy. The message covers text and voice only.
+- This `HistoryEmptyState` is different from the existing `EmptyState` (which addresses anonymous first-use). They are separate components — do not merge them. `EmptyState` remains unchanged.
+
+---
+
+### W23. Accessibility for F-WEB-HISTORY
+
+#### Feed ARIA
+
+- The `TranscriptFeed` container: `role="feed"` — the correct ARIA role for a reverse-chronological, appendable list of items where items have independent meaning.
+- `aria-label="Historial de consultas"` on the feed container.
+- `aria-busy="true"` on the feed container while initial history is loading (mount fetch). Set back to `aria-busy="false"` when data arrives. This prevents screen readers from announcing a partial list.
+- Each `TranscriptEntry`: `role="article"` — semantically an independent result item within the feed. `aria-label="{queryText truncated} — resultado"`.
+
+#### Live region for new results
+
+When a new result is appended (end of query):
+
+- The appended `TranscriptEntry` announces via the feed's `aria-live="polite"` (inherited from `role="feed"`). No additional `aria-live` region needed.
+- The query echo text (W17) must be in the DOM before the result card renders — screen readers announce the query echo first, then the result card (in DOM order). This matches the natural reading sequence.
+
+#### Live region for loading state
+
+While an in-flight query's shimmer is visible (W19):
+
+- The in-flight entry has `aria-label="Cargando resultado para: {queryText}"` and `aria-busy="true"`. When the result arrives, `aria-busy` is removed and the shimmer is replaced.
+
+#### Keyboard navigation
+
+- Tab through the feed: each `TranscriptEntry`'s delete button (W21) is a tab stop. The delete confirm row (Cancel + Delete) is also a tab stop sequence. Escape cancels the confirm row.
+- `TranscriptEntry` result cards: the existing keyboard nav inside `NutritionCard`, `MenuDishList`, etc. is unchanged.
+- The "Borrar todo el historial" button: at the top of the feed, it appears before the first entry in tab order — keyboard users encounter it before the entries, which is the correct order (action before content, same as table-level actions above a data table).
+- The `ClearHistoryButton` dialog: `focus-trap` is required while the dialog is open. Focus returns to the "Borrar todo el historial" button on dialog close (Cancel or after success).
+
+#### Infinite scroll (keyboard)
+
+- When the scroll sentinel triggers (mouse/touch scroll), the new entries appear at the top of the feed. Keyboard users who have no scroll interaction cannot trigger the sentinel. Provide a **"Cargar más historial"** button as a fallback — `text-sm text-brand-green underline underline-offset-2` — at the very top of the feed, above the sentinel. It is visually hidden by default (`sr-only`) and becomes visible on focus (`focus-not-sr-only` pattern). This is the keyboard alternative to scroll-triggered loading.
+
+#### Touch targets
+
+- Delete button: `p-1.5` around a 16px icon = 19px intrinsic. On iOS the OS expands to 44px. Acceptable for a secondary action that requires a confirmation step before taking effect.
+- "Borrar todo el historial" text link: too small for standalone 44px. Wrap in a `min-h-[44px] flex items-center` container to expand the tap target without changing the visual size.
+- Entry rows are not themselves tappable (the result cards inside are tappable if they have actions). The entry header is not interactive except for the delete button.
+
+---
+
+### W24. Responsive and mobile behavior
+
+#### Single-column, full-width feed (all breakpoints)
+
+The feed remains single-column at all breakpoints. At `lg:`, the feed centers with `lg:max-w-2xl lg:mx-auto` (existing constraint from `ResultsArea.tsx:312`). No two-column split is introduced.
+
+#### Query echo truncation on mobile
+
+On 375px screens, a long query echo (e.g. "¿Qué tiene más proteína, el pollo a la plancha o el salmón con patatas?") must not wrap to multiple lines — it would dominate the entry header and push the delete button to a second row. Use `truncate` (CSS `overflow: hidden; text-overflow: ellipsis; white-space: nowrap`) with `max-w-[calc(100%-80px)]` to leave room for the timestamp + delete button.
+
+At wider viewports (≥ `md:`), the truncation threshold relaxes — 40 characters can display without truncation. Use `md:max-w-none md:truncate-none` to allow full display on tablet+, falling back to truncation on mobile.
+
+#### Delete UX on mobile (revisited)
+
+The per-entry delete button is always visible on mobile at `opacity-60` (stated in W21). At 375px with `p-1.5` padding, the trash icon renders at 19px intrinsic. iOS will expand the touch target. This is adequate given the confirm step protects against accidental deletion.
+
+No swipe-to-delete on mobile. Rationale: `TranscriptFeed` is itself a vertically scrollable container; swipe gestures would conflict with the scroll. Do not implement horizontal swipe actions inside a vertical scroll feed.
+
+#### Infinite scroll sentinel on mobile
+
+On mobile, upward scroll to the top of the feed is a natural gesture. The sentinel works identically on mobile — no special affordance needed. The fallback keyboard button (W23) is available but irrelevant for touch users.
+
+---
+
+### W25. Animations and motion for F-WEB-HISTORY
+
+| Trigger | Element | Animation | Spec |
+|---|---|---|---|
+| New `TranscriptEntry` appended | Entry container | Fade + slide-up (upward from below) | `.card-enter` class (existing, `globals.css:43`) |
+| Pre-loaded history entries on mount | All pre-loaded entries | No animation — render immediately | Instant render prevents "waterfall" stagger of 10+ entries which would feel slow |
+| Infinite-scroll batch arrives | New old entries at top | Fade-in only (no slide) | `animate-fadeIn` — 150ms opacity 0→1. No slide (slide direction unclear for "older" entries arriving above) |
+| Loading shimmer | In-flight entry shimmer | `.shimmer-element` | Existing class — consistent |
+| Delete confirm row appears | Inline confirm buttons | Fade-in | `transition-opacity duration-150` — 150ms opacity 0→1 |
+| Confirmation dialog opens | Dialog card | Fade + scale-up | `initial: opacity 0, scale 0.95` → `final: opacity 1, scale 1` — 150ms ease-out |
+| "Borrar todo" post-delete | Feed clears | Fade-out entries | Each entry fades out over 200ms, staggered by 30ms (oldest first) — then `HistoryEmptyState` fades in at 150ms |
+
+#### What NOT to animate
+
+- Do NOT stagger the 10 pre-loaded history entries on mount. A stagger of 10 entries × 100ms = 1000ms of animation before the user can scroll. Instant render is correct for pre-loaded data.
+- Do NOT slide new entries from the right (horizontal slide implies navigation, not append).
+- Do NOT animate `TranscriptEntry` removal (per-entry delete). After the inline confirm, remove instantly — the confirm step was the user's deliberate action; the removal should feel immediate.
+- `prefers-reduced-motion`: all `.card-enter`, shimmer, fade, and dialog animations are already suppressed by `globals.css:97-115`. No additional work needed.
+
+---
+
+### W26. Anti-patterns specific to F-WEB-HISTORY
+
+| Anti-pattern | Why |
+|---|---|
+| Newest entry at the TOP of the feed | The input is at the bottom; the result should appear adjacent to the input (bottom). Inverting creates a cross-screen reading path. |
+| Separate `/hablar/historial` route or side panel | Breaks the single-column shell. Adds navigation state. The unified feed is simpler and requires no route change. |
+| Session divider banner ("Sesión del 27 de mayo") | Over-partitions the feed. The "Guardado" badge already marks pre-loaded entries. A session banner adds chrome without user value. |
+| Persisting photo results (v1) | Out of scope per research doc §D "D3: foto fuera de v1". Do not design for it here. |
+| Showing `HistoryPersistenceNudge` on the very first result | Predatory UX. Only show after ≥2 entries — the user must have demonstrated use before you pitch registration. |
+| Swipe-to-delete on mobile | Conflicts with vertical scroll gesture inside the feed. |
+| Undo toast instead of inline confirm | Undo requires in-memory tombstone management. For a low-stakes history entry, inline confirm is sufficient. |
+| Auto-scroll to bottom when user is reading old entries | Hijacks the user's scroll position. Only auto-scroll when already near the bottom (within 100px of `scrollHeight`). |
+| Animating all 10 pre-loaded entries on mount with stagger | 1000ms+ of animation before the page is usable. Instant render for pre-loaded data. |
+| "Borrar todo" as an inline confirm (same as per-entry delete) | Bulk destructive actions warrant a modal — the stakes are higher and the pattern distinction teaches users that modals mean "irreversible". |
+| Showing the `HistoryPersistenceNudge` when `RateLimitNudge` is also visible | Two simultaneous registration prompts compete for attention and read as desperate. Suppress the persistence nudge when rate-limit nudge is active. |
+| Color-coding transcript entries by query type (text/photo/voice) | Adds visual noise. The modality icon in the entry header is sufficient. |
+| Showing a loading spinner in the feed header (top of page) while history loads on mount | The feed should render with `aria-busy="true"` and shimmer entries inside — not a spinner at the top that competes with the app bar. |
+
+---
+
+*Section added: 2026-05-27 | Feature: F-WEB-HISTORY | Designer: ui-ux-designer agent*

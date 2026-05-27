@@ -57,12 +57,28 @@ const mockGetUsage = jest.fn();
 const mockGetMe = jest.fn();
 const mockSendMessage = jest.fn();
 
+// F-WEB-HISTORY: mock useSearchHistory — no-op by default
+jest.mock('../../hooks/useSearchHistory', () => ({
+  useSearchHistory: jest.fn(() => ({
+    persistedEntries: [],
+    hasMoreHistory: false,
+    isLoadingMore: false,
+    isLoadingHistory: false,
+    loadMore: jest.fn(),
+    deleteEntry: jest.fn(),
+    clearAll: jest.fn(),
+  })),
+}));
+
 jest.mock('../../lib/apiClient', () => ({
   sendMessage: (...args: unknown[]) => mockSendMessage(...args),
   sendPhotoAnalysis: jest.fn(),
   setAuthToken: jest.fn(),
   getMe: (...args: unknown[]) => mockGetMe(...args),
   getUsage: (...args: unknown[]) => mockGetUsage(...args),
+  getHistory: jest.fn(),        // F-WEB-HISTORY
+  deleteHistoryEntry: jest.fn(), // F-WEB-HISTORY
+  clearHistory: jest.fn(),       // F-WEB-HISTORY
   ApiError: class ApiError extends Error {
     code: string;
     status: number | undefined;

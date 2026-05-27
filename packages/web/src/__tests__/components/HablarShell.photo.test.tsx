@@ -49,12 +49,28 @@ jest.mock('../../hooks/useAuth', () => ({
   }),
 }));
 
+// F-WEB-HISTORY: mock useSearchHistory — no-op by default
+jest.mock('../../hooks/useSearchHistory', () => ({
+  useSearchHistory: jest.fn(() => ({
+    persistedEntries: [],
+    hasMoreHistory: false,
+    isLoadingMore: false,
+    isLoadingHistory: false,
+    loadMore: jest.fn(),
+    deleteEntry: jest.fn(),
+    clearAll: jest.fn(),
+  })),
+}));
+
 jest.mock('../../lib/apiClient', () => ({
   sendMessage: jest.fn(),
   sendPhotoAnalysis: jest.fn(),
   setAuthToken: jest.fn(), // F107a
   getMe: jest.fn(),        // F-WEB-TIER
   getUsage: jest.fn(),     // F-WEB-TIER
+  getHistory: jest.fn(),        // F-WEB-HISTORY
+  deleteHistoryEntry: jest.fn(), // F-WEB-HISTORY
+  clearHistory: jest.fn(),       // F-WEB-HISTORY
   ApiError: class ApiError extends Error {
     code: string;
     status: number | undefined;
@@ -332,14 +348,18 @@ describe('HablarShell — photo flow (F092)', () => {
   // Success flow
   // ---------------------------------------------------------------------------
 
-  it('shows LoadingState while sendPhotoAnalysis is pending', async () => {
+  it('shows loading shimmer while sendPhotoAnalysis is pending', async () => {
     mockSendPhotoAnalysis.mockReturnValue(new Promise(() => {}));
     render(<HablarShell />);
     const file = makeFile();
 
     await selectFile(file);
 
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    // F-WEB-HISTORY: loading is now an aria-busy article in TranscriptFeed
+    await waitFor(() => {
+      const busyArticle = screen.getByRole('article');
+      expect(busyArticle).toHaveAttribute('aria-busy', 'true');
+    });
   });
 
   it('renders NutritionCard after successful photo analysis', async () => {
@@ -612,9 +632,11 @@ describe('HablarShell — photo flow (F092)', () => {
     const textarea = screen.getByRole('textbox');
     await userEvent.type(textarea, 'big mac{Enter}');
 
-    // Loading state should be shown (text query in flight), photo results gone
+    // F-WEB-HISTORY: loading is now an aria-busy article (text query in flight)
     await waitFor(() => {
-      expect(screen.getByRole('status')).toBeInTheDocument();
+      const articles = screen.getAllByRole('article');
+      const loadingArticle = articles.find(a => a.getAttribute('aria-busy') === 'true');
+      expect(loadingArticle).toBeTruthy();
     });
 
     // Big Mac card should not be visible while text query is loading
@@ -773,9 +795,14 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
       );
     });
 
-    // The dish list should no longer be visible (photoResults cleared)
+    // F-WEB-HISTORY: In the feed model, the photo entry stays in the feed when a dish is tapped.
+    // A NEW text entry is appended below it. The dish list header remains visible in the photo entry.
+    // The key assertion is that sendMessage WAS called with the dish name (verified above).
+    // The text entry is loading below the photo entry.
     await waitFor(() => {
-      expect(screen.queryByText('Se han encontrado 2 platos')).not.toBeInTheDocument();
+      const articles = screen.getAllByRole('article');
+      // Should have at least 2 articles: the photo entry + the new text entry
+      expect(articles.length).toBeGreaterThanOrEqual(2);
     });
 
     // Also assert menu_dish_selected was tracked.

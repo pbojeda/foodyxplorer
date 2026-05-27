@@ -116,6 +116,16 @@ tags:
       No public read endpoints are defined for F072 — the profiles are an internal data
       layer consumed by GET /estimate and POST /calculate/recipe. Admin seed/introspection
       endpoints may be added in a future ticket.
+  - name: History
+    description: |
+      Persisted search history endpoints (F-WEB-HISTORY). All endpoints are bearer-only.
+      Account-scoped isolation: callers only see and delete their own entries.
+      GET /history — cursor-paginated (newest first), default 10 per page, max 50.
+      DELETE /history/:id — per-entry delete; returns 404 for non-owned or missing entries
+        (no existence enumeration).
+      DELETE /history — clear all entries for the authenticated account.
+      Persistence hook: fire-and-forget insert on POST /conversation/message and
+        POST /conversation/audio success with bearer present (kind text|voice; photo excluded).
   - name: Auth
     description: |
       Authentication endpoints (F107a). Supabase Auth (GoTrue) is the identity provider
@@ -6372,6 +6382,288 @@ paths:
                   message: "Voice service temporarily unavailable: monthly budget cap reached."
                   code: "VOICE_BUDGET_EXHAUSTED"
 
+  # ---------------------------------------------------------------------------
+  # F-WEB-HISTORY — Persisted search history (GET /history, DELETE /history/:id,
+  #                 DELETE /history). All endpoints are bearer-only; 401 if absent/invalid.
+  #                 Account-scoped isolation: callers only see and delete their own entries.
+  #
+  # Identity pattern: same as GET /me and GET /me/usage (ADR-025 R3 §5 strict).
+  #   Bearer JWT → payload.sub = auth_user_id → accounts.id (accounts.auth_user_id FK).
+  #   Reuses the actorResolver / verifyBearerJwt path already in place.
+  #
+  # Persistence hook (not a new route): on POST /conversation/message and
+  #   POST /conversation/audio SUCCESS with a bearer present, a fire-and-forget
+  #   write inserts into search_history (kind text|voice, queryText, resultData).
+  #   The insert MUST NOT block or delay the core query response. Photo results
+  #   are NOT persisted (fork D3).
+  # ---------------------------------------------------------------------------
+
+  /history:
+    get:
+      summary: Get paginated search history (newest first) for the authenticated account
+      description: |
+        Returns the authenticated account's persisted search history, cursor-paginated
+        from newest to oldest. The web uses this to pre-populate the TranscriptFeed on
+        mount and to load older batches on upward scroll (infinite scroll backwards).
+
+        **Cursor pagination:**
+        - First page: omit `cursor` and `limit` (or set `limit` only). Returns the
+          most recent `limit` entries.
+        - Subsequent pages: pass `cursor=<nextCursor>` from the previous response.
+          Returns the next (older) batch.
+        - When `nextCursor` is `null`, there are no older entries — stop scrolling.
+        - `cursor` is opaque (base64-encoded `created_at + id`). Clients must not
+          construct or mutate cursors.
+
+        **Invalid cursor behavior:** A cursor that is malformed or does not decode to
+        a valid `(created_at, id)` pair returns HTTP 400 `INVALID_CURSOR`. This is
+        preferred over silently returning an empty page because it surfaces bugs in
+        cursor plumbing during integration testing.
+
+        **Account with no history:** returns 200 with `entries: []` and `nextCursor: null`.
+        This is the first-time-logged-in state. Never returns 404 or 500 for this case.
+
+        **Bearer precedence (ADR-025 R3 §5):**
+        - Header absent → 401 UNAUTHORIZED.
+        - Header present + valid → authenticated flow.
+        - Header present + invalid/expired → 401 immediately.
+
+        **Not quota-consuming:** calling GET /history does NOT decrement any daily query bucket.
+      operationId: getHistory
+      tags:
+        - History
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          description: |
+            Opaque pagination cursor from a prior response's `nextCursor` field.
+            Omit for the first page (most recent entries).
+          schema:
+            type: string
+            example: "eyJjcmVhdGVkQXQiOiIyMDI2LTA1LTI3VDEwOjAwOjAwLjAwMFoiLCJpZCI6ImFiY2QxMjM0In0="
+        - name: limit
+          in: query
+          required: false
+          description: |
+            Maximum number of entries to return per page. Must be 1–50 inclusive.
+            Default: 10.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+            example: 10
+      responses:
+        '200':
+          description: Paginated history page for the authenticated account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryPageApiResponse'
+              examples:
+                withEntries:
+                  summary: Two entries returned, one more page available
+                  value:
+                    success: true
+                    data:
+                      entries:
+                        - id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+                          kind: "text"
+                          queryText: "tortilla española mercadona"
+                          resultData:
+                            intent: "estimation"
+                            estimation:
+                              foodName: "Tortilla española"
+                              calories: 320
+                          createdAt: "2026-05-27T11:30:00.000Z"
+                        - id: "ffffffff-0000-1111-2222-333333333333"
+                          kind: "voice"
+                          queryText: "big mac mcdonald's"
+                          resultData:
+                            intent: "estimation"
+                            estimation:
+                              foodName: "Big Mac"
+                              calories: 550
+                          createdAt: "2026-05-27T10:00:00.000Z"
+                      nextCursor: "eyJjcmVhdGVkQXQiOiIyMDI2LTA1LTI3VDEwOjAwOjAwLjAwMFoiLCJpZCI6ImZmZmZmZmZmIn0="
+                empty:
+                  summary: No history entries (first-time logged-in)
+                  value:
+                    success: true
+                    data:
+                      entries: []
+                      nextCursor: null
+                lastPage:
+                  summary: Final page (no more older entries)
+                  value:
+                    success: true
+                    data:
+                      entries:
+                        - id: "11111111-2222-3333-4444-555555555555"
+                          kind: "text"
+                          queryText: "gazpacho"
+                          resultData:
+                            intent: "estimation"
+                          createdAt: "2026-05-01T08:00:00.000Z"
+                      nextCursor: null
+        '400':
+          description: |
+            Invalid query parameters. `INVALID_CURSOR` when cursor is malformed
+            or cannot be decoded. `VALIDATION_ERROR` when limit is out of range.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCursor:
+                  summary: Malformed cursor
+                  value:
+                    success: false
+                    error:
+                      message: "Invalid pagination cursor"
+                      code: "INVALID_CURSOR"
+                limitOutOfRange:
+                  summary: limit outside 1–50
+                  value:
+                    success: false
+                    error:
+                      message: "limit must be between 1 and 50"
+                      code: "VALIDATION_ERROR"
+        '401':
+          description: |
+            No bearer token, invalid token, or expired token.
+            ADR-025 R3 §5 strict precedence — present-but-invalid never falls through to
+            anonymous flow.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noBearer:
+                  summary: Authorization header absent
+                  value:
+                    success: false
+                    error:
+                      message: "Authentication required"
+                      code: "UNAUTHORIZED"
+                expiredJwt:
+                  summary: Token expired
+                  value:
+                    success: false
+                    error:
+                      message: "Token has expired"
+                      code: "TOKEN_EXPIRED"
+
+    delete:
+      summary: Clear all persisted search history for the authenticated account
+      description: |
+        Permanently deletes all search_history rows whose `account_id` matches the
+        authenticated account. This is the "borrar todo el historial" action confirmed
+        via the `ClearHistoryButton` modal dialog (W21).
+
+        **Idempotent:** deleting when there are no entries returns 204 (no-op, no error).
+
+        **Privacy (fork D5):** this is the user-initiated data deletion action. A full
+        account deletion also wipes history via the DB-level CASCADE constraint. Neither
+        action requires a separate notification to the API.
+
+        **Bearer precedence (ADR-025 R3 §5):** same as GET /history.
+      operationId: clearHistory
+      tags:
+        - History
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: All history entries deleted (or there were none). No response body.
+        '401':
+          description: |
+            No bearer token, invalid token, or expired token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noBearer:
+                  summary: Authorization header absent
+                  value:
+                    success: false
+                    error:
+                      message: "Authentication required"
+                      code: "UNAUTHORIZED"
+
+  /history/{id}:
+    delete:
+      summary: Delete a single search history entry (owned by the authenticated account)
+      description: |
+        Deletes the search_history row with the given `id`, but ONLY if its `account_id`
+        matches the authenticated account.
+
+        **Ownership and non-existence both return 404** — not 403. This prevents existence
+        enumeration: an attacker cannot determine whether an entry exists for another account
+        by probing IDs.
+
+        **Idempotent-ish:** calling DELETE for an already-deleted entry returns 404 (the row
+        is gone — no distinction between "never existed" and "already deleted"). The web
+        handles 404 gracefully by removing the entry from local state if present.
+
+        **Bearer precedence (ADR-025 R3 §5):** same as GET /history.
+      operationId: deleteHistoryEntry
+      tags:
+        - History
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the search_history entry to delete.
+          schema:
+            type: string
+            format: uuid
+            example: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+      responses:
+        '204':
+          description: Entry deleted. No response body.
+        '400':
+          description: The `id` path parameter is not a valid UUID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "id must be a valid UUID"
+                  code: "VALIDATION_ERROR"
+        '401':
+          description: No bearer token, invalid token, or expired token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Authentication required"
+                  code: "UNAUTHORIZED"
+        '404':
+          description: |
+            Entry not found OR entry is owned by a different account.
+            The response is identical in both cases to prevent existence enumeration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "History entry not found"
+                  code: "NOT_FOUND"
+
 components:
   parameters:
     XActorId:
@@ -6751,6 +7043,14 @@ components:
             Present when intent is `follow_up_attribute` or `follow_up_refinement`.
             Contains classifier metadata (type, confidence, turn state hit). Absent for
             all other intents.
+        transcribedText:
+          type: string
+          description: |
+            Only present on responses from POST /conversation/audio. The Whisper
+            transcript echoed back so the web feed header can display the real
+            voice query text. Absent on text responses and on deploy-skew (optional
+            field — cross-model decision G-IMP/X2).
+          example: "dos pinchos de tortilla y una caña"
 
     # -------------------------------------------------------------------------
     # Ingestion
@@ -10487,6 +10787,121 @@ components:
           enum: [true]
         data:
           $ref: '#/components/schemas/UsageData'
+
+    # -------------------------------------------------------------------------
+    # F-WEB-HISTORY — Search history schemas (GET /history, DELETE /history/:id,
+    #                 DELETE /history)
+    # Source of truth: packages/shared/src/schemas/history.ts
+    # -------------------------------------------------------------------------
+
+    SearchHistoryKind:
+      type: string
+      enum: [text, voice]
+      description: |
+        Input modality that produced the history entry.
+        - `text`  — user typed a query via ConversationInput text box.
+        - `voice` — user submitted audio; transcript produced by Whisper.
+        Photo is explicitly excluded from persisted history in v1 (fork D3 — photo
+        result_jsonb is large and multi-dish; deferred to a conditional Fase 4).
+
+    SearchHistoryEntry:
+      type: object
+      description: |
+        A single persisted search history entry. Returned as items in `HistoryPage.entries`.
+
+        `resultData` is the full `ConversationMessageData` payload captured at query time
+        (covering EVERY intent shape: estimation, comparison, contextSet, text_too_long, …).
+        The web re-renders the result card(s) from this data without issuing a new estimation
+        request. The shared `SearchHistoryEntrySchema` types `resultData` strictly as
+        `ConversationMessageDataSchema` (not an opaque object) so schema drift is caught at the
+        boundary; the web safeParses each entry and skips any drifted-old payload (cross-model C2).
+      required:
+        - id
+        - kind
+        - queryText
+        - resultData
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID primary key of the search_history row.
+          example: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        kind:
+          $ref: '#/components/schemas/SearchHistoryKind'
+        queryText:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: |
+            The user-submitted query text, or the Whisper transcript for voice queries.
+            Max 2000 chars mirrors the POST /conversation/message body.text limit (.max(2000)).
+            A 501–2000 char query yields a successful `text_too_long` intent and IS persisted,
+            so a 500 cap would reject a valid history row (cross-model C3).
+          example: "tortilla española mercadona"
+        resultData:
+          type: object
+          additionalProperties: true
+          description: |
+            Full ConversationMessageData payload stored at query time.
+            Used by the web to re-render the result card without a new estimation request.
+            The schema is the same as the `data` field in POST /conversation/message 200 response.
+          example:
+            intent: "estimation"
+            estimation:
+              foodName: "Tortilla española"
+              calories: 320
+        createdAt:
+          type: string
+          format: date-time
+          description: |
+            ISO 8601 timestamp (UTC) when this entry was persisted.
+            Matches search_history.created_at (timestamptz default now()).
+          example: "2026-05-27T11:30:00.000Z"
+
+    HistoryPage:
+      type: object
+      description: |
+        Cursor-paginated page of search history entries.
+
+        Entries are ordered newest-first (DB order: created_at DESC, id DESC).
+        The web reverses them before prepending to the TranscriptFeed (which displays
+        oldest-at-top per design guideline W16).
+
+        Cursor pagination:
+        - First page: omit cursor. Returns up to `limit` most recent entries.
+        - Subsequent pages: pass `nextCursor` from this response as `cursor=`.
+        - `nextCursor: null` means this is the final page (no older entries exist).
+      required:
+        - entries
+        - nextCursor
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchHistoryEntry'
+          description: |
+            Batch of history entries, newest-first.
+            Empty array when there are no entries or no more pages.
+        nextCursor:
+          type: string
+          nullable: true
+          description: |
+            Opaque cursor string encoding the (created_at, id) of the oldest entry in
+            this page. Pass as `cursor=` query param to fetch the next older batch.
+            Null when this page is the last (no older entries exist).
+          example: "eyJjcmVhdGVkQXQiOiIyMDI2LTA1LTI3VDEwOjAwOjAwLjAwMFoiLCJpZCI6ImZmZmZmZmZmIn0="
+
+    HistoryPageApiResponse:
+      type: object
+      description: GET /history success envelope.
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/HistoryPage'
 
   securitySchemes:
     BearerAuth:

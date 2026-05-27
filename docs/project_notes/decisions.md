@@ -1029,3 +1029,34 @@ The cost/benefit at pre-beta tilts strongly toward closing the surface: it simul
 - BUG-PROD-013 (`docs/tickets/BUG-PROD-013-*.md`) — the bearer-actorId fix that kept the resolver write-free; F-WEB-TIER builds on it.
 - `docs/tickets/F-WEB-TIER-registration-value.md` — full spec/plan/ACs + the cross-model + review trail.
 - `packages/api/src/plugins/actorRateLimit.ts` — bearer-first tier precedence; `packages/api/src/lib/accountTier.ts` — `resolveAccountTier`.
+
+### ADR-028: Search History — Account-Scoped `search_history` Table + Read-Only History API + Prune-on-Write Retention (F-WEB-HISTORY, 2026-05-27)
+
+**Status:** Accepted — owner-approved at the F-WEB-HISTORY Spec checkpoint (PM session pm-profiles, 2026-05-27). Cross-model reviewed (`/review-spec`: Gemini APPROVED, Codex REVISE 3 IMPORTANT — all applied). Builds on ADR-025 R3 §5 (bearer precedence) + ADR-027 (account identity); no new auth provider or transport.
+
+**Context.** Today `/hablar` shows only the *last* result — `HablarShell` holds one result in `useState` and replaces it each query, so every search erases the previous one (research §C/H1). Logged-in users get no durable value. Two structural facts shaped the design:
+
+1. **`query_logs` is metadata-only** (`queryText`, `levelHit`, `cacheHit`, `responseTimeMs` — no nutritional payload; research §H2). Re-rendering a past result needs the *full* response, so a new table is required, not a column on `query_logs`.
+2. **Identity is by account, not actor.** `request.accountId` = JWT `sub` = `auth_user_id`; the FK target is `accounts.id` (app PK), the same distinction ADR-027/F107a established. The `accounts` row is provisioned by `/me` (Option A).
+
+**Decision.**
+1. **New `search_history` table** (`id` uuid PK · `account_id` uuid FK→`accounts.id` **ON DELETE CASCADE** · `kind` enum `text|voice` · `query_text` · `result_jsonb` · `created_at` timestamptz). Composite index `(account_id, created_at DESC, id DESC)` for cursor pagination. Distinct from `query_logs` (different PK, purpose, payload). Migration via `prisma migrate deploy`.
+2. **Read-only `GET /history` (cross-model C1).** Cursor-paginated, newest-first, bearer-only. Resolves `accounts.id` from the bearer and returns `[]` if no account row exists — **no write on a GET**; provisioning stays centralized in `/me`. `DELETE /history/{id}` (404 — not 403 — for non-owned/missing, no enumeration) + `DELETE /history` (clear all). Persistence hook is fire-and-forget on the SUCCESS path of `POST /conversation/message` + `/conversation/audio` when a bearer is present; it **never blocks/delays the core query** (mirrors the existing `writeQueryLog` pattern). Photos are NOT persisted (fork D3 — large multi-dish payload; deferred to a conditional Fase 4); they still appear in the live session feed.
+3. **`result_jsonb` typed strictly (cross-model C2).** The shared `SearchHistoryEntrySchema.resultData` = `ConversationMessageDataSchema` (the real intent union), not an opaque record — so schema drift is caught at the boundary. The web safeParses each entry and SKIPS drifted-old payloads (graceful, never a fatal page). `queryText` max = 2000 to match `/conversation/message` body (a `text_too_long` is a successful, persisted result; cross-model C3). result_jsonb versioning deferred (YAGNI).
+4. **Prune-on-write retention (fork D4, owner-confirmed 500/12m).** After each insert, best-effort prune to the newest 500 rows per account AND delete rows older than 12 months (both fire-and-forget). Soft cap (a transient 501th row under concurrent writes self-corrects). No cron infrastructure.
+5. **Privacy — NOT RGPD Art.9.** Food/menu queries are not special-category health data, so persisting them does not trip the Art.9 gate that kept F099 (health profile) deferred. Account-deletion CASCADE wipes history; the user-facing "borrar historial" action + per-entry delete satisfy the deletion right. A privacy-policy note (storage + deletion of text/voice queries) is an **operator follow-up** (out-of-repo, tracked separately) — it does not block the code feature.
+6. **UI: session-transcript feed refactor.** `HablarShell`/`ResultsArea` move from a singleton intent-renderer to an append-only feed (design notes W15–W26). This fixes "se borra" for EVERYONE (anonymous included) and is the foundation persistence builds on; implemented first for a testable footing.
+
+**Consequences.**
+- (+) Registering gains durable, cross-device value (your past searches persist); the feed fixes the "erases previous result" pain for all users.
+- (+) Read-only history API + non-blocking persistence hook keep the core query path unaffected if history degrades (DB/Redis failure → history silently skipped, query still served).
+- (+) Strict `result_jsonb` typing catches drift; CASCADE + delete actions give a clean privacy story without an Art.9 gate.
+- (–) The HablarShell→feed refactor is a UI architecture change (research risk E2) — mitigated by phasing (feed first), TDD, and reusing existing result cards.
+- (–) `result_jsonb` duplicates result payload already in `query_logs`-adjacent caches; accepted (different lifecycle + purpose). Prune-on-write adds two best-effort DELETEs per authed query (indexed; negligible at beta scale).
+
+**Cross-references:**
+- ADR-027 (`decisions.md:1007`) — account identity + `/me` provisioning this builds on.
+- ADR-025 R3 §5 (`decisions.md:831`) — strict bearer precedence (history is bearer-only).
+- `docs/tickets/F-WEB-HISTORY-search-history.md` — full spec/61 ACs + cross-model trail.
+- `docs/research/post-auth-strategic-analysis-2026-05-25.md` §C/§D — empirical pain + phased plan + forks D3/D4/D5.
+- `packages/shared/src/schemas/history.ts` — `SearchHistory*` Zod schemas.
