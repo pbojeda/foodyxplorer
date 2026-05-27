@@ -251,27 +251,6 @@ async function getApp() {
   });
 }
 
-async function countHistoryRows(): Promise<number> {
-  const rows = await prisma.$queryRaw<{ count: bigint }[]>`
-    SELECT COUNT(*) as count FROM search_history WHERE account_id = ${ACCOUNT_ID}::uuid
-  `;
-  return Number(rows[0]?.['count'] ?? 0);
-}
-
-async function pollForHistoryRow(maxMs = 500): Promise<{ kind: string; query_text: string; result_jsonb: unknown } | null> {
-  const deadline = Date.now() + maxMs;
-  while (Date.now() < deadline) {
-    const rows = await prisma.$queryRaw<{ kind: string; query_text: string; result_jsonb: unknown }[]>`
-      SELECT kind, query_text, result_jsonb FROM search_history
-      WHERE account_id = ${ACCOUNT_ID}::uuid
-      ORDER BY created_at DESC LIMIT 1
-    `;
-    if (rows.length > 0) return rows[0] ?? null;
-    await new Promise((r) => setTimeout(r, 20));
-  }
-  return null;
-}
-
 // ---------------------------------------------------------------------------
 // EC1: limit=1 (exact lower boundary) — 2 rows, first page returns 1, nextCursor non-null
 // ---------------------------------------------------------------------------
