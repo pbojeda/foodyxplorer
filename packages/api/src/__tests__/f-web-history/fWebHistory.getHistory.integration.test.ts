@@ -1,4 +1,4 @@
-// F-WEB-HISTORY — GET /history integration tests (AC8–AC16)
+// F-WEB-HISTORY — GET /history integration tests (AC8–AC16, AC65)
 //
 // Uses real PG test DB (:5433) + real Redis (:6380).
 // Fixture UUID prefix: f8000000- (unique to F-WEB-HISTORY).
@@ -20,8 +20,9 @@
 // AC14: cursor=malformed → 400 INVALID_CURSOR
 // AC15: two accounts → each only sees their own rows
 // AC16: GET /history does not consume any rate-limit bucket
+// AC65: DB error in resolveAccountIdFromSub → 500 (not 200 [])
 
-import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
 
@@ -479,5 +480,31 @@ describe('AC16: GET /history does not consume rate-limit buckets', () => {
     expect(after).toBe('5'); // unchanged
 
     await redis.del(queriesKey);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AC65: DB error in resolveAccountIdFromSub → 500 (not 200 [])
+// ---------------------------------------------------------------------------
+
+describe('AC65: DB error during account resolution → 500', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('GET /history → 500 when $queryRaw rejects (not 200 [])', async () => {
+    mockVerifyBearerJwt.mockResolvedValue({ sub: AUTH_USER_ID_A });
+
+    // Spy on the same prisma instance passed to buildApp (used by resolveAccountIdFromSub)
+    vi.spyOn(prisma, '$queryRaw').mockRejectedValueOnce(new Error('db down'));
+
+    const app = await getApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/history',
+      headers: { authorization: 'Bearer sometoken' },
+    });
+
+    expect(res.statusCode).toBe(500);
   });
 });

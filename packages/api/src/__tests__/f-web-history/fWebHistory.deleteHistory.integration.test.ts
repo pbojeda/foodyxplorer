@@ -1,4 +1,4 @@
-// F-WEB-HISTORY — DELETE /history/:id + DELETE /history integration tests (AC17–AC24)
+// F-WEB-HISTORY — DELETE /history/:id + DELETE /history integration tests (AC17–AC24, AC65)
 //
 // Uses real PG test DB (:5433) + real Redis (:6380).
 // Fixture UUID prefix: f8100000- (unique to F-WEB-HISTORY delete tests).
@@ -17,8 +17,10 @@
 //   AC22: no bearer → 401
 //   AC23: valid clear → 204, all rows gone
 //   AC24: clear with no rows (idempotent) → 204
+//
+// AC65: DB error in resolveAccountIdFromSub → 500 (not 404 / 204)
 
-import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
 
@@ -316,5 +318,47 @@ describe('AC24: DELETE /history — no rows, idempotent → 204', () => {
       headers: { authorization: 'Bearer sometoken' },
     });
     expect(res.statusCode).toBe(204);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AC65: DB error in resolveAccountIdFromSub → 500 (not 404 / 204)
+// ---------------------------------------------------------------------------
+
+describe('AC65: DB error during account resolution → 500', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('DELETE /history/:id → 500 when $queryRaw rejects (not 404)', async () => {
+    mockVerifyBearerJwt.mockResolvedValue({ sub: AUTH_USER_ID_DEL });
+
+    // Spy on the same prisma instance passed to buildApp (used by resolveAccountIdFromSub)
+    vi.spyOn(prisma, '$queryRaw').mockRejectedValueOnce(new Error('db down'));
+
+    const app = await getApp();
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/history/11111111-0000-0000-0000-000000000000',
+      headers: { authorization: 'Bearer sometoken' },
+    });
+
+    expect(res.statusCode).toBe(500);
+  });
+
+  it('DELETE /history → 500 when $queryRaw rejects (not 204)', async () => {
+    mockVerifyBearerJwt.mockResolvedValue({ sub: AUTH_USER_ID_DEL });
+
+    // Spy on the same prisma instance passed to buildApp (used by resolveAccountIdFromSub)
+    vi.spyOn(prisma, '$queryRaw').mockRejectedValueOnce(new Error('db down'));
+
+    const app = await getApp();
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/history',
+      headers: { authorization: 'Bearer sometoken' },
+    });
+
+    expect(res.statusCode).toBe(500);
   });
 });

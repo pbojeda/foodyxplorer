@@ -1,4 +1,4 @@
-// F-WEB-HISTORY — Persistence hook integration tests (AC25–AC31, AC59, AC61)
+// F-WEB-HISTORY — Persistence hook integration tests (AC25–AC31, AC62, AC61)
 //
 // Tests the fire-and-forget search_history insert that fires in the 'finish'
 // listener of POST /conversation/message and POST /conversation/audio.
@@ -18,7 +18,7 @@
 // AC29: 500 rows + one more request → row count still 500 (prune-on-write)
 // AC30: row older than 12 months is pruned on next insert
 // AC31: account delete → history gone (CASCADE, round-trip)
-// AC59: all intent shapes (estimation, text_too_long) round-trip via resultData
+// AC62: text_too_long intent (G-CRIT skip) is NOT persisted
 // AC61: 1500-char query_text (text_too_long response) — schema allows up to 2000
 
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
@@ -466,10 +466,10 @@ describe('AC30: 12-month age prune removes old rows', () => {
 });
 
 // ---------------------------------------------------------------------------
-// AC59: text_too_long intent is NOT persisted (cross-model G-CRIT)
+// AC62: text_too_long intent is NOT persisted (cross-model G-CRIT)
 // ---------------------------------------------------------------------------
 
-describe('AC59: text_too_long intent is NOT persisted', () => {
+describe('AC62: text_too_long intent is NOT persisted', () => {
   it('skips history insert when intent is text_too_long', async () => {
     mockVerifyBearerJwt.mockResolvedValue({ sub: AUTH_USER_ID });
     mockProcessMessage.mockResolvedValue(MOCK_TEXT_TOO_LONG_RESPONSE);
