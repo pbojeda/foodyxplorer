@@ -1,7 +1,7 @@
 # F-WEB-HISTORY: Search history — session transcript + persisted history
 
 **Feature:** F-WEB-HISTORY | **Type:** Fullstack-Feature | **Priority:** High
-**Status:** Ready for Merge | **Branch:** feature/F-WEB-HISTORY-search-history
+**Status:** Done | **Branch:** feature/F-WEB-HISTORY-search-history
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-27 | **Dependencies:** F-WEB-TIER (done — account identity + tier), F107a auth (done), BUG-PROD-013 (done — bearer actor resolution)
 
@@ -979,7 +979,7 @@ Follow TDD strictly: write the failing test, implement the minimum, confirm gree
 - [x] Step 4: `production-code-validator` executed, quality gates pass (REQUEST CHANGES → AC65 tests added → APPROVE)
 - [x] Step 5: `code-review-specialist` executed (REQUEST CHANGES → 1 BLOCKER + 1 MAJOR fixed)
 - [x] Step 5: `qa-engineer` executed (Standard/Complex) — PASS WITH FOLLOW-UPS (+27 edge tests)
-- [ ] Step 6: Ticket updated with final metrics, branch deleted
+- [x] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
 
@@ -999,6 +999,8 @@ Follow TDD strictly: write the failing test, implement the minimum, confirm gree
 | 2026-05-27 | Step 4 (Finalize) | Consolidated gates: typecheck (shared/api/web) clean; tests shared 677 / web 714 / api 4696; lint (3 ws) clean; build (shared+api tsc, web Next) clean. `production-code-validator` → **REQUEST CHANGES** (0 BLOCKER; 1 MAJOR: AC65 X3 invariant implemented but untested). Fix: `backend-developer` added AC65 DB-error→500 route tests (3) + corrected AC62 mislabel → **api 4699**; all pass first run (impl was already correct). → APPROVE. |
 | 2026-05-27 | Step 5 (Review + QA) | `code-review-specialist` → **REQUEST CHANGES**: **1 BLOCKER** (HablarShell `persistedMergedRef` one-shot → `loadMore` entries never render; whole pagination non-functional; confirmed empirically) + **1 MAJOR** (same root cause → logout leaves prior user's persisted entries in feed; privacy/staleness) + 2 MINOR. `qa-engineer` → **PASS WITH FOLLOW-UPS** (no runtime bugs; +27 edge tests: cursor tie-break/stale-cursor/limit-bounds/CASCADE/nudge-hierarchy/deploy-skew; closed AC28/AC31/AC59 coverage gaps). **Process lesson:** isolated-hook tests + fully-mocked-hook component tests mutually masked the loadMore integration defect — added a HablarShell-level test driving `persistedEntries` growth through the component. |
 | 2026-05-27 | Step 5 (fix) | **BLOCKER+MAJOR fixed** (`fix` commit `3e614f5`): replaced the one-shot `persistedMergedRef` merge with a reconcile-every-change effect (`setEntries(prev => [...persistedEntries, ...prev.filter(!isPersisted)])`, keyed on a stable id-join to avoid the new-`[]`-reference render loop). loadMore entries now render; logout drops the persisted slice (hook returns `[]` when `authToken` null) keeping session entries. +2 HablarShell render/logout tests. QA edge-case suites committed. **Final: api 4713 / web 729 / shared 677, all green; typecheck/lint/build clean.** MINORs (ClearHistoryButton dead-branch, token-rotation refetch) noted as benign/optional. |
+| 2026-05-27 | Step 5 (CI) | PR #299 → develop. `ci-success` **FAILED** first run on `test-api` (eslint `no-unused-vars`: `countHistoryRows`/`pollForHistoryRow` dead helpers in the QA `fWebHistory.edge-cases.integration.test.ts` — slipped through because the final local gate re-ran tests only, not lint, after the QA/review/fix commits). Removed the dead helpers (`95ffee7`); re-ran FULL api gate (lint+typecheck+test 4713) green. Re-run CI **`ci-success`=SUCCESS, test-api=SUCCESS, mergeState=CLEAN**. **Lesson:** re-run the full gate (lint+typecheck+build+test), not just tests, after the last commit before push. |
+| 2026-05-27 | Step 6 (Complete) | **Squash-merged to develop via PR #299 `aa65230`** (feature-branch commits collapsed). Branch `feature/F-WEB-HISTORY-search-history` deleted (local + remote). Status → Done; Workflow 0–6 [x]. Post-merge sanity on develop@aa65230: shared 677 / web 729 green, api typecheck clean (full api 4713 validated by CI on the identical tree, merge-base was UP TO DATE). Tracker Features → done 6/6 + Active Session reset; pm-session → F-WEB-HISTORY Completed (2nd feature this session → **mandatory `/compact`**). **Operator post-deploy smokes (AC56–58) pending: manual `nutrixplorer-api-dev` deploy + login→query→reload shows "Guardado" + CASCADE check.** Closeout via this PR. |
 
 ---
 
@@ -1009,7 +1011,7 @@ Follow TDD strictly: write the failing test, implement the minimum, confirm gree
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | All 7 sections present: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence |
-| 1. Mark all items | [x] | AC: 62/65 ([x]) — AC56–58 operator post-deploy smokes deferred; DoD: 7/7; Workflow: Steps 0–5 [x], Step 6 [ ] (flips at merge) |
+| 1. Mark all items | [x] | AC: 62/65 ([x]) — AC56–58 operator post-deploy smokes deferred; DoD: 7/7; Workflow: Steps 0–6 [x] (merged at `aa65230`) |
 | 2. Verify product tracker | [x] | Active Session: step 5/6 (Review); Features table: F-WEB-HISTORY in-progress 5/6 |
 | 3. Update key_facts.md | [x] | Added: `search_history` table + `SearchHistory` model; `GET /history` + `DELETE /history` + `DELETE /history/{id}`; `lib/searchHistory.ts`; persistence hook + `ConversationMessageData.transcribedText`; shared `history.ts` schemas |
 | 4. Update decisions.md | [x] | ADR-028 (search-history storage + read-only API + prune-on-write retention + privacy/no-Art.9) |
