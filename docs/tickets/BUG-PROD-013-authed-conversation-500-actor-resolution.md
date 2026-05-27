@@ -49,7 +49,7 @@ The web **never calls `/me`**, so the F107a account↔actor link (the F107a-FU2 
 - [x] **AC5** — Anonymous path (no Authorization header) behaviour is unchanged (still resolves/creates actor via `resolveActor`/`createAnonymousActor`).
 - [x] **AC6** — `/me` still returns the same response shape and still performs the account upsert + safe link UPDATE (no regression); now reusing the shared helper.
 - [x] **AC7** — `query_logs` rows for authenticated queries now carry a non-null `actor_id`. _(integration test asserts non-null actor_id)_
-- [ ] **AC8 (operator)** — Post-deploy smoke: login → search "paella" → HTTP 200 (not 500) on dev API.
+- [x] **AC8 (operator)** — Post-deploy smoke: login → search "paella" → HTTP 200 (not 500) on dev API. _(Verified 2026-05-27 against `nutrixplorer-api-dev`: bearer `POST /conversation/message {text:"paella"}` → **HTTP 200**, `intent:"estimation"`, `actorId:2fc00527-…` resolved, match "Paella valenciana" — see Completion Log.)_
 
 ## Test Plan (TDD)
 - **RED:** test that a bearer + X-Actor-Id request currently leaves `request.actorId` unset → `/conversation/message` 500s "Actor resolution failed". (Prove the bug.)
@@ -59,7 +59,7 @@ The web **never calls `/me`**, so the F107a account↔actor link (the F107a-FU2 
 - Full `@foodxplorer/api` suite green (currently 4596).
 
 ## Definition of Done
-- [ ] All AC met (AC1-7 ✓; AC8 = post-deploy operator smoke, pending manual api-dev deploy)
+- [x] All AC met (AC1-8 ✓; AC8 operator smoke verified 2026-05-27 on api-dev)
 - [x] RED test added + now GREEN
 - [x] `npm test -w @foodxplorer/api` green (4613), lint, typecheck, build clean
 - [ ] `production-code-validator` pass _(not run — covered by code-review-specialist APPROVE + cross-model Gemini+Codex + clean gates; owner-noted as deferred)_
@@ -83,12 +83,13 @@ The web **never calls `/me`**, so the F107a account↔actor link (the F107a-FU2 
 | 2026-05-25 | 4 | Fix (TDD): new `lib/bearerActor.ts` (`resolveBearerActorId` + `provisionFallbackActor`); actorResolver bearer path sets `request.actorId` (try/catch graceful degrade); `/me` reuses shared helper (DRY). api suite 4596→4609 green. |
 | 2026-05-25 | 5 | Reviews: code-review-specialist **APPROVE** (0 CRITICAL); cross-model **Gemini + Codex** both REQUEST CHANGES → all addressed (R-MAJOR resilience try/catch; R-MAJOR integration test on `/conversation/message`; bugs.md wording; UUID_RE dedup; call-site comment). +4 tests → api suite **4613** green; lint/typecheck/build clean. |
 | 2026-05-25 | 6 | Merged to develop via **PR #292** (squash `68caa0b`); branch `bugfix/api-auth-actor-bearer-500` deleted local+remote. CI `ci-success` + `test-api` SUCCESS on PR HEAD `8e85ebb`, mergeState CLEAN. /audit-merge: structural ready, drift clean (P5 systemic + P16 NIT pre-existing/by-convention). **AC8 operator post-deploy smoke pending** (manual api-dev deploy → login → "paella" → 200). Linking + tier-by-account = P0b (F-WEB-TIER). |
+| 2026-05-27 | 6 (post-deploy) | **AC8 operator smoke PASS.** After owner's manual `nutrixplorer-api-dev` deploy, ran bearer-authenticated `POST /conversation/message {"text":"paella"}` → **HTTP 200** (not 500), `intent:"estimation"`, `actorId:2fc00527-4c91-4a30-80f2-d46e3d2bceeb` resolved on the bearer path, match "Paella valenciana" (`level1Hit`, `fts_dish`). The exact 500 guard (`conversation.ts:84`) is no longer hit for authed requests. AC8 ✓ → AC 8/8. Bug fully closed. |
 
 ## Merge Checklist Evidence
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | Sections present: Spec, Acceptance Criteria, Test Plan, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence |
-| 1. Mark items + Status | [x] | Status → Done; AC: 7/8 (AC8 operator post-deploy pending); Workflow Steps 1-6 [x]; Completion Log filled |
+| 1. Mark items + Status | [x] | Status → Done; AC: 8/8 (AC8 operator smoke verified 2026-05-27 on api-dev); Workflow Steps 1-6 [x]; Completion Log filled |
 | 2. Product tracker | [x] | Active Session → BUG-PROD-013, Step 5/6 (Review), in-progress |
 | 3. key_facts.md | [x] | Auth bullet updated: BUG-PROD-013 fix (bearer path resolves actorId via lib/bearerActor.ts; linking still /me-only; try/catch resilience) |
 | 4. decisions.md | [x] | N/A — no ADR (reuses existing F107a/FU2 patterns; no new architectural decision) |
