@@ -46,6 +46,7 @@ import { conversationRoutes } from './routes/conversation.js';
 import { reverseSearchRoutes } from './routes/reverseSearch.js';
 import { webMetricsRoutes } from './routes/webMetrics.js';
 import authRoutes from './routes/auth.js';
+import { historyRoutes } from './routes/history.js';
 import { getKysely } from './lib/kysely.js';
 
 // ---------------------------------------------------------------------------
@@ -154,6 +155,8 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(webMetricsRoutes, { db: getKysely(), prisma: prismaClient });
   // F107a — Auth routes (POST /auth/login, POST /auth/logout, GET /me)
   await app.register(authRoutes, { prisma: prismaClient, config: cfg, redis: redisClient });
+  // F-WEB-HISTORY — Search history routes (GET /history, DELETE /history/:id, DELETE /history)
+  await app.register(historyRoutes, { prisma: prismaClient, config: cfg });
 
   return app;
 }

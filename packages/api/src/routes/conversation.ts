@@ -27,6 +27,7 @@ import { callWhisperTranscription, isWhisperHallucination } from '../lib/openaiC
 import { checkBudgetExhausted, incrementSpendAndCheck, dispatchSlackAlerts } from '../lib/voiceBudget.js';
 import { getClientIp, incrementVoiceSeconds } from '../plugins/voiceIpRateLimit.js';
 import { parseAudioDuration, selectVerifiedDuration } from '../lib/audioDuration.js';
+import { resolveAccountIdFromSub, insertSearchHistory, pruneHistory } from '../lib/searchHistory.js';
 
 // ---------------------------------------------------------------------------
 // Plugin options
@@ -108,6 +109,29 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
       reply.raw.once('finish', () => {
         const responseTimeMs = Math.round(performance.now() - startMs);
         void logQueryAfterReply(responseTimeMs).catch(() => {});
+
+        // F-WEB-HISTORY: persist to search_history if bearer present.
+        // cross-model G-CRIT: skip text_too_long — no useful nutritional result.
+        const accountSub = request.accountId;
+        if (accountSub && capturedData && capturedData.intent !== 'text_too_long') {
+          void (async () => {
+            try {
+              const accountId = await resolveAccountIdFromSub(prisma, accountSub, request.log);
+              if (!accountId) return; // no accounts row yet — provisioning stays in /me
+              await insertSearchHistory(prisma, {
+                accountId,
+                kind: 'text',
+                queryText: body.text,
+                resultJsonb: capturedData as object,
+              });
+              void pruneHistory(prisma, accountId).catch((err: unknown) => {
+                request.log.error({ err }, 'F-WEB-HISTORY: pruneHistory failed');
+              });
+            } catch (err) {
+              request.log.error({ err }, 'F-WEB-HISTORY: search_history insert failed');
+            }
+          })();
+        }
       });
 
       // Run the conversation pipeline
@@ -454,6 +478,29 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
       reply.raw.once('finish', () => {
         const responseTimeMs = Math.round(performance.now() - startMs);
         void logAudioQueryAfterReply(responseTimeMs).catch(() => {});
+
+        // F-WEB-HISTORY: persist to search_history if bearer present.
+        // cross-model G-CRIT: skip text_too_long — no useful nutritional result.
+        const accountSub = request.accountId;
+        if (accountSub && capturedData && transcribedText && capturedData.intent !== 'text_too_long') {
+          void (async () => {
+            try {
+              const accountId = await resolveAccountIdFromSub(prisma, accountSub, request.log);
+              if (!accountId) return; // no accounts row yet — provisioning stays in /me
+              await insertSearchHistory(prisma, {
+                accountId,
+                kind: 'voice',
+                queryText: transcribedText as string,
+                resultJsonb: capturedData as object,
+              });
+              void pruneHistory(prisma, accountId).catch((err: unknown) => {
+                request.log.error({ err }, 'F-WEB-HISTORY: pruneHistory failed');
+              });
+            } catch (err) {
+              request.log.error({ err }, 'F-WEB-HISTORY: search_history insert failed');
+            }
+          })();
+        }
       });
 
       // Step 6: Transcribe via Whisper
@@ -516,7 +563,11 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
         legacyChainName: chainName,
       });
 
-      capturedData = data;
+      // F-WEB-HISTORY cross-model G-IMP/X2: populate transcribedText on the data payload
+      // before reply.send so the web feed header can show the real voice query, and the
+      // persisted result_jsonb also carries it. Optional field — text responses unaffected.
+      const dataWithTranscript = { ...data, transcribedText: transcribedText ?? undefined };
+      capturedData = dataWithTranscript;
 
       // Step 10a (F091): Increment monthly spend accumulator and dispatch Slack alerts.
       // Fire-and-forget — budget tracking failure must not block the voice response.
@@ -536,7 +587,7 @@ const conversationRoutesPlugin: FastifyPluginAsync<ConversationPluginOptions> = 
         }
       })();
 
-      return reply.send({ success: true, data });
+      return reply.send({ success: true, data: dataWithTranscript });
 
       // -----------------------------------------------------------------------
       // Query logging helper (fire-and-forget, called from 'finish' listener)

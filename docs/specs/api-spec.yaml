@@ -7043,6 +7043,14 @@ components:
             Present when intent is `follow_up_attribute` or `follow_up_refinement`.
             Contains classifier metadata (type, confidence, turn state hit). Absent for
             all other intents.
+        transcribedText:
+          type: string
+          description: |
+            Only present on responses from POST /conversation/audio. The Whisper
+            transcript echoed back so the web feed header can display the real
+            voice query text. Absent on text responses and on deploy-skew (optional
+            field — cross-model decision G-IMP/X2).
+          example: "dos pinchos de tortilla y una caña"
 
     # -------------------------------------------------------------------------
     # Ingestion
