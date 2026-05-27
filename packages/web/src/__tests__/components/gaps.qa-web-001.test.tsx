@@ -54,12 +54,28 @@ jest.mock('../../hooks/useAuth', () => ({
   }),
 }));
 
+// F-WEB-HISTORY: mock useSearchHistory — no-op by default
+jest.mock('../../hooks/useSearchHistory', () => ({
+  useSearchHistory: jest.fn(() => ({
+    persistedEntries: [],
+    hasMoreHistory: false,
+    isLoadingMore: false,
+    isLoadingHistory: false,
+    loadMore: jest.fn(),
+    deleteEntry: jest.fn(),
+    clearAll: jest.fn(),
+  })),
+}));
+
 jest.mock('../../lib/apiClient', () => ({
   sendMessage: jest.fn(),
   sendPhotoAnalysis: jest.fn(),
   setAuthToken: jest.fn(), // F107a
   getMe: jest.fn(),        // F-WEB-TIER
   getUsage: jest.fn(),     // F-WEB-TIER
+  getHistory: jest.fn(),        // F-WEB-HISTORY
+  deleteHistoryEntry: jest.fn(), // F-WEB-HISTORY
+  clearHistory: jest.fn(),       // F-WEB-HISTORY
   ApiError: class ApiError extends Error {
     code: string;
     status: number | undefined;
@@ -124,8 +140,9 @@ describe('QA-WEB-001 gaps — F-012: Error cleared on new query', () => {
 
     // Trigger error
     await typeAndSubmit('big mac');
+    // F-WEB-HISTORY: retry button is now "Reintentar" inside TranscriptEntry
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Intentar de nuevo/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Reintentar/i })).toBeInTheDocument();
     });
 
     // Submit a new query — retry button should be gone
@@ -136,12 +153,14 @@ describe('QA-WEB-001 gaps — F-012: Error cleared on new query', () => {
 
     await typeAndSubmit('tortilla');
 
-    // While second request is pending, ErrorState must have been cleared
+    // While second request is pending, error entry's Reintentar may still be visible
+    // (error entry stays in feed; new loading entry is appended below it)
+    // The key assertion: a new loading entry is shown
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: /Intentar de nuevo/i })).not.toBeInTheDocument();
+      const articles = screen.getAllByRole('article');
+      const loadingArticle = articles.find(a => a.getAttribute('aria-busy') === 'true');
+      expect(loadingArticle).toBeTruthy();
     });
-    // LoadingState is now showing
-    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 });
 
@@ -286,8 +305,11 @@ describe('QA-WEB-001 gaps — F-020: Stale request guard', () => {
 
     // Submit first query — stays pending
     await typeAndSubmit('big mac');
-    // Loading state visible
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    // F-WEB-HISTORY: loading is now an aria-busy article
+    await waitFor(() => {
+      const busyArticle = screen.getByRole('article');
+      expect(busyArticle).toHaveAttribute('aria-busy', 'true');
+    });
 
     // Resolve first promise — this completes the first request normally.
     // Note: this tests sequential replacement (second result overwrites first),
@@ -313,8 +335,11 @@ describe('QA-WEB-001 gaps — F-020: Stale request guard', () => {
       expect(screen.getByText('Tortilla española')).toBeInTheDocument();
     });
 
-    // Big Mac from first call should not be shown (was replaced by second result)
-    expect(screen.queryByText('Big Mac')).not.toBeInTheDocument();
+    // F-WEB-HISTORY: feed model — both entries are shown (Big Mac from first query, Tortilla from second).
+    // The stale request guard (AbortController) is not exercised here because the first request
+    // completes normally. The key assertion is that the second result IS shown (not lost).
+    // Big Mac may still be visible in the first entry (this is correct feed behavior).
+    expect(screen.getByText('Tortilla española')).toBeInTheDocument();
   });
 });
 
@@ -380,12 +405,13 @@ describe('QA-WEB-001 gaps — F-023: Photo retry after error (BUG-QA-008)', () =
 
     render(<HablarShell />);
 
-    // Submit a text query first (sets lastQuery)
+    // Submit a text query first (sets lastQuery) — error creates a retry button
     mockSendMessage.mockRejectedValueOnce(new ApiError('Error', 'INTERNAL_ERROR', 500));
     await typeAndSubmit('big mac');
 
+    // F-WEB-HISTORY: retry button is now "Reintentar" inside TranscriptEntry
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Intentar de nuevo/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Reintentar/i })).toBeInTheDocument();
     });
 
     // Clear mock counts before photo test
@@ -408,11 +434,14 @@ describe('QA-WEB-001 gaps — F-023: Photo retry after error (BUG-QA-008)', () =
       expect(screen.getByText(/No he podido leer el menú/i)).toBeInTheDocument();
     });
 
-    // Photo error sets inlineError — no ErrorState retry button for photo errors
-    // The inline error appears in ConversationInput, NOT in ErrorState
-    // BUG-QA-008: there is no photo retry mechanism; the "Intentar de nuevo" button
-    // from ErrorState is not shown for photo errors (only for text errors)
-    expect(screen.queryByRole('button', { name: /Intentar de nuevo/i })).not.toBeInTheDocument();
+    // Photo error sets inlineError — no retry button for photo errors
+    // The inline error appears in ConversationInput, NOT in a TranscriptEntry
+    // (photo entries with errors ARE in the feed, but inline photo errors set inlineError state)
+    // BUG-QA-008: there is no photo retry mechanism
+    // The "Reintentar" button from TranscriptEntry error state is NOT shown for inline photo errors
+    // (though the text error entry from before still has Reintentar — jest.clearAllMocks cleared the mock counts
+    // but the DOM still shows the text error entry with Reintentar button)
+    // So we check that mockSendMessage was NOT called (photo errors don't trigger text retry).
 
     // sendPhotoAnalysis was called once (for the failed photo)
     expect(mockSendPhotoAnalysis).toHaveBeenCalledTimes(1);
@@ -519,13 +548,16 @@ describe('QA-WEB-001 gaps — F-026: Unknown intent fallback', () => {
 
     await typeAndSubmit('some query');
 
+    // F-WEB-HISTORY: In the feed model, after an unknown intent, the TranscriptEntry
+    // ResultBody returns null (default case) and no error state is shown.
+    // The entry exists in the feed (article rendered), just with no result body.
     await waitFor(() => {
-      // No crash — EmptyState renders (¿Qué quieres saber?)
-      expect(screen.getByText(/¿Qué quieres saber\?/i)).toBeInTheDocument();
+      // No crash — entry is added to feed (article with query text visible)
+      expect(screen.getByRole('article')).toBeInTheDocument();
     });
-    // No error state
+    // No retry button for unknown intent (it's not an error, just an unsupported result)
     expect(
-      screen.queryByRole('button', { name: /Intentar de nuevo/i })
+      screen.queryByRole('button', { name: /Reintentar/i })
     ).not.toBeInTheDocument();
   });
 });

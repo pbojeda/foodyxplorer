@@ -44,11 +44,27 @@ jest.mock('../../hooks/useAuth', () => ({
   }),
 }));
 
+// F-WEB-HISTORY: mock useSearchHistory — no-op by default
+jest.mock('../../hooks/useSearchHistory', () => ({
+  useSearchHistory: jest.fn(() => ({
+    persistedEntries: [],
+    hasMoreHistory: false,
+    isLoadingMore: false,
+    isLoadingHistory: false,
+    loadMore: jest.fn(),
+    deleteEntry: jest.fn(),
+    clearAll: jest.fn(),
+  })),
+}));
+
 jest.mock('../../lib/apiClient', () => ({
   sendMessage: jest.fn(),
   setAuthToken: jest.fn(), // F107a
   getMe: jest.fn(),        // F-WEB-TIER
   getUsage: jest.fn(),     // F-WEB-TIER
+  getHistory: jest.fn(),   // F-WEB-HISTORY
+  deleteHistoryEntry: jest.fn(), // F-WEB-HISTORY
+  clearHistory: jest.fn(),       // F-WEB-HISTORY
   ApiError: class ApiError extends Error {
     code: string;
     status: number | undefined;
@@ -98,14 +114,18 @@ describe('HablarShell', () => {
     expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
-  it('shows LoadingState while fetch is pending', async () => {
+  it('shows loading shimmer while fetch is pending', async () => {
     // Never resolves — stays pending
     mockSendMessage.mockReturnValue(new Promise(() => {}));
     render(<HablarShell />);
 
     await typeAndSubmit('big mac');
 
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    // F-WEB-HISTORY: loading is now an aria-busy article with a shimmer
+    await waitFor(() => {
+      const busyArticle = screen.getByRole('article');
+      expect(busyArticle).toHaveAttribute('aria-busy', 'true');
+    });
   });
 
   it('renders NutritionCard after successful estimation response', async () => {
@@ -130,14 +150,15 @@ describe('HablarShell', () => {
     });
   });
 
-  it('shows ErrorState with retry after API 500 error', async () => {
+  it('shows error state with retry after API 500 error', async () => {
     mockSendMessage.mockRejectedValue(new ApiError('Server error', 'INTERNAL_ERROR', 500));
     render(<HablarShell />);
 
     await typeAndSubmit('big mac');
 
+    // F-WEB-HISTORY: retry button is now "Reintentar" inside TranscriptEntry
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Intentar de nuevo/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Reintentar/i })).toBeInTheDocument();
     });
   });
 
@@ -176,8 +197,8 @@ describe('HablarShell', () => {
       expect(screen.getByText(/Demasiado largo/i)).toBeInTheDocument();
     });
 
-    // Should NOT show full ErrorState retry button
-    expect(screen.queryByRole('button', { name: /Intentar de nuevo/i })).not.toBeInTheDocument();
+    // Should NOT show an entry-level Reintentar button (no TranscriptEntry created for text_too_long)
+    expect(screen.queryByRole('button', { name: /Reintentar/i })).not.toBeInTheDocument();
   });
 
   it('does not call sendMessage when query is empty', async () => {
@@ -201,14 +222,14 @@ describe('HablarShell', () => {
 
     await typeAndSubmit('big mac');
 
-    // Wait a tick — should NOT show ErrorState
+    // Wait a tick — should NOT show error state
     await waitFor(() => {
-      // After AbortError, still shows EmptyState (no error surfaced)
-      expect(screen.queryByRole('button', { name: /Intentar de nuevo/i })).not.toBeInTheDocument();
+      // After AbortError, no error retry button surfaced
+      expect(screen.queryByRole('button', { name: /Reintentar/i })).not.toBeInTheDocument();
     });
   });
 
-  it('re-sends last query when onRetry is called', async () => {
+  it('re-sends last query when Reintentar is clicked (adds new entry)', async () => {
     mockSendMessage
       .mockRejectedValueOnce(new ApiError('Error', 'INTERNAL_ERROR', 500))
       .mockResolvedValueOnce(createConversationMessageResponse('estimation'));
@@ -216,11 +237,12 @@ describe('HablarShell', () => {
     render(<HablarShell />);
     await typeAndSubmit('big mac');
 
+    // F-WEB-HISTORY: retry button is "Reintentar" in the in-entry error state
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Intentar de nuevo/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Reintentar/i })).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole('button', { name: /Intentar de nuevo/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Reintentar/i }));
 
     await waitFor(() => {
       expect(screen.getByText('Big Mac')).toBeInTheDocument();

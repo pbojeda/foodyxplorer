@@ -80,12 +80,28 @@ jest.mock('../../hooks/useAuth', () => ({
   })),
 }));
 
+// F-WEB-HISTORY: mock useSearchHistory — no-op by default
+jest.mock('../../hooks/useSearchHistory', () => ({
+  useSearchHistory: jest.fn(() => ({
+    persistedEntries: [],
+    hasMoreHistory: false,
+    isLoadingMore: false,
+    isLoadingHistory: false,
+    loadMore: jest.fn(),
+    deleteEntry: jest.fn(),
+    clearAll: jest.fn(),
+  })),
+}));
+
 jest.mock('../../lib/apiClient', () => ({
   sendMessage: jest.fn(),
   sendPhotoAnalysis: jest.fn(),
   setAuthToken: jest.fn(),
   getMe: jest.fn(),
   getUsage: jest.fn(),
+  getHistory: jest.fn(),
+  deleteHistoryEntry: jest.fn(),
+  clearHistory: jest.fn(),
   ApiError: class ApiError extends Error {
     code: string;
     status: number | undefined;
