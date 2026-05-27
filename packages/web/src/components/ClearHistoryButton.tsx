@@ -46,26 +46,18 @@ export function ClearHistoryButton({ onConfirm }: ClearHistoryButtonProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  // Focus trap: Tab cycles between Cancel and Confirm
+  // Focus trap: Tab / Shift+Tab cycle between the two focusables (Cancel and
+  // Confirm). Direction is irrelevant for a 2-button dialog — both directions
+  // toggle between the same two elements.
   function handleKeyDownDialog(e: React.KeyboardEvent) {
     if (e.key !== 'Tab') return;
     e.preventDefault();
 
     const focused = document.activeElement;
-    if (e.shiftKey) {
-      // Shift+Tab: cancel → confirm → cancel
-      if (focused === cancelRef.current) {
-        confirmRef.current?.focus();
-      } else {
-        cancelRef.current?.focus();
-      }
+    if (focused === cancelRef.current) {
+      confirmRef.current?.focus();
     } else {
-      // Tab: cancel → confirm → cancel
-      if (focused === cancelRef.current) {
-        confirmRef.current?.focus();
-      } else {
-        cancelRef.current?.focus();
-      }
+      cancelRef.current?.focus();
     }
   }
 

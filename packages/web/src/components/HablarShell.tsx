@@ -121,28 +121,27 @@ export function HablarShell() {
     clearAll: clearPersistedHistory,
   } = useSearchHistory({ authToken: session?.access_token ?? null });
 
-  // Merge persisted entries into the feed on initial load.
-  // persistedEntries arrives asynchronously on mount (GET /history).
-  // We prepend them to the feed state once — deduplicate by entryId.
-  const persistedMergedRef = useRef(false);
+  // Reconcile persisted entries into the feed on every change (AC39/AC40).
+  // Replaces one-shot merge: whenever persistedEntries grows (loadMore prepends
+  // older pages) or shrinks (logout → hook returns [], deleteEntry, clearAll),
+  // the persisted slice in entries is replaced wholesale while session-only
+  // entries (isPersisted === false) are preserved at the bottom.
+  // Ordering: persistedEntries is oldest-first (hook contract W16); session
+  // entries follow below so newest query stays at the bottom.
+  // Logout fix: when authToken → null the hook returns [] immediately, so
+  // the effect drops all persisted entries from the feed.
+  //
+  // Stable dep: join entry IDs so the effect only fires when the actual set
+  // of persisted IDs changes, not on every render that returns a new array
+  // reference with identical contents.
+  const persistedIdsKey = persistedEntries.map((e) => e.entryId).join(',');
   useEffect(() => {
-    if (!persistedMergedRef.current && persistedEntries.length > 0) {
-      persistedMergedRef.current = true;
-      setEntries((prev) => {
-        // Avoid duplicating entries that were already added
-        const existingIds = new Set(prev.map((e) => e.entryId));
-        const toAdd = persistedEntries.filter((e) => !existingIds.has(e.entryId));
-        return [...toAdd, ...prev];
-      });
-    }
-  }, [persistedEntries]);
-
-  // Reset merge flag when user logs out (so next login re-merges)
-  useEffect(() => {
-    if (!user) {
-      persistedMergedRef.current = false;
-    }
-  }, [user]);
+    setEntries((prev) => {
+      const sessionOnly = prev.filter((e) => !e.isPersisted);
+      return [...persistedEntries, ...sessionOnly];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persistedIdsKey]); // persistedEntries is captured in closure via key change
 
   const voiceSession = useVoiceSession(actorIdRef.current);
   const tts = useTtsPlayback({ enabled: ttsEnabled, voiceName: selectedVoiceName });

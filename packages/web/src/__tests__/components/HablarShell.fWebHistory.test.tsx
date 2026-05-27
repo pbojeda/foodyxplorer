@@ -116,6 +116,10 @@ jest.mock('../../hooks/useSearchHistory', () => ({
 
 import { HablarShell } from '../../components/HablarShell';
 import { sendMessage, sendPhotoAnalysis, ApiError } from '../../lib/apiClient';
+import { useSearchHistory } from '../../hooks/useSearchHistory';
+import type { TranscriptEntryData } from '../../types/history';
+
+const mockUseSearchHistory = useSearchHistory as jest.Mock;
 
 const mockSendMessage = sendMessage as jest.Mock;
 const mockSendPhotoAnalysis = sendPhotoAnalysis as jest.Mock;
@@ -302,5 +306,152 @@ describe('HablarShell — F-WEB-HISTORY regression', () => {
     await waitFor(() => {
       expect(screen.getByText('Big Mac')).toBeInTheDocument();
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AC39/AC40 — loadMore renders older pages; logout clears persisted slice
+// These tests drive mockUseSearchHistory with growing persistedEntries to
+// verify the reconcile-every-change effect (fixes the one-shot ref BLOCKER).
+// ---------------------------------------------------------------------------
+
+function makePersistedEntry(id: string, queryText: string): TranscriptEntryData {
+  return {
+    entryId: id,
+    queryText,
+    inputMode: 'text',
+    timestamp: new Date('2024-01-01T10:00:00Z'),
+    isLoading: false,
+    result: null,
+    photoData: null,
+    error: null,
+    isPersisted: true,
+  };
+}
+
+describe('HablarShell — loadMore reconciliation (AC39/AC40 + logout staleness)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseVoiceSession.mockReturnValue(idleVoiceSession);
+  });
+
+  // AC39/AC40: page 1 renders, then after loadMore page 2 also renders.
+  it('AC39/AC40: older entries from loadMore appear in the feed after hook updates', async () => {
+    const page1Entry = makePersistedEntry('entry-p1', 'pizza margherita');
+    const page2Entry = makePersistedEntry('entry-p2', 'ensalada cesar');
+
+    // Start with page 1
+    mockUseSearchHistory.mockReturnValue({
+      persistedEntries: [page1Entry],
+      hasMoreHistory: true,
+      isLoadingMore: false,
+      isLoadingHistory: false,
+      loadMore: jest.fn(),
+      deleteEntry: jest.fn(),
+      clearAll: jest.fn(),
+    });
+
+    const { rerender } = render(<HablarShell />);
+
+    // Page 1 entry should be visible
+    await waitFor(() => {
+      expect(screen.getByText('pizza margherita')).toBeInTheDocument();
+    });
+
+    // Simulate loadMore completing: hook now returns both pages (older prepended)
+    mockUseSearchHistory.mockReturnValue({
+      persistedEntries: [page2Entry, page1Entry],
+      hasMoreHistory: false,
+      isLoadingMore: false,
+      isLoadingHistory: false,
+      loadMore: jest.fn(),
+      deleteEntry: jest.fn(),
+      clearAll: jest.fn(),
+    });
+
+    rerender(<HablarShell />);
+
+    // Both entries must now be visible in the feed
+    await waitFor(() => {
+      expect(screen.getByText('ensalada cesar')).toBeInTheDocument();
+      expect(screen.getByText('pizza margherita')).toBeInTheDocument();
+    });
+  });
+
+  // Logout staleness: when persistedEntries → [] (authToken null), persisted
+  // entries leave the feed; session entries remain.
+  it('logout: persisted entries leave the feed; session entries created this session remain', async () => {
+    const persistedEntry = makePersistedEntry('entry-persisted', 'paella valenciana');
+
+    // Authenticated — has persisted entry
+    mockUseSearchHistory.mockReturnValue({
+      persistedEntries: [persistedEntry],
+      hasMoreHistory: false,
+      isLoadingMore: false,
+      isLoadingHistory: false,
+      loadMore: jest.fn(),
+      deleteEntry: jest.fn(),
+      clearAll: jest.fn(),
+    });
+
+    // Use authenticated user so we can see UsageMeter / session works
+    const { useAuth } = require('../../hooks/useAuth') as { useAuth: jest.Mock };
+    useAuth.mockReturnValue({
+      user: { id: 'user-1', email: 'test@example.com' },
+      session: { access_token: 'test-token' },
+      account: null,
+      loading: false,
+      error: null,
+      signIn: jest.fn(),
+      signOut: jest.fn(),
+    });
+
+    // Also add a session entry via text query
+    mockSendMessage.mockResolvedValue(createConversationMessageResponse('estimation'));
+
+    const { rerender } = render(<HablarShell />);
+
+    // Persisted entry visible
+    await waitFor(() => {
+      expect(screen.getByText('paella valenciana')).toBeInTheDocument();
+    });
+
+    // Submit a session query so there is a session entry in the feed
+    const textarea = screen.getByRole('textbox');
+    await userEvent.type(textarea, 'big mac');
+    await userEvent.type(textarea, '{Enter}');
+    await waitFor(() => {
+      expect(screen.getByText('Big Mac')).toBeInTheDocument();
+    });
+
+    // Simulate logout: hook returns empty persistedEntries; useAuth returns no user
+    mockUseSearchHistory.mockReturnValue({
+      persistedEntries: [],
+      hasMoreHistory: false,
+      isLoadingMore: false,
+      isLoadingHistory: false,
+      loadMore: jest.fn(),
+      deleteEntry: jest.fn(),
+      clearAll: jest.fn(),
+    });
+    useAuth.mockReturnValue({
+      user: null,
+      session: null,
+      account: null,
+      loading: false,
+      error: null,
+      signIn: jest.fn(),
+      signOut: jest.fn(),
+    });
+
+    rerender(<HablarShell />);
+
+    // Persisted entry must be gone
+    await waitFor(() => {
+      expect(screen.queryByText('paella valenciana')).not.toBeInTheDocument();
+    });
+
+    // Session entry created this session must still be present
+    expect(screen.getByText('Big Mac')).toBeInTheDocument();
   });
 });
