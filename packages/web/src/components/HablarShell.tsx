@@ -4,6 +4,8 @@
 // Manages all page state: query, loading, results, error, inlineError.
 // F092: adds photo analysis flow with executePhotoAnalysis.
 // F091: adds voice flow (VoiceOverlay + useVoiceSession + TTS playback).
+// F-WEB-TIER: header auth dichotomy (LoginCta / UsageMeter+UserMenu), rate-limit nudge,
+//   authenticated flag on telemetry, dynamic 429 error message.
 // Uses useRef<AbortController | null> for stale request guard (both text and photo flows).
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -20,6 +22,9 @@ import { ConversationInput } from './ConversationInput';
 import { ResultsArea } from './ResultsArea';
 import { UserMenu } from './UserMenu';
 import { VoiceOverlay } from './VoiceOverlay';
+import { LoginCta } from './LoginCta';
+import { UsageMeter } from './UsageMeter';
+import { RateLimitNudge } from './RateLimitNudge';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const VALID_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -67,7 +72,15 @@ export function HablarShell() {
   // F107a — auth integration (ADR-025 R3 §4+§6)
   const { user, session, loading: authLoading } = useAuth();
 
-  // Sync Supabase session token to apiClient module state
+  // F-WEB-TIER: rate-limit nudge state (anonymous 429 prompt)
+  const [showRateLimitNudge, setShowRateLimitNudge] = useState(false);
+
+  // F-WEB-TIER: ref to UsageMeter refresh callback — registered by UsageMeter via onRefreshReady
+  const usageRefreshRef = useRef<(() => void) | null>(null);
+
+  // Sync Supabase session token to apiClient module state.
+  // NOTE: AuthProvider (P-I1) also calls setAuthToken on session change — this useEffect
+  // is now redundant but harmless (idempotent singleton set).
   useEffect(() => {
     setAuthToken(session?.access_token ?? null);
   }, [session]);
@@ -132,6 +145,8 @@ export function HablarShell() {
       setIsVoiceOverlayOpen(false);
       setVoiceError(null);
       trackEvent('voice_success', { intent: data.intent });
+      // F-WEB-TIER: refresh usage meter after successful voice query (BUG-001)
+      usageRefreshRef.current?.();
 
       // Speak a short summary — presentation layer only; engine already
       // calculated the numbers (ADR-001).
@@ -220,11 +235,12 @@ export function HablarShell() {
     setIsLoading(true);
     setError(null);
     setInlineError(null);
+    setShowRateLimitNudge(false); // F-WEB-TIER: clear nudge on each new query attempt
     // Cross-flow cleanup: text query clears photo results
     setPhotoResults(null);
 
     const startTime = Date.now();
-    trackEvent('query_sent');
+    trackEvent('query_sent', { authenticated: !!user }); // F-WEB-TIER: add authenticated flag
 
     try {
       const actorId = getActorId();
@@ -249,8 +265,11 @@ export function HablarShell() {
       trackEvent('query_success', {
         intent: data.intent,
         responseTimeMs: Date.now() - startTime,
+        authenticated: !!user, // F-WEB-TIER
       });
       setResults(data);
+      // F-WEB-TIER: refresh usage meter after successful query
+      usageRefreshRef.current?.();
     } catch (err) {
       // AbortError from stale request guard or user-triggered abort — silently ignore
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -272,7 +291,14 @@ export function HablarShell() {
       if (err instanceof ApiError) {
         trackEvent('query_error', { errorCode: err.code });
         if (err.code === 'RATE_LIMIT_EXCEEDED') {
-          setError('Has alcanzado el límite diario de 50 consultas. Vuelve mañana.');
+          // F-WEB-TIER: dynamic message from details.limit (cross-model F6)
+          const limit = typeof err.details?.['limit'] === 'number' ? err.details['limit'] : null;
+          const limitStr = limit !== null ? `${limit} ` : '';
+          setError(`Has alcanzado el límite diario de ${limitStr}consultas. Vuelve mañana.`);
+          // E9: show nudge only for anonymous users
+          if (user === null) {
+            setShowRateLimitNudge(true);
+          }
         } else if (err.code === 'TIMEOUT_ERROR') {
           setError('La consulta ha tardado demasiado. Inténtalo de nuevo.');
         } else if (err.code === 'NETWORK_ERROR') {
@@ -291,7 +317,7 @@ export function HablarShell() {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [user]);
 
   const executePhotoAnalysis = useCallback(async (file: File) => {
     // F107a: guard against race condition where auth state has not resolved yet
@@ -323,7 +349,7 @@ export function HablarShell() {
     setInlineError(null);
 
     const startTime = Date.now();
-    trackEvent('photo_sent');
+    trackEvent('photo_sent', { authenticated: !!user }); // F-WEB-TIER
 
     try {
       const actorId = getActorId();
@@ -360,8 +386,11 @@ export function HablarShell() {
       trackEvent('photo_success', {
         dishCount: data.dishCount,
         responseTimeMs: Date.now() - startTime,
+        authenticated: !!user, // F-WEB-TIER
       });
       setPhotoResults(data);
+      // F-WEB-TIER: refresh usage meter after successful photo analysis
+      usageRefreshRef.current?.();
     } catch (err) {
       // Stale request abort — silently ignore
       if (
@@ -425,7 +454,7 @@ export function HablarShell() {
         setPhotoMode('idle');
       }
     }
-  }, [photoAnalysisMode, authLoading]);
+  }, [photoAnalysisMode, authLoading, user]);
 
   // F-WEB-MENU-VISION-001 — track menu_dish_list_shown when multi-dish result appears.
   // Cannot fire from MenuDishList (Server Component) — trackEvent is client-only.
@@ -476,10 +505,19 @@ export function HablarShell() {
 
   return (
     <div className="flex h-[100dvh] flex-col bg-white">
-      {/* Minimal app bar */}
+      {/* Minimal app bar — F-WEB-TIER: auth-slot dichotomy (W9) */}
       <header className="flex h-[52px] flex-shrink-0 items-center border-b border-slate-100 bg-white px-4">
         <span className="text-base font-bold text-brand-green">nutriXplorer</span>
-        {user && <UserMenu user={user} />}  {/* F107a — ADR-025 R3 §6 */}
+        {/* Logged-out: show LoginCta. Logged-in: show UsageMeter + UserMenu.
+            Both suppressed while authLoading to avoid flash before session resolves. */}
+        {!authLoading && !user && <LoginCta />}
+        {!authLoading && user && (
+          <div className="flex items-center gap-2 ml-auto">
+            {/* UserMenu has its own ml-auto inside — redundant here but harmless */}
+            <UsageMeter onRefreshReady={(fn) => { usageRefreshRef.current = fn; }} />
+            <UserMenu user={user} />
+          </div>
+        )}
       </header>
 
       {/* Results area — scrollable */}
@@ -495,6 +533,15 @@ export function HablarShell() {
         onDishSelect={handleDishSelect}
         photoAnalysisMode={photoAnalysisMode}
       />
+
+      {/* F-WEB-TIER P-I2: RateLimitNudge as sibling below ResultsArea (NOT inside ErrorState).
+          ErrorState.tsx has no children/slot prop. Nudge only shown to anonymous users.
+          E9: logged-in user hitting free-tier limit gets plain error — no register prompt. */}
+      {showRateLimitNudge && !user && (
+        <div className="px-4 pb-2">
+          <RateLimitNudge onSignUpClick={() => setShowRateLimitNudge(false)} />
+        </div>
+      )}
 
       {/* Fixed bottom input */}
       <ConversationInput

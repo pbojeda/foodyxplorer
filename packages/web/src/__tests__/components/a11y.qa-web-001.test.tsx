@@ -27,6 +27,16 @@ jest.mock('../../lib/actorId', () => ({
   persistActorId: jest.fn(),
 }));
 
+// F-WEB-TIER: mock next/navigation for LoginCta / RateLimitNudge router usage
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
+}));
+
+// F-WEB-TIER: mock new components
+jest.mock('../../components/LoginCta', () => ({ LoginCta: () => null }));
+jest.mock('../../components/UsageMeter', () => ({ UsageMeter: () => null }));
+jest.mock('../../components/RateLimitNudge', () => ({ RateLimitNudge: () => null }));
+
 // F107a: mock useAuth — HablarShell now requires AuthProvider context
 jest.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
@@ -43,14 +53,18 @@ jest.mock('../../lib/apiClient', () => ({
   sendMessage: jest.fn(),
   sendPhotoAnalysis: jest.fn(),
   setAuthToken: jest.fn(), // F107a
+  getMe: jest.fn(),        // F-WEB-TIER
+  getUsage: jest.fn(),     // F-WEB-TIER
   ApiError: class ApiError extends Error {
     code: string;
     status: number | undefined;
-    constructor(message: string, code: string, status?: number) {
+    details: Record<string, unknown> | undefined;
+    constructor(message: string, code: string, status?: number, details?: Record<string, unknown>) {
       super(message);
       this.name = 'ApiError';
       this.code = code;
       this.status = status;
+      this.details = details;
     }
   },
 }));

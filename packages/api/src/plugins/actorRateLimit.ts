@@ -18,6 +18,8 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Redis } from 'ioredis';
+import type { PrismaClient } from '@prisma/client';
+import { resolveAccountTier } from '../lib/accountTier.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,7 +58,7 @@ export const ROUTE_BUCKET_MAP: Record<string, Bucket> = {
 // ---------------------------------------------------------------------------
 
 /** Start of next UTC day as ISO string (for resetAt in 429 response) */
-function computeResetAt(dateKey: string): string {
+export function computeResetAt(dateKey: string): string {
   const parts = dateKey.split('-').map(Number);
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- dateKey is always YYYY-MM-DD (computed via toISOString().slice(0,10)), split produces 3 elements
   const y = parts[0]!;
@@ -73,11 +75,12 @@ function computeResetAt(dateKey: string): string {
 
 interface RegisterActorRateLimitOptions {
   redis: Redis;
+  prisma: PrismaClient;
 }
 
 export async function registerActorRateLimit(
   app: FastifyInstance,
-  { redis }: RegisterActorRateLimitOptions,
+  { redis, prisma }: RegisterActorRateLimitOptions,
 ): Promise<void> {
   app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     const url = request.routeOptions.url ?? '';
@@ -89,9 +92,28 @@ export async function registerActorRateLimit(
     const actorId = request.actorId;
     if (!actorId) return; // No actor = no limit check (shouldn't happen)
 
-    // Resolve tier from API key context (or anonymous)
-    const tier: Tier = (request.apiKeyContext?.tier as Tier) ?? 'anonymous';
+    // Resolve tier: bearer > API key > anonymous
+    //
+    // ADR-025 R3 §5 + fork D4: bearer is the authoritative identity channel.
+    // When a valid bearer is present (request.accountId set by actorResolver), the
+    // account tier is resolved from the DB/cache — even when apiKeyContext is ALSO
+    // present (e.g. /analyze/menu where the web proxy sends the shared X-API-Key AND
+    // forwards the user's Authorization: Bearer). This ensures authenticated users
+    // get their account photo/query/voice limits, not the shared key's tier.
+    //
+    // API-key-only clients (bot/external callers that send X-API-Key without a bearer)
+    // have no accountId set, so they still take the key-tier branch (unchanged).
+    // Anonymous callers (no bearer, no key) resolve to 'anonymous' (unchanged).
     const hasApiKey = request.apiKeyContext !== undefined;
+    const hasBearerAuth = !!request.accountId;
+    let tier: Tier;
+    if (hasBearerAuth && request.accountId) {
+      tier = await resolveAccountTier(redis, prisma, request.accountId, request.log);
+    } else if (hasApiKey && request.apiKeyContext) {
+      tier = request.apiKeyContext.tier as Tier;
+    } else {
+      tier = 'anonymous';
+    }
 
     const limit = DAILY_LIMITS_BY_TIER[tier]?.[bucket];
     if (limit === undefined) {
@@ -153,8 +175,8 @@ export async function registerActorRateLimit(
       }
     } catch {
       // Redis failure — ADR-016 policy (AC15)
-      if (hasApiKey) {
-        // Fail-open for authenticated requests (free, pro, admin)
+      if (hasApiKey || hasBearerAuth) {
+        // Fail-open for authenticated requests (API key or bearer)
         return;
       }
       // Fail-closed for anonymous

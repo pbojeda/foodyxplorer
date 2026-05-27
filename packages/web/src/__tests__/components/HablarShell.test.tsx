@@ -12,6 +12,26 @@ jest.mock('../../lib/actorId', () => ({
   persistActorId: jest.fn(),
 }));
 
+// F-WEB-TIER: mock next/navigation for LoginCta / RateLimitNudge router usage
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
+}));
+
+// F-WEB-TIER: mock new components to keep existing tests focused on HablarShell behavior
+jest.mock('../../components/LoginCta', () => ({
+  LoginCta: () => null,
+}));
+jest.mock('../../components/UsageMeter', () => ({
+  UsageMeter: () => null,
+}));
+jest.mock('../../components/RateLimitNudge', () => ({
+  RateLimitNudge: () => null,
+}));
+jest.mock('../../lib/metrics', () => ({
+  trackEvent: jest.fn(),
+  flushMetrics: jest.fn(),
+}));
+
 // F107a: mock useAuth — HablarShell now requires AuthProvider context
 jest.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
@@ -27,14 +47,18 @@ jest.mock('../../hooks/useAuth', () => ({
 jest.mock('../../lib/apiClient', () => ({
   sendMessage: jest.fn(),
   setAuthToken: jest.fn(), // F107a
+  getMe: jest.fn(),        // F-WEB-TIER
+  getUsage: jest.fn(),     // F-WEB-TIER
   ApiError: class ApiError extends Error {
     code: string;
     status: number | undefined;
-    constructor(message: string, code: string, status?: number) {
+    details: Record<string, unknown> | undefined;
+    constructor(message: string, code: string, status?: number, details?: Record<string, unknown>) {
       super(message);
       this.name = 'ApiError';
       this.code = code;
       this.status = status;
+      this.details = details;
     }
   },
 }));

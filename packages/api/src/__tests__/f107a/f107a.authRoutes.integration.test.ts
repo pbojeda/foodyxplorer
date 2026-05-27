@@ -472,6 +472,48 @@ describe('F107a — GET /me', () => {
     await app.close();
   });
 
+  it('F-WEB-TIER AC15: GET /me response includes tier field (free by default)', async () => {
+    // Ensure clean state
+    await prisma.$executeRaw`UPDATE actors SET account_id = NULL WHERE id IN (${ACTOR_ID_1}::uuid, ${ACTOR_ID_2}::uuid)`;
+    await prisma.$executeRaw`DELETE FROM accounts WHERE auth_user_id = ${AUTH_USER_ID_1}::uuid`;
+    await prisma.actor.upsert({
+      where: { type_externalId: { type: 'anonymous_web', externalId: ACTOR_EXT_ID_1 } },
+      create: { id: ACTOR_ID_1, type: 'anonymous_web', externalId: ACTOR_EXT_ID_1, lastSeenAt: new Date() },
+      update: { accountId: null, lastSeenAt: new Date() },
+    });
+
+    mockVerifyBearerJwt.mockResolvedValue({
+      sub: AUTH_USER_ID_1,
+      email: 'user@example.com',
+      aud: 'authenticated',
+      iss: 'https://test.supabase.co/auth/v1',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+
+    const app = await buildApp({
+      config: testConfig as unknown as import('../../config.js').Config,
+      prisma,
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/me',
+      headers: {
+        authorization: await makeValidJwt(),
+        'x-actor-id': ACTOR_EXT_ID_1,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.account).toBeDefined();
+    // F-WEB-TIER: tier must be present and default to 'free'
+    expect(body.data.account.tier).toBe('free');
+
+    await app.close();
+  });
+
   it('S2: concurrent first-login requests produce same accounts.id (upsert determinism)', async () => {
     // Clean up any prior account
     await prisma.$executeRaw`UPDATE actors SET account_id = NULL WHERE id IN (${ACTOR_ID_1}::uuid, ${ACTOR_ID_2}::uuid)`;

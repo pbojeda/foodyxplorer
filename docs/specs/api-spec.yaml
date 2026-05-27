@@ -12,7 +12,7 @@ info:
     **Validation:**
     - Request bodies and query params are validated via `fastify-type-provider-zod`.
     - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
-  version: 0.8.0
+  version: 0.9.0
   contact:
     name: foodXPlorer
   license:
@@ -101,8 +101,11 @@ tags:
       conversational context in Redis, and return structured JSON.
       The Telegram bot is a thin adapter over this service. Returns structured data — never
       formatted text. Formatting is the responsibility of each adapter.
-      Per-actor rate limit applies (F069 — 50 queries/day per actor).
+      Per-actor rate limit applies (F069 / F-WEB-TIER — tier-aware daily limits).
+      anonymous: 50 queries/day. free (registered): 100 queries/day. pro: 500.
       Anonymous access via X-Actor-Id header (F069 actor middleware).
+      Authenticated access via Authorization: Bearer (F107a); tier resolved from
+      accounts.tier (Redis-cached, TTL 60s) by actorRateLimit (F-WEB-TIER).
   - name: Cooking
     description: |
       Cooking profiles and yield factor data (F072). The `cooking_profiles` table stores
@@ -465,6 +468,16 @@ paths:
         `public.accounts` row exists (incomplete prior migration), this endpoint creates
         the accounts row on first hit.
 
+        **Resolver-side linking (F-WEB-TIER):** Starting from F-WEB-TIER, `actorResolver`
+        also performs account linking resolver-side (on every bearer request) using the same
+        safe predicate. `/me` linking therefore becomes idempotent in the common case.
+        `/me` retains its linking logic as the canonical path for explicit account fetch
+        (e.g. when the frontend needs the account row). The resolver-side path is an
+        optimisation so the web app can work without calling `/me`.
+
+        **Tier in response (F-WEB-TIER):** The `account` object now includes `tier`
+        (enum: free | pro | admin). All accounts default to `free`.
+
         **Auth required:** 401 if no/invalid/expired bearer. NOT anonymous — `/me` is
         strictly auth-gated. ADR-025 R3 §5.
       operationId: getMe
@@ -492,6 +505,7 @@ paths:
                     consentMarketingAt: null
                     consentAnalytics: false
                     consentAnalyticsAt: null
+                    tier: "free"
                   actor:
                     id: "11111111-2222-3333-4444-555555555555"
                     type: "anonymous_web"
@@ -543,6 +557,97 @@ paths:
                 error:
                   message: "Auth provider unavailable — please retry shortly"
                   code: "AUTH_PROVIDER_UNAVAILABLE"
+
+  # ---------------------------------------------------------------------------
+  # F-WEB-TIER — Usage meter (read-only daily usage for the requesting actor)
+  # ---------------------------------------------------------------------------
+
+  /me/usage:
+    get:
+      summary: Return current UTC-day usage across the three daily-limit buckets
+      description: |
+        Returns the authenticated actor's daily usage counters (queries, photos, voice)
+        for the current UTC day, read from the rate-limit Redis counters via GET (no
+        increment). This endpoint is **NOT** in `ROUTE_BUCKET_MAP` and therefore never
+        consumes quota by being called.
+
+        **Bucket rules:**
+        - `used` = current Redis counter value; absent key → 0.
+        - `limit` = `DAILY_LIMITS_BY_TIER[tier][bucket]`.
+        - `remaining` = `max(0, limit − used)`.
+        - For `tier = admin` each bucket returns `limit: null, remaining: null` (unbounded).
+
+        **Reset window:** counters expire at UTC midnight; `resetAt` is always
+        `YYYY-MM-DDT00:00:00.000Z` of the next UTC day.
+
+        **Bearer precedence (same as GET /me — ADR-025 R3 §5):**
+        - Header absent → 401 UNAUTHORIZED.
+        - Header present + valid → authenticated flow.
+        - Header present + invalid/expired → 401 immediately.
+
+        **Not in ROUTE_BUCKET_MAP:** calling this endpoint does NOT decrement any quota.
+        The web client calls it on mount and refreshes after each successful query/photo/voice.
+      operationId: getMeUsage
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current UTC-day usage for the authenticated actor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageApiResponse'
+              example:
+                success: true
+                data:
+                  tier: "free"
+                  resetAt: "2026-05-27T00:00:00.000Z"
+                  buckets:
+                    queries:
+                      used: 12
+                      limit: 100
+                      remaining: 88
+                    photos:
+                      used: 3
+                      limit: 20
+                      remaining: 17
+                    voice:
+                      used: 5
+                      limit: 30
+                      remaining: 25
+        '401':
+          description: |
+            No bearer token, invalid token, or expired token.
+            ADR-025 R3 §5 strict precedence — present-but-invalid never falls through to
+            anonymous flow.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noBearer:
+                  summary: Authorization header absent
+                  value:
+                    success: false
+                    error:
+                      message: "Authentication required"
+                      code: "UNAUTHORIZED"
+                expiredJwt:
+                  summary: Token expired
+                  value:
+                    success: false
+                    error:
+                      message: "Token has expired"
+                      code: "TOKEN_EXPIRED"
+                invalidJwt:
+                  summary: Invalid signature or malformed JWT
+                  value:
+                    success: false
+                    error:
+                      message: "Invalid or malformed token"
+                      code: "INVALID_TOKEN"
 
   /ingest/pdf:
     post:
@@ -10091,9 +10196,9 @@ components:
       type: object
       description: |
         App-owned account row (public.accounts). Created on first successful login.
-        Stores identity, consent timestamps, and (in future) billing state.
+        Stores identity, consent timestamps, and tier (billing state).
         Body/health fields are NOT here — they belong to public.profiles (F099).
-        ADR-025 R3 §3.
+        ADR-025 R3 §3. F-WEB-TIER adds the `tier` column (default: free).
       required:
         - id
         - authUserId
@@ -10149,6 +10254,20 @@ components:
           nullable: true
           description: Timestamp when analytics consent was last toggled. Null if never set.
           example: null
+        tier:
+          type: string
+          enum: [free, pro, admin]
+          description: |
+            Account tier. Defaults to `free` for all registered accounts (F-WEB-TIER).
+            Determines daily rate limits applied by actorRateLimit when request.accountId
+            (the bearer `sub` = auth_user_id) is set (100 queries / 20 photos / 30 voice for `free`).
+            `pro` and `admin` reserved for future monetisation — not provisioned via UI yet.
+            Stored in `accounts.tier` (DB column, enum account_tier, default 'free').
+            Cached server-side: Redis key `account:tier:<auth_user_id>`, TTL 60s.
+            NOTE: the API always returns `tier` post-migration, but it is NOT in `required` —
+            clients should default to `free` if absent, to tolerate rolling-deploy skew
+            (web auto-deploys on Vercel; api-dev is a manual deploy). See ticket E10.
+          example: "free"
 
     ActorSummary:
       type: object
@@ -10284,6 +10403,90 @@ components:
             - $ref: '#/components/schemas/LoginGoogleRedirect'
           discriminator:
             propertyName: provider
+
+    # -------------------------------------------------------------------------
+    # F-WEB-TIER — Usage meter schemas (GET /me/usage)
+    # -------------------------------------------------------------------------
+
+    UsageBucket:
+      type: object
+      description: |
+        Daily usage counters for a single rate-limit bucket (queries, photos, or voice).
+        `limit` and `remaining` are null for admin tier (unbounded).
+      required:
+        - used
+        - limit
+        - remaining
+      properties:
+        used:
+          type: integer
+          minimum: 0
+          description: |
+            Current Redis counter value for this bucket on the UTC day. Absent key → 0.
+          example: 12
+        limit:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: |
+            Daily limit for this bucket derived from `DAILY_LIMITS_BY_TIER[tier][bucket]`.
+            Null for admin tier (unbounded).
+          example: 100
+        remaining:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: |
+            `max(0, limit − used)`. Null for admin tier (unbounded).
+          example: 88
+
+    UsageData:
+      type: object
+      description: Payload for GET /me/usage — current UTC-day usage across all buckets.
+      required:
+        - tier
+        - resetAt
+        - buckets
+      properties:
+        tier:
+          type: string
+          enum: [free, pro, admin]
+          description: |
+            Account tier of the requesting actor. Determines `limit` values per bucket.
+            Mirrors `Account.tier` — admin yields `limit: null, remaining: null` in each bucket.
+          example: "free"
+        resetAt:
+          type: string
+          format: date-time
+          description: |
+            UTC midnight of the next UTC day — when all counters reset.
+            Always `YYYY-MM-DDT00:00:00.000Z`.
+          example: "2026-05-27T00:00:00.000Z"
+        buckets:
+          type: object
+          description: Usage counters keyed by bucket name. Fixed keys: queries, photos, voice.
+          required:
+            - queries
+            - photos
+            - voice
+          properties:
+            queries:
+              $ref: '#/components/schemas/UsageBucket'
+            photos:
+              $ref: '#/components/schemas/UsageBucket'
+            voice:
+              $ref: '#/components/schemas/UsageBucket'
+
+    UsageApiResponse:
+      type: object
+      description: GET /me/usage success envelope.
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/UsageData'
 
   securitySchemes:
     BearerAuth:

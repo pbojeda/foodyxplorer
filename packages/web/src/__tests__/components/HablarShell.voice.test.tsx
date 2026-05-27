@@ -16,11 +16,23 @@ jest.mock('../../lib/actorId', () => ({
   persistActorId: jest.fn(),
 }));
 
+// F-WEB-TIER: mock next/navigation for LoginCta / RateLimitNudge router usage
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
+}));
+
+// F-WEB-TIER: mock new components
+jest.mock('../../components/LoginCta', () => ({ LoginCta: () => null }));
+jest.mock('../../components/UsageMeter', () => ({ UsageMeter: () => null }));
+jest.mock('../../components/RateLimitNudge', () => ({ RateLimitNudge: () => null }));
+
 jest.mock('../../lib/apiClient', () => ({
   sendMessage: jest.fn(),
   sendPhotoAnalysis: jest.fn(),
   sendVoiceMessage: jest.fn(),
   setAuthToken: jest.fn(), // F107a
+  getMe: jest.fn(),        // F-WEB-TIER
+  getUsage: jest.fn(),     // F-WEB-TIER
   ApiError: class ApiError extends Error {
     code: string;
     status: number | undefined;

@@ -90,6 +90,14 @@ enum ApiKeyTier {
   @@map("api_key_tier")
 }
 
+enum AccountTier {
+  free
+  pro
+  admin
+
+  @@map("account_tier")
+}
+
 enum ActorType {
   anonymous_web
   telegram
@@ -489,6 +497,7 @@ model Account {
   consentMarketingAt  DateTime? @map("consent_marketing_at") @db.Timestamptz
   consentAnalytics    Boolean   @default(false) @map("consent_analytics")
   consentAnalyticsAt  DateTime? @map("consent_analytics_at") @db.Timestamptz
+  tier                AccountTier @default(free)
 
   actors Actor[]
 

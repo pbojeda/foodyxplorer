@@ -56,6 +56,13 @@ export async function POST(request: Request): Promise<Response> {
     mergedHeaders.set('X-FXP-Source', source);
   }
 
+  // F-WEB-TIER: forward Authorization header when present so Fastify can resolve
+  // account tier for photo rate limits. Anonymous requests (no bearer) are unchanged.
+  const authorization = request.headers.get('Authorization');
+  if (authorization) {
+    mergedHeaders.set('Authorization', authorization);
+  }
+
   // Proxy the request body as-is (multipart stream).
   // duplex: 'half' is required by the fetch spec when sending a streaming body.
   // signal: AbortSignal.timeout(65s) protects against backend hangs — matches

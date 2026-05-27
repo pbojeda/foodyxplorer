@@ -11,7 +11,7 @@
 | Feature | Complexity | Status | Duration | Notes |
 |---------|------------|--------|----------|-------|
 | BUG-PROD-013 — Authed `/conversation/*` 500 (actorId not set on bearer path) | Standard | done | 2026-05-25 | **DONE — merged PR #292 squash `68caa0b`; AC8 operator deploy pending. P0 fundación. PIVOT 2026-05-25: reemplazó a F099-lite.** bug-workflow Path B (base develop). Fix reusa la resolución de actor de `/me` (X-Actor-Id → provisionFallbackActor + link seguro) en el path bearer del actorResolver. Doc: `docs/research/post-auth-strategic-analysis-2026-05-25.md` |
-| F-WEB-TIER + F-WEB-AUTH-CTA — registro con valor | Standard | pending | — | Tras BUG-PROD-013. Cuenta ⇒ tier `free` (incl. foto vía proxy) + entry point login en `/hablar`. Signup abierto, waitlist=marketing. |
+| F-WEB-TIER + F-WEB-AUTH-CTA — registro con valor | Standard | in-progress | — | **Step 5/6 — Review (Ready for Merge)**; 5 commits; api 4666 + web 631 green; production-code-validator + code-review (1 MAJOR fixed: bearer-over-key) + qa (BUG-001 fixed) done; merge-checklist 0-7 ✅; pending push+PR+CI+audit-merge → MERGE approval. (branch `feature/F-WEB-TIER-registration-value` off develop@b88f617). Spec APPROVED + cross-model (6 findings F1-F6 applied) + ui-ux-designer (W9-W14). **37 ACs.** Scope: cuenta⇒tier `free` (incl. foto vía proxy bearer-forward, D4-A) + linking actor↔cuenta resolver-side vía `linkActorToAccount` (preserva predicado F107a-FU2) + `accounts.tier` col (D1) + `GET /me/usage` + `<UsageMeter>` (logueado) + `<LoginCta>` (deslogueado) + nudge 429. Encuadre fullstack combinado (owner). |
 | F-WEB-HISTORY — histórico de búsquedas (faseado) | Standard | pending | — | Tras tier/CTA. Fase 1 transcript LOCAL (mide uso) → Fases 2-3 persistencia. |
 | F099-lite — User Profiles BMR + targets | Standard | DEFERRED | — | **Diferido 2026-05-25 (owner):** alta fricción + retención sin validar + gate RGPD Art.9. Revisar tras señal de beta. |
 
@@ -37,9 +37,11 @@ _(Move features here if blocked)_
 
 ## Recovery Instructions
 
-**Current feature:** None — F107a-FU3 done + auth RELEASED to prod (PR #290 `cf906b8`). **Strategic pivot 2026-05-25.**
-**Branch:** `develop` (clean).
-**Next features:** **BUG-PROD-013 DONE** (PR #292) → next: **P0b / F-WEB-TIER** (account↔actor linking + tier-por-cuenta, incl. foto vía proxy) + **F-WEB-AUTH-CTA** → **F-WEB-HISTORY** (faseado, local primero). Plan en `docs/research/post-auth-strategic-analysis-2026-05-25.md` (cross-model 2 rondas, Gemini+Codex). **F099-lite DIFERIDO.** **Operator pending: manual api-dev deploy + AC8 smoke.**
+**Current feature:** **F-WEB-TIER + F-WEB-AUTH-CTA** (Standard, fullstack) — **Step 5/6 (Review, Ready for Merge)**, in-progress. Implementation + reviews complete (5 commits; bearer-over-key MAJOR + BUG-001 fixed); merge-checklist 0-7 done. Next: push + PR to develop + CI + `/audit-merge` → MERGE approval → Step 6 closeout.
+**Branch:** `feature/F-WEB-TIER-registration-value` (off develop@b88f617).
+**Step 0 DONE (Spec APPROVED by owner):** ticket + 37 ACs; `/review-spec` cross-model 6 findings (F1 tier optional/deploy-skew · F2 accountId=sub · F3 fail-open free · F4 DRY `linkActorToAccount` · F5 tier in actorRateLimit · F6 dynamic 429) all applied; `ui-ux-designer` W9-W14; owner approved forks D1-D4 (tier col / resolver-side linking / Redis cache / photo Option A forward-bearer) + reset="mañana". Specs updated (api-spec `GET /me/usage`, ui-components `UsageMeter`, shared `UsageResponseSchema`); shared typecheck+tests green.
+**Step 2 actions:** `backend-planner` (migration + `resolveAccountTier` + `linkActorToAccount` shared helper + `/me` RETURNING tier + `GET /me/usage`) → then `frontend-planner` (`<LoginCta>`/`<UsageMeter>`/`<RateLimitNudge>`, HablarShell header, apiClient `getUsage`+bearer photo, `/api/analyze` proxy bearer-forward, funnel events). Then `/review-plan` (cross-model). **PAUSE at Plan checkpoint** (auth-sensitive) before Step 3.
+**Next features (after F-WEB-TIER):** **F-WEB-HISTORY** (faseado, transcript local primero). Plan en `docs/research/post-auth-strategic-analysis-2026-05-25.md` (cross-model 2 rondas). **F099-lite DIFERIDO.** **Operator pending: AC8 — manual api-dev deploy smoke (login → "paella" → 200); api-dev health/uptime ya verificado.**
 **Blocked:** none.
 
 **Pivot context** (2026-05-18): originally pm-profiles was F107b + F099-lite. After empirical investigation surfaced F107b's premise as incorrect AND surfaced a real P1 hijack bug in F107a, the batch was recomposed: F107a-FU2 (the hotfix) replaces F107b. F107b ticket closed with `Status: Closed - Not Needed` + re-evaluation triggers.

@@ -1,12 +1,20 @@
 'use client';
 
-// AuthProvider — F107a (ADR-025 R3 §6)
+// AuthProvider — F107a (ADR-025 R3 §6) + F-WEB-TIER
 // Mounts the browser Supabase client, subscribes to onAuthStateChange,
 // and provides AuthContext to the component tree.
+//
+// F-WEB-TIER (P-I1): AuthProvider is the authoritative bearer setter.
+// setAuthToken() is called on EVERY session change (including TOKEN_REFRESHED).
+// getMe() is called only on SIGNED_IN / INITIAL_SESSION events — NOT TOKEN_REFRESHED
+// (loop guard: token refresh fires every ~3600s; calling getMe each time would spam
+// the endpoint unnecessarily).
 
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
+import type { Account } from '@foodxplorer/shared';
 import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { setAuthToken, getMe } from '@/lib/apiClient';
 
 // ---------------------------------------------------------------------------
 // Context shape
@@ -20,6 +28,7 @@ export interface SignInOptions {
 export interface AuthContextValue {
   user: User | null;
   session: Session | null;
+  account: Account | null;          // F-WEB-TIER: from GET /me; null before session or on getMe failure
   loading: boolean;
   error: string | null;
   signIn: (provider: 'email' | 'google', options: SignInOptions) => Promise<void>;
@@ -39,6 +48,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,10 +58,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setLoading(false);
+
+      // P-I1: AuthProvider is the authoritative setter of the apiClient bearer singleton.
+      // Set it on EVERY session change (incl. TOKEN_REFRESHED) so outbound calls
+      // use a fresh token — BEFORE getMe() below, so getMe runs with a valid token.
+      // HablarShell's existing setAuthToken effect becomes redundant but harmless.
+      setAuthToken(newSession?.access_token ?? null);
+
+      // Call getMe only on genuine session establish events — NOT TOKEN_REFRESHED
+      // (TOKEN_REFRESHED fires ~every hour for silent refresh; no linking needed then).
+      if (
+        newSession &&
+        (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')
+      ) {
+        getMe()
+          .then((meEnvelope) => {
+            setAccount(meEnvelope.data.account);
+          })
+          .catch((err) => {
+            // AC10: non-fatal — log, leave account as null, app continues working.
+            // Tier falls back to 'free' (E3). Meter shows "—".
+            console.warn('[AuthProvider] getMe failed (non-fatal):', err);
+          });
+      }
+
+      if (event === 'SIGNED_OUT') {
+        setAccount(null);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -104,8 +141,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [supabase, session]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, session, loading, error, signIn, signOut }),
-    [user, session, loading, error, signIn, signOut]
+    () => ({ user, session, account, loading, error, signIn, signOut }),
+    [user, session, account, loading, error, signIn, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

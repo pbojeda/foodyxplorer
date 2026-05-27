@@ -21,6 +21,7 @@ import userEvent from '@testing-library/user-event';
 
 jest.mock('next/navigation', () => ({
   useSearchParams: jest.fn(),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
 }));
 
 import { HablarAnalytics } from '../../components/HablarAnalytics';
@@ -97,17 +98,26 @@ jest.mock('../../hooks/useAuth', () => ({
   }),
 }));
 
+// F-WEB-TIER: mock new components
+jest.mock('../../components/LoginCta', () => ({ LoginCta: () => null }));
+jest.mock('../../components/UsageMeter', () => ({ UsageMeter: () => null }));
+jest.mock('../../components/RateLimitNudge', () => ({ RateLimitNudge: () => null }));
+
 jest.mock('../../lib/apiClient', () => ({
   sendMessage: jest.fn(),
   setAuthToken: jest.fn(), // F107a
+  getMe: jest.fn(),        // F-WEB-TIER
+  getUsage: jest.fn(),     // F-WEB-TIER
   ApiError: class ApiError extends Error {
     code: string;
     status: number | undefined;
-    constructor(message: string, code: string, status?: number) {
+    details: Record<string, unknown> | undefined;
+    constructor(message: string, code: string, status?: number, details?: Record<string, unknown>) {
       super(message);
       this.name = 'ApiError';
       this.code = code;
       this.status = status;
+      this.details = details;
     }
   },
 }));

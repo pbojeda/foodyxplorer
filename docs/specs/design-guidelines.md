@@ -984,3 +984,324 @@ The existing `globals.css:97-115` block already disables all `.card-enter` and `
 ---
 
 *Section added: 2026-04-30 | Feature: F-WEB-MENU-VISION-001 | Designer: ui-ux-designer agent*
+
+---
+
+## Web App `/hablar` — F-WEB-TIER: Registration value — `<LoginCta>` + `<UsageMeter>`
+
+**Package:** `packages/web/` | **Added:** 2026-05-26 | **Status:** Design Approved
+**Applies to:** `HablarShell` header (the 52px app bar), `LoginCta` (NEW), `UsageMeter` (NEW), `RateLimitNudge` (NEW inline in ResultsArea).
+
+> These notes extend the existing W1–W8 block above. They apply only to the `/hablar` header and the two new header-resident components. The `/hablar` shell visual language (white background, brand-green, slate palette, 32px avatar button focus ring) is already established in W1 — all new work must feel continuous with it.
+
+---
+
+### W9. Header layout: the auth slot
+
+The existing header is a single `flex items-center` row, `h-[52px]`, with the logo (`text-base font-bold text-brand-green`) hard-left and `<UserMenu>` (32px avatar circle) hard-right via `ml-auto` on its wrapper (`relative ml-auto`).
+
+This feature introduces a **clean auth-state dichotomy** in that right slot:
+
+```
+┌──────────────────────────────────────────────────────┐
+│  nutriXplorer                            [slot]       │  h-[52px]
+└──────────────────────────────────────────────────────┘
+
+logged-out:  [slot] = <LoginCta>           (CTA button, ml-auto)
+logged-in:   [slot] = <UsageMeter> + <UserMenu>  (inline pair, ml-auto on wrapper)
+loading:     [slot] = nothing              (authLoading guard — no layout shift)
+```
+
+The slot is reserved space on the right. During `authLoading`, it is intentionally empty — the header keeps its `h-[52px]` fixed height regardless, so no layout shift occurs when auth resolves. This matches the existing `UserMenu` pattern (it already returns null when `user` is null).
+
+**DOM order in the header flex row:**
+
+```
+1. <span> logo               — left anchor
+2. <LoginCta>  OR            — right anchor (mutually exclusive)
+   <div class="flex items-center gap-2 ml-auto">
+     <UsageMeter />
+     <UserMenu user={user} />
+   </div>
+```
+
+The `ml-auto` that previously sat on `UserMenu`'s wrapping `<div>` moves to the outer wrapper that contains both `<UsageMeter>` and `<UserMenu>` in the logged-in state. `<LoginCta>` has its own `ml-auto`.
+
+---
+
+### W10. `<LoginCta>` — logged-out header button
+
+#### Visual form
+
+A compact text button — **not** a pill badge, not an outlined icon button. Rationale: logged-out users on `/hablar` have arrived without intending to register; a heavy visual treatment (orange CTA) creates unwanted pressure. A soft, medium-emphasis button signals the option without dominating the header. The brand-green text on white achieves this without introducing a new button variant.
+
+```
+Visual spec:
+  <button>
+    text: "Iniciar sesión"
+    height: 32px  (matches UserMenu avatar — equal visual weight in the slot)
+    padding: px-3 py-1  (tight horizontal, symmetrical vertical to hit 32px)
+    font: text-sm font-medium  (not semibold — softer register than a CTA)
+    color: text-brand-green  (#2D5A27)
+    background: transparent (no fill — avoids orange/green CTA energy in the header)
+    border: none  (border would add visual noise against the header border-b)
+    border-radius: rounded-lg  (8px — softer than rounded-xl used for primary CTAs)
+    hover: bg-slate-50  (minimal fill on hover — same pattern as ghost buttons)
+    active: bg-slate-100
+    focus: focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2
+    transition: transition-colors duration-150
+```
+
+#### What NOT to use for LoginCta
+
+- Do NOT use `bg-brand-orange` or `bg-brand-green` filled button — this is a secondary affordance in a minimal header, not a conversion CTA. The prominent orange CTA register opportunity is the `<RateLimitNudge>` triggered on 429.
+- Do NOT show an icon (arrow, person icon) — the label is unambiguous; an icon adds visual weight without semantic value at this scale.
+- Do NOT use `font-semibold` — the button sits adjacent to the 32px avatar; semibold weight would make it feel heavier than the UserMenu it mirrors.
+- Do NOT render while `authLoading` — this is already enforced in the spec but bears repeating: a flash of "Iniciar sesión" for a logged-in user resolving session is a destructive pattern.
+
+#### Copy (locked)
+
+| Context | Text |
+|---------|------|
+| Visible button label | **"Iniciar sesión"** |
+| `aria-label` attribute | **"Iniciar sesión o registrarse"** |
+
+The visible label uses "Iniciar sesión" (shorter, fits the compact header) while the `aria-label` includes "o registrarse" for screen readers — users without an account should understand the page serves both flows.
+
+#### Responsive
+
+- Mobile (< `md:`): same visual treatment — the 52px header accommodates the text at `text-sm` easily. No collapse to icon needed at any breakpoint because "Iniciar sesión" (16 chars at `text-sm`) is ~112px wide and the header has sufficient space even at 320px viewport width (logo ≈ 110px + `LoginCta` ≈ 112px + gaps ≈ 8px = 230px, well under 320px).
+- If a future logo asset or badge widens the left side, the label can be reduced to **"Entrar"** (6 chars) as a narrow-viewport fallback at `< sm:`. Not needed for current logo.
+
+#### Accessibility
+
+- Element: `<button type="button">` — never an anchor styled as a button.
+- `aria-label="Iniciar sesión o registrarse"` — extends the visible label for screen readers.
+- Focus ring: `focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2` — identical to UserMenu avatar button.
+- Tab order: the button is the last focusable element in the header (after logo, which is non-focusable). Natural reading/tab order: logo → button.
+- Touch target: 32px intrinsic height + `px-3` gives ~112px × 32px. On iOS the touch target is OS-expanded to 44px height. This is acceptable for a secondary header action (not a primary submit path).
+
+---
+
+### W11. `<UsageMeter>` — logged-in header component
+
+#### Recommended form: compact inline counters with a popover for detail
+
+**Decision: inline counters (desktop/tablet) + icon-only with popover (mobile).**
+
+Two-tier presentation:
+
+- **Desktop / tablet (≥ `sm:` breakpoint):** Three compact inline counters, rendered as a horizontal group directly in the header next to `<UserMenu>`. Each counter shows `used/limit` for one bucket.
+- **Mobile (< `sm:`):** The three counters collapse to a **single icon button** (a gauge/meter icon). Tapping it opens a small popover anchored to the icon. This prevents the header from becoming a cluttered 3-counter + avatar row on 375px screens.
+
+**Rationale for inline vs popover-only approach:**
+
+A popover-only design (icon → tap → see details) has low discoverability — users will not tap an unfamiliar icon in the header without knowing what it reveals. Inline counters are immediately legible and reinforce registration value passively every time the user glances at the header. On desktop/tablet, there is enough horizontal space to show all three without crowding. On mobile, the collapse to a single icon is the right trade-off (space constraint > discoverability loss, because the meter is not the user's primary goal).
+
+#### Desktop/tablet inline counter anatomy
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  nutriXplorer                  12/100 · 3/20 · 5/30    [avatar]     │
+└─────────────────────────────────────────────────────────────────────┘
+                                 ▲
+                     UsageMeter inline group
+```
+
+Each bucket renders as `{used}/{limit}` with a label above on hover (or always-visible small label).
+
+**Preferred layout — label + count stacked, three groups separated by a faint divider:**
+
+```
+┌──────────┬──────────┬──────────┐
+│Consultas │  Fotos   │   Voz    │
+│  12/100  │   3/20   │   5/30   │
+└──────────┴──────────┴──────────┘
+```
+
+- Container: `inline-flex items-center gap-0 mr-3` (margin-right separates from UserMenu avatar)
+- Each bucket group: `flex flex-col items-center px-2.5`
+- Divider between groups: `w-px h-6 bg-slate-200 self-center` (1px vertical rule)
+- Bucket label: `text-[10px] font-medium text-slate-400 leading-none mb-0.5 uppercase tracking-wide` — e.g. "CONSUL.", "FOTOS", "VOZ" (abbreviated to fit; full labels in popover/tooltip)
+- Count value: `text-xs font-semibold text-slate-600 leading-none tabular-nums` — e.g. "12/100"
+
+**Total width estimate:** 3 groups × ~52px + 2 dividers × 1px + gaps ≈ 158px. At 375px mobile this is too wide (see mobile section). At 640px+ (sm) it sits comfortably between the logo (~110px) and avatar (32px), with ~300px center available.
+
+#### "Running low" visual state — color shift without relying on color alone
+
+Define thresholds per bucket:
+- **Normal (≥ 40% remaining):** count value in `text-slate-600` (default)
+- **Low (< 40% remaining, i.e. used > 60% of limit):** count value in `text-amber-600` + the label gains a small inline `!` suffix — e.g. "CONSUL. !" — that is visible without color. The `!` is rendered as `aria-hidden="true"` visually but the `aria-label` on the container (see a11y section) recalculates dynamically to include "advertencia: pocas consultas restantes".
+- **Critical (< 20% remaining, i.e. used > 80% of limit):** count value in `text-red-500` + label suffix becomes `!!` visually. Screen reader: "advertencia: casi sin consultas".
+
+These thresholds apply identically to all three buckets. The color change alone never conveys the state — the textual suffix is always paired with it.
+
+Color contrast:
+| State | Foreground | Background | Ratio | Pass |
+|-------|-----------|------------|-------|------|
+| Normal (`text-slate-600`) | `#475569` | `#FFFFFF` | 5.9:1 | AA |
+| Low (`text-amber-600`) | `#D97706` | `#FFFFFF` | 3.0:1 | AA Large (12px bold passes as "large" at 700 weight equivalent — but `text-xs font-semibold` at 12px is borderline) |
+| Critical (`text-red-500`) | `#EF4444` | `#FFFFFF` | 3.3:1 | AA Large |
+
+For Low and Critical states, raise the count to `text-sm font-bold` (14px bold) when the threshold is crossed — this clears WCAG AA (14px bold = large text, 3:1 required, both amber-600 and red-500 pass at 3:1+). This also provides an additional non-color cue (weight change) visible to color-blind users.
+
+#### Popover (hover on desktop, tap on mobile meter icon)
+
+On desktop, hovering any bucket group reveals a small popover anchored below it:
+
+```
+┌──────────────────────────────┐
+│ Consultas (queries)           │
+│ Usadas hoy: 12 de 100        │
+│ Te quedan: 88                 │
+│ Se reinicia: mañana a las 0:00│
+└──────────────────────────────┘
+```
+
+- Trigger: `hover` (desktop) and `focus-visible` (keyboard). Not click — click on desktop is reserved for future "go to usage settings" navigation.
+- Popover container: `absolute z-50 mt-2 w-[200px] rounded-xl border border-slate-100 bg-white py-3 px-4 shadow-layered text-left`
+- Title: `text-xs font-semibold text-slate-700 mb-1`
+- Lines: `text-xs text-slate-500 leading-relaxed`
+- Reset time: `text-[11px] text-slate-400 mt-1` — derived from `resetAt` field in the API response. Format: "Se reinicia hoy/mañana a las 0:00 UTC" (or local time if timezone is resolved later — for now UTC is acceptable).
+- Popover for Critical/Low states adds: `text-xs font-medium text-amber-700 mt-1.5` — "Considerando registrarte en plan Pro para más consultas?" (future-proofed copy; not shown for free tier until pro exists — omit for now).
+- `role="tooltip"` on the popover element; the trigger element has `aria-describedby` pointing to it.
+
+#### Mobile meter icon (< `sm:`)
+
+```
+┌──────────────────────────────────────────────────────┐
+│  nutriXplorer                             [⊙]  [av]  │  52px header
+└──────────────────────────────────────────────────────┘
+                                            ▲
+                                   UsageMeter icon button (20px gauge icon)
+```
+
+- Element: `<button type="button">` — `h-8 w-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2`
+- Icon: a gauge/speedometer inline SVG at 20px, stroke 1.5, `currentColor`. Alternatively a stacked-bars icon (three horizontal bars of decreasing width — universally readable as "usage"). Either is acceptable; the stacked-bars icon is preferred because it maps more intuitively to "three quotas" without requiring users to know a gauge metaphor.
+- When any bucket is in "Low" state: add an amber dot indicator (8px filled circle) at `top-0 right-0` of the button — `absolute h-2 w-2 rounded-full bg-amber-400` with the button wrapper `position: relative`. This dot is the only visual signal on mobile that usage is noteworthy.
+- When any bucket is in "Critical" state: dot becomes `bg-red-500`.
+- The indicator dot: `aria-hidden="true"` — the button's `aria-label` conveys state textually (see a11y).
+- Tap opens a popover (small dropdown anchored below the button, same visual spec as the desktop hover popover but with all three buckets listed sequentially rather than one at a time).
+
+#### Reinforcing registration value (free-vs-anonymous framing)
+
+The inline counters show `used/limit` where `limit` is the free-tier limit (100/20/30). The value of registration is implicit: a logged-in user simply sees they have 100 queries/day. There is no active "you registered, you now have X" banner — that would be intrusive on every load.
+
+The framing is visible only when the user hovers/taps the popover. In the popover footer, for free-tier users:
+
+```
+Plan gratuito · 100 consultas, 20 fotos, 30 voz por día
+```
+
+- Style: `text-[11px] text-slate-400 mt-2 border-t border-slate-100 pt-2`
+- This line passively reminds the user what their tier includes without nagging. It never shows a "limited vs unlimited" comparison (that is pro-upsell, out of scope).
+- For admin tier (limit: null): hide the meter entirely — render null. An admin does not need quota awareness.
+
+#### Loading / skeleton state
+
+While the first `GET /me/usage` fetch is in flight on mount:
+
+- **Desktop/tablet:** render three placeholder groups with the same dimensions but count replaced by a shimmer: `w-8 h-3 rounded shimmer-element` for each number. Labels are visible immediately (not shimmed). This prevents the header from reflowing when the numbers arrive.
+- **Mobile icon:** render the icon button immediately (no shimmer) with no indicator dot. The icon itself is the placeholder — no layout shift.
+
+Duration: the `GET /me/usage` endpoint is a lightweight Redis read. On a warm connection it resolves in < 100ms. The shimmer will rarely be visible — but it must be there for slow connections (restaurant WiFi).
+
+#### Error / degraded state
+
+If `GET /me/usage` fails (Redis unavailable, network timeout, 5xx):
+
+- **Desktop/tablet:** the three groups render as `—/—` with no color state change. `text-slate-400`. No error message, no toast.
+- **Mobile icon:** render the icon button with no indicator dot. No error state displayed.
+- The meter must NEVER throw or block the page. Treat as non-fatal throughout.
+
+#### Refresh behavior
+
+After each successful query/photo/voice, `HablarShell` triggers a refresh callback on `<UsageMeter>`. The counter increments. Use a brief `transition-all duration-300` on the count number so the increment does not snap — a smooth number change is legible and confirms the action landed. Do NOT animate on page mount (first render should be instant).
+
+---
+
+### W12. `<RateLimitNudge>` — inline in ResultsArea
+
+This component is not in the header, but is documented here for completeness as it completes the logged-out funnel.
+
+#### Visual placement
+
+`<RateLimitNudge>` appears **below** the existing rate-limit error message in `ResultsArea`. It is NOT a modal, NOT a toast, NOT a banner — it is an inline upgrade prompt that appears as a natural continuation of the error state.
+
+```
+ResultsArea (when 429 + user===null):
+┌─────────────────────────────────────────────────────┐
+│  ⚠  Has alcanzado el límite diario de consultas.    │  ← existing error message (unchanged)
+│     Vuelve mañana.                                   │
+│                                                      │
+│  ┌───────────────────────────────────────────────┐  │  ← RateLimitNudge (NEW, below error)
+│  │  Regístrate gratis y obtén el doble de         │  │
+│  │  consultas diarias (100 en lugar de 50).       │  │
+│  │                                                │  │
+│  │  [ Crear cuenta gratis ]                       │  │
+│  └───────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+```
+
+#### Visual spec
+
+- Nudge container: `mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4`
+  - The green tint visually associates with "benefit / positive action" rather than error (the error above already uses the existing error style). This is an opportunity framing, not an error extension.
+- Copy: `text-sm text-slate-700 leading-relaxed mb-3`
+- CTA button: `<button type="button">` — `bg-brand-green text-white text-sm font-semibold rounded-lg px-4 py-2 hover:opacity-90 active:scale-[0.98] transition-all duration-150 focus-visible:ring-2 focus-visible:ring-brand-green focus-visible:ring-offset-2`
+  - Height: ~36px (py-2 = 8px × 2 + 20px line-height). This is smaller than the landing page primary CTA (py-3.5 = 56px) — appropriate for an in-context prompt.
+  - Color: `bg-brand-green` (not brand-orange) — green = "safe, positive, go" aligns with the nudge's framing as a benefit. The orange CTA is reserved for primary conversion surfaces (landing page, onboarding).
+- Outer `role="status"` so screen readers announce the nudge when it appears (live region; polite).
+
+#### Copy (locked)
+
+| Element | Spanish copy |
+|---------|-------------|
+| Nudge body | "Regístrate gratis y obtén el doble de consultas diarias (100 en lugar de 50)." |
+| CTA button | "Crear cuenta gratis" |
+
+---
+
+### W13. Accessibility summary for F-WEB-TIER components
+
+| Component | Element | ARIA / Keyboard |
+|-----------|---------|----------------|
+| `<LoginCta>` | `<button type="button">` | `aria-label="Iniciar sesión o registrarse"` · `focus-visible:ring-2 ring-brand-green ring-offset-2` |
+| `<UsageMeter>` (container) | `<div role="status">` | `aria-label="Uso diario: {used} de {limit} consultas, {used} de {limit} fotos, {used} de {limit} voz"` — recalculated on each refresh |
+| `<UsageMeter>` (mobile icon button) | `<button type="button">` | `aria-label="Ver uso diario"` (normal) · `"Ver uso diario: pocas consultas restantes"` (low) · `"Ver uso diario: consultas casi agotadas"` (critical) |
+| `<UsageMeter>` (desktop bucket group) | non-interactive `<div>` | `aria-hidden="true"` per group (values read from the container `role="status"` aria-label); indicator suffix `!`/`!!` is `aria-hidden="true"` |
+| `<UsageMeter>` (popover) | `<div role="tooltip">` | triggered by `aria-describedby` on the bucket group or icon button |
+| `<UsageMeter>` (indicator dot) | `<span>` | `aria-hidden="true"` — state communicated via button's `aria-label` |
+| `<RateLimitNudge>` | `<div role="status">` | polite live region; CTA `<button type="button">` with focus ring |
+
+**Focus order in the header (logged-out):**
+
+1. Logo `<span>` — non-focusable
+2. `<LoginCta>` button — Tab stop 1 in the header
+
+**Focus order in the header (logged-in):**
+
+1. Logo `<span>` — non-focusable
+2. `<UsageMeter>` mobile icon button (mobile only) — Tab stop 1
+3. `<UserMenu>` avatar button — Tab stop 1 (desktop, where UsageMeter groups are non-interactive) / Tab stop 2 (mobile)
+
+On desktop, the usage counter groups are visual-only (`aria-hidden`) — screen readers get the summary from the `role="status"` container. This keeps the tab order clean: logo → UserMenu, same as before, with the usage summary announced as a live region after each refresh.
+
+---
+
+### W14. Anti-patterns specific to F-WEB-TIER
+
+| Anti-pattern | Why |
+|---|---|
+| Orange filled `<LoginCta>` button in the header | The header is a minimal utility bar — a primary CTA button there competes with the main input and feels pressured. The ghost/text style is correct for the secondary affordance. |
+| Three mini progress bars instead of `used/limit` counters | Progress bars imply a "goal to reach" framing; quota is a ceiling, not a target. `12/100` is clear; a 12% filled bar communicates "almost empty" which is the wrong frame at 88 remaining. |
+| Showing the meter to anonymous users | Anonymous users see `<LoginCta>`. The meter is a logged-in-only value signal. Showing it to anonymous requires a separate (and unauthed) endpoint — wrong direction. |
+| Popover-only meter (no inline numbers on desktop) | Discoverability. Users will not tap an unlabelled icon speculatively. Inline numbers on desktop are read passively and reinforce value without requiring interaction. |
+| Animated counter increment using a flip/scroll number animation | Overproduced for a utilitarian header element. A simple `transition-all duration-300` on opacity+position is sufficient. |
+| Showing "Regístrate para más consultas" nudge inside `<UsageMeter>` for low/critical states | The nudge targeting for logged-in users is out of scope for this feature (they are already registered; the pro-upsell path does not exist yet). Do NOT add upsell copy inside the meter for this feature. |
+| Rendering `<UsageMeter>` when admin tier (`limit: null`) | Admin users should not see quota anxiety chrome. Render null when `limit === null`. |
+| Hard-coding reset time as "medianoche" | The actual `resetAt` is UTC midnight — in Spain (UTC+1/+2) this is 01:00 or 02:00 local. Use the `resetAt` ISO timestamp from the API and format it correctly, or state "mañana" (acceptable approximation) without implying local midnight. |
+
+---
+
+*Section added: 2026-05-26 | Feature: F-WEB-TIER | Designer: ui-ux-designer agent*

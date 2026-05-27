@@ -124,7 +124,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await registerAuthMiddleware(app, { prisma: prismaClient, config: cfg });
   await registerActorResolver(app, { prisma: prismaClient, config: cfg });
   await registerRateLimit(app, cfg);
-  await registerActorRateLimit(app, { redis: redisClient });
+  await registerActorRateLimit(app, { redis: redisClient, prisma: prismaClient });
   await registerVoiceIpRateLimit(app, { redis: redisClient });
   // Register formbody before multipart (application/x-www-form-urlencoded support for /waitlist)
   await app.register(fastifyFormbody);
@@ -153,7 +153,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(reverseSearchRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(webMetricsRoutes, { db: getKysely(), prisma: prismaClient });
   // F107a — Auth routes (POST /auth/login, POST /auth/logout, GET /me)
-  await app.register(authRoutes, { prisma: prismaClient, config: cfg });
+  await app.register(authRoutes, { prisma: prismaClient, config: cfg, redis: redisClient });
 
   return app;
 }
