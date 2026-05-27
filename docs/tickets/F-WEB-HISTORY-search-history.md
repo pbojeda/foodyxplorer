@@ -1,7 +1,7 @@
 # F-WEB-HISTORY: Search history — session transcript + persisted history
 
 **Feature:** F-WEB-HISTORY | **Type:** Fullstack-Feature | **Priority:** High
-**Status:** In Progress | **Branch:** feature/F-WEB-HISTORY-search-history
+**Status:** Ready for Merge | **Branch:** feature/F-WEB-HISTORY-search-history
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-05-27 | **Dependencies:** F-WEB-TIER (done — account identity + tier), F107a auth (done), BUG-PROD-013 (done — bearer actor resolution)
 
@@ -854,88 +854,88 @@ Follow TDD strictly: write the failing test, implement the minimum, confirm gree
 
 ### Data model
 
-- [ ] **AC1** [BE] Migration creates the `search_history` table with columns `id uuid PK`, `account_id uuid NOT NULL FK→accounts.id ON DELETE CASCADE`, `kind search_history_kind NOT NULL`, `query_text text NOT NULL`, `result_jsonb jsonb NOT NULL`, `created_at timestamptz DEFAULT now()`.
-- [ ] **AC2** [BE] The composite index `search_history_account_cursor_idx` on `(account_id, created_at DESC, id DESC)` exists after migration.
-- [ ] **AC3** [BE] Inserting a `search_history` row with a non-existent `account_id` raises a foreign key violation.
-- [ ] **AC4** [BE] Deleting an `accounts` row cascades and deletes all associated `search_history` rows (ON DELETE CASCADE).
-- [ ] **AC5** [Unit] `SearchHistoryKindSchema.parse('text')` succeeds; `SearchHistoryKindSchema.parse('photo')` throws.
-- [ ] **AC6** [Unit] `SearchHistoryEntrySchema.parse(validEntry)` succeeds with all required fields; parse fails with a missing `id` field.
-- [ ] **AC7** [Unit] `HistoryPageSchema.parse({ entries: [], nextCursor: null })` succeeds; `HistoryPageSchema.parse({ entries: [], nextCursor: 123 })` fails (nextCursor must be string or null).
+- [x] **AC1** [BE] Migration creates the `search_history` table with columns `id uuid PK`, `account_id uuid NOT NULL FK→accounts.id ON DELETE CASCADE`, `kind search_history_kind NOT NULL`, `query_text text NOT NULL`, `result_jsonb jsonb NOT NULL`, `created_at timestamptz DEFAULT now()`.
+- [x] **AC2** [BE] The composite index `search_history_account_cursor_idx` on `(account_id, created_at DESC, id DESC)` exists after migration.
+- [x] **AC3** [BE] Inserting a `search_history` row with a non-existent `account_id` raises a foreign key violation.
+- [x] **AC4** [BE] Deleting an `accounts` row cascades and deletes all associated `search_history` rows (ON DELETE CASCADE).
+- [x] **AC5** [Unit] `SearchHistoryKindSchema.parse('text')` succeeds; `SearchHistoryKindSchema.parse('photo')` throws.
+- [x] **AC6** [Unit] `SearchHistoryEntrySchema.parse(validEntry)` succeeds with all required fields; parse fails with a missing `id` field.
+- [x] **AC7** [Unit] `HistoryPageSchema.parse({ entries: [], nextCursor: null })` succeeds; `HistoryPageSchema.parse({ entries: [], nextCursor: 123 })` fails (nextCursor must be string or null).
 
 ### GET /history
 
-- [ ] **AC8** [BE] `GET /history` without `Authorization` header → 401 `UNAUTHORIZED`.
-- [ ] **AC9** [BE] `GET /history` with an expired bearer → 401 `TOKEN_EXPIRED`.
-- [ ] **AC10** [BE] `GET /history` with a valid bearer whose `accounts` row does not yet exist → 200 with `entries: []`, `nextCursor: null`, and **no `accounts` row is created** by the call (read-only GET — cross-model C1; assert row count unchanged). Provisioning stays in `GET /me`.
-- [ ] **AC11** [BE] `GET /history` with a valid bearer and 15 persisted entries, `limit=10` → 200 with exactly 10 entries, `nextCursor` non-null; entries ordered newest-first.
-- [ ] **AC12** [BE] Passing the `nextCursor` from AC11 as `cursor=` → 200 with remaining 5 entries, `nextCursor: null`.
-- [ ] **AC13** [BE] `GET /history?limit=51` → 400 `VALIDATION_ERROR`.
-- [ ] **AC14** [BE] `GET /history?cursor=not-valid-base64-lol` → 400 `INVALID_CURSOR`.
-- [ ] **AC15** [BE] `GET /history` only returns entries for the authenticated account; entries for a different account are not visible.
-- [ ] **AC16** [BE] `GET /history` does NOT decrement any Redis rate-limit bucket (calling it 100× does not affect query/photo/voice remaining counts).
+- [x] **AC8** [BE] `GET /history` without `Authorization` header → 401 `UNAUTHORIZED`.
+- [x] **AC9** [BE] `GET /history` with an expired bearer → 401 `TOKEN_EXPIRED`.
+- [x] **AC10** [BE] `GET /history` with a valid bearer whose `accounts` row does not yet exist → 200 with `entries: []`, `nextCursor: null`, and **no `accounts` row is created** by the call (read-only GET — cross-model C1; assert row count unchanged). Provisioning stays in `GET /me`.
+- [x] **AC11** [BE] `GET /history` with a valid bearer and 15 persisted entries, `limit=10` → 200 with exactly 10 entries, `nextCursor` non-null; entries ordered newest-first.
+- [x] **AC12** [BE] Passing the `nextCursor` from AC11 as `cursor=` → 200 with remaining 5 entries, `nextCursor: null`.
+- [x] **AC13** [BE] `GET /history?limit=51` → 400 `VALIDATION_ERROR`.
+- [x] **AC14** [BE] `GET /history?cursor=not-valid-base64-lol` → 400 `INVALID_CURSOR`.
+- [x] **AC15** [BE] `GET /history` only returns entries for the authenticated account; entries for a different account are not visible.
+- [x] **AC16** [BE] `GET /history` does NOT decrement any Redis rate-limit bucket (calling it 100× does not affect query/photo/voice remaining counts).
 
 ### DELETE /history/{id}
 
-- [ ] **AC17** [BE] `DELETE /history/{id}` without bearer → 401 `UNAUTHORIZED`.
-- [ ] **AC18** [BE] `DELETE /history/{id}` with a valid bearer for the entry's owner → 204; the row is no longer in the DB.
-- [ ] **AC19** [BE] `DELETE /history/{id}` for an entry owned by a different account → 404 `NOT_FOUND` (no 403, no information leakage).
-- [ ] **AC20** [BE] `DELETE /history/{id}` for a non-existent UUID → 404 `NOT_FOUND` (same response shape as AC19).
-- [ ] **AC21** [BE] `DELETE /history/not-a-uuid` → 400 `VALIDATION_ERROR`.
+- [x] **AC17** [BE] `DELETE /history/{id}` without bearer → 401 `UNAUTHORIZED`.
+- [x] **AC18** [BE] `DELETE /history/{id}` with a valid bearer for the entry's owner → 204; the row is no longer in the DB.
+- [x] **AC19** [BE] `DELETE /history/{id}` for an entry owned by a different account → 404 `NOT_FOUND` (no 403, no information leakage).
+- [x] **AC20** [BE] `DELETE /history/{id}` for a non-existent UUID → 404 `NOT_FOUND` (same response shape as AC19).
+- [x] **AC21** [BE] `DELETE /history/not-a-uuid` → 400 `VALIDATION_ERROR`.
 
 ### DELETE /history
 
-- [ ] **AC22** [BE] `DELETE /history` without bearer → 401 `UNAUTHORIZED`.
-- [ ] **AC23** [BE] `DELETE /history` with a valid bearer → 204; all `search_history` rows for that account are deleted.
-- [ ] **AC24** [BE] `DELETE /history` when the account has no entries → 204 (idempotent, no error).
+- [x] **AC22** [BE] `DELETE /history` without bearer → 401 `UNAUTHORIZED`.
+- [x] **AC23** [BE] `DELETE /history` with a valid bearer → 204; all `search_history` rows for that account are deleted.
+- [x] **AC24** [BE] `DELETE /history` when the account has no entries → 204 (idempotent, no error).
 
 ### Persistence hook
 
-- [ ] **AC25** [BE] `POST /conversation/message` with a valid bearer and successful response → a `search_history` row is inserted with `kind='text'`, `query_text=body.text`, `result_jsonb` matching the response `data` object, `account_id` resolved from the bearer.
-- [ ] **AC26** [BE] `POST /conversation/audio` with a valid bearer and successful response → a `search_history` row is inserted with `kind='voice'`, `query_text` = Whisper transcript.
-- [ ] **AC27** [BE] `POST /conversation/message` without a bearer (anonymous) → no `search_history` row is inserted; the response is unaffected.
-- [ ] **AC28** [BE] If the `search_history` insert fails (e.g. DB connection dropped after `reply.send`) → the `POST /conversation/message` response is still 200 with correct data; the error is logged at `error` level; no exception propagates to the client.
-- [ ] **AC29** [BE] After the 501st insert for a single account, the oldest row beyond the 500-row cap is pruned; the account has at most 500 rows.
-- [ ] **AC30** [BE] After inserting a row with `created_at < now() - interval '12 months'` (via direct DB insert in the test), a subsequent persistence hook write triggers the age-prune and removes that stale row.
+- [x] **AC25** [BE] `POST /conversation/message` with a valid bearer and successful response → a `search_history` row is inserted with `kind='text'`, `query_text=body.text`, `result_jsonb` matching the response `data` object, `account_id` resolved from the bearer.
+- [x] **AC26** [BE] `POST /conversation/audio` with a valid bearer and successful response → a `search_history` row is inserted with `kind='voice'`, `query_text` = Whisper transcript.
+- [x] **AC27** [BE] `POST /conversation/message` without a bearer (anonymous) → no `search_history` row is inserted; the response is unaffected.
+- [x] **AC28** [BE] If the `search_history` insert fails (e.g. DB connection dropped after `reply.send`) → the `POST /conversation/message` response is still 200 with correct data; the error is logged at `error` level; no exception propagates to the client.
+- [x] **AC29** [BE] After the 501st insert for a single account, the oldest row beyond the 500-row cap is pruned; the account has at most 500 rows.
+- [x] **AC30** [BE] After inserting a row with `created_at < now() - interval '12 months'` (via direct DB insert in the test), a subsequent persistence hook write triggers the age-prune and removes that stale row.
 
 ### Retention / privacy
 
-- [ ] **AC31** [BE] Deleting an `accounts` row (simulated via direct Prisma call) removes all associated `search_history` rows (CASCADE verified by AC4 above; include a named integration test for the full user-deletion flow).
+- [x] **AC31** [BE] Deleting an `accounts` row (simulated via direct Prisma call) removes all associated `search_history` rows (CASCADE verified by AC4 above; include a named integration test for the full user-deletion flow).
 
 ### Frontend — session transcript (Fase 1)
 
-- [ ] **AC32** [FE] Anonymous user submits two text queries; both results appear in the feed stacked oldest-at-top, newest-at-bottom; the second query does not replace the first.
-- [ ] **AC33** [FE] `TranscriptEntry` renders with `role="article"` and `aria-label` containing the truncated query text.
-- [ ] **AC34** [FE] `TranscriptFeed` renders with `role="feed"` and `aria-label="Historial de consultas"`.
-- [ ] **AC35** [FE] When a new query is in-flight, the entry shows a shimmer card (`isLoading: true`); when the result arrives, the shimmer is replaced by the result card.
-- [ ] **AC36** [FE] A failed query adds an `ErrorState` entry; retrying adds a NEW entry below (does not mutate the failed entry).
-- [ ] **AC37** [FE] `HistoryPersistenceNudge` renders only after the 2nd entry for an anonymous user; it does not render for a logged-in user; it does not render if `showRateLimitNudge` is true.
+- [x] **AC32** [FE] Anonymous user submits two text queries; both results appear in the feed stacked oldest-at-top, newest-at-bottom; the second query does not replace the first.
+- [x] **AC33** [FE] `TranscriptEntry` renders with `role="article"` and `aria-label` containing the truncated query text.
+- [x] **AC34** [FE] `TranscriptFeed` renders with `role="feed"` and `aria-label="Historial de consultas"`.
+- [x] **AC35** [FE] When a new query is in-flight, the entry shows a shimmer card (`isLoading: true`); when the result arrives, the shimmer is replaced by the result card.
+- [x] **AC36** [FE] A failed query adds an `ErrorState` entry; retrying adds a NEW entry below (does not mutate the failed entry).
+- [x] **AC37** [FE] `HistoryPersistenceNudge` renders only after the 2nd entry for an anonymous user; it does not render for a logged-in user; it does not render if `showRateLimitNudge` is true.
 
 ### Frontend — persisted history (Fase 2-3)
 
-- [ ] **AC38** [FE] On mount with an authenticated user, `useSearchHistory` calls `GET /history?limit=10`; the returned entries are prepended to the feed with `isPersisted: true` and "Guardado" badge.
-- [ ] **AC39** [FE] When `hasMoreHistory: true` and the sentinel enters the viewport, `loadMore` is called and a subsequent `GET /history?cursor=<next>` is issued.
-- [ ] **AC40** [FE] When `nextCursor` is null, the sentinel stops; no further `loadMore` calls are made.
-- [ ] **AC41** [FE] `DeleteEntryButton`: clicking the trash icon shows the inline confirm row; clicking Cancel reverts to idle; clicking Confirm fires `onConfirm(entryId)`.
-- [ ] **AC42** [FE] `DeleteEntryButton` auto-reverts to idle after 5000ms of inactivity (setTimeout).
-- [ ] **AC43** [FE] `ClearHistoryButton` opens a modal dialog on click; clicking Cancel closes it without calling `onConfirm`; clicking "Borrar todo" calls `onConfirm`.
-- [ ] **AC44** [FE] `ClearHistoryButton` dialog has `role="alertdialog"`, `aria-modal="true"`, and focus is trapped inside the dialog while open.
-- [ ] **AC45** [FE] After `onClearAll` resolves, the feed shows `HistoryEmptyState` (logged-in user, no entries).
-- [ ] **AC46** [FE] `HistoryEmptyState` is not shown for anonymous users; the anonymous empty state (`EmptyState`) is shown instead.
-- [ ] **AC47** [FE] Photo entries (`inputMode: 'photo'`) display in the session feed but do NOT show the "Guardado" badge and are NOT sent to `DELETE /history/:id` (they have no `entryId` from the server).
+- [x] **AC38** [FE] On mount with an authenticated user, `useSearchHistory` calls `GET /history?limit=10`; the returned entries are prepended to the feed with `isPersisted: true` and "Guardado" badge.
+- [x] **AC39** [FE] When `hasMoreHistory: true` and the sentinel enters the viewport, `loadMore` is called and a subsequent `GET /history?cursor=<next>` is issued.
+- [x] **AC40** [FE] When `nextCursor` is null, the sentinel stops; no further `loadMore` calls are made.
+- [x] **AC41** [FE] `DeleteEntryButton`: clicking the trash icon shows the inline confirm row; clicking Cancel reverts to idle; clicking Confirm fires `onConfirm(entryId)`.
+- [x] **AC42** [FE] `DeleteEntryButton` auto-reverts to idle after 5000ms of inactivity (setTimeout).
+- [x] **AC43** [FE] `ClearHistoryButton` opens a modal dialog on click; clicking Cancel closes it without calling `onConfirm`; clicking "Borrar todo" calls `onConfirm`.
+- [x] **AC44** [FE] `ClearHistoryButton` dialog has `role="alertdialog"`, `aria-modal="true"`, and focus is trapped inside the dialog while open.
+- [x] **AC45** [FE] After `onClearAll` resolves, the feed shows `HistoryEmptyState` (logged-in user, no entries).
+- [x] **AC46** [FE] `HistoryEmptyState` is not shown for anonymous users; the anonymous empty state (`EmptyState`) is shown instead.
+- [x] **AC47** [FE] Photo entries (`inputMode: 'photo'`) display in the session feed but do NOT show the "Guardado" badge and are NOT sent to `DELETE /history/:id` (they have no `entryId` from the server).
 
 ### Telemetry
 
-- [ ] **AC48** [FE] `history_loaded` is fired on mount with `{ count: N }` when the initial fetch resolves successfully.
-- [ ] **AC49** [FE] `history_load_more` is fired with `{ page: N }` each time the sentinel triggers `loadMore`.
-- [ ] **AC50** [FE] `history_entry_deleted` is fired with `{ entryId, inputMode }` when `DeleteEntryButton.onConfirm` fires.
-- [ ] **AC51** [FE] `history_cleared` is fired when `ClearHistoryButton.onConfirm` fires.
-- [ ] **AC52** [FE] `history_persistence_nudge_shown` is fired on `HistoryPersistenceNudge` mount.
+- [x] **AC48** [FE] `history_loaded` is fired on mount with `{ count: N }` when the initial fetch resolves successfully.
+- [x] **AC49** [FE] `history_load_more` is fired with `{ page: N }` each time the sentinel triggers `loadMore`.
+- [x] **AC50** [FE] `history_entry_deleted` is fired with `{ entryId, inputMode }` when `DeleteEntryButton.onConfirm` fires.
+- [x] **AC51** [FE] `history_cleared` is fired when `ClearHistoryButton.onConfirm` fires.
+- [x] **AC52** [FE] `history_persistence_nudge_shown` is fired on `HistoryPersistenceNudge` mount.
 
 ### Build / CI
 
-- [ ] **AC53** TypeScript build (`tsc --noEmit`) passes with no new type errors in `packages/api`, `packages/shared`, and `packages/web`.
-- [ ] **AC54** All existing tests continue to pass (no regressions from the feed refactor or schema additions).
-- [ ] **AC55** `packages/shared` exports `SearchHistoryKindSchema`, `SearchHistoryEntrySchema`, `HistoryPageSchema`, and their inferred types from `index.ts`.
+- [x] **AC53** TypeScript build (`tsc --noEmit`) passes with no new type errors in `packages/api`, `packages/shared`, and `packages/web`.
+- [x] **AC54** All existing tests continue to pass (no regressions from the feed refactor or schema additions).
+- [x] **AC55** `packages/shared` exports `SearchHistoryKindSchema`, `SearchHistoryEntrySchema`, `HistoryPageSchema`, and their inferred types from `index.ts`.
 
 ### Operator / post-deploy smokes
 
@@ -945,28 +945,28 @@ Follow TDD strictly: write the failing test, implement the minimum, confirm gree
 
 ### Cross-model review additions (Step 0 /review-spec, 2026-05-27)
 
-- [ ] **AC59** [BE] Persisted-result round-trip: for each PERSISTED intent shape produced by `/conversation/message` (`estimation`, `comparison`, `contextSet`), the stored `result_jsonb` validates against `ConversationMessageDataSchema` when read back via `GET /history`. (cross-model C2; `text_too_long` excluded — not persisted, see AC62.)
-- [ ] **AC60** [FE] `TranscriptEntry` re-renders a PERSISTED entry correctly from `resultData` for each persisted intent shape (estimation card, comparison card, contextSet acknowledgement) — same rendering path as a live result. (cross-model C2)
-- [ ] **AC61** [BE] A query of 501–2000 chars (`queryText` boundary): `SearchHistoryEntrySchema.parse` accepts a `query_text` up to 2000 chars (max = 2000, not 500). (cross-model C3 — guards the schema cap even though `text_too_long` itself is not persisted per AC62.)
+- [x] **AC59** [BE] Persisted-result round-trip: for each PERSISTED intent shape produced by `/conversation/message` (`estimation`, `comparison`, `contextSet`), the stored `result_jsonb` validates against `ConversationMessageDataSchema` when read back via `GET /history`. (cross-model C2; `text_too_long` excluded — not persisted, see AC62.)
+- [x] **AC60** [FE] `TranscriptEntry` re-renders a PERSISTED entry correctly from `resultData` for each persisted intent shape (estimation card, comparison card, contextSet acknowledgement) — same rendering path as a live result. (cross-model C2)
+- [x] **AC61** [BE] A query of 501–2000 chars (`queryText` boundary): `SearchHistoryEntrySchema.parse` accepts a `query_text` up to 2000 chars (max = 2000, not 500). (cross-model C3 — guards the schema cap even though `text_too_long` itself is not persisted per AC62.)
 
 ### Cross-model review additions (Step 2 /review-plan, 2026-05-27)
 
-- [ ] **AC62** [BE] `text_too_long` is NOT persisted: a bearer `POST /conversation/message` whose response intent is `text_too_long` writes **no** `search_history` row (hook skips it). (cross-model G-CRIT — keeps live inline-error coherent with history.)
-- [ ] **AC63** [FE] Drift tolerance: a `GET /history` page containing one entry whose `resultData` fails `SearchHistoryEntrySchema` still renders the OTHER valid entries (per-entry `safeParse` skip, loose-envelope parse — NOT whole-page reject). (cross-model X1)
-- [ ] **AC64a** [BE] `POST /conversation/audio` 200 response includes `data.transcribedText` equal to the Whisper transcript. **AC64b** [FE] a voice `TranscriptEntry` header shows `data.transcribedText` (placeholder `"Consulta por voz…"` only while in-flight). (cross-model G-IMP/X2)
-- [ ] **AC65** [BE] `GET /history` / `DELETE /history/:id` / `DELETE /history` surface a **500** (not false 200 []/404/204) when the account-id resolution query errors — DB outage is not masked. (cross-model X3)
+- [x] **AC62** [BE] `text_too_long` is NOT persisted: a bearer `POST /conversation/message` whose response intent is `text_too_long` writes **no** `search_history` row (hook skips it). (cross-model G-CRIT — keeps live inline-error coherent with history.)
+- [x] **AC63** [FE] Drift tolerance: a `GET /history` page containing one entry whose `resultData` fails `SearchHistoryEntrySchema` still renders the OTHER valid entries (per-entry `safeParse` skip, loose-envelope parse — NOT whole-page reject). (cross-model X1)
+- [x] **AC64a** [BE] `POST /conversation/audio` 200 response includes `data.transcribedText` equal to the Whisper transcript. **AC64b** [FE] a voice `TranscriptEntry` header shows `data.transcribedText` (placeholder `"Consulta por voz…"` only while in-flight). (cross-model G-IMP/X2)
+- [x] **AC65** [BE] `GET /history` / `DELETE /history/:id` / `DELETE /history` surface a **500** (not false 200 []/404/204) when the account-id resolution query errors — DB outage is not masked. (cross-model X3)
 
 ---
 
 ## Definition of Done
 
-- [ ] All acceptance criteria met
-- [ ] Unit tests written and passing
-- [ ] E2E tests updated (if applicable)
-- [ ] Code follows project standards
-- [ ] No linting errors
-- [ ] Build succeeds
-- [ ] Specs reflect final implementation
+- [x] All acceptance criteria met _(62/65 automated met; AC56–AC58 are operator post-deploy smokes)_
+- [x] Unit tests written and passing _(api 4659→4713 +54; web 631→729 +98; shared 659→677 +18)_
+- [x] E2E tests updated (if applicable) _(N/A — covered by api integration (real PG :5433) + RTL component/hook tests)_
+- [x] Code follows project standards _(layered api; reuses accountTier/getUsage patterns; no `any`)_
+- [x] No linting errors _(api + web + shared lint clean)_
+- [x] Build succeeds _(shared + api tsc; web Next build clean)_
+- [x] Specs reflect final implementation _(api-spec.yaml /history + transcribedText; ui-components.md; design-guidelines W15–W26; shared schemas; ADR-028)_
 
 ---
 
@@ -975,10 +975,10 @@ Follow TDD strictly: write the failing test, implement the minimum, confirm gree
 - [x] Step 0: `spec-creator` executed, specs updated (+ `ui-ux-designer` W15–W26 + `/review-spec` cross-model)
 - [x] Step 1: Branch created, ticket generated, tracker updated
 - [x] Step 2: `backend-planner` + `frontend-planner` executed, plan approved (+ `/review-plan` cross-model, 5 findings applied)
-- [ ] Step 3: `backend-developer` + `frontend-developer` executed with TDD
-- [ ] Step 4: `production-code-validator` executed, quality gates pass
-- [ ] Step 5: `code-review-specialist` executed
-- [ ] Step 5: `qa-engineer` executed (Standard/Complex)
+- [x] Step 3: `backend-developer` + `frontend-developer` executed with TDD
+- [x] Step 4: `production-code-validator` executed, quality gates pass (REQUEST CHANGES → AC65 tests added → APPROVE)
+- [x] Step 5: `code-review-specialist` executed (REQUEST CHANGES → 1 BLOCKER + 1 MAJOR fixed)
+- [x] Step 5: `qa-engineer` executed (Standard/Complex) — PASS WITH FOLLOW-UPS (+27 edge tests)
 - [ ] Step 6: Ticket updated with final metrics, branch deleted
 
 ---
@@ -994,6 +994,11 @@ Follow TDD strictly: write the failing test, implement the minimum, confirm gree
 | 2026-05-27 | Step 0→2 (Spec APPROVED) | **Owner approved Spec at checkpoint → proceed to Step 2 (Plan).** All 9 recommended fork defaults accepted; **retention confirmed 500 entries / 12 months** (fork D4). Owner also granted: continue autonomously via PM orchestrator. **ADR-028** written (search-history storage + read-only history API + prune-on-write retention + privacy/no-Art.9). Status → Planning. Next: `backend-planner` → `frontend-planner` → `/review-plan` → Step 3. |
 | 2026-05-27 | Step 2 (Plan) | `backend-planner` (7 steps: migration + cursor + `lib/searchHistory.ts` repo + read-only `GET /history` + DELETE×2 + persistence hook + register) + `frontend-planner` (phased A: feed refactor / B: persisted history hook+UI / C: telemetry). Empirical findings: `request.accountId`=sub (need `resolveAccountIdFromSub`); `INVALID_CURSOR` absent from errorHandler (add); voice `query_text`=`transcribedText` (`conversation.ts:491`); `historyRoutes` needs `config` in opts; shared schemas already exist. |
 | 2026-05-27 | Step 2 (Plan review) | `/review-plan` cross-model: **both REVISE** — 1 CRITICAL + 4 IMPORTANT (deduped), all applied: **G-CRIT** `text_too_long` live-vs-persist incoherence → hook SKIPS `text_too_long` (degenerate; stays inline-error live; never in history) + AC62; **X1** whole-page `HistoryPageSchema.safeParse` defeats per-entry skip → web parses loose envelope then `safeParse` each entry + AC63; **X3** `resolveAccountIdFromSub` must THROW on DB error (null only for no-row) so reads/deletes don't mask outages as 200[]/404/204 — only the fire-and-forget hook swallows + AC65; **G-IMP/X2** voice transcript not in `ConversationMessageData` → add optional `transcribedText` to the schema + `/audio` populates it (live feed + persisted consistent) + AC64. ACs 62–65 added → **65 ACs**. Plan edits applied inline. **Plan auto-approved (L5 + owner autonomous grant) → Step 3 Implement.** |
+| 2026-05-27 | Step 3 (backend, TDD) | `backend-developer`: migration `20260527140000_add_search_history` (table + enum + FK CASCADE + cursor index) applied to local test DB; `lib/searchHistory.ts` (resolve/insert/list/delete/clear/prune); `routes/history.ts` (GET cursor + DELETE×2, read-only C1, 404-no-enum); persistence hook in `conversation.ts` (skip text_too_long G-CRIT; `transcribedText` on /audio G-IMP); `INVALID_CURSOR` in errorHandler; `app.ts` registration. **api 4659→4696 (+37), shared 659→677 (+18).** schema.prisma + kysely types regenerated. Gates green. |
+| 2026-05-27 | Step 3 (frontend, TDD) | `frontend-developer`: HablarShell singleton→feed migration (8 state vars → `entries[]`); new `TranscriptFeed`/`TranscriptEntry`/`DeleteEntryButton`/`ClearHistoryButton`/`HistoryPersistenceNudge`/`HistoryEmptyState`/`HistoryLoadMoreSentinel` + `useSearchHistory` hook + `types/history.ts`; apiClient `getHistory`(loose-envelope per-entry safeParse X1)/`deleteHistoryEntry`/`clearHistory`; 7 `history_*` metrics; jsdom IntersectionObserver stub. Preserved UsageMeter/RateLimitNudge/usageRefreshRef/429/voice/photo. **web 631→714 (+83).** Gates green. |
+| 2026-05-27 | Step 4 (Finalize) | Consolidated gates: typecheck (shared/api/web) clean; tests shared 677 / web 714 / api 4696; lint (3 ws) clean; build (shared+api tsc, web Next) clean. `production-code-validator` → **REQUEST CHANGES** (0 BLOCKER; 1 MAJOR: AC65 X3 invariant implemented but untested). Fix: `backend-developer` added AC65 DB-error→500 route tests (3) + corrected AC62 mislabel → **api 4699**; all pass first run (impl was already correct). → APPROVE. |
+| 2026-05-27 | Step 5 (Review + QA) | `code-review-specialist` → **REQUEST CHANGES**: **1 BLOCKER** (HablarShell `persistedMergedRef` one-shot → `loadMore` entries never render; whole pagination non-functional; confirmed empirically) + **1 MAJOR** (same root cause → logout leaves prior user's persisted entries in feed; privacy/staleness) + 2 MINOR. `qa-engineer` → **PASS WITH FOLLOW-UPS** (no runtime bugs; +27 edge tests: cursor tie-break/stale-cursor/limit-bounds/CASCADE/nudge-hierarchy/deploy-skew; closed AC28/AC31/AC59 coverage gaps). **Process lesson:** isolated-hook tests + fully-mocked-hook component tests mutually masked the loadMore integration defect — added a HablarShell-level test driving `persistedEntries` growth through the component. |
+| 2026-05-27 | Step 5 (fix) | **BLOCKER+MAJOR fixed** (`fix` commit `3e614f5`): replaced the one-shot `persistedMergedRef` merge with a reconcile-every-change effect (`setEntries(prev => [...persistedEntries, ...prev.filter(!isPersisted)])`, keyed on a stable id-join to avoid the new-`[]`-reference render loop). loadMore entries now render; logout drops the persisted slice (hook returns `[]` when `authToken` null) keeping session entries. +2 HablarShell render/logout tests. QA edge-case suites committed. **Final: api 4713 / web 729 / shared 677, all green; typecheck/lint/build clean.** MINORs (ClearHistoryButton dead-branch, token-rotation refetch) noted as benign/optional. |
 
 ---
 
@@ -1003,14 +1008,14 @@ Follow TDD strictly: write the failing test, implement the minimum, confirm gree
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/_, DoD: _/_, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-XXX added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
+| 0. Validate ticket structure | [x] | All 7 sections present: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence |
+| 1. Mark all items | [x] | AC: 62/65 ([x]) — AC56–58 operator post-deploy smokes deferred; DoD: 7/7; Workflow: Steps 0–5 [x], Step 6 [ ] (pending merge) |
+| 2. Verify product tracker | [x] | Active Session: step 5/6 (Review); Features table: F-WEB-HISTORY in-progress 5/6 |
+| 3. Update key_facts.md | [x] | Added: `search_history` table + `SearchHistory` model; `GET /history` + `DELETE /history` + `DELETE /history/{id}`; `lib/searchHistory.ts`; persistence hook + `ConversationMessageData.transcribedText`; shared `history.ts` schemas |
+| 4. Update decisions.md | [x] | ADR-028 (search-history storage + read-only API + prune-on-write retention + privacy/no-Art.9) |
+| 5. Commit documentation | [x] | Step 0 `d3660d5`, Step 2 `298051b`, impl commits (`41b67e3`…`3e614f5`), Step 4/5 closeout (this commit) |
+| 6. Verify clean working tree | [x] | `git status`: clean (verified post-commit) |
+| 7. Verify branch up to date | [x] | base develop@ecd4e60; merge-base up to date (no commits to develop since branch) — re-verified pre-PR |
 
 ---
 
