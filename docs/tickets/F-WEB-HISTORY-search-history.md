@@ -1009,7 +1009,7 @@ Follow TDD strictly: write the failing test, implement the minimum, confirm gree
 | Action | Done | Evidence |
 |--------|:----:|----------|
 | 0. Validate ticket structure | [x] | All 7 sections present: Spec, Implementation Plan, Acceptance Criteria, Definition of Done, Workflow Checklist, Completion Log, Merge Checklist Evidence |
-| 1. Mark all items | [x] | AC: 62/65 ([x]) — AC56–58 operator post-deploy smokes deferred; DoD: 7/7; Workflow: Steps 0–5 [x], Step 6 [ ] (pending merge) |
+| 1. Mark all items | [x] | AC: 62/65 ([x]) — AC56–58 operator post-deploy smokes deferred; DoD: 7/7; Workflow: Steps 0–5 [x], Step 6 [ ] (flips at merge) |
 | 2. Verify product tracker | [x] | Active Session: step 5/6 (Review); Features table: F-WEB-HISTORY in-progress 5/6 |
 | 3. Update key_facts.md | [x] | Added: `search_history` table + `SearchHistory` model; `GET /history` + `DELETE /history` + `DELETE /history/{id}`; `lib/searchHistory.ts`; persistence hook + `ConversationMessageData.transcribedText`; shared `history.ts` schemas |
 | 4. Update decisions.md | [x] | ADR-028 (search-history storage + read-only API + prune-on-write retention + privacy/no-Art.9) |
