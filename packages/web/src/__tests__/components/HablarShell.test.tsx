@@ -173,17 +173,36 @@ describe('HablarShell', () => {
     });
   });
 
-  it('shows rate limit error message in ErrorState', async () => {
+  it('shows DAILY-quota copy when 429 carries details.limit (per-actor daily limiter)', async () => {
+    // The daily limiter (actorRateLimit) includes details.limit/resetAt in the 429 envelope.
     mockSendMessage.mockRejectedValue(
-      new ApiError('Has alcanzado el límite diario de 50 consultas. Vuelve mañana.', 'RATE_LIMIT_EXCEEDED', 429)
+      new ApiError('Daily queries limit exceeded.', 'RATE_LIMIT_EXCEEDED', 429, { limit: 50 })
     );
     render(<HablarShell />);
 
     await typeAndSubmit('big mac');
 
     await waitFor(() => {
-      expect(screen.getByText(/límite diario/i)).toBeInTheDocument();
+      expect(screen.getByText(/límite diario de 50 consultas/i)).toBeInTheDocument();
     });
+  });
+
+  // BUG-API-RATELIMIT-BEARER-001: the global 15-min abuse limiter and the daily
+  // per-actor quota share the RATE_LIMIT_EXCEEDED code, but only the daily one
+  // carries error.details.limit. A global 429 (no details) must NOT claim the
+  // user hit their "daily quota" — it is transient.
+  it('shows TRANSIENT copy when 429 has NO details (global 15-min limiter), not the daily-quota copy', async () => {
+    mockSendMessage.mockRejectedValue(
+      new ApiError('Too many requests, please try again later.', 'RATE_LIMIT_EXCEEDED', 429)
+    );
+    render(<HablarShell />);
+
+    await typeAndSubmit('big mac');
+
+    await waitFor(() => {
+      expect(screen.getByText(/Demasiadas peticiones/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/límite diario/i)).not.toBeInTheDocument();
   });
 
   it('shows inline error for text_too_long intent (not ErrorState)', async () => {

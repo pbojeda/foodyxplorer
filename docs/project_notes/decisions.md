@@ -1060,3 +1060,31 @@ The cost/benefit at pre-beta tilts strongly toward closing the surface: it simul
 - `docs/tickets/F-WEB-HISTORY-search-history.md` — full spec/61 ACs + cross-model trail.
 - `docs/research/post-auth-strategic-analysis-2026-05-25.md` §C/§D — empirical pain + phased plan + forks D3/D4/D5.
 - `packages/shared/src/schemas/history.ts` — `SearchHistory*` Zod schemas.
+
+---
+
+### ADR-029: Global Rate-Limit Bucket Strategy — Bearer-First Per-Account Key + Flat Abuse Cap (BUG-API-RATELIMIT-BEARER-001, 2026-05-28)
+
+**Status:** Accepted — owner-approved (external `/audit-feature` APPROVE) at the bug-workflow Path B pre-commit checkpoint. Cross-model reviewed (design review: **Codex + Gemini both → "Option B" / 600**, converged with the implementer's analysis) + production-code-validator APPROVE + code-review-specialist APPROVE. Extends ADR-027 bearer-over-API-key precedence to the global limiter; no new auth provider or transport.
+
+**Context.** The project has **two independent limiters**: (1) the GLOBAL limiter (`plugins/rateLimit.ts`, `@fastify/rate-limit`, 15-min window) — an abuse/DoS backstop across all routes; (2) the per-actor DAILY limiter (`plugins/actorRateLimit.ts`) — the product quota (tier×bucket: free 100 queries/day, etc.). The global limiter only knew `req.apiKeyContext`, so a logged-in WEB user (Supabase bearer, **no** `X-API-Key`) fell into the anonymous `ip:<ip>` bucket (30/15min) regardless of tier, and shared it with everyone behind the same NAT. F-WEB-HISTORY's read fan-out (`/me`+`/history`+`/me/usage`+loadMore per `/hablar` load ≈ 4 req/action) tripped it after a few actions; the usage meter's `/me/usage` refresh also 429'd. This was BUG-API-RATELIMIT-BEARER-001 (HIGH).
+
+**Decision.**
+1. **Bearer-first bucket key (ADR-027).** `getRateLimitKeyGenerator`: `account:<sub>` when `req.accountId` › `apiKey:<keyId>` › `ip:<ip>`. Authenticated users are keyed **per account** (stable across IPs/devices), not per IP — mirrors `actorRateLimit`'s precedence exactly.
+2. **Flat per-account abuse cap, tier-agnostic: `AUTHENTICATED_RATE_LIMIT_MAX = 600`/15min.** The global limiter is an abuse backstop ONLY; tier value is expressed by the DAILY quotas in `actorRateLimit`, not here. Rejected **Option A (tier-based 100/1000)** — free=100/15min counting the read fan-out would re-trip a milder version of the same bug while under daily quota, and it couples the hot path to an async `resolveAccountTier`. Rejected **Option C (exempt read-only routes)** — leaves `/history`, `/me/usage` unbounded for a broken/abusive client. 600 ≈ ~298 actions/15min (≈40 req/min sustained): ~23× realistic human use, a sound DoS ceiling per account.
+3. **Helpers stay pure + synchronous.** Because the bearer cap is a constant (not a per-request tier lookup), the global limiter adds **zero DB/Redis call** on the hot path. `getRateLimitMax`/`getRateLimitKeyGenerator` remain pure functions (unit-tested).
+4. **Admin bearer NOT exempt; admin API keys stay exempt.** A global abuse limiter should still bound admin bearer traffic (600 is ample); full admin-bearer exemption would force an async tier lookup in `allowList`. Admin API keys remain exempt via the existing sync `allowList`.
+5. **Frontend 429 disambiguation.** The daily limiter emits `error.details.limit/resetAt`; the global limiter does not. `HablarShell` shows "límite diario … vuelve mañana" only when `details.limit` is present, else transient "Demasiadas peticiones … espera unos minutos" — they no longer conflate.
+
+**Consequences.**
+- (+) Logged-in users get a generous per-account budget; the meter updates; NAT-shared anonymous bucket no longer penalizes authenticated users.
+- (+) Separation of concerns is explicit: abuse backstop (this) vs product quota (`actorRateLimit`). Anon/api-key paths are byte-for-byte unchanged.
+- (–) **Ordering invariant:** the limiter reads `req.accountId`, set by `actorResolver`. `@fastify/rate-limit` attaches a ROUTE-LEVEL `onRequest` hook (via `onRoute`); Fastify runs all GLOBAL `onRequest` hooks first, so `actorResolver`'s global hook always precedes it regardless of `registerX` order. **Invariant to preserve: keep `actorResolver` a global `onRequest` hook** (demoting it to route-scoped would reintroduce the bug). Documented in `rateLimit.ts`.
+- (–) Power users with multiple tabs/devices share the per-account cap (correct by design; a transparency note for the privacy/UX doc is a follow-up).
+
+**Follow-ups (non-blocking, no new PR):** (1) surface `retry-after` seconds in the transient 429 copy; (2) document multi-device shared-cap in privacy/UX doc; (3) optional input-disable + countdown during the retry window.
+
+**Cross-references:**
+- ADR-027 (`decisions.md:1007`) — bearer-over-API-key precedence this extends to the global limiter.
+- `bugs.md` — BUG-API-RATELIMIT-BEARER-001 (root cause, why-not-caught, prevention).
+- `packages/api/src/plugins/rateLimit.ts` — helpers + ordering comment; `actorRateLimit.ts` — the DAILY quota counterpart.
