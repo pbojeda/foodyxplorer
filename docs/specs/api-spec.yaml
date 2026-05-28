@@ -2624,7 +2624,11 @@ paths:
 
         **Auth:** No auth required (Phase 1 — internal use). API key auth added in F026.
 
-        **Rate limiting (F026):** Anonymous: 30 req/15min/IP. Free key: 100/15min. Pro key: 1000/15min.
+        **Global rate limiting (F026 + BUG-API-RATELIMIT-BEARER-001):** abuse/DoS backstop, 15-min
+        window. Bearer account: 600 req/15min per account (`account:<sub>`, bearer-first per ADR-027).
+        Pro key: 1000/15min/key. Free key: 100/15min/key. Anonymous: 30 req/15min/IP. This is distinct
+        from the per-actor DAILY tier quotas (F-WEB-TIER, see GET /me/usage); only the daily 429 carries
+        `error.details.limit/resetAt`.
       operationId: estimateAllLevels
       tags:
         - Estimation

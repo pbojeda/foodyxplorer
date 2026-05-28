@@ -383,9 +383,16 @@ export function HablarShell() {
       if (err instanceof ApiError) {
         trackEvent('query_error', { errorCode: err.code });
         if (err.code === 'RATE_LIMIT_EXCEEDED') {
+          // BUG-API-RATELIMIT-BEARER-001: the daily per-actor quota (actorRateLimit)
+          // carries details.limit/resetAt; the global 15-min abuse limiter does NOT.
+          // Only the daily case is a "límite diario … vuelve mañana"; a global hit is
+          // transient ("espera unos minutos"). They share the RATE_LIMIT_EXCEEDED code.
           const limit = typeof err.details?.['limit'] === 'number' ? err.details['limit'] : null;
-          const limitStr = limit !== null ? `${limit} ` : '';
-          errorMessage = `Has alcanzado el límite diario de ${limitStr}consultas. Vuelve mañana.`;
+          if (limit !== null) {
+            errorMessage = `Has alcanzado el límite diario de ${limit} consultas. Vuelve mañana.`;
+          } else {
+            errorMessage = 'Demasiadas peticiones en poco tiempo. Espera unos minutos e inténtalo de nuevo.';
+          }
           if (user === null) {
             setShowRateLimitNudge(true);
           }

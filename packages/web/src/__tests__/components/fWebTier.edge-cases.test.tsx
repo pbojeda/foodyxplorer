@@ -345,26 +345,27 @@ describe('HablarShell — QA edge cases', () => {
     });
   });
 
-  it('429 without details.limit → message retains "de" and has no count', async () => {
-    // When details has no 'limit' field, the message should say
-    // "límite diario de consultas" (with "de", without a number).
+  // BUG-API-RATELIMIT-BEARER-001 (2026-05-28): a 429 WITHOUT details.limit comes
+  // from the GLOBAL 15-min abuse limiter, not the daily per-actor quota. It must
+  // NOT claim "límite diario" (which wrongly tells the user they exhausted their
+  // daily allowance) — it shows transient copy instead. The daily limiter always
+  // carries details.limit. Supersedes the prior F-WEB-TIER "grammar fix" tests
+  // that asserted "límite diario de consultas" for the no-details case.
+  it('429 without details.limit → transient copy, NOT a daily-quota claim', async () => {
     mockSendMessage.mockRejectedValue(
-      new ApiError('Rate limit', 'RATE_LIMIT_EXCEEDED', 429, {}) // no limit in details
+      new ApiError('Rate limit', 'RATE_LIMIT_EXCEEDED', 429, {}) // no limit → global limiter
     );
 
     render(<HablarShell />);
     await typeAndSubmit('big mac');
 
     await waitFor(() => {
-      // Should contain "de consultas" (grammar fix)
-      const errorEl = screen.getByText(/límite diario de consultas/i);
-      expect(errorEl).toBeInTheDocument();
-      // Should NOT contain a number
-      expect(errorEl.textContent).not.toMatch(/\d+/);
+      expect(screen.getByText(/Demasiadas peticiones/i)).toBeInTheDocument();
     });
+    expect(screen.queryByText(/límite diario/i)).not.toBeInTheDocument();
   });
 
-  it('429 with no details at all → message retains "de" and has no count (null details)', async () => {
+  it('429 with no details at all (undefined) → transient copy, NOT a daily-quota claim', async () => {
     mockSendMessage.mockRejectedValue(
       new ApiError('Rate limit', 'RATE_LIMIT_EXCEEDED', 429, undefined)
     );
@@ -373,8 +374,9 @@ describe('HablarShell — QA edge cases', () => {
     await typeAndSubmit('big mac');
 
     await waitFor(() => {
-      expect(screen.getByText(/límite diario de consultas/i)).toBeInTheDocument();
+      expect(screen.getByText(/Demasiadas peticiones/i)).toBeInTheDocument();
     });
+    expect(screen.queryByText(/límite diario/i)).not.toBeInTheDocument();
   });
 
   it('E9: logged-in user 429 → plain error message shown, NO nudge', async () => {
