@@ -1,7 +1,7 @@
 # F-WEB-HISTORY-FU1: Feed polish — meter actor-id + scroll bounds + scroll-to-bottom + photo mode default
 
 **Feature:** F-WEB-HISTORY-FU1 | **Type:** Frontend-Polish (1 client-protocol fix + 3 UX) | **Priority:** High (medidor roto en navegador)
-**Status:** Ready for Merge | **Branch:** feature/F-WEB-HISTORY-FU1-feed-polish
+**Status:** Done | **Branch:** feature/F-WEB-HISTORY-FU1-feed-polish (squash-merged to develop `679500e` via PR #302, 2026-06-01)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-06-01 | **Dependencies:** F-WEB-HISTORY done (#299 + #300), F-WEB-TIER done (#294), BUG-API-RATELIMIT-BEARER-001 fixed (#301)
 
@@ -139,7 +139,7 @@ Gemini → **REVISE** (1 IMPORTANT G1; empirically verified 12 files). Codex →
 - [x] Step 3: Implement (TDD; full gates after last commit)
 - [x] Step 4: Finalize (commit + PR + CI green)
 - [x] Step 5: Review (code-review-specialist + qa-engineer + MCE filled + /audit-merge)
-- [ ] Step 6: Complete (owner sign-off → merge → housekeeping; branch deleted)
+- [x] Step 6: Complete (owner sign-off → merge → housekeeping; branch deleted)
 
 ---
 
@@ -606,6 +606,9 @@ Expected: all commands exit 0. No new TypeScript errors from the `actorId?: stri
 | 2026-06-01 | Step 4 | Commit + PR + CI green | 2 implementation commits `a6b207f` (docs) + `630392b` (impl) + `5a4e49b` (QA follow-ups). Pushed branch; PR **#302** opened to develop. CI `ci-success` SUCCESS at poll #6 (~2.5 min). mergeState CLEAN (Vercel preview non-required). |
 | 2026-06-01 | Step 5 | code-review-specialist | **APPROVE.** No BLOCKER/MAJOR. 3 NIT-grade SUGGESTIONs (AC10 sync-mount path not isolated, AC11 long test name, AC9 weak assertion) — left as future audit, not blocking. Reviewer's empirical pass: 16 files read; verified consolidated effect handles all 4 transitions; AC10c rewritten test materially stronger than prior draft. |
 | 2026-06-01 | Step 5 | qa-engineer | **PASS WITH FOLLOW-UPS.** All 23 ACs (AC1-AC20) verified; web 745/745 + api 4725/4725. 3 minor follow-ups (stale comment at HablarShell.photo.test.tsx:832; redundant `'after toggle switch'` test at :698 → converted into a round-trip regression guard; AC32 missing nth-call actorId assertion) — **all applied** in commit `5a4e49b`. No follow-ups left for bugs.md. |
+| 2026-06-01 | Step 5 | /audit-merge | **12/12 STRUCTURAL PASS** + 14/16 drift PASS/N/A + 2 NIT advisories (P2 regex false positives on legitimate past-tense phrasing; P5 systemic project-wide debt across 53 historical tickets — unrelated to this PR). Verdict: READY FOR MERGE PENDING DRIFT CLEANUP, neither advisory blocking. |
+| 2026-06-01 | Step 6 | Owner sign-off + squash-merge | Owner APPROVE 2026-06-01. PR #302 squash-merged to develop at `679500e`. Remote branch `feature/F-WEB-HISTORY-FU1-feed-polish` deleted (via `gh pr merge --delete-branch`). 6 commits on the branch collapsed: `a6b207f` (Step 0+1+2 spec/plan) + `630392b` (Step 3 impl) + `5a4e49b` (QA follow-ups) + `f9c41ff` (Step 5 docs) + `1f56db7` (P16 tracker row + P2 evidence refresh) + `f4cbb97` (MCE Action 9 audit). |
+| 2026-06-01 | Step 6 | Closeout housekeeping | Ticket Status `Ready for Merge → Done`. Workflow Step 6 `[x]`. Tracker Active Session demoted to "Previous" + Features table row status `in-progress → done` + step `5/6 → 6/6`. **Operator post-deploy smokes AC6/AC21/AC22/AC23 still pending** — to be run on api-dev/app-dev with the owner's bearer after the auto-redeploy from develop completes. |
 
 ---
 
@@ -614,7 +617,7 @@ Expected: all commands exit 0. No new TypeScript errors from the `actorId?: stri
 | # | Action | Done | Evidence |
 |---|--------|------|----------|
 | 0 | Validate ticket structure | [x] | Sections verified: Spec · API Changes (N/A — pure client) · UI Changes · Edge Cases · Acceptance Criteria · Definition of Done · Workflow Checklist · Implementation Plan (Design Notes + Frontend Plan) · Completion Log · Merge Checklist Evidence. |
-| 1 | Mark all items + update Status | [x] | Status `Spec` → `Ready for Merge`. AC: 21/25 (4 deferred = operator post-deploy AC6+AC21+AC22+AC23). DoD: 9/9. Workflow: 0–5 [x], 6 [ ] (pending merge). Completion Log: 9 rows (Step 0 ×2, Step 2 ×2, Step 3 ×2, Step 4, Step 5 ×2). |
+| 1 | Mark all items + update Status | [x] | Status `Spec` → `Ready for Merge` → `Done` (post squash `679500e`). AC: 21/25 (4 deferred = operator post-deploy AC6+AC21+AC22+AC23, to run after api-dev redeploy). DoD: 9/9. Workflow: 0–6 [x]. Completion Log: 11 rows (Step 0 ×2, Step 2 ×2, Step 3 ×2, Step 4, Step 5 ×3, Step 6 ×2). |
 | 2 | Verify product tracker | [x] | `product-tracker.md` Active Session updated to Step 5/6 (Ready for Merge) with PR #302 + CI green. Features table row for `F-WEB-HISTORY-FU1` inserted right after F-WEB-HISTORY (E010 Scale & Monetization section, status `in-progress`, step 5/6). |
 | 3 | Update key_facts.md | [x] | **N/A** — no new infrastructure (no new models/schemas/migrations/endpoints/reusable components/error codes/shared utilities). Pure client-side wiring fix + UI polish. |
 | 4 | Update decisions.md | [x] | **N/A** — no new ADR needed (DoD bullet 9 confirms; ADR-029 already covers the per-account rate-limit policy from the prior PR). |
