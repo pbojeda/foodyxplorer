@@ -17,7 +17,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
-### 2026-05-28 — BUG-API-RATELIMIT-BEARER-001: global IP limiter ignores bearer → logged-in users get the 30/15min anon bucket [HIGH — fix in progress]
+### 2026-05-28 — BUG-API-RATELIMIT-BEARER-001: global IP limiter ignores bearer → logged-in users get the 30/15min anon bucket [HIGH — FIXED]
 
 - **Issue**: A logged-in web user (Supabase bearer, no `X-API-Key`) hits "rate limit exceeded" after only a few searches — far below any tier quota — and the usage meter (Consultas/Fotos/Voz) never updates. Verified empirically on api-dev with a real bearer: `GET /me/usage` and `GET /history` both → `429 RATE_LIMIT_EXCEEDED`. Surfaced by F-WEB-HISTORY (each `/hablar` load now fires `GET /me` + `GET /history` + `GET /me/usage`, each search fires `POST /conversation/message` + `GET /me/usage`, plus `loadMore` on scroll ≈ 4 req/action).
 - **Root Cause**: The GLOBAL limiter `packages/api/src/plugins/rateLimit.ts` only knows `req.apiKeyContext`, NOT the bearer. `getRateLimitKeyGenerator` → `ip:<ip>` and `getRateLimitMax` → **30** when there's no `apiKeyContext`. A logged-in WEB user sends a bearer but no `X-API-Key` → falls into the **anonymous 30 req/15min/IP** bucket regardless of account tier. Predates auth (F026); F-WEB-TIER didn't trip it (few reqs); **F-WEB-HISTORY exposed it** via the read fan-out. The meter-not-updating symptom shares this root: the meter's `/me/usage` refresh is 429'd. Collateral: multiple users behind one NAT/IP also share the 30 bucket.
@@ -27,7 +27,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Found by**: F-WEB-HISTORY dev validation on api-dev, 2026-05-28 (validate-in-dev-before-release caught it pre-prod).
 - **Severity**: High (logged-in product experience broken; blocks develop→main release + F-WEB-HISTORY operator smokes). Pre-beta blast radius.
 - **Verification**: Cross-model design review (Codex + Gemini both → Option B/600) + production-code-validator APPROVE + code-review-specialist APPROVE (MINOR-1 comment reworded, MINOR-2 empty-sub test added) + external `/audit-feature` APPROVE. Gates: api 4725/4725, web 730/730, lint+typecheck+build clean (api+web). ADR-029 records the policy.
-- **Status**: FIXED — branch `bugfix/api-ratelimit-bearer-aware` off develop (bug-workflow Path B). Commit/PR: see below. Operator post-deploy reconfirm pending (api-dev redeploy → logged-in search ×many under daily quota + meter updates).
+- **Status**: FIXED — merged to develop at `2562eef` via PR #301 (bug-workflow Path B), 2026-05-28. Empirically reconfirmed on api-dev 2026-06-01 (35/35 GETs to `/me/usage` with bearer succeeded, header `x-ratelimit-limit: 600` confirmed; AC56–58 of F-WEB-HISTORY closed in the same operator session). The lingering meter-not-updating symptom turned out to be a SEPARATE bug (apiClient.getUsage didn't send `X-Actor-Id`) addressed by F-WEB-HISTORY-FU1.
 
 ---
 
