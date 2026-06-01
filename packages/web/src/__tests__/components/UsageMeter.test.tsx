@@ -142,6 +142,11 @@ describe('UsageMeter (F-WEB-TIER)', () => {
     });
 
     expect(mockGetUsage).toHaveBeenCalledTimes(2);
+    // F-WEB-HISTORY-FU1 (QA follow-up): the refresh call must ALSO carry the
+    // actorId (otherwise the meter would re-fetch the fallback bucket and stop
+    // advancing again).
+    expect(mockGetUsage).toHaveBeenNthCalledWith(1, 'fixed-actor-uuid');
+    expect(mockGetUsage).toHaveBeenNthCalledWith(2, 'fixed-actor-uuid');
   });
 
   it('AC33: fires usage_meter_shown with tier on first successful render', async () => {

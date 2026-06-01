@@ -695,11 +695,16 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
     });
   });
 
-  it('passes mode=identify to sendPhotoAnalysis after toggle switch', async () => {
+  // F-WEB-HISTORY-FU1 D + QA follow-up: 'identify' is now the default, so the
+  // original "after toggle switch" test was a tautology. Replaced with a real
+  // round-trip: click Menú/carta → back to Solo este plato → assert mode=identify.
+  // This exercises AC16's actual regression intent (toggling state both ways).
+  it('passes mode=identify after a Menú/carta → Solo este plato round-trip (AC16 regression)', async () => {
     mockSendPhotoAnalysis.mockResolvedValue(createMenuAnalysisResponse());
     render(<HablarShell />);
 
-    // Switch toggle to "Solo este plato"
+    // Round-trip: identify(default) → auto → identify
+    await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
     await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
 
     await selectFile(makeFile());
@@ -829,21 +834,21 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
   it('fires photo_mode_selected telemetry when the mode toggle is changed', async () => {
     render(<HablarShell />);
 
-    // Default state: "Menú/carta" (auto) is selected.
-    // Click "Solo este plato" to change to identify.
-    await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
-
-    expect(mockTrackEvent).toHaveBeenCalledWith(
-      'photo_mode_selected',
-      { mode: 'identify' },
-    );
-
-    // Switch back to auto and verify the event fires again with 'auto'.
+    // F-WEB-HISTORY-FU1 D: default state is now "Solo este plato" (identify).
+    // Click "Menú/carta" → mode flips to 'auto', telemetry fires.
     await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
 
     expect(mockTrackEvent).toHaveBeenCalledWith(
       'photo_mode_selected',
       { mode: 'auto' },
+    );
+
+    // Click "Solo este plato" → mode flips back to 'identify', telemetry fires again.
+    await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
+
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      'photo_mode_selected',
+      { mode: 'identify' },
     );
   });
 });
