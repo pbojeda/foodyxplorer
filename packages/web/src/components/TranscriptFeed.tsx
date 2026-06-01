@@ -50,6 +50,32 @@ export function TranscriptFeed({
   const feedRef = useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = useRef<number>(0);
   const prevScrollTopRef = useRef<number>(0);
+  // F-WEB-HISTORY-FU1 item C: guard so the initial scroll-to-bottom fires AT MOST
+  // ONCE — covers both synchronous mount (entries already in props) and async
+  // hydration ([] → [persisted×N] rerender). Subsequent loadMore prepends and
+  // session appends short-circuit and fall through to the existing effects below.
+  const hasScrolledToBottomOnHydrationRef = useRef(false);
+
+  // F-WEB-HISTORY-FU1 item C: scroll to bottom on the first non-empty entries state.
+  // React always runs useEffect once after first render regardless of deps, so
+  // `[entries.length]` covers both the sync-mount case (entries already populated
+  // on first render — the effect runs immediately with the non-zero length) AND
+  // the async-hydration case (entries starts empty → effect early-returns → later
+  // rerender with entries.length>0 re-fires the effect and scrolls). The ref guard
+  // ensures it fires at most once so loadMore prepends and session appends never
+  // re-trigger it; those flows are handled by the existing effects below.
+  useEffect(() => {
+    if (entries.length === 0) return;
+    if (hasScrolledToBottomOnHydrationRef.current) return;
+    const container = feedRef.current;
+    if (!container) return;
+    hasScrolledToBottomOnHydrationRef.current = true;
+    try {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    } catch {
+      // jsdom does not implement element.scrollTo — safe to ignore in tests
+    }
+  }, [entries.length]);
 
   // Auto-scroll to bottom when new session entries are appended.
   // Only if user is already near the bottom (within 100px).
@@ -107,7 +133,7 @@ export function TranscriptFeed({
       role="feed"
       aria-label="Historial de consultas"
       aria-busy={isLoadingHistory ? true : undefined}
-      className="flex-1 overflow-y-auto px-4 pt-4 pb-6 lg:max-w-2xl lg:mx-auto w-full"
+      className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(9rem+env(safe-area-inset-bottom))] lg:max-w-2xl lg:mx-auto w-full"
     >
       {/* Load-more sentinel — at the very top, above all entries */}
       {isAuthenticated && (hasMoreHistory || isLoadingMore) && (

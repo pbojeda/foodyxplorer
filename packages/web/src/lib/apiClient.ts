@@ -488,11 +488,19 @@ export async function getMe(): Promise<MeEnvelope> {
  * Requires authToken to be set via setAuthToken() before calling.
  * Read-only — never increments quota counters.
  *
+ * **F-WEB-HISTORY-FU1 (BUG-WEB-USAGEMETER-ACTOR-PARITY):** sends `X-Actor-Id`
+ * when `actorId` is a non-empty string so the API resolves the SAME actor as
+ * `sendMessage` (server-side `resolveBearerActorId` reads the header). Without
+ * this header, the bearer path falls back to `me-<sub.slice(0,8)>` — a different
+ * Redis bucket than the one `/conversation/message` INCRements, and the meter
+ * never advances from browser searches.
+ *
+ * @param actorId  Optional X-Actor-Id; omit or pass `''`/`undefined` to skip the header.
  * @returns Parsed UsageResponse (tier, resetAt, buckets).
  * @throws ApiError with UNAUTHORIZED if no token is set.
  * @throws ApiError on non-2xx or parse failure.
  */
-export async function getUsage(): Promise<UsageEnvelope> {
+export async function getUsage(actorId?: string): Promise<UsageEnvelope> {
   const baseUrl = process.env['NEXT_PUBLIC_API_URL'];
   if (!baseUrl) {
     throw new Error('NEXT_PUBLIC_API_URL is not defined.');
@@ -507,6 +515,7 @@ export async function getUsage(): Promise<UsageEnvelope> {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${authToken}`,
+        ...(actorId ? { 'X-Actor-Id': actorId } : {}),
       },
     });
   } catch (err) {

@@ -275,4 +275,178 @@ describe('TranscriptFeed', () => {
 
     expect(scrollToMock).toHaveBeenCalledWith({ top: expect.any(Number), behavior: 'smooth' });
   });
+
+  // -------------------------------------------------------------------------
+  // F-WEB-HISTORY-FU1 item B — bottom padding clears the fixed ConversationInput bar
+  // -------------------------------------------------------------------------
+
+  it('AC8: scroll container has bottom padding clearing the fixed bottom bar (~144px + iOS safe area)', () => {
+    render(<TranscriptFeed {...defaultProps} entries={[makeEntry()]} />);
+    const feed = screen.getByRole('feed');
+    // pb-[calc(9rem+env(safe-area-inset-bottom))] — 9rem = 144px base + iOS safe area
+    expect(feed.className).toContain('pb-[calc(9rem+env(safe-area-inset-bottom))]');
+    // Regression guard: the old pb-6 (24px) must no longer be on the container.
+    // (className inspection is jsdom-friendly; layout-based assertions like
+    // getBoundingClientRect are unreliable in jsdom — see /review-spec G1.)
+    expect(feed.className).not.toMatch(/(^|\s)pb-6($|\s)/);
+  });
+
+  it('AC9: 1-entry render still has the expected padding and does not crash', () => {
+    const { container } = render(<TranscriptFeed {...defaultProps} entries={[makeEntry({ entryId: 'only' })]} />);
+    const feed = screen.getByRole('feed');
+    expect(feed.className).toContain('pb-[calc(9rem+env(safe-area-inset-bottom))]');
+    expect(container.querySelectorAll('[role="article"], [aria-busy]').length).toBeGreaterThan(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // F-WEB-HISTORY-FU1 item C — scroll-to-bottom on mount + async hydration
+  // -------------------------------------------------------------------------
+
+  // Helper: define mutable scroll properties + scrollTo spy on the feed element.
+  function installScrollMocks(
+    feed: HTMLElement,
+    opts: { scrollTop?: number; clientHeight?: number; scrollHeight?: number } = {},
+  ) {
+    const scrollToMock = jest.fn();
+    Object.defineProperty(feed, 'scrollTo', { value: scrollToMock, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollTop', { value: opts.scrollTop ?? 0, writable: true, configurable: true });
+    Object.defineProperty(feed, 'clientHeight', { value: opts.clientHeight ?? 500, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollHeight', { value: opts.scrollHeight ?? 1500, writable: true, configurable: true });
+    return scrollToMock;
+  }
+
+  it('AC10: scrolls to bottom on synchronous mount with N≥2 entries', async () => {
+    // To install scroll mocks BEFORE the effect fires, start with entries=[]
+    // (the effect early-returns), install the mocks, then rerender with entries.
+    // This mirrors React's effect flush timing.
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
+    const feed = screen.getByRole('feed');
+    const scrollToMock = installScrollMocks(feed, { scrollTop: 0, scrollHeight: 1500, clientHeight: 500 });
+
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[makeEntry({ entryId: 'a' }), makeEntry({ entryId: 'b' })]}
+      />
+    );
+
+    expect(scrollToMock).toHaveBeenCalledWith({ top: 1500, behavior: 'smooth' });
+  });
+
+  it('AC10b: scrolls to bottom on async hydration ([] → [persisted×N])', async () => {
+    // The real reload path: useSearchHistory loads asynchronously, so entries
+    // is [] on first render and grows to N≥1 on a later rerender — even when the
+    // user is NOT near the bottom (scrollTop=0). The new hydration effect must
+    // bypass the existing isNearBottom guard.
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
+    const feed = screen.getByRole('feed');
+    const scrollToMock = installScrollMocks(feed, { scrollTop: 0, scrollHeight: 2000, clientHeight: 500 });
+
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[
+          makeEntry({ entryId: 'p1', isPersisted: true }),
+          makeEntry({ entryId: 'p2', isPersisted: true }),
+        ]}
+      />
+    );
+
+    expect(scrollToMock).toHaveBeenCalledWith({ top: 2000, behavior: 'smooth' });
+    // Fires exactly once (the next assertion in AC10c verifies it doesn't re-fire).
+    expect(scrollToMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('AC10c: loadMore prepend (isLoadingMore false→true→false + entries grow) does NOT scroll to bottom, AND restores scrollTop', () => {
+    // Step 1: mount with 2 entries; hydration effect fires once, ref becomes true.
+    const initialEntries = [makeEntry({ entryId: 'a' }), makeEntry({ entryId: 'b' })];
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
+    const feed = screen.getByRole('feed');
+    const scrollToMock = installScrollMocks(feed, { scrollTop: 0, scrollHeight: 1000, clientHeight: 500 });
+    rerender(<TranscriptFeed {...defaultProps} entries={initialEntries} />);
+    expect(scrollToMock).toHaveBeenCalledTimes(1); // hydration scroll
+    scrollToMock.mockClear();
+
+    // Step 2: user scrolls up (well above the near-bottom 100px threshold).
+    Object.defineProperty(feed, 'scrollTop', { value: 200, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollHeight', { value: 1000, writable: true, configurable: true });
+
+    // Step 3: isLoadingMore flips to true — existing capture effect runs.
+    rerender(<TranscriptFeed {...defaultProps} entries={initialEntries} isLoadingMore={true} />);
+
+    // Step 4: simulate the DOM growing because older entries were inserted
+    // at the front. delta = 400 (new scrollHeight 1400 − old 1000).
+    Object.defineProperty(feed, 'scrollHeight', { value: 1400, writable: true, configurable: true });
+
+    // Step 5: isLoadingMore flips back to false with the older entries now in the
+    // entries array (prepended). The existing restore effect adjusts scrollTop.
+    const prependedEntries = [
+      makeEntry({ entryId: 'older1', isPersisted: true }),
+      makeEntry({ entryId: 'older2', isPersisted: true }),
+      ...initialEntries,
+    ];
+    rerender(<TranscriptFeed {...defaultProps} entries={prependedEntries} isLoadingMore={false} />);
+
+    // Critical assertions:
+    // (a) The new hydration effect did NOT re-fire (ref-guarded).
+    expect(scrollToMock).not.toHaveBeenCalled();
+    // (b) The existing prepend-preservation logic restored scrollTop to prev + delta = 200 + 400 = 600.
+    expect(feed.scrollTop).toBe(600);
+  });
+
+  it('AC11 (regression): when a new session entry appends AND user is near bottom, scrollTo is called — covered by existing AC47 test above; this is an explicit guard after Step 5 lands', () => {
+    // Same scenario as AC47, but with the hydration effect now in place — verifies
+    // they coexist (hydration fires first on mount, ref locks it, then the append
+    // effect still works on subsequent appends because it's a separate effect).
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[makeEntry({ entryId: 'a' })]} />);
+    const feed = screen.getByRole('feed');
+    const scrollToMock = installScrollMocks(feed, { scrollTop: 400, scrollHeight: 500, clientHeight: 500 });
+    // Hydration effect fired (entries=[a] → ref locks).
+    rerender(<TranscriptFeed {...defaultProps} entries={[makeEntry({ entryId: 'a' }), makeEntry({ entryId: 'b' })]} />);
+    // The append effect should fire because user is near bottom (400+500 >= 500-100).
+    expect(scrollToMock).toHaveBeenCalledWith({ top: expect.any(Number), behavior: 'smooth' });
+  });
+
+  it('AC12: when a new entry appends AND user has scrolled up (>100px from bottom), scrollTo is NOT called', () => {
+    const initialEntries = [makeEntry({ entryId: 'a' }), makeEntry({ entryId: 'b' })];
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
+    const feed = screen.getByRole('feed');
+    const scrollToMock = installScrollMocks(feed, { scrollTop: 0, scrollHeight: 2000, clientHeight: 500 });
+    rerender(<TranscriptFeed {...defaultProps} entries={initialEntries} />);
+    // Hydration fired once.
+    expect(scrollToMock).toHaveBeenCalledTimes(1);
+    scrollToMock.mockClear();
+
+    // User scrolls up well above the threshold.
+    Object.defineProperty(feed, 'scrollTop', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollHeight', { value: 2000, writable: true, configurable: true });
+    Object.defineProperty(feed, 'clientHeight', { value: 500, writable: true, configurable: true });
+
+    // Append a new session entry.
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[...initialEntries, makeEntry({ entryId: 'new', isPersisted: false })]}
+      />
+    );
+
+    // Append effect should NOT scroll (user is far from bottom — 0+500 < 2000-100).
+    // The hydration effect is already locked.
+    expect(scrollToMock).not.toHaveBeenCalled();
+  });
+
+  it('AC13: programmatic scroll-to-bottom calls use behavior:"smooth"', () => {
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
+    const feed = screen.getByRole('feed');
+    const scrollToMock = installScrollMocks(feed, { scrollTop: 0, scrollHeight: 1200, clientHeight: 500 });
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[makeEntry({ entryId: 'a' }), makeEntry({ entryId: 'b' })]}
+      />
+    );
+    expect(scrollToMock).toHaveBeenCalled();
+    const lastCallArg = scrollToMock.mock.calls[scrollToMock.mock.calls.length - 1]?.[0] as { behavior?: string };
+    expect(lastCallArg?.behavior).toBe('smooth');
+  });
 });

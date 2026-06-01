@@ -92,4 +92,23 @@ describe('PhotoModeToggle', () => {
     const group = screen.getByRole('group');
     expect(group).toHaveAttribute('aria-label', 'Tipo de análisis de foto');
   });
+
+  // F-WEB-HISTORY-FU1 item D — toggle order swap: "Solo este plato" on the LEFT
+  // (single-dish path is the common case per owner). The two existing aria-pressed
+  // tests above still pass because they query by name, not position.
+  it('AC14: renders buttons in order [Solo este plato | Menú/carta] (DOM order)', () => {
+    render(<PhotoModeToggle value="identify" onChange={jest.fn()} />);
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(2);
+    expect(buttons[0]).toHaveTextContent('Solo este plato');
+    expect(buttons[1]).toHaveTextContent('Menú/carta');
+  });
+
+  it('AC15: when value="identify" (the new default), Solo este plato is active', () => {
+    render(<PhotoModeToggle value="identify" onChange={jest.fn()} />);
+    const soloBtn = screen.getByRole('button', { name: 'Solo este plato' });
+    const menuBtn = screen.getByRole('button', { name: 'Menú/carta' });
+    expect(soloBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(menuBtn).toHaveAttribute('aria-pressed', 'false');
+  });
 });

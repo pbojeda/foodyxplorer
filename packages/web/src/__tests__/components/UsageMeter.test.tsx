@@ -28,6 +28,12 @@ jest.mock('../../lib/apiClient', () => ({
   },
 }));
 
+// F-WEB-HISTORY-FU1: UsageMeter must read getActorId() and pass it to getUsage
+// so /me/usage and /conversation/message resolve to the SAME actor.
+jest.mock('../../lib/actorId', () => ({
+  getActorId: jest.fn().mockReturnValue('fixed-actor-uuid'),
+}));
+
 // Default: logged-in user
 const mockUseAuth = jest.fn(() => ({
   user: { id: 'user-uuid', email: 'test@example.com' },
@@ -46,8 +52,10 @@ jest.mock('../../hooks/useAuth', () => ({
 import { UsageMeter } from '../../components/UsageMeter';
 import { trackEvent } from '../../lib/metrics';
 import { getUsage } from '../../lib/apiClient';
+import { getActorId } from '../../lib/actorId';
 
 const mockGetUsage = getUsage as jest.Mock;
+const mockGetActorId = getActorId as jest.Mock;
 const mockTrackEvent = trackEvent as jest.Mock;
 
 // ---------------------------------------------------------------------------
@@ -134,6 +142,11 @@ describe('UsageMeter (F-WEB-TIER)', () => {
     });
 
     expect(mockGetUsage).toHaveBeenCalledTimes(2);
+    // F-WEB-HISTORY-FU1 (QA follow-up): the refresh call must ALSO carry the
+    // actorId (otherwise the meter would re-fetch the fallback bucket and stop
+    // advancing again).
+    expect(mockGetUsage).toHaveBeenNthCalledWith(1, 'fixed-actor-uuid');
+    expect(mockGetUsage).toHaveBeenNthCalledWith(2, 'fixed-actor-uuid');
   });
 
   it('AC33: fires usage_meter_shown with tier on first successful render', async () => {
@@ -191,5 +204,21 @@ describe('UsageMeter (F-WEB-TIER)', () => {
     const { container } = render(<UsageMeter />);
     await new Promise((r) => setTimeout(r, 20));
     expect(container.firstChild).toBeNull();
+  });
+
+  // F-WEB-HISTORY-FU1 (BUG-WEB-USAGEMETER-ACTOR-PARITY) — meter must wire
+  // getActorId() so /me/usage and /conversation/message hit the SAME actor.
+  it('AC4: calls getActorId() inside fetchUsage so the meter reads the same actor bucket the search writes to', async () => {
+    render(<UsageMeter />);
+    await waitFor(() => {
+      expect(mockGetActorId).toHaveBeenCalled();
+    });
+  });
+
+  it('AC5: passes the actorId returned by getActorId() to getUsage', async () => {
+    render(<UsageMeter />);
+    await waitFor(() => {
+      expect(mockGetUsage).toHaveBeenCalledWith('fixed-actor-uuid');
+    });
   });
 });

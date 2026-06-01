@@ -250,12 +250,14 @@ describe('QA-WEB-001 edge cases — Photo API error codes', () => {
     });
   });
 
-  it('MENU_ANALYSIS_FAILED with mode=auto (default) → "No he podido leer el menú..."', async () => {
+  it('MENU_ANALYSIS_FAILED with mode=auto (after toggle from new identify default) → "No he podido leer el menú..."', async () => {
     mockSendPhotoAnalysis.mockRejectedValue(
       new ApiError('Vision failed', 'MENU_ANALYSIS_FAILED', 422)
     );
 
     render(<HablarShell />);
+    // F-WEB-HISTORY-FU1 D: 'identify' is the default; toggle to 'auto' first.
+    await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
     await selectFile(makeFile());
 
     await waitFor(() => {

@@ -12,6 +12,7 @@
 // Never blocks or errors the page.
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { getActorId } from '@/lib/actorId';
 import type { UsageResponse } from '@foodxplorer/shared';
 import { getUsage } from '@/lib/apiClient';
 import { trackEvent } from '@/lib/metrics';
@@ -67,7 +68,12 @@ export function UsageMeter({ onRefreshReady }: UsageMeterProps): JSX.Element | n
   const fetchUsage = useCallback(async () => {
     if (!user) return;
     try {
-      const result = await getUsage();
+      // F-WEB-HISTORY-FU1 (BUG-WEB-USAGEMETER-ACTOR-PARITY): pass the same
+      // actorId HablarShell sends on /conversation/message so /me/usage reads
+      // the SAME actor's Redis bucket. Without this header, the bearer fallback
+      // resolves to a different actor and the meter shows a stale (often zero) count.
+      const actorId = getActorId();
+      const result = await getUsage(actorId);
       const data = result.data;
       setUsageData(data);
       setHasFailed(false);
