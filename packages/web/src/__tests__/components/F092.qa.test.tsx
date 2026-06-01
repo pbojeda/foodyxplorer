@@ -514,7 +514,11 @@ describe('F092 QA — Inline error cleared on retry', () => {
 
     render(<HablarShell />);
 
-    // First analysis — should show error (default mode=auto → "leer el menú" copy)
+    // F-WEB-HISTORY-FU1 D: default is 'identify'; toggle to 'auto' so this test
+    // continues to exercise the "leer el menú" copy on the first analysis.
+    await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
+
+    // First analysis — should show error (mode=auto → "leer el menú" copy)
     await selectFile(makeFile('attempt1.jpg'));
     await waitFor(() => {
       expect(screen.getByText(/No he podido leer el menú/i)).toBeInTheDocument();

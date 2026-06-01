@@ -426,11 +426,15 @@ describe('QA-WEB-001 gaps — F-023: Photo retry after error (BUG-QA-008)', () =
       expect(screen.getByRole('textbox')).not.toBeDisabled();
     });
 
+    // F-WEB-HISTORY-FU1 D: default mode is now 'identify'; toggle to 'auto' so
+    // this test continues to exercise the menu-mode "leer el menú" copy.
+    await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
+
     // Submit a photo — it fails with inline error (no ErrorState retry button)
     await selectFile(makeFile());
 
     await waitFor(() => {
-      // Default mode=auto → "leer el menú" copy (F-WEB-MENU-VISION-001)
+      // mode=auto → "leer el menú" copy (F-WEB-MENU-VISION-001)
       expect(screen.getByText(/No he podido leer el menú/i)).toBeInTheDocument();
     });
 

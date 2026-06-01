@@ -206,5 +206,36 @@ describe('apiClient — F-WEB-TIER', () => {
       );
       await expect(getUsage()).rejects.toMatchObject({ code: 'INTERNAL_ERROR' });
     });
+
+    // F-WEB-HISTORY-FU1 (BUG-WEB-USAGEMETER-ACTOR-PARITY) — getUsage must send
+    // X-Actor-Id so /me/usage and /conversation/message resolve to the SAME actor
+    // on the API side (otherwise actorRateLimit counters live in different
+    // Redis buckets and the meter never advances from browser searches).
+    it('AC2: sends X-Actor-Id header when actorId is a non-empty string', async () => {
+      setAuthToken('usage-jwt-token');
+      mockFetch.mockReturnValueOnce(makeSuccessResponse(usageSuccessBody));
+      await getUsage('abc-actor-uuid');
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers['X-Actor-Id']).toBe('abc-actor-uuid');
+    });
+
+    it('AC3: omits X-Actor-Id header when actorId is undefined', async () => {
+      setAuthToken('usage-jwt-token');
+      mockFetch.mockReturnValueOnce(makeSuccessResponse(usageSuccessBody));
+      await getUsage(undefined);
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers).not.toHaveProperty('X-Actor-Id');
+    });
+
+    it('AC3: omits X-Actor-Id header when actorId is the empty string', async () => {
+      setAuthToken('usage-jwt-token');
+      mockFetch.mockReturnValueOnce(makeSuccessResponse(usageSuccessBody));
+      await getUsage('');
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      expect(headers).not.toHaveProperty('X-Actor-Id');
+    });
   });
 });

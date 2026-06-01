@@ -419,16 +419,20 @@ describe('HablarShell — photo flow (F092)', () => {
     });
   });
 
-  it('shows inline error for MENU_ANALYSIS_FAILED API error (mode=auto default)', async () => {
+  it('shows inline error for MENU_ANALYSIS_FAILED API error (after toggling to auto mode)', async () => {
     mockSendPhotoAnalysis.mockRejectedValue(
       new ApiError('Vision failed', 'MENU_ANALYSIS_FAILED', 422)
     );
     render(<HablarShell />);
 
+    // F-WEB-HISTORY-FU1 D: default mode is now 'identify' — toggle to 'auto' first
+    // so this test still exercises the menu-mode error copy.
+    await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
+
     await selectFile(makeFile());
 
     await waitFor(() => {
-      // Default mode is 'auto' — shows menu-mode error copy
+      // Menu-mode error copy after explicit toggle to 'auto'
       expect(screen.getByText(/No he podido leer el menú/i)).toBeInTheDocument();
     });
   });
@@ -673,7 +677,9 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
     sendMessage.mockReturnValue(new Promise(() => {}));
   });
 
-  it('passes mode=auto to sendPhotoAnalysis by default', async () => {
+  // F-WEB-HISTORY-FU1 (item D): the default photo mode is now 'identify'
+  // (single-dish path is the common case per owner).
+  it('passes mode=identify to sendPhotoAnalysis by default (FU1 D)', async () => {
     mockSendPhotoAnalysis.mockResolvedValue(createMenuAnalysisResponse());
     render(<HablarShell />);
 
@@ -684,7 +690,7 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
         expect.any(File),
         expect.any(String),
         expect.anything(),
-        'auto',
+        'identify',
       );
     });
   });
@@ -714,6 +720,10 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
     );
     render(<HablarShell />);
 
+    // F-WEB-HISTORY-FU1 D: default is now 'identify'; toggle to Menú/carta first
+    // so this test continues to exercise the menu-mode error copy.
+    await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
+
     await selectFile(makeFile());
 
     await waitFor(() => {
@@ -727,7 +737,9 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
     );
     render(<HablarShell />);
 
-    // Switch toggle to "Solo este plato"
+    // F-WEB-HISTORY-FU1 D: 'identify' is now the default — the toggle click below
+    // is now a no-op for state purposes, but kept for backwards compatibility with
+    // the test's original intent (verifying identify-mode error copy).
     await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
 
     await selectFile(makeFile());

@@ -68,7 +68,8 @@ export function HablarShell() {
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
 
   // F-WEB-MENU-VISION-001 — photo analysis mode toggle (session-only, not persisted)
-  const [photoAnalysisMode, setPhotoAnalysisMode] = useState<'auto' | 'identify'>('auto');
+  // F-WEB-HISTORY-FU1 (item D): default mode is 'identify' (single-dish path is the common case).
+  const [photoAnalysisMode, setPhotoAnalysisMode] = useState<'auto' | 'identify'>('identify');
 
   // Voice state (F091)
   const [isVoiceOverlayOpen, setIsVoiceOverlayOpen] = useState(false);
