@@ -2472,13 +2472,21 @@ interface TranscriptEntryData {
 | `onClearAll` | `() => void` | No | — | Signals HablarShell to clear all persisted history. |
 | `isAuthenticated` | `boolean` | No | `false` | Controls "Guardado" badge on pre-loaded entries and ClearHistoryButton visibility. |
 | `showPersistenceNudge` | `boolean` | No | `false` | Parent-controlled: show after ≥2 entries for anonymous users. |
-| `onNudgeDismiss` | `() => void` | No | — | Dismiss callback for HistoryPersistenceNudge. |
+| `onDismissPersistenceNudge` | `() => void` | No | — | Dismiss callback for HistoryPersistenceNudge. |
 
-**State:**
-- `shouldAutoScroll: boolean` — true when `scrollTop + clientHeight >= scrollHeight - 100`. Checked before each append.
+**State (internal refs):**
+- `wasNearBottomRef: MutableRefObject<boolean>` — initialized `true`; updated by a `scroll` event listener on the feed container capturing the user's position BEFORE each append commits. The append effect reads this ref unconditionally; no post-commit DOM math.
+- `hasScrolledToBottomOnHydrationRef: MutableRefObject<boolean>` — ref-guard ensuring the hydration scroll fires at most once per component lifetime.
+- `prevEntriesLengthRef: MutableRefObject<number>` — tracks previous `entries.length` to detect appends vs. prepends.
+- `hydrationObserverRef: MutableRefObject<{ observer, timer } | nulls>` — holds the `ResizeObserver` instance + window timer outside React's effect cleanup cycle (prevents premature disconnect on intermediate `entries.length` changes during the 500ms hydration window).
+
+**Behavior:**
+- **Hydration scroll (Bug 1 fix):** On first non-empty `entries` render, fires a synchronous `scrollTo({ behavior: 'instant' })` then attaches a `ResizeObserver` to the feed container for `HYDRATION_RESCROLL_WINDOW_MS` (500ms). Every time the container's `scrollHeight` grows within that window, the instant re-scroll re-fires (W18: "no animation on initial mount"). After 500ms the observer disconnects via its own timer; the observer survives intermediate `entries.length` changes within the window (held in a ref, not a `useEffect` cleanup). Fallback: when `typeof ResizeObserver === 'undefined'`, only the synchronous initial scroll fires.
+- **Append auto-scroll (Bug 2 fix):** When `entries.length` grows, the append effect reads `wasNearBottomRef.current` (pre-commit position captured by a `scroll` listener on the container) and calls `scrollTo({ behavior: 'smooth' })` only when `true`. No post-commit `scrollHeight` math; decoupled from layout race.
+- **LoadMore prepend preservation:** When `isLoadingMore` transitions `true → false`, the existing prepend-preservation effect restores `scrollTop` to maintain the user's viewport anchor.
 
 **Accessibility:**
-- `role="feed"` `aria-label="Historial de consultas"` `aria-busy={isLoadingMore}`
+- `role="feed"` `aria-label="Historial de consultas"` `aria-busy={isLoadingHistory ? true : undefined}`
 - Scroll container must be a real scrollable DOM element (not `display: contents`) for iOS `-webkit-overflow-scrolling`.
 
 ---
