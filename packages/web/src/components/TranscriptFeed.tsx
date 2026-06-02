@@ -10,7 +10,7 @@
 // AC47: auto-scroll to bottom on new entries.
 // FU2: ResizeObserver hydration scroll-settle + wasNearBottomRef append fix.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { TranscriptEntryData } from '@/types/history';
 import { TranscriptEntry } from './TranscriptEntry';
 import { EmptyState } from './EmptyState';
@@ -103,7 +103,13 @@ export function TranscriptFeed({
 
   // Effect 1 — setup. Keyed to entries.length so it fires on first non-empty.
   // Returns EMPTY cleanup intentionally — see above.
-  useEffect(() => {
+  // FU3: useLayoutEffect (not useEffect) so the synchronous initial scrollTo runs
+  // BEFORE the browser paints the first non-empty frame. Without this swap, the
+  // user briefly sees the feed at scrollTop=0 between commit and useEffect → jarring
+  // "top first, then jump to bottom" perception on reload. The ResizeObserver
+  // re-fires still happen post-paint (intentional — they correct for child layout
+  // growth that can only be measured after render).
+  useLayoutEffect(() => {
     if (entries.length === 0) return;
     if (hasScrolledToBottomOnHydrationRef.current) return;
     const container = feedRef.current;
@@ -193,6 +199,7 @@ export function TranscriptFeed({
 
   // Capture scroll position before load-more prepends older entries.
   // After DOM update, restore position so the viewport doesn't jump.
+  // Capture stays in useEffect: it only READS layout into refs, no write.
   useEffect(() => {
     if (isLoadingMore) {
       const container = feedRef.current;
@@ -202,7 +209,12 @@ export function TranscriptFeed({
     }
   }, [isLoadingMore]);
 
-  useEffect(() => {
+  // FU3: restore uses useLayoutEffect so the corrective scrollTop write happens
+  // BEFORE the browser paints the post-prepend frame. Without this swap, the user
+  // briefly sees the prepended (older) entries at the top before the JS restores
+  // their original viewport anchor → flicker. The pre-existing F-WEB-HISTORY
+  // capture/restore math is untouched.
+  useLayoutEffect(() => {
     if (!isLoadingMore) {
       const container = feedRef.current;
       if (!container) return;
