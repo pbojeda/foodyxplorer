@@ -31,7 +31,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 ---
 
-### 2026-06-01 — BUG-WEB-FEED-SCROLL-SETTLE-001: TranscriptFeed scroll-to-bottom races browser layout-settle on reload + isNearBottom mis-classifies on append [HIGH — OPEN, F-WEB-HISTORY-FU2]
+### 2026-06-01 — BUG-WEB-FEED-SCROLL-SETTLE-001: TranscriptFeed scroll-to-bottom races browser layout-settle on reload + isNearBottom mis-classifies on append [HIGH — FIXED in code @ `be7ebcf`; operator AC19/AC20/AC21 reverify pending]
 
 - **Issue**: Surfaced by F-WEB-HISTORY-FU1 operator smokes on app-dev (2026-06-01, owner bearer `sub b39eaa06…`). Two distinct symptoms:
   - **(Bug 1, AC10b)** On `/hablar` reload with ≥1 persisted entries, the feed scrolls toward the bottom but **stops short** — last entry stays partially below the fold.
@@ -59,7 +59,7 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Prevention**: For ACs that depend on real browser layout (scroll/Resize/CLS/fonts), pair the unit-test AC with an **operator smoke AC verbatim** — the operator AC is the authoritative gate; the unit test is a regression guard. Saved as `feedback_jsdom_layout_ac_gap` lesson + library-angle candidate for SDD v0.21.x (`/audit-merge` "jsdom-limited AC detector": flag any AC text matching `/scrollTo|scrollHeight|scrollTop|getBoundingClientRect|near.*bottom|hydrat.*scroll|ResizeObserver|layout/i` whose only verification is a unit test).
 - **Found by**: Owner operator smokes on app-dev post F-WEB-HISTORY-FU1 deploy (2026-06-01) → external-agent audit reconfirmed diagnosis + refined fix proposal (2026-06-02).
 - **Severity**: High (visible product UX defect on both reload and append — every authenticated `/hablar` session is affected once they have ≥1 persisted entry or perform any search). Pre-beta blast radius. **Blocks develop→main release**.
-- **Status**: OPEN — addressed by F-WEB-HISTORY-FU2 (branch `bugfix/web-feed-scroll-settle`). Housekeeping decision: AC10b + AC11 are NOT retroactively unmarked in the FU1 ticket — FU1 is Done and its unit tests legitimately pass; the gap is at the jsdom↔browser boundary. AC22 (operator scroll-overlap PASS) remains authoritative for FU1. **Release develop→main remains ON HOLD** until FU2 ships + browser-smoke reconfirms.
+- **Status**: **FIXED in code @ `be7ebcf`** via PR #304 (F-WEB-HISTORY-FU2), 2026-06-02 12:05Z. Bug 1 fix: `ResizeObserver` ref-held lifecycle (P-C1 pattern from /review-plan Codex) with synchronous initial `behavior:'instant'` + 500ms post-hydration window for re-scrolls. Bug 2 fix: `wasNearBottomRef` updated by `scroll` event listener (canonical Slack/Linear/Discord pattern) — pre-commit position decouples decision from post-commit `scrollHeight` race. Strict Mode safety: Effect 2 cleanup resets the ref-guard so React 18 dev mount→cleanup→mount re-installs observer. Reusable `resizeObserverShim.ts` test helper added. **Operator post-deploy reverify pending**: AC19 (Bug 1 — 3 reloads → bottom land), AC20 (Bug 2 — append scrolls when near-bottom + DOES NOT when scrolled up), AC21 (FU1 AC10c regression — loadMore prepend preserves viewport). Housekeeping decision: AC10b + AC11 NOT retroactively unmarked in FU1 ticket — FU1 is Done and its unit tests legitimately pass; the gap was at the jsdom↔browser boundary. AC22 (operator scroll-overlap PASS) remains authoritative for FU1. **Release develop→main remains ON HOLD** until operator AC19+AC20+AC21 reconfirm in browser on app-dev.
 
 ---
 
