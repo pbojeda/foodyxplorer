@@ -128,19 +128,375 @@ Gemini → **APPROVED** (1 SUGGESTION). Codex → **REVISE** (3 IMPORTANT). Both
 
 ## Implementation Plan
 
-_(Populated in Step 2 after `/review-spec` sign-off.)_
-
 ### Design Notes
 
-_(Reserved for Step 2.)_
+- **Why `ResizeObserver` over `MutationObserver` / `IntersectionObserver` / `rAF`-loop.** `rAF×2` is NOT sufficient — `NutritionCard` async work (font load, lazy images) can span more than two frames. `MutationObserver` fires on DOM mutations (node insertion/removal), not on layout dimension changes — it would need to read `scrollHeight` on every child insertion and could miss async image-driven growth. `IntersectionObserver` detects when the container or a sentinel crosses viewport thresholds, not when the container's own `scrollHeight` grows. `ResizeObserver` is the canonical browser API for reacting to dimension changes on a specific element; it fires whenever `scrollHeight` grows regardless of cause (text, images, fonts) and is zero-cost once disconnected. Auditor reasoning 2026-06-02: use `ResizeObserver` as PRIMARY, not alternative.
+
+- **Why `wasNearBottomRef` via `scroll` listener over `useLayoutEffect`-based pre-commit DOM read.** `useLayoutEffect` runs synchronously after the DOM commit — i.e., AFTER React has already updated `scrollHeight` with the new entry's height. Reading `scrollHeight` there still measures the post-commit state. The canonical Slack/Linear/Discord pattern captures position in a `scroll` event listener, which runs on user-initiated scroll events BEFORE any new commit; the ref always holds the last known user position. This decouples the "was the user at the bottom?" decision from the post-commit DOM state entirely. It is unconditional: the effect simply reads a ref, no DOM math required.
+
+- **`HYDRATION_RESCROLL_WINDOW_MS = 500` constant (Gemini S1).** Placement: top-of-file module constant in `TranscriptFeed.tsx`, above the component function, in UPPER_SNAKE_CASE per project naming convention (`ai-specs/specs/frontend-standards.mdc:35`). Value 500ms represents the post-hydration window during which child cards are expected to settle. Tradeoff: if fonts / lazy images take >500ms the user lands "close but not exactly at the bottom" — this is better than the current "stops short visibly" and is documented as non-goal for FU2 (escalate to FU3 if operator AC19 surfaces a repeatable >500ms case).
+
+- **Effect ordering / coexistence (AC12) + lifecycle decoupling (per /review-plan Codex P-C1).** The hydration `ResizeObserver` lives in a module-scoped `useRef` (`hydrationObserverRef`), NOT in a `useEffect` cleanup. Reason: the hydration effect is keyed to `entries.length` (it has to detect first-non-empty), but if any subsequent `entries.length` change (loadMore prepend, session append) occurs within the 500ms window, React would run the prior effect's cleanup → disconnect the observer → re-run the effect → early-return on `hasScrolledToBottomOnHydrationRef` guard → observer is gone. The fix: the entries-length effect SETS UP the observer + timer (assigns to the ref) and returns an EMPTY cleanup. Teardown happens ONLY via (a) the 500ms `setTimeout` callback (`observer.disconnect()` + ref clear), or (b) a separate `useEffect(() => () => teardownIfActive(), [])` unmount cleanup. Subsequent `entries.length` changes hit the hydration effect, immediately early-return on the guard, and do NOT touch the ref-held observer. After the timer fires (or unmount), the append effect (which reads `wasNearBottomRef`) is the only path running. At most one `scrollTo` per append in the post-hydration steady state.
+
+- **jsdom limitations + test shim.** jsdom does not implement `ResizeObserver`, `scrollTo`, or live layout dimensions (`scrollHeight`, `clientHeight`, `scrollTop` all return `0`). The existing `jest.setup.ts:228-236` installs a no-op `MockResizeObserver` (guarded by `if (typeof globalThis.ResizeObserver === 'undefined')`), which means the production `ResizeObserver` constructor call will NOT throw in test env — but the callback is never fired, so the re-scroll loop is never exercised unless tests replace the global. The new `resizeObserverShim.ts` test helper is designed to: (a) override `globalThis.ResizeObserver` with a controllable implementation that captures the callback, (b) expose a `fire()` method for deterministic callback invocation, and (c) restore the prior `globalThis.ResizeObserver` on `uninstall()` so the no-op stub from `jest.setup.ts` is preserved for all other tests.
+
+---
 
 ### Frontend Plan
 
-_(Reserved for Step 2.)_
+**Step 1 — Create `resizeObserverShim.ts` reusable test helper (no production change)**
+
+File: `packages/web/src/__tests__/helpers/resizeObserverShim.ts` (new file; new `helpers/` subdirectory under `__tests__/`; the existing `__tests__/` root holds `fixtures.ts` and `fixtures.auth.ts` as flat files, but a subdirectory is correct here for a reusable cross-test utility).
+
+No RED/GREEN cycle needed — this is a pure test-infrastructure step. Write and verify types compile.
+
+Helper exported API (exact shape — extended per /review-plan Codex P-C2 to support AC13 disconnect assertions):
+
+```
+export interface ResizeObserverShim {
+  install(): void;
+  uninstall(): void;
+  lastObserverCb: ResizeObserverCallback | null;
+  lastObserver: ShimObserverInstance | null;   // NEW (P-C2): exposes the instance so tests can spy on its disconnect / observe
+  disconnectMock: jest.Mock;                    // NEW (P-C2): convenience counter — incremented on EVERY instance's disconnect() call (across multiple `new ResizeObserver(...)` calls in one test if any)
+  observeMock: jest.Mock;                       // NEW (P-C2): same shape for observe(); useful for AC1 attach-was-called assertions
+  fire(entries?: Partial<ResizeObserverEntry>[], observer?: ResizeObserver): void;
+  reset(): void;
+}
+
+export interface ShimObserverInstance {
+  observe: jest.Mock;
+  unobserve: jest.Mock;
+  disconnect: jest.Mock;
+  cb: ResizeObserverCallback;
+}
+
+export function createResizeObserverShim(): ResizeObserverShim
+```
+
+Implementation contract:
+- `install()`: saves `globalThis.ResizeObserver` into `_prior`, then replaces it with a class whose constructor (a) assigns `this.cb = cb`, (b) creates `this.observe = jest.fn()` / `this.unobserve = jest.fn()` / `this.disconnect = jest.fn()`, (c) stores the instance in `shim.lastObserver` AND `shim.lastObserverCb = cb`, and (d) wires `this.disconnect` and `this.observe` to ALSO call `shim.disconnectMock` / `shim.observeMock` (so tests can assert via the shim handle without retrieving the instance).
+- `fire(entries?, observer?)`: invokes `shim.lastObserverCb(entries ?? [], observer ?? (shim.lastObserver as unknown as ResizeObserver))`. Throws descriptively if `lastObserverCb` is null (shim not installed or component not mounted yet).
+- `uninstall()`: restores `globalThis.ResizeObserver = _prior`. Also nulls `lastObserverCb` and `lastObserver`. Calls `disconnectMock.mockReset()` + `observeMock.mockReset()` so the next install starts clean.
+- `reset()`: nulls `lastObserverCb` and `lastObserver` without restoring the global (useful in `beforeEach` within a describe block that uses `install()` once). Also `disconnectMock.mockReset()` + `observeMock.mockReset()`.
+
+Verification (per /review-plan Codex P-C2): `npx tsc -p packages/web/tsconfig.json --noEmit` does NOT typecheck this file because `packages/web/tsconfig.json:37` excludes `src/__tests__/**`. The helper IS typechecked indirectly via ts-jest when any test imports it. Use this verification instead:
+1. Write the helper file.
+2. Immediately add an `import { createResizeObserverShim } from '../helpers/resizeObserverShim';` at the top of `TranscriptFeed.test.tsx` (used by Step 3 tests anyway).
+3. Run `npm test -w @foodxplorer/web -- --testPathPattern=TranscriptFeed` — ts-jest will compile + typecheck both files; any `TS` error blocks the run.
+4. Optionally (defense in depth): add a 1-line smoke test in the same file (`describe('resizeObserverShim sanity', () => { it('install/uninstall does not throw', () => { const s = createResizeObserverShim(); s.install(); s.uninstall(); }); });`) to ensure ts-jest exercises the public API even if the larger tests are skipped.
+
+---
+
+**Step 2 — Add `HYDRATION_RESCROLL_WINDOW_MS`, `wasNearBottomRef`, and `scroll` listener (refactor — no observable behavior change yet)**
+
+File modified: `packages/web/src/components/TranscriptFeed.tsx`
+
+Changes:
+1. Add module-level constant after the import block: `const HYDRATION_RESCROLL_WINDOW_MS = 500;`
+2. Add `wasNearBottomRef` declaration alongside `feedRef` (line 50 area): `const wasNearBottomRef = useRef<boolean>(true);` — initialized to `true` (user conventionally starts at bottom; AC7).
+3. Add a `useEffect([], [])` (empty deps, runs once on mount) that:
+   - Gets `container = feedRef.current`; if null, returns.
+   - Defines `handleScroll = () => { wasNearBottomRef.current = container.scrollTop + container.clientHeight >= container.scrollHeight - 100; }`
+   - Calls `container.addEventListener('scroll', handleScroll)`
+   - Returns cleanup: `container.removeEventListener('scroll', handleScroll)`
+
+RED tests to write FIRST (reference AC7 + AC13 teardown):
+
+Test name: `"AC7: mounts a scroll listener on the feed container that updates wasNearBottomRef"`
+- Strategy: spy on `feed.addEventListener` before render; assert it was called with `'scroll'` and a function.
+- Note: because `feedRef` is internal, spy via `Object.defineProperty` on the rendered `feed` element returned by `screen.getByRole('feed')`. Use a `render(<TranscriptFeed .../>)` with `entries=[]`, get the feed element, spy, then trigger a rerender to get the effect to re-fire — or mount fresh with `addEventListener` already spied. Simpler: spy BEFORE render using `jest.spyOn(HTMLDivElement.prototype, 'addEventListener')`.
+
+Test name: `"AC13a: scroll listener is removed on unmount"`
+- Strategy: spy on `HTMLDivElement.prototype.removeEventListener`; render + unmount (`unmount()` from `render`); assert `removeEventListener` was called with `'scroll'`.
+
+GREEN code: the `useEffect` described above. `prevEntriesLengthRef` declaration stays in place (still needed by the append effect for the `entryCountGrew` guard — it is NOT removed in this step).
+
+Verification: `npm test -w @foodxplorer/web -- --testPathPattern=TranscriptFeed` — must stay green (no behavior change).
+
+---
+
+**Step 3 — Replace hydration `useEffect` with ResizeObserver-driven re-scroll loop (AC1–AC6)**
+
+File modified: `packages/web/src/components/TranscriptFeed.tsx`
+
+Remove lines 67–78 (the FU1 `useEffect([entries.length])` hydration scroll with `behavior: 'smooth'`). Replace with the following pattern — note that the observer + timer live in a `useRef` so the entries-length effect's React cleanup does NOT tear them down (P-C1 fix: any `entries.length` change during the 500ms window would otherwise run cleanup → re-run effect → guard-early-return → observer gone; this is why a single `useEffect` keyed to `entries.length` is structurally wrong here):
+
+```typescript
+// Module-scoped ref-typed handle for the observer + timer. Lives outside React's
+// effect-cleanup cycle so loadMore prepends / session appends during the
+// HYDRATION_RESCROLL_WINDOW_MS window cannot collapse it.
+type HydrationHandle = { observer: ResizeObserver | null; timer: ReturnType<typeof setTimeout> | null };
+const hydrationObserverRef = useRef<HydrationHandle>({ observer: null, timer: null });
+
+// Effect 1 — setup, keyed to entries.length so it FIRES on first non-empty.
+// Returns an EMPTY cleanup on purpose; teardown is owned by the timer + unmount effect.
+useEffect(() => {
+  if (entries.length === 0) return;
+  if (hasScrolledToBottomOnHydrationRef.current) return;
+  const container = feedRef.current;
+  if (!container) return;
+  hasScrolledToBottomOnHydrationRef.current = true;
+
+  // First scroll (covers both branches — synchronous bottom-land before the observer would fire).
+  try { container.scrollTo({ top: container.scrollHeight, behavior: 'instant' }); } catch { /* jsdom */ }
+
+  if (typeof ResizeObserver === 'undefined') return; // AC5 fallback path — already scrolled above.
+
+  const observer = new ResizeObserver(() => {
+    try { container.scrollTo({ top: container.scrollHeight, behavior: 'instant' }); } catch { /* jsdom */ }
+  });
+  observer.observe(container);
+
+  const timer = setTimeout(() => {
+    observer.disconnect();
+    hydrationObserverRef.current.observer = null;
+    hydrationObserverRef.current.timer = null;
+  }, HYDRATION_RESCROLL_WINDOW_MS);
+
+  hydrationObserverRef.current.observer = observer;
+  hydrationObserverRef.current.timer = timer;
+
+  // Intentional: NO cleanup returned. Teardown is owned by the timer above + the unmount effect below.
+}, [entries.length]);
+
+// Effect 2 — unmount-only teardown. Guarantees no leak if the component unmounts mid-window.
+useEffect(() => {
+  return () => {
+    const handle = hydrationObserverRef.current;
+    if (handle.timer !== null) clearTimeout(handle.timer);
+    if (handle.observer !== null) handle.observer.disconnect();
+    handle.observer = null;
+    handle.timer = null;
+  };
+}, []);
+```
+
+Why this shape (P-C1 + auditor refinements):
+- The setup effect has NO React cleanup → React's effect re-run on `entries.length` change does not touch the observer.
+- The observer disconnects ONLY via (a) the 500ms timer (success path) or (b) the unmount effect (defensive path).
+- The hydration ref-guard prevents the setup body from running twice; on second `entries.length` change, the effect early-returns and observer keeps running until the timer fires.
+- A synchronous `scrollTo({ behavior: 'instant' })` runs ONCE before installing the observer — this gives an initial bottom-land even in the AC5 fallback path (without ResizeObserver) and seeds the position before the observer's first re-fire.
+
+RED tests to write FIRST (write before making the GREEN change above):
+
+Test name: `"AC1: ResizeObserver is attached on hydration (observe + lastObserverCb both set)"`
+- Install `resizeObserverShim` in `beforeEach` / `afterEach`.
+- Render `<TranscriptFeed entries={[]} .../>`, install `scrollToMock` + mutable `scrollHeight` getter on the feed element.
+- Rerender with `entries=[makeEntry('p1'), makeEntry('p2')]` → effect fires.
+- Assert `shim.lastObserverCb !== null` (observer was constructed) AND `shim.observeMock` was called at least once with the feed element.
+
+Test name: `"AC2: hydration scrollTo uses behavior:'instant' not 'smooth'"`
+- Same setup; rerender. Assert the FIRST `scrollTo` call carries `{ behavior: 'instant' }` (the synchronous initial bottom-land), AND that every subsequent ResizeObserver re-fire also uses `'instant'`.
+
+Test name: `"AC3: hasScrolledToBottomOnHydrationRef guard — observer survives subsequent entries.length changes within the window"`
+- Per /review-plan Codex P-C1 fix: the observer lifecycle must NOT collapse on intermediate `entries.length` re-renders.
+- Render with `entries=[]`; rerender with `entries=[p1]` → observer installed, `shim.disconnectMock` call count = 0.
+- Rerender AGAIN with `entries=[oldEntry, p1]` (simulating a loadMore prepend arriving 100ms later, within the window).
+- Assert `shim.disconnectMock` was NOT called (observer is still alive) AND `shim.lastObserverCb` is still the same reference (no new construction).
+- This test would FAIL against the naïve `useEffect([entries.length])` shape (it would disconnect-then-recreate on each rerender) and PASSES against the ref-held shape.
+
+Test name: `"AC4: race-aware — scrollTo is called again after ResizeObserver fires with grown scrollHeight"`
+- Exactly as specified in AC4: rerender to hydrate (initial `scrollTo` fires with `currentScrollHeight = 1000`); mutate `currentScrollHeight = 1500`; invoke `shim.fire([{target: feed, contentRect: {} as DOMRectReadOnly, borderBoxSize: [], contentBoxSize: [], devicePixelContentBoxSize: []} as ResizeObserverEntry])`.
+- Assert `scrollToMock` was called ≥2 times AND the LAST call carries `{ top: 1500, behavior: 'instant' }`.
+
+Test name: `"AC5: fallback — when ResizeObserver is undefined, single-shot instant scroll fires (no throw)"`
+- Within the test: `const prior = globalThis.ResizeObserver; delete (globalThis as any).ResizeObserver;` (do this BEFORE rendering; `shim.install()` is NOT called in this test).
+- Render with `entries=[]`, install scrollTo mock, rerender with `entries=[p1]`.
+- Assert `scrollToMock` called exactly once with `{ behavior: 'instant' }`. No throw.
+- Restore: `globalThis.ResizeObserver = prior;` (in `afterEach` defensively).
+
+Test name: `"AC6: no regression — sync-mount case (entries already populated on first render) lands at bottom with 'instant'"`
+- Render directly with `entries=[p1, p2]` (no empty first render).
+- Assert `scrollToMock` called at least once with `{ behavior: 'instant' }`.
+- **NOTE on FU1 test edits:** the existing FU1 hydration tests at `TranscriptFeed.test.tsx:333`, `:355`, `:449` assert `behavior: 'smooth'` on hydration calls and MUST be updated to assert `behavior: 'instant'` (the FU1 behavior changed by this fix). The append-path tests at `:276` (AC47) and `:407` (AC11) must REMAIN `behavior: 'smooth'`. Codex /review-plan verified these line numbers empirically.
+
+Verification: `npm test -w @foodxplorer/web -- --testPathPattern=TranscriptFeed` — all new RED tests green, no regressions.
+
+---
+
+**Step 4 — Replace append effect's post-commit `isNearBottom` math with `wasNearBottomRef` read (AC7–AC11)**
+
+File modified: `packages/web/src/components/TranscriptFeed.tsx`
+
+Remove lines 83–103 (the existing append effect with `isNearBottom = scrollTop + clientHeight >= scrollHeight - 100`). Replace with:
+
+```
+const prevEntriesLengthRef = useRef(entries.length);
+useEffect(() => {
+  const container = feedRef.current;
+  if (!container) return;
+
+  const entryCountGrew = entries.length > prevEntriesLengthRef.current;
+  prevEntriesLengthRef.current = entries.length;
+
+  if (!entryCountGrew) return;
+  if (!wasNearBottomRef.current) return;   // pre-commit position captured by scroll listener
+
+  try {
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+  } catch {
+    // jsdom does not implement element.scrollTo — safe to ignore in tests
+  }
+}, [entries.length]);
+```
+
+RED tests to write FIRST:
+
+Test name: `"AC8: append effect reads wasNearBottomRef BEFORE DOM and calls scrollTo when true"`
+- Render with `entries=[p1, p2]` (hydration fires, ref locks).
+- Set `wasNearBottomRef` to `true` via simulating a scroll event on the feed element near the bottom (fire a `scroll` event after setting scrollTop/scrollHeight such that the listener computes `true`).
+- Rerender with `entries=[p1, p2, new]` (entryCountGrew).
+- Assert `scrollToMock` called with `{ behavior: 'smooth' }`.
+
+Test name: `"AC9: race-aware — append scrolls even when post-commit scrollHeight has jumped >100px"`
+- Set `wasNearBottomRef.current = true` via firing scroll event near bottom.
+- Simulate the append: rerender; then immediately set `scrollHeight` to a value >100px higher than it was.
+- Assert `scrollToMock` called (it consulted the ref, not the post-commit DOM math).
+
+Test name: `"AC10: user scrolled up (≥100px from bottom) — append does NOT scroll"`
+- After hydration, fire a `scroll` event with `scrollTop=0, scrollHeight=2000, clientHeight=500` → listener sets `wasNearBottomRef.current = false`.
+- Rerender with new entry appended.
+- Assert `scrollToMock` NOT called.
+
+Test name: `"AC11: loadMore prepend does NOT trigger append auto-scroll (regression guard)"`
+- This is the existing `AC10c` test scenario. Verify it still passes with the new code. The prepend-preservation effects at lines 107-125 are untouched; this test just confirms coexistence.
+
+Note: the existing `AC47` test at line 250–277 asserts the append path with `behavior: 'smooth'` — this test should CONTINUE to pass and covers the basic append case. Update it only if it breaks due to the `wasNearBottomRef` change (it sets `scrollTop=400, clientHeight=500, scrollHeight=500`, which means `400+500 >= 500-100 = 400` → `900 >= 400` → near bottom → the scroll event listener will compute `true`). However, since the test does NOT fire a `scroll` event on the element, `wasNearBottomRef` remains at its initial value of `true` → `scrollTo` is still called. The existing test passes without modification.
+
+Verification: `npm test -w @foodxplorer/web -- --testPathPattern=TranscriptFeed`
+
+---
+
+**Step 5 — AC12 coexistence test + AC13 ResizeObserver disconnect cleanup test**
+
+File modified: `packages/web/src/__tests__/components/TranscriptFeed.test.tsx`
+
+Test name: `"AC12: after hydration window closes, append path only runs wasNearBottomRef logic (no ResizeObserver stacking)"`
+- Install `resizeObserverShim` in `beforeEach`.
+- Set `jest.useFakeTimers()`.
+- Render with `entries=[]`; rerender with `entries=[p1]` → observer installed; `shim.disconnectMock` call count = 0.
+- `jest.advanceTimersByTime(HYDRATION_RESCROLL_WINDOW_MS + 1)` → 500ms timer fires → observer disconnect runs.
+- Assert `shim.disconnectMock` was called once.
+- Reset `scrollToMock.mockClear()`.
+- Fire a `scroll` event on the feed element with `scrollTop=400, clientHeight=500, scrollHeight=900` → listener sets `wasNearBottomRef.current = true`.
+- Rerender with `entries=[p1, new_session]` → append effect fires.
+- Assert `scrollToMock` called exactly ONCE with `{ behavior: 'smooth' }` (the append path) — NOT twice (no observer re-fire because it's already disconnected).
+- `jest.useRealTimers()` in `afterEach`.
+
+Test name: `"AC13b: ResizeObserver disconnect is called on unmount (if still active)"`
+- Install `resizeObserverShim` in `beforeEach`.
+- Render `entries=[]`; rerender `entries=[p1]` → observer active (no timer fired yet).
+- Capture `shim.lastObserver` reference into a local for assertion.
+- Call `unmount()` (from `render()` return value).
+- Assert the captured `lastObserver.disconnect` jest fn was called once AND `shim.disconnectMock` was called once (the shim aggregate matches the per-instance assertion).
+- This proves the unmount-only cleanup effect (Effect 2 of Step 3) executed correctly.
+
+Test name: `"AC13c: timer-fired teardown nulls the ref handle (no double-disconnect on subsequent unmount)"`
+- Install `resizeObserverShim`. `jest.useFakeTimers()`.
+- Render `entries=[]`; rerender `entries=[p1]` → observer active.
+- `jest.advanceTimersByTime(HYDRATION_RESCROLL_WINDOW_MS + 1)` → timer fires, observer disconnects (`disconnectMock` count = 1).
+- Call `unmount()`.
+- Assert `shim.disconnectMock` count is STILL 1 (the unmount effect saw `handle.observer === null` and skipped the call). Prevents `Cannot read property 'disconnect' of null` regressions if the impl forgets the null-check.
+
+Test name: `"AC13a: scroll listener removeEventListener called on unmount"` — already written in Step 2; confirm it passes alongside the new AC13b + AC13c.
+
+Verification: `npm test -w @foodxplorer/web -- --testPathPattern=TranscriptFeed`
+
+---
+
+**Step 6 — Update `docs/specs/ui-components.md` per AC14 (widened per /review-plan Codex P-C3)**
+
+File modified: `docs/specs/ui-components.md`
+
+**Three stale assertions to fix (all in the TranscriptFeed section, ~lines 2460-2484):**
+
+1. **Props row (line ~2475)** — Codex empirically verified: spec says `onNudgeDismiss` but `TranscriptFeed.tsx:28` (the `interface TranscriptFeedProps`) declares `onDismissPersistenceNudge: () => void`. Spec is wrong.
+2. **State block (line ~2477)** — the buggy `shouldAutoScroll: boolean — true when scrollTop + clientHeight >= scrollHeight - 100. Checked before each append.` definition. Spec describes the bug, not the fix.
+3. **Accessibility block (line ~2480)** — Codex empirically verified: spec says `aria-busy={isLoadingMore}` but `TranscriptFeed.tsx:135` uses `aria-busy={isLoadingHistory ? true : undefined}`. Spec is wrong; FU2 will not modify this attribute, but the doc sync must correct it to match what the component already does.
+
+**Edit 1 — Props row.** Change `onNudgeDismiss` → `onDismissPersistenceNudge` in the row that currently reads:
+```markdown
+| `onNudgeDismiss` | `() => void` | No | — | Dismiss callback for HistoryPersistenceNudge. |
+```
+to:
+```markdown
+| `onDismissPersistenceNudge` | `() => void` | No | — | Dismiss callback for HistoryPersistenceNudge. |
+```
+
+**Edit 2 — replace ENTIRE `**State:**` block.** From:
+```markdown
+**State:**
+- `shouldAutoScroll: boolean` — true when `scrollTop + clientHeight >= scrollHeight - 100`. Checked before each append.
+```
+to:
+```markdown
+**State (internal refs):**
+- `wasNearBottomRef: MutableRefObject<boolean>` — initialized `true`; updated by a `scroll` event listener on the feed container capturing the user's position BEFORE each append commits. The append effect reads this ref unconditionally; no post-commit DOM math.
+- `hasScrolledToBottomOnHydrationRef: MutableRefObject<boolean>` — ref-guard ensuring the hydration scroll fires at most once per component lifetime.
+- `prevEntriesLengthRef: MutableRefObject<number>` — tracks previous `entries.length` to detect appends vs. prepends.
+- `hydrationObserverRef: MutableRefObject<{ observer, timer } | nulls>` — holds the `ResizeObserver` instance + window timer outside React's effect cleanup cycle (prevents premature disconnect on intermediate `entries.length` changes during the 500ms hydration window).
+```
+
+**Edit 3 — insert new `**Behavior:**` block** immediately after `**State (internal refs):**` and BEFORE `**Accessibility:**`:
+```markdown
+**Behavior:**
+- **Hydration scroll (Bug 1 fix):** On first non-empty `entries` render, fires a synchronous `scrollTo({ behavior: 'instant' })` then attaches a `ResizeObserver` to the feed container for `HYDRATION_RESCROLL_WINDOW_MS` (500ms). Every time the container's `scrollHeight` grows within that window, the instant re-scroll re-fires (W18: "no animation on initial mount"). After 500ms the observer disconnects via its own timer; the observer survives intermediate `entries.length` changes within the window (held in a ref, not a `useEffect` cleanup). Fallback: when `typeof ResizeObserver === 'undefined'`, only the synchronous initial scroll fires.
+- **Append auto-scroll (Bug 2 fix):** When `entries.length` grows, the append effect reads `wasNearBottomRef.current` (pre-commit position captured by a `scroll` listener on the container) and calls `scrollTo({ behavior: 'smooth' })` only when `true`. No post-commit `scrollHeight` math; decoupled from layout race.
+- **LoadMore prepend preservation:** When `isLoadingMore` transitions `true → false`, the existing prepend-preservation effect restores `scrollTop` to maintain the user's viewport anchor.
+```
+
+**Edit 4 — Accessibility row** — change `aria-busy={isLoadingMore}` → `aria-busy={isLoadingHistory ? true : undefined}` to match `TranscriptFeed.tsx:135`. Reason: the doc was stale pre-FU2; this is a drive-by doc-sync correction, not an FU2 behavior change.
+
+**Leave the rest of the section untouched** (the iOS `-webkit-overflow-scrolling` note in Accessibility, the `Props` table header + other rows, the AC32 / AC34 / AC37 / AC45 / AC46 / AC47 comments — none changed).
+
+**NOTE on AC15:** `docs/specs/design-guidelines.md` W18 is reaffirmed as authoritative WITHOUT modification. W18 already states "the feed then scrolls to the bottom immediately on mount (no animation …)" — this is consistent with `behavior: 'instant'` as implemented. No edit to `design-guidelines.md` is required or permitted. The Completion Log row for AC15 must read: `"N/A — cross-link only; W18 (design-guidelines.md:1443) reaffirmed authoritative without edit; ui-components.md TranscriptFeed Props+State+Behavior+Accessibility updated per AC14."` The MCE table row for AC15 should ALSO read N/A — do NOT leave it as `[ ]` (per owner directive on AC15 N/A handling).
+
+**Verification:**
+1. `grep -n "shouldAutoScroll\|onNudgeDismiss\|isLoadingMore" docs/specs/ui-components.md` — must return ZERO matches inside the TranscriptFeed section after the edits.
+2. `grep -n "wasNearBottomRef\|hydrationObserverRef\|HYDRATION_RESCROLL_WINDOW_MS" docs/specs/ui-components.md` — must show the new entries inserted.
+3. `git diff docs/specs/ui-components.md` — visually confirm scope is contained to the TranscriptFeed section (no accidental edits elsewhere).
+
+---
+
+**Step 7 — Full suite + lint + typecheck + build; record counts**
+
+Commands (in order):
+
+1. `npm test -w @foodxplorer/web` — must be green; record final test count (baseline 745 + delta from new tests). Document in Completion Log.
+2. `npm run lint -w @foodxplorer/web` — zero new lint errors.
+3. `npx tsc -p packages/web/tsconfig.json --noEmit` — zero type errors.
+4. `npm run build -w @foodxplorer/web` — clean build.
+
+Note on `>500ms post-window settle escalation`: if operator AC19 surfaces a repeatable case where `scrollHeight` is still growing >500ms after hydration (very slow font / lazy image load on a real device), escalate to F-WEB-HISTORY-FU3. Do NOT widen the `HYDRATION_RESCROLL_WINDOW_MS` window inside this PR — the constant is intentionally a named value to make that future change traceable.
+
+---
+
+### Out of Scope
+
+- New ADR (no architectural decision; this is a targeted frontend fix).
+- Any modification to `packages/web/src/hooks/useSearchHistory.ts` or `packages/web/src/components/HablarShell.tsx` or any consumer.
+- The loadMore prepend-preservation effects (`TranscriptFeed.tsx` lines 107-125 pre-FU2 numbering) — must remain untouched.
+- `ResizeObserver` polyfill for production browsers (all target browsers support it natively since 2020+; AC5 fallback is for older/unshimmed test environments only).
+- Backend changes (none).
+- Indefinite observer window (do not replace `HYDRATION_RESCROLL_WINDOW_MS` with an always-on observer — it leaks and overrides user intent after initial load).
+
+---
 
 ### Verification commands run
 
-_(Reserved for Step 2 — populated by backend-planner / frontend-planner with the empirical greps / file reads they used to ground the plan.)_
+- `Read: packages/web/src/components/TranscriptFeed.tsx:1-186` → confirmed current production code (develop@172fb23): hydration effect at lines 67-78 uses `behavior: 'smooth'`; append effect at lines 83-103 uses post-commit `isNearBottom = scrollTop + clientHeight >= scrollHeight - 100`; loadMore effects at lines 107-125; no `wasNearBottomRef`, no `HYDRATION_RESCROLL_WINDOW_MS`, no `ResizeObserver` → confirms both bugs exist in the file to be modified; line numbers cited in Plan are accurate.
+- `Read: packages/web/src/__tests__/components/TranscriptFeed.test.tsx:1-452` → confirmed existing test patterns: `installScrollMocks` helper (lines 306-316) uses `Object.defineProperty` for scroll properties; AC10b test at line 336 asserts `behavior: 'smooth'` (MUST be updated to `'instant'` in Step 3); AC13 test at line 438 asserts `behavior: 'smooth'` for the hydration path (MUST also be updated to `'instant'`); AC47 test at line 250 asserts `behavior: 'smooth'` for the append path (must REMAIN `'smooth'`); `AC12` test at line 411 tests scroll-up-no-scroll using post-commit DOM math (needs revision for `wasNearBottomRef` path) → Plan Step 4 accounts for all affected existing tests.
+- `Read: packages/web/jest.setup.ts:226-236` → confirmed `ResizeObserver` stub at lines 228-236: installed conditionally (`if (typeof globalThis.ResizeObserver === 'undefined')`); the stub is a no-op class (observe/unobserve/disconnect are jest.fn()); the callback is NEVER captured or fired → confirms the no-op stub does not interfere with the new controllable shim (shim's `install()` will override `globalThis.ResizeObserver` for targeted tests and `uninstall()` restores the no-op stub).
+- `Bash: ls packages/web/src/__tests__/` → directory contains `api/`, `auth/`, `components/`, `config/`, `hooks/`, `lib/` subdirectories plus root-level `fixtures.ts` and `fixtures.auth.ts`; NO `helpers/` subdirectory exists → Plan correctly specifies creating `packages/web/src/__tests__/helpers/resizeObserverShim.ts` in a new `helpers/` subdirectory.
+- `Bash: grep -rn "ResizeObserver" packages/web/src/__tests__/` → no matches → confirms no prior ResizeObserver test helper exists anywhere in `__tests__`; new helper is novel, not duplicating existing code.
+- `Read: docs/specs/ui-components.md:2460-2484` → confirmed TranscriptFeed spec entry: `**State:**` block at line 2477 reads `shouldAutoScroll: boolean — true when scrollTop + clientHeight >= scrollHeight - 100. Checked before each append.` — this is the exact stale line AC14 requires replacing. `**Props:**` table at lines 2465-2475 and `**Accessibility:**` at lines 2480-2482 are untouched. Exact line range: 2460-2484.
+- `Read: docs/specs/design-guidelines.md:1439-1484` → confirmed W18 at line 1443 reads: "The feed then scrolls to the bottom immediately on mount (no animation — the initial position should feel like arriving at the current state, not replaying history)." → W18 is fully consistent with `behavior: 'instant'`; no edit needed; AC15 is "N/A — cross-link only" as directed by owner.
+- `Read: packages/web/src/hooks/useSearchHistory.ts:1-143` → confirmed hook interface and reconciliation pattern; no changes to this file; entries hydrate asynchronously via `setPersistedEntries` in the mount fetch promise → the `[] → [N entries]` async hydration path is confirmed.
+- `Read: packages/web/src/components/HablarShell.tsx:120-220` → confirmed reconciliation effect at lines 139-145 fires on `persistedIdsKey` change (not on every render); confirms session entries (`isPersisted: false`) preserved below persisted entries; no changes to this file.
+- `Bash: grep -n "ResizeObserver\|wasNearBottom\|HYDRATION_RESCROLL" packages/web/src/components/TranscriptFeed.tsx` → zero matches → confirms no FU2 artifacts pre-exist in the file; Plan starts from clean state.
+- `Read: ai-specs/specs/frontend-standards.mdc:35` → confirmed naming convention: constants are UPPER_SNAKE_CASE → `HYDRATION_RESCROLL_WINDOW_MS` is correct.
+- `Bash: find packages/web -name "jest.setup*" -o -name "jest.config*"` → found `packages/web/jest.setup.ts` and `packages/web/jest.config.js` → setup file confirmed; no secondary setup files that might double-install ResizeObserver.
 
 ---
 
@@ -150,6 +506,9 @@ _(Reserved for Step 2 — populated by backend-planner / frontend-planner with t
 |------|------|-------|
 | 2026-06-02 | Step 0 (Spec draft) | Ticket created post-/compact per owner's context-prompt. Spec drafted from `project_bug_web_feed_scroll_settle` + `feedback_jsdom_layout_ac_gap` memories + auditor refinements 2026-06-02 (ResizeObserver as PRIMARY not ALT; mandatory race-aware test pattern; `wasNearBottomRef` via scroll listener canonical pattern). Branch `bugfix/web-feed-scroll-settle` off develop `172fb23` already cut. bugs.md entry BUG-WEB-FEED-SCROLL-SETTLE-001 added. Tracker Active Session + Features row updated. |
 | 2026-06-02 | Step 0 (`/review-spec` cross-model) | Gemini → **APPROVED** (1 SUGGESTION = named constant). Codex → **REVISE** (3 IMPORTANT, all empirically grounded by reading TranscriptFeed.tsx + ui-components.md + design-guidelines.md + base-standards). All 4 findings APPLIED in commit (next): AC4 rewritten with controllable observer-shim handle pattern (C1); AC14+AC15 added for canonical ui-components.md sync + W18 cross-link (C2); Edge Cases + AC5 normalized to `behavior: 'instant'` (C3); HYDRATION_RESCROLL_WINDOW_MS named constant deferred to Step 2 Plan (Gemini S1). Operator ACs renumbered AC17-19 → AC19-21 to accommodate new D section. Review artifacts in `/tmp/review-spec-foodXPlorer-FU2/`. |
+| 2026-06-02 | Step 0 (Spec sign-off) | Owner APPROVED Spec via AskUserQuestion + 4 Plan-side directives: (1) AC15 marked N/A in MCE (cross-link only, no edit); (2) ResizeObserver shim must be reusable helper at `packages/web/src/__tests__/helpers/resizeObserverShim.ts`; (3) AC14 ~line range is NIT-documentary, OK with ~; (4) >500ms post-window settle escalation to FU3 (don't widen window inside FU2). |
+| 2026-06-02 | Step 2 (Plan draft) | `frontend-planner` agent produced Implementation Plan (Design Notes, 7 Frontend Plan steps, Out of Scope, Verification commands run). All 4 owner directives reflected in Plan. Helper API + helper subdirectory choice (`__tests__/helpers/`) confirmed not previously existing. Plan grounded empirically: TranscriptFeed.tsx + .test.tsx + jest.setup.ts ResizeObserver no-op stub + ui-components.md:~2477 stale shouldAutoScroll line + design-guidelines.md:1443 W18 verified verbatim. |
+| 2026-06-02 | Step 2 (`/review-plan` cross-model) | Gemini → **APPROVED** (no findings; empirically grounded — re-verified test line numbers 333/355/449 + helpers/ dir absence + jest.setup.ts ResizeObserver shim). Codex → **REVISE** (3 IMPORTANT, all empirically grounded against the actual codebase): P-C1 hydration observer lifecycle wrong (effect keyed to entries.length → cleanup-on-re-fire collapses observer within window) — required ref-held observer pattern with empty effect cleanup; P-C2 helper verification step invalid (tsconfig excludes src/__tests__) + helper API missing `lastObserver`/`disconnectMock` for AC13 — required ts-jest verification path + extended shim shape; P-C3 AC14 under-scoped (ui-components.md TranscriptFeed Props row `onNudgeDismiss`→`onDismissPersistenceNudge` + Accessibility row `aria-busy={isLoadingMore}`→`aria-busy={isLoadingHistory}` stale beyond the State block). All 3 findings APPLIED in commit (next): Design Notes coexistence bullet rewritten; Step 1 helper API extended + verification switched to npm test ts-jest path; Step 3 hydration effect rewritten with ref-held observer + separate unmount effect + synchronous initial `'instant'` scroll; Step 3 RED tests updated (AC1 split into observe/cb assertion + AC3 rewritten to assert observer SURVIVES intermediate entries.length changes); Step 5 AC12/AC13 tests use disconnectMock + add AC13c double-disconnect guard; Step 6 widened to 4 edits (Props + State + Behavior + Accessibility). Review artifacts in `/tmp/review-plan-foodXPlorer-FU2/`. |
 
 ---
 
