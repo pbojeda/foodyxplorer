@@ -17,6 +17,52 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-06-02 — BUG-SHIM-UNINSTALL-001: resizeObserverShim.uninstall() without prior install() silently sets globalThis.ResizeObserver = undefined [P3 — test helper, not production code]
+
+- **Issue**: `createResizeObserverShim().uninstall()` called without a prior `install()` call sets `globalThis.ResizeObserver = undefined`, permanently destroying the no-op stub installed by `jest.setup.ts` for all subsequent tests in the same worker. The failure is silent (no throw, no warning). Future tests that rely on `typeof ResizeObserver !== 'undefined'` to choose the non-fallback path (including the AC5 fallback test and the new AC1-AC4 shim tests) would silently exercise the fallback branch instead of the ResizeObserver branch.
+- **Root Cause**: `_prior` is initialized to `undefined` (never a `typeof ResizeObserver` default). `install()` saves the real current global into `_prior`. `uninstall()` unconditionally does `globalThis.ResizeObserver = _prior` — when `_prior === undefined`, this zeroes the global. The `@ts-expect-error` on that line suppresses the type-safety signal that would otherwise surface the issue.
+- **Repro**: `const shim = createResizeObserverShim(); shim.uninstall(); console.log(typeof globalThis.ResizeObserver); // 'undefined'`. Confirmed by EC-SHIM-2 in `packages/web/src/__tests__/components/TranscriptFeed.edge-cases.test.tsx`.
+- **Solution**: Add a guard in `uninstall()`: `if (_prior !== undefined) { globalThis.ResizeObserver = _prior; }` — only restore when `install()` was actually called. Alternatively: initialize `_prior` as a sentinel symbol to distinguish "never installed" from "was undefined before install".
+- **Prevention**: Test helper `install/uninstall` pairs should guard against asymmetric calls. Consider adding an `_installed: boolean` flag and throwing in `uninstall()` when called without a prior `install()`, or at minimum logging a warning.
+- **Found by**: QA edge-case audit (F-WEB-HISTORY-FU2 Step 5 review), 2026-06-02.
+- **Severity**: P3 — test infrastructure only; no production code affected; current test suite uses install/uninstall correctly so no existing test is broken. Trap for future test authors.
+- **Files**: `packages/web/src/__tests__/helpers/resizeObserverShim.ts:110-117`
+- **Status**: **FIXED** in F-WEB-HISTORY-FU2 Step 5 fix-loop (same PR). Added `_installed: boolean` flag — `install()` sets to `true`; `uninstall()` only restores `globalThis.ResizeObserver = _prior` when `_installed === true`, then resets the flag. EC-SHIM-2 unit test (in `TranscriptFeed.edge-cases.test.tsx`) verifies `globalThis.ResizeObserver` stays defined after an isolated `uninstall()` call. No throw on asymmetric usage (a one-line guard is sufficient; throwing would break legitimate "preventive cleanup in afterEach" patterns).
+
+---
+
+### 2026-06-01 — BUG-WEB-FEED-SCROLL-SETTLE-001: TranscriptFeed scroll-to-bottom races browser layout-settle on reload + isNearBottom mis-classifies on append [HIGH — OPEN, F-WEB-HISTORY-FU2]
+
+- **Issue**: Surfaced by F-WEB-HISTORY-FU1 operator smokes on app-dev (2026-06-01, owner bearer `sub b39eaa06…`). Two distinct symptoms:
+  - **(Bug 1, AC10b)** On `/hablar` reload with ≥1 persisted entries, the feed scrolls toward the bottom but **stops short** — last entry stays partially below the fold.
+  - **(Bug 2, AC11)** A new search appends to the feed but the viewport **does not scroll** to the new entry; the result appears below the fold, near where the user was.
+- **Root Cause**:
+  - **Bug 1**: FU1's `useEffect([entries.length])` (`packages/web/src/components/TranscriptFeed.tsx:67-78`) fires `container.scrollTo({ top: scrollHeight, behavior: 'smooth' })` the moment persisted entries hydrate. `behavior: 'smooth'` **captures `scrollHeight` at animation start**; result-card children (`NutritionCard`, dish lists, possibly lazy images / fonts) keep growing the layout *during* the animation → the smooth-scroll lands at the **old** target, not the final bottom. Classic "scroll-to-bottom before layout settles" race; jsdom-mock with fixed `scrollHeight` cannot reproduce it.
+  - **Bug 2**: Preexisting debt in the F-WEB-HISTORY append effect (`TranscriptFeed.tsx:83-103`). `isNearBottom = scrollTop + clientHeight >= scrollHeight - 100` is evaluated **after React commits the new entry**, so `scrollHeight` has already jumped by the new entry's height (typically >100px for a `NutritionCard`). The user is mis-classified as "not near bottom" → no auto-scroll. The 100px threshold is too narrow for rich result cards and the post-commit timing is wrong (must consult pre-commit state).
+- **Why not caught**: jsdom does not perform real browser layout. Tests use `Object.defineProperty(feed, 'scrollHeight', { value: X })` with FIXED values, so neither the smooth-scroll race (Bug 1) nor the post-commit `scrollHeight` jump (Bug 2) manifest. See `feedback_jsdom_layout_ac_gap` (lesson saved to memory) and `feedback_mock_boundary_integration_gap` lesson #1 generalized to the layout dimension.
+- **Solution (proposed, F-WEB-HISTORY-FU2)**:
+  - **Bug 1 — `ResizeObserver` PRIMARY** on the feed container during a ~500ms window post-hydration. Re-scroll **`behavior: 'instant'`** every time `scrollHeight` grows (smooth-on-reload is jarring; instant lands deterministically). Auditor 2026-06-02: rAF×2 is NOT sufficient — `NutritionCard` async work (fonts/CLS/lazy images) can span more than 2 frames. ResizeObserver is more robust than "assume 2 frames settle".
+  - **Bug 2 — `wasNearBottomRef` PRIMARY** updated by a `scroll` event listener (canonical Slack/Linear/Discord pattern). The ref captures user position BEFORE the append commits → consult in the post-commit effect → decide unconditionally. Decoupled from the buggy post-mutation `scrollHeight` math. Keep `behavior: 'smooth'` on append (no jarring).
+- **Test pattern that catches the race in jsdom (auditor-supplied, MANDATORY for FU2 RED tests)**:
+  ```typescript
+  let currentScrollHeight = 1000;
+  Object.defineProperty(feed, 'scrollHeight', { get: () => currentScrollHeight });
+  const scrollToMock = jest.fn().mockImplementation(() => {
+    setTimeout(() => { currentScrollHeight = 1500; }, 0); // simulate async layout growth
+  });
+  rerender(<TranscriptFeed entries={[...persisted]} />);
+  await act(() => new Promise(r => setTimeout(r, 50)));
+  // assert: scrollToMock called >1× (ResizeObserver/rAF re-scroll fired)
+  // OR: last scrollTo top === 1500 (not 1000)
+  ```
+  Use `get`-based `defineProperty` + mutate `currentScrollHeight` from inside the `scrollTo` mock to model async layout. **Without tests of this shape, FU2 can ship green and still fail in the browser.**
+- **Prevention**: For ACs that depend on real browser layout (scroll/Resize/CLS/fonts), pair the unit-test AC with an **operator smoke AC verbatim** — the operator AC is the authoritative gate; the unit test is a regression guard. Saved as `feedback_jsdom_layout_ac_gap` lesson + library-angle candidate for SDD v0.21.x (`/audit-merge` "jsdom-limited AC detector": flag any AC text matching `/scrollTo|scrollHeight|scrollTop|getBoundingClientRect|near.*bottom|hydrat.*scroll|ResizeObserver|layout/i` whose only verification is a unit test).
+- **Found by**: Owner operator smokes on app-dev post F-WEB-HISTORY-FU1 deploy (2026-06-01) → external-agent audit reconfirmed diagnosis + refined fix proposal (2026-06-02).
+- **Severity**: High (visible product UX defect on both reload and append — every authenticated `/hablar` session is affected once they have ≥1 persisted entry or perform any search). Pre-beta blast radius. **Blocks develop→main release**.
+- **Status**: OPEN — addressed by F-WEB-HISTORY-FU2 (branch `bugfix/web-feed-scroll-settle`). Housekeeping decision: AC10b + AC11 are NOT retroactively unmarked in the FU1 ticket — FU1 is Done and its unit tests legitimately pass; the gap is at the jsdom↔browser boundary. AC22 (operator scroll-overlap PASS) remains authoritative for FU1. **Release develop→main remains ON HOLD** until FU2 ships + browser-smoke reconfirms.
+
+---
+
 ### 2026-05-28 — BUG-API-RATELIMIT-BEARER-001: global IP limiter ignores bearer → logged-in users get the 30/15min anon bucket [HIGH — FIXED]
 
 - **Issue**: A logged-in web user (Supabase bearer, no `X-API-Key`) hits "rate limit exceeded" after only a few searches — far below any tier quota — and the usage meter (Consultas/Fotos/Voz) never updates. Verified empirically on api-dev with a real bearer: `GET /me/usage` and `GET /history` both → `429 RATE_LIMIT_EXCEEDED`. Surfaced by F-WEB-HISTORY (each `/hablar` load now fires `GET /me` + `GET /history` + `GET /me/usage`, each search fires `POST /conversation/message` + `GET /me/usage`, plus `loadMore` on scroll ≈ 4 req/action).
