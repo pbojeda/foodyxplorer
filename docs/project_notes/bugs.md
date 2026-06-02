@@ -17,6 +17,20 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 
 <!-- Add bug entries below this line -->
 
+### 2026-06-02 — BUG-SHIM-UNINSTALL-001: resizeObserverShim.uninstall() without prior install() silently sets globalThis.ResizeObserver = undefined [P3 — test helper, not production code]
+
+- **Issue**: `createResizeObserverShim().uninstall()` called without a prior `install()` call sets `globalThis.ResizeObserver = undefined`, permanently destroying the no-op stub installed by `jest.setup.ts` for all subsequent tests in the same worker. The failure is silent (no throw, no warning). Future tests that rely on `typeof ResizeObserver !== 'undefined'` to choose the non-fallback path (including the AC5 fallback test and the new AC1-AC4 shim tests) would silently exercise the fallback branch instead of the ResizeObserver branch.
+- **Root Cause**: `_prior` is initialized to `undefined` (never a `typeof ResizeObserver` default). `install()` saves the real current global into `_prior`. `uninstall()` unconditionally does `globalThis.ResizeObserver = _prior` — when `_prior === undefined`, this zeroes the global. The `@ts-expect-error` on that line suppresses the type-safety signal that would otherwise surface the issue.
+- **Repro**: `const shim = createResizeObserverShim(); shim.uninstall(); console.log(typeof globalThis.ResizeObserver); // 'undefined'`. Confirmed by EC-SHIM-2 in `packages/web/src/__tests__/components/TranscriptFeed.edge-cases.test.tsx`.
+- **Solution**: Add a guard in `uninstall()`: `if (_prior !== undefined) { globalThis.ResizeObserver = _prior; }` — only restore when `install()` was actually called. Alternatively: initialize `_prior` as a sentinel symbol to distinguish "never installed" from "was undefined before install".
+- **Prevention**: Test helper `install/uninstall` pairs should guard against asymmetric calls. Consider adding an `_installed: boolean` flag and throwing in `uninstall()` when called without a prior `install()`, or at minimum logging a warning.
+- **Found by**: QA edge-case audit (F-WEB-HISTORY-FU2 Step 5 review), 2026-06-02.
+- **Severity**: P3 — test infrastructure only; no production code affected; current test suite uses install/uninstall correctly so no existing test is broken. Trap for future test authors.
+- **Files**: `packages/web/src/__tests__/helpers/resizeObserverShim.ts:110-117`
+- **Status**: **FIXED** in F-WEB-HISTORY-FU2 Step 5 fix-loop (same PR). Added `_installed: boolean` flag — `install()` sets to `true`; `uninstall()` only restores `globalThis.ResizeObserver = _prior` when `_installed === true`, then resets the flag. EC-SHIM-2 unit test (in `TranscriptFeed.edge-cases.test.tsx`) verifies `globalThis.ResizeObserver` stays defined after an isolated `uninstall()` call. No throw on asymmetric usage (a one-line guard is sufficient; throwing would break legitimate "preventive cleanup in afterEach" patterns).
+
+---
+
 ### 2026-06-01 — BUG-WEB-FEED-SCROLL-SETTLE-001: TranscriptFeed scroll-to-bottom races browser layout-settle on reload + isNearBottom mis-classifies on append [HIGH — OPEN, F-WEB-HISTORY-FU2]
 
 - **Issue**: Surfaced by F-WEB-HISTORY-FU1 operator smokes on app-dev (2026-06-01, owner bearer `sub b39eaa06…`). Two distinct symptoms:

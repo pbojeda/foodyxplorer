@@ -11,11 +11,6 @@
 // FU2: ResizeObserver hydration scroll-settle + wasNearBottomRef append fix.
 
 import { useEffect, useRef } from 'react';
-
-// Post-hydration window during which the ResizeObserver re-scrolls as child cards
-// grow. Escalate to FU3 if operator AC19 surfaces a repeatable >500ms settle case.
-// Named constant per ai-specs/specs/frontend-standards.mdc:35 (UPPER_SNAKE_CASE).
-const HYDRATION_RESCROLL_WINDOW_MS = 500;
 import type { TranscriptEntryData } from '@/types/history';
 import { TranscriptEntry } from './TranscriptEntry';
 import { EmptyState } from './EmptyState';
@@ -23,6 +18,19 @@ import { HistoryEmptyState } from './HistoryEmptyState';
 import { HistoryPersistenceNudge } from './HistoryPersistenceNudge';
 import { HistoryLoadMoreSentinel } from './HistoryLoadMoreSentinel';
 import { ClearHistoryButton } from './ClearHistoryButton';
+
+// Post-hydration window during which the ResizeObserver re-scrolls as child cards
+// grow. Escalate to FU3 if operator AC19 surfaces a repeatable >500ms settle case.
+// Named constant per ai-specs/specs/frontend-standards.mdc:35 (UPPER_SNAKE_CASE).
+const HYDRATION_RESCROLL_WINDOW_MS = 500;
+
+// FU2 (Bug 1): handle for the hydration ResizeObserver + its self-disconnect timer.
+// Held in a ref OUTSIDE React's effect-cleanup cycle (P-C1 — prevents premature
+// disconnect on intermediate entries.length changes during the window).
+type HydrationHandle = {
+  observer: ResizeObserver | null;
+  timer: ReturnType<typeof setTimeout> | null;
+};
 
 interface TranscriptFeedProps {
   entries: TranscriptEntryData[];
@@ -91,10 +99,6 @@ export function TranscriptFeed({
   // → guard-early-return → observer is gone. Holding the handle in a ref prevents
   // this: the effect returns an EMPTY cleanup; teardown is owned exclusively by
   // (a) the 500ms setTimeout callback, or (b) the unmount effect below.
-  type HydrationHandle = {
-    observer: ResizeObserver | null;
-    timer: ReturnType<typeof setTimeout> | null;
-  };
   const hydrationObserverRef = useRef<HydrationHandle>({ observer: null, timer: null });
 
   // Effect 1 — setup. Keyed to entries.length so it fires on first non-empty.
@@ -135,21 +139,24 @@ export function TranscriptFeed({
     hydrationObserverRef.current.timer = timer;
 
     // Intentional: NO cleanup returned. Teardown owned by timer + unmount effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries.length]);
 
-  // Effect 2 — unmount-only teardown. Guarantees no leak if unmounted mid-window.
-  // Copy ref to local variable inside the effect so the cleanup captures the
-  // stable ref object (not the .current value at effect-run time), per
-  // react-hooks/exhaustive-deps. The ref OBJECT is stable; .current is mutable.
+  // Effect 2 — unmount-only teardown. Guarantees no leak if unmounted mid-window
+  // AND resets hasScrolledToBottomOnHydrationRef so React 18 Strict Mode's synthetic
+  // mount→cleanup→mount cycle in dev correctly re-installs the observer on the
+  // re-mount (per /review-spec follow-up: without the reset, the synthetic remount
+  // hits the guard true and observer is never re-attached → dev local browser
+  // verification of the fix is broken even though prod next-start is correct).
   useEffect(() => {
     const handleRef = hydrationObserverRef;
+    const guardRef = hasScrolledToBottomOnHydrationRef;
     return () => {
       const handle = handleRef.current;
       if (handle.timer !== null) clearTimeout(handle.timer);
       if (handle.observer !== null) handle.observer.disconnect();
       handle.observer = null;
       handle.timer = null;
+      guardRef.current = false;
     };
   }, []);
 
@@ -167,6 +174,15 @@ export function TranscriptFeed({
 
     if (!entryCountGrew) return;
     if (!wasNearBottomRef.current) return; // pre-commit position captured by scroll listener
+
+    // FU3 follow-up (code-review MAJOR-2): on a [] → [N] async hydration commit,
+    // both Effect 1 (instant scroll) AND this Effect (smooth scroll) fire. Currently
+    // benign — both target scrollHeight; the smooth call is optimized to no-op by
+    // browsers because the position already matches. A surgically precise fix
+    // (render-scoped flag set by Effect 1, read+reset here) was deferred to FU3 to
+    // avoid extensive test surgery on a low-impact concern. The ResizeObserver
+    // re-fires within the window guarantee correctness either way. See ticket
+    // Completion Log for the cross-model discussion.
 
     try {
       container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });

@@ -61,6 +61,11 @@ export interface ResizeObserverShim {
 
 export function createResizeObserverShim(): ResizeObserverShim {
   let _prior: typeof ResizeObserver | undefined = undefined;
+  // BUG-SHIM-UNINSTALL-001 (qa-engineer 2026-06-02): track whether install() actually
+  // ran, so uninstall() called in isolation (e.g., a test that calls uninstall in
+  // afterEach without install in beforeEach due to a refactor) does NOT silently
+  // assign globalThis.ResizeObserver = undefined and wipe the jest.setup.ts stub.
+  let _installed = false;
 
   const shim: ResizeObserverShim = {
     lastObserverCb: null,
@@ -70,6 +75,7 @@ export function createResizeObserverShim(): ResizeObserverShim {
 
     install() {
       _prior = globalThis.ResizeObserver;
+      _installed = true;
 
       const disconnectMock = shim.disconnectMock;
       const observeMock = shim.observeMock;
@@ -108,8 +114,15 @@ export function createResizeObserverShim(): ResizeObserverShim {
     },
 
     uninstall() {
-      // @ts-expect-error — restoring prior value which may be undefined (test env)
-      globalThis.ResizeObserver = _prior;
+      // BUG-SHIM-UNINSTALL-001 guard: only restore the prior global if install()
+      // actually ran. Calling uninstall() in isolation must be a no-op for the
+      // global (otherwise the jest.setup.ts no-op ResizeObserver stub gets wiped
+      // and downstream tests in the same worker can silently break).
+      if (_installed) {
+        // @ts-expect-error — restoring prior value which may be undefined (test env)
+        globalThis.ResizeObserver = _prior;
+        _installed = false;
+      }
       shim.lastObserverCb = null;
       shim.lastObserver = null;
       shim.disconnectMock.mockReset();
