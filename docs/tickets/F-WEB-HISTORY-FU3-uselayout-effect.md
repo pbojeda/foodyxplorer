@@ -1,7 +1,7 @@
 # F-WEB-HISTORY-FU3: useLayoutEffect swap for hydration + loadMore restore
 
 **Feature:** F-WEB-HISTORY-FU3 | **Type:** Frontend-Polish (UX flicker fix) | **Priority:** Low (UX polish; FU2 already fixed the underlying race)
-**Status:** Ready for Merge | **Branch:** bugfix/web-feed-uselayout-effect (off develop `0d79d14`)
+**Status:** Done | **Branch:** bugfix/web-feed-uselayout-effect (squash-merged to develop `249f745` via PR #306, 2026-06-02)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-06-02 | **Dependencies:** F-WEB-HISTORY-FU2 done (#304/#305 → develop `0d79d14`)
 **Methodology:** bug-workflow Path A (Quick) — no `/review-spec` / `/review-plan` (2-line mechanical swap; tests unchanged).
@@ -55,8 +55,8 @@ Pre-existing FU1+F-WEB-HISTORY logic is untouched. The capture effect for loadMo
 - [x] FU3 ticket Status `Ready for Merge` after gates green.
 - [x] Web suite 771/771 unchanged.
 - [x] Lint + typecheck + build clean.
-- [ ] PR + CI green + owner sign-off + squash-merge.
-- [ ] Closeout PR flips Status → Done + tracker sync + bugs.md note.
+- [x] PR + CI green + owner sign-off + squash-merge (PR #306 → develop `249f745`).
+- [x] Closeout PR flips Status → Done + tracker sync (this PR).
 - [ ] Operator AC9 + AC10 reconfirm on app-dev after deploy. Release develop→main can unlock after that.
 
 ---
@@ -69,7 +69,7 @@ Pre-existing FU1+F-WEB-HISTORY logic is untouched. The capture effect for loadMo
 - [x] **Step 3 — Implement**: swap 2 effects to `useLayoutEffect`.
 - [x] **Step 4 — Finalize**: gates green; commit.
 - [x] **Step 5 — Review**: skipped formal code-review agent per Path A (mechanical swap); self-review applied — the 2 effects swapped are the only ones that WRITE layout (`scrollTo` + `scrollTop = N`); the 4 effects kept on `useEffect` either don't write layout or intentionally animate post-paint.
-- [ ] **Step 6 — Merge + Closeout**: PR + CI verify + owner sign-off + squash-merge + closeout.
+- [x] **Step 6 — Merge + Closeout**: PR #306 squash-merged to develop `249f745`. Branch deleted local + remote. This closeout PR flips Status→Done + tracker sync.
 
 ---
 
@@ -78,6 +78,7 @@ Pre-existing FU1+F-WEB-HISTORY logic is untouched. The capture effect for loadMo
 | Date | Step | Notes |
 |------|------|-------|
 | 2026-06-02 | Step 0+3+4 (Path A) | Lightweight ticket created in same commit as the code change. Swapped 2 `useEffect` → `useLayoutEffect` in `TranscriptFeed.tsx`. Kept 4 other effects untouched (rationale per AC3-AC6). Pre-commit gates: web 771/771, lint 0, typecheck 0, build clean. |
+| 2026-06-02 | Step 6 (PR + CI + merge + closeout) | PR #306 opened to develop; CI ci-success SUCCESS + mergeStateStatus CLEAN. Owner APPROVE → squash-merged to develop `249f745` at 2026-06-02. Branch deleted via `--delete-branch`. This closeout PR flips ticket Status → Done + Workflow Step 6 [x] + DoD merge items [x] + tracker sync (Active Session + Features row in-progress 5/6 → done 6/6). **Operator AC9 + AC10 reconfirm pending** post-deploy on app-dev; release develop→main remains ON HOLD. |
 
 ---
 
