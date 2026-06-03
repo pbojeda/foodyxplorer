@@ -152,7 +152,7 @@ Per research doc §7.1, the 4-effect state machine:
 - [x] **Step 1 — Setup**: branch `bugfix/web-feed-scroll-state-machine` off develop `55528c5` (DONE). Verify working tree clean.
 - [x] **Step 2 — Plan**: full Implementation Plan derived from research doc §7.1 + cross-model `/review-plan` + owner sign-off.
 - [x] **Step 3 — Implement (TDD)**: RED tests for AC3/AC9/AC11/AC14/AC15 (race-aware + state-machine invariants) → GREEN refactor to 4-effect state machine. Per research doc §7.3: ~13-16 test touches + 4-6 new tests. **DONE: 16 delta tests (see Completion Log).**
-- [ ] **Step 4 — Finalize**: full web suite green + lint + typecheck + build clean; commit with conventional message; push. (Ready to start — gates already green locally.)
+- [x] **Step 4 — Finalize**: full web suite green + lint + typecheck + build clean; commit with conventional message; push. **DONE: commit `f1a94fe` pushed to `bugfix/web-feed-scroll-state-machine`. Gates: 787/787 tests, lint 0, typecheck 0, build clean.**
 - [ ] **Step 5 — Review**: code-review-specialist + qa-engineer + `/audit-merge`. **NO MAJOR deferrals** (per FU2 lesson — every MAJOR is empirically validated against the operator scenario, not deferred on theoretical grounds).
 - [ ] **Step 6 — Playwright e2e**: DEFERRED TO FU5 (owner decision 2026-06-03 per /review-plan CRITICAL-2). FU4 ships without Playwright; operator AC24/AC25/AC26 are the authoritative gate.
 - [ ] **Step 7 — Merge + Closeout**: `gh pr create` → CI verify → owner sign-off → squash-merge → closeout PR (Status Done + branches deleted local+remote + tracker sync). Then operator AC24/AC25/AC26 reverify on app-dev.
