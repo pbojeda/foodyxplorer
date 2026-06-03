@@ -1726,12 +1726,18 @@ describe('TranscriptFeed — FU4 AC17b: Strict Mode synthetic mount→cleanup→
     shim.uninstall();
   });
 
-  it('AC17b (FU4): React.StrictMode synthetic remount correctly re-installs bottom-lock observer', () => {
+  it('AC17b (FU4): React.StrictMode synthetic remount correctly re-installs bottom-lock observer — DISCRIMINATING ≥2 observe calls', () => {
     // React 18 StrictMode calls mount→cleanup→mount in development.
     // Effect D cleanup resets hasScrolledToBottomOnHydrationRef=false so the
     // synthetic remount re-fires the hydration branch (not the append branch).
-    // The test verifies: after the 2 synthetic cycles, exactly ONE observer is
-    // active (the final re-mount's) and the previous one was disconnected.
+    //
+    // DISCRIMINATING ASSERTION (per /review-spec code-review MAJOR fix-loop 2026-06-03):
+    // If a future regressor removes the `hasScrolledToBottomOnHydrationRef.current=false`
+    // reset in Effect D cleanup, Mount 2's hydration branch would early-return on the
+    // still-true guard → only ONE observer would be installed across the whole cycle.
+    // We assert observeMock >= 2 (mount #1 observer + remount #2 observer) to catch
+    // this exact regression. Without this discrimination, `observeMock toHaveBeenCalled()`
+    // (≥1) passes even on the buggy implementation since mount #1 always fires.
 
     const entryA = makeEntry({ entryId: 'a' });
     const { unmount } = render(
@@ -1742,19 +1748,11 @@ describe('TranscriptFeed — FU4 AC17b: Strict Mode synthetic mount→cleanup→
     const feed = document.querySelector('[role="feed"]') as HTMLElement;
     installScrollMocksLocal(feed);
 
-    // In StrictMode, Effects run: mount→cleanup→remount.
-    // After the cycle: disconnectMock should have been called at least once
-    // (for the synthetic cleanup) and observeMock called at least twice
-    // (once for each mount cycle).
-    // The final state: one active observer (the remount's), the prior disconnected.
+    // Discriminating assertion: BOTH mount and remount installed an observer (≥2 calls).
+    expect(shim.observeMock.mock.calls.length).toBeGreaterThanOrEqual(2);
 
-    // At minimum: observe was called (hydration installed observer).
-    expect(shim.observeMock).toHaveBeenCalled();
-
-    // The disconnect count during the StrictMode cycle ≥ 1 (synthetic cleanup fired).
-    // In StrictMode, the timer from the first mount fires the stopBottomLock on cleanup
-    // OR Effect D cleanup calls disconnect() directly.
-    // Either way, disconnectMock ≥ 1 confirms teardown of the first instance.
+    // First observer was disconnected when synthetic cleanup ran.
+    // (The remount's observer remains active until either timer fires or real unmount.)
     expect(shim.disconnectMock.mock.calls.length).toBeGreaterThanOrEqual(1);
 
     unmount();
