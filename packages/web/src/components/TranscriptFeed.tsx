@@ -74,10 +74,28 @@ export function TranscriptFeed({
   onRetry,
   onDishSelect,
 }: TranscriptFeedProps) {
-  // ---- Refs (7 total — see research doc §7.1) ----
+  // ---- Refs (8 total — see research doc §7.1 + fix-loop round 2 2026-06-03) ----
 
-  // Container DOM ref (unchanged from FU1).
+  // Container DOM ref (unchanged from FU1) — the scroll viewport (flex-1 child of
+  // HablarShell's h-[100dvh] flex-col). Used as the scroll target throughout.
   const feedRef = useRef<HTMLDivElement>(null);
+
+  // FU4 round 2 (2026-06-03): inner-content wrapper ref — the ResizeObserver target.
+  //
+  // Why a separate ref: feedRef points at the flex-1 scroll container; its own box
+  // dimensions are constrained by the parent's fixed h-[100dvh], so per W3C Resize
+  // Observer §3.1/§3.4.8 the observer's `isActive()` compares contentBox/borderBox
+  // sizes that NEVER change when only scrollHeight (internal content) grows. Result:
+  // observe(feedRef) fires once on initial attach, then is silent during the very
+  // shimmer→card mutations the bottom-lock is supposed to catch (AC20-A bug).
+  //
+  // feedContentRef wraps every growth-bearing child inside the scroll viewport. Its
+  // box height equals its content height (block flow, no flex constraint) — so the
+  // observer fires every time shimmer→card / new entry / skeleton growth happens.
+  //
+  // Cross-model verification 2026-06-03 (gemini + codex) CONFIRMED.
+  // See: /tmp/audit-c1-verification-2026-06-03/, /tmp/c1-repro.html.
+  const feedContentRef = useRef<HTMLDivElement>(null);
 
   // Updated by scroll listener before each append commit (FU2 Bug 2).
   const wasNearBottomRef = useRef<boolean>(true);
@@ -171,7 +189,14 @@ export function TranscriptFeed({
           // jsdom does not implement element.scrollTo — safe to ignore in tests
         }
       });
-      observer.observe(container);
+      // FU4 round 2 (2026-06-03): observe the inner content wrapper, NOT the flex-1
+      // scroll container — the latter's box stays constrained so the callback would
+      // never fire on internal scrollHeight growth (auditor C1 BLOCKER, confirmed by
+      // gemini + codex cross-model 2026-06-03 against W3C Resize Observer §3.1).
+      // Fallback to `container` for safety if the wrapper ref isn't mounted yet —
+      // in that case we still get the initial-attach fire (better than nothing).
+      const observerTarget = feedContentRef.current ?? container;
+      observer.observe(observerTarget);
 
       const timerId = setTimeout(() => stopBottomLock('timer'), durationMs);
 
@@ -376,52 +401,58 @@ export function TranscriptFeed({
       className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(9rem+env(safe-area-inset-bottom))] lg:max-w-2xl lg:mx-auto w-full"
       style={{ overflowAnchor: 'none' }}
     >
-      {/* Load-more sentinel — at the very top, above all entries */}
-      {isAuthenticated && (hasMoreHistory || isLoadingMore) && (
-        <HistoryLoadMoreSentinel
-          hasMoreHistory={hasMoreHistory}
-          isLoadingMore={isLoadingMore}
-          onLoadMore={handleLoadMore}
-        />
-      )}
-
-      {/* Clear all button — top of feed when authenticated and has persisted entries */}
-      {isAuthenticated && hasPersisted && (
-        <div className="flex justify-end mb-3">
-          <ClearHistoryButton onConfirm={onClearAll} />
-        </div>
-      )}
-
-      {/* Persistence nudge — above first session entry, anonymous only, ≥2 entries */}
-      {showPersistenceNudge && (
-        <HistoryPersistenceNudge onDismiss={onDismissPersistenceNudge} />
-      )}
-
-      {/* Empty states */}
-      {isEmpty && isAuthenticated && !isLoadingHistory && (
-        <HistoryEmptyState />
-      )}
-      {isEmpty && !isAuthenticated && (
-        <div className="flex flex-1 overflow-y-auto">
-          <EmptyState />
-        </div>
-      )}
-
-      {/* Entry list */}
-      {entries.map((entry, index) => (
-        <div key={entry.entryId}>
-          <TranscriptEntry
-            entry={entry}
-            onDelete={entry.isPersisted ? onDeleteEntry : undefined}
-            onRetry={onRetry}
-            onDishSelect={onDishSelect}
+      {/* FU4 round 2 (2026-06-03): inner content wrapper — ResizeObserver target.
+          The wrapper's box height grows with its children (block flow), unlike the
+          flex-1 parent whose box stays constrained by HablarShell's h-[100dvh].
+          See feedContentRef declaration for the auditor C1 background. */}
+      <div ref={feedContentRef} data-testid="feed-content">
+        {/* Load-more sentinel — at the very top, above all entries */}
+        {isAuthenticated && (hasMoreHistory || isLoadingMore) && (
+          <HistoryLoadMoreSentinel
+            hasMoreHistory={hasMoreHistory}
+            isLoadingMore={isLoadingMore}
+            onLoadMore={handleLoadMore}
           />
-          {/* Divider between entries */}
-          {index < entries.length - 1 && (
-            <hr className="border-t border-slate-100 my-4" aria-hidden="true" />
-          )}
-        </div>
-      ))}
+        )}
+
+        {/* Clear all button — top of feed when authenticated and has persisted entries */}
+        {isAuthenticated && hasPersisted && (
+          <div className="flex justify-end mb-3">
+            <ClearHistoryButton onConfirm={onClearAll} />
+          </div>
+        )}
+
+        {/* Persistence nudge — above first session entry, anonymous only, ≥2 entries */}
+        {showPersistenceNudge && (
+          <HistoryPersistenceNudge onDismiss={onDismissPersistenceNudge} />
+        )}
+
+        {/* Empty states */}
+        {isEmpty && isAuthenticated && !isLoadingHistory && (
+          <HistoryEmptyState />
+        )}
+        {isEmpty && !isAuthenticated && (
+          <div className="flex flex-1 overflow-y-auto">
+            <EmptyState />
+          </div>
+        )}
+
+        {/* Entry list */}
+        {entries.map((entry, index) => (
+          <div key={entry.entryId}>
+            <TranscriptEntry
+              entry={entry}
+              onDelete={entry.isPersisted ? onDeleteEntry : undefined}
+              onRetry={onRetry}
+              onDishSelect={onDishSelect}
+            />
+            {/* Divider between entries */}
+            {index < entries.length - 1 && (
+              <hr className="border-t border-slate-100 my-4" aria-hidden="true" />
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

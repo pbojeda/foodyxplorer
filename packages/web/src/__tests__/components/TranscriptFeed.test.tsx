@@ -886,8 +886,38 @@ describe('TranscriptFeed — Step 3: bottom-lock observer (hydration and append)
       />,
     );
 
+    // FU4 round 2 (2026-06-03): observer target is the inner content wrapper, NOT
+    // the flex-1 scroll container (auditor C1 BLOCKER — flex-constrained box never
+    // fires on internal scrollHeight growth). See feedContentRef in TranscriptFeed.
+    const feedContent = feed.querySelector('[data-testid="feed-content"]') as HTMLElement;
     expect(shim.lastObserverCb).not.toBeNull();
-    expect(shim.observeMock).toHaveBeenCalledWith(feed);
+    expect(feedContent).toBeInTheDocument();
+    expect(shim.observeMock).toHaveBeenCalledWith(feedContent);
+  });
+
+  it('AC1b (FU4 round 2): observer target is the inner content wrapper, NOT the scroll container', () => {
+    // Discriminating invariant for the auditor C1 fix (2026-06-03). Per W3C
+    // ResizeObserver §3.1/§3.4.8, observing the flex-1 scroll container would
+    // never fire on internal scrollHeight growth because its contentBox stays
+    // constrained by HablarShell's h-[100dvh] flex parent. This test pins the
+    // observer target so a future refactor cannot silently regress to feed.
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
+    const feed = screen.getByRole('feed');
+    installScrollMocksLocal(feed);
+
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[makeEntry({ entryId: 'p1' }), makeEntry({ entryId: 'p2' })]}
+      />,
+    );
+
+    const feedContent = feed.querySelector('[data-testid="feed-content"]') as HTMLElement;
+    expect(feedContent).toBeInTheDocument();
+    // The observer must NOT have been attached to the flex-1 scroll container.
+    expect(shim.observeMock).not.toHaveBeenCalledWith(feed);
+    // It must have been attached to the inner wrapper (block flow, height:auto).
+    expect(shim.observeMock).toHaveBeenCalledWith(feedContent);
   });
 
   it('AC2: hydration scrollTo uses behavior:"instant" not "smooth"', () => {
@@ -1044,11 +1074,13 @@ describe('TranscriptFeed — Step 3: bottom-lock observer (hydration and append)
       />,
     );
     const feed = container.querySelector('[role="feed"]') as HTMLElement;
+    // FU4 round 2 (2026-06-03): observer target is the inner content wrapper.
     // scrollTo is normally mocked before render. Since it fired before our mock,
     // we verify via shim that the observer was constructed (which confirms the path).
     // The actual scrollTo call is covered by AC4 + AC2 tests above.
-    // Here: just assert no crash and shim observed the feed element.
-    expect(shim.observeMock).toHaveBeenCalledWith(feed);
+    const feedContent = feed.querySelector('[data-testid="feed-content"]') as HTMLElement;
+    expect(feedContent).toBeInTheDocument();
+    expect(shim.observeMock).toHaveBeenCalledWith(feedContent);
   });
 });
 
