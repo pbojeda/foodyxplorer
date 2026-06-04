@@ -13,6 +13,7 @@
 
 import type { RefObject } from 'react';
 import { useEffect, useRef } from 'react';
+import { dlog } from '@/lib/debugScroll';
 
 interface HistoryLoadMoreSentinelProps {
   /**
@@ -40,15 +41,35 @@ export function HistoryLoadMoreSentinel({
   useEffect(() => {
     const sentinel = sentinelRef.current;
     const rootEl = feedRef.current;
+    dlog('Sentinel useEffect run', {
+      sentinelExists: !!sentinel,
+      rootElExists: !!rootEl,
+      hasMoreHistory,
+      isLoadingMore,
+    });
     // Guard: skip when root not mounted yet — the next render's effect picks it up.
     // Empty feedRef during the initial render commit is normal because the parent's
     // ref assignment runs in the same commit phase; the observer needs a valid root.
-    if (!sentinel || !rootEl || !hasMoreHistory || isLoadingMore) return;
+    if (!sentinel || !rootEl || !hasMoreHistory || isLoadingMore) {
+      dlog('Sentinel useEffect EARLY RETURN');
+      return;
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
+        dlog('Sentinel IO callback', {
+          isIntersecting: entry?.isIntersecting,
+          intersectionRatio: entry?.intersectionRatio,
+          targetTop: entry?.boundingClientRect?.top,
+          targetBottom: entry?.boundingClientRect?.bottom,
+          rootBoundsTop: entry?.rootBounds?.top,
+          rootBoundsBottom: entry?.rootBounds?.bottom,
+          rootElScrollTop: rootEl.scrollTop,
+          rootElScrollHeight: rootEl.scrollHeight,
+        });
         if (entry?.isIntersecting) {
+          dlog('Sentinel IO → calling onLoadMore');
           onLoadMoreRef.current();
         }
       },
@@ -59,8 +80,13 @@ export function HistoryLoadMoreSentinel({
     );
 
     observer.observe(sentinel);
+    dlog('Sentinel IO observe() called', {
+      rootElScrollTop: rootEl.scrollTop,
+      rootElScrollHeight: rootEl.scrollHeight,
+    });
 
     return () => {
+      dlog('Sentinel IO disconnect (cleanup)');
       observer.disconnect();
     };
   }, [feedRef, hasMoreHistory, isLoadingMore]);

@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import type { TranscriptEntryData } from '@/types/history';
+import { dlog } from '@/lib/debugScroll';
 import { TranscriptEntry } from './TranscriptEntry';
 import { EmptyState } from './EmptyState';
 import { HistoryEmptyState } from './HistoryEmptyState';
@@ -239,12 +240,25 @@ export function TranscriptFeed({
 
     if (!hasScrolledToBottomOnHydrationRef.current) {
       // ---- Hydration path (one-shot per component lifetime) ----
+      dlog('Effect B hydration BEFORE scrollTo', {
+        scrollTop: container.scrollTop,
+        scrollHeight: container.scrollHeight,
+        clientHeight: container.clientHeight,
+        entriesLength: entries.length,
+        firstId: currentFirstId,
+        lastId: currentLastId,
+      });
       hasScrolledToBottomOnHydrationRef.current = true;
       try {
         container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
       } catch {
         // jsdom — safe to ignore
       }
+      dlog('Effect B hydration AFTER scrollTo', {
+        scrollTop: container.scrollTop,
+        scrollHeight: container.scrollHeight,
+        clientHeight: container.clientHeight,
+      });
       startBottomLock(container, HYDRATION_RESCROLL_WINDOW_MS);
       firstEntryIdRef.current = currentFirstId;
       lastEntryIdRef.current = currentLastId;
@@ -314,18 +328,34 @@ export function TranscriptFeed({
   // /review-plan IMPORTANT-3: if feedRef.current is null at this point, we still
   // set mode=idle so stale prepending state doesn't block future operations.
   useLayoutEffect(() => {
-    if (isLoadingMore) return; // only run on false transition
+    if (isLoadingMore) {
+      dlog('Effect C skipped (isLoadingMore=true)');
+      return; // only run on false transition
+    }
     const lock = scrollLockRef.current;
-    if (lock.mode !== 'prepending') return;
+    if (lock.mode !== 'prepending') {
+      dlog('Effect C skipped (mode!=prepending)', { mode: lock.mode });
+      return;
+    }
     const container = feedRef.current;
     if (!container) {
+      dlog('Effect C BAILED (feedRef.current is null)', { mode: lock.mode });
       scrollLockRef.current = { mode: 'idle' };
       return;
     }
     const delta = container.scrollHeight - lock.prevScrollHeight;
+    dlog('Effect C RESTORE', {
+      prevScrollTop: lock.prevScrollTop,
+      prevScrollHeight: lock.prevScrollHeight,
+      currentScrollHeight: container.scrollHeight,
+      delta,
+      willSetScrollTop: delta > 0 ? lock.prevScrollTop + delta : container.scrollTop,
+      scrollTopBefore: container.scrollTop,
+    });
     if (delta > 0) {
       container.scrollTop = lock.prevScrollTop + delta;
     }
+    dlog('Effect C RESTORE AFTER', { scrollTop: container.scrollTop });
     scrollLockRef.current = { mode: 'idle' };
   }, [isLoadingMore]);
 
@@ -371,6 +401,13 @@ export function TranscriptFeed({
   // stopBottomLock to cleanly disconnect the observer before setting the new mode.
   const handleLoadMore = useCallback(() => {
     const container = feedRef.current;
+    dlog('handleLoadMore CALLED', {
+      containerExists: !!container,
+      currentMode: scrollLockRef.current.mode,
+      scrollTop: container?.scrollTop,
+      scrollHeight: container?.scrollHeight,
+      clientHeight: container?.clientHeight,
+    });
     if (container) {
       if (scrollLockRef.current.mode === 'bottom-lock') {
         stopBottomLock('mode-transition');
@@ -380,6 +417,10 @@ export function TranscriptFeed({
         prevScrollHeight: container.scrollHeight,
         prevScrollTop: container.scrollTop,
       };
+      dlog('handleLoadMore CAPTURED', {
+        prevScrollHeight: container.scrollHeight,
+        prevScrollTop: container.scrollTop,
+      });
     }
     // ALWAYS call parent's onLoadMore — even without a captured baseline.
     onLoadMore();
