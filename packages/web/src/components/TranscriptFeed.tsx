@@ -10,7 +10,7 @@
 // AC47: auto-scroll to bottom on new entries.
 // FU4: unified 4-effect scroll state machine (research doc §7.1).
 
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { TranscriptEntryData } from '@/types/history';
 import { dlog } from '@/lib/debugScroll';
 import { TranscriptEntry } from './TranscriptEntry';
@@ -116,6 +116,18 @@ export function TranscriptFeed({
 
   // FU4 NEW: discriminated union enforcing single-mode-at-a-time.
   const scrollLockRef = useRef<ScrollLockState>({ mode: 'idle' });
+
+  // Hydration gate (2026-06-04 BUG-WEB-HISTORY-HYDRATION-RACE-001).
+  //
+  // Set to `true` AFTER Effect B's hydration branch completes its scrollTo(bottom).
+  // Passed to HistoryLoadMoreSentinel so its IntersectionObserver does NOT observe
+  // until the scroll container has been positioned at the bottom. Without this gate,
+  // the sentinel's IO can observe while feedRef.scrollTop is still 0 (pre-Effect-B),
+  // snapshot an `isIntersecting: true` state, then deliver the callback AFTER Effect B's
+  // scroll completes — calling loadMore even though the sentinel is visually out of view.
+  // Empirical evidence: ?debug=scroll logs 2026-06-04, scenario where target=+68 reported
+  // by IO callback at t=740ms even though scrollTop=2291.5 set at t=739.2ms.
+  const [hydrationReady, setHydrationReady] = useState(false);
 
   // ---- Effect A: scroll listener (unchanged from FU2) ----
   // Mounted once; updates wasNearBottomRef on every user scroll.
@@ -263,6 +275,11 @@ export function TranscriptFeed({
       firstEntryIdRef.current = currentFirstId;
       lastEntryIdRef.current = currentLastId;
       prevEntriesLengthRef.current = entries.length;
+      // Open the hydration gate so HistoryLoadMoreSentinel can observe.
+      // Scheduling a state update inside a useLayoutEffect is safe because the
+      // dependency (`hasScrolledToBottomOnHydrationRef.current`) flips to true
+      // on the same line, preventing this branch from re-running.
+      setHydrationReady(true);
       return;
     }
 
@@ -271,8 +288,37 @@ export function TranscriptFeed({
 
     if (firstChanged && !lastChanged) {
       // ---- Pure prepend: first entryId changed, last is stable ----
-      // Effect C handles restore from the handleLoadMore-captured baseline.
-      // Effect B does NOT touch scroll here.
+      //
+      // 2026-06-04 BUG-WEB-HISTORY-HYDRATION-RACE-001: scroll restore now lives
+      // here (not in Effect C) because Effect C fires on `isLoadingMore` going
+      // false, which arrives in the SAME render commit that initially propagates
+      // the new persistedEntries from useSearchHistory. HablarShell uses a
+      // useEffect-based state derivation (`setEntries((prev) => [...persistedEntries, ...sessionOnly])`)
+      // that defers `entries` propagation to TranscriptFeed by ONE render. As a
+      // result, Effect C reads container.scrollHeight BEFORE the new entries are
+      // in the DOM and computes delta=0 → no restore → user stranded at scrollTop≈0
+      // → sentinel re-visible → IO refires → autoload loop.
+      //
+      // Effect B's prepend branch fires precisely when entries.length grows,
+      // which by definition means the new entries are in the DOM. scrollHeight
+      // is correct, delta is non-zero, restore lands the user back where they were.
+      if (scrollLockRef.current.mode === 'prepending') {
+        const lock = scrollLockRef.current;
+        const delta = container.scrollHeight - lock.prevScrollHeight;
+        dlog('Effect B prepend RESTORE', {
+          prevScrollTop: lock.prevScrollTop,
+          prevScrollHeight: lock.prevScrollHeight,
+          currentScrollHeight: container.scrollHeight,
+          delta,
+        });
+        if (delta > 0) {
+          container.scrollTop = lock.prevScrollTop + delta;
+          scrollLockRef.current = { mode: 'idle' };
+        }
+        // If delta <= 0 the prepend produced no measurable growth — keep the
+        // lock active in case a follow-up render adds the entries. This shouldn't
+        // happen in practice (entries.length already grew to fire this branch).
+      }
       firstEntryIdRef.current = currentFirstId;
       prevEntriesLengthRef.current = entries.length;
       return;
@@ -354,9 +400,14 @@ export function TranscriptFeed({
     });
     if (delta > 0) {
       container.scrollTop = lock.prevScrollTop + delta;
+      // Only release the prepending lock on a SUCCESSFUL restore. If delta is 0
+      // (entries not yet propagated to DOM — HablarShell state-derivation lag),
+      // keep `mode='prepending'` so Effect B's prepend branch can complete the
+      // restore on the next render when entries.length actually grows.
+      // BUG-WEB-HISTORY-HYDRATION-RACE-001 (2026-06-04).
+      scrollLockRef.current = { mode: 'idle' };
     }
-    dlog('Effect C RESTORE AFTER', { scrollTop: container.scrollTop });
-    scrollLockRef.current = { mode: 'idle' };
+    dlog('Effect C RESTORE AFTER', { scrollTop: container.scrollTop, modeAfter: scrollLockRef.current.mode });
   }, [isLoadingMore]);
 
   // ---- Effect D: unmount cleanup (generalised from FU2 Effect 2) ----
@@ -454,6 +505,7 @@ export function TranscriptFeed({
         {isAuthenticated && (hasMoreHistory || isLoadingMore) && (
           <HistoryLoadMoreSentinel
             feedRef={feedRef}
+            hydrationReady={hydrationReady}
             hasMoreHistory={hasMoreHistory}
             isLoadingMore={isLoadingMore}
             onLoadMore={handleLoadMore}

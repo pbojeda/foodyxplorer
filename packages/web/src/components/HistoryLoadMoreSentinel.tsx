@@ -23,6 +23,13 @@ interface HistoryLoadMoreSentinelProps {
    * the inner overflow container. See BUG-WEB-HISTORY-LOADMORE-IO-ROOT-001.
    */
   feedRef: RefObject<HTMLDivElement>;
+  /**
+   * Set to `true` AFTER TranscriptFeed has completed its hydration scroll-to-bottom.
+   * The IntersectionObserver is NOT attached until this gate flips so the sentinel
+   * cannot snapshot a stale `isIntersecting:true` while feedRef.scrollTop is still 0
+   * (pre-hydration). BUG-WEB-HISTORY-HYDRATION-RACE-001 (2026-06-04).
+   */
+  hydrationReady: boolean;
   hasMoreHistory: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
@@ -30,6 +37,7 @@ interface HistoryLoadMoreSentinelProps {
 
 export function HistoryLoadMoreSentinel({
   feedRef,
+  hydrationReady,
   hasMoreHistory,
   isLoadingMore,
   onLoadMore,
@@ -44,13 +52,17 @@ export function HistoryLoadMoreSentinel({
     dlog('Sentinel useEffect run', {
       sentinelExists: !!sentinel,
       rootElExists: !!rootEl,
+      hydrationReady,
       hasMoreHistory,
       isLoadingMore,
     });
-    // Guard: skip when root not mounted yet — the next render's effect picks it up.
-    // Empty feedRef during the initial render commit is normal because the parent's
-    // ref assignment runs in the same commit phase; the observer needs a valid root.
-    if (!sentinel || !rootEl || !hasMoreHistory || isLoadingMore) {
+    // Guard: skip when root not mounted, hydration not yet completed, no more pages,
+    // or a loadMore is already in flight. The `hydrationReady` gate is critical:
+    // it prevents the IntersectionObserver from snapshotting a `isIntersecting:true`
+    // state while feedRef.scrollTop is still 0 (pre-hydration), which would deliver
+    // a stale callback AFTER TranscriptFeed scrolls to bottom and spuriously fire
+    // loadMore. BUG-WEB-HISTORY-HYDRATION-RACE-001 (2026-06-04).
+    if (!sentinel || !rootEl || !hydrationReady || !hasMoreHistory || isLoadingMore) {
       dlog('Sentinel useEffect EARLY RETURN');
       return;
     }
@@ -89,7 +101,7 @@ export function HistoryLoadMoreSentinel({
       dlog('Sentinel IO disconnect (cleanup)');
       observer.disconnect();
     };
-  }, [feedRef, hasMoreHistory, isLoadingMore]);
+  }, [feedRef, hydrationReady, hasMoreHistory, isLoadingMore]);
 
   if (!hasMoreHistory && !isLoadingMore) {
     return null;

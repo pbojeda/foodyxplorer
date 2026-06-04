@@ -62,6 +62,7 @@ describe('HistoryLoadMoreSentinel — IntersectionObserver root regression', () 
       return (
         <div ref={feedRef} data-testid="feed-container">
           <HistoryLoadMoreSentinel
+            hydrationReady={true}
             feedRef={feedRef}
             hasMoreHistory={true}
             isLoadingMore={false}
@@ -94,6 +95,7 @@ describe('HistoryLoadMoreSentinel — IntersectionObserver root regression', () 
       return (
         <div ref={feedRef}>
           <HistoryLoadMoreSentinel
+            hydrationReady={true}
             feedRef={feedRef}
             hasMoreHistory={true}
             isLoadingMore={true}
@@ -117,6 +119,7 @@ describe('HistoryLoadMoreSentinel — IntersectionObserver root regression', () 
       return (
         <div ref={feedRef}>
           <HistoryLoadMoreSentinel
+            hydrationReady={true}
             feedRef={feedRef}
             hasMoreHistory={false}
             isLoadingMore={false}
@@ -132,6 +135,35 @@ describe('HistoryLoadMoreSentinel — IntersectionObserver root regression', () 
     expect(observeMock).not.toHaveBeenCalled();
   });
 
+  it('BUG-WEB-HISTORY-HYDRATION-RACE-001: does NOT observe while hydrationReady=false', () => {
+    // Regression guard for the second cooperating bug (2026-06-04 empirical logs).
+    // Before this gate, the IntersectionObserver could attach BEFORE TranscriptFeed
+    // had scrolled to bottom, snapshot an `isIntersecting:true` state, and deliver
+    // a stale callback after the hydration scroll completed — firing loadMore
+    // even though the sentinel was visually out of view.
+    const feedRef = createRef<HTMLDivElement>();
+
+    function Parent() {
+      return (
+        <div ref={feedRef}>
+          <HistoryLoadMoreSentinel
+            hydrationReady={false}
+            feedRef={feedRef}
+            hasMoreHistory={true}
+            isLoadingMore={false}
+            onLoadMore={() => {}}
+          />
+        </div>
+      );
+    }
+
+    render(<Parent />);
+
+    // Gate is closed → no observer construction → no observe call.
+    expect(lastOptions).toBeUndefined();
+    expect(observeMock).not.toHaveBeenCalled();
+  });
+
   it('disconnects the observer on unmount', () => {
     const feedRef = createRef<HTMLDivElement>();
 
@@ -139,6 +171,7 @@ describe('HistoryLoadMoreSentinel — IntersectionObserver root regression', () 
       return (
         <div ref={feedRef}>
           <HistoryLoadMoreSentinel
+            hydrationReady={true}
             feedRef={feedRef}
             hasMoreHistory={true}
             isLoadingMore={false}
