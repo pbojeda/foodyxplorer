@@ -138,6 +138,33 @@ describe('useSearchHistory', () => {
   });
 
   // AC39: loadMore prepends older entries
+  it('BUG-WEB-HISTORY-LOADMORE-IO-ROOT-001: rapid duplicate loadMore calls (sync) trigger only ONE getHistory request', async () => {
+    // Regression guard for the sync in-flight ref guard added to loadMore.
+    // Pre-fix: an IntersectionObserver firing twice in rapid succession (before
+    // React commits setIsLoadingMore(true)) caused TWO getHistory requests for the
+    // same cursor, doubling the prepend. The sync ref short-circuits the 2nd call.
+    mockGetHistory.mockResolvedValueOnce(makeHistoryResult(3, 'cursor-page2'));
+    const { result } = renderHook(() => useSearchHistory({ authToken: 'test-token' }));
+    await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+
+    mockGetHistory.mockClear();
+    const olderResp = makeHistoryResult(2, null);
+    mockGetHistory.mockResolvedValueOnce(olderResp);
+
+    // Fire loadMore twice synchronously within the same React update tick.
+    act(() => {
+      result.current.loadMore();
+      result.current.loadMore();
+    });
+
+    await waitFor(() => expect(result.current.isLoadingMore).toBe(false));
+
+    // Exactly ONE getHistory call (the second was short-circuited by the in-flight ref).
+    expect(mockGetHistory).toHaveBeenCalledTimes(1);
+    // 3 initial + 2 prepended = 5 total (NOT 7 from a duplicate prepend).
+    expect(result.current.persistedEntries).toHaveLength(5);
+  });
+
   it('AC39: loadMore prepends older entries above existing', async () => {
     // Initial load: 3 entries
     mockGetHistory.mockResolvedValueOnce(makeHistoryResult(3, 'cursor-page2'));

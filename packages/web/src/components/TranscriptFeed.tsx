@@ -406,9 +406,13 @@ export function TranscriptFeed({
           flex-1 parent whose box stays constrained by HablarShell's h-[100dvh].
           See feedContentRef declaration for the auditor C1 background. */}
       <div ref={feedContentRef} data-testid="feed-content">
-        {/* Load-more sentinel — at the very top, above all entries */}
+        {/* Load-more sentinel — at the very top, above all entries.
+            feedRef is REQUIRED so the sentinel's IntersectionObserver uses the
+            scroll container as its root (not the browser viewport, which would
+            spuriously fire on hydration). See BUG-WEB-HISTORY-LOADMORE-IO-ROOT-001. */}
         {isAuthenticated && (hasMoreHistory || isLoadingMore) && (
           <HistoryLoadMoreSentinel
+            feedRef={feedRef}
             hasMoreHistory={hasMoreHistory}
             isLoadingMore={isLoadingMore}
             onLoadMore={handleLoadMore}
