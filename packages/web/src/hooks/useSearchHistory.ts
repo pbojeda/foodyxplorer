@@ -46,6 +46,15 @@ export function useSearchHistory({ authToken }: UseSearchHistoryOptions): UseSea
   // Track current loadMore page for telemetry
   const pageRef = useRef(0);
 
+  // Synchronous in-flight guard for loadMore.
+  // React's `isLoadingMore` state is only consistent after commit; if the sentinel's
+  // IntersectionObserver fires twice in quick succession (e.g. due to a rapid
+  // intersection burst on layout settle), the second call would read the stale
+  // false value and trigger a duplicate fetch. The ref is mutated synchronously
+  // so the second call short-circuits before scheduling another setState.
+  // See BUG-WEB-HISTORY-LOADMORE-IO-ROOT-001.
+  const loadMoreInFlightRef = useRef(false);
+
   // Mount fetch — runs when authToken is provided
   useEffect(() => {
     if (!authToken) return;
@@ -78,8 +87,13 @@ export function useSearchHistory({ authToken }: UseSearchHistoryOptions): UseSea
   }, [authToken]);
 
   const loadMore = useCallback(() => {
+    // Sync ref guard runs BEFORE the React-state check so double-fires within the
+    // same commit cycle short-circuit deterministically (the React state is stale
+    // until next commit).
+    if (loadMoreInFlightRef.current) return;
     if (!authToken || !nextCursor || isLoadingMore) return;
 
+    loadMoreInFlightRef.current = true;
     setIsLoadingMore(true);
     pageRef.current += 1;
     const page = pageRef.current;
@@ -98,6 +112,7 @@ export function useSearchHistory({ authToken }: UseSearchHistoryOptions): UseSea
       })
       .finally(() => {
         setIsLoadingMore(false);
+        loadMoreInFlightRef.current = false;
       });
   }, [authToken, nextCursor, isLoadingMore]);
 

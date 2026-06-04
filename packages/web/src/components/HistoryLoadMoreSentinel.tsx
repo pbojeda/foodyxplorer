@@ -1,19 +1,34 @@
 'use client';
 
 // HistoryLoadMoreSentinel — invisible sentinel at top of TranscriptFeed.
-// Uses IntersectionObserver to fire onLoadMore when the sentinel enters the viewport.
+// Uses IntersectionObserver to fire onLoadMore when the sentinel enters the viewport
+// OF THE SCROLL CONTAINER (`feedRef`), NOT the browser viewport. Setting `root` is
+// REQUIRED here because the sentinel lives inside an inner scrollable element; with
+// the default null root the observer measures against the browser window and reports
+// `isIntersecting: true` whenever the page itself is small enough to contain the
+// scroll container — which then triggers an auto-loadMore loop on hydration.
+// (BUG-WEB-HISTORY-LOADMORE-IO-ROOT-001, cross-model gemini+codex CONFIRMED 2026-06-04.)
 // Keyboard fallback: "Cargar más historial" button (sr-only, focus-not-sr-only).
 // Design spec: W18, W23. AC39, AC40.
 
+import type { RefObject } from 'react';
 import { useEffect, useRef } from 'react';
 
 interface HistoryLoadMoreSentinelProps {
+  /**
+   * Ref to the scroll container that owns the IntersectionObserver root.
+   * Required: without an explicit root the IO measures against the browser viewport,
+   * which yields false-positive intersections when the sentinel is scrolled out of
+   * the inner overflow container. See BUG-WEB-HISTORY-LOADMORE-IO-ROOT-001.
+   */
+  feedRef: RefObject<HTMLDivElement>;
   hasMoreHistory: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
 }
 
 export function HistoryLoadMoreSentinel({
+  feedRef,
   hasMoreHistory,
   isLoadingMore,
   onLoadMore,
@@ -24,7 +39,11 @@ export function HistoryLoadMoreSentinel({
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMoreHistory || isLoadingMore) return;
+    const rootEl = feedRef.current;
+    // Guard: skip when root not mounted yet — the next render's effect picks it up.
+    // Empty feedRef during the initial render commit is normal because the parent's
+    // ref assignment runs in the same commit phase; the observer needs a valid root.
+    if (!sentinel || !rootEl || !hasMoreHistory || isLoadingMore) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -33,7 +52,10 @@ export function HistoryLoadMoreSentinel({
           onLoadMoreRef.current();
         }
       },
-      { threshold: 0 }
+      {
+        root: rootEl, // ← scroll container, NOT browser viewport (auditor C1-style fix).
+        threshold: 0,
+      },
     );
 
     observer.observe(sentinel);
@@ -41,7 +63,7 @@ export function HistoryLoadMoreSentinel({
     return () => {
       observer.disconnect();
     };
-  }, [hasMoreHistory, isLoadingMore]);
+  }, [feedRef, hasMoreHistory, isLoadingMore]);
 
   if (!hasMoreHistory && !isLoadingMore) {
     return null;
