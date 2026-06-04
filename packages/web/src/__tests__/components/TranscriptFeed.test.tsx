@@ -7,7 +7,7 @@
 // AC47: auto-scroll fires when near bottom and new entries added.
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { TranscriptEntryData } from '../../types/history';
 
@@ -246,11 +246,15 @@ describe('TranscriptFeed', () => {
     expect(onClearAll).toHaveBeenCalledTimes(1);
   });
 
-  // AC47: auto-scroll invoked when new entry added and user is near bottom.
+  // AC47: auto-scroll invoked when new entry is APPENDED and user is near bottom.
+  // FU4: the first non-empty render fires the hydration path (behavior:'instant').
+  // The APPEND path (behavior:'smooth') fires on subsequent length growths.
   // jsdom does not implement element.scrollTo — we mock it via Object.defineProperty.
-  it('AC47: scrollTo is called when new entry is added and user is near bottom', () => {
+  it('AC47: scrollTo is called when new entry is appended and user is near bottom', () => {
+    // Render with 1 entry (fires hydration); install mocks; then append a 2nd entry.
+    const entryA = makeEntry({ entryId: 'a' });
     const { rerender } = render(
-      <TranscriptFeed {...defaultProps} entries={[]} />
+      <TranscriptFeed {...defaultProps} entries={[entryA]} />
     );
 
     const feed = screen.getByRole('feed');
@@ -267,10 +271,15 @@ describe('TranscriptFeed', () => {
     Object.defineProperty(feed, 'clientHeight', { value: 500, writable: true, configurable: true });
     Object.defineProperty(feed, 'scrollHeight', { value: 500, writable: true, configurable: true });
 
+    // Fire scroll event to set wasNearBottomRef=true (400+500 >= 500-100=400 → true).
+    feed.dispatchEvent(new Event('scroll', { bubbles: false }));
+    scrollToMock.mockClear(); // clear hydration scroll
+
+    // Append a second entry — triggers append path.
     rerender(
       <TranscriptFeed
         {...defaultProps}
-        entries={[makeEntry({ entryId: 'new' })]}
+        entries={[entryA, makeEntry({ entryId: 'new' })]}
       />
     );
 
@@ -297,6 +306,15 @@ describe('TranscriptFeed', () => {
     const feed = screen.getByRole('feed');
     expect(feed.className).toContain('pb-[calc(9rem+env(safe-area-inset-bottom))]');
     expect(container.querySelectorAll('[role="article"], [aria-busy]').length).toBeGreaterThan(0);
+  });
+
+  // FU4 AC11: overflow-anchor:none on scroll container (prevents JS vs native anchor race).
+  // Verifying via inline style attribute string because jsdom does not compute
+  // overflow-anchor as a recognized CSS property (non-standard in jsdom).
+  it('AC11 (FU4): scroll container has overflow-anchor:none inline style', () => {
+    render(<TranscriptFeed {...defaultProps} entries={[makeEntry()]} />);
+    const feed = screen.getByRole('feed');
+    expect(feed.style.overflowAnchor).toBe('none');
   });
 
   // -------------------------------------------------------------------------
@@ -364,17 +382,36 @@ describe('TranscriptFeed', () => {
     expect(scrollToMock).toHaveBeenCalledTimes(1);
   });
 
-  it('AC10c: loadMore prepend (isLoadingMore false→true→false + entries grow) does NOT scroll to bottom, AND restores scrollTop', () => {
-    // Step 1: mount with 2 entries; hydration effect fires once, ref becomes true.
+  it('AC10c: loadMore prepend — handleLoadMore captures pre-skeleton baseline; restores scrollTop correctly', async () => {
+    // FU4 architecture: capture happens in handleLoadMore() callback (pre-skeleton),
+    // NOT in useEffect[isLoadingMore]. The sentinel receives handleLoadMore transparently.
+    //
+    // Step 1: mount with 2 entries + sentinel visible; hydration fires; install mocks.
     const initialEntries = [makeEntry({ entryId: 'a' }), makeEntry({ entryId: 'b' })];
-    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
+    const onLoadMore = jest.fn();
+    const { rerender } = render(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[]}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        onLoadMore={onLoadMore}
+      />
+    );
     const feed = screen.getByRole('feed');
     const scrollToMock = installScrollMocks(feed, { scrollTop: 0, scrollHeight: 1000, clientHeight: 500 });
 
-    // FU2: fire scroll event with NOT-near-bottom values (0+500 < 1000-100=900 → false)
-    // so that the hydration-triggered append effect does NOT scroll.
+    // FU2: fire scroll event with NOT-near-bottom values so hydration does NOT trigger append.
     feed.dispatchEvent(new Event('scroll', { bubbles: false }));
-    rerender(<TranscriptFeed {...defaultProps} entries={initialEntries} />);
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={initialEntries}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        onLoadMore={onLoadMore}
+      />
+    );
     expect(scrollToMock).toHaveBeenCalledTimes(1); // hydration scroll only
     scrollToMock.mockClear();
 
@@ -384,26 +421,47 @@ describe('TranscriptFeed', () => {
     // Fire scroll event to update wasNearBottomRef: 200+500=700 < 1000-100=900 → false.
     feed.dispatchEvent(new Event('scroll', { bubbles: false }));
 
-    // Step 3: isLoadingMore flips to true — existing capture effect runs.
-    rerender(<TranscriptFeed {...defaultProps} entries={initialEntries} isLoadingMore={true} />);
+    // Step 3: FU4 — click the sentinel button BEFORE isLoadingMore=true.
+    // This calls handleLoadMore() which captures scrollHeight=1000, scrollTop=200 synchronously.
+    await userEvent.click(screen.getByText('Cargar más historial'));
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
 
-    // Step 4: simulate the DOM growing because older entries were inserted
-    // at the front. delta = 400 (new scrollHeight 1400 − old 1000).
+    // Step 4: isLoadingMore flips to true (skeleton mounts; scrollHeight grows).
+    Object.defineProperty(feed, 'scrollHeight', { value: 1248, writable: true, configurable: true });
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={initialEntries}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        isLoadingMore={true}
+        onLoadMore={onLoadMore}
+      />
+    );
+
+    // Step 5: entries arrive at front, isLoadingMore flips back to false.
+    // delta = 1400 - 1000 = 400 (using ORIGINAL pre-skeleton scrollHeight as baseline).
     Object.defineProperty(feed, 'scrollHeight', { value: 1400, writable: true, configurable: true });
-
-    // Step 5: isLoadingMore flips back to false with the older entries now in the
-    // entries array (prepended). The existing restore effect adjusts scrollTop.
     const prependedEntries = [
       makeEntry({ entryId: 'older1', isPersisted: true }),
       makeEntry({ entryId: 'older2', isPersisted: true }),
       ...initialEntries,
     ];
-    rerender(<TranscriptFeed {...defaultProps} entries={prependedEntries} isLoadingMore={false} />);
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={prependedEntries}
+        isAuthenticated={true}
+        hasMoreHistory={false}
+        isLoadingMore={false}
+        onLoadMore={onLoadMore}
+      />
+    );
 
     // Critical assertions:
-    // (a) The new hydration effect did NOT re-fire (ref-guarded).
+    // (a) No smooth scroll (hydration ref-guarded; prepend path; wasNearBottom=false).
     expect(scrollToMock).not.toHaveBeenCalled();
-    // (b) The existing prepend-preservation logic restored scrollTop to prev + delta = 200 + 400 = 600.
+    // (b) Effect C restored scrollTop: prevScrollTop(200) + delta(1400-1000=400) = 600.
     expect(feed.scrollTop).toBe(600);
   });
 
@@ -679,7 +737,7 @@ describe('TranscriptFeed — Step 5: coexistence + cleanup', () => {
     expect(scrollToMock).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
   });
 
-  it('AC13b: ResizeObserver disconnect is called on unmount (if still active)', () => {
+  it('AC13b: bottom-lock observer (hydration path) disconnect is called on unmount (if still active)', () => {
     jest.useFakeTimers();
     const { rerender, unmount } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
     const feed = screen.getByRole('feed');
@@ -700,7 +758,7 @@ describe('TranscriptFeed — Step 5: coexistence + cleanup', () => {
     expect(shim.disconnectMock).toHaveBeenCalledTimes(1);
   });
 
-  it('AC13c: timer-fired teardown nulls the ref handle (no double-disconnect on subsequent unmount)', () => {
+  it('AC13c: bottom-lock observer (hydration path) timer-fired teardown — no double-disconnect on subsequent unmount', () => {
     jest.useFakeTimers();
     const { rerender, unmount } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
     const feed = screen.getByRole('feed');
@@ -770,7 +828,7 @@ describe('TranscriptFeed — Step 2: scroll listener', () => {
 // Step 3: ResizeObserver hydration (AC1–AC6)
 // ---------------------------------------------------------------------------
 
-describe('TranscriptFeed — Step 3: ResizeObserver hydration', () => {
+describe('TranscriptFeed — Step 3: bottom-lock observer (hydration and append)', () => {
   const shim = createResizeObserverShim();
 
   // Helper: define mutable scroll properties + scrollTo spy on an element.
@@ -828,8 +886,38 @@ describe('TranscriptFeed — Step 3: ResizeObserver hydration', () => {
       />,
     );
 
+    // FU4 round 2 (2026-06-03): observer target is the inner content wrapper, NOT
+    // the flex-1 scroll container (auditor C1 BLOCKER — flex-constrained box never
+    // fires on internal scrollHeight growth). See feedContentRef in TranscriptFeed.
+    const feedContent = feed.querySelector('[data-testid="feed-content"]') as HTMLElement;
     expect(shim.lastObserverCb).not.toBeNull();
-    expect(shim.observeMock).toHaveBeenCalledWith(feed);
+    expect(feedContent).toBeInTheDocument();
+    expect(shim.observeMock).toHaveBeenCalledWith(feedContent);
+  });
+
+  it('AC1b (FU4 round 2): observer target is the inner content wrapper, NOT the scroll container', () => {
+    // Discriminating invariant for the auditor C1 fix (2026-06-03). Per W3C
+    // ResizeObserver §3.1/§3.4.8, observing the flex-1 scroll container would
+    // never fire on internal scrollHeight growth because its contentBox stays
+    // constrained by HablarShell's h-[100dvh] flex parent. This test pins the
+    // observer target so a future refactor cannot silently regress to feed.
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
+    const feed = screen.getByRole('feed');
+    installScrollMocksLocal(feed);
+
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[makeEntry({ entryId: 'p1' }), makeEntry({ entryId: 'p2' })]}
+      />,
+    );
+
+    const feedContent = feed.querySelector('[data-testid="feed-content"]') as HTMLElement;
+    expect(feedContent).toBeInTheDocument();
+    // The observer must NOT have been attached to the flex-1 scroll container.
+    expect(shim.observeMock).not.toHaveBeenCalledWith(feed);
+    // It must have been attached to the inner wrapper (block flow, height:auto).
+    expect(shim.observeMock).toHaveBeenCalledWith(feedContent);
   });
 
   it('AC2: hydration scrollTo uses behavior:"instant" not "smooth"', () => {
@@ -867,7 +955,7 @@ describe('TranscriptFeed — Step 3: ResizeObserver hydration', () => {
     });
   });
 
-  it('AC3: hasScrolledToBottomOnHydrationRef guard — observer survives intermediate entries.length changes within the window', () => {
+  it('hydration guard: observer survives intermediate entries.length changes within the 500ms window', () => {
     jest.useFakeTimers();
 
     const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
@@ -986,10 +1074,719 @@ describe('TranscriptFeed — Step 3: ResizeObserver hydration', () => {
       />,
     );
     const feed = container.querySelector('[role="feed"]') as HTMLElement;
+    // FU4 round 2 (2026-06-03): observer target is the inner content wrapper.
     // scrollTo is normally mocked before render. Since it fired before our mock,
     // we verify via shim that the observer was constructed (which confirms the path).
     // The actual scrollTo call is covered by AC4 + AC2 tests above.
-    // Here: just assert no crash and shim observed the feed element.
-    expect(shim.observeMock).toHaveBeenCalledWith(feed);
+    const feedContent = feed.querySelector('[data-testid="feed-content"]') as HTMLElement;
+    expect(feedContent).toBeInTheDocument();
+    expect(shim.observeMock).toHaveBeenCalledWith(feedContent);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FU4 — AC7/AC8: handleLoadMore pre-skeleton capture
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — FU4 AC7/AC8: handleLoadMore pre-skeleton capture', () => {
+  function installScrollMocksLocal(
+    feed: HTMLElement,
+    opts: { scrollTop?: number; clientHeight?: number; scrollHeight?: number } = {},
+  ) {
+    let _scrollHeight = opts.scrollHeight ?? 1000;
+    const scrollToMock = jest.fn();
+    Object.defineProperty(feed, 'scrollTo', { value: scrollToMock, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollTop', { value: opts.scrollTop ?? 0, writable: true, configurable: true });
+    Object.defineProperty(feed, 'clientHeight', { value: opts.clientHeight ?? 500, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollHeight', { get: () => _scrollHeight, configurable: true });
+    return {
+      scrollToMock,
+      setScrollHeight: (v: number) => { _scrollHeight = v; },
+    };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('AC7: sentinel receives handleLoadMore wrapper; clicking it calls onLoadMore prop', async () => {
+    const onLoadMore = jest.fn();
+    const { rerender } = render(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[makeEntry({ entryId: 'a' })]}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        onLoadMore={onLoadMore}
+      />
+    );
+    const feed = screen.getByRole('feed');
+    installScrollMocksLocal(feed, { scrollTop: 200, scrollHeight: 1000, clientHeight: 500 });
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[makeEntry({ entryId: 'a' }), makeEntry({ entryId: 'b' })]}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        onLoadMore={onLoadMore}
+      />
+    );
+
+    // Click the sentinel button (which calls handleLoadMore → onLoadMore).
+    await userEvent.click(screen.getByText('Cargar más historial'));
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it('AC8: capture fires synchronously before isLoadingMore commit — prevScrollHeight captured BEFORE skeleton scrollHeight', async () => {
+    // This test verifies Effect C uses the pre-skeleton baseline (1000), not the
+    // polluted skeleton height (1248). The proof: final scrollTop = 200 + (1400 - 1000) = 1400.
+    // If the OLD behavior (capture after skeleton) were active, it would use 1248,
+    // giving: 200 + (1400 - 1248) = 352. Only pre-skeleton capture gives 600.
+    const onLoadMore = jest.fn();
+    const initialEntries = [makeEntry({ entryId: 'a' }), makeEntry({ entryId: 'b' })];
+    const { rerender } = render(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[]}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        onLoadMore={onLoadMore}
+      />
+    );
+    const feed = screen.getByRole('feed');
+    const { scrollToMock, setScrollHeight } = installScrollMocksLocal(feed, { scrollTop: 0, scrollHeight: 1000, clientHeight: 500 });
+
+    // Hydrate (wasNearBottom=false to avoid append scroll).
+    feed.dispatchEvent(new Event('scroll', { bubbles: false }));
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={initialEntries}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        onLoadMore={onLoadMore}
+      />
+    );
+    scrollToMock.mockClear();
+
+    // Set scrollTop=200 for prepend math.
+    Object.defineProperty(feed, 'scrollTop', { value: 200, writable: true, configurable: true });
+    feed.dispatchEvent(new Event('scroll', { bubbles: false })); // wasNearBottom=false (200+500=700 < 1000-100)
+
+    // Click sentinel — handleLoadMore captures scrollHeight=1000, scrollTop=200 SYNCHRONOUSLY.
+    await userEvent.click(screen.getByText('Cargar más historial'));
+
+    // Skeleton mounts (skeleton ~248px added).
+    setScrollHeight(1248);
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={initialEntries}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        isLoadingMore={true}
+        onLoadMore={onLoadMore}
+      />
+    );
+
+    // Entries arrive at front; skeletons removed; scrollHeight = 1400.
+    setScrollHeight(1400);
+    const prependedEntries = [
+      makeEntry({ entryId: 'older1', isPersisted: true }),
+      makeEntry({ entryId: 'older2', isPersisted: true }),
+      ...initialEntries,
+    ];
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={prependedEntries}
+        isAuthenticated={true}
+        hasMoreHistory={false}
+        isLoadingMore={false}
+        onLoadMore={onLoadMore}
+      />
+    );
+
+    // Effect C: delta = 1400 - 1000 = 400 (pre-skeleton baseline).
+    // scrollTop = 200 + 400 = 600.
+    expect(feed.scrollTop).toBe(600);
+    // No smooth scroll (wasNearBottom=false throughout).
+    expect(scrollToMock).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FU4 — AC3/AC4/AC5/AC6: append bottom-lock ResizeObserver
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — FU4 AC3/AC4/AC5/AC6: append bottom-lock observer', () => {
+  const shim = createResizeObserverShim();
+
+  function installScrollMocksLocal(
+    feed: HTMLElement,
+    opts: { scrollTop?: number; clientHeight?: number; scrollHeight?: number } = {},
+  ) {
+    let _scrollHeight = opts.scrollHeight ?? 500;
+    const scrollToMock = jest.fn();
+    Object.defineProperty(feed, 'scrollTo', { value: scrollToMock, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollTop', { value: opts.scrollTop ?? 400, writable: true, configurable: true });
+    Object.defineProperty(feed, 'clientHeight', { value: opts.clientHeight ?? 500, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollHeight', { get: () => _scrollHeight, configurable: true });
+    return {
+      scrollToMock,
+      setScrollHeight: (v: number) => { _scrollHeight = v; },
+    };
+  }
+
+  beforeEach(() => {
+    shim.install();
+    shim.disconnectMock.mockClear();
+    shim.observeMock.mockClear();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    shim.uninstall();
+    jest.useRealTimers();
+  });
+
+  it('AC3 (FU4): shimmer→card race — ResizeObserver fires AFTER initial smooth scroll, last scrollTo targets post-growth scrollHeight', () => {
+    jest.useFakeTimers();
+    const entryA = makeEntry({ entryId: 'a' });
+    const entryB = makeEntry({ entryId: 'b' });
+
+    // Render with 1 entry to trigger hydration; set up mocks.
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[entryA]} />);
+    const feed = screen.getByRole('feed');
+    const { scrollToMock, setScrollHeight } = installScrollMocksLocal(feed, { scrollTop: 400, scrollHeight: 500, clientHeight: 500 });
+
+    // Set wasNearBottomRef=true via scroll event (400+500 >= 500-100=400 → true).
+    feed.dispatchEvent(new Event('scroll', { bubbles: true }));
+    shim.disconnectMock.mockClear();
+    shim.observeMock.mockClear();
+    scrollToMock.mockClear(); // clear hydration scroll
+
+    // Append entry B — Effect B fires smooth scroll (shimmer height = 500).
+    rerender(<TranscriptFeed {...defaultProps} entries={[entryA, entryB]} />);
+    expect(scrollToMock).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
+
+    // Simulate card growth (shimmer→card: scrollHeight grows from 500 to 700).
+    setScrollHeight(700);
+
+    // ResizeObserver fires (simulates layout settle after card renders).
+    shim.fire([{ target: feed } as unknown as ResizeObserverEntry]);
+
+    // Assert: scrollToMock called ≥2 times AND last call targets grown height with 'instant'.
+    expect(scrollToMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    const lastCall = scrollToMock.mock.calls[scrollToMock.mock.calls.length - 1]?.[0] as {
+      top: number;
+      behavior: string;
+    };
+    expect(lastCall).toEqual({ top: 700, behavior: 'instant' });
+  });
+
+  it('AC4 (FU4): wasNearBottomRef=false at append time — no smooth scroll, no bottom-lock observer', () => {
+    const entryA = makeEntry({ entryId: 'a' });
+    const entryB = makeEntry({ entryId: 'b' });
+
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[entryA]} />);
+    const feed = screen.getByRole('feed');
+    installScrollMocksLocal(feed, { scrollTop: 0, scrollHeight: 2000, clientHeight: 500 });
+
+    // wasNearBottomRef=false: 0+500 < 2000-100=1900 → false.
+    feed.dispatchEvent(new Event('scroll', { bubbles: false }));
+    shim.observeMock.mockClear(); // clear hydration observe call
+
+    // Append entry B — wasNearBottom=false → no smooth scroll, no observer.
+    rerender(<TranscriptFeed {...defaultProps} entries={[entryA, entryB]} />);
+
+    // observeMock should NOT have been called again (no new append observer).
+    expect(shim.observeMock).not.toHaveBeenCalled();
+  });
+
+  it('AC5 (FU4): user scrolls UP during bottom-lock window — observer disconnects early', () => {
+    jest.useFakeTimers();
+    const entryA = makeEntry({ entryId: 'a' });
+    const entryB = makeEntry({ entryId: 'b' });
+
+    // Use scrollHeight=2000 so scrollTop=0 is genuinely "not near bottom"
+    // (0+500 < 2000-100=1900 → false).
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[entryA]} />);
+    const feed = screen.getByRole('feed');
+    installScrollMocksLocal(feed, { scrollTop: 1400, scrollHeight: 2000, clientHeight: 500 });
+
+    // wasNearBottomRef=true: 1400+500=1900 >= 2000-100=1900 → true.
+    feed.dispatchEvent(new Event('scroll', { bubbles: true }));
+
+    // Advance past the HYDRATION window (500ms) so the hydration bottom-lock expires
+    // and mode resets to 'idle'. This ensures the subsequent append creates a NEW observer.
+    jest.advanceTimersByTime(501);
+    shim.disconnectMock.mockClear();
+    shim.observeMock.mockClear();
+
+    // Append → wasNearBottom=true → NEW bottom-lock observer installed.
+    rerender(<TranscriptFeed {...defaultProps} entries={[entryA, entryB]} />);
+    expect(shim.observeMock).toHaveBeenCalled();
+
+    // User scrolls up → wasNearBottomRef=false: 0+500=500 < 2000-100=1900 → false.
+    Object.defineProperty(feed, 'scrollTop', { value: 0, writable: true, configurable: true });
+    feed.dispatchEvent(new Event('scroll', { bubbles: false }));
+
+    // ResizeObserver fires — observer callback detects wasNearBottom=false → disconnects early.
+    shim.fire([{ target: feed } as unknown as ResizeObserverEntry]);
+
+    expect(shim.disconnectMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('AC6 (FU4): timer deadline reached (1501ms) — observer disconnects, no further scrollTo', () => {
+    jest.useFakeTimers();
+    const entryA = makeEntry({ entryId: 'a' });
+    const entryB = makeEntry({ entryId: 'b' });
+
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[entryA]} />);
+    const feed = screen.getByRole('feed');
+    const { scrollToMock } = installScrollMocksLocal(feed, { scrollTop: 400, scrollHeight: 500, clientHeight: 500 });
+
+    // wasNearBottomRef=true.
+    feed.dispatchEvent(new Event('scroll', { bubbles: true }));
+    shim.disconnectMock.mockClear();
+
+    // Append → bottom-lock observer active.
+    rerender(<TranscriptFeed {...defaultProps} entries={[entryA, entryB]} />);
+    scrollToMock.mockClear();
+
+    // Advance past the 1500ms append window.
+    jest.advanceTimersByTime(1501);
+    expect(shim.disconnectMock).toHaveBeenCalledTimes(1);
+
+    // After disconnect, no further scrollTo from subsequent resize events.
+    shim.fire([{ target: feed } as unknown as ResizeObserverEntry]);
+    expect(scrollToMock).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FU4 — AC12/AC13/AC14b/AC14c: append vs prepend detection
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — FU4 AC12/AC13/AC14b/AC14c: append vs prepend detection', () => {
+  const shim = createResizeObserverShim();
+
+  function installScrollMocksLocal(
+    feed: HTMLElement,
+    opts: { scrollTop?: number; clientHeight?: number; scrollHeight?: number } = {},
+  ) {
+    const scrollToMock = jest.fn();
+    Object.defineProperty(feed, 'scrollTo', { value: scrollToMock, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollTop', { value: opts.scrollTop ?? 400, writable: true, configurable: true });
+    Object.defineProperty(feed, 'clientHeight', { value: opts.clientHeight ?? 500, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollHeight', { value: opts.scrollHeight ?? 1000, writable: true, configurable: true });
+    return scrollToMock;
+  }
+
+  beforeEach(() => {
+    shim.install();
+    shim.disconnectMock.mockClear();
+    shim.observeMock.mockClear();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    shim.uninstall();
+    jest.useRealTimers();
+  });
+
+  it('AC12 (FU4): prepend (first entryId changes, last stable) does NOT trigger bottom-lock append path', () => {
+    // Note: no fake timers here — userEvent.click conflicts with jest.useFakeTimers.
+    // We test the prepend detection by directly simulating the prepend commit without
+    // going through the handleLoadMore click, since the key assertion is about Effect B routing.
+    const entryB = makeEntry({ entryId: 'b' });
+    const entryC = makeEntry({ entryId: 'c' });
+    const entryA = makeEntry({ entryId: 'a' }); // will prepend as older
+
+    const { rerender } = render(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[]}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+      />
+    );
+    const feed = screen.getByRole('feed');
+    const scrollToMock = installScrollMocksLocal(feed, { scrollTop: 200, scrollHeight: 1000, clientHeight: 500 });
+
+    // Hydrate with [b, c].
+    rerender(<TranscriptFeed {...defaultProps} entries={[entryB, entryC]} isAuthenticated={true} hasMoreHistory={true} />);
+    scrollToMock.mockClear();
+    shim.observeMock.mockClear();
+    shim.disconnectMock.mockClear();
+
+    // Simulate the prepend commit directly: first entryId changes (a prepends), last stays c.
+    // We don't need to click sentinel — we're testing Effect B's routing logic.
+    // Use fireEvent.click so we don't need fake timers.
+    fireEvent.click(screen.getByText('Cargar más historial'));
+
+    Object.defineProperty(feed, 'scrollHeight', { value: 1600, writable: true, configurable: true });
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[entryA, entryB, entryC]}
+        isAuthenticated={true}
+        hasMoreHistory={false}
+        isLoadingMore={false}
+      />
+    );
+
+    // Effect B: pure prepend (first changed, last stable) → no smooth scroll, no append observer.
+    // The hydration bottom-lock is still active (we didn't advance timers), but the prepend
+    // routing check fires BEFORE the append check, so it returns early regardless.
+    expect(scrollToMock).not.toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
+    // No NEW append-path observe call (the prepend branch returned early before startBottomLock).
+    // Any observe calls visible are from the still-active hydration window (same instance, not new).
+    expect(shim.observeMock).not.toHaveBeenCalled();
+  });
+
+  it('AC13 (FU4): both first AND last entryId changed (clear-all then new search) routes through append path, NOT re-hydration', () => {
+    // Real timers — fake timers + act() can cause microtask flushing issues.
+    // We test the routing by asserting scrollTo('smooth') fires (append path evidence)
+    // and no second hydration observer is installed (observeMock count).
+    const entryA = makeEntry({ entryId: 'a' });
+    const entryB = makeEntry({ entryId: 'b' });
+    const entryX = makeEntry({ entryId: 'x' }); // new after clear
+
+    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
+    const feed = screen.getByRole('feed');
+    const scrollToMock = installScrollMocksLocal(feed, { scrollTop: 400, scrollHeight: 1000, clientHeight: 500 });
+
+    // First hydration: [a, b]. Hydration path fires (behavior:'instant').
+    rerender(<TranscriptFeed {...defaultProps} entries={[entryA, entryB]} />);
+    const observeCountAfterHydration = shim.observeMock.mock.calls.length;
+    expect(observeCountAfterHydration).toBeGreaterThanOrEqual(1); // hydration observer installed
+    scrollToMock.mockClear();
+    shim.observeMock.mockClear(); // reset to 0 after hydration
+
+    // Clear-all: entries=[].
+    rerender(<TranscriptFeed {...defaultProps} entries={[]} />);
+
+    // User near bottom (wasNearBottom=true default; re-confirm).
+    feed.dispatchEvent(new Event('scroll', { bubbles: true })); // 400+500 >= 1000-100 → true
+
+    // New search: entries=[x]. Both first AND last entryId changed vs [a,b].
+    rerender(<TranscriptFeed {...defaultProps} entries={[entryX]} />);
+
+    // ASSERT: the append path fired (smooth scroll) — this is definitive proof.
+    // The hydration path uses 'instant'; the append path uses 'smooth'.
+    // hasScrolledToBottomOnHydrationRef.current stayed true → hydration branch skipped.
+    expect(scrollToMock).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
+    // Note: observeMock may or may not be called here depending on whether the hydration
+    // bottom-lock timer has expired (real timers, sub-500ms test execution).
+    // The definitive assertion is the 'smooth' scroll above. The observer call is a bonus.
+  });
+
+  it('AC14b (FU4): append during active prepending mode — scrollLockRef stays prepending, append scroll skipped', async () => {
+    const entryA = makeEntry({ entryId: 'a' });
+    const entryB = makeEntry({ entryId: 'b' });
+    const entryC = makeEntry({ entryId: 'c' }); // new append during loadMore
+
+    const { rerender } = render(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[entryA]}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+      />
+    );
+    const feed = screen.getByRole('feed');
+    const scrollToMock = installScrollMocksLocal(feed, { scrollTop: 200, scrollHeight: 1000, clientHeight: 500 });
+
+    // Hydrate with [a]. User near bottom.
+    feed.dispatchEvent(new Event('scroll', { bubbles: true })); // 400+500 >= 1000-100 → true (using default scrollTop=400)
+    scrollToMock.mockClear();
+    shim.observeMock.mockClear();
+    shim.disconnectMock.mockClear();
+
+    // Click sentinel → handleLoadMore sets mode='prepending'.
+    await userEvent.click(screen.getByText('Cargar más historial'));
+
+    // While prepending is in flight, a session append arrives (last entryId changed).
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[entryA, entryB, entryC]}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        isLoadingMore={true}
+      />
+    );
+
+    // AC14b: Effect B sees mode='prepending' → early-return; no append bottom-lock.
+    // No smooth scroll fired; no new observer for append.
+    expect(scrollToMock).not.toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
+    expect(shim.observeMock).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FU4 — AC9/AC10: Effect C prepend restore (race-aware 2-commit flow)
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — FU4 AC9/AC10: Effect C prepend restore', () => {
+  function installScrollMocksLocal(
+    feed: HTMLElement,
+    opts: { scrollTop?: number; clientHeight?: number; scrollHeight?: number } = {},
+  ) {
+    let _scrollHeight = opts.scrollHeight ?? 1000;
+    const scrollToMock = jest.fn();
+    Object.defineProperty(feed, 'scrollTo', { value: scrollToMock, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollTop', { value: opts.scrollTop ?? 0, writable: true, configurable: true });
+    Object.defineProperty(feed, 'clientHeight', { value: opts.clientHeight ?? 500, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollHeight', { get: () => _scrollHeight, configurable: true });
+    return {
+      scrollToMock,
+      setScrollHeight: (v: number) => { _scrollHeight = v; },
+    };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('AC9 (FU4): 2-commit loadMore flow — Effect C reads pre-skeleton baseline, restores scrollTop correctly', async () => {
+    const onLoadMore = jest.fn();
+    const entryA = makeEntry({ entryId: 'a' });
+    const entryB = makeEntry({ entryId: 'b' });
+    const initialEntries = [entryA, entryB];
+
+    const { rerender } = render(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[]}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        onLoadMore={onLoadMore}
+      />
+    );
+    const feed = screen.getByRole('feed');
+    const { scrollToMock, setScrollHeight } = installScrollMocksLocal(feed, {
+      scrollTop: 0,
+      scrollHeight: 1000,
+      clientHeight: 500,
+    });
+
+    // Hydrate (wasNearBottom=false to prevent append smooth).
+    feed.dispatchEvent(new Event('scroll', { bubbles: false }));
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={initialEntries}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        onLoadMore={onLoadMore}
+      />
+    );
+    scrollToMock.mockClear();
+
+    // Set scrollTop=200 for prepend math (NOT near bottom: 200+500=700 < 1000-100=900).
+    Object.defineProperty(feed, 'scrollTop', { value: 200, writable: true, configurable: true });
+    feed.dispatchEvent(new Event('scroll', { bubbles: false }));
+
+    // Commit 0: handleLoadMore captures scrollHeight=1000, scrollTop=200 SYNCHRONOUSLY.
+    await userEvent.click(screen.getByText('Cargar más historial'));
+
+    // Commit 1 (2-commit pattern): skeleton mounts, scrollHeight grows to 1248.
+    setScrollHeight(1248);
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={initialEntries}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        isLoadingMore={true}
+        onLoadMore={onLoadMore}
+      />
+    );
+    // Effect C: isLoadingMore=true → early return. No scrollTop change yet.
+    expect(feed.scrollTop).toBe(200); // unchanged
+
+    // Commit 2: entries prepended, skeleton removed, isLoadingMore=false.
+    setScrollHeight(2200); // = 1000 + 2 * ~600 (2 older entries)
+    const prependedEntries = [
+      makeEntry({ entryId: 'older1', isPersisted: true }),
+      makeEntry({ entryId: 'older2', isPersisted: true }),
+      ...initialEntries,
+    ];
+    rerender(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={prependedEntries}
+        isAuthenticated={true}
+        hasMoreHistory={false}
+        isLoadingMore={false}
+        onLoadMore={onLoadMore}
+      />
+    );
+
+    // Effect C fired: delta = 2200 - 1000 = 1200 (pre-skeleton baseline).
+    // scrollTop = 200 + 1200 = 1400.
+    expect(feed.scrollTop).toBe(1400);
+    // No scrollTo() call (Effect C writes scrollTop directly).
+    expect(scrollToMock).not.toHaveBeenCalled();
+  });
+
+  it('AC10 (FU4): Effect C early-returns when mode=idle (no isLoadingMore transition without prior handleLoadMore)', () => {
+    // Render → isLoadingMore=false (already idle mode since no handleLoadMore call).
+    // Effect C sees mode=idle → early return → scrollTop unchanged.
+    const { rerender } = render(
+      <TranscriptFeed {...defaultProps} entries={[makeEntry({ entryId: 'a' })]} />
+    );
+    const feed = screen.getByRole('feed');
+    Object.defineProperty(feed, 'scrollTop', { value: 500, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollHeight', { value: 1000, writable: true, configurable: true });
+    Object.defineProperty(feed, 'clientHeight', { value: 500, writable: true, configurable: true });
+
+    // Toggle isLoadingMore true→false without calling handleLoadMore.
+    rerender(<TranscriptFeed {...defaultProps} entries={[makeEntry({ entryId: 'a' })]} isLoadingMore={true} />);
+    rerender(<TranscriptFeed {...defaultProps} entries={[makeEntry({ entryId: 'a' })]} isLoadingMore={false} />);
+
+    // scrollTop must be unchanged (Effect C saw mode=idle → skipped).
+    expect(feed.scrollTop).toBe(500);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FU4 — AC15: unmount cleanup handles all three modes
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — FU4 AC15: unmount cleanup (all three modes)', () => {
+  const shim = createResizeObserverShim();
+
+  function installScrollMocksLocal(
+    feed: HTMLElement,
+    opts: { scrollTop?: number; clientHeight?: number; scrollHeight?: number } = {},
+  ) {
+    const scrollToMock = jest.fn();
+    Object.defineProperty(feed, 'scrollTo', { value: scrollToMock, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollTop', { value: opts.scrollTop ?? 400, writable: true, configurable: true });
+    Object.defineProperty(feed, 'clientHeight', { value: opts.clientHeight ?? 500, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollHeight', { value: opts.scrollHeight ?? 1000, writable: true, configurable: true });
+    return scrollToMock;
+  }
+
+  beforeEach(() => {
+    shim.install();
+    shim.disconnectMock.mockClear();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    shim.uninstall();
+    jest.useRealTimers();
+  });
+
+  it('AC15a (FU4): unmount when mode=bottom-lock — observer disconnects, no throw', () => {
+    jest.useFakeTimers();
+    const entryA = makeEntry({ entryId: 'a' });
+    const entryB = makeEntry({ entryId: 'b' });
+
+    const { rerender, unmount } = render(<TranscriptFeed {...defaultProps} entries={[entryA]} />);
+    const feed = screen.getByRole('feed');
+    installScrollMocksLocal(feed, { scrollTop: 400, scrollHeight: 500, clientHeight: 500 });
+
+    // wasNearBottomRef=true; append → bottom-lock observer active.
+    feed.dispatchEvent(new Event('scroll', { bubbles: true }));
+    rerender(<TranscriptFeed {...defaultProps} entries={[entryA, entryB]} />);
+    shim.disconnectMock.mockClear();
+
+    // Unmount before timer fires.
+    expect(() => unmount()).not.toThrow();
+    expect(shim.disconnectMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('AC15b (FU4): unmount when mode=prepending — no throw, no spurious DOM write', async () => {
+    const onLoadMore = jest.fn();
+    const entryA = makeEntry({ entryId: 'a' });
+
+    const { unmount } = render(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={[entryA]}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        onLoadMore={onLoadMore}
+      />
+    );
+    const feed = screen.getByRole('feed');
+    installScrollMocksLocal(feed, { scrollTop: 200, scrollHeight: 1000, clientHeight: 500 });
+    feed.dispatchEvent(new Event('scroll', { bubbles: false }));
+
+    // Trigger handleLoadMore → mode=prepending.
+    await userEvent.click(screen.getByText('Cargar más historial'));
+
+    // Unmount while prepending — should not throw.
+    expect(() => unmount()).not.toThrow();
+  });
+
+  it('AC15c (FU4): unmount when mode=idle — no throw (baseline regression)', () => {
+    const { unmount } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
+    expect(() => unmount()).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FU4 — AC17b: Strict Mode — bottom-lock re-installed after synthetic cleanup
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — FU4 AC17b: Strict Mode synthetic mount→cleanup→mount', () => {
+  const shim = createResizeObserverShim();
+
+  function installScrollMocksLocal(feed: HTMLElement) {
+    const scrollToMock = jest.fn();
+    Object.defineProperty(feed, 'scrollTo', { value: scrollToMock, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollTop', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(feed, 'clientHeight', { value: 500, writable: true, configurable: true });
+    Object.defineProperty(feed, 'scrollHeight', { value: 1000, writable: true, configurable: true });
+    return scrollToMock;
+  }
+
+  beforeEach(() => {
+    shim.install();
+    shim.disconnectMock.mockClear();
+    shim.observeMock.mockClear();
+  });
+
+  afterEach(() => {
+    shim.uninstall();
+  });
+
+  it('AC17b (FU4): React.StrictMode synthetic remount correctly re-installs bottom-lock observer — DISCRIMINATING ≥2 observe calls', () => {
+    // React 18 StrictMode calls mount→cleanup→mount in development.
+    // Effect D cleanup resets hasScrolledToBottomOnHydrationRef=false so the
+    // synthetic remount re-fires the hydration branch (not the append branch).
+    //
+    // DISCRIMINATING ASSERTION (per /review-spec code-review MAJOR fix-loop 2026-06-03):
+    // If a future regressor removes the `hasScrolledToBottomOnHydrationRef.current=false`
+    // reset in Effect D cleanup, Mount 2's hydration branch would early-return on the
+    // still-true guard → only ONE observer would be installed across the whole cycle.
+    // We assert observeMock >= 2 (mount #1 observer + remount #2 observer) to catch
+    // this exact regression. Without this discrimination, `observeMock toHaveBeenCalled()`
+    // (≥1) passes even on the buggy implementation since mount #1 always fires.
+
+    const entryA = makeEntry({ entryId: 'a' });
+    const { unmount } = render(
+      <React.StrictMode>
+        <TranscriptFeed {...defaultProps} entries={[entryA]} />
+      </React.StrictMode>
+    );
+    const feed = document.querySelector('[role="feed"]') as HTMLElement;
+    installScrollMocksLocal(feed);
+
+    // Discriminating assertion: BOTH mount and remount installed an observer (≥2 calls).
+    expect(shim.observeMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+    // First observer was disconnected when synthetic cleanup ran.
+    // (The remount's observer remains active until either timer fires or real unmount.)
+    expect(shim.disconnectMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+
+    unmount();
   });
 });

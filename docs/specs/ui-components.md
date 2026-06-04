@@ -2474,16 +2474,24 @@ interface TranscriptEntryData {
 | `showPersistenceNudge` | `boolean` | No | `false` | Parent-controlled: show after ≥2 entries for anonymous users. |
 | `onDismissPersistenceNudge` | `() => void` | No | — | Dismiss callback for HistoryPersistenceNudge. |
 
-**State (internal refs):**
-- `wasNearBottomRef: MutableRefObject<boolean>` — initialized `true`; updated by a `scroll` event listener on the feed container capturing the user's position BEFORE each append commits. The append effect reads this ref unconditionally; no post-commit DOM math.
-- `hasScrolledToBottomOnHydrationRef: MutableRefObject<boolean>` — ref-guard ensuring the hydration scroll fires at most once per component lifetime.
-- `prevEntriesLengthRef: MutableRefObject<number>` — tracks previous `entries.length` to detect appends vs. prepends.
-- `hydrationObserverRef: MutableRefObject<{ observer: ResizeObserver \| null; timer: ReturnType<typeof setTimeout> \| null }>` — holds the `ResizeObserver` instance + window timer outside React's effect cleanup cycle (prevents premature disconnect on intermediate `entries.length` changes during the 500ms hydration window).
+**State (internal refs — 7 total, FU4 architecture):**
+- `wasNearBottomRef` — unchanged from FU2; updated by scroll listener before each append commit.
+- `hasScrolledToBottomOnHydrationRef` — one-shot guard for hydration path (component lifetime; resets on unmount for Strict Mode parity).
+- `prevEntriesLengthRef` — tracks previous `entries.length`; updated at end of Effect B.
+- `firstEntryIdRef` — NEW (FU4): last-seen `entries[0]?.entryId`; used by Effect B to detect prepend vs append.
+- `lastEntryIdRef` — NEW (FU4): last-seen `entries[entries.length-1]?.entryId`; used by Effect B to detect append vs prepend.
+- `scrollLockRef` — NEW (FU4): discriminated union enforcing single-mode-at-a-time:
+  - `{ mode: 'idle' }` — no active scroll operation.
+  - `{ mode: 'bottom-lock', deadline: number, observer: ResizeObserver, timerId: ReturnType<typeof setTimeout> | null }` — active ResizeObserver window keeping the viewport at bottom (used by both hydration and append paths). Paired with explicit `setTimeout` per CRITICAL-1: disconnects even if layout settles without a resize event.
+  - `{ mode: 'prepending', prevScrollHeight: number, prevScrollTop: number }` — loadMore restore baseline captured pre-skeleton by `handleLoadMore` callback.
 
-**Behavior:**
-- **Hydration scroll (Bug 1 fix):** On first non-empty `entries` render, fires a synchronous `scrollTo({ behavior: 'instant' })` then attaches a `ResizeObserver` to the feed container for `HYDRATION_RESCROLL_WINDOW_MS` (500ms). Every time the container's `scrollHeight` grows within that window, the instant re-scroll re-fires (W18: "no animation on initial mount"). After 500ms the observer disconnects via its own timer; the observer survives intermediate `entries.length` changes within the window (held in a ref, not a `useEffect` cleanup). Fallback: when `typeof ResizeObserver === 'undefined'`, only the synchronous initial scroll fires.
-- **Append auto-scroll (Bug 2 fix):** When `entries.length` grows, the append effect reads `wasNearBottomRef.current` (pre-commit position captured by a `scroll` listener on the container) and calls `scrollTo({ behavior: 'smooth' })` only when `true`. No post-commit `scrollHeight` math; decoupled from layout race.
-- **LoadMore prepend preservation:** When `isLoadingMore` transitions `true → false`, the existing prepend-preservation effect restores `scrollTop` to maintain the user's viewport anchor.
+**Behavior (4-effect state machine — FU4 architecture, research doc §7.1):**
+- **Effect A** (`useEffect[]`): Scroll listener — updates `wasNearBottomRef` on every user scroll. Unchanged from FU2.
+- **Effect B** (`useLayoutEffect`, deps `[entries.length, entries[0]?.entryId, entries[entries.length-1]?.entryId]`): Unified mutation handler. Discriminates by comparing current vs captured first/last `entryId`. Routes to: (1) hydration path (one-shot, ref-guarded) — instant scroll + 500ms bottom-lock; (2) append path (last entryId grew, `wasNearBottomRef=true`) — smooth scroll + 1500ms bottom-lock; (3) prepend path (first entryId changed, Effect C handles restore — Effect B is a no-op); (4) deletion path (length shrank — no scroll); (5) AC14b guard (mode=prepending active — append deferred). Both (1) and (2) call `startBottomLock()` which creates a `ResizeObserver` + paired `setTimeout`. The ResizeObserver fires `scrollTo({instant})` on every container resize within the deadline, auto-cancels when `wasNearBottomRef` flips false (AC5) or deadline expires (AC6).
+- **Effect C** (`useLayoutEffect[isLoadingMore]`): LoadMore restore. On `isLoadingMore` false transition: if `scrollLockRef.mode === 'prepending'`, reads the pre-skeleton baseline (`prevScrollHeight`, `prevScrollTop`), computes `delta = scrollHeight_now - prevScrollHeight`, writes `scrollTop = prevScrollTop + delta`. Transitions mode to `idle`. No-op when mode is `idle`.
+- **Effect D** (`useEffect[]`): Unmount cleanup. Handles all 3 modes: `bottom-lock` → disconnect observer + clear timer; `prepending` → reset (no DOM touch); `idle` → no-op. Resets all 7 refs for Strict Mode dev parity.
+- **`handleLoadMore` callback**: Wraps parent's `onLoadMore`. Captures `scrollHeight`/`scrollTop` SYNCHRONOUSLY before calling parent (which triggers skeleton render). Sets `scrollLockRef = { mode: 'prepending', ... }`. Passed to `<HistoryLoadMoreSentinel>` as `onLoadMore`. See research doc §4.2 (2-commit flow diagnosis) for why pre-skeleton capture is critical.
+- **`overflow-anchor: none`** explicit on scroll container (`style={{ overflowAnchor: 'none' }}`). JS owns scroll restoration unambiguously — eliminates race between Effect C's pre-paint write and the browser's native anchor-adjustment algorithm. See research doc §6.5.
 
 **Accessibility:**
 - `role="feed"` `aria-label="Historial de consultas"` `aria-busy={isLoadingHistory ? true : undefined}`
