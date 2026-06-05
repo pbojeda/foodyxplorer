@@ -117,17 +117,25 @@ export function TranscriptFeed({
   // FU4 NEW: discriminated union enforcing single-mode-at-a-time.
   const scrollLockRef = useRef<ScrollLockState>({ mode: 'idle' });
 
-  // Hydration gate (2026-06-04 BUG-WEB-HISTORY-HYDRATION-RACE-001).
+  // Hydration gate (2026-06-04 BUG-WEB-HISTORY-HYDRATION-RACE-001 + follow-up).
   //
-  // Set to `true` AFTER Effect B's hydration branch completes its scrollTo(bottom).
-  // Passed to HistoryLoadMoreSentinel so its IntersectionObserver does NOT observe
-  // until the scroll container has been positioned at the bottom. Without this gate,
-  // the sentinel's IO can observe while feedRef.scrollTop is still 0 (pre-Effect-B),
-  // snapshot an `isIntersecting: true` state, then deliver the callback AFTER Effect B's
-  // scroll completes — calling loadMore even though the sentinel is visually out of view.
-  // Empirical evidence: ?debug=scroll logs 2026-06-04, scenario where target=+68 reported
-  // by IO callback at t=740ms even though scrollTop=2291.5 set at t=739.2ms.
+  // Set to `true` AFTER both: (a) Effect B's hydration branch has completed its
+  // scrollTo(bottom), AND (b) the post-hydration bottom-lock window has expired
+  // (`HYDRATION_RESCROLL_WINDOW_MS`, 500ms). Passed to HistoryLoadMoreSentinel so
+  // its IntersectionObserver does NOT observe during that window.
+  //
+  // Why the 500ms delay (not just "after Effect B"): empirical logs 2026-06-04
+  // showed scrollTop can be RESET to 0 in the ~2-3ms window between Effect B's
+  // synchronous scrollTo(scrollHeight) and the post-paint useEffect cycle of the
+  // sentinel — even with overflow-anchor:none. Cause not yet identified (likely
+  // browser scroll restoration interacting with React commit timing, or a
+  // sub-pixel/clamp behavior). Until the cause is understood, deferring the gate
+  // past the bottom-lock window lets the existing ResizeObserver re-scroll
+  // (within that window) correct any transient reset before the sentinel can
+  // observe. This is a band-aid that gives correct UX while diagnosis continues.
   const [hydrationReady, setHydrationReady] = useState(false);
+  // Ref to the deferred setHydrationReady timer so Effect D can clear it on unmount.
+  const hydrationGateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ---- Effect A: scroll listener (unchanged from FU2) ----
   // Mounted once; updates wasNearBottomRef on every user scroll.
@@ -275,11 +283,19 @@ export function TranscriptFeed({
       firstEntryIdRef.current = currentFirstId;
       lastEntryIdRef.current = currentLastId;
       prevEntriesLengthRef.current = entries.length;
-      // Open the hydration gate so HistoryLoadMoreSentinel can observe.
-      // Scheduling a state update inside a useLayoutEffect is safe because the
-      // dependency (`hasScrolledToBottomOnHydrationRef.current`) flips to true
-      // on the same line, preventing this branch from re-running.
-      setHydrationReady(true);
+      // Defer opening the hydration gate until AFTER the bottom-lock window
+      // expires. Within that 500ms window the bottom-lock ResizeObserver
+      // re-scrolls feedRef to its current bottom whenever feedContentRef grows,
+      // which neutralises any transient scrollTop reset that may occur as React
+      // commits the hydration render and the browser settles its layout. Only
+      // after the window closes is it safe to let the sentinel observe — by
+      // then scrollTop is at a stable bottom (or wherever the user has scrolled,
+      // if they actively scrolled during the window). 50ms slack to cover the
+      // setTimeout's lower-bound jitter.
+      hydrationGateTimerRef.current = setTimeout(() => {
+        hydrationGateTimerRef.current = null;
+        setHydrationReady(true);
+      }, HYDRATION_RESCROLL_WINDOW_MS + 50);
       return;
     }
 
@@ -422,11 +438,18 @@ export function TranscriptFeed({
     const lastIdRef = lastEntryIdRef;
     const lengthRef = prevEntriesLengthRef;
     const nearBottomRef = wasNearBottomRef;
+    const hydrationTimerRef = hydrationGateTimerRef;
     return () => {
       const lock = lockRef.current;
       if (lock.mode === 'bottom-lock') {
         if (lock.timerId !== null) clearTimeout(lock.timerId);
         lock.observer.disconnect();
+      }
+      // Clear the deferred hydration-gate setTimeout so a fast unmount→remount
+      // does not flip `hydrationReady` on a stale component instance.
+      if (hydrationTimerRef.current !== null) {
+        clearTimeout(hydrationTimerRef.current);
+        hydrationTimerRef.current = null;
       }
       lockRef.current = { mode: 'idle' };
       guardRef.current = false;
