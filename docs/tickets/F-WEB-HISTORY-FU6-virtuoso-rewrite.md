@@ -1,7 +1,7 @@
 # F-WEB-HISTORY-FU6: TranscriptFeed virtuoso architectural rewrite
 
 **Feature:** F-WEB-HISTORY-FU6 | **Type:** Frontend-Architecture-Rewrite | **Priority:** High (3 user-facing scroll bugs blocking develop→main release)
-**Status:** Planning | **Branch:** `feature/F-WEB-HISTORY-FU6-virtuoso-rewrite`
+**Status:** Ready for Merge | **Branch:** `feature/F-WEB-HISTORY-FU6-virtuoso-rewrite`
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-06-06 | **Tier:** Standard | **Dependencies:** F-WEB-HISTORY-FU4 done @ `ff4abd7`
 **Research:** `docs/research/transcript-feed-scroll-architecture-2026-06-03.md` (prior cross-model, FU4 era — superseded by this rewrite, kept as history) + cross-model research 2026-06-06 (gemini + codex, 12 web searches — this ticket)
@@ -194,15 +194,21 @@ TranscriptFeed renders a single `<Virtuoso>` component from `react-virtuoso`. No
 
 ### AC5 (operator — hydration, authoritative gate for AC24)
 
+**Status**: Pending (operator post-deploy empirical gate; jsdom cannot close per `feedback_jsdom_layout_ac_gap`).
+
 On `app-dev.nutrixplorer.com`: log in with ≥10 persisted entries, reload `/hablar` ×5. ALL 5 reloads land showing the newest entry visible above the 144px input bar. No spurious `loadMore` fires on mount. User can scroll up manually to load older pages. Verified in Chrome desktop + Safari iOS + Firefox desktop.
 
 ### AC6 (operator — append, authoritative gate for AC25)
+
+**Status**: Pending (operator post-deploy empirical gate; jsdom cannot close per `feedback_jsdom_layout_ac_gap`).
 
 On `app-dev.nutrixplorer.com`: feed pinned to bottom (user at newest entry), submit a new search. The pending shimmer appends; when the API resolves and shimmer transitions to full `NutritionCard`, the card's bottom is fully visible above the input bar (no truncation). When the user was NOT near the bottom before submitting, no auto-scroll occurs (Virtuoso `followOutput="smooth"` pin-aware behavior). Verified in Chrome desktop + Safari iOS.
 
 **Implementation note (closing AC25):** `followOutput="smooth"` alone is INSUFFICIENT for this AC. `followOutput` fires when `data.length` increases (new item appended), scrolling to the bottom of the shimmer (~100px tall). When the API resolves, the item height grows in-place from ~100px (shimmer) to ~300px (NutritionCard) — the `data` count is unchanged, so Virtuoso does NOT re-scroll. The card's bottom ends up below the input bar. The plan (Step 3.7) includes an explicit imperative call via `virtuosoRef.current?.autoscrollToBottom()` triggered by a `useEffect` that detects the `isLoading → false` in-place transition on the last entry, wrapped in `requestAnimationFrame` to allow layout settle. See edge case #10 and the Virtuoso prop wiring table for the `ref` + `atBottomStateChange` wiring.
 
 ### AC7 (operator — loadMore prepend, authoritative gate for AC26)
+
+**Status**: Pending (operator post-deploy empirical gate; jsdom cannot close per `feedback_jsdom_layout_ac_gap`).
 
 On `app-dev.nutrixplorer.com`: ≥10 persisted entries, scroll UP until `startReached` fires. Exactly ONE `loadMore` dispatches. 10 older entries prepend. The viewport anchors on the same entries the user was reading — no visible jump, no big shift. Virtuoso's built-in prepend anchoring. Verified in Chrome desktop + Firefox desktop.
 
@@ -249,30 +255,31 @@ Anonymous user flows (no persisted history), error states, mid-flight abort beha
 
 ## Definition of Done
 
-- [ ] All 15 ACs above marked `[x]` (AC5/AC6/AC7 are operator post-deploy empirical gates — intentionally `[ ]` pre-merge per `feedback_jsdom_layout_ac_gap`).
-- [ ] `docs/specs/ui-components.md` TranscriptFeed section rewritten: delete the `scrollLockRef` discriminated union narrative and 4-effect state machine description; add Virtuoso prop wiring table (data, initialTopMostItemIndex, followOutput, startReached, itemContent, components slots). Delete the `HistoryLoadMoreSentinel` component entry.
-- [ ] `docs/specs/hablar-design-guidelines.md` W18 hydration-scroll guideline updated: add a note that the canonical implementation is library-owned scroll (`react-virtuoso`) — hand-rolled scroll machinery for chat/feed UIs is an anti-pattern in this project.
-- [ ] `docs/project_notes/bugs.md` updated: entries `BUG-WEB-FEED-SCROLL-SETTLE-001`, `BUG-WEB-HISTORY-LOADMORE-IO-ROOT-001`, and `BUG-WEB-HISTORY-HYDRATION-RACE-001` flipped to `TRULY FIXED (pending operator AC5/AC6/AC7 post-merge verification)`.
-- [ ] `docs/project_notes/key_facts.md` updated: new shared dep `react-virtuoso` (MIT, ~30KB gzipped, added in FU6); new pattern note: "chat/feed/timeline scroll = library-owned (react-virtuoso), not hand-rolled".
-- [ ] Memory entry `feedback_hand_rolled_scroll_anti_pattern` saved: "When a hand-rolled scroll state machine has failed 3+ iterations with cross-model + operator empirical loops, the issue is architectural not tactical. Switch to a library that owns scroll (react-virtuoso, virtua, tanstack-virtual) — chat/feed/timeline UX is a solved problem."
-- [ ] `docs/research/transcript-feed-scroll-architecture-2026-06-03.md` appended with a closing note: "Superseded by F-WEB-HISTORY-FU6 (virtuoso rewrite, 2026-06-06). This document covers the FU4-era state machine design; the definitive resolution is in `docs/tickets/F-WEB-HISTORY-FU6-virtuoso-rewrite.md`."
-- [ ] `product-tracker.md` Active Session updated to reflect FU6 in progress. FU4 operator AC24/AC25/AC26 replaced by FU6 AC5/AC6/AC7 as the release gate.
-- [ ] F-WEB-HISTORY-FU5 ticket (`docs/tickets/F-WEB-HISTORY-FU5-playwright-e2e.md`) updated: note that its scope may be superseded or repurposed by FU6/FU7 depending on AC12 decision.
+- [x] All 15 ACs above marked `[x]` (AC5/AC6/AC7 are operator post-deploy empirical gates — intentionally `[ ]` pre-merge per `feedback_jsdom_layout_ac_gap`; AC1/AC1b/AC2/AC3/AC4/AC8/AC9/AC10/AC11/AC12/AC13/AC14/AC15 all marked).
+- [x] `docs/specs/ui-components.md` TranscriptFeed section rewritten: delete the `scrollLockRef` discriminated union narrative and 4-effect state machine description; add Virtuoso prop wiring table (data, initialTopMostItemIndex, followOutput, startReached, itemContent, components slots). Delete the `HistoryLoadMoreSentinel` component entry. (Commit `a6ef978`.)
+- [x] `docs/specs/hablar-design-guidelines.md` W18 hydration-scroll guideline updated: added note that canonical implementation is library-owned scroll (`react-virtuoso`); hand-rolled scroll machinery for chat/feed UIs is an anti-pattern. (Commit `a6ef978`.)
+- [x] `docs/project_notes/bugs.md` updated: entries `BUG-WEB-FEED-SCROLL-SETTLE-001`, `BUG-WEB-HISTORY-LOADMORE-IO-ROOT-001`, and `BUG-WEB-HISTORY-HYDRATION-RACE-001` flipped to `TRULY FIXED (pending operator AC5/AC6/AC7 post-merge verification)`. (Commit `a6ef978`.)
+- [x] `docs/project_notes/key_facts.md` updated: new shared dep `react-virtuoso` v4.18.7 MIT (~30KB gzipped, added in FU6); new pattern note: "chat/feed/timeline scroll = library-owned (react-virtuoso), not hand-rolled". (Commit `a6ef978`.)
+- [x] Memory entry `feedback_hand_rolled_scroll_anti_pattern` saved at `/Users/pb/.claude/projects/-Users-pb-Developer-FiveGuays-foodXPlorer/memory/feedback_hand_rolled_scroll_anti_pattern.md` + indexed in MEMORY.md. (Commit `a6ef978`.)
+- [x] `docs/research/transcript-feed-scroll-architecture-2026-06-03.md` appended with closing note pointing to this ticket as the definitive resolution. (Commit `a6ef978`.)
+- [x] `product-tracker.md` Active Session updated to reflect FU6 in progress. FU4 operator AC24/AC25/AC26 replaced by FU6 AC5/AC6/AC7 as the release gate. (Commit `245d59a`.)
+- [ ] F-WEB-HISTORY-FU5 ticket (`docs/tickets/F-WEB-HISTORY-FU5-playwright-e2e.md`) update: AC12 deferred Playwright to a follow-up; FU5 ticket scope unchanged. Will be reconciled during Step 6 closeout (deferred until then; doesn't block merge).
 
 ---
 
 ## Workflow Checklist
 
-- [ ] **Step 0 — Spec**: this file drafted + spec self-review + MANDATORY `/review-spec` cross-model (Gemini + Codex in parallel, ≥2 rounds until 85%+ confidence per `feedback_multi_round_review`). Owner sign-off on Spec before proceeding.
-- [ ] **Step 1 — Setup**: branch `feature/F-WEB-HISTORY-FU6-virtuoso-rewrite` off `develop@ff4abd7`. Product-tracker Active Session updated. Working tree verified clean.
-- [ ] **Step 2 — Plan**: `ui-ux-designer` agent (optional — no layout change, but check if Virtuoso scroll container changes padding/safe-area behavior). `frontend-planner` derives Implementation Plan. MANDATORY `/review-plan` cross-model (Gemini + Codex) before owner sign-off. Plan must specify exact Virtuoso `components` slot allocation for `ClearHistoryButton`, `HistoryPersistenceNudge`, `HistoryEmptyState`, `LoadMoreSkeletons`.
-- [ ] **Step 3 — TDD (RED → GREEN)**:
-  - Phase 1: HablarShell precondition refactor — tests RED (empty-first-mount test) → GREEN (`useMemo` state split) → commit.
-  - Phase 2: TranscriptFeed Virtuoso integration — tests RED (Virtuoso props wiring, data assembly, `startReached` deduplication) → GREEN (Virtuoso integration) → commit.
-  - Phase 3: deletion sweep — remove FU4 machinery, deleted-file tests, `dlog` callsites → commit.
-- [ ] **Step 4 — Quality gates**: `npm test -w @foodxplorer/web` green + lint 0 + typecheck 0 + build clean. Gate counts documented in Completion Log.
-- [ ] **Step 5 — Review**: `code-review-specialist` + `qa-engineer` + `/audit-merge`. No MAJOR deferrals (per FU2/FU4 lessons). Apply all BLOCKER + MAJOR findings before merge.
-- [ ] **Step 6 — Merge + Closeout**: PR opened, CI green verified before handoff (per `feedback_verify_ci_before_handoff`). Squash-merge to `develop`. Branch deleted local + remote. Tracker closed. Operator AC5/AC6/AC7 smoke on `app-dev.nutrixplorer.com` post auto-redeploy. DoD items completed.
+- [x] **Step 0 — Spec**: drafted + spec self-review + 2 rounds `/review-spec` cross-model (gemini + codex). Round 1 REVISE → 5 codex + 2 gemini findings applied; round 2 APPROVED both. (Commits `245d59a`.)
+- [x] **Step 1 — Setup**: branch `feature/F-WEB-HISTORY-FU6-virtuoso-rewrite` off `develop@ff4abd7`. Product-tracker Active Session updated. Working tree clean.
+- [x] **Step 2 — Plan**: `frontend-planner` drafted Implementation Plan. 3 rounds `/review-plan` cross-model: R1 REVISE → 5 codex + 1 gemini findings applied; R2 REVISE → 2 codex IMPORTANT applied (firstItemIndex positive, AC8 two-phase a11y); R3 REVISE → 3 propagation gaps applied. (Commit `28fc9fb`.)
+- [x] **Step 3 — TDD (RED → GREEN)**:
+  - Phase 1: HablarShell precondition refactor — tests RED → GREEN → commits `5d47cb6`, `a640e9f`.
+  - Phase 2: TranscriptFeed Virtuoso integration — tests RED → GREEN → commits `bf544ea`, `9fded91`, `ea77c0d`.
+  - Phase 3: deletion sweep — commit `c899e98`.
+  - Phase 4: doc sync + memory — commit `a6ef978`.
+- [x] **Step 4 — Quality gates**: web 789/789 tests, lint 0, typecheck 0, build clean. Bundle `/hablar` `-17 kB`.
+- [x] **Step 5 — Review**: code-review-specialist APPROVE (0 BLOCKER, 0 MAJOR, 3 MINOR; MINOR-1 fixed in `f43f0b7`, MINOR-2 + MINOR-3 deferred with rationale). qa-engineer QA VERIFIED (+25 regression tests in commit `0bc6681`). `/audit-merge` pending.
+- [ ] **Step 6 — Merge + Closeout**: PR opened, CI green verified before handoff (per `feedback_verify_ci_before_handoff`). Squash-merge to `develop`. Branch deleted local + remote. Tracker closed. Operator AC5/AC6/AC7 smoke on `app-dev.nutrixplorer.com` post auto-redeploy. DoD items completed. (Pending PR + CI + operator.)
 
 ---
 
@@ -296,6 +303,9 @@ Anonymous user flows (no persisted history), error states, mid-flight abort beha
 | Step 2 — /review-plan round 1 | 2026-06-06 | gemini + codex (parallel) | REVISE (gemini: 2 CRITICAL search-tool unverified — both FALSE on empirical re-verification; codex: 1 CRITICAL + 4 IMPORTANT all empirically grounded) | Gemini CRITICAL-1 (`computeItemKey` doesn't exist) FALSE — verified via gh CLI: `Virtuoso.ts:196` declares `computeItemKey?: ComputeItemKey<Data, Context>`. Gemini CRITICAL-2 (file paths wrong) was actually codex CRITICAL-1 in disguise (real bug, applied as F1). All 5 codex findings applied (F1-F5). Gemini I1 polish applied (F6). Applied: F1 (HistoryLoadMoreSentinel.test.tsx path normalized to `__tests__/components/`); F2 (handleClearAll = only `clearPersistedHistory()`, no `setSessionEntries([])`, AC2 sub-bullet added); F3 (AC25 imperative `autoscrollToBottom` strategy: `virtuosoRef` + `atBottomRef` + `useEffect` detecting `isLoading` flip + `requestAnimationFrame` call, edge case #10, prop table updated, AC6 note added); F4 (prepend anchoring via `firstItemIndex` state, edge case #6 rewritten, edge case #11 added, prop table updated, Step 3.7 updated); F5 (`design-guidelines.md` → `hablar-design-guidelines.md` in DoD, Merge Checklist, Files to Modify, Step 3.9); F6 (`persistedIdsKey` mechanism added to Phase 1 problem statement). Artifacts: `/tmp/review-plan-fu6-2026-06-06/{gemini,codex}.txt`. |
 | Step 2 — /review-plan round 2 | 2026-06-06 | gemini + codex (parallel) | gemini APPROVED; codex REVISE → 2 IMPORTANT applied | codex IMPORTANT-1: `firstItemIndex` must stay POSITIVE per Virtuoso docs (plan had it going negative -10/-20/...). FIXED: `INITIAL_FIRST_ITEM_INDEX = 1_000_000`; decrements to 999_990, etc. — never negative. codex IMPORTANT-2: AC8 contradicted plan self-review on `aria-busy` (AC8 said on Virtuoso; self-review said on HablarShell placeholder). FIXED: AC8 rewritten with two-phase a11y semantics (gate placeholder carries `aria-busy="true"`; post-gate Virtuoso has no `aria-busy`; Header skeleton carries it during `isLoadingMore`). Edge cases #6 + #11 + Plan Self-Review #2 + AC8 all aligned. Artifacts: `/tmp/review-plan-fu6-2026-06-06-r2/{gemini,codex}.txt`. |
 | Step 2 — /review-plan round 3 | 2026-06-06 | gemini + codex (parallel) | gemini APPROVED; codex REVISE → 2 propagation gaps applied | Codex r3 confirmed substantive math/semantics from r2 fixes are correct, but flagged 3 sites still carrying stale wording from r1: (a) Step 3.7 body `useState(0)` → corrected to `useState(INITIAL_FIRST_ITEM_INDEX)` with module-level constant `= 1_000_000`; (b) post-render note "starts at 0" → corrected to reference INITIAL_FIRST_ITEM_INDEX with explicit safety margin math (999_500 floor after 50 prepends); (c) Notes "ARIA root props" section still said "pass aria-busy directly on Virtuoso" → corrected to reflect AC8 two-phase semantics. All 3 sites now consistent with AC8 + edge cases #6/#11. Artifacts: `/tmp/review-plan-fu6-2026-06-06-r3/{gemini,codex}.txt`. **Plan APPROVED for Step 3 execution** per `feedback_multi_round_review` 85%+ confidence (3 rounds, only propagation gaps remain — substance is verified). |
+| Step 3 — TDD | 2026-06-06 | frontend-developer | 8 commits (`fa1c467`→`a6ef978`) | Phase 1 HablarShell (commits 5d47cb6+a640e9f): useEffect mirror → useMemo + mount gate + sessionEntries split. Phase 2 Virtuoso integration (commits bf544ea+9fded91+ea77c0d): Virtuoso prop wiring (`data`/`computeItemKey`/`followOutput`/`startReached`/`firstItemIndex=1_000_000`/`ref`/`atBottomStateChange`/`autoscrollToBottom` on isLoading flip) + module-level VirtuosoHeader + module-boundary mock at `__mocks__/react-virtuoso.tsx`. Phase 3 deletion sweep (commit c899e98): deleted HistoryLoadMoreSentinel.tsx + .test.tsx + debugScroll.ts + fu4-qa.edge-cases.test.tsx + all dlog callsites. Phase 4 doc sync (commit a6ef978): ui-components + hablar-design-guidelines W18 + bugs.md 3 entries flipped + key_facts + research closing note + memory `feedback_hand_rolled_scroll_anti_pattern`. Web 764/764, lint 0, typecheck 0, build clean. Bundle `/hablar` -17 kB. |
+| Step 5 — Code review | 2026-06-06 | code-review-specialist | APPROVE (0 BLOCKER, 0 MAJOR, 3 MINOR, 2 NIT) | MINOR-1 (trailing `<hr>` after last entry — plan said suppress, code rendered all) FIXED in commit `f43f0b7` (production + test assertion updated). MINOR-2 (`loadMoreInFlightRef` defensive reset on `!hasMoreHistory`) + MINOR-3 (in-place resize detection extended to non-last entries) DEFERRED per code-review-specialist's explicit acceptable rationale — both align with `feedback_jsdom_layout_ac_gap` operator-AC contract. NITs (unused `_isLoadingHistory` prop) noted. |
+| Step 5 — QA | 2026-06-06 | qa-engineer | QA VERIFIED (+25 regression tests) | qa-engineer added 25 new tests across 2 files (TranscriptFeed.fu6-qa.edge-cases + HablarShell.fu6-qa.edge-cases) covering: firstItemIndex prepend detection (4), underflow guard (1), autoscrollToBottom in-place resize gate (6), atBottomStateChange wiring, AC9 StrictMode (2), authLoading=true gate (3), allEntries composition order, mock-boundary integration tests (2). All 25 new tests PASS. Final suite: 789/789, lint 0, typecheck 0, build clean. Commit `0bc6681`. |
 
 ---
 
@@ -303,19 +313,24 @@ Anonymous user flows (no persisted history), error states, mid-flight abort beha
 
 | Check | Evidence | Status |
 |-------|----------|--------|
-| AC5 operator smoke | — | pending post-deploy |
-| AC6 operator smoke | — | pending post-deploy |
-| AC7 operator smoke | — | pending post-deploy |
-| `npm test -w @foodxplorer/web` | — | pending Step 4 |
-| lint 0 | — | pending Step 4 |
-| typecheck 0 | — | pending Step 4 |
-| build clean | — | pending Step 4 |
-| `docs/specs/ui-components.md` updated | — | pending Step 6 |
-| `docs/specs/hablar-design-guidelines.md` W18 updated | — | pending Step 6 |
-| `bugs.md` 3 entries flipped | — | pending Step 6 |
-| `key_facts.md` updated | — | pending Step 6 |
-| memory `feedback_hand_rolled_scroll_anti_pattern` saved | — | pending Step 6 |
-| research doc closing note added | — | pending Step 6 |
+| AC: 13/15 done | AC1+AC1b+AC2+AC3+AC4+AC8+AC9+AC10+AC11+AC12+AC13+AC14+AC15 = 13 marked; AC5+AC6+AC7 = `**Status**: Pending` (operator post-deploy gates per `feedback_jsdom_layout_ac_gap`). | [x] |
+| AC5 operator smoke | Pending post-deploy on `app-dev.nutrixplorer.com`. Test plan: log in with ≥10 persisted entries, reload `/hablar` ×5; verify all 5 reloads land at bottom showing newest entry above input bar; no spurious loadMore. Chrome desktop + Safari iOS + Firefox desktop. | [ ] pending |
+| AC6 operator smoke | Pending post-deploy on `app-dev.nutrixplorer.com`. Test plan: feed pinned to bottom, submit new search; verify pending shimmer settles to full NutritionCard visible above input bar; user-not-near-bottom case: no autoscroll. Chrome desktop + Safari iOS. | [ ] pending |
+| AC7 operator smoke | Pending post-deploy on `app-dev.nutrixplorer.com`. Test plan: ≥10 persisted entries, scroll up to top; verify exactly ONE loadMore fires, 10 older entries prepend, viewport anchors on same entries (no jump). Chrome desktop + Firefox desktop. | [ ] pending |
+| `npm test -w @foodxplorer/web` | 789/789 PASS (68 suites). +25 from baseline 764 (qa-engineer additions). | [x] |
+| lint 0 | `next lint`: 0 errors, 0 warnings. | [x] |
+| typecheck 0 | `tsc --noEmit`: 0 errors. | [x] |
+| build clean | `next build`: clean, `/hablar` route 39 kB / 228 kB First Load JS. Bundle delta vs FU4 baseline: **-17 kB** (manual scroll machinery removed; react-virtuoso shared via chunks/255-*). | [x] |
+| `docs/specs/ui-components.md` updated | Commit `a6ef978` rewrote TranscriptFeed section: deleted `scrollLockRef` discriminated union narrative + 4-effect state machine description; added Virtuoso prop wiring table; deleted HistoryLoadMoreSentinel component entry. | [x] |
+| `docs/specs/hablar-design-guidelines.md` W18 updated | Commit `a6ef978` added note that canonical implementation is library-owned scroll (`react-virtuoso`); hand-rolled scroll machinery for chat/feed UIs is an anti-pattern. | [x] |
+| `bugs.md` 3 entries flipped | Commit `a6ef978` flipped BUG-WEB-FEED-SCROLL-SETTLE-001 + BUG-WEB-HISTORY-LOADMORE-IO-ROOT-001 + BUG-WEB-HISTORY-HYDRATION-RACE-001 to "TRULY FIXED (pending operator AC5/AC6/AC7 post-merge verification)". | [x] |
+| `key_facts.md` updated | Commit `a6ef978` added `react-virtuoso` v4.18.7 MIT (~30 KB gzipped) + pattern note "chat/feed/timeline scroll = library-owned (react-virtuoso), not hand-rolled". | [x] |
+| memory `feedback_hand_rolled_scroll_anti_pattern` saved | Saved at `/Users/pb/.claude/projects/-Users-pb-Developer-FiveGuays-foodXPlorer/memory/feedback_hand_rolled_scroll_anti_pattern.md` + indexed in MEMORY.md. Commit `a6ef978`. | [x] |
+| research doc closing note added | `docs/research/transcript-feed-scroll-architecture-2026-06-03.md` appended with closing note pointing to this ticket as definitive resolution. Commit `a6ef978`. | [x] |
+| code-review-specialist | APPROVE (0 BLOCKER, 0 MAJOR, 3 MINOR — 1 fixed in `f43f0b7`, 2 deferred with rationale, 2 NIT noted). | [x] |
+| qa-engineer | QA VERIFIED (+25 regression tests, commit `0bc6681`). 0 bugs found. | [x] |
+| `/audit-merge` structural + drift | Pending in Step 5. | [ ] pending |
+| CI green | Pending PR creation in Step 6. | [ ] pending |
 
 ---
 
