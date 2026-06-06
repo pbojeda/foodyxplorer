@@ -237,7 +237,7 @@ export function TranscriptFeed({
         atBottomRef.current = atBottom;
       }}
       startReached={handleStartReached}
-      itemContent={(_idx, entry) => (
+      itemContent={(idx, entry) => (
         <div>
           <TranscriptEntry
             entry={entry}
@@ -245,7 +245,10 @@ export function TranscriptFeed({
             onRetry={onRetry}
             onDishSelect={onDishSelect}
           />
-          <hr className="border-t border-slate-100 my-4" aria-hidden="true" />
+          {/* MINOR-1: suppress trailing divider after last entry (code-review-specialist) */}
+          {idx < entries.length - 1 && (
+            <hr className="border-t border-slate-100 my-4" aria-hidden="true" />
+          )}
         </div>
       )}
       components={{ Header: VirtuosoHeader }}

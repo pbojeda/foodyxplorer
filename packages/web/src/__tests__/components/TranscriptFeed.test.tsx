@@ -455,11 +455,13 @@ describe('TranscriptFeed — AC34 entry order', () => {
     expect(articles[1]).toHaveTextContent('second query');
   });
 
-  it('AC34: renders dividers between entries', () => {
+  it('AC34: renders dividers between entries (suppresses trailing)', () => {
     const entries = [makeEntry(), makeEntry(), makeEntry()];
     render(<TranscriptFeed {...defaultProps} entries={entries} />);
     const dividers = document.querySelectorAll('hr');
-    expect(dividers).toHaveLength(3); // Virtuoso itemContent wraps each with an hr
+    // MINOR-1: trailing divider suppressed (idx < entries.length - 1).
+    // 3 entries → 2 dividers (between 1↔2 and 2↔3, none after 3).
+    expect(dividers).toHaveLength(2);
   });
 });
 
