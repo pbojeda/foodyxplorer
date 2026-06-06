@@ -255,6 +255,30 @@ describe('useSearchHistory', () => {
     expect(mockClearHistory).toHaveBeenCalledTimes(1);
   });
 
+  // FU6 regression: dedup guard resets after isLoadingMore → false (second page loadable)
+  it('FU6: loadMoreInFlightRef resets after isLoadingMore clears — second loadMore fires correctly', async () => {
+    // First load
+    mockGetHistory.mockResolvedValueOnce(makeHistoryResult(3, 'cursor-p2'));
+    const { result } = renderHook(() => useSearchHistory({ authToken: 'test-token' }));
+    await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+
+    // First loadMore (page 2)
+    mockGetHistory.mockResolvedValueOnce(makeHistoryResult(3, 'cursor-p3'));
+    act(() => { result.current.loadMore(); });
+    await waitFor(() => expect(result.current.isLoadingMore).toBe(false));
+
+    // Guard should have reset — second loadMore (page 3) should fire
+    mockGetHistory.mockClear();
+    mockGetHistory.mockResolvedValueOnce(makeHistoryResult(2, null));
+    act(() => { result.current.loadMore(); });
+    await waitFor(() => expect(result.current.isLoadingMore).toBe(false));
+
+    // Second loadMore must have fired (guard reset after first completed)
+    expect(mockGetHistory).toHaveBeenCalledTimes(1);
+    // 3 + 3 + 2 = 8 total
+    expect(result.current.persistedEntries).toHaveLength(8);
+  });
+
   // AC63: drifted entry skipped (per-entry parse in apiClient)
   // This test verifies that getHistory (mocked here) still returns only valid entries.
   // The actual per-entry skip logic is in apiClient — here we confirm the hook
