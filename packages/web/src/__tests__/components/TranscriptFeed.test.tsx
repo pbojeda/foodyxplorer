@@ -29,6 +29,7 @@ import type { TranscriptEntryData } from '../../types/history';
 let capturedVirtuosoProps: Record<string, unknown> | null = null;
 
 jest.mock('react-virtuoso', () => ({
+  // eslint-disable-next-line react/display-name
   Virtuoso: React.forwardRef((props: Record<string, unknown>, _ref: unknown) => {
     capturedVirtuosoProps = props;
     const data = props['data'] as TranscriptEntryData[] | undefined;
