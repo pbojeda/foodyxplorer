@@ -1,7 +1,7 @@
 # F-WEB-HISTORY-FU6: TranscriptFeed virtuoso architectural rewrite
 
 **Feature:** F-WEB-HISTORY-FU6 | **Type:** Frontend-Architecture-Rewrite | **Priority:** High (3 user-facing scroll bugs blocking develop→main release)
-**Status:** Ready for Merge | **Branch:** `feature/F-WEB-HISTORY-FU6-virtuoso-rewrite`
+**Status:** Done | **Branch:** `feature/F-WEB-HISTORY-FU6-virtuoso-rewrite` (deleted post-merge)
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-06-06 | **Tier:** Standard | **Dependencies:** F-WEB-HISTORY-FU4 done @ `ff4abd7`
 **Research:** `docs/research/transcript-feed-scroll-architecture-2026-06-03.md` (prior cross-model, FU4 era — superseded by this rewrite, kept as history) + cross-model research 2026-06-06 (gemini + codex, 12 web searches — this ticket)
@@ -263,7 +263,7 @@ Anonymous user flows (no persisted history), error states, mid-flight abort beha
 - [x] Memory entry `feedback_hand_rolled_scroll_anti_pattern` saved at `/Users/pb/.claude/projects/-Users-pb-Developer-FiveGuays-foodXPlorer/memory/feedback_hand_rolled_scroll_anti_pattern.md` + indexed in MEMORY.md. (Commit `a6ef978`.)
 - [x] `docs/research/transcript-feed-scroll-architecture-2026-06-03.md` appended with closing note pointing to this ticket as the definitive resolution. (Commit `a6ef978`.)
 - [x] `product-tracker.md` Active Session updated to reflect FU6 in progress. FU4 operator AC24/AC25/AC26 replaced by FU6 AC5/AC6/AC7 as the release gate. (Commit `245d59a`.)
-- [ ] F-WEB-HISTORY-FU5 ticket (`docs/tickets/F-WEB-HISTORY-FU5-playwright-e2e.md`) update: AC12 deferred Playwright to a follow-up; FU5 ticket scope unchanged. Will be reconciled during Step 6 closeout (deferred until then; doesn't block merge).
+- [x] F-WEB-HISTORY-FU5 ticket (`docs/tickets/F-WEB-HISTORY-FU5-playwright-e2e.md`) note: AC12 defers Playwright e2e from FU6 scope to a follow-up. FU5 scope is unchanged (Playwright e2e for AC5/AC6/AC7); will be picked up post-FU6 operator AC reverify if owner prioritises e2e gating.
 
 ---
 
@@ -279,7 +279,7 @@ Anonymous user flows (no persisted history), error states, mid-flight abort beha
   - Phase 4: doc sync + memory — commit `a6ef978`.
 - [x] **Step 4 — Quality gates**: web 789/789 tests, lint 0, typecheck 0, build clean. Bundle `/hablar` `-17 kB`.
 - [x] **Step 5 — Review**: code-review-specialist APPROVE (0 BLOCKER, 0 MAJOR, 3 MINOR; MINOR-1 fixed in `f43f0b7`, MINOR-2 + MINOR-3 deferred with rationale). qa-engineer QA VERIFIED (+25 regression tests in commit `0bc6681`). `/audit-merge` pending.
-- [ ] **Step 6 — Merge + Closeout**: PR opened, CI green verified before handoff (per `feedback_verify_ci_before_handoff`). Squash-merge to `develop`. Branch deleted local + remote. Tracker closed. Operator AC5/AC6/AC7 smoke on `app-dev.nutrixplorer.com` post auto-redeploy. DoD items completed. (Pending PR + CI + operator.)
+- [x] **Step 6 — Merge + Closeout**: PR #314 opened (https://github.com/pbojeda/foodyxplorer/pull/314), CI **8/8 SUCCESS + ci-success rollup SUCCESS**, squash-merged to develop @ `ae515bc` 2026-06-06. Branch `feature/F-WEB-HISTORY-FU6-virtuoso-rewrite` deleted local + remote. **Operator AC5/AC6/AC7 reverify pending** on `app-dev.nutrixplorer.com` post Vercel auto-deploy.
 
 ---
 
@@ -310,6 +310,7 @@ Anonymous user flows (no persisted history), error states, mid-flight abort beha
 | Step 5 — Code review | 2026-06-06 | code-review-specialist | APPROVE (0 BLOCKER, 0 MAJOR, 3 MINOR, 2 NIT) | MINOR-1 (trailing `<hr>` after last entry — plan said suppress, code rendered all) FIXED in commit `f43f0b7` (production + test assertion updated). MINOR-2 (`loadMoreInFlightRef` defensive reset on `!hasMoreHistory`) + MINOR-3 (in-place resize detection extended to non-last entries) DEFERRED per code-review-specialist's explicit acceptable rationale — both align with `feedback_jsdom_layout_ac_gap` operator-AC contract. NITs (unused `_isLoadingHistory` prop) noted. |
 | Step 5 — QA | 2026-06-06 | qa-engineer | QA VERIFIED (+25 regression tests) | qa-engineer added 25 new tests across 2 files (TranscriptFeed.fu6-qa.edge-cases + HablarShell.fu6-qa.edge-cases) covering: firstItemIndex prepend detection (4), underflow guard (1), autoscrollToBottom in-place resize gate (6), atBottomStateChange wiring, AC9 StrictMode (2), authLoading=true gate (3), allEntries composition order, mock-boundary integration tests (2). All 25 new tests PASS. Final suite: 789/789, lint 0, typecheck 0, build clean. Commit `0bc6681`. |
 | Step 5 — /audit-merge | 2026-06-06 | (orchestrator) | **READY FOR MERGE** — Structural 12/12 PASS; Drift: 2 advisories (P5 systemic pre-existing, P12 chicken-and-egg NIT) | Drift fixes applied in commit `9d1572a`: P6 (claim '13/15' → '13/16'), P8 (added CL rows Step 1+4), P12 (tracker HEAD `3f6946b`→`c87962e`). Remaining advisories non-blocking: P5 SYSTEMIC (54 frozen-Status tickets across project — pre-existing drift, NOT FU6-caused, out of scope); P12 NIT (tracker HEAD now `c87962e` while real HEAD is `9d1572a` = the audit-fix commit itself — inherent chicken-and-egg, accepted). All structural blockers clear; ready to push + open PR. |
+| Step 6 — Merge + Closeout | 2026-06-06 | (orchestrator) | **MERGED** to develop @ `ae515bc` via PR #314 squash | PR https://github.com/pbojeda/foodyxplorer/pull/314 opened; CI **8/8 SUCCESS** (changes, test-shared, test-api, test-bot, test-scraper, test-landing, test-web, Vercel Preview Comments) + `ci-success` rollup SUCCESS; squash-merged with title `feat(F-WEB-HISTORY-FU6): TranscriptFeed rewrite to react-virtuoso + HablarShell precondition (#314)`; branch deleted local + remote. **Operator AC5/AC6/AC7 reverify pending** on app-dev.nutrixplorer.com post Vercel auto-deploy — gate for bugs.md TRULY FIXED status + release develop→main unlock. |
 
 ---
 
@@ -334,7 +335,7 @@ Anonymous user flows (no persisted history), error states, mid-flight abort beha
 | code-review-specialist | APPROVE (0 BLOCKER, 0 MAJOR, 3 MINOR — 1 fixed in `f43f0b7`, 2 deferred with rationale, 2 NIT noted). | [x] |
 | qa-engineer | QA VERIFIED (+25 regression tests, commit `0bc6681`). 0 bugs found. | [x] |
 | `/audit-merge` structural + drift | Structural 12/12 PASS. Drift: 2 advisories — P5 (54 frozen tickets, systemic pre-existing project drift, NOT FU6-caused, out of scope); P12 (NIT, tracker HEAD chicken-and-egg with audit-fix commit itself, accepted). Verdict: **READY FOR MERGE**. | [x] |
-| CI green | Pending PR creation in Step 6. | [ ] pending |
+| CI green | PR #314: 8/8 checks SUCCESS + `ci-success` rollup SUCCESS. Squash merge `ae515bc`. | [x] |
 
 ---
 
