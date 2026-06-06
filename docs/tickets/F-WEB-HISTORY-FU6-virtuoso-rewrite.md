@@ -309,6 +309,7 @@ Anonymous user flows (no persisted history), error states, mid-flight abort beha
 | Step 4 — Quality gates | 2026-06-06 | (orchestrator) | All gates green | `npm test -w @foodxplorer/web`: 764/764 PASS (66 suites), pre-QA hardening. `next lint`: 0 warnings, 0 errors. `tsc --noEmit`: 0 errors. `next build`: clean, `/hablar` 39 kB route / 228 kB First Load JS. |
 | Step 5 — Code review | 2026-06-06 | code-review-specialist | APPROVE (0 BLOCKER, 0 MAJOR, 3 MINOR, 2 NIT) | MINOR-1 (trailing `<hr>` after last entry — plan said suppress, code rendered all) FIXED in commit `f43f0b7` (production + test assertion updated). MINOR-2 (`loadMoreInFlightRef` defensive reset on `!hasMoreHistory`) + MINOR-3 (in-place resize detection extended to non-last entries) DEFERRED per code-review-specialist's explicit acceptable rationale — both align with `feedback_jsdom_layout_ac_gap` operator-AC contract. NITs (unused `_isLoadingHistory` prop) noted. |
 | Step 5 — QA | 2026-06-06 | qa-engineer | QA VERIFIED (+25 regression tests) | qa-engineer added 25 new tests across 2 files (TranscriptFeed.fu6-qa.edge-cases + HablarShell.fu6-qa.edge-cases) covering: firstItemIndex prepend detection (4), underflow guard (1), autoscrollToBottom in-place resize gate (6), atBottomStateChange wiring, AC9 StrictMode (2), authLoading=true gate (3), allEntries composition order, mock-boundary integration tests (2). All 25 new tests PASS. Final suite: 789/789, lint 0, typecheck 0, build clean. Commit `0bc6681`. |
+| Step 5 — /audit-merge | 2026-06-06 | (orchestrator) | **READY FOR MERGE** — Structural 12/12 PASS; Drift: 2 advisories (P5 systemic pre-existing, P12 chicken-and-egg NIT) | Drift fixes applied in commit `9d1572a`: P6 (claim '13/15' → '13/16'), P8 (added CL rows Step 1+4), P12 (tracker HEAD `3f6946b`→`c87962e`). Remaining advisories non-blocking: P5 SYSTEMIC (54 frozen-Status tickets across project — pre-existing drift, NOT FU6-caused, out of scope); P12 NIT (tracker HEAD now `c87962e` while real HEAD is `9d1572a` = the audit-fix commit itself — inherent chicken-and-egg, accepted). All structural blockers clear; ready to push + open PR. |
 
 ---
 
@@ -332,7 +333,7 @@ Anonymous user flows (no persisted history), error states, mid-flight abort beha
 | research doc closing note added | `docs/research/transcript-feed-scroll-architecture-2026-06-03.md` appended with closing note pointing to this ticket as definitive resolution. Commit `a6ef978`. | [x] |
 | code-review-specialist | APPROVE (0 BLOCKER, 0 MAJOR, 3 MINOR — 1 fixed in `f43f0b7`, 2 deferred with rationale, 2 NIT noted). | [x] |
 | qa-engineer | QA VERIFIED (+25 regression tests, commit `0bc6681`). 0 bugs found. | [x] |
-| `/audit-merge` structural + drift | Pending in Step 5. | [ ] pending |
+| `/audit-merge` structural + drift | Structural 12/12 PASS. Drift: 2 advisories — P5 (54 frozen tickets, systemic pre-existing project drift, NOT FU6-caused, out of scope); P12 (NIT, tracker HEAD chicken-and-egg with audit-fix commit itself, accepted). Verdict: **READY FOR MERGE**. | [x] |
 | CI green | Pending PR creation in Step 6. | [ ] pending |
 
 ---
