@@ -34,15 +34,6 @@ jest.mock('../../components/HistoryPersistenceNudge', () => ({
   ),
 }));
 
-jest.mock('../../components/HistoryLoadMoreSentinel', () => ({
-  HistoryLoadMoreSentinel: ({ onLoadMore }: { onLoadMore: () => void; hasMoreHistory: boolean; isLoadingMore: boolean }) => (
-    <div data-testid="load-more-sentinel">
-      <button onClick={onLoadMore}>Cargar más</button>
-    </div>
-  ),
-}));
-
-
 // TranscriptEntry is NOT mocked here — FEC2/FEC3 tests use the real component.
 // TranscriptFeed tests (FEC1/FEC9/FEC10) need mocked TranscriptEntry (handled by TranscriptFeed mock below).
 // We mock TranscriptEntry only inside the TranscriptFeed mock via jest.doMock or by relying on

@@ -13,7 +13,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { TranscriptEntryData } from '@/types/history';
 import { getHistory, deleteHistoryEntry, clearHistory } from '@/lib/apiClient';
 import { trackEvent } from '@/lib/metrics';
-import { dlog } from '@/lib/debugScroll';
 
 interface UseSearchHistoryOptions {
   /** Bearer token from Supabase session. Null → no-op (anonymous). */
@@ -88,25 +87,13 @@ export function useSearchHistory({ authToken }: UseSearchHistoryOptions): UseSea
   }, [authToken]);
 
   const loadMore = useCallback(() => {
-    dlog('useSearchHistory.loadMore CALLED', {
-      inFlight: loadMoreInFlightRef.current,
-      hasAuthToken: !!authToken,
-      nextCursor,
-      isLoadingMore,
-    });
     // Sync ref guard runs BEFORE the React-state check so double-fires within the
     // same commit cycle short-circuit deterministically (the React state is stale
     // until next commit).
     if (loadMoreInFlightRef.current) {
-      dlog('useSearchHistory.loadMore SHORT-CIRCUITED (in-flight)');
       return;
     }
     if (!authToken || !nextCursor || isLoadingMore) {
-      dlog('useSearchHistory.loadMore SKIPPED (precondition)', {
-        hasAuthToken: !!authToken,
-        nextCursor,
-        isLoadingMore,
-      });
       return;
     }
 
@@ -114,15 +101,9 @@ export function useSearchHistory({ authToken }: UseSearchHistoryOptions): UseSea
     setIsLoadingMore(true);
     pageRef.current += 1;
     const page = pageRef.current;
-    dlog('useSearchHistory.loadMore DISPATCHED', { page, cursor: nextCursor });
 
     getHistory(nextCursor, 10)
       .then(({ entries: olderEntries, nextCursor: newCursor }) => {
-        dlog('useSearchHistory.loadMore RESOLVED', {
-          page,
-          olderCount: olderEntries.length,
-          newCursor,
-        });
         // Prepend older entries above existing ones
         setPersistedEntries((prev) => [...olderEntries, ...prev]);
         setNextCursor(newCursor);
@@ -130,14 +111,12 @@ export function useSearchHistory({ authToken }: UseSearchHistoryOptions): UseSea
         trackEvent('history_load_more', { page });
       })
       .catch(() => {
-        dlog('useSearchHistory.loadMore REJECTED', { page });
         // Swallow — sentinel stops, user still sees current history
         setHasMoreHistory(false);
       })
       .finally(() => {
         setIsLoadingMore(false);
         loadMoreInFlightRef.current = false;
-        dlog('useSearchHistory.loadMore FINALLY (isLoadingMore=false)');
       });
   }, [authToken, nextCursor, isLoadingMore]);
 
