@@ -526,3 +526,7 @@ Rationale:
 - Playwright e2e tests for AC20-A + AC21 run in CI on every PR.
 - ADR or research-doc link in the Spec referencing the `overflow-anchor:none` rationale.
 - Memory entry `feedback_layout_effect_phase_swap_needs_full_review` saved post-merge (see §5.4).
+
+---
+
+> **Closing note 2026-06-06:** This research doc documented the FU4-era 4-effect state machine design. Per `F-WEB-HISTORY-FU6` (architectural rewrite to `react-virtuoso`), the manual approach has been superseded. The definitive resolution is in `docs/tickets/F-WEB-HISTORY-FU6-virtuoso-rewrite.md`.

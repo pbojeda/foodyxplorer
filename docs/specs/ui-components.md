@@ -2405,9 +2405,10 @@ Non-PII — no email addresses in payloads.
 
 ```
 HablarShell (Client — UPDATED: feed state replaces singleton result state)
-└── TranscriptFeed (Client — NEW)
-    ├── HistoryLoadMoreSentinel (Client — NEW, invisible, at top)
-    ├── TranscriptEntry[] (Client — NEW, renders one per query+result pair)
+└── TranscriptFeed (Client — Virtuoso rewrite FU6)
+    ├── <Virtuoso> (react-virtuoso, library-owned scroll)
+    │   ├── VirtuosoHeader slot (ClearHistoryButton, load skeleton, empty states, nudge)
+    │   └── itemContent → TranscriptEntry[] (Client — NEW, renders one per query+result pair)
     │   ├── EntryHeader (internal — query echo + timestamp + delete button)
     │   │   └── DeleteEntryButton (Client — NEW, with inline confirm)
     │   └── [result body: existing NutritionCard / ContextConfirmation / MenuDishList / ErrorState — UNCHANGED]
@@ -2474,28 +2475,45 @@ interface TranscriptEntryData {
 | `showPersistenceNudge` | `boolean` | No | `false` | Parent-controlled: show after ≥2 entries for anonymous users. |
 | `onDismissPersistenceNudge` | `() => void` | No | — | Dismiss callback for HistoryPersistenceNudge. |
 
-**State (internal refs — 7 total, FU4 architecture):**
-- `wasNearBottomRef` — unchanged from FU2; updated by scroll listener before each append commit.
-- `hasScrolledToBottomOnHydrationRef` — one-shot guard for hydration path (component lifetime; resets on unmount for Strict Mode parity).
-- `prevEntriesLengthRef` — tracks previous `entries.length`; updated at end of Effect B.
-- `firstEntryIdRef` — NEW (FU4): last-seen `entries[0]?.entryId`; used by Effect B to detect prepend vs append.
-- `lastEntryIdRef` — NEW (FU4): last-seen `entries[entries.length-1]?.entryId`; used by Effect B to detect append vs prepend.
-- `scrollLockRef` — NEW (FU4): discriminated union enforcing single-mode-at-a-time:
-  - `{ mode: 'idle' }` — no active scroll operation.
-  - `{ mode: 'bottom-lock', deadline: number, observer: ResizeObserver, timerId: ReturnType<typeof setTimeout> | null }` — active ResizeObserver window keeping the viewport at bottom (used by both hydration and append paths). Paired with explicit `setTimeout` per CRITICAL-1: disconnects even if layout settles without a resize event.
-  - `{ mode: 'prepending', prevScrollHeight: number, prevScrollTop: number }` — loadMore restore baseline captured pre-skeleton by `handleLoadMore` callback.
+**Architecture (F-WEB-HISTORY-FU6 — Virtuoso rewrite):**
 
-**Behavior (4-effect state machine — FU4 architecture, research doc §7.1):**
-- **Effect A** (`useEffect[]`): Scroll listener — updates `wasNearBottomRef` on every user scroll. Unchanged from FU2.
-- **Effect B** (`useLayoutEffect`, deps `[entries.length, entries[0]?.entryId, entries[entries.length-1]?.entryId]`): Unified mutation handler. Discriminates by comparing current vs captured first/last `entryId`. Routes to: (1) hydration path (one-shot, ref-guarded) — instant scroll + 500ms bottom-lock; (2) append path (last entryId grew, `wasNearBottomRef=true`) — smooth scroll + 1500ms bottom-lock; (3) prepend path (first entryId changed, Effect C handles restore — Effect B is a no-op); (4) deletion path (length shrank — no scroll); (5) AC14b guard (mode=prepending active — append deferred). Both (1) and (2) call `startBottomLock()` which creates a `ResizeObserver` + paired `setTimeout`. The ResizeObserver fires `scrollTo({instant})` on every container resize within the deadline, auto-cancels when `wasNearBottomRef` flips false (AC5) or deadline expires (AC6).
-- **Effect C** (`useLayoutEffect[isLoadingMore]`): LoadMore restore. On `isLoadingMore` false transition: if `scrollLockRef.mode === 'prepending'`, reads the pre-skeleton baseline (`prevScrollHeight`, `prevScrollTop`), computes `delta = scrollHeight_now - prevScrollHeight`, writes `scrollTop = prevScrollTop + delta`. Transitions mode to `idle`. No-op when mode is `idle`.
-- **Effect D** (`useEffect[]`): Unmount cleanup. Handles all 3 modes: `bottom-lock` → disconnect observer + clear timer; `prepending` → reset (no DOM touch); `idle` → no-op. Resets all 7 refs for Strict Mode dev parity.
-- **`handleLoadMore` callback**: Wraps parent's `onLoadMore`. Captures `scrollHeight`/`scrollTop` SYNCHRONOUSLY before calling parent (which triggers skeleton render). Sets `scrollLockRef = { mode: 'prepending', ... }`. Passed to `<HistoryLoadMoreSentinel>` as `onLoadMore`. See research doc §4.2 (2-commit flow diagnosis) for why pre-skeleton capture is critical.
-- **`overflow-anchor: none`** explicit on scroll container (`style={{ overflowAnchor: 'none' }}`). JS owns scroll restoration unambiguously — eliminates race between Effect C's pre-paint write and the browser's native anchor-adjustment algorithm. See research doc §6.5.
+`TranscriptFeed` renders a single `<Virtuoso>` from `react-virtuoso` (MIT). No manual `scrollTop` writes, no `ResizeObserver`, no `IntersectionObserver`. Virtuoso owns the scroll container.
 
-**Accessibility:**
-- `role="feed"` `aria-label="Historial de consultas"` `aria-busy={isLoadingHistory ? true : undefined}`
-- Scroll container must be a real scrollable DOM element (not `display: contents`) for iOS `-webkit-overflow-scrolling`.
+**Virtuoso prop wiring:**
+
+| Prop | Value | Purpose |
+|------|-------|---------|
+| `data` | `entries` (oldest-first) | Chronological DOM order (oldest→newest); required for `role="feed"` ARIA semantics |
+| `computeItemKey` | `(_, entry) => entry.entryId` | Stable identity for prepend/delete operations; prevents full-list remount |
+| `firstItemIndex` | `firstItemIndex` state (starts at `1_000_000`, decrements by 10 on each prepend) | Viewport anchor on loadMore prepend; MUST stay positive per Virtuoso v4 docs |
+| `initialTopMostItemIndex` | `Math.max(0, entries.length - 1)` | Scroll to newest entry on first mount (post-gate) |
+| `followOutput` | `"smooth"` | Pin-aware append scroll — only scrolls if user is at bottom (replaces `wasNearBottomRef`) |
+| `ref` | `VirtuosoHandle` | Used for imperative `autoscrollToBottom()` on in-place shimmer→card transition |
+| `atBottomStateChange` | `(atBottom) => { atBottomRef.current = atBottom }` | Tracks bottom position for in-place resize scroll decision |
+| `startReached` | `handleStartReached` | Fires when user scrolls to top; replaces `HistoryLoadMoreSentinel` IntersectionObserver |
+| `itemContent` | `(_, entry) => <TranscriptEntry ... />` | Per-entry renderer |
+| `components` | `{ Header: VirtuosoHeader }` | Composite header slot (see below) |
+| `context` | `FeedContext` | Shared state for header slot |
+
+**`VirtuosoHeader` slot (module-scope for stable identity):**
+- sr-only "Cargar más historial" keyboard button (when `hasMoreHistory && !isLoadingMore`)
+- Loading skeleton (when `isLoadingMore`, with `aria-busy="true"` scoped to the skeleton div)
+- `ClearHistoryButton` (when `isAuthenticated && hasPersisted`)
+- `HistoryPersistenceNudge` (when `showPersistenceNudge`)
+- `HistoryEmptyState` (when `isEmpty && isAuthenticated`)
+- `EmptyState` (when `isEmpty && !isAuthenticated`)
+
+**Internal refs (3 total — FU6 architecture):**
+- `virtuosoRef` — `VirtuosoHandle` for imperative `autoscrollToBottom()` on in-place resize
+- `atBottomRef` — tracks user's at-bottom state (wired to `atBottomStateChange`)
+- `loadMoreInFlightRef` — local synchronous dedup guard at `startReached` boundary
+
+**Mount gate (HablarShell AC1b):**
+HablarShell renders a `role="feed" aria-busy="true"` placeholder div while `authLoading || (user && isLoadingHistory)`. `TranscriptFeed` (Virtuoso) is NOT mounted during this gate. Once the gate opens, Virtuoso mounts ONCE with the full hydrated `entries` array, so `initialTopMostItemIndex` fires correctly.
+
+**Accessibility (two-phase semantics):**
+- **Gate phase** (placeholder): `role="feed" aria-busy="true" aria-label="Historial de consultas"` — rendered by HablarShell
+- **Post-gate** (Virtuoso): `role="feed" aria-label="Historial de consultas"` — NO `aria-busy` on root (initial load complete); `aria-busy` scoped to Header skeleton during `isLoadingMore`
 
 ---
 
@@ -2617,7 +2635,7 @@ Encapsulates all server history interactions: initial mount fetch (`GET /history
 
 **Mount behavior:** On first render with a non-null `authToken`, fires `GET /history?limit=10`. On success, sets `persistedEntries` (reversed to oldest-first). On 4xx/5xx, logs warning and returns `persistedEntries: []` (graceful degradation — session feed still works).
 
-**`loadMore` behavior:** Increments page cursor. Called by `HistoryLoadMoreSentinel`. Fires `GET /history?cursor=<nextCursor>&limit=10`. Prepends results to `persistedEntries`. Sets `hasMoreHistory: false` when `nextCursor` is null.
+**`loadMore` behavior:** Increments page cursor. Called via Virtuoso `startReached` prop (replaces `HistoryLoadMoreSentinel` IntersectionObserver). Fires `GET /history?cursor=<nextCursor>&limit=10`. Prepends results to `persistedEntries`. Sets `hasMoreHistory: false` when `nextCursor` is null. Includes synchronous `loadMoreInFlightRef` dedup guard against rapid double-fire before React commits `isLoadingMore=true`.
 
 **`deleteEntry` behavior:** Calls `DELETE /history/{id}`. Removes the entry from `persistedEntries` optimistically before the request resolves. On 404 (already gone), the entry was already removed — no-op. On other errors, log warning (do not re-add the entry to state — the user's intent was to delete it).
 
@@ -2625,26 +2643,7 @@ Encapsulates all server history interactions: initial mount fetch (`GET /history
 
 ---
 
-### New: HistoryLoadMoreSentinel (F-WEB-HISTORY)
-
-**Type:** Primitive | **Client:** Yes
-**File:** `src/components/HistoryLoadMoreSentinel.tsx`
-
-An invisible `div` placed at the very top of `TranscriptFeed` (before the first entry). Uses `IntersectionObserver` to fire `onLoadMore` when it scrolls into the viewport. Unmounts or stops observing when `hasMoreHistory` is false.
-
-**Props:**
-
-| Prop | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `onLoadMore` | `() => void` | Yes | — | Called when the sentinel enters the viewport. |
-| `hasMoreHistory` | `boolean` | Yes | — | When false, the observer is disconnected and the element renders null. |
-| `isLoading` | `boolean` | No | `false` | When true, the observer is paused (avoids double-trigger while a fetch is in-flight). |
-
-**Keyboard fallback (W23):** When `hasMoreHistory` is true, also renders a visually-hidden `<button aria-label="Cargar consultas anteriores">` as a keyboard-accessible alternative for users who cannot scroll.
-
----
-
-### Updated: HablarShell (F-WEB-HISTORY additions)
+### Updated: HablarShell (F-WEB-HISTORY + FU6 additions)
 
 **File:** `src/components/HablarShell.tsx`
 
@@ -2652,16 +2651,24 @@ An invisible `div` placed at the very top of `TranscriptFeed` (before the first 
 
 | Old state | New state | Notes |
 |---|---|---|
-| `results: ConversationMessageData \| null` | `entries: TranscriptEntryData[]` | Replaces singleton with append-only array |
-| `photoResults: MenuAnalysisData \| null` | merged into `entries` | Photo results become `inputMode: 'photo'` entries |
+| `results: ConversationMessageData \| null` | `sessionEntries: TranscriptEntryData[]` (FU6) | Session-owned slice; never includes persisted entries |
+| `photoResults: MenuAnalysisData \| null` | merged into `sessionEntries` | Photo results become `inputMode: 'photo'` entries |
 | `error: string \| null` | per-entry error in `TranscriptEntryData` | Errors are scoped to the entry that produced them |
 | `isLoading: boolean` | per-entry `isLoading` in the in-flight entry | The in-flight entry shows shimmer; resolved entries show result cards |
+| `entries: TranscriptEntryData[]` (pre-FU6 unified) | `allEntries = useMemo([persistedEntries, sessionEntries])` (FU6) | Synchronous derivation; no `useEffect` mirror |
+
+**FU6 state split:**
+- `sessionEntries` — local state for in-flight/session entries (append/settle/remove).
+- `persistedEntries` — from `useSearchHistory` directly (no local mirror).
+- `allEntries = useMemo([persistedEntries, sessionEntries])` — passed to `TranscriptFeed`.
+- Mount gate: when `authLoading || (user && isLoadingHistory)`, HablarShell renders a placeholder div instead of `<TranscriptFeed>`. This ensures Virtuoso mounts exactly once with the full hydrated array.
+- `handleClearAll()` calls ONLY `clearPersistedHistory()` — `sessionEntries` is NOT cleared (AC2 sub-bullet).
 
 **New state:**
 - `historyPage: number` — cursor for backwards infinite scroll.
 - `hasMoreHistory: boolean` — false when server returns empty page.
 - `isLoadingMoreHistory: boolean` — true while fetching older entries.
-- `showPersistenceNudge: boolean` — set to `true` when `entries.length === 2` and `user === null`.
+- `showPersistenceNudge: boolean` — set to `true` when `allEntries.length >= 2` and `user === null`.
 
 **Key behavioral changes:**
 - `executeQuery` appends a new `TranscriptEntryData` with `isLoading: true` immediately (optimistic echo), then populates `result` or `error` when the request settles.

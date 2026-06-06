@@ -1,50 +1,27 @@
 'use client';
 
 // TranscriptFeed — append-only feed container for session transcript + persisted history.
+// F-WEB-HISTORY-FU6: architectural rewrite to react-virtuoso.
 // Design spec: W16 (layout), W17 (entry spacing), W18 (persisted history), W23 (a11y).
-// AC32: role="feed", aria-label, aria-busy.
-// AC34: renders entries in order with dividers.
-// AC37: HistoryPersistenceNudge shown when showPersistenceNudge.
-// AC45: HistoryEmptyState for authenticated+empty, EmptyState for anonymous+empty.
-// AC46: ClearHistoryButton visible when isAuthenticated and has persisted entries.
-// AC47: auto-scroll to bottom on new entries.
-// FU4: unified 4-effect scroll state machine (research doc §7.1).
+// AC3: single <Virtuoso> — no manual scrollTop writes, no ResizeObserver, no IntersectionObserver.
+// AC8: role="feed" + aria-label on Virtuoso root; aria-busy on HablarShell gate placeholder (not here).
+// AC10: Header slot — ClearHistoryButton, loading skeleton, HistoryEmptyState, EmptyState.
+// AC15: computeItemKey={entry.entryId} for stable identity across prepend/delete.
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import type { TranscriptEntryData } from '@/types/history';
-import { dlog } from '@/lib/debugScroll';
 import { TranscriptEntry } from './TranscriptEntry';
 import { EmptyState } from './EmptyState';
 import { HistoryEmptyState } from './HistoryEmptyState';
 import { HistoryPersistenceNudge } from './HistoryPersistenceNudge';
-import { HistoryLoadMoreSentinel } from './HistoryLoadMoreSentinel';
 import { ClearHistoryButton } from './ClearHistoryButton';
 
-// Post-hydration window (500ms) — ResizeObserver re-scrolls as child cards grow.
-// FU4: named HYDRATION_RESCROLL_WINDOW_MS (hydration path only).
-const HYDRATION_RESCROLL_WINDOW_MS = 500;
-
-// Post-append window (1500ms) — longer than hydration because API response latency
-// determines when the shimmer→card transition fires (research doc §7.1 + §3.3).
-// FU4 /review-plan design note: 1500ms is the minimum to cover Slow 3G API latency
-// (~1200ms) plus layout settle. Operator AC25 (Slow 3G test) validates this choice.
-const APPEND_BOTTOM_LOCK_WINDOW_MS = 1500;
-
-// FU4: discriminated union enforcing single-mode-at-a-time for scroll state.
-// No two effects can simultaneously mutate scroll geometry — each reads `mode` and
-// early-returns when it does not match. The `timerId` field in 'bottom-lock' is
-// required by /review-plan CRITICAL-1: the observer alone doesn't disconnect if
-// layout settles without triggering a resize event (AC6 test would fail).
-// See: docs/research/transcript-feed-scroll-architecture-2026-06-03.md §7.1
-type ScrollLockState =
-  | { mode: 'idle' }
-  | {
-      mode: 'bottom-lock';
-      deadline: number;
-      observer: ResizeObserver;
-      timerId: ReturnType<typeof setTimeout> | null;
-    }
-  | { mode: 'prepending'; prevScrollHeight: number; prevScrollTop: number };
+// firstItemIndex starts at 1_000_000 so prepend operations never go negative.
+// Per Virtuoso v4 docs: firstItemIndex MUST be a positive number.
+// Soft cap: ~500 entries / 50 prepends → floor ~999_500 — well above 0.
+const INITIAL_FIRST_ITEM_INDEX = 1_000_000;
+const PAGE_SIZE = 10;
 
 interface TranscriptFeedProps {
   entries: TranscriptEntryData[];
@@ -61,10 +38,99 @@ interface TranscriptFeedProps {
   onDishSelect?: (dishName: string) => void;
 }
 
+// Context shape passed to Virtuoso components slot
+interface FeedContext {
+  isAuthenticated: boolean;
+  hasPersisted: boolean;
+  hasMoreHistory: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
+  onClearAll: () => void;
+  isEmpty: boolean;
+  showPersistenceNudge: boolean;
+  onDismissPersistenceNudge: () => void;
+}
+
+// ---------------------------------------------------------------------------
+// VirtuosoHeader — defined at module scope for stable React identity.
+// Unstable identity (defined inside TranscriptFeed) causes Virtuoso to
+// re-mount the header on every parent re-render, which is incorrect.
+// ---------------------------------------------------------------------------
+function VirtuosoHeader({ context }: { context?: FeedContext }) {
+  if (!context) return null;
+
+  const {
+    isAuthenticated,
+    hasPersisted,
+    hasMoreHistory,
+    isLoadingMore,
+    onLoadMore,
+    onClearAll,
+    isEmpty,
+    showPersistenceNudge,
+    onDismissPersistenceNudge,
+  } = context;
+
+  return (
+    <>
+      {/* Keyboard fallback: sr-only focusable "Cargar más historial" (AC8, W23) */}
+      {hasMoreHistory && !isLoadingMore && (
+        <button
+          type="button"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 text-sm text-brand-green underline underline-offset-2 z-10"
+          onClick={onLoadMore}
+        >
+          Cargar más historial
+        </button>
+      )}
+
+      {/* Loading skeletons when isLoadingMore (aria-busy scoped to this region) */}
+      {isLoadingMore && (
+        <div
+          className="mb-4 space-y-3"
+          aria-label="Cargando entradas anteriores"
+          aria-busy="true"
+        >
+          <div className="h-4 w-48 rounded-full shimmer-element mb-3" aria-hidden="true" />
+          <div className="h-[120px] rounded-2xl shimmer-element" aria-hidden="true" />
+          <div className="h-4 w-48 rounded-full shimmer-element mb-3" aria-hidden="true" />
+          <div className="h-[120px] rounded-2xl shimmer-element" aria-hidden="true" />
+        </div>
+      )}
+
+      {/* ClearHistoryButton — shown when authenticated + has persisted entries */}
+      {isAuthenticated && hasPersisted && (
+        <div className="flex justify-end mb-3">
+          <ClearHistoryButton onConfirm={onClearAll} />
+        </div>
+      )}
+
+      {/* Persistence nudge (anonymous users, ≥2 entries) */}
+      {showPersistenceNudge && (
+        <HistoryPersistenceNudge onDismiss={onDismissPersistenceNudge} />
+      )}
+
+      {/* Empty states */}
+      {isEmpty && isAuthenticated && (
+        <HistoryEmptyState />
+      )}
+      {isEmpty && !isAuthenticated && (
+        <div className="flex flex-1 overflow-y-auto">
+          <EmptyState />
+        </div>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// TranscriptFeed
+// ---------------------------------------------------------------------------
+
 export function TranscriptFeed({
   entries,
   isAuthenticated,
-  isLoadingHistory,
+  isLoadingHistory: _isLoadingHistory, // intentionally unused — Virtuoso mounts only post-gate
   hasMoreHistory,
   isLoadingMore,
   showPersistenceNudge,
@@ -75,504 +141,118 @@ export function TranscriptFeed({
   onRetry,
   onDishSelect,
 }: TranscriptFeedProps) {
-  // ---- Refs (8 total — see research doc §7.1 + fix-loop round 2 2026-06-03) ----
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const atBottomRef = useRef(false);
 
-  // Container DOM ref (unchanged from FU1) — the scroll viewport (flex-1 child of
-  // HablarShell's h-[100dvh] flex-col). Used as the scroll target throughout.
-  const feedRef = useRef<HTMLDivElement>(null);
+  // firstItemIndex: starts at INITIAL_FIRST_ITEM_INDEX (positive), decremented on prepend.
+  // Virtuoso uses this for viewport anchoring on prepend operations.
+  const [firstItemIndex, setFirstItemIndex] = useState(INITIAL_FIRST_ITEM_INDEX);
 
-  // FU4 round 2 (2026-06-03): inner-content wrapper ref — the ResizeObserver target.
-  //
-  // Why a separate ref: feedRef points at the flex-1 scroll container; its own box
-  // dimensions are constrained by the parent's fixed h-[100dvh], so per W3C Resize
-  // Observer §3.1/§3.4.8 the observer's `isActive()` compares contentBox/borderBox
-  // sizes that NEVER change when only scrollHeight (internal content) grows. Result:
-  // observe(feedRef) fires once on initial attach, then is silent during the very
-  // shimmer→card mutations the bottom-lock is supposed to catch (AC20-A bug).
-  //
-  // feedContentRef wraps every growth-bearing child inside the scroll viewport. Its
-  // box height equals its content height (block flow, no flex constraint) — so the
-  // observer fires every time shimmer→card / new entry / skeleton growth happens.
-  //
-  // Cross-model verification 2026-06-03 (gemini + codex) CONFIRMED.
-  // See: /tmp/audit-c1-verification-2026-06-03/, /tmp/c1-repro.html.
-  const feedContentRef = useRef<HTMLDivElement>(null);
-
-  // Updated by scroll listener before each append commit (FU2 Bug 2).
-  const wasNearBottomRef = useRef<boolean>(true);
-
-  // One-shot guard for hydration path (component lifetime; resets on unmount for
-  // Strict Mode parity — Effect D cleanup resets it so synthetic remount re-fires).
-  const hasScrolledToBottomOnHydrationRef = useRef(false);
-
-  // Tracks previous entries.length; updated at end of Effect B.
+  // Refs to track inter-render state for prepend detection and in-place resize detection
+  const prevFirstEntryIdRef = useRef<string | undefined>(undefined);
+  const prevLastLoadingRef = useRef(false);
   const prevEntriesLengthRef = useRef(entries.length);
 
-  // FU4 NEW: last-seen entries[0]?.entryId; used by Effect B to detect prepend vs append.
-  const firstEntryIdRef = useRef<string>('');
+  // Local synchronous guard at startReached boundary — prevents double-fire before
+  // React commits isLoadingMore=true (same purpose as loadMoreInFlightRef in hook).
+  // Resets when isLoadingMore flips false (see useEffect below).
+  const loadMoreInFlightRef = useRef(false);
 
-  // FU4 NEW: last-seen entries[N-1]?.entryId; used by Effect B to detect append vs prepend.
-  const lastEntryIdRef = useRef<string>('');
-
-  // FU4 NEW: discriminated union enforcing single-mode-at-a-time.
-  const scrollLockRef = useRef<ScrollLockState>({ mode: 'idle' });
-
-  // Hydration gate (2026-06-04 BUG-WEB-HISTORY-HYDRATION-RACE-001 + follow-up).
-  //
-  // Set to `true` AFTER both: (a) Effect B's hydration branch has completed its
-  // scrollTo(bottom), AND (b) the post-hydration bottom-lock window has expired
-  // (`HYDRATION_RESCROLL_WINDOW_MS`, 500ms). Passed to HistoryLoadMoreSentinel so
-  // its IntersectionObserver does NOT observe during that window.
-  //
-  // Why the 500ms delay (not just "after Effect B"): empirical logs 2026-06-04
-  // showed scrollTop can be RESET to 0 in the ~2-3ms window between Effect B's
-  // synchronous scrollTo(scrollHeight) and the post-paint useEffect cycle of the
-  // sentinel — even with overflow-anchor:none. Cause not yet identified (likely
-  // browser scroll restoration interacting with React commit timing, or a
-  // sub-pixel/clamp behavior). Until the cause is understood, deferring the gate
-  // past the bottom-lock window lets the existing ResizeObserver re-scroll
-  // (within that window) correct any transient reset before the sentinel can
-  // observe. This is a band-aid that gives correct UX while diagnosis continues.
-  const [hydrationReady, setHydrationReady] = useState(false);
-  // Ref to the deferred setHydrationReady timer so Effect D can clear it on unmount.
-  const hydrationGateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ---- Effect A: scroll listener (unchanged from FU2) ----
-  // Mounted once; updates wasNearBottomRef on every user scroll.
+  // Prepend detection + in-place resize scroll
   useEffect(() => {
-    const container = feedRef.current;
-    if (!container) return;
-    const handleScroll = () => {
-      wasNearBottomRef.current =
-        container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
-    };
-    container.addEventListener('scroll', handleScroll);
-    return () => {
-      container.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
+    const currentFirstId = entries[0]?.entryId;
+    const currentLastEntry = entries[entries.length - 1];
+    const currentLastLoading = currentLastEntry?.isLoading ?? false;
 
-  // ---- Internal helpers for bottom-lock observer (FU4 AC1, AC2, AC5, AC6) ----
-  //
-  // startBottomLock: creates a ResizeObserver + paired setTimeout for a duration window
-  // during which every container resize re-fires scrollTo({instant}) to keep the
-  // viewport anchored at the bottom. Used by both hydration and append paths.
-  //
-  // CRITICAL-1 (/review-plan): the observer is paired with an EXPLICIT setTimeout.
-  // If layout settles without a resize event, the observer callback never fires and
-  // AC6 (deadline cleanup) would never trigger. The setTimeout guarantees teardown
-  // regardless of whether a resize event arrives.
-  //
-  // See: docs/research/transcript-feed-scroll-architecture-2026-06-03.md §7.1
-  // Container style overflow-anchor:none (see JSX): JS unambiguously owns scroll.
+    // Prepend detection: first entry changed AND total count grew
+    if (
+      prevFirstEntryIdRef.current !== undefined &&
+      currentFirstId !== undefined &&
+      currentFirstId !== prevFirstEntryIdRef.current &&
+      entries.length > prevEntriesLengthRef.current
+    ) {
+      const prependCount = entries.length - prevEntriesLengthRef.current;
+      setFirstItemIndex((prev) => prev - prependCount);
+    }
 
-  const stopBottomLock = useCallback(
-    (reason: 'timer' | 'user-scroll' | 'deadline-defensive' | 'unmount' | 'mode-transition') => {
-      const lock = scrollLockRef.current;
-      if (lock.mode !== 'bottom-lock') return;
-      if (lock.timerId !== null) clearTimeout(lock.timerId);
-      lock.observer.disconnect();
-      scrollLockRef.current = { mode: 'idle' };
-      // reason is available for future telemetry; suppress unused-var lint.
-      void reason;
-    },
-    [],
-  );
-
-  const startBottomLock = useCallback(
-    (container: HTMLDivElement, durationMs: number) => {
-      if (scrollLockRef.current.mode === 'bottom-lock') {
-        // Extend deadline if already locked: clear existing timer + restart.
-        const existing = scrollLockRef.current;
-        if (existing.timerId !== null) clearTimeout(existing.timerId);
-        existing.deadline = Date.now() + durationMs;
-        existing.timerId = setTimeout(() => stopBottomLock('timer'), durationMs);
-        return;
-      }
-      if (typeof ResizeObserver === 'undefined') return; // AC5: fallback already scrolled above.
-
-      const observer = new ResizeObserver(() => {
-        const lock = scrollLockRef.current;
-        if (lock.mode !== 'bottom-lock') return;
-        if (!wasNearBottomRef.current) {
-          // User scrolled away — cancel early (AC5).
-          stopBottomLock('user-scroll');
-          return;
-        }
-        // Defensive: timer should handle this, but check deadline as safety net.
-        if (Date.now() > lock.deadline) {
-          stopBottomLock('deadline-defensive');
-          return;
-        }
-        try {
-          container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
-        } catch {
-          // jsdom does not implement element.scrollTo — safe to ignore in tests
-        }
+    // In-place resize: last entry's isLoading flipped true→false AND user is at bottom (AC25/AC6).
+    // requestAnimationFrame defers until after layout settle (NutritionCard full height visible).
+    // useEffect (not useLayoutEffect) is correct: fires after paint, so card height is computed.
+    if (
+      prevLastLoadingRef.current === true &&
+      currentLastLoading === false &&
+      atBottomRef.current === true
+    ) {
+      requestAnimationFrame(() => {
+        virtuosoRef.current?.autoscrollToBottom();
       });
-      // FU4 round 2 (2026-06-03): observe the inner content wrapper, NOT the flex-1
-      // scroll container — the latter's box stays constrained so the callback would
-      // never fire on internal scrollHeight growth (auditor C1 BLOCKER, confirmed by
-      // gemini + codex cross-model 2026-06-03 against W3C Resize Observer §3.1).
-      // Fallback to `container` for safety if the wrapper ref isn't mounted yet —
-      // in that case we still get the initial-attach fire (better than nothing).
-      const observerTarget = feedContentRef.current ?? container;
-      observer.observe(observerTarget);
-
-      const timerId = setTimeout(() => stopBottomLock('timer'), durationMs);
-
-      scrollLockRef.current = {
-        mode: 'bottom-lock',
-        deadline: Date.now() + durationMs,
-        observer,
-        timerId,
-      };
-    },
-    [stopBottomLock],
-  );
-
-  // ---- Effect B: unified hydration + append mutation handler (FU4) ----
-  //
-  // useLayoutEffect — must write scroll BEFORE paint to prevent flicker.
-  // FU3 lesson: any useEffect↔useLayoutEffect swap on scroll-writing effects
-  // requires full Path B review (research doc §5.4).
-  //
-  // Dep array includes first/last entryId signals (Codex C1) so the effect fires
-  // when endpoints flip even if length stays equal (rare clear-then-search batched).
-  //
-  // Decision table for branch routing:
-  //   entries.length=0           → early return (no-op)
-  //   !hydrationFired            → hydration path (one-shot, ref-guarded)
-  //   firstChanged && !lastChanged → pure prepend; Effect C handles restore; B no-op
-  //   prepending mode active      → AC14b: do not clobber capture baseline
-  //   else (last changed, or both changed)  → append path
-  useLayoutEffect(() => {
-    if (entries.length === 0) {
-      // Update length ref on empty so deletion guard doesn't misfire after clear-all.
-      prevEntriesLengthRef.current = 0;
-      return;
-    }
-    const container = feedRef.current;
-    if (!container) return;
-
-    const currentFirstId = entries[0]?.entryId ?? '';
-    const currentLastId = entries[entries.length - 1]?.entryId ?? '';
-
-    if (!hasScrolledToBottomOnHydrationRef.current) {
-      // ---- Hydration path (one-shot per component lifetime) ----
-      dlog('Effect B hydration BEFORE scrollTo', {
-        scrollTop: container.scrollTop,
-        scrollHeight: container.scrollHeight,
-        clientHeight: container.clientHeight,
-        entriesLength: entries.length,
-        firstId: currentFirstId,
-        lastId: currentLastId,
-      });
-      hasScrolledToBottomOnHydrationRef.current = true;
-      try {
-        container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
-      } catch {
-        // jsdom — safe to ignore
-      }
-      dlog('Effect B hydration AFTER scrollTo', {
-        scrollTop: container.scrollTop,
-        scrollHeight: container.scrollHeight,
-        clientHeight: container.clientHeight,
-      });
-      startBottomLock(container, HYDRATION_RESCROLL_WINDOW_MS);
-      firstEntryIdRef.current = currentFirstId;
-      lastEntryIdRef.current = currentLastId;
-      prevEntriesLengthRef.current = entries.length;
-      // Defer opening the hydration gate until AFTER the bottom-lock window
-      // expires. Within that 500ms window the bottom-lock ResizeObserver
-      // re-scrolls feedRef to its current bottom whenever feedContentRef grows,
-      // which neutralises any transient scrollTop reset that may occur as React
-      // commits the hydration render and the browser settles its layout. Only
-      // after the window closes is it safe to let the sentinel observe — by
-      // then scrollTop is at a stable bottom (or wherever the user has scrolled,
-      // if they actively scrolled during the window). 50ms slack to cover the
-      // setTimeout's lower-bound jitter.
-      hydrationGateTimerRef.current = setTimeout(() => {
-        hydrationGateTimerRef.current = null;
-        setHydrationReady(true);
-      }, HYDRATION_RESCROLL_WINDOW_MS + 50);
-      return;
     }
 
-    const firstChanged = currentFirstId !== firstEntryIdRef.current;
-    const lastChanged = currentLastId !== lastEntryIdRef.current;
-
-    if (firstChanged && !lastChanged) {
-      // ---- Pure prepend: first entryId changed, last is stable ----
-      //
-      // 2026-06-04 BUG-WEB-HISTORY-HYDRATION-RACE-001: scroll restore now lives
-      // here (not in Effect C) because Effect C fires on `isLoadingMore` going
-      // false, which arrives in the SAME render commit that initially propagates
-      // the new persistedEntries from useSearchHistory. HablarShell uses a
-      // useEffect-based state derivation (`setEntries((prev) => [...persistedEntries, ...sessionOnly])`)
-      // that defers `entries` propagation to TranscriptFeed by ONE render. As a
-      // result, Effect C reads container.scrollHeight BEFORE the new entries are
-      // in the DOM and computes delta=0 → no restore → user stranded at scrollTop≈0
-      // → sentinel re-visible → IO refires → autoload loop.
-      //
-      // Effect B's prepend branch fires precisely when entries.length grows,
-      // which by definition means the new entries are in the DOM. scrollHeight
-      // is correct, delta is non-zero, restore lands the user back where they were.
-      if (scrollLockRef.current.mode === 'prepending') {
-        const lock = scrollLockRef.current;
-        const delta = container.scrollHeight - lock.prevScrollHeight;
-        dlog('Effect B prepend RESTORE', {
-          prevScrollTop: lock.prevScrollTop,
-          prevScrollHeight: lock.prevScrollHeight,
-          currentScrollHeight: container.scrollHeight,
-          delta,
-        });
-        if (delta > 0) {
-          container.scrollTop = lock.prevScrollTop + delta;
-          scrollLockRef.current = { mode: 'idle' };
-        }
-        // If delta <= 0 the prepend produced no measurable growth — keep the
-        // lock active in case a follow-up render adds the entries. This shouldn't
-        // happen in practice (entries.length already grew to fire this branch).
-      }
-      firstEntryIdRef.current = currentFirstId;
-      prevEntriesLengthRef.current = entries.length;
-      return;
-    }
-
-    if (!firstChanged && !lastChanged && entries.length === prevEntriesLengthRef.current) {
-      // No structural change (e.g. in-place isLoading mutation shimmer→card).
-      // entries.length AND both endpoints unchanged → Effect B is a no-op.
-      return;
-    }
-
-    if (entries.length < prevEntriesLengthRef.current) {
-      // ---- Deletion path: entries shrank → no scroll, just update refs ----
-      firstEntryIdRef.current = currentFirstId;
-      lastEntryIdRef.current = currentLastId;
-      prevEntriesLengthRef.current = entries.length;
-      return;
-    }
-
-    if (scrollLockRef.current.mode === 'prepending') {
-      // ---- AC14b: active prepend in flight — do not clobber the baseline ----
-      // Update refs but skip bottom-lock to avoid conflicting with Effect C.
-      if (lastChanged) lastEntryIdRef.current = currentLastId;
-      if (firstChanged) firstEntryIdRef.current = currentFirstId;
-      prevEntriesLengthRef.current = entries.length;
-      return;
-    }
-
-    // ---- Append path (last entryId changed, or both changed = clear-then-search) ----
-    // AC13: both-changed routes here (NOT re-hydration). hasScrolledToBottomOnHydrationRef
-    // remains true for component lifetime; clear-all does not re-arm it (AC14c).
-    if (wasNearBottomRef.current) {
-      try {
-        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-      } catch {
-        // jsdom — safe to ignore
-      }
-      startBottomLock(container, APPEND_BOTTOM_LOCK_WINDOW_MS);
-    }
-
-    firstEntryIdRef.current = currentFirstId;
-    lastEntryIdRef.current = currentLastId;
+    prevFirstEntryIdRef.current = currentFirstId;
+    prevLastLoadingRef.current = currentLastLoading;
     prevEntriesLengthRef.current = entries.length;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries.length, entries[0]?.entryId ?? '', entries[entries.length - 1]?.entryId ?? '']);
+  }, [entries]);
 
-  // ---- Effect C: loadMore restore (FU4 — replaces old Effects 4 + 5) ----
-  //
-  // useLayoutEffect: pre-paint write preserves FU3's flicker fix.
-  // Reads ONLY from scrollLockRef.mode==='prepending' (captured pre-skeleton by
-  // handleLoadMore callback). If idle, early-returns. After restore, sets idle.
-  //
-  // /review-plan IMPORTANT-3: if feedRef.current is null at this point, we still
-  // set mode=idle so stale prepending state doesn't block future operations.
-  useLayoutEffect(() => {
-    if (isLoadingMore) {
-      dlog('Effect C skipped (isLoadingMore=true)');
-      return; // only run on false transition
+  // Reset startReached guard when isLoadingMore becomes false
+  useEffect(() => {
+    if (!isLoadingMore) {
+      loadMoreInFlightRef.current = false;
     }
-    const lock = scrollLockRef.current;
-    if (lock.mode !== 'prepending') {
-      dlog('Effect C skipped (mode!=prepending)', { mode: lock.mode });
-      return;
-    }
-    const container = feedRef.current;
-    if (!container) {
-      dlog('Effect C BAILED (feedRef.current is null)', { mode: lock.mode });
-      scrollLockRef.current = { mode: 'idle' };
-      return;
-    }
-    const delta = container.scrollHeight - lock.prevScrollHeight;
-    dlog('Effect C RESTORE', {
-      prevScrollTop: lock.prevScrollTop,
-      prevScrollHeight: lock.prevScrollHeight,
-      currentScrollHeight: container.scrollHeight,
-      delta,
-      willSetScrollTop: delta > 0 ? lock.prevScrollTop + delta : container.scrollTop,
-      scrollTopBefore: container.scrollTop,
-    });
-    if (delta > 0) {
-      container.scrollTop = lock.prevScrollTop + delta;
-      // Only release the prepending lock on a SUCCESSFUL restore. If delta is 0
-      // (entries not yet propagated to DOM — HablarShell state-derivation lag),
-      // keep `mode='prepending'` so Effect B's prepend branch can complete the
-      // restore on the next render when entries.length actually grows.
-      // BUG-WEB-HISTORY-HYDRATION-RACE-001 (2026-06-04).
-      scrollLockRef.current = { mode: 'idle' };
-    }
-    dlog('Effect C RESTORE AFTER', { scrollTop: container.scrollTop, modeAfter: scrollLockRef.current.mode });
   }, [isLoadingMore]);
 
-  // ---- Effect D: unmount cleanup (generalised from FU2 Effect 2) ----
-  //
-  // Handles all 3 modes: bottom-lock → disconnect; prepending → reset; idle → no-op.
-  // Resets all 7 refs for Strict Mode dev parity (synthetic mount→cleanup→mount
-  // in React 18 dev re-runs the hydration branch on the remount because ref=false).
-  useEffect(() => {
-    const lockRef = scrollLockRef;
-    const guardRef = hasScrolledToBottomOnHydrationRef;
-    const firstIdRef = firstEntryIdRef;
-    const lastIdRef = lastEntryIdRef;
-    const lengthRef = prevEntriesLengthRef;
-    const nearBottomRef = wasNearBottomRef;
-    const hydrationTimerRef = hydrationGateTimerRef;
-    return () => {
-      const lock = lockRef.current;
-      if (lock.mode === 'bottom-lock') {
-        if (lock.timerId !== null) clearTimeout(lock.timerId);
-        lock.observer.disconnect();
-      }
-      // Clear the deferred hydration-gate setTimeout so a fast unmount→remount
-      // does not flip `hydrationReady` on a stale component instance.
-      if (hydrationTimerRef.current !== null) {
-        clearTimeout(hydrationTimerRef.current);
-        hydrationTimerRef.current = null;
-      }
-      lockRef.current = { mode: 'idle' };
-      guardRef.current = false;
-      // Reset entryId refs so Strict Mode synthetic remount re-installs correctly.
-      firstIdRef.current = '';
-      lastIdRef.current = '';
-      lengthRef.current = 0;
-      nearBottomRef.current = true;
-    };
-  }, []);
-
-  // ---- handleLoadMore: wraps props.onLoadMore with pre-skeleton capture (FU4) ----
-  //
-  // CRITICAL: captures scrollHeight/scrollTop SYNCHRONOUSLY before calling
-  // props.onLoadMore() which triggers setIsLoadingMore(true) → skeleton render.
-  // If we captured AFTER the skeleton mount, the baseline is polluted by ~248px.
-  //
-  // /review-plan IMPORTANT-3: if feedRef.current is null (transient tear-down race),
-  // STILL call onLoadMore — losing the baseline is acceptable; losing pagination is not.
-  // Effect C detects mode==='idle' and skips restoration gracefully.
-  //
-  // If bottom-lock is active (append in flight), transition to prepending — use
-  // stopBottomLock to cleanly disconnect the observer before setting the new mode.
-  const handleLoadMore = useCallback(() => {
-    const container = feedRef.current;
-    dlog('handleLoadMore CALLED', {
-      containerExists: !!container,
-      currentMode: scrollLockRef.current.mode,
-      scrollTop: container?.scrollTop,
-      scrollHeight: container?.scrollHeight,
-      clientHeight: container?.clientHeight,
-    });
-    if (container) {
-      if (scrollLockRef.current.mode === 'bottom-lock') {
-        stopBottomLock('mode-transition');
-      }
-      scrollLockRef.current = {
-        mode: 'prepending',
-        prevScrollHeight: container.scrollHeight,
-        prevScrollTop: container.scrollTop,
-      };
-      dlog('handleLoadMore CAPTURED', {
-        prevScrollHeight: container.scrollHeight,
-        prevScrollTop: container.scrollTop,
-      });
-    }
-    // ALWAYS call parent's onLoadMore — even without a captured baseline.
+  const handleStartReached = () => {
+    if (loadMoreInFlightRef.current) return;
+    if (isLoadingMore || !hasMoreHistory) return;
+    loadMoreInFlightRef.current = true;
     onLoadMore();
-  }, [onLoadMore, stopBottomLock]);
+  };
 
   const hasPersisted = entries.some((e) => e.isPersisted);
   const isEmpty = entries.length === 0;
 
+  const context: FeedContext = {
+    isAuthenticated,
+    hasPersisted,
+    hasMoreHistory,
+    isLoadingMore,
+    onLoadMore,
+    onClearAll,
+    isEmpty,
+    showPersistenceNudge,
+    onDismissPersistenceNudge,
+  };
+
   return (
-    // overflow-anchor:none: JS unambiguously owns scroll restoration.
-    // Eliminates race between Effect C's pre-paint write and the browser's native
-    // anchor-adjustment algorithm. See research doc §7.1 + §6.5.
-    // NOT a Tailwind class — Tailwind v3 has no overflow-anchor utility.
-    <div
-      ref={feedRef}
+    <Virtuoso
+      ref={virtuosoRef}
       role="feed"
       aria-label="Historial de consultas"
-      aria-busy={isLoadingHistory ? true : undefined}
       className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(9rem+env(safe-area-inset-bottom))] lg:max-w-2xl lg:mx-auto w-full"
-      style={{ overflowAnchor: 'none' }}
-    >
-      {/* FU4 round 2 (2026-06-03): inner content wrapper — ResizeObserver target.
-          The wrapper's box height grows with its children (block flow), unlike the
-          flex-1 parent whose box stays constrained by HablarShell's h-[100dvh].
-          See feedContentRef declaration for the auditor C1 background. */}
-      <div ref={feedContentRef} data-testid="feed-content">
-        {/* Load-more sentinel — at the very top, above all entries.
-            feedRef is REQUIRED so the sentinel's IntersectionObserver uses the
-            scroll container as its root (not the browser viewport, which would
-            spuriously fire on hydration). See BUG-WEB-HISTORY-LOADMORE-IO-ROOT-001. */}
-        {isAuthenticated && (hasMoreHistory || isLoadingMore) && (
-          <HistoryLoadMoreSentinel
-            feedRef={feedRef}
-            hydrationReady={hydrationReady}
-            hasMoreHistory={hasMoreHistory}
-            isLoadingMore={isLoadingMore}
-            onLoadMore={handleLoadMore}
+      data={entries}
+      computeItemKey={(_idx, entry) => entry.entryId}
+      firstItemIndex={firstItemIndex}
+      initialTopMostItemIndex={Math.max(0, entries.length - 1)}
+      followOutput="smooth"
+      atBottomStateChange={(atBottom) => {
+        atBottomRef.current = atBottom;
+      }}
+      startReached={handleStartReached}
+      itemContent={(idx, entry) => (
+        <div>
+          <TranscriptEntry
+            entry={entry}
+            onDelete={entry.isPersisted ? onDeleteEntry : undefined}
+            onRetry={onRetry}
+            onDishSelect={onDishSelect}
           />
-        )}
-
-        {/* Clear all button — top of feed when authenticated and has persisted entries */}
-        {isAuthenticated && hasPersisted && (
-          <div className="flex justify-end mb-3">
-            <ClearHistoryButton onConfirm={onClearAll} />
-          </div>
-        )}
-
-        {/* Persistence nudge — above first session entry, anonymous only, ≥2 entries */}
-        {showPersistenceNudge && (
-          <HistoryPersistenceNudge onDismiss={onDismissPersistenceNudge} />
-        )}
-
-        {/* Empty states */}
-        {isEmpty && isAuthenticated && !isLoadingHistory && (
-          <HistoryEmptyState />
-        )}
-        {isEmpty && !isAuthenticated && (
-          <div className="flex flex-1 overflow-y-auto">
-            <EmptyState />
-          </div>
-        )}
-
-        {/* Entry list */}
-        {entries.map((entry, index) => (
-          <div key={entry.entryId}>
-            <TranscriptEntry
-              entry={entry}
-              onDelete={entry.isPersisted ? onDeleteEntry : undefined}
-              onRetry={onRetry}
-              onDishSelect={onDishSelect}
-            />
-            {/* Divider between entries */}
-            {index < entries.length - 1 && (
-              <hr className="border-t border-slate-100 my-4" aria-hidden="true" />
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
+          {/* MINOR-1: suppress trailing divider after last entry (code-review-specialist) */}
+          {idx < entries.length - 1 && (
+            <hr className="border-t border-slate-100 my-4" aria-hidden="true" />
+          )}
+        </div>
+      )}
+      components={{ Header: VirtuosoHeader }}
+      context={context}
+    />
   );
 }

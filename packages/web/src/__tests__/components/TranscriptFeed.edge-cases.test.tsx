@@ -1,13 +1,14 @@
-// TranscriptFeed edge-cases tests (F-WEB-HISTORY-FU2 QA)
-// QA Engineer: covers race/timing and deletion paths missed by the 16 dev tests.
-// File: packages/web/src/__tests__/components/TranscriptFeed.edge-cases.test.tsx
+// TranscriptFeed edge-case tests (FU6 adaptation)
+// FU4-era scroll/ResizeObserver tests deleted (AC4 deletion sweep).
+// Surviving tests cover entry deletion, clear-all, empty-state, and persistence nudge
+// — behavioral assertions only, no scroll or ResizeObserver machinery.
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import type { TranscriptEntryData } from '../../types/history';
 
 // ---------------------------------------------------------------------------
-// Module mocks (same as TranscriptFeed.test.tsx)
+// Module mocks (auto-mock picks up __mocks__/react-virtuoso.tsx for Virtuoso)
 // ---------------------------------------------------------------------------
 
 jest.mock('../../components/TranscriptEntry', () => ({
@@ -26,11 +27,6 @@ jest.mock('../../components/HistoryPersistenceNudge', () => ({
     <div data-testid="persistence-nudge"><button onClick={onDismiss}>close</button></div>
   ),
 }));
-jest.mock('../../components/HistoryLoadMoreSentinel', () => ({
-  HistoryLoadMoreSentinel: ({ onLoadMore }: { onLoadMore: () => void; hasMoreHistory: boolean; isLoadingMore: boolean }) => (
-    <div data-testid="load-more-sentinel"><button onClick={onLoadMore}>load</button></div>
-  ),
-}));
 jest.mock('../../components/ClearHistoryButton', () => ({
   ClearHistoryButton: ({ onConfirm }: { onConfirm: () => void }) => (
     <button data-testid="clear-history-button" onClick={onConfirm} />
@@ -42,7 +38,6 @@ jest.mock('../../lib/metrics', () => ({
 }));
 
 import { TranscriptFeed } from '../../components/TranscriptFeed';
-import { createResizeObserverShim } from '../helpers/resizeObserverShim';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -79,335 +74,126 @@ const defaultProps = {
   onDishSelect: jest.fn(),
 };
 
-function installScrollMocks(
-  feed: HTMLElement,
-  opts: { scrollTop?: number; clientHeight?: number; scrollHeight?: number } = {},
-) {
-  let _scrollHeight = opts.scrollHeight ?? 1000;
-  const scrollToMock = jest.fn();
-  Object.defineProperty(feed, 'scrollTo', { value: scrollToMock, writable: true, configurable: true });
-  Object.defineProperty(feed, 'scrollTop', { value: opts.scrollTop ?? 400, writable: true, configurable: true });
-  Object.defineProperty(feed, 'clientHeight', { value: opts.clientHeight ?? 500, writable: true, configurable: true });
-  Object.defineProperty(feed, 'scrollHeight', { get: () => _scrollHeight, configurable: true });
-  return {
-    scrollToMock,
-    setScrollHeight: (v: number) => { _scrollHeight = v; },
-  };
-}
-
 // ---------------------------------------------------------------------------
-// Edge case 1: Entry deletion path
-// entries goes N → N-1 (delete): no spurious scroll, prevEntriesLengthRef updated
-// then N-1 → N (new append): scroll fires correctly
+// Entry deletion path: entry removed from DOM after delete
 // ---------------------------------------------------------------------------
 
 describe('TranscriptFeed edge cases — deletion path', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('EC-DELETE-1: deleting an entry (length shrinks) must NOT call scrollTo', () => {
-    const entryA = makeEntry({ entryId: 'a' });
-    const entryB = makeEntry({ entryId: 'b' });
+  it('EC-DELETE-1: deleted entry is absent from the DOM after rerender with smaller entries array', () => {
+    const entryA = makeEntry({ entryId: 'del-a', queryText: 'first' });
+    const entryB = makeEntry({ entryId: 'del-b', queryText: 'second' });
+
     const { rerender } = render(
-      <TranscriptFeed {...defaultProps} entries={[]} />,
+      <TranscriptFeed {...defaultProps} entries={[entryA, entryB]} />
     );
-    const feed = screen.getByRole('feed');
-    const { scrollToMock } = installScrollMocks(feed, { scrollTop: 400, scrollHeight: 1000, clientHeight: 500 });
 
-    // Hydrate with 2 entries.
-    rerender(<TranscriptFeed {...defaultProps} entries={[entryA, entryB]} />);
-    scrollToMock.mockClear(); // clear hydration scroll
+    // Both entries visible
+    expect(screen.getByTestId('entry-del-a')).toBeInTheDocument();
+    expect(screen.getByTestId('entry-del-b')).toBeInTheDocument();
 
-    // Delete entryB: entries shrinks from 2 → 1.
+    // Simulate delete of entryB
     rerender(<TranscriptFeed {...defaultProps} entries={[entryA]} />);
 
-    // Append effect: entryCountGrew = 1 > 2 → false → must NOT scroll.
-    expect(scrollToMock).not.toHaveBeenCalled();
+    // entryB gone; entryA still present
+    expect(screen.queryByTestId('entry-del-b')).not.toBeInTheDocument();
+    expect(screen.getByTestId('entry-del-a')).toBeInTheDocument();
   });
 
-  it('EC-DELETE-2: after deletion, the NEXT real append correctly scrolls (prevEntriesLengthRef not stale)', () => {
-    const entryA = makeEntry({ entryId: 'a' });
-    const entryB = makeEntry({ entryId: 'b' });
-    const entryC = makeEntry({ entryId: 'c' });
+  it('EC-DELETE-2: after deletion, new append renders correctly', () => {
+    const entryA = makeEntry({ entryId: 'del2-a', queryText: 'first' });
+    const entryB = makeEntry({ entryId: 'del2-b', queryText: 'second' });
+    const entryC = makeEntry({ entryId: 'del2-c', queryText: 'third' });
+
     const { rerender } = render(
-      <TranscriptFeed {...defaultProps} entries={[]} />,
+      <TranscriptFeed {...defaultProps} entries={[entryA, entryB]} />
     );
-    const feed = screen.getByRole('feed');
-    const { scrollToMock } = installScrollMocks(feed, { scrollTop: 400, scrollHeight: 1000, clientHeight: 500 });
 
-    // Hydrate with 2 entries.
-    rerender(<TranscriptFeed {...defaultProps} entries={[entryA, entryB]} />);
-    scrollToMock.mockClear();
-
-    // Delete entryB: length 2 → 1. prevEntriesLengthRef should now be 1.
+    // Delete entryB
     rerender(<TranscriptFeed {...defaultProps} entries={[entryA]} />);
-    scrollToMock.mockClear();
+    expect(screen.queryByTestId('entry-del2-b')).not.toBeInTheDocument();
 
-    // Keep user near bottom (wasNearBottomRef=true by default; re-confirm via scroll event).
-    Object.defineProperty(feed, 'scrollTop', { value: 400, writable: true, configurable: true });
-    feed.dispatchEvent(new Event('scroll', { bubbles: true })); // 400+500 >= 1000-100 → true
-
-    // New session entry appends: length 1 → 2.
+    // New entry appends
     rerender(<TranscriptFeed {...defaultProps} entries={[entryA, entryC]} />);
-
-    // Append effect: entryCountGrew = 2 > 1 → true; wasNearBottomRef=true → scrollTo fires.
-    expect(scrollToMock).toHaveBeenCalledWith(
-      expect.objectContaining({ behavior: 'smooth' }),
-    );
+    expect(screen.getByTestId('entry-del2-c')).toBeInTheDocument();
+    expect(screen.getByTestId('entry-del2-a')).toBeInTheDocument();
   });
 });
 
 // ---------------------------------------------------------------------------
-// Edge case 2: N → 0 → N entry cycle (same component instance, same lifecycle)
-// e.g., user clears all entries then gets a new search result
+// Clear-all then new entry cycle
 // ---------------------------------------------------------------------------
 
 describe('TranscriptFeed edge cases — N → 0 → N same component', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('EC-CLEAR-1: after clear-all (entries → []), a new append still auto-scrolls via append effect', () => {
-    const entryA = makeEntry({ entryId: 'a' });
-    const entryNew = makeEntry({ entryId: 'new' });
+  it('EC-CLEAR-1: after clear-all (entries → []), empty state renders; new entry replaces it', () => {
+    const entryA = makeEntry({ entryId: 'clr-a', queryText: 'old entry' });
+    const entryNew = makeEntry({ entryId: 'clr-new', queryText: 'new entry' });
+
     const { rerender } = render(
-      <TranscriptFeed {...defaultProps} entries={[]} />,
+      <TranscriptFeed {...defaultProps} isAuthenticated={true} entries={[entryA]} />
     );
-    const feed = screen.getByRole('feed');
-    const { scrollToMock } = installScrollMocks(feed, { scrollTop: 400, scrollHeight: 1000, clientHeight: 500 });
+    expect(screen.getByTestId('entry-clr-a')).toBeInTheDocument();
 
-    // Hydrate with 1 entry.
-    rerender(<TranscriptFeed {...defaultProps} entries={[entryA]} />);
-    scrollToMock.mockClear();
+    // Clear all entries
+    rerender(<TranscriptFeed {...defaultProps} isAuthenticated={true} entries={[]} />);
+    expect(screen.queryByTestId('entry-clr-a')).not.toBeInTheDocument();
+    // Authenticated + empty → HistoryEmptyState
+    expect(screen.getByTestId('history-empty-state')).toBeInTheDocument();
 
-    // Clear all entries: entries → [].
-    rerender(<TranscriptFeed {...defaultProps} entries={[]} />);
-    scrollToMock.mockClear();
-
-    // User near bottom (wasNearBottomRef stays true or is updated via scroll event).
-    feed.dispatchEvent(new Event('scroll', { bubbles: true })); // 400+500 >= 1000-100 → true
-
-    // New search entry appends: entries [] → [new].
-    // Note: prevEntriesLengthRef should be 0 at this point (set when entries went to []).
-    rerender(<TranscriptFeed {...defaultProps} entries={[entryNew]} />);
-
-    // Append effect fires (1 > 0 → grew); wasNearBottomRef=true → scrollTo with 'smooth'.
-    // Hydration effect: hasScrolledToBottomOnHydrationRef=true → early returns (by design).
-    expect(scrollToMock).toHaveBeenCalledWith(
-      expect.objectContaining({ behavior: 'smooth' }),
-    );
-  });
-
-  it('EC-CLEAR-2: hydration effect does NOT re-fire after clear-all (ref-guard persists for component lifetime)', () => {
-    const shim = createResizeObserverShim();
-    shim.install();
-
-    const entryA = makeEntry({ entryId: 'a' });
-    const entryNew = makeEntry({ entryId: 'new' });
-    const { rerender } = render(
-      <TranscriptFeed {...defaultProps} entries={[]} />,
-    );
-    const feed = screen.getByRole('feed');
-    installScrollMocks(feed);
-
-    // First hydration.
-    rerender(<TranscriptFeed {...defaultProps} entries={[entryA]} />);
-    const firstObserver = shim.lastObserver;
-    shim.disconnectMock.mockClear();
-
-    // Clear all entries.
-    rerender(<TranscriptFeed {...defaultProps} entries={[]} />);
-
-    // New entry arrives (same component instance).
-    rerender(<TranscriptFeed {...defaultProps} entries={[entryNew]} />);
-
-    // A NEW ResizeObserver must NOT have been created (shim.lastObserver should still be firstObserver
-    // OR the observer may have disconnected via timer — but NOT a new one for the second hydration).
-    // The key assertion: disconnectMock was NOT called from a NEW observer install.
-    // (Timer from first hydration may have fired if real timers elapsed — but tests run fast).
-    expect(shim.lastObserver).toBe(firstObserver); // same instance, no re-installation
-
-    shim.uninstall();
+    // New entry arrives
+    rerender(<TranscriptFeed {...defaultProps} isAuthenticated={true} entries={[entryNew]} />);
+    expect(screen.getByTestId('entry-clr-new')).toBeInTheDocument();
+    // Empty state gone
+    expect(screen.queryByTestId('history-empty-state')).not.toBeInTheDocument();
   });
 });
 
 // ---------------------------------------------------------------------------
-// Edge case 3: resizeObserverShim defensive behavior
+// Empty states
 // ---------------------------------------------------------------------------
 
-describe('resizeObserverShim edge cases', () => {
-  it('EC-SHIM-1: fire() before any component mounts throws descriptively', () => {
-    const shim = createResizeObserverShim();
-    shim.install();
-
-    expect(() => shim.fire()).toThrow('lastObserverCb is null');
-
-    shim.uninstall();
+describe('TranscriptFeed edge cases — empty states', () => {
+  it('authenticated + empty → HistoryEmptyState (not EmptyState)', () => {
+    render(
+      <TranscriptFeed {...defaultProps} isAuthenticated={true} entries={[]} />
+    );
+    expect(screen.getByTestId('history-empty-state')).toBeInTheDocument();
+    expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
   });
 
-  it('EC-SHIM-2: uninstall() without prior install() does not permanently destroy globalThis.ResizeObserver', () => {
-    // Capture current value (should be the no-op stub from jest.setup.ts).
-    const priorValue = globalThis.ResizeObserver;
-    expect(priorValue).toBeDefined(); // jest.setup.ts installs a no-op stub
-
-    const shim = createResizeObserverShim();
-    // Do NOT call install() — call uninstall() directly.
-    shim.uninstall();
-
-    // After a stray uninstall(), _prior is undefined (never was set by install())
-    // → globalThis.ResizeObserver = undefined. This is the bug.
-    // The test exposes whether this actually happens:
-    const afterUninstall = globalThis.ResizeObserver;
-
-    // Restore to avoid test pollution regardless of outcome:
-    if (!afterUninstall && priorValue) {
-      (globalThis as unknown as Record<string, unknown>).ResizeObserver = priorValue;
-    }
-
-    // Assertion: stray uninstall should NOT have destroyed the global.
-    // If this fails, the shim needs a guard: `if (_prior !== undefined) globalThis.ResizeObserver = _prior`
-    expect(afterUninstall).toBeDefined();
+  it('anonymous + empty → EmptyState (not HistoryEmptyState)', () => {
+    render(
+      <TranscriptFeed {...defaultProps} isAuthenticated={false} entries={[]} />
+    );
+    expect(screen.getByTestId('empty-state')).toBeInTheDocument();
+    expect(screen.queryByTestId('history-empty-state')).not.toBeInTheDocument();
   });
 
-  it('EC-SHIM-3: reset() clears state without touching globalThis.ResizeObserver', () => {
-    const shim = createResizeObserverShim();
-    shim.install();
-
-    // Render a component to populate lastObserver.
-    render(<TranscriptFeed {...defaultProps} entries={[makeEntry({ entryId: 'x' })]} />);
-    expect(shim.lastObserverCb).not.toBeNull();
-
-    shim.reset();
-    expect(shim.lastObserverCb).toBeNull();
-    expect(shim.lastObserver).toBeNull();
-    // Global must still be the shim (not restored).
-    expect(globalThis.ResizeObserver).toBeDefined();
-
-    shim.uninstall();
-  });
-
-  it('EC-SHIM-4: two sequential install/uninstall cycles restore correctly', () => {
-    const priorValue = globalThis.ResizeObserver;
-
-    const shim = createResizeObserverShim();
-    shim.install();
-    const afterFirstInstall = globalThis.ResizeObserver;
-    shim.uninstall();
-    const afterFirstUninstall = globalThis.ResizeObserver;
-
-    shim.install();
-    shim.uninstall();
-    const afterSecondUninstall = globalThis.ResizeObserver;
-
-    // After each uninstall, global should be restored to what it was before install.
-    expect(afterFirstUninstall).toBe(priorValue);
-    expect(afterSecondUninstall).toBe(priorValue);
-    // The shim class must differ from the original.
-    expect(afterFirstInstall).not.toBe(priorValue);
+  it('authenticated + has entries → no empty state', () => {
+    const entry = makeEntry({ entryId: 'es-e1' });
+    render(
+      <TranscriptFeed {...defaultProps} isAuthenticated={true} entries={[entry]} />
+    );
+    expect(screen.queryByTestId('history-empty-state')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
   });
 });
 
 // ---------------------------------------------------------------------------
-// Edge case 4: Scroll event during hydration window (observer active) —
-// user scrolls immediately after reload during the 500ms window. The observer
-// keeps re-scrolling ('instant') but the scroll listener also updates wasNearBottomRef.
-// After the window closes, wasNearBottomRef should reflect the user's last scroll position.
+// Persistence nudge
 // ---------------------------------------------------------------------------
 
-describe('TranscriptFeed edge cases — scroll during hydration window', () => {
-  const shim = createResizeObserverShim();
-
-  beforeEach(() => {
-    shim.install();
-    jest.useFakeTimers();
+describe('TranscriptFeed edge cases — persistence nudge', () => {
+  it('shows nudge when showPersistenceNudge=true', () => {
+    render(<TranscriptFeed {...defaultProps} showPersistenceNudge={true} />);
+    expect(screen.getByTestId('persistence-nudge')).toBeInTheDocument();
   });
 
-  afterEach(() => {
-    shim.uninstall();
-    jest.useRealTimers();
-  });
-
-  it('EC-SCROLL-DURING-WINDOW-1: user scrolls up during hydration window; after window, append respects updated wasNearBottomRef', () => {
-    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
-    const feed = screen.getByRole('feed');
-    const { scrollToMock } = installScrollMocks(feed, {
-      scrollTop: 0,
-      scrollHeight: 2000,
-      clientHeight: 500,
-    });
-
-    // Hydrate — observer active, wasNearBottomRef=true.
-    rerender(<TranscriptFeed {...defaultProps} entries={[makeEntry({ entryId: 'p1' })]} />);
-
-    // User scrolls up DURING the hydration window (< 500ms after hydration).
-    // Observer may fire 'instant' re-scrolls, but user is fighting it.
-    Object.defineProperty(feed, 'scrollTop', { value: 0, writable: true, configurable: true });
-    feed.dispatchEvent(new Event('scroll', { bubbles: false })); // 0+500 < 2000-100 → false
-
-    // Advance past the window.
-    jest.advanceTimersByTime(501);
-    scrollToMock.mockClear();
-
-    // Post-window: user is NOT near bottom (wasNearBottomRef=false).
-    rerender(
-      <TranscriptFeed
-        {...defaultProps}
-        entries={[makeEntry({ entryId: 'p1' }), makeEntry({ entryId: 'session1' })]}
-      />,
-    );
-
-    // Append effect: wasNearBottomRef=false → must NOT scroll.
-    expect(scrollToMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ behavior: 'smooth' }),
-    );
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Edge case 5: Rapid loadMore + session append within the 500ms window
-// Both fire the entries.length effect; hydration guard prevents re-setup;
-// append effect fires; wasNearBottomRef determines scroll.
-// ---------------------------------------------------------------------------
-
-describe('TranscriptFeed edge cases — rapid loadMore + append within window', () => {
-  const shim = createResizeObserverShim();
-
-  beforeEach(() => {
-    shim.install();
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    shim.uninstall();
-    jest.useRealTimers();
-  });
-
-  it('EC-RAPID-1: loadMore prepend within window → observer survives; subsequent session append scrolls correctly', () => {
-    const p1 = makeEntry({ entryId: 'p1', isPersisted: true });
-    const older = makeEntry({ entryId: 'older', isPersisted: true });
-    const session = makeEntry({ entryId: 'session' });
-
-    const { rerender } = render(<TranscriptFeed {...defaultProps} entries={[]} />);
-    const feed = screen.getByRole('feed');
-    const { scrollToMock } = installScrollMocks(feed, { scrollTop: 400, scrollHeight: 1000, clientHeight: 500 });
-
-    // Hydrate: observer installed.
-    rerender(<TranscriptFeed {...defaultProps} entries={[p1]} />);
-    expect(shim.disconnectMock).not.toHaveBeenCalled();
-    const observerRef = shim.lastObserver;
-
-    // loadMore prepend WITHIN the window: entries grows at front.
-    feed.dispatchEvent(new Event('scroll', { bubbles: true })); // 400+500 >= 1000-100 → near bottom
-    rerender(<TranscriptFeed {...defaultProps} entries={[older, p1]} />);
-
-    // Observer must still be the same instance (not disconnected by React cleanup).
-    expect(shim.disconnectMock).not.toHaveBeenCalled();
-    expect(shim.lastObserver).toBe(observerRef);
-
-    scrollToMock.mockClear();
-
-    // Session append WITHIN the window: user near bottom → append scrolls.
-    rerender(<TranscriptFeed {...defaultProps} entries={[older, p1, session]} />);
-
-    expect(scrollToMock).toHaveBeenCalledWith(
-      expect.objectContaining({ behavior: 'smooth' }),
-    );
+  it('hides nudge when showPersistenceNudge=false', () => {
+    render(<TranscriptFeed {...defaultProps} showPersistenceNudge={false} />);
+    expect(screen.queryByTestId('persistence-nudge')).not.toBeInTheDocument();
   });
 });

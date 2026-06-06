@@ -8,8 +8,12 @@
 //   - HistoryPersistenceNudge shown after ≥2 entries for anonymous users.
 //   - Preserved unchanged: LoginCta/UsageMeter/RateLimitNudge/usageRefreshRef/
 //     dynamic-429/VoiceOverlay/ConversationInput/header auth slot.
+// F-WEB-HISTORY-FU6: state split — sessionEntries (local) + persistedEntries (hook).
+//   - allEntries = useMemo([persistedEntries, sessionEntries]) — synchronous derivation.
+//   - Mount gate: TranscriptFeed not mounted while authLoading||(user&&isLoadingHistory).
+//   - handleClearAll: only clearPersistedHistory() — sessionEntries preserved (AC2 sub-bullet).
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { ConversationMessageData, MenuAnalysisData } from '@foodxplorer/shared';
 import type { VoiceBudgetData, VoiceErrorCode, VoiceState } from '@/types/voice';
 import type { TranscriptEntryData } from '@/types/history';
@@ -61,8 +65,10 @@ export function HablarShell() {
   const [query, setQuery] = useState('');
   const [inlineError, setInlineError] = useState<string | null>(null);
 
-  // Append-only feed — replaces singleton results/photoResults/error/isLoading state.
-  const [entries, setEntries] = useState<TranscriptEntryData[]>([]);
+  // F-WEB-HISTORY-FU6 state split: session-owned slice only.
+  // persistedEntries come directly from useSearchHistory (no local mirror).
+  // allEntries = useMemo([persistedEntries, sessionEntries]) — synchronous derivation.
+  const [sessionEntries, setSessionEntries] = useState<TranscriptEntryData[]>([]);
 
   // Persistence nudge dismissed state
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
@@ -122,27 +128,13 @@ export function HablarShell() {
     clearAll: clearPersistedHistory,
   } = useSearchHistory({ authToken: session?.access_token ?? null });
 
-  // Reconcile persisted entries into the feed on every change (AC39/AC40).
-  // Replaces one-shot merge: whenever persistedEntries grows (loadMore prepends
-  // older pages) or shrinks (logout → hook returns [], deleteEntry, clearAll),
-  // the persisted slice in entries is replaced wholesale while session-only
-  // entries (isPersisted === false) are preserved at the bottom.
-  // Ordering: persistedEntries is oldest-first (hook contract W16); session
-  // entries follow below so newest query stays at the bottom.
-  // Logout fix: when authToken → null the hook returns [] immediately, so
-  // the effect drops all persisted entries from the feed.
-  //
-  // Stable dep: join entry IDs so the effect only fires when the actual set
-  // of persisted IDs changes, not on every render that returns a new array
-  // reference with identical contents.
-  const persistedIdsKey = persistedEntries.map((e) => e.entryId).join(',');
-  useEffect(() => {
-    setEntries((prev) => {
-      const sessionOnly = prev.filter((e) => !e.isPersisted);
-      return [...persistedEntries, ...sessionOnly];
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [persistedIdsKey]); // persistedEntries is captured in closure via key change
+  // F-WEB-HISTORY-FU6: synchronous derivation of allEntries.
+  // persistedEntries (oldest-first, hook contract W16) come first;
+  // sessionEntries follow below so newest query stays at the bottom.
+  const allEntries = useMemo(
+    () => [...persistedEntries, ...sessionEntries],
+    [persistedEntries, sessionEntries],
+  );
 
   const voiceSession = useVoiceSession(actorIdRef.current);
   const tts = useTtsPlayback({ enabled: ttsEnabled, voiceName: selectedVoiceName });
@@ -221,7 +213,7 @@ export function HablarShell() {
         error: null,
         isPersisted: false,
       };
-      setEntries((prev) => [...prev, newEntry]);
+      setSessionEntries((prev) => [...prev, newEntry]);
 
       // Speak a short summary — presentation layer only
       if (data.intent === 'estimation' && data.estimation?.result) {
@@ -264,7 +256,7 @@ export function HablarShell() {
           error: getVoiceErrorMessage(code),
           isPersisted: false,
         };
-        setEntries((prev) => [...prev, errorEntry]);
+        setSessionEntries((prev) => [...prev, errorEntry]);
       }
     }
   }, [voiceSession.state, voiceSession.error]);
@@ -324,7 +316,7 @@ export function HablarShell() {
 
     // Append optimistic pending entry
     const pendingEntry = createPendingEntry(text, 'text');
-    setEntries((prev) => [...prev, pendingEntry]);
+    setSessionEntries((prev) => [...prev, pendingEntry]);
 
     try {
       const actorId = getActorId();
@@ -342,7 +334,7 @@ export function HablarShell() {
         });
         setInlineError('Demasiado largo. Máx. 500 caracteres.');
         // Remove the pending entry since no result is created for text_too_long
-        setEntries((prev) => prev.filter((e) => e.entryId !== pendingEntry.entryId));
+        setSessionEntries((prev) => prev.filter((e) => e.entryId !== pendingEntry.entryId));
         return;
       }
 
@@ -352,7 +344,7 @@ export function HablarShell() {
         authenticated: !!user,
       });
       // Settle the pending entry with the result
-      setEntries((prev) =>
+      setSessionEntries((prev) =>
         prev.map((e) =>
           e.entryId === pendingEntry.entryId
             ? { ...e, isLoading: false, result: data }
@@ -368,7 +360,7 @@ export function HablarShell() {
       if (err instanceof DOMException && err.name === 'TimeoutError') {
         if (!controller.signal.aborted) {
           trackEvent('query_error', { errorCode: 'TIMEOUT_ERROR' });
-          setEntries((prev) =>
+          setSessionEntries((prev) =>
             prev.map((e) =>
               e.entryId === pendingEntry.entryId
                 ? { ...e, isLoading: false, error: 'La consulta ha tardado demasiado. Inténtalo de nuevo.' }
@@ -410,7 +402,7 @@ export function HablarShell() {
 
       // Settle the pending entry with the error
       if (currentRequestRef.current === controller) {
-        setEntries((prev) =>
+        setSessionEntries((prev) =>
           prev.map((e) =>
             e.entryId === pendingEntry.entryId
               ? { ...e, isLoading: false, error: errorMessage }
@@ -448,7 +440,7 @@ export function HablarShell() {
 
     const pendingEntry = createPendingEntry('Analizando foto…', 'photo');
     // Remove any existing pending photo entries (stale requests whose promises never reject in tests)
-    setEntries((prev) => [
+    setSessionEntries((prev) => [
       ...prev.filter((e) => !(e.inputMode === 'photo' && e.isLoading)),
       pendingEntry,
     ]);
@@ -466,7 +458,7 @@ export function HablarShell() {
       }
       if (controller.signal.aborted) {
         // Remove stale pending entry — another request took over
-        setEntries((prev) => prev.filter((e) => e.entryId !== pendingEntry.entryId));
+        setSessionEntries((prev) => prev.filter((e) => e.entryId !== pendingEntry.entryId));
         return;
       }
       const response = await sendPhotoAnalysis(uploadFile, actorId, controller.signal, photoAnalysisMode);
@@ -490,7 +482,7 @@ export function HablarShell() {
       });
 
       // Settle entry with photo result
-      setEntries((prev) =>
+      setSessionEntries((prev) =>
         prev.map((e) =>
           e.entryId === pendingEntry.entryId
             ? { ...e, isLoading: false, photoData: data }
@@ -505,11 +497,11 @@ export function HablarShell() {
         controller.signal.reason === 'stale_request'
       ) {
         // Remove stale pending entry — another request took over
-        setEntries((prev) => prev.filter((e) => e.entryId !== pendingEntry.entryId));
+        setSessionEntries((prev) => prev.filter((e) => e.entryId !== pendingEntry.entryId));
         return;
       }
       if (controller.signal.aborted) {
-        setEntries((prev) => prev.filter((e) => e.entryId !== pendingEntry.entryId));
+        setSessionEntries((prev) => prev.filter((e) => e.entryId !== pendingEntry.entryId));
         return;
       }
 
@@ -551,7 +543,7 @@ export function HablarShell() {
       }
 
       if (currentRequestRef.current === controller) {
-        setEntries((prev) =>
+        setSessionEntries((prev) =>
           prev.map((e) =>
             e.entryId === pendingEntry.entryId
               ? { ...e, isLoading: false, error: errorMessage }
@@ -567,15 +559,15 @@ export function HablarShell() {
   // ---------------------------------------------------------------------------
   const handleDishSelect = useCallback(
     (dishName: string) => {
-      // Find the photo entry to snapshot dish info
-      const photoEntry = [...entries].reverse().find((e) => e.inputMode === 'photo' && e.photoData);
+      // Find the photo entry to snapshot dish info (search in allEntries — combined view)
+      const photoEntry = [...allEntries].reverse().find((e) => e.inputMode === 'photo' && e.photoData);
       const dish = photoEntry?.photoData?.dishes.find((d) => d.dishName === dishName);
       const hasEstimate = dish?.estimate != null;
       trackEvent('menu_dish_selected', { dishName, hasEstimate });
       setQuery(dishName);
       executeQuery(dishName);
     },
-    [entries, executeQuery],
+    [allEntries, executeQuery],
   );
 
   function handleSubmit() {
@@ -593,18 +585,22 @@ export function HablarShell() {
   }, [executeQuery]);
 
   // ---------------------------------------------------------------------------
-  // handleDeleteEntry — remove from local feed + call API
+  // handleDeleteEntry — remove from feed + call API for persisted entries
   // ---------------------------------------------------------------------------
   const handleDeleteEntry = useCallback((entryId: string) => {
-    setEntries((prev) => prev.filter((e) => e.entryId !== entryId));
+    // Remove from sessionEntries if present (session-owned entries)
+    setSessionEntries((prev) => prev.filter((e) => e.entryId !== entryId));
+    // Also call API delete for persisted entries (no-op if not persisted)
     deletePersistedEntry(entryId);
   }, [deletePersistedEntry]);
 
   // ---------------------------------------------------------------------------
-  // handleClearAll — clear all persisted entries + call API
+  // handleClearAll — only clears persisted history; sessionEntries preserved (AC2 sub-bullet)
   // ---------------------------------------------------------------------------
   const handleClearAll = useCallback(() => {
-    setEntries((prev) => prev.filter((e) => !e.isPersisted));
+    // Only clearPersistedHistory() — sessionEntries are independent and must not be wiped.
+    // After clearPersistedHistory() resolves, useSearchHistory returns persistedEntries=[],
+    // useMemo re-derives allEntries=[...[], ...sessionEntries].
     clearPersistedHistory();
   }, [clearPersistedHistory]);
 
@@ -612,7 +608,15 @@ export function HablarShell() {
   // Nudge hierarchy (W20)
   // ---------------------------------------------------------------------------
   const showPersistenceNudge =
-    entries.length >= 2 && !user && !showRateLimitNudge && !nudgeDismissed;
+    allEntries.length >= 2 && !user && !showRateLimitNudge && !nudgeDismissed;
+
+  // ---------------------------------------------------------------------------
+  // Mount gate (AC1b): defer TranscriptFeed mount until history load is complete
+  // for authenticated users. Anonymous users skip the gate (no persisted fetch).
+  // During gate: render a placeholder with role="feed" aria-busy="true".
+  // Post-gate: Virtuoso mounts ONCE with full hydrated allEntries array.
+  // ---------------------------------------------------------------------------
+  const isGated = authLoading || (!!user && isLoadingHistory);
 
   return (
     <div className="flex h-[100dvh] flex-col bg-white">
@@ -628,21 +632,31 @@ export function HablarShell() {
         )}
       </header>
 
-      {/* Transcript feed — scrollable, replaces ResultsArea */}
-      <TranscriptFeed
-        entries={entries}
-        isAuthenticated={!!user}
-        isLoadingHistory={isLoadingHistory}
-        hasMoreHistory={hasMoreHistory}
-        isLoadingMore={isLoadingMore}
-        showPersistenceNudge={showPersistenceNudge}
-        onDismissPersistenceNudge={() => setNudgeDismissed(true)}
-        onLoadMore={loadMore}
-        onDeleteEntry={handleDeleteEntry}
-        onClearAll={handleClearAll}
-        onRetry={handleRetry}
-        onDishSelect={handleDishSelect}
-      />
+      {/* Mount gate: render placeholder while history is loading for auth'd users */}
+      {isGated ? (
+        <div
+          role="feed"
+          aria-busy="true"
+          aria-label="Historial de consultas"
+          className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(9rem+env(safe-area-inset-bottom))] lg:max-w-2xl lg:mx-auto w-full"
+        />
+      ) : (
+        /* Transcript feed — scrollable, replaces ResultsArea */
+        <TranscriptFeed
+          entries={allEntries}
+          isAuthenticated={!!user}
+          isLoadingHistory={isLoadingHistory}
+          hasMoreHistory={hasMoreHistory}
+          isLoadingMore={isLoadingMore}
+          showPersistenceNudge={showPersistenceNudge}
+          onDismissPersistenceNudge={() => setNudgeDismissed(true)}
+          onLoadMore={loadMore}
+          onDeleteEntry={handleDeleteEntry}
+          onClearAll={handleClearAll}
+          onRetry={handleRetry}
+          onDishSelect={handleDishSelect}
+        />
+      )}
 
       {/* F-WEB-TIER P-I2: RateLimitNudge as sibling below TranscriptFeed. */}
       {showRateLimitNudge && !user && (
@@ -657,8 +671,8 @@ export function HablarShell() {
         onChange={setQuery}
         onSubmit={handleSubmit}
         onPhotoSelect={executePhotoAnalysis}
-        isLoading={entries.some((e) => e.isLoading && e.inputMode === 'text')}
-        isPhotoLoading={entries.some((e) => e.isLoading && e.inputMode === 'photo')}
+        isLoading={sessionEntries.some((e) => e.isLoading && e.inputMode === 'text')}
+        isPhotoLoading={sessionEntries.some((e) => e.isLoading && e.inputMode === 'photo')}
         inlineError={inlineError}
         photoAnalysisMode={photoAnalysisMode}
         onPhotoModeChange={(mode) => {

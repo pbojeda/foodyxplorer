@@ -28,6 +28,7 @@ Quick reference for project configuration, infrastructure details, and important
 - **Cache / Rate Limiting**: Redis
 - **Bot**: node-telegram-bot-api
 - **Web (F090)**: Next.js 15 (App Router) + TypeScript strict + Tailwind CSS — `packages/web/` workspace, port 3002. Conversational web assistant `/hablar`: text queries → NutritionCard results. Consumes `POST /conversation/message` API. Imports types from `@foodxplorer/shared`.
+  - **react-virtuoso v4** (F-WEB-HISTORY-FU6, 2026-06-06): `packages/web` dep for `TranscriptFeed` virtualized scroll. Library-owned scroll (no hand-rolled scroll effects). Pattern: chat/feed/timeline scroll = library-owned (react-virtuoso); hand-rolled scroll machinery (ResizeObserver + useLayoutEffect + scroll arithmetic) is an anti-pattern — 10 iterations (FU1–FU4) failed before this pivot.
 - **Landing (F039)**: Next.js 14 (App Router) + TypeScript strict + Tailwind CSS + Framer Motion — `packages/landing/` workspace, deployed on Vercel. Marketing page for nutriXplorer: waitlist capture, A/B hero variants, SEO (JSON-LD), @vercel/analytics.
 - **Validation**: Zod (schemas compartidos en packages/shared)
 
