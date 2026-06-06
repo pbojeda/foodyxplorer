@@ -1438,6 +1438,8 @@ No structural change to the result cards is needed. They are reused as-is. The `
 
 ### W18. Persisted history — loading and scroll
 
+> **Implementation note (F-WEB-HISTORY-FU6, 2026-06-06):** The canonical implementation of chat/feed/timeline scroll in this project is **library-owned** (`react-virtuoso`). Hand-rolled scroll state machines (manual `scrollTop` writes, `ResizeObserver`, `IntersectionObserver` for scroll) are an **anti-pattern** — they failed over 10 iterations (FU1–FU4 + PRs #310–#313) due to irresolvable browser-layout races. Use `react-virtuoso`'s built-in props (`followOutput`, `startReached`, `initialTopMostItemIndex`, `firstItemIndex`) for all feed/chat scroll requirements.
+
 #### Pre-load on mount (~10 entries)
 
 On page load for authenticated users, the feed pre-populates with the most recent ~10 persisted entries, oldest first (so entry #1 is at the top, entry #10 is just above the empty input). The feed then scrolls to the bottom immediately on mount (no animation — the initial position should feel like arriving at the current state, not replaying history).
