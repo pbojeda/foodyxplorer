@@ -455,3 +455,71 @@ describe('HablarShell — loadMore reconciliation (AC39/AC40 + logout staleness)
     expect(screen.getByText('Big Mac')).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// RED — current bug: empty-first-mount
+// This describe block documents the empty-first-mount bug in the current code.
+// The bug: useEffect mirrors persistedEntries into local entries state, so
+// TranscriptFeed mounts once with entries=[] (before the effect fires) and
+// then re-renders with entries=[10 persisted] after the effect fires.
+// After Step 3.3 (HablarShell mount gate), this bug is structurally fixed
+// and this describe block is REMOVED in Step 3.4.
+// ---------------------------------------------------------------------------
+
+describe('RED — current bug: HablarShell empty-first-mount (removed after Step 3.3)', () => {
+  // Track how many times TranscriptFeed mock is rendered with non-empty entries.
+  // After Step 3.3, this test will need adaptation.
+  it.skip('documents empty-first-mount: TranscriptFeed receives entries=[] before useEffect fires', async () => {
+    // Setup: authenticated user, history loading
+    const { useAuth } = require('../../hooks/useAuth') as { useAuth: jest.Mock };
+    useAuth.mockReturnValue({
+      user: { id: 'user-1', email: 'test@example.com' },
+      session: { access_token: 'test-token' },
+      account: null,
+      loading: false,
+      error: null,
+      signIn: jest.fn(),
+      signOut: jest.fn(),
+    });
+
+    const page1Entries: TranscriptEntryData[] = Array.from({ length: 10 }, (_, i) =>
+      makePersistedEntry(`entry-${i}`, `query ${i}`)
+    );
+
+    // Start with isLoadingHistory=true and no entries
+    mockUseSearchHistory.mockReturnValue({
+      persistedEntries: [],
+      hasMoreHistory: false,
+      isLoadingMore: false,
+      isLoadingHistory: true,
+      loadMore: jest.fn(),
+      deleteEntry: jest.fn(),
+      clearAll: jest.fn(),
+    });
+
+    const { rerender } = render(<HablarShell />);
+
+    // Current code: TranscriptFeed is mounted immediately with entries=[]
+    // (the useEffect hasn't fired yet with the persisted data)
+    // This is the empty-first-mount bug documented here.
+    // After Step 3.3: a placeholder is rendered instead (no TranscriptFeed mount).
+
+    // Simulate history load completing
+    mockUseSearchHistory.mockReturnValue({
+      persistedEntries: page1Entries,
+      hasMoreHistory: false,
+      isLoadingMore: false,
+      isLoadingHistory: false,
+      loadMore: jest.fn(),
+      deleteEntry: jest.fn(),
+      clearAll: jest.fn(),
+    });
+
+    rerender(<HablarShell />);
+
+    // After rerender, all 10 entries should be visible
+    await waitFor(() => {
+      expect(screen.getByText('query 0')).toBeInTheDocument();
+    });
+  });
+});
