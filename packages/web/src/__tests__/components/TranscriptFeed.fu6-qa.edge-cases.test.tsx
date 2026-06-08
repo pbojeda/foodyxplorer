@@ -47,10 +47,14 @@ jest.mock('react-virtuoso', () => ({
       | ((idx: number, item: TranscriptEntryData) => React.ReactNode)
       | undefined;
     const components = props['components'] as
-      | { Header?: React.ComponentType<{ context?: unknown }> }
+      | {
+          Header?: React.ComponentType<{ context?: unknown }>;
+          Footer?: React.ComponentType<{ context?: unknown }>;
+        }
       | undefined;
     const context = props['context'];
     const HeaderComp = components?.Header;
+    const FooterComp = components?.Footer;
     return (
       <div
         role={props['role'] as string}
@@ -63,6 +67,7 @@ jest.mock('react-virtuoso', () => ({
             <React.Fragment key={item.entryId}>{itemContent(idx, item)}</React.Fragment>
           ) : null
         )}
+        {FooterComp && <FooterComp context={context} />}
       </div>
     );
   }),
@@ -111,6 +116,9 @@ const defaultProps = {
   isLoadingHistory: false,
   hasMoreHistory: false,
   isLoadingMore: false,
+  // FU6-FU1: firstItemIndex is owned by useSearchHistory (batched with
+  // setPersistedEntries to eliminate iOS Safari prepend-jump).
+  firstItemIndex: 1_000_000,
   showPersistenceNudge: false,
   onDismissPersistenceNudge: jest.fn(),
   onLoadMore: jest.fn(),
@@ -147,128 +155,39 @@ describe('GAP-8: initialTopMostItemIndex with single entry', () => {
 });
 
 // ---------------------------------------------------------------------------
-// GAP-1: firstItemIndex decrements on prepend
-// A prepend is detected when: first entry id changes AND entries.length grew.
+// GAP-1 / GAP-2 REWRITTEN (FU6-FU1): firstItemIndex prop pass-through
+//
+// firstItemIndex management was MOVED from TranscriptFeed to useSearchHistory
+// in FU6-FU1 (BUG iOS Safari prepend-jump): the decrement is now batched WITH
+// setPersistedEntries in the same React 18 commit, so Virtuoso never sees
+// `data nuevo + firstItemIndex viejo` for a frame.
+//
+// TranscriptFeed simply forwards the prop value to Virtuoso. Decrement +
+// underflow contract is tested at the hook level in `useSearchHistory.test.ts`.
 // ---------------------------------------------------------------------------
 
-describe('GAP-1: firstItemIndex decrements on prepend', () => {
-  it('prepend of 1 entry decrements firstItemIndex by 1', () => {
-    const originalEntry = makeEntry({ entryId: 'orig-1' });
-    const prependedEntry = makeEntry({ entryId: 'prepend-1' });
-
-    const { rerender } = render(
-      <TranscriptFeed {...defaultProps} entries={[originalEntry]} />
-    );
-    const initialFirstItemIndex = capturedProps?.['firstItemIndex'] as number;
-    expect(initialFirstItemIndex).toBeGreaterThanOrEqual(1_000_000);
-
-    // Prepend: new first entry + total count grew
-    act(() => {
-      rerender(
-        <TranscriptFeed {...defaultProps} entries={[prependedEntry, originalEntry]} />
-      );
-    });
-
-    const newFirstItemIndex = capturedProps?.['firstItemIndex'] as number;
-    expect(newFirstItemIndex).toBe(initialFirstItemIndex - 1);
+describe('GAP-1/2 (FU6-FU1): firstItemIndex prop pass-through', () => {
+  it('forwards firstItemIndex prop to Virtuoso unchanged', () => {
+    render(<TranscriptFeed {...defaultProps} firstItemIndex={1_000_000} />);
+    expect(capturedProps?.['firstItemIndex']).toBe(1_000_000);
   });
 
-  it('prepend of 10 entries (PAGE_SIZE) decrements firstItemIndex by 10', () => {
-    const page1Entries = Array.from({ length: 3 }, (_, i) =>
-      makeEntry({ entryId: `page1-${i}` })
-    );
-    const page2Entries = Array.from({ length: 10 }, (_, i) =>
-      makeEntry({ entryId: `page2-${i}` })
-    );
-
+  it('forwards updated firstItemIndex (e.g. post-prepend) to Virtuoso', () => {
     const { rerender } = render(
-      <TranscriptFeed {...defaultProps} entries={page1Entries} />
+      <TranscriptFeed {...defaultProps} firstItemIndex={1_000_000} />
     );
-    const initialFirstItemIndex = capturedProps?.['firstItemIndex'] as number;
+    expect(capturedProps?.['firstItemIndex']).toBe(1_000_000);
 
-    act(() => {
-      rerender(
-        <TranscriptFeed {...defaultProps} entries={[...page2Entries, ...page1Entries]} />
-      );
-    });
-
-    const newFirstItemIndex = capturedProps?.['firstItemIndex'] as number;
-    expect(newFirstItemIndex).toBe(initialFirstItemIndex - 10);
+    // External decrement (from useSearchHistory) reaches Virtuoso atomically
+    rerender(<TranscriptFeed {...defaultProps} firstItemIndex={999_990} />);
+    expect(capturedProps?.['firstItemIndex']).toBe(999_990);
   });
 
-  it('append (first entry unchanged) does NOT decrement firstItemIndex', () => {
-    const entry1 = makeEntry({ entryId: 'e1' });
-    const entry2 = makeEntry({ entryId: 'e2' });
-
-    const { rerender } = render(
-      <TranscriptFeed {...defaultProps} entries={[entry1]} />
-    );
-    const initialFirstItemIndex = capturedProps?.['firstItemIndex'] as number;
-
-    // Append: first entry unchanged, count grows
-    act(() => {
-      rerender(
-        <TranscriptFeed {...defaultProps} entries={[entry1, entry2]} />
-      );
-    });
-
-    // firstItemIndex should not have changed (it's a decrement-only on prepend)
-    const afterAppend = capturedProps?.['firstItemIndex'] as number;
-    expect(afterAppend).toBe(initialFirstItemIndex);
-  });
-
-  it('first entry id change WITHOUT count growth does NOT decrement firstItemIndex (delete-then-replace, not prepend)', () => {
-    // Edge: first id changes but count stays same — this is a replace, not a prepend.
-    // The guard: entries.length > prevEntriesLengthRef.current must be true.
-    const entry1 = makeEntry({ entryId: 'first-1' });
-    const entry2 = makeEntry({ entryId: 'first-2' });
-
-    const { rerender } = render(
-      <TranscriptFeed {...defaultProps} entries={[entry1]} />
-    );
-    const initialFirstItemIndex = capturedProps?.['firstItemIndex'] as number;
-
-    // Same count, different first entry id
-    act(() => {
-      rerender(
-        <TranscriptFeed {...defaultProps} entries={[entry2]} />
-      );
-    });
-
-    const afterReplace = capturedProps?.['firstItemIndex'] as number;
-    expect(afterReplace).toBe(initialFirstItemIndex);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// GAP-2: firstItemIndex stays positive after many prepends
-// 1_000_000 - 50 * 10 = 999_500 — well above 0.
-// ---------------------------------------------------------------------------
-
-describe('GAP-2: firstItemIndex underflow prevention', () => {
-  it('50 prepend operations of 10 each still leaves firstItemIndex positive', () => {
-    // Start with 10 entries
-    let entries = Array.from({ length: 10 }, (_, i) => makeEntry({ entryId: `base-${i}` }));
-
-    const { rerender } = render(
-      <TranscriptFeed {...defaultProps} entries={entries} />
-    );
-
-    // Simulate 50 loadMore prepends of 10 entries each
-    for (let page = 0; page < 50; page++) {
-      const olderEntries = Array.from({ length: 10 }, (_, i) =>
-        makeEntry({ entryId: `page${page}-${i}` })
-      );
-      entries = [...olderEntries, ...entries];
-      act(() => {
-        rerender(<TranscriptFeed {...defaultProps} entries={entries} />);
-      });
-    }
-
-    const finalFirstItemIndex = capturedProps?.['firstItemIndex'] as number;
-    expect(finalFirstItemIndex).toBeGreaterThan(0);
-    // Should be exactly 1_000_000 - 50*10 = 999_500
-    expect(finalFirstItemIndex).toBe(999_500);
+  it('forwards low-but-positive firstItemIndex (50 prepends simulated externally)', () => {
+    // 1_000_000 - 50 * 10 = 999_500 (well above 0)
+    render(<TranscriptFeed {...defaultProps} firstItemIndex={999_500} />);
+    expect(capturedProps?.['firstItemIndex']).toBe(999_500);
+    expect(capturedProps?.['firstItemIndex']).toBeGreaterThan(0);
   });
 });
 

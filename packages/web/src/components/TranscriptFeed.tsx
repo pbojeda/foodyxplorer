@@ -8,7 +8,7 @@
 // AC10: Header slot — ClearHistoryButton, loading skeleton, HistoryEmptyState, EmptyState.
 // AC15: computeItemKey={entry.entryId} for stable identity across prepend/delete.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import type { TranscriptEntryData } from '@/types/history';
 import { TranscriptEntry } from './TranscriptEntry';
@@ -17,18 +17,19 @@ import { HistoryEmptyState } from './HistoryEmptyState';
 import { HistoryPersistenceNudge } from './HistoryPersistenceNudge';
 import { ClearHistoryButton } from './ClearHistoryButton';
 
-// firstItemIndex starts at 1_000_000 so prepend operations never go negative.
-// Per Virtuoso v4 docs: firstItemIndex MUST be a positive number.
-// Soft cap: ~500 entries / 50 prepends → floor ~999_500 — well above 0.
-const INITIAL_FIRST_ITEM_INDEX = 1_000_000;
-const PAGE_SIZE = 10;
-
 interface TranscriptFeedProps {
   entries: TranscriptEntryData[];
   isAuthenticated: boolean;
   isLoadingHistory: boolean;
   hasMoreHistory: boolean;
   isLoadingMore: boolean;
+  /**
+   * Virtuoso `firstItemIndex` for inverse infinite scroll prepend anchoring.
+   * Owned by `useSearchHistory` and batched WITH `setPersistedEntries` (same
+   * commit) so Virtuoso never sees `data nuevo + firstItemIndex viejo` for a
+   * frame (iOS Safari prepend-jump fix, BUG-WEB-HISTORY-FU6-FU1).
+   */
+  firstItemIndex: number;
   showPersistenceNudge: boolean;
   onDismissPersistenceNudge: () => void;
   onLoadMore: () => void;
@@ -49,6 +50,24 @@ interface FeedContext {
   isEmpty: boolean;
   showPersistenceNudge: boolean;
   onDismissPersistenceNudge: () => void;
+}
+
+// ---------------------------------------------------------------------------
+// VirtuosoFooter — spacer at the bottom of the items list.
+// Virtuoso ownership: items live in the inner Scroller, so padding-bottom
+// on the outer className doesn't push items up above the fixed input bar.
+// The Footer slot renders INSIDE the scroll content and provides 144px +
+// safe-area-inset breathing room so the last entry's bottom edge clears
+// the `fixed bottom-0` ConversationInput bar (BUG-WEB-HISTORY-FU6-FU1
+// finding 1+2; ConversationInput.tsx:75 is `fixed`).
+// ---------------------------------------------------------------------------
+function VirtuosoFooter() {
+  return (
+    <div
+      className="h-[calc(9rem+env(safe-area-inset-bottom))]"
+      aria-hidden="true"
+    />
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -133,6 +152,7 @@ export function TranscriptFeed({
   isLoadingHistory: _isLoadingHistory, // intentionally unused — Virtuoso mounts only post-gate
   hasMoreHistory,
   isLoadingMore,
+  firstItemIndex,
   showPersistenceNudge,
   onDismissPersistenceNudge,
   onLoadMore,
@@ -144,38 +164,24 @@ export function TranscriptFeed({
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const atBottomRef = useRef(false);
 
-  // firstItemIndex: starts at INITIAL_FIRST_ITEM_INDEX (positive), decremented on prepend.
-  // Virtuoso uses this for viewport anchoring on prepend operations.
-  const [firstItemIndex, setFirstItemIndex] = useState(INITIAL_FIRST_ITEM_INDEX);
-
-  // Refs to track inter-render state for prepend detection and in-place resize detection
-  const prevFirstEntryIdRef = useRef<string | undefined>(undefined);
+  // Refs to track inter-render state for in-place resize detection
   const prevLastLoadingRef = useRef(false);
-  const prevEntriesLengthRef = useRef(entries.length);
 
   // Local synchronous guard at startReached boundary — prevents double-fire before
   // React commits isLoadingMore=true (same purpose as loadMoreInFlightRef in hook).
   // Resets when isLoadingMore flips false (see useEffect below).
   const loadMoreInFlightRef = useRef(false);
 
-  // Prepend detection + in-place resize scroll
+  // In-place resize scroll detection (AC25/AC6).
+  // firstItemIndex prepend anchoring is now owned by useSearchHistory so it
+  // batches with setPersistedEntries in the same commit (BUG-WEB-HISTORY-FU6-FU1
+  // iOS Safari prepend-jump fix). This effect therefore only handles the
+  // shimmer→NutritionCard in-place resize case.
   useEffect(() => {
-    const currentFirstId = entries[0]?.entryId;
     const currentLastEntry = entries[entries.length - 1];
     const currentLastLoading = currentLastEntry?.isLoading ?? false;
 
-    // Prepend detection: first entry changed AND total count grew
-    if (
-      prevFirstEntryIdRef.current !== undefined &&
-      currentFirstId !== undefined &&
-      currentFirstId !== prevFirstEntryIdRef.current &&
-      entries.length > prevEntriesLengthRef.current
-    ) {
-      const prependCount = entries.length - prevEntriesLengthRef.current;
-      setFirstItemIndex((prev) => prev - prependCount);
-    }
-
-    // In-place resize: last entry's isLoading flipped true→false AND user is at bottom (AC25/AC6).
+    // In-place resize: last entry's isLoading flipped true→false AND user is at bottom.
     // requestAnimationFrame defers until after layout settle (NutritionCard full height visible).
     // useEffect (not useLayoutEffect) is correct: fires after paint, so card height is computed.
     if (
@@ -188,9 +194,7 @@ export function TranscriptFeed({
       });
     }
 
-    prevFirstEntryIdRef.current = currentFirstId;
     prevLastLoadingRef.current = currentLastLoading;
-    prevEntriesLengthRef.current = entries.length;
   }, [entries]);
 
   // Reset startReached guard when isLoadingMore becomes false
@@ -227,7 +231,12 @@ export function TranscriptFeed({
       ref={virtuosoRef}
       role="feed"
       aria-label="Historial de consultas"
-      className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(9rem+env(safe-area-inset-bottom))] lg:max-w-2xl lg:mx-auto w-full"
+      // `pb-...` removed (FU6-FU1): padding-bottom on the Virtuoso outer wrapper
+      // doesn't push the items list up — Virtuoso owns the inner Scroller. The
+      // 144px input-bar clearance is now provided by VirtuosoFooter (inside the
+      // scroll content). `overflow-x-hidden` clips iOS Safari horizontal jiggle
+      // from any child with intrinsic width > viewport (FU6-FU1 finding 4).
+      className="flex-1 overflow-y-auto overflow-x-hidden px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full"
       data={entries}
       computeItemKey={(_idx, entry) => entry.entryId}
       firstItemIndex={firstItemIndex}
@@ -251,7 +260,7 @@ export function TranscriptFeed({
           )}
         </div>
       )}
-      components={{ Header: VirtuosoHeader }}
+      components={{ Header: VirtuosoHeader, Footer: VirtuosoFooter }}
       context={context}
     />
   );

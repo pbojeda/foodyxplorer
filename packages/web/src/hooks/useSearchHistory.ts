@@ -28,6 +28,14 @@ interface UseSearchHistoryResult {
   isLoadingMore: boolean;
   /** True while the initial mount fetch is in-flight. */
   isLoadingHistory: boolean;
+  /**
+   * Virtuoso `firstItemIndex` for inverse infinite scroll prepend anchoring.
+   * Starts at `INITIAL_FIRST_ITEM_INDEX = 1_000_000` (positive per Virtuoso v4
+   * docs) and decrements by the prepend size in the SAME commit as
+   * `persistedEntries` so Virtuoso receives both updates atomically (iOS
+   * Safari prepend-jump fix, BUG-WEB-HISTORY-FU6-FU1 finding 3).
+   */
+  firstItemIndex: number;
   /** Load the next (older) cursor page. */
   loadMore: () => void;
   /** Remove a single entry optimistically (also calls DELETE /history/{id}). */
@@ -36,12 +44,26 @@ interface UseSearchHistoryResult {
   clearAll: () => void;
 }
 
+// INITIAL_FIRST_ITEM_INDEX must stay positive per Virtuoso v4 docs. Starting at
+// 1_000_000 leaves ~100,000 prepends of headroom (vs the ~500-entry soft cap),
+// so any plausible decrement keeps firstItemIndex well above 0.
+// See BUG-WEB-HISTORY-FU6-FU1: firstItemIndex must be batched WITH the
+// setPersistedEntries call (same React 18 commit) so Virtuoso never sees
+// `data nuevo + firstItemIndex viejo` on iOS Safari (visible scroll jump).
+export const INITIAL_FIRST_ITEM_INDEX = 1_000_000;
+
 export function useSearchHistory({ authToken }: UseSearchHistoryOptions): UseSearchHistoryResult {
   const [persistedEntries, setPersistedEntries] = useState<TranscriptEntryData[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  // firstItemIndex tracks Virtuoso's absolute first index for inverse infinite
+  // scroll prepend anchoring. Co-located with persistedEntries so they update
+  // in the same React 18 commit (automatic batching) — eliminates the iOS
+  // Safari jump where Virtuoso would otherwise render `new data + stale index`
+  // for one frame before the post-paint useEffect catches up.
+  const [firstItemIndex, setFirstItemIndex] = useState<number>(INITIAL_FIRST_ITEM_INDEX);
 
   // Track current loadMore page for telemetry
   const pageRef = useRef(0);
@@ -104,8 +126,13 @@ export function useSearchHistory({ authToken }: UseSearchHistoryOptions): UseSea
 
     getHistory(nextCursor, 10)
       .then(({ entries: olderEntries, nextCursor: newCursor }) => {
-        // Prepend older entries above existing ones
+        // Prepend older entries above existing ones. firstItemIndex MUST be
+        // decremented in the SAME callback as setPersistedEntries so React 18
+        // automatic batching commits both updates in one render — Virtuoso
+        // never sees `data nuevo + firstItemIndex viejo` (iOS Safari prepend
+        // jump fix, BUG-WEB-HISTORY-FU6-FU1 finding 3).
         setPersistedEntries((prev) => [...olderEntries, ...prev]);
+        setFirstItemIndex((prev) => prev - olderEntries.length);
         setNextCursor(newCursor);
         setHasMoreHistory(newCursor !== null);
         trackEvent('history_load_more', { page });
@@ -144,6 +171,7 @@ export function useSearchHistory({ authToken }: UseSearchHistoryOptions): UseSea
       hasMoreHistory: false,
       isLoadingMore: false,
       isLoadingHistory: false,
+      firstItemIndex: INITIAL_FIRST_ITEM_INDEX,
       loadMore: () => {},
       deleteEntry: () => {},
       clearAll: () => {},
@@ -155,6 +183,7 @@ export function useSearchHistory({ authToken }: UseSearchHistoryOptions): UseSea
     hasMoreHistory,
     isLoadingMore,
     isLoadingHistory,
+    firstItemIndex,
     loadMore,
     deleteEntry,
     clearAll,

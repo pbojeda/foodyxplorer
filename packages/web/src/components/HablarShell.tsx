@@ -123,6 +123,7 @@ export function HablarShell() {
     hasMoreHistory,
     isLoadingMore,
     isLoadingHistory,
+    firstItemIndex,
     loadMore,
     deleteEntry: deletePersistedEntry,
     clearAll: clearPersistedHistory,
@@ -648,6 +649,7 @@ export function HablarShell() {
           isLoadingHistory={isLoadingHistory}
           hasMoreHistory={hasMoreHistory}
           isLoadingMore={isLoadingMore}
+          firstItemIndex={firstItemIndex}
           showPersistenceNudge={showPersistenceNudge}
           onDismissPersistenceNudge={() => setNudgeDismissed(true)}
           onLoadMore={loadMore}

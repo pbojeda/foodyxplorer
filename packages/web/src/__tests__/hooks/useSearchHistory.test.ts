@@ -194,6 +194,96 @@ describe('useSearchHistory', () => {
     expect(allIds.slice(2)).toEqual(initialIds);
   });
 
+  // FU6-FU1: firstItemIndex contract (batched with persistedEntries to fix
+  // iOS Safari prepend-jump). Hook owns the state, batches updates atomically.
+  describe('FU6-FU1 — firstItemIndex prepend anchoring (batched with persistedEntries)', () => {
+    it('firstItemIndex starts at 1_000_000 on mount (positive per Virtuoso v4 docs)', async () => {
+      mockGetHistory.mockResolvedValueOnce(makeHistoryResult(3, null));
+      const { result } = renderHook(() => useSearchHistory({ authToken: 'test-token' }));
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+      expect(result.current.firstItemIndex).toBe(1_000_000);
+    });
+
+    it('firstItemIndex decrements by exactly olderEntries.length per loadMore', async () => {
+      mockGetHistory.mockResolvedValueOnce(makeHistoryResult(3, 'cursor-p2'));
+      const { result } = renderHook(() => useSearchHistory({ authToken: 'test-token' }));
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+      expect(result.current.firstItemIndex).toBe(1_000_000);
+
+      // loadMore returns 5 older entries → firstItemIndex -= 5
+      mockGetHistory.mockResolvedValueOnce(makeHistoryResult(5, null));
+      act(() => { result.current.loadMore(); });
+      await waitFor(() => expect(result.current.isLoadingMore).toBe(false));
+
+      expect(result.current.firstItemIndex).toBe(999_995);
+    });
+
+    it('firstItemIndex decrement is BATCHED with persistedEntries (same commit, iOS Safari jump fix)', async () => {
+      // The hook MUST setPersistedEntries and setFirstItemIndex in the same
+      // .then() callback so React 18 automatic batching commits them in one
+      // render. Without this, Virtuoso would render `data nuevo + index
+      // viejo` for one frame on iOS Safari, visible as a scroll jump.
+      // Empirical guarantee: after loadMore resolves, both observable changes
+      // (entries.length grew AND firstItemIndex decremented) hold AT THE SAME
+      // TIME — no intermediate render with only one of them.
+      mockGetHistory.mockResolvedValueOnce(makeHistoryResult(3, 'cursor-p2'));
+      const { result } = renderHook(() => useSearchHistory({ authToken: 'test-token' }));
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+
+      const baselineLen = result.current.persistedEntries.length;
+      const baselineIdx = result.current.firstItemIndex;
+      expect(baselineLen).toBe(3);
+      expect(baselineIdx).toBe(1_000_000);
+
+      mockGetHistory.mockResolvedValueOnce(makeHistoryResult(10, null));
+      act(() => { result.current.loadMore(); });
+      await waitFor(() => expect(result.current.isLoadingMore).toBe(false));
+
+      // After loadMore resolves: entries.length grew by 10 AND firstItemIndex
+      // decremented by 10. Both observable at the same time.
+      expect(result.current.persistedEntries.length).toBe(baselineLen + 10);
+      expect(result.current.firstItemIndex).toBe(baselineIdx - 10);
+    });
+
+    it('firstItemIndex stays positive after many prepends (underflow guard via initial value 1_000_000)', async () => {
+      // 1_000_000 - 50 * 10 = 999_500 — well above 0.
+      mockGetHistory.mockResolvedValueOnce(makeHistoryResult(3, 'cursor-1'));
+      const { result } = renderHook(() => useSearchHistory({ authToken: 'test-token' }));
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+
+      for (let i = 0; i < 50; i++) {
+        const nextCursor = i < 49 ? `cursor-${i + 2}` : null;
+        mockGetHistory.mockResolvedValueOnce(makeHistoryResult(10, nextCursor));
+        act(() => { result.current.loadMore(); });
+        await waitFor(() => expect(result.current.isLoadingMore).toBe(false));
+      }
+
+      expect(result.current.firstItemIndex).toBeGreaterThan(0);
+      expect(result.current.firstItemIndex).toBe(999_500);
+    });
+
+    it('firstItemIndex unchanged on loadMore failure (catch branch does not decrement)', async () => {
+      mockGetHistory.mockResolvedValueOnce(makeHistoryResult(3, 'cursor-p2'));
+      const { result } = renderHook(() => useSearchHistory({ authToken: 'test-token' }));
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+      const baselineIdx = result.current.firstItemIndex;
+
+      mockGetHistory.mockRejectedValueOnce(new Error('network'));
+      act(() => { result.current.loadMore(); });
+      await waitFor(() => expect(result.current.isLoadingMore).toBe(false));
+
+      // Failed loadMore does not touch firstItemIndex (the .then() branch
+      // that batches the decrement never runs).
+      expect(result.current.firstItemIndex).toBe(baselineIdx);
+    });
+
+    it('anonymous user (no authToken): firstItemIndex returns the safe initial constant', () => {
+      const { result } = renderHook(() => useSearchHistory({ authToken: null }));
+      // No fetch fires; the early-return path still exposes firstItemIndex.
+      expect(result.current.firstItemIndex).toBe(1_000_000);
+    });
+  });
+
   // AC49: history_load_more fired with page number
   it('AC49: trackEvent history_load_more fired with incrementing page on loadMore', async () => {
     mockGetHistory.mockResolvedValueOnce(makeHistoryResult(3, 'cursor-p2'));
