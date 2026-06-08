@@ -30,10 +30,14 @@ const Virtuoso = React.forwardRef(function Virtuoso(
     | ((idx: number, item: Record<string, unknown>) => React.ReactNode)
     | undefined;
   const components = props['components'] as
-    | { Header?: React.ComponentType<{ context?: unknown }> }
+    | {
+        Header?: React.ComponentType<{ context?: unknown }>;
+        Footer?: React.ComponentType<{ context?: unknown }>;
+      }
     | undefined;
   const context = props['context'];
   const HeaderComp = components?.Header;
+  const FooterComp = components?.Footer;
 
   const ariaBusy = props['aria-busy'] as string | boolean | undefined;
 
@@ -53,6 +57,7 @@ const Virtuoso = React.forwardRef(function Virtuoso(
           </React.Fragment>
         ) : null
       )}
+      {FooterComp && <FooterComp context={context} />}
     </div>
   );
 });

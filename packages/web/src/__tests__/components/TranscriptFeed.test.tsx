@@ -37,10 +37,14 @@ jest.mock('react-virtuoso', () => ({
       | ((idx: number, item: TranscriptEntryData) => React.ReactNode)
       | undefined;
     const components = props['components'] as
-      | { Header?: React.ComponentType<{ context?: unknown }> }
+      | {
+          Header?: React.ComponentType<{ context?: unknown }>;
+          Footer?: React.ComponentType<{ context?: unknown }>;
+        }
       | undefined;
     const context = props['context'];
     const HeaderComp = components?.Header;
+    const FooterComp = components?.Footer;
     return (
       <div
         role={props['role'] as string}
@@ -55,6 +59,7 @@ jest.mock('react-virtuoso', () => ({
             <React.Fragment key={item.entryId}>{itemContent(idx, item)}</React.Fragment>
           ) : null
         )}
+        {FooterComp && <FooterComp context={context} />}
       </div>
     );
   }),
@@ -132,6 +137,10 @@ const defaultProps = {
   isLoadingHistory: false,
   hasMoreHistory: false,
   isLoadingMore: false,
+  // FU6-FU1: firstItemIndex is now owned by useSearchHistory (batched WITH
+  // setPersistedEntries to eliminate iOS Safari prepend-jump). Tests pass a
+  // large positive default mirroring the hook's INITIAL_FIRST_ITEM_INDEX.
+  firstItemIndex: 1_000_000,
   showPersistenceNudge: false,
   onDismissPersistenceNudge: jest.fn(),
   onLoadMore: jest.fn(),
@@ -298,12 +307,46 @@ describe('TranscriptFeed — AC3 Virtuoso prop wiring', () => {
     expect(capturedVirtuosoProps?.['initialTopMostItemIndex']).toBe(0); // Math.max(0, -1)
   });
 
-  it('AC3: firstItemIndex starts at a large positive number (≥ 1_000_000)', () => {
-    // firstItemIndex must start positive per Virtuoso docs
+  it('AC3: firstItemIndex prop is passed through to Virtuoso unchanged', () => {
+    // FU6-FU1: firstItemIndex is owned by useSearchHistory (batched WITH
+    // setPersistedEntries to eliminate iOS Safari prepend-jump). TranscriptFeed
+    // simply forwards the prop value to Virtuoso. The default + underflow
+    // contract (must stay positive) lives in useSearchHistory.test.ts.
+    render(<TranscriptFeed {...defaultProps} firstItemIndex={1_000_000} />);
+    expect(capturedVirtuosoProps?.['firstItemIndex']).toBe(1_000_000);
+  });
+
+  it('AC3: firstItemIndex prop pass-through reflects external decrement', () => {
+    // Simulating the post-prepend state where useSearchHistory has decremented.
+    render(<TranscriptFeed {...defaultProps} firstItemIndex={999_990} />);
+    expect(capturedVirtuosoProps?.['firstItemIndex']).toBe(999_990);
+  });
+
+  it('AC3: Footer slot renders a spacer for input-bar clearance (FU6-FU1 finding 1+2)', () => {
+    // VirtuosoFooter provides 9rem+safe-area-inset of breathing room INSIDE
+    // the scroll content so the last entry clears the fixed ConversationInput.
+    // The padding-bottom was removed from the Virtuoso outer className because
+    // it has no effect on the inner Scroller where items live.
+    const entries = [makeEntry()];
+    const { container } = render(<TranscriptFeed {...defaultProps} entries={entries} />);
+    // Find the spacer div by its height class (rendered via Virtuoso mock's components.Footer)
+    const spacer = container.querySelector('[aria-hidden="true"].h-\\[calc\\(9rem\\+env\\(safe-area-inset-bottom\\)\\)\\]');
+    expect(spacer).toBeInTheDocument();
+  });
+
+  it('AC3: Virtuoso className includes overflow-x-hidden (iOS Safari horizontal jiggle fix)', () => {
     render(<TranscriptFeed {...defaultProps} />);
-    const firstItemIndex = capturedVirtuosoProps?.['firstItemIndex'] as number | undefined;
-    expect(typeof firstItemIndex).toBe('number');
-    expect(firstItemIndex).toBeGreaterThanOrEqual(1_000_000);
+    const className = capturedVirtuosoProps?.['className'] as string | undefined;
+    expect(className).toBeDefined();
+    expect(className).toContain('overflow-x-hidden');
+  });
+
+  it('AC3: Virtuoso className does NOT include pb-[calc(9rem+...)] (now provided by Footer)', () => {
+    // FU6-FU1: padding-bottom moved from outer className to Footer slot.
+    render(<TranscriptFeed {...defaultProps} />);
+    const className = capturedVirtuosoProps?.['className'] as string | undefined;
+    expect(className).toBeDefined();
+    expect(className).not.toContain('pb-[calc(9rem');
   });
 });
 
