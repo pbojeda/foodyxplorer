@@ -26,9 +26,13 @@ import type { TranscriptEntryData } from '../../types/history';
 let capturedProps: Record<string, unknown> | null = null;
 let capturedRef: React.Ref<unknown> | null = null;
 
-// Keep a reference to the last handle so tests can invoke imperative methods
+// Keep a reference to the last handle so tests can invoke imperative methods.
+// FU6-FU3: in-place resize now uses scrollTo({top: MAX_SAFE_INTEGER}) instead
+// of autoscrollToBottom (which only arms a size-increase trap, not a direct
+// scroll — see TranscriptFeed.tsx in-place resize useEffect for rationale).
 const autoscrollToBottomSpy = jest.fn();
 const scrollToIndexSpy = jest.fn();
+const scrollToSpy = jest.fn();
 
 jest.mock('react-virtuoso', () => ({
   // eslint-disable-next-line react/display-name
@@ -37,7 +41,7 @@ jest.mock('react-virtuoso', () => ({
     capturedRef = ref;
     React.useImperativeHandle(ref, () => ({
       scrollToIndex: scrollToIndexSpy,
-      scrollTo: jest.fn(),
+      scrollTo: scrollToSpy,
       scrollBy: jest.fn(),
       autoscrollToBottom: autoscrollToBottomSpy,
       getState: jest.fn(),
@@ -133,6 +137,7 @@ beforeEach(() => {
   capturedRef = null;
   autoscrollToBottomSpy.mockClear();
   scrollToIndexSpy.mockClear();
+  scrollToSpy.mockClear();
   jest.clearAllMocks();
 });
 
@@ -290,10 +295,17 @@ describe('GAP-3/4/5/6: in-place resize autoscroll via atBottomStateChange + entr
     // requestAnimationFrame should have been called; flush it
     act(() => { jest.runAllTimers(); });
 
-    expect(autoscrollToBottomSpy).toHaveBeenCalledTimes(1);
+    // FU6-FU3: in-place resize now uses scrollTo (not autoscrollToBottom).
+    expect(scrollToSpy).toHaveBeenCalledTimes(1);
+    expect(scrollToSpy).toHaveBeenCalledWith({
+      top: Number.MAX_SAFE_INTEGER,
+      behavior: 'auto',
+    });
+    // autoscrollToBottom is NO LONGER USED (only arms a trap; useless post-paint).
+    expect(autoscrollToBottomSpy).not.toHaveBeenCalled();
   });
 
-  it('GAP-4: autoscrollToBottom NOT fired when user is NOT at bottom', () => {
+  it('GAP-4: in-place resize scroll NOT fired when user is NOT at bottom', () => {
     const pendingEntry = makeEntry({ entryId: 'pending-2', isLoading: true });
     const { rerender } = render(
       <TranscriptFeed {...defaultProps} entries={[pendingEntry]} />
@@ -308,10 +320,10 @@ describe('GAP-3/4/5/6: in-place resize autoscroll via atBottomStateChange + entr
     });
     act(() => { jest.runAllTimers(); });
 
-    expect(autoscrollToBottomSpy).not.toHaveBeenCalled();
+    expect(scrollToSpy).not.toHaveBeenCalled();
   });
 
-  it('GAP-5: autoscrollToBottom NOT fired when isLoading was already false before rerender', () => {
+  it('GAP-5: in-place resize scroll NOT fired when isLoading was already false before rerender', () => {
     // prevLastLoadingRef starts as false; if we render with isLoading=false initially,
     // no flip occurs on next render
     const settledEntry = makeEntry({ entryId: 'settled-1', isLoading: false });
@@ -327,10 +339,10 @@ describe('GAP-3/4/5/6: in-place resize autoscroll via atBottomStateChange + entr
     });
     act(() => { jest.runAllTimers(); });
 
-    expect(autoscrollToBottomSpy).not.toHaveBeenCalled();
+    expect(scrollToSpy).not.toHaveBeenCalled();
   });
 
-  it('GAP-6: autoscrollToBottom NOT fired when last entry stays isLoading=true (no flip)', () => {
+  it('GAP-6: in-place resize scroll NOT fired when last entry stays isLoading=true (no flip)', () => {
     const pendingEntry = makeEntry({ entryId: 'pending-3', isLoading: true });
     const { rerender } = render(
       <TranscriptFeed {...defaultProps} entries={[pendingEntry]} />
@@ -343,10 +355,10 @@ describe('GAP-3/4/5/6: in-place resize autoscroll via atBottomStateChange + entr
     });
     act(() => { jest.runAllTimers(); });
 
-    expect(autoscrollToBottomSpy).not.toHaveBeenCalled();
+    expect(scrollToSpy).not.toHaveBeenCalled();
   });
 
-  it('GAP-3b: autoscrollToBottom fires for the LAST entry flip only (middle entry flip is ignored)', () => {
+  it('GAP-3b: in-place resize scroll fires for the LAST entry flip only (middle entry flip is ignored)', () => {
     // If multiple entries exist and only a middle entry's isLoading flips, no scroll.
     const entry1 = makeEntry({ entryId: 'e1', isLoading: true });
     const entry2 = makeEntry({ entryId: 'e2', isLoading: true });
@@ -367,8 +379,8 @@ describe('GAP-3/4/5/6: in-place resize autoscroll via atBottomStateChange + entr
     });
     act(() => { jest.runAllTimers(); });
 
-    // entry2 (last) is still loading — no autoscroll
-    expect(autoscrollToBottomSpy).not.toHaveBeenCalled();
+    // entry2 (last) is still loading — no in-place resize scroll
+    expect(scrollToSpy).not.toHaveBeenCalled();
 
     // Now last entry settles
     const settledEntry2 = { ...entry2, isLoading: false };
@@ -382,7 +394,11 @@ describe('GAP-3/4/5/6: in-place resize autoscroll via atBottomStateChange + entr
     });
     act(() => { jest.runAllTimers(); });
 
-    expect(autoscrollToBottomSpy).toHaveBeenCalledTimes(1);
+    expect(scrollToSpy).toHaveBeenCalledTimes(1);
+    expect(scrollToSpy).toHaveBeenCalledWith({
+      top: Number.MAX_SAFE_INTEGER,
+      behavior: 'auto',
+    });
   });
 });
 
