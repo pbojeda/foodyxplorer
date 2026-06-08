@@ -315,9 +315,11 @@ export function TranscriptEntry({
           </span>
         )}
 
-        {/* Query text */}
+        {/* Query text — FU6-FU2: min-w-0 is required for `truncate` to engage
+            inside a flex container (default min-width:auto would let the span's
+            intrinsic content width push the parent wider than the viewport). */}
         <span
-          className="text-sm font-medium text-slate-600 truncate flex-1"
+          className="text-sm font-medium text-slate-600 truncate flex-1 min-w-0"
           title={entry.queryText}
         >
           {entry.queryText}

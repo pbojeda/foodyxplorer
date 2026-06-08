@@ -53,18 +53,21 @@ interface FeedContext {
 }
 
 // ---------------------------------------------------------------------------
-// VirtuosoFooter — spacer at the bottom of the items list.
-// Virtuoso ownership: items live in the inner Scroller, so padding-bottom
-// on the outer className doesn't push items up above the fixed input bar.
-// The Footer slot renders INSIDE the scroll content and provides 144px +
-// safe-area-inset breathing room so the last entry's bottom edge clears
-// the `fixed bottom-0` ConversationInput bar (BUG-WEB-HISTORY-FU6-FU1
-// finding 1+2; ConversationInput.tsx:75 is `fixed`).
+// VirtuosoFooter — spacer at the bottom of the items list, matching the
+// live ConversationInput bar height so the last entry clears the fixed bar
+// (which is `position: fixed bottom: 0`, overlaying the viewport bottom).
+//
+// FU6-FU2: dynamic clearance via `--input-bar-height` CSS variable.
+// HablarShell publishes the value via ResizeObserver on the bar. The Footer
+// height auto-adapts to: inline error expansion, PhotoModeToggle layout,
+// safe-area-inset (iPhone home indicator), textarea auto-resize.
+// Fallback `12rem` (192px) covers the worst-case static measurement until
+// the ResizeObserver fires after first paint.
 // ---------------------------------------------------------------------------
 function VirtuosoFooter() {
   return (
     <div
-      className="h-[calc(9rem+env(safe-area-inset-bottom))]"
+      className="h-[var(--input-bar-height,12rem)]"
       aria-hidden="true"
     />
   );
@@ -247,7 +250,10 @@ export function TranscriptFeed({
       }}
       startReached={handleStartReached}
       itemContent={(idx, entry) => (
-        <div>
+        // FU6-FU2 — min-w-0 + max-w-full prevent any descendant with
+        // intrinsic width (e.g. long dish name) from pushing the item wider
+        // than the viewport, which `overflow-x-hidden` would then clip.
+        <div className="min-w-0 max-w-full">
           <TranscriptEntry
             entry={entry}
             onDelete={entry.isPersisted ? onDeleteEntry : undefined}

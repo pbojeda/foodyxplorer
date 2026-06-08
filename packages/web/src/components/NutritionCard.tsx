@@ -38,7 +38,7 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
         aria-label={`${displayName}: ${kcal} calorías`}
       >
         <header className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-bold text-slate-800">{displayName}</h2>
+          <h2 className="min-w-0 break-words text-lg font-bold text-slate-800">{displayName}</h2>
         </header>
 
         <div className="mt-3">
@@ -116,7 +116,12 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
       aria-label={ariaLabel}
     >
       <header className="flex items-start justify-between gap-3">
-        <h2 className="text-lg font-bold text-slate-800">{displayName}</h2>
+        {/* FU6-FU2 — min-w-0 lets the h2 shrink within the flex container so
+            break-words can wrap long dish names. Without min-w-0, the h2's
+            intrinsic width pushes the article wider than the viewport
+            (overflow-x-hidden then clips the right side, hiding the badge
+            + part of the card on iOS Safari). */}
+        <h2 className="min-w-0 break-words text-lg font-bold text-slate-800">{displayName}</h2>
         <ConfidenceBadge level={result.confidenceLevel} />
       </header>
 

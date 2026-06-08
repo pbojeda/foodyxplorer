@@ -27,7 +27,10 @@ export function MenuDishItem({ dish, onSelect }: MenuDishItemProps) {
       onClick={onSelect}
       aria-label={ariaLabel}
     >
-      <span className="text-base font-semibold text-slate-800 flex-1 leading-snug">
+      {/* FU6-FU2 — min-w-0 + break-words let long dish names wrap multi-line
+          instead of pushing the row wider than the viewport (which then gets
+          clipped by overflow-x-hidden on iOS Safari). */}
+      <span className="text-base font-semibold text-slate-800 flex-1 min-w-0 break-words leading-snug">
         {dish.dishName}
       </span>
       {kcal !== null ? (
