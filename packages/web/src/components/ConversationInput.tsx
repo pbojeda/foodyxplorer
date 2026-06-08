@@ -26,6 +26,12 @@ interface ConversationInputProps {
   budgetCapActive?: boolean;
   /** F091 — exposed so HablarShell can restore focus when the overlay closes (AC15). */
   micButtonRef?: Ref<HTMLButtonElement>;
+  /**
+   * FU6-FU2 — outer container ref. HablarShell uses this to measure the live
+   * input-bar height via ResizeObserver and set `--input-bar-height` CSS var,
+   * which VirtuosoFooter consumes for dynamic clearance under the bar.
+   */
+  outerRef?: Ref<HTMLDivElement>;
   // F-WEB-MENU-VISION-001 — photo analysis mode toggle
   photoAnalysisMode: 'auto' | 'identify';
   onPhotoModeChange: (mode: 'auto' | 'identify') => void;
@@ -45,6 +51,7 @@ export function ConversationInput({
   voiceState,
   budgetCapActive,
   micButtonRef,
+  outerRef,
   photoAnalysisMode,
   onPhotoModeChange,
 }: ConversationInputProps) {
@@ -72,7 +79,10 @@ export function ConversationInput({
   const showSubmit = value.trim().length > 0;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] backdrop-blur-sm">
+    <div
+      ref={outerRef}
+      className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] backdrop-blur-sm"
+    >
       {inlineError && (
         <p role="alert" className="mb-1.5 text-sm text-red-600">
           {inlineError}

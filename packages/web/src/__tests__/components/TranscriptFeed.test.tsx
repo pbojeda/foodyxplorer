@@ -322,15 +322,18 @@ describe('TranscriptFeed — AC3 Virtuoso prop wiring', () => {
     expect(capturedVirtuosoProps?.['firstItemIndex']).toBe(999_990);
   });
 
-  it('AC3: Footer slot renders a spacer for input-bar clearance (FU6-FU1 finding 1+2)', () => {
-    // VirtuosoFooter provides 9rem+safe-area-inset of breathing room INSIDE
-    // the scroll content so the last entry clears the fixed ConversationInput.
-    // The padding-bottom was removed from the Virtuoso outer className because
-    // it has no effect on the inner Scroller where items live.
+  it('AC3: Footer slot renders a spacer matching --input-bar-height (FU6-FU2 dynamic clearance)', () => {
+    // VirtuosoFooter provides breathing room INSIDE the scroll content so the
+    // last entry clears the fixed ConversationInput bar. FU6-FU2: height is
+    // dynamic via `--input-bar-height` CSS var (published by HablarShell's
+    // ResizeObserver on the bar), with 12rem fallback before observer fires.
     const entries = [makeEntry()];
     const { container } = render(<TranscriptFeed {...defaultProps} entries={entries} />);
-    // Find the spacer div by its height class (rendered via Virtuoso mock's components.Footer)
-    const spacer = container.querySelector('[aria-hidden="true"].h-\\[calc\\(9rem\\+env\\(safe-area-inset-bottom\\)\\)\\]');
+    // Tailwind generates `h-[var(--input-bar-height,12rem)]` as a single
+    // attribute-selector-friendly class. Match by escaping bracket chars.
+    const spacer = container.querySelector(
+      '[aria-hidden="true"].h-\\[var\\(--input-bar-height\\,12rem\\)\\]',
+    );
     expect(spacer).toBeInTheDocument();
   });
 
