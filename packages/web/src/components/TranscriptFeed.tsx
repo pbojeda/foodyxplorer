@@ -165,7 +165,6 @@ export function TranscriptFeed({
   onDishSelect,
 }: TranscriptFeedProps) {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
-  const atBottomRef = useRef(false);
 
   // Refs to track inter-render state for in-place resize detection
   const prevLastLoadingRef = useRef(false);
@@ -176,24 +175,47 @@ export function TranscriptFeed({
   const loadMoreInFlightRef = useRef(false);
 
   // In-place resize scroll detection (AC25/AC6).
-  // firstItemIndex prepend anchoring is now owned by useSearchHistory so it
-  // batches with setPersistedEntries in the same commit (BUG-WEB-HISTORY-FU6-FU1
-  // iOS Safari prepend-jump fix). This effect therefore only handles the
-  // shimmer→NutritionCard in-place resize case.
+  //
+  // Cross-model verdict 2026-06-08 (gemini 95% + codex 84%): the previous
+  // `atBottomRef.current === true` guard self-invalidated on the very transition
+  // it was designed to handle. When the shimmer flips to a taller card,
+  // Virtuoso immediately fires `atBottomStateChange(false)` (the resize pushes
+  // the viewport above the new content end), which set the ref to `false`
+  // BEFORE this useEffect could read it. Result: the scroll-to-bottom intent
+  // was lost on every search.
+  //
+  // Canonical chat-feed pattern (Virtuoso docs Q2):
+  //   - `followOutput` handles append (data.length increases).
+  //   - Imperative `scrollToIndex({ index: 'LAST', align: 'end' })` handles
+  //     in-place resize of the last item (data.length unchanged, item taller).
+  //
+  // Always-scroll on settle is the right UX for nutriXplorer: the user
+  // submitted THEIR OWN query and is waiting for THAT result. We force-show it
+  // (unlike WhatsApp where incoming-from-others gets a "new messages" badge).
+  //
+  // firstItemIndex prepend anchoring is owned by useSearchHistory so it batches
+  // with setPersistedEntries (FU6-FU1 fix). This effect handles only the
+  // shimmer→card in-place resize case.
   useEffect(() => {
     const currentLastEntry = entries[entries.length - 1];
     const currentLastLoading = currentLastEntry?.isLoading ?? false;
 
-    // In-place resize: last entry's isLoading flipped true→false AND user is at bottom.
-    // requestAnimationFrame defers until after layout settle (NutritionCard full height visible).
-    // useEffect (not useLayoutEffect) is correct: fires after paint, so card height is computed.
     if (
       prevLastLoadingRef.current === true &&
-      currentLastLoading === false &&
-      atBottomRef.current === true
+      currentLastLoading === false
     ) {
+      // requestAnimationFrame defers until after layout settle so the
+      // NutritionCard's final height is in Virtuoso's measurements.
+      // `index: 'LAST'` is index-space agnostic (works with firstItemIndex
+      // offset). `align: 'end'` aligns the last item's bottom with the
+      // viewport bottom, which equals the VirtuosoFooter top (footer height =
+      // --input-bar-height), placing the card just above the fixed input bar.
       requestAnimationFrame(() => {
-        virtuosoRef.current?.autoscrollToBottom();
+        virtuosoRef.current?.scrollToIndex({
+          index: 'LAST',
+          align: 'end',
+          behavior: 'smooth',
+        });
       });
     }
 
@@ -245,9 +267,6 @@ export function TranscriptFeed({
       firstItemIndex={firstItemIndex}
       initialTopMostItemIndex={Math.max(0, entries.length - 1)}
       followOutput="smooth"
-      atBottomStateChange={(atBottom) => {
-        atBottomRef.current = atBottom;
-      }}
       startReached={handleStartReached}
       itemContent={(idx, entry) => (
         // FU6-FU2 — min-w-0 + max-w-full prevent any descendant with
