@@ -34,7 +34,7 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
     const kcal = Math.round(reverseResult.calories);
     return (
       <article
-        className="card-enter w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-soft md:p-5"
+        className="card-enter overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-soft md:p-5"
         aria-label={`${displayName}: ${kcal} calorías`}
       >
         <header className="flex items-start justify-between gap-3">
@@ -46,12 +46,7 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
           <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">KCAL</p>
         </div>
 
-        {/* FU6-FU3 — macro row was `flex gap-4` with 3 intrinsic-width
-            MacroItems; on narrow iOS Safari viewports the "CARBOHIDRATOS"
-            label pushed total width past the viewport, getting clipped by
-            the outer `overflow-x-hidden`. Grid distributes the row in 3
-            equal columns with `min-w-0` children → labels wrap if narrow. */}
-        <div className="mt-3 grid grid-cols-3 gap-3">
+        <div className="mt-3 flex gap-4">
           <MacroItem value={Math.round(reverseResult.proteins)} label="PROTEÍNAS" colorClass="text-brand-green" />
           <MacroItem value={Math.round(reverseResult.carbohydrates)} label="CARBOHIDRATOS" colorClass="text-accent-gold" />
           <MacroItem value={Math.round(reverseResult.fats)} label="GRASAS" colorClass="text-slate-500" />
@@ -67,7 +62,7 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
   if (!result) {
     return (
       <article
-        className="card-enter w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-soft md:p-5"
+        className="card-enter overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-soft md:p-5"
         aria-label={`Sin resultados para ${query}`}
       >
         <p className="text-[15px] font-medium text-slate-500">
@@ -149,7 +144,7 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
             <div
               role="note"
               aria-label={buildPortionAssumptionAriaLabel(portionAssumption)}
-              className="mt-1 text-[12px] leading-snug break-words"
+              className="mt-1 text-[12px] leading-snug"
             >
               {renderPortionAssumptionContent(portionAssumption)}
             </div>
@@ -167,8 +162,7 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
         )}
       </div>
 
-      {/* FU6-FU3 — see ReverseSearchResult branch above for rationale. */}
-      <div className="mt-3 grid grid-cols-3 gap-3">
+      <div className="mt-3 flex gap-4">
         <MacroItem value={proteins} label="PROTEÍNAS" colorClass="text-brand-green" />
         <MacroItem value={carbs} label="CARBOHIDRATOS" colorClass="text-accent-gold" />
         <MacroItem value={fats} label="GRASAS" colorClass="text-slate-500" />
@@ -183,7 +177,7 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
       )}
 
       {result.source && (
-        <footer className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-400 break-words">
+        <footer className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-400">
           {result.source.name}
         </footer>
       )}
@@ -275,12 +269,9 @@ function MacroItem({
   colorClass: string;
 }) {
   return (
-    // FU6-FU3 — `min-w-0` lets the grid column shrink to fit; `break-words`
-    // + `leading-tight` on the label allow "CARBOHIDRATOS" to wrap on
-    // narrow iOS Safari viewports without overflowing the card.
-    <div className="min-w-0">
+    <div>
       <p className={`text-lg font-bold leading-none ${colorClass}`}>{value}<span className="text-slate-500 text-sm">g</span></p>
-      <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide leading-tight break-words text-slate-400">{label}</p>
+      <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
     </div>
   );
 }

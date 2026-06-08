@@ -165,12 +165,7 @@ export function TranscriptFeed({
   onDishSelect,
 }: TranscriptFeedProps) {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
-  // FU6-FU3: default to true so the FIRST search after page load (when
-  // `initialTopMostItemIndex` has landed Virtuoso at the bottom, but the
-  // `atBottomStateChange` callback may not yet have fired) is treated as
-  // "at bottom" and the in-place resize scroll engages. Subsequent user
-  // scrolls update via `atBottomStateChange`.
-  const atBottomRef = useRef(true);
+  const atBottomRef = useRef(false);
 
   // Refs to track inter-render state for in-place resize detection
   const prevLastLoadingRef = useRef(false);
@@ -185,37 +180,20 @@ export function TranscriptFeed({
   // batches with setPersistedEntries in the same commit (BUG-WEB-HISTORY-FU6-FU1
   // iOS Safari prepend-jump fix). This effect therefore only handles the
   // shimmer→NutritionCard in-place resize case.
-  //
-  // FU6-FU3 (cross-model gemini+codex 2026-06-08): `autoscrollToBottom()` does
-  // NOT scroll — it arms a `trapNextSizeIncrease` flag that fires on the NEXT
-  // size-increase event. By the time this useEffect runs (post-paint), the
-  // size increase has already happened, so the trap is set but never triggers.
-  // Source: `react-virtuoso/src/followOutputSystem.ts` — `autoscrollToBottom`
-  // subscribes to `trapNextSizeIncrease`, not to a direct scroll. And the
-  // built-in `scrollToBottom` (used by `followOutput`) calls
-  // `scrollToIndex({index:'LAST', align:'end'})` which aligns the LAST item's
-  // edge with viewport bottom — NOT the absolute scroll end.
-  //
-  // Fix: use `scrollTo({ top: MAX_SAFE_INTEGER })`. The inner Scroller clamps
-  // to `scrollHeight - clientHeight`, scrolling past the last item AND the
-  // VirtuosoFooter spacer. This lands the card's bottom edge above the input
-  // bar (since Footer height = input bar height via --input-bar-height).
   useEffect(() => {
     const currentLastEntry = entries[entries.length - 1];
     const currentLastLoading = currentLastEntry?.isLoading ?? false;
 
+    // In-place resize: last entry's isLoading flipped true→false AND user is at bottom.
+    // requestAnimationFrame defers until after layout settle (NutritionCard full height visible).
+    // useEffect (not useLayoutEffect) is correct: fires after paint, so card height is computed.
     if (
       prevLastLoadingRef.current === true &&
       currentLastLoading === false &&
       atBottomRef.current === true
     ) {
-      // requestAnimationFrame defers until after layout settle so the
-      // NutritionCard's final height is in the scrollHeight measurement.
       requestAnimationFrame(() => {
-        virtuosoRef.current?.scrollTo({
-          top: Number.MAX_SAFE_INTEGER,
-          behavior: 'auto',
-        });
+        virtuosoRef.current?.autoscrollToBottom();
       });
     }
 
