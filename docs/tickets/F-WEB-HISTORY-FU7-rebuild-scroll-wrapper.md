@@ -290,7 +290,7 @@ The new file implements:
 - `loadMoreInFlightRef: React.useRef<boolean>` — dedup guard, same concept as current.
 - **On mount `useEffect`**: `el.scrollTop = el.scrollHeight; wasNearBottomRef.current = true`.
 - **Pin-aware settle `useEffect`** (deps: `[entries]`): detects `prevLastLoadingRef.current === true && currentLastLoading === false`; if `wasNearBottomRef.current`, fires `requestAnimationFrame(() => { el.scrollTop = el.scrollHeight })`.
-- **Prepend-anchor `useEffect`** (deps: `[isLoadingMore]`): when `isLoadingMore` flips `true`, save `el.scrollHeight - el.scrollTop` into `savedScrollDeltaRef`. When it flips `false` (entries just prepended), restore `el.scrollTop = el.scrollHeight - savedScrollDeltaRef.current`.
+- **Prepend-anchor `useEffect`** (deps: `[entries, isLoadingMore]` — SAFER variant per /review-plan round 1 Codex IMPORTANT): when `isLoadingMore` flips `true`, save `el.scrollHeight - el.scrollTop` into `savedScrollDeltaRef`. The restore only fires when `isLoadingMore === false` AND `savedScrollDeltaRef.current !== null` (entries has been re-rendered with the prepended items). This guards against the order issue in `useSearchHistory.loadMore()` where `setPersistedEntries` runs in `.then()` but `setIsLoadingMore(false)` runs in `.finally()` — without the `entries` dep + null-check, restore would race the prepend rendering. After restore, null the ref to prevent re-fire.
 - **`onScroll` handler**: updates `wasNearBottomRef.current = distanceFromBottom < 100`. Also triggers `loadMore` when within 100px of the **top** (`el.scrollTop < 100`) if `hasMoreHistory && !isLoadingMore && !loadMoreInFlightRef.current`.
 - Scroll container JSX: `<div ref={feedRef} role="feed" aria-label="Historial de consultas" className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full" onScroll={handleScroll}>`.
 - Leading content (before entries map): sr-only keyboard button, isLoadingMore skeleton, ClearHistoryButton, HistoryPersistenceNudge, HistoryEmptyState, EmptyState — same logic as current `VirtuosoHeader` but as direct JSX children of the scroll div.
@@ -336,7 +336,7 @@ interface TranscriptFeedProps {
     - Prepend anchor: assert `scrollTop` restores correctly after `isLoadingMore` cycle.
   - Tests FAIL at this point (TypeScript error: `firstItemIndex` prop no longer in interface after Step 2).
 - Also update `HablarShell.fu6-qa.edge-cases.test.tsx` HGAP-5 section: remove Virtuoso-Header-context assertions; replace with direct DOM queries for ClearHistoryButton/EmptyState.
-- Verification: `pnpm --filter web typecheck` — expect TypeScript errors (RED phase).
+- Verification: `npm run typecheck -w @foodxplorer/web` — expect TypeScript errors (RED phase).
 
 **Step 2 — REWRITE `TranscriptFeed.tsx`**
 - Implement the new native-div `TranscriptFeed` per the architecture description above.
@@ -344,16 +344,17 @@ interface TranscriptFeedProps {
 - Move header slot content from `VirtuosoHeader` into the scroll `div` as direct children.
 - Remove `VirtuosoHeader`, `VirtuosoFooter`, `FeedContext` interface, `Virtuoso` import, `VirtuosoHandle` import.
 - `'use client'` directive is required (refs, effects).
-- Verification: `pnpm --filter web typecheck` — TypeScript errors from Step 1 resolve. Tests still fail (mocking setup needs matching).
+- Verification: `npm run typecheck -w @foodxplorer/web` — TypeScript errors from Step 1 resolve. Tests still fail (mocking setup needs matching).
 
 **Step 3 — UPDATE `HablarShell.tsx`**
 - Remove `inputBarRef` declaration (line 169).
+- Remove the stale comment block describing the ResizeObserver/input-bar-height contract (lines 165–168, per /review-plan round 1 Gemini SUGGESTION — comment would become misleading after the underlying machinery is removed).
 - Remove the ResizeObserver `useEffect` block (lines 184–198, ~15 lines).
 - Remove `outerRef={inputBarRef}` from the `<ConversationInput>` call (line 699).
 - Remove `firstItemIndex` from `useSearchHistory` destructure (line 126).
 - Remove `firstItemIndex={firstItemIndex}` from `<TranscriptFeed>` call (line 679).
 - Fix the mount-gate placeholder className: remove `pb-[var(--input-bar-height,12rem)]`, keep `flex-1 overflow-y-auto overflow-x-hidden px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full`.
-- Verification: `pnpm --filter web typecheck` — should be clean if Steps 1–3 are consistent.
+- Verification: `npm run typecheck -w @foodxplorer/web` — should be clean if Steps 1–3 are consistent.
 
 **Step 4 — UPDATE `ConversationInput.tsx`**
 - Remove `outerRef` from `ConversationInputProps` interface (lines 33–37).
@@ -361,7 +362,7 @@ interface TranscriptFeedProps {
 - Remove `ref={outerRef}` from outer div (line 83).
 - Replace `fixed bottom-0 left-0 right-0` with `w-full` in the outer div className (line 84).
 - Keep all other logic verbatim.
-- Verification: `pnpm --filter web typecheck`.
+- Verification: `npm run typecheck -w @foodxplorer/web`.
 
 **Step 5 — VERIFY `react-virtuoso` is fully eliminated**
 - `grep -rn "react-virtuoso\|Virtuoso\|VirtuosoHandle" packages/web/src/` — must be empty.
@@ -371,20 +372,26 @@ interface TranscriptFeedProps {
 **Step 6 — REMOVE `react-virtuoso` from package.json + delete mock**
 - Delete `packages/web/__mocks__/react-virtuoso.tsx`.
 - Remove `"react-virtuoso": "^4.18.7"` from `packages/web/package.json` dependencies.
-- Run `npm install` (or `pnpm install`) from the repo root to update `package-lock.json`.
+- Run `npm install` (or `npm install`) from the repo root to update `package-lock.json`.
 - This step must come AFTER Steps 1–4 so the codebase no longer imports `react-virtuoso`.
 - Verification: `npm ls react-virtuoso --prefix packages/web` — should resolve with "not installed".
 
-**Step 7 — FINALIZE ADR-030 in decisions.md**
+**Step 7 — FINALIZE ADR-030 + clean stale Virtuoso references in `ui-components.md`**
 - Change `**Status:** Draft — pending Step 6 finalization.` to `**Status:** Accepted — F-WEB-HISTORY-FU7 implementation complete.` in `docs/project_notes/decisions.md` ADR-030 (line 1096).
-- No other doc changes needed (key_facts.md, design-guidelines.md, ui-components.md, hablar-design-guidelines.md all updated in Step 2a per completion log).
+- **Doc cleanup `ui-components.md`** (per /review-plan round 1 Codex IMPORTANT-2): the Step 2a update added the new ADR-030 section but left earlier sections internally contradictory. Verify and fix:
+  - Line ~2482: references to `Virtuoso` component contract — replace with `<div>` contract per the new TranscriptFeed entry.
+  - Line ~2658: text saying "HablarShell's gate ensures Virtuoso mounts" → replace with "HablarShell's gate ensures the native scroll container mounts".
+  - Line ~2684: text saying `loadMore` is called via Virtuoso `startReached` → replace with "`loadMore` is called via `onScroll` handler when `el.scrollTop < 100`".
+  - Stale prop table for `onRetry`/`onDishSelect` callback signatures → align with the new TranscriptFeed prop table.
+- Verification: `grep -n "Virtuoso\|startReached\|firstItemIndex\|VirtuosoHeader\|VirtuosoFooter" docs/specs/ui-components.md` — should return 0 matches (or only matches in historical "previously…" notes that are clearly marked as obsolete).
+- key_facts.md, design-guidelines.md, hablar-design-guidelines.md were already cleaned in Step 2a (commit `c1c286e`); spot-check with similar greps.
 
 **Step 8 — GATES (full quality suite)**
 ```bash
-pnpm --filter web lint
-pnpm --filter web typecheck
-pnpm --filter web test
-pnpm --filter web build
+npm run lint -w @foodxplorer/web
+npm run typecheck -w @foodxplorer/web
+npm test -w @foodxplorer/web
+npm run build -w @foodxplorer/web
 git diff --stat   # verify net code reduction ≥ 150 lines
 ```
 - Target: all 4 commands exit 0, zero errors, test count ≥ 796.
@@ -456,7 +463,7 @@ git diff --stat   # verify net code reduction ≥ 150 lines
 
 **Risks the implementer should know:**
 
-1. **Prepend anchoring (AC7) is SPEC-DEFINED, NOT prototype-validated.** The `savedScrollDeltaRef` mechanism is the canonical approach but has not been run against the real API in this stack. After deploy to `app-dev`, the implementer must verify AC7 manually before marking it PASS. If the anchor drifts, the cause will be a render-timing issue between `isLoadingMore` flipping false and `entries` updating — consider wrapping the restore in a `useEffect([entries, isLoadingMore])` that checks `savedScrollDeltaRef.current !== null`.
+1. **Prepend anchoring (AC7) is SPEC-DEFINED, NOT prototype-validated.** The `savedScrollDeltaRef` mechanism is the canonical approach but has not been run against the real API in this stack. After deploy to `app-dev`, the implementer must verify AC7 manually before marking it PASS. **Plan now requires the SAFER pattern up-front** (post /review-plan round 1 Codex IMPORTANT-1): `useEffect([entries, isLoadingMore])` with null-check on `savedScrollDeltaRef.current` — see Step 2 implementation spec. The order issue in `useSearchHistory.loadMore()` (`setPersistedEntries` in `.then()`, `setIsLoadingMore(false)` in `.finally()`) means a dep on `isLoadingMore` alone would race the prepend render; the `entries` dep + null-check guards this.
 
 2. **jsdom cannot validate BUG A / BUG B (AC6, AC8, AC9, AC26).** Per `feedback_jsdom_layout_ac_gap`: these ACs depend on real browser layout (scroll, DVH, iOS keyboard). Tests close the logic branches only. Operator smoke on `app-dev.nutrixplorer.com` on Chrome desktop, Safari desktop, and real iOS Safari is mandatory.
 
@@ -581,10 +588,10 @@ git diff --stat   # verify net code reduction ≥ 150 lines
 - [ ] On Safari iOS mobile, tapping the textarea in the composer does not push the composer off-screen below the keyboard. The composer remains fully visible above the keyboard after the virtual keyboard opens. Verified by operator on a real iOS device.
 
 ### AC27 — All tests pass (≥ 796 web tests)
-- [ ] `pnpm --filter web test` passes with zero failures. Tests that previously mocked `react-virtuoso` are rewritten to test the plain `div` equivalent. Net test count is similar to pre-rebuild.
+- [ ] `npm test -w @foodxplorer/web` passes with zero failures. Tests that previously mocked `react-virtuoso` are rewritten to test the plain `div` equivalent. Net test count is similar to pre-rebuild.
 
 ### AC28 — Lint, typecheck, build clean
-- [ ] `pnpm --filter web lint`, `pnpm --filter web typecheck`, and `pnpm --filter web build` all exit 0 with zero errors.
+- [ ] `npm run lint -w @foodxplorer/web`, `npm run typecheck -w @foodxplorer/web`, and `npm run build -w @foodxplorer/web` all exit 0 with zero errors.
 
 ### AC29 — Prototype files deleted
 - [ ] `packages/web/src/components/HablarV2Shell.tsx` is absent from the merge commit. The `/hablar-v2` route (page file) is absent. Verified by `git show --name-only HEAD` in the Completion Log.
@@ -615,10 +622,10 @@ These are implementation commitments that inform planning and the Completion Log
 
 - [ ] AC6 (BUG A) and AC8 + AC9 (BUG B) verified by operator on `app-dev.nutrixplorer.com` on Chrome desktop, Safari desktop, and Safari iOS mobile
 - [ ] All 29 Acceptance Criteria above met
-- [ ] All web tests passing (`pnpm --filter web test` — 796+)
-- [ ] `pnpm --filter web lint` clean (zero errors)
-- [ ] `pnpm --filter web typecheck` clean (zero errors)
-- [ ] `pnpm --filter web build` succeeds
+- [ ] All web tests passing (`npm test -w @foodxplorer/web` — 796+)
+- [ ] `npm run lint -w @foodxplorer/web` clean (zero errors)
+- [ ] `npm run typecheck -w @foodxplorer/web` clean (zero errors)
+- [ ] `npm run build -w @foodxplorer/web` succeeds
 - [ ] `react-virtuoso` removed from `packages/web/package.json`
 - [ ] No new dependencies added
 - [ ] Net code reduction ≥ 150 lines documented in Completion Log
@@ -665,6 +672,11 @@ These are implementation commitments that inform planning and the Completion Log
 | 2026-06-09 | Step 0 — Spec Revision 2 by spec-creator | Cross-model REVISE findings applied; prototype validation ALL 4 PASS incorporated; architecture locked (in-column); ADR-030 reversal documented |
 | 2026-06-09 | Step 0 — /review-spec round 2 cross-model | Gemini APPROVED + Codex REVISE (2 IMPORTANT + 1 SUGGESTION). Findings: RateLimitNudge sibling slot omitted from Axis 2; lg:max-w-2xl mx-auto dropped from feed contract; prepend not prototype-validated; AC30 redundant with DoD |
 | 2026-06-09 | Step 0 — Spec Revision 2.1 direct edits | All 4 round-2 findings closed: (1) RateLimitNudge sibling slot added to Axis 2 shell; (2) `lg:max-w-2xl lg:mx-auto w-full` added to Axis 1 + UI Changes; (3) Prepend SPEC-DEFINED-NOT-PROTOTYPE-VALIDATED note in Edge Cases; (4) AC30 collapsed into DoD (AC count 30→29). 4/4 closed without need for round 3 |
+| 2026-06-09 | Step 1 — Branch + tracker + ADR-030 draft (commit `ad668e5`) | Branch `rebuild/F-WEB-HISTORY-FU7-rebuild-scroll-wrapper` from develop @ `803378f`. product-tracker.md Active Session updated. ADR-030 stub appended to decisions.md (Status: Draft, finalized in Step 7) |
+| 2026-06-09 | Step 2a — ui-ux-designer doc updates (commit `c1c286e`) | 4 design/reference docs updated: hablar-design-guidelines.md (Section 6.2 + 4.1), design-guidelines.md (W16 + W18), ui-components.md (HablarShell + ConversationInput + TranscriptFeed entries), key_facts.md addendum preserving historical lesson. behavior:'smooth' → instant scrollTop assignment corrected |
+| 2026-06-09 | Step 2b — frontend-planner implementation plan (commit `e4954f8`) | 8-step TDD-ordered plan. 7M + 2D + 0C file ops. Q1-Q4 resolved (isLoadingHistory KEEP passthrough; onRetry/onDishSelect already FU6; firstItemIndex hook LEAVE; Section 6.3 grid drift DEFER). Highest risk = AC7 prepend (savedScrollDeltaRef) flagged with mitigation. AC29 vacuously satisfied (prototype branch doesn't merge) |
+| 2026-06-09 | Step 2c — /review-plan round 1 cross-model | Gemini APPROVED (1 SUGGESTION: stale comment in HablarShell). Codex REVISE (3 IMPORTANT): AC7 safer pattern as primary (not fallback); ui-components.md still has stale Virtuoso references in earlier sections; pnpm commands need npm normalization |
+| 2026-06-09 | Step 2c — Plan revision 1.1 direct edits | All 4 round-1 findings closed: (1) prepend pattern `useEffect([entries, isLoadingMore])` + null-check now PRIMARY in Step 2 spec; (2) Step 3 includes lines 165-168 comment cleanup; (3) Step 7 expanded with ui-components.md doc cleanup + verification grep; (4) ALL pnpm commands normalized to npm `npm test -w @foodxplorer/web` etc. (16 occurrences) |
 
 ---
 
