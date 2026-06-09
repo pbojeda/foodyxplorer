@@ -1,7 +1,7 @@
 # F-WEB-HISTORY-FU7: Canonical Scroll Architecture Rebuild — /hablar
 
 **Feature:** F-WEB-HISTORY-FU7 | **Type:** Frontend-Architecture-Rewrite | **Priority:** High (blocking develop→main release; 2 user-facing bugs unresolved after 14 iterations)
-**Status:** Spec | **Branch:** `rebuild/F-WEB-HISTORY-FU7-rebuild-scroll-wrapper`
+**Status:** In Progress | **Branch:** `rebuild/F-WEB-HISTORY-FU7-rebuild-scroll-wrapper`
 <!-- Valid Status values: Spec | In Progress | Planning | Review | Ready for Merge | Done -->
 **Created:** 2026-06-08 | **Tier:** Standard | **Dependencies:** F-WEB-HISTORY-FU6 done @ `803378f`
 **Revision:** 2.1 (2026-06-09 — addresses cross-model round 2 findings: RateLimitNudge sibling slot, desktop max-w-2xl, prepend not prototype-validated, AC30 collapsed into DoD)

@@ -422,14 +422,13 @@ describe('HGAP-3: allEntries composition order (persistedEntries first, sessionE
 });
 
 // ---------------------------------------------------------------------------
-// HGAP-5: mock boundary integration — context fields passed to TranscriptFeed
-// The global __mocks__/react-virtuoso.tsx renders VirtuosoHeader with context.
-// Verify that hasPersisted, isEmpty, isAuthenticated context fields are correct
-// as HablarShell passes them through TranscriptFeed → Virtuoso context.
+// HGAP-5: mock boundary integration — HablarShell passes correct props to TranscriptFeed
+// FU7 note: TranscriptFeed is now a native scroll div (no Virtuoso, no Header context).
+// ClearHistoryButton and EmptyState are direct DOM descendants of the feed container.
 // ---------------------------------------------------------------------------
 
-describe('HGAP-5: mock boundary integration — TranscriptFeed receives correct context', () => {
-  it('hasPersisted context=true when persistedEntries present → ClearHistoryButton renders', async () => {
+describe('HGAP-5: mock boundary integration — TranscriptFeed receives correct props', () => {
+  it('hasPersisted=true when persistedEntries present → ClearHistoryButton renders in feed', async () => {
     const persistedEntry = makePersistedEntry('ctx-p1', 'cached entry');
 
     mockUseSearchHistory.mockReturnValue({
@@ -449,13 +448,12 @@ describe('HGAP-5: mock boundary integration — TranscriptFeed receives correct 
       expect(screen.getByText('cached entry')).toBeInTheDocument();
     });
 
-    // ClearHistoryButton renders in the Virtuoso Header when
-    // isAuthenticated=true AND hasPersisted=true
-    // The global Virtuoso mock renders VirtuosoHeader which contains ClearHistoryButton
+    // ClearHistoryButton is a direct descendant of the native scroll feed div
+    // (no Virtuoso Header context indirection)
     expect(screen.getByRole('button', { name: /borrar todo|clear/i })).toBeInTheDocument();
   });
 
-  it('isEmpty context=true when allEntries=[] → empty state renders (via Header slot)', () => {
+  it('isEmpty=true when allEntries=[] → EmptyState renders inside feed', () => {
     mockUseSearchHistory.mockReturnValue({
       persistedEntries: [],
       hasMoreHistory: false,
@@ -465,7 +463,7 @@ describe('HGAP-5: mock boundary integration — TranscriptFeed receives correct 
       deleteEntry: jest.fn(),
       clearAll: jest.fn(),
     });
-    // Anonymous user: authenticated=false
+    // Anonymous user: isAuthenticated=false passed to TranscriptFeed
     mockUseAuth.mockReturnValue({
       user: null,
       session: null,
@@ -478,8 +476,7 @@ describe('HGAP-5: mock boundary integration — TranscriptFeed receives correct 
 
     render(<HablarShell />);
 
-    // Anonymous + empty → EmptyState renders in Virtuoso Header
-    // The global mock renders VirtuosoHeader via components.Header
+    // Anonymous + empty → EmptyState renders as direct child of the feed div
     expect(screen.getByText(/¿Qué quieres saber\?/i)).toBeInTheDocument();
   });
 });
