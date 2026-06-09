@@ -1,15 +1,19 @@
 'use client';
 
-// TranscriptFeed — append-only feed container for session transcript + persisted history.
-// F-WEB-HISTORY-FU6: architectural rewrite to react-virtuoso.
+// TranscriptFeed — native-scroll append-only feed (F-WEB-HISTORY-FU7 rewrite).
+// Architecture: ADR-030. Replaces react-virtuoso with a plain overflow-y-auto div.
 // Design spec: W16 (layout), W17 (entry spacing), W18 (persisted history), W23 (a11y).
-// AC3: single <Virtuoso> — no manual scrollTop writes, no ResizeObserver, no IntersectionObserver.
-// AC8: role="feed" + aria-label on Virtuoso root; aria-busy on HablarShell gate placeholder (not here).
-// AC10: Header slot — ClearHistoryButton, loading skeleton, HistoryEmptyState, EmptyState.
-// AC15: computeItemKey={entry.entryId} for stable identity across prepend/delete.
+//
+// Key mechanisms:
+//   1. Pin-aware auto-scroll on settle (AC25): scroll to bottom only when the
+//      user was within NEAR_BOTTOM_THRESHOLD_PX of the bottom before the settle.
+//      Pattern from validated prototype HablarV2Shell.tsx (commit e285711).
+//   2. Prepend anchoring (AC7): saves scrollHeight - scrollTop before loadMore
+//      resolves, restores after new entries arrive. Guards against setPersistedEntries
+//      / setIsLoadingMore(false) order in useSearchHistory.loadMore().
+//   3. onScroll load-more trigger: fires when el.scrollTop < 100 with dedup guard.
 
-import { useEffect, useRef } from 'react';
-import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
+import { useEffect, useRef, useCallback } from 'react';
 import type { TranscriptEntryData } from '@/types/history';
 import { TranscriptEntry } from './TranscriptEntry';
 import { EmptyState } from './EmptyState';
@@ -17,19 +21,17 @@ import { HistoryEmptyState } from './HistoryEmptyState';
 import { HistoryPersistenceNudge } from './HistoryPersistenceNudge';
 import { ClearHistoryButton } from './ClearHistoryButton';
 
+const NEAR_BOTTOM_THRESHOLD_PX = 100;
+const NEAR_TOP_THRESHOLD_PX = 100;
+
 interface TranscriptFeedProps {
   entries: TranscriptEntryData[];
   isAuthenticated: boolean;
+  /** Kept for API compatibility — the mount gate in HablarShell ensures
+   * TranscriptFeed never mounts while isLoadingHistory=true. */
   isLoadingHistory: boolean;
   hasMoreHistory: boolean;
   isLoadingMore: boolean;
-  /**
-   * Virtuoso `firstItemIndex` for inverse infinite scroll prepend anchoring.
-   * Owned by `useSearchHistory` and batched WITH `setPersistedEntries` (same
-   * commit) so Virtuoso never sees `data nuevo + firstItemIndex viejo` for a
-   * frame (iOS Safari prepend-jump fix, BUG-WEB-HISTORY-FU6-FU1).
-   */
-  firstItemIndex: number;
   showPersistenceNudge: boolean;
   onDismissPersistenceNudge: () => void;
   onLoadMore: () => void;
@@ -39,63 +41,137 @@ interface TranscriptFeedProps {
   onDishSelect?: (dishName: string) => void;
 }
 
-// Context shape passed to Virtuoso components slot
-interface FeedContext {
-  isAuthenticated: boolean;
-  hasPersisted: boolean;
-  hasMoreHistory: boolean;
-  isLoadingMore: boolean;
-  onLoadMore: () => void;
-  onClearAll: () => void;
-  isEmpty: boolean;
-  showPersistenceNudge: boolean;
-  onDismissPersistenceNudge: () => void;
-}
+export function TranscriptFeed({
+  entries,
+  isAuthenticated,
+  isLoadingHistory: _isLoadingHistory, // intentionally unused — mount gate is in HablarShell
+  hasMoreHistory,
+  isLoadingMore,
+  showPersistenceNudge,
+  onDismissPersistenceNudge,
+  onLoadMore,
+  onDeleteEntry,
+  onClearAll,
+  onRetry,
+  onDishSelect,
+}: TranscriptFeedProps) {
+  const feedRef = useRef<HTMLDivElement>(null);
 
-// ---------------------------------------------------------------------------
-// VirtuosoFooter — spacer at the bottom of the items list, matching the
-// live ConversationInput bar height so the last entry clears the fixed bar
-// (which is `position: fixed bottom: 0`, overlaying the viewport bottom).
-//
-// FU6-FU2: dynamic clearance via `--input-bar-height` CSS variable.
-// HablarShell publishes the value via ResizeObserver on the bar. The Footer
-// height auto-adapts to: inline error expansion, PhotoModeToggle layout,
-// safe-area-inset (iPhone home indicator), textarea auto-resize.
-// Fallback `12rem` (192px) covers the worst-case static measurement until
-// the ResizeObserver fires after first paint.
-// ---------------------------------------------------------------------------
-function VirtuosoFooter() {
+  // Pin-aware: updated on every scroll event.
+  // Initialized true so the mount scroll-to-bottom fires unconditionally.
+  const wasNearBottomRef = useRef(true);
+
+  // Settle detection: tracks previous loading state of the LAST entry.
+  const prevLastLoadingRef = useRef(false);
+
+  // Prepend anchoring: saves scrollHeight - scrollTop when isLoadingMore flips true.
+  // Null when no pending restore.
+  const savedScrollDeltaRef = useRef<number | null>(null);
+
+  // Dedup guard: prevents double-fire of onLoadMore before React commits isLoadingMore=true.
+  const loadMoreInFlightRef = useRef(false);
+
+  // ---------------------------------------------------------------------------
+  // Mount: scroll to bottom + initialize wasNearBottomRef
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const el = feedRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    wasNearBottomRef.current = true;
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Pin-aware settle: when last entry flips isLoading true→false, scroll to
+  // bottom only if user was near the bottom before the settle.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const el = feedRef.current;
+    const currentLastEntry = entries[entries.length - 1];
+    const currentLastLoading = currentLastEntry?.isLoading ?? false;
+
+    if (prevLastLoadingRef.current === true && currentLastLoading === false) {
+      if (wasNearBottomRef.current && el) {
+        requestAnimationFrame(() => {
+          el.scrollTop = el.scrollHeight;
+        });
+      }
+    }
+
+    prevLastLoadingRef.current = currentLastLoading;
+  }, [entries]);
+
+  // ---------------------------------------------------------------------------
+  // Prepend anchoring: save delta before loadMore; restore after entries arrive.
+  // Deps include entries so the restore fires after React commits the prepended
+  // items (isLoadingMore false + entries updated in same flush).
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const el = feedRef.current;
+    if (!el) return;
+
+    if (isLoadingMore) {
+      // Save current position delta before list grows.
+      // FIRST-WRITE-WINS guard (qa-engineer FU7 QA pass RACE-1, 2026-06-09):
+      // React 18 may produce an intermediate commit where `entries` already
+      // grew (from `useSearchHistory.loadMore` .then()) but `isLoadingMore`
+      // is still `true` (the `.finally()` setState hasn't committed yet).
+      // Without the null-guard, this effect would overwrite the original
+      // delta with one computed against the now-larger scrollHeight — the
+      // restore would then snap the user back to the wrong position. The
+      // guard ensures we only capture the PRE-loadMore scroll state.
+      if (savedScrollDeltaRef.current === null) {
+        savedScrollDeltaRef.current = el.scrollHeight - el.scrollTop;
+      }
+    } else if (savedScrollDeltaRef.current !== null) {
+      // Restore: scrollTop = newScrollHeight - savedDelta
+      el.scrollTop = el.scrollHeight - savedScrollDeltaRef.current;
+      savedScrollDeltaRef.current = null;
+    }
+  }, [entries, isLoadingMore]);
+
+  // Reset loadMore dedup guard when isLoadingMore becomes false
+  useEffect(() => {
+    if (!isLoadingMore) {
+      loadMoreInFlightRef.current = false;
+    }
+  }, [isLoadingMore]);
+
+  // ---------------------------------------------------------------------------
+  // onScroll handler
+  // ---------------------------------------------------------------------------
+  const handleScroll = useCallback(() => {
+    const el = feedRef.current;
+    if (!el) return;
+
+    // Update pin-aware near-bottom state
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    wasNearBottomRef.current = distanceFromBottom < NEAR_BOTTOM_THRESHOLD_PX;
+
+    // Trigger load-more when near the top
+    if (
+      el.scrollTop < NEAR_TOP_THRESHOLD_PX &&
+      hasMoreHistory &&
+      !isLoadingMore &&
+      !loadMoreInFlightRef.current
+    ) {
+      loadMoreInFlightRef.current = true;
+      onLoadMore();
+    }
+  }, [hasMoreHistory, isLoadingMore, onLoadMore]);
+
+  const hasPersisted = entries.some((e) => e.isPersisted);
+  const isEmpty = entries.length === 0;
+
   return (
     <div
-      className="h-[var(--input-bar-height,12rem)]"
-      aria-hidden="true"
-    />
-  );
-}
-
-// ---------------------------------------------------------------------------
-// VirtuosoHeader — defined at module scope for stable React identity.
-// Unstable identity (defined inside TranscriptFeed) causes Virtuoso to
-// re-mount the header on every parent re-render, which is incorrect.
-// ---------------------------------------------------------------------------
-function VirtuosoHeader({ context }: { context?: FeedContext }) {
-  if (!context) return null;
-
-  const {
-    isAuthenticated,
-    hasPersisted,
-    hasMoreHistory,
-    isLoadingMore,
-    onLoadMore,
-    onClearAll,
-    isEmpty,
-    showPersistenceNudge,
-    onDismissPersistenceNudge,
-  } = context;
-
-  return (
-    <>
-      {/* Keyboard fallback: sr-only focusable "Cargar más historial" (AC8, W23) */}
+      ref={feedRef}
+      role="feed"
+      aria-label="Historial de consultas"
+      className="relative flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full"
+      onScroll={handleScroll}
+    >
+      {/* Keyboard fallback: sr-only focusable "Cargar más historial" (AC24, W23) */}
       {hasMoreHistory && !isLoadingMore && (
         <button
           type="button"
@@ -106,7 +182,7 @@ function VirtuosoHeader({ context }: { context?: FeedContext }) {
         </button>
       )}
 
-      {/* Loading skeletons when isLoadingMore (aria-busy scoped to this region) */}
+      {/* Loading skeletons when isLoadingMore */}
       {isLoadingMore && (
         <div
           className="mb-4 space-y-3"
@@ -133,160 +209,23 @@ function VirtuosoHeader({ context }: { context?: FeedContext }) {
       )}
 
       {/* Empty states */}
-      {isEmpty && isAuthenticated && (
-        <HistoryEmptyState />
-      )}
-      {isEmpty && !isAuthenticated && (
-        <div className="flex flex-1 overflow-y-auto">
-          <EmptyState />
-        </div>
-      )}
-    </>
-  );
-}
+      {isEmpty && isAuthenticated && <HistoryEmptyState />}
+      {isEmpty && !isAuthenticated && <EmptyState />}
 
-// ---------------------------------------------------------------------------
-// TranscriptFeed
-// ---------------------------------------------------------------------------
-
-export function TranscriptFeed({
-  entries,
-  isAuthenticated,
-  isLoadingHistory: _isLoadingHistory, // intentionally unused — Virtuoso mounts only post-gate
-  hasMoreHistory,
-  isLoadingMore,
-  firstItemIndex,
-  showPersistenceNudge,
-  onDismissPersistenceNudge,
-  onLoadMore,
-  onDeleteEntry,
-  onClearAll,
-  onRetry,
-  onDishSelect,
-}: TranscriptFeedProps) {
-  const virtuosoRef = useRef<VirtuosoHandle>(null);
-
-  // Refs to track inter-render state for in-place resize detection
-  const prevLastLoadingRef = useRef(false);
-
-  // Local synchronous guard at startReached boundary — prevents double-fire before
-  // React commits isLoadingMore=true (same purpose as loadMoreInFlightRef in hook).
-  // Resets when isLoadingMore flips false (see useEffect below).
-  const loadMoreInFlightRef = useRef(false);
-
-  // In-place resize scroll detection (AC25/AC6).
-  //
-  // Cross-model verdict 2026-06-08 (gemini 95% + codex 84%): the previous
-  // `atBottomRef.current === true` guard self-invalidated on the very transition
-  // it was designed to handle. When the shimmer flips to a taller card,
-  // Virtuoso immediately fires `atBottomStateChange(false)` (the resize pushes
-  // the viewport above the new content end), which set the ref to `false`
-  // BEFORE this useEffect could read it. Result: the scroll-to-bottom intent
-  // was lost on every search.
-  //
-  // Canonical chat-feed pattern (Virtuoso docs Q2):
-  //   - `followOutput` handles append (data.length increases).
-  //   - Imperative `scrollToIndex({ index: 'LAST', align: 'end' })` handles
-  //     in-place resize of the last item (data.length unchanged, item taller).
-  //
-  // Always-scroll on settle is the right UX for nutriXplorer: the user
-  // submitted THEIR OWN query and is waiting for THAT result. We force-show it
-  // (unlike WhatsApp where incoming-from-others gets a "new messages" badge).
-  //
-  // firstItemIndex prepend anchoring is owned by useSearchHistory so it batches
-  // with setPersistedEntries (FU6-FU1 fix). This effect handles only the
-  // shimmer→card in-place resize case.
-  useEffect(() => {
-    const currentLastEntry = entries[entries.length - 1];
-    const currentLastLoading = currentLastEntry?.isLoading ?? false;
-
-    if (
-      prevLastLoadingRef.current === true &&
-      currentLastLoading === false
-    ) {
-      // requestAnimationFrame defers until after layout settle so the
-      // NutritionCard's final height is in Virtuoso's measurements.
-      // `index: 'LAST'` is index-space agnostic (works with firstItemIndex
-      // offset). `align: 'end'` aligns the last item's bottom with the
-      // viewport bottom, which equals the VirtuosoFooter top (footer height =
-      // --input-bar-height), placing the card just above the fixed input bar.
-      requestAnimationFrame(() => {
-        virtuosoRef.current?.scrollToIndex({
-          index: 'LAST',
-          align: 'end',
-          behavior: 'smooth',
-        });
-      });
-    }
-
-    prevLastLoadingRef.current = currentLastLoading;
-  }, [entries]);
-
-  // Reset startReached guard when isLoadingMore becomes false
-  useEffect(() => {
-    if (!isLoadingMore) {
-      loadMoreInFlightRef.current = false;
-    }
-  }, [isLoadingMore]);
-
-  const handleStartReached = () => {
-    if (loadMoreInFlightRef.current) return;
-    if (isLoadingMore || !hasMoreHistory) return;
-    loadMoreInFlightRef.current = true;
-    onLoadMore();
-  };
-
-  const hasPersisted = entries.some((e) => e.isPersisted);
-  const isEmpty = entries.length === 0;
-
-  const context: FeedContext = {
-    isAuthenticated,
-    hasPersisted,
-    hasMoreHistory,
-    isLoadingMore,
-    onLoadMore,
-    onClearAll,
-    isEmpty,
-    showPersistenceNudge,
-    onDismissPersistenceNudge,
-  };
-
-  return (
-    <Virtuoso
-      ref={virtuosoRef}
-      role="feed"
-      aria-label="Historial de consultas"
-      // `pb-...` removed (FU6-FU1): padding-bottom on the Virtuoso outer wrapper
-      // doesn't push the items list up — Virtuoso owns the inner Scroller. The
-      // 144px input-bar clearance is now provided by VirtuosoFooter (inside the
-      // scroll content). `overflow-x-hidden` clips iOS Safari horizontal jiggle
-      // from any child with intrinsic width > viewport (FU6-FU1 finding 4).
-      className="flex-1 overflow-y-auto overflow-x-hidden px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full"
-      data={entries}
-      computeItemKey={(_idx, entry) => entry.entryId}
-      firstItemIndex={firstItemIndex}
-      initialTopMostItemIndex={Math.max(0, entries.length - 1)}
-      followOutput="smooth"
-      startReached={handleStartReached}
-      itemContent={(idx, entry) => (
-        // FU6-FU2 — min-w-0 + max-w-full prevent any descendant with
-        // intrinsic width (e.g. long dish name) from pushing the item wider
-        // than the viewport, which `overflow-x-hidden` would then clip.
-        <div className="min-w-0 max-w-full">
+      {/* Entries */}
+      {entries.map((entry, idx) => (
+        <div key={entry.entryId}>
           <TranscriptEntry
             entry={entry}
             onDelete={entry.isPersisted ? onDeleteEntry : undefined}
             onRetry={onRetry}
             onDishSelect={onDishSelect}
           />
-          {/* MINOR-1: suppress trailing divider after last entry (code-review-specialist) */}
           {idx < entries.length - 1 && (
             <hr className="border-t border-slate-100 my-4" aria-hidden="true" />
           )}
         </div>
-      )}
-      components={{ Header: VirtuosoHeader, Footer: VirtuosoFooter }}
-      context={context}
-    />
+      ))}
+    </div>
   );
 }

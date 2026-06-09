@@ -1028,7 +1028,7 @@ app/hablar/page.tsx (Server Component — metadata, shell render)
     │   └── [NutritionCard...]  (results)
     │       ├── ConfidenceBadge
     │       └── [AllergenChip...]
-    └── ConversationInput (fixed bottom)
+    └── ConversationInput (flex-shrink-0, in-column)
         ├── <textarea>
         ├── PhotoButton         (disabled placeholder)
         ├── MicButton           (disabled placeholder)
@@ -1056,12 +1056,13 @@ Top-level orchestrator component. Manages all page state and coordinates API cal
 - On error: set `error`, `isLoading: false`
 - Retry button in ErrorState: re-submits last query
 
-**Layout:**
+**Layout (ADR-030, F-WEB-HISTORY-FU7):**
 ```
 h-[100dvh] flex flex-col bg-white
-├── AppBar (52px, optional)
-├── ResultsArea (flex-1, overflow-y-auto, pb-[84px])
-└── ConversationInput (fixed bottom-0)
+├── AppBar (52px, flex-shrink-0)
+├── TranscriptFeed (flex-1, overflow-y-auto, overscroll-contain)
+├── RateLimitNudge (flex-shrink-0, conditional — anon 429 only)
+└── ConversationInput (flex-shrink-0, NOT fixed bottom-0)
 ```
 
 ### ConversationInput
@@ -1069,7 +1070,9 @@ h-[100dvh] flex flex-col bg-white
 **Type:** Feature | **Client:** Yes (`'use client'`)
 **File:** `src/components/ConversationInput.tsx`
 
-Fixed bottom input bar. Contains textarea + action buttons. Safe-area aware for iOS.
+In-column input bar at the natural bottom of the `h-[100dvh] flex-col` shell. Contains textarea + action buttons. Safe-area aware for iOS.
+
+Note (ADR-030, F-WEB-HISTORY-FU7): `position: fixed bottom-0` is REMOVED. The component is now a `flex-shrink-0` block sibling. `outerRef` prop also removed (no longer needed by ResizeObserver in HablarShell).
 
 **Props:**
 | Prop | Type | Required | Description |
@@ -1082,7 +1085,7 @@ Fixed bottom input bar. Contains textarea + action buttons. Safe-area aware for 
 
 **Styling:**
 ```
-fixed bottom-0 left-0 right-0
+flex-shrink-0 w-full (NOT fixed bottom-0)
 bg-white border-t border-slate-200
 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))]
 backdrop-blur-sm
@@ -2404,17 +2407,17 @@ Non-PII — no email addresses in payloads.
 ### Component Hierarchy
 
 ```
-HablarShell (Client — UPDATED: feed state replaces singleton result state)
-└── TranscriptFeed (Client — Virtuoso rewrite FU6)
-    ├── <Virtuoso> (react-virtuoso, library-owned scroll)
-    │   ├── VirtuosoHeader slot (ClearHistoryButton, load skeleton, empty states, nudge)
-    │   └── itemContent → TranscriptEntry[] (Client — NEW, renders one per query+result pair)
-    │   ├── EntryHeader (internal — query echo + timestamp + delete button)
-    │   │   └── DeleteEntryButton (Client — NEW, with inline confirm)
-    │   └── [result body: existing NutritionCard / ContextConfirmation / MenuDishList / ErrorState — UNCHANGED]
-    ├── HistoryPersistenceNudge (Client — NEW, anonymous only, ≥2 entries)
-    ├── HistoryEmptyState (Client — NEW, logged-in only, no entries)
-    └── ClearHistoryButton (Client — NEW, logged-in only, with modal confirm)
+HablarShell (Client — feed state, append-only)
+└── TranscriptFeed (Client — UPDATED FU7: native overflow-y-auto, no Virtuoso)
+    ├── <div role="feed" overflow-y-auto> (native scroll container, ADR-030)
+    │   ├── Leading children (ClearHistoryButton, load skeleton, empty states, nudge, sr-only keyboard button)
+    │   ├── entries.map → TranscriptEntry[] (Client — renders one per query+result pair)
+    │   │   ├── EntryHeader (internal — query echo + timestamp + delete button)
+    │   │   │   └── DeleteEntryButton (Client — inline confirm)
+    │   │   └── [result body: NutritionCard / ContextConfirmation / MenuDishList / ErrorState]
+    │   └── HistoryPersistenceNudge (Client — anonymous only, ≥2 entries)
+    ├── HistoryEmptyState (Client — logged-in only, no entries)
+    └── ClearHistoryButton (Client — logged-in only, modal confirm)
 ```
 
 ---
@@ -2462,58 +2465,75 @@ interface TranscriptEntryData {
 
 **Type:** Feature | **Client:** Yes
 
-**Props:**
+**Props (updated — F-WEB-HISTORY-FU7, ADR-030):**
+
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `entries` | `TranscriptEntryData[]` | Yes | — | Ordered list of query+result pairs (oldest first). Managed by HablarShell. |
-| `isLoadingMore` | `boolean` | No | `false` | True while fetching older history from server (scroll-triggered). |
-| `hasMoreHistory` | `boolean` | No | `false` | False when the API returns an empty page (hides sentinel, shows end-cap). |
-| `onLoadMore` | `() => void` | No | — | Callback fired by sentinel when it enters viewport. |
+| `entries` | `TranscriptEntryData[]` | Yes | — | Ordered list (oldest first). Managed by HablarShell. |
+| `isAuthenticated` | `boolean` | No | `false` | Controls "Guardado" badge and ClearHistoryButton visibility. |
+| `isLoadingHistory` | `boolean` | No | `false` | True while initial history fetch is in flight (consumed by HablarShell mount gate, not TranscriptFeed directly). |
+| `hasMoreHistory` | `boolean` | No | `false` | False when API returns empty page (hides load-more affordance). |
+| `isLoadingMore` | `boolean` | No | `false` | True while older entries are being prepended (scroll-triggered). |
+| `showPersistenceNudge` | `boolean` | No | `false` | Show `HistoryPersistenceNudge` after ≥2 anon entries. |
+| `onDismissPersistenceNudge` | `() => void` | No | — | Dismiss callback for `HistoryPersistenceNudge`. |
+| `onLoadMore` | `() => void` | No | — | Triggered when sentinel at top enters viewport. |
 | `onDeleteEntry` | `(entryId: string) => void` | No | — | Signals HablarShell to remove an entry from state. |
 | `onClearAll` | `() => void` | No | — | Signals HablarShell to clear all persisted history. |
-| `isAuthenticated` | `boolean` | No | `false` | Controls "Guardado" badge on pre-loaded entries and ClearHistoryButton visibility. |
-| `showPersistenceNudge` | `boolean` | No | `false` | Parent-controlled: show after ≥2 entries for anonymous users. |
-| `onDismissPersistenceNudge` | `() => void` | No | — | Dismiss callback for HistoryPersistenceNudge. |
+| `onRetry` | `(entryId: string) => void` | No | — | Retry handler for error entries. |
+| `onDishSelect` | `(dish: MenuDish) => void` | No | — | Passed through to MenuDishList entries. |
 
-**Architecture (F-WEB-HISTORY-FU6 — Virtuoso rewrite):**
+Note: `firstItemIndex` is **DROPPED** from props (no longer needed without Virtuoso).
 
-`TranscriptFeed` renders a single `<Virtuoso>` from `react-virtuoso` (MIT). No manual `scrollTop` writes, no `ResizeObserver`, no `IntersectionObserver`. Virtuoso owns the scroll container.
+**Architecture (F-WEB-HISTORY-FU7 — native scroll, ADR-030):**
 
-**Virtuoso prop wiring:**
+`TranscriptFeed` renders a plain scrollable `<div>` — no `react-virtuoso`. This is an ADR-030 reversal of the FU6 Virtuoso architecture; see `docs/project_notes/decisions.md` ADR-030 and `docs/tickets/F-WEB-HISTORY-FU7-rebuild-scroll-wrapper.md` for rationale.
 
-| Prop | Value | Purpose |
-|------|-------|---------|
-| `data` | `entries` (oldest-first) | Chronological DOM order (oldest→newest); required for `role="feed"` ARIA semantics |
-| `computeItemKey` | `(_, entry) => entry.entryId` | Stable identity for prepend/delete operations; prevents full-list remount |
-| `firstItemIndex` | `firstItemIndex` state (starts at `1_000_000`, decrements by 10 on each prepend) | Viewport anchor on loadMore prepend; MUST stay positive per Virtuoso v4 docs |
-| `initialTopMostItemIndex` | `Math.max(0, entries.length - 1)` | Scroll to newest entry on first mount (post-gate) |
-| `followOutput` | `"smooth"` | Pin-aware append scroll — only scrolls if user is at bottom (replaces `wasNearBottomRef`) |
-| `ref` | `VirtuosoHandle` | Used for imperative `autoscrollToBottom()` on in-place shimmer→card transition |
-| `atBottomStateChange` | `(atBottom) => { atBottomRef.current = atBottom }` | Tracks bottom position for in-place resize scroll decision |
-| `startReached` | `handleStartReached` | Fires when user scrolls to top; replaces `HistoryLoadMoreSentinel` IntersectionObserver |
-| `itemContent` | `(_, entry) => <TranscriptEntry ... />` | Per-entry renderer |
-| `components` | `{ Header: VirtuosoHeader }` | Composite header slot (see below) |
-| `context` | `FeedContext` | Shared state for header slot |
+**Scroll container:**
 
-**`VirtuosoHeader` slot (module-scope for stable identity):**
-- sr-only "Cargar más historial" keyboard button (when `hasMoreHistory && !isLoadingMore`)
-- Loading skeleton (when `isLoadingMore`, with `aria-busy="true"` scoped to the skeleton div)
+```html
+<div
+  className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full"
+  role="feed"
+  aria-label="Historial de consultas"
+  onScroll={handleScroll}
+  ref={feedRef}
+>
+```
+
+- `flex-1 overflow-y-auto` — fills remaining shell height; owns the scroll viewport.
+- `overscroll-contain` — prevents scroll chaining to the page on iOS/Android.
+- `-webkit-overflow-scrolling: touch` — iOS momentum scroll (applied via globals.css or inline style).
+- `lg:max-w-2xl lg:mx-auto w-full` — desktop centering; preserves single-column layout (design-guidelines.md W16).
+- No `padding-bottom` clearance — in-column `ConversationInput` eliminates the overlay/clearance problem entirely.
+
+**Internal refs (3 total — FU7 architecture):**
+- `feedRef` — `React.useRef<HTMLDivElement>` on the scroll container; used for imperative scroll.
+- `wasNearBottomRef` — `boolean`; updated on every `onScroll`: `true` when `scrollHeight - scrollTop - clientHeight < 100px`. Guards auto-scroll on entry settle.
+- `prevLastLoadingRef` — tracks previous `isLoading` state of the last entry; settle is detected when this flips `true → false`.
+
+**Pin-aware auto-scroll on entry settle:**
+- On settle (last entry `isLoading` transitions `true → false`): if `wasNearBottomRef.current`, fire `requestAnimationFrame(() => { el.scrollTop = el.scrollHeight })`. Direct assignment — NOT `behavior: 'smooth'`.
+- On mount: `el.scrollTop = el.scrollHeight` (scroll to newest entry on initial load; sets `wasNearBottomRef.current = true`).
+- If the user has scrolled up (>100px from bottom), `wasNearBottomRef.current` is `false` and no scroll fires — their viewport is preserved.
+
+**Prepend anchoring (load-more, SPEC-DEFINED):**
+Before `onLoadMore` resolves, save `el.scrollHeight - el.scrollTop`. After new entries arrive, restore `el.scrollTop = el.scrollHeight - savedDelta`. This replaces Virtuoso's `firstItemIndex` mechanism. Prevents the visible entry from jumping when older entries are prepended above.
+
+**Leading content (top of scroll container, before entries):**
+Rendered as leading `div` children (NOT via a Virtuoso `components.Header` slot):
+- sr-only keyboard "Cargar más historial" button (when `hasMoreHistory && !isLoadingMore`)
+- Loading skeleton with `aria-busy="true"` (when `isLoadingMore`)
 - `ClearHistoryButton` (when `isAuthenticated && hasPersisted`)
 - `HistoryPersistenceNudge` (when `showPersistenceNudge`)
 - `HistoryEmptyState` (when `isEmpty && isAuthenticated`)
 - `EmptyState` (when `isEmpty && !isAuthenticated`)
 
-**Internal refs (3 total — FU6 architecture):**
-- `virtuosoRef` — `VirtuosoHandle` for imperative `autoscrollToBottom()` on in-place resize
-- `atBottomRef` — tracks user's at-bottom state (wired to `atBottomStateChange`)
-- `loadMoreInFlightRef` — local synchronous dedup guard at `startReached` boundary
-
-**Mount gate (HablarShell AC1b):**
-HablarShell renders a `role="feed" aria-busy="true"` placeholder div while `authLoading || (user && isLoadingHistory)`. `TranscriptFeed` (Virtuoso) is NOT mounted during this gate. Once the gate opens, Virtuoso mounts ONCE with the full hydrated `entries` array, so `initialTopMostItemIndex` fires correctly.
+**Mount gate (HablarShell):**
+HablarShell renders a `role="feed" aria-busy="true"` placeholder div while `authLoading || (user && isLoadingHistory)`. `TranscriptFeed` is NOT mounted during this gate. Once the gate opens, `TranscriptFeed` mounts once with the full hydrated `entries` array, and `el.scrollTop = el.scrollHeight` fires on mount.
 
 **Accessibility (two-phase semantics):**
-- **Gate phase** (placeholder): `role="feed" aria-busy="true" aria-label="Historial de consultas"` — rendered by HablarShell
-- **Post-gate** (Virtuoso): `role="feed" aria-label="Historial de consultas"` — NO `aria-busy` on root (initial load complete); `aria-busy` scoped to Header skeleton during `isLoadingMore`
+- **Gate phase** (placeholder): `role="feed" aria-busy="true" aria-label="Historial de consultas"` — rendered by HablarShell.
+- **Post-gate** (feed active): `role="feed" aria-label="Historial de consultas"` — NO `aria-busy` on root; `aria-busy` scoped to the load-more skeleton div during `isLoadingMore`.
 
 ---
 
@@ -2635,7 +2655,7 @@ Encapsulates all server history interactions: initial mount fetch (`GET /history
 
 **Mount behavior:** On first render with a non-null `authToken`, fires `GET /history?limit=10`. On success, sets `persistedEntries` (reversed to oldest-first). On 4xx/5xx, logs warning and returns `persistedEntries: []` (graceful degradation — session feed still works).
 
-**`loadMore` behavior:** Increments page cursor. Called via Virtuoso `startReached` prop (replaces `HistoryLoadMoreSentinel` IntersectionObserver). Fires `GET /history?cursor=<nextCursor>&limit=10`. Prepends results to `persistedEntries`. Sets `hasMoreHistory: false` when `nextCursor` is null. Includes synchronous `loadMoreInFlightRef` dedup guard against rapid double-fire before React commits `isLoadingMore=true`.
+**`loadMore` behavior:** Increments page cursor. Called by `TranscriptFeed`'s `onScroll` handler when `el.scrollTop < 100` (per ADR-030 FU7 — replaces FU6 Virtuoso `startReached` prop and earlier `HistoryLoadMoreSentinel` IntersectionObserver). Fires `GET /history?cursor=<nextCursor>&limit=10`. Prepends results to `persistedEntries`. Sets `hasMoreHistory: false` when `nextCursor` is null. Includes synchronous `loadMoreInFlightRef` dedup guard against rapid double-fire before React commits `isLoadingMore=true`.
 
 **`deleteEntry` behavior:** Calls `DELETE /history/{id}`. Removes the entry from `persistedEntries` optimistically before the request resolves. On 404 (already gone), the entry was already removed — no-op. On other errors, log warning (do not re-add the entry to state — the user's intent was to delete it).
 
@@ -2661,7 +2681,7 @@ Encapsulates all server history interactions: initial mount fetch (`GET /history
 - `sessionEntries` — local state for in-flight/session entries (append/settle/remove).
 - `persistedEntries` — from `useSearchHistory` directly (no local mirror).
 - `allEntries = useMemo([persistedEntries, sessionEntries])` — passed to `TranscriptFeed`.
-- Mount gate: when `authLoading || (user && isLoadingHistory)`, HablarShell renders a placeholder div instead of `<TranscriptFeed>`. This ensures Virtuoso mounts exactly once with the full hydrated array.
+- Mount gate: when `authLoading || (user && isLoadingHistory)`, HablarShell renders a placeholder div instead of `<TranscriptFeed>`. This ensures the native scroll container mounts exactly once with the full hydrated array (FU7 ADR-030 — was "Virtuoso mounts" in FU6).
 - `handleClearAll()` calls ONLY `clearPersistedHistory()` — `sessionEntries` is NOT cleared (AC2 sub-bullet).
 
 **New state:**

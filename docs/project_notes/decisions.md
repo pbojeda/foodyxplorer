@@ -1088,3 +1088,49 @@ The cost/benefit at pre-beta tilts strongly toward closing the surface: it simul
 - ADR-027 (`decisions.md:1007`) — bearer-over-API-key precedence this extends to the global limiter.
 - `bugs.md` — BUG-API-RATELIMIT-BEARER-001 (root cause, why-not-caught, prevention).
 - `packages/api/src/plugins/rateLimit.ts` — helpers + ordering comment; `actorRateLimit.ts` — the DAILY quota counterpart.
+
+---
+
+### ADR-030: Native Scroll + In-Column Composer for `/hablar` — Reversal of `react-virtuoso` Canonical Rule (F-WEB-HISTORY-FU7, 2026-06-09)
+
+**Status:** Accepted — F-WEB-HISTORY-FU7 implementation complete 2026-06-09. Empirically validated via `/hablar-v2` prototype (branch `prototype/hablar-v2-in-column-composer` @ `e285711`) tested on real iPhone Safari + web desktop: all 4 critical scenarios PASS (BUG A scroll-on-settle + BUG B right-clip + iOS keyboard composer-visible + pin-aware scroll). Cross-model `/review-spec` round 1 = REVISE both → round 2 = Gemini APPROVED + Codex REVISE 3 precision (all closed in rev 2.1). Cross-model `/review-plan` round 1 = Gemini APPROVED + Codex REVISE 3 IMPORTANT (all closed in rev 1.1). 8-step TDD implementation completed across commits `58b67f4`..`b0b029a`. Net code reduction -345 lines; tests 783/783; `react-virtuoso` dependency removed. Owner-approved at each ADR checkpoint per memory `feedback_pre_commit_arch_discussion`.
+
+**Context.** After the F-WEB-HISTORY append-only feed was introduced, two layout/scroll bugs proved unresolvable through 14 iterations:
+- **BUG A**: card resolved by a new search ends up partially covered by the input bar (scroll position doesn't move enough on settle).
+- **BUG B**: card right edge clipped on iOS Safari mobile and (after FU3) also on web desktop, hiding the delete button.
+
+Iterations FU1–FU5 (manual scroll arithmetic + ResizeObserver + IntersectionObserver + 4-effect state machine, 10 PRs) failed. Iteration 11 (FU6) pivoted to `react-virtuoso` as the canonical scroll model — owner approval + memory `feedback_hand_rolled_scroll_anti_pattern` codified the rule. FU6 + FU1 + FU2 + FU3 + revert+fix (4 more iterations) ALSO failed: same two bugs persist.
+
+The invariant across ALL 14 failures: `ConversationInput` is `position: fixed bottom-0` overlay. Both manual scroll and Virtuoso had to "compensate" for this overlay via clearance hacks (`padding-bottom`, Footer spacer, `--input-bar-height` ResizeObserver, `atBottomRef` guard, `overflow-x-hidden`). Each compensation introduced a new failure mode.
+
+**Decision.**
+
+1. **Drop `react-virtuoso`.** `TranscriptFeed` rebuilds to a plain `<div className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full" role="feed" aria-label="Historial de consultas">`. No virtualization (the working set is ≤50 entries; virtualization is overkill). No Footer spacer. No `--input-bar-height` CSS var. No `ResizeObserver` on the input bar. No `atBottomRef` / `atBottomStateChange`.
+
+2. **Composer in-column.** `ConversationInput` becomes a `flex-shrink-0` sibling at the end of the `h-[100dvh] flex-col` shell, NOT `position: fixed bottom-0`. The feed's bottom edge IS the composer's top edge — guaranteed by flex layout. iOS keyboard validated empirically: the virtual keyboard raises the `dvh` viewport; the in-column composer naturally stays visible.
+
+3. **`RateLimitNudge` sibling slot.** Conditional `flex-shrink-0` row between feed and composer when `showRateLimitNudge && !user` (per AC15). Shrinks the feed naturally when active.
+
+4. **Pin-aware auto-scroll.** Last entry `isLoading: true→false` settle triggers `requestAnimationFrame(() => { el.scrollTop = el.scrollHeight })` **only if** the user was within 100px of the bottom before the settle (`distanceFromBottom = scrollHeight - scrollTop - clientHeight < 100`). If user scrolled up to read history, viewport position is preserved — no scroll hijack. Matches `design-guidelines.md:1366-1367` and `:1765` requirement that auto-scroll never hijacks.
+
+5. **Prepend anchoring via scrollHeight diff** (replaces Virtuoso `firstItemIndex`). Save `scrollHeight - scrollTop` before `loadMore`; restore `scrollTop = scrollHeight - savedDelta` after new entries arrive. Spec-defined but NOT prototype-validated (the prototype doesn't include loadMore); requires operator smoke on `app-dev` post-deploy.
+
+6. **REVERSAL of `feedback_hand_rolled_scroll_anti_pattern`.** The previous anti-pattern rule ("chat/feed scroll = library-owned react-virtuoso; hand-rolled scroll arithmetic is anti-pattern") was diagnosed when the architecture was `manual-arithmetic + position-fixed-overlay-composer`. The bug class was the COMBINATION, not native scroll alone. With in-column composer (no overlay), there is no arithmetic — `el.scrollTop = el.scrollHeight` is the entire scroll-to-bottom mechanism. `key_facts.md` retains the historical lesson with an addendum noting the in-column-composer caveat. `design-guidelines.md`, `ui-components.md`, and `hablar-design-guidelines.md` all update to match.
+
+**Consequences.**
+
+- (+) BUG A and BUG B definitively eliminated structurally (validated empirically on real iPhone Safari + web desktop in `/hablar-v2`). No overlay → no overlay-vs-content tension.
+- (+) Massive complexity reduction: drops `react-virtuoso` dependency (-1, ~50 KB gzipped bundle), removes `--input-bar-height` ResizeObserver, Footer spacer, `atBottomRef` plumbing, `overflow-x-hidden` defensive, multiple `min-w-0 break-words` patches. Target net code reduction ≥150 lines.
+- (+) iOS Safari friendly: `dvh` + in-column flex layout is the canonical mobile-web chat pattern. No fixed-positioning quirks.
+- (+) `lg:max-w-2xl lg:mx-auto` desktop centering preserved.
+- (–) Anti-pattern rule reversal: the project recorded a hard-won lesson (`feedback_hand_rolled_scroll_anti_pattern`); reversing it requires preserving the historical context in `key_facts.md` so future agents understand the refinement (anti-pattern was combo-specific, not universal). Memory `feedback_empirical_prototype_before_arch_decision` (2026-06-09) documents the meta-lesson: build prototype before deciding when N≥5 iterations have failed.
+- (–) Prepend anchoring is spec-defined but not prototype-validated; AC7 requires operator smoke. Mitigation: implementation tests with jsdom + integration test simulating prepend.
+- (–) Manual scroll arithmetic for prepend (saving scrollHeight diff) — but it's ~5 lines and a well-known pattern, not a state machine.
+
+**Cross-references:**
+- `docs/tickets/F-WEB-HISTORY-FU7-rebuild-scroll-wrapper.md` — full spec/29 ACs + cross-model trail.
+- `prototype/hablar-v2-in-column-composer @ e285711` — empirical prototype (deleted in FU7 final PR per AC29).
+- `feedback_empirical_prototype_before_arch_decision` (memory) — meta-lesson.
+- `feedback_hand_rolled_scroll_anti_pattern` (memory) — prior anti-pattern rule, now refined.
+- `project_scroll_arch_decision_2026_06_06` (memory) — FU6 react-virtuoso pivot context.
+- `key_facts.md:30-31` — react-virtuoso canonical line, updated with addendum.

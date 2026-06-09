@@ -123,7 +123,6 @@ export function HablarShell() {
     hasMoreHistory,
     isLoadingMore,
     isLoadingHistory,
-    firstItemIndex,
     loadMore,
     deleteEntry: deletePersistedEntry,
     clearAll: clearPersistedHistory,
@@ -162,39 +161,12 @@ export function HablarShell() {
   const currentRequestRef = useRef<AbortController | null>(null);
   // Ref to the input-bar MicButton so we can restore focus on overlay close (AC15)
   const micButtonRef = useRef<HTMLButtonElement>(null);
-  // FU6-FU2 — outer ref to ConversationInput. ResizeObserver below measures
-  // its live height and exposes it as `--input-bar-height` CSS var so the
-  // VirtuosoFooter spacer can match the bar exactly (including inline error
-  // expansion, safe-area-inset, PhotoModeToggle, etc.).
-  const inputBarRef = useRef<HTMLDivElement>(null);
 
   // Flush metrics on page unload
   useEffect(() => {
     const handleUnload = () => flushMetrics();
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
-  }, []);
-
-  // FU6-FU2 — publish input-bar height as `--input-bar-height` CSS variable.
-  // Why: the VirtuosoFooter spacer must equal the bar's actual height so the
-  // last item's bottom edge clears the `fixed bottom-0` bar. The bar height
-  // varies with: inline error visibility (+~24px), PhotoModeToggle layout,
-  // safe-area-inset (iPhone home indicator), and any future bar growth.
-  // ResizeObserver auto-updates the var on any change.
-  useEffect(() => {
-    const el = inputBarRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const update = () => {
-      const h = el.getBoundingClientRect().height;
-      document.documentElement.style.setProperty('--input-bar-height', `${h}px`);
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => {
-      ro.disconnect();
-      document.documentElement.style.removeProperty('--input-bar-height');
-    };
   }, []);
 
   // Fetch voice budget on mount — fail-open on error (F091)
@@ -642,7 +614,7 @@ export function HablarShell() {
   // Mount gate (AC1b): defer TranscriptFeed mount until history load is complete
   // for authenticated users. Anonymous users skip the gate (no persisted fetch).
   // During gate: render a placeholder with role="feed" aria-busy="true".
-  // Post-gate: Virtuoso mounts ONCE with full hydrated allEntries array.
+  // Post-gate: TranscriptFeed mounts ONCE with full hydrated allEntries array.
   // ---------------------------------------------------------------------------
   const isGated = authLoading || (!!user && isLoadingHistory);
 
@@ -666,7 +638,7 @@ export function HablarShell() {
           role="feed"
           aria-busy="true"
           aria-label="Historial de consultas"
-          className="flex-1 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-[var(--input-bar-height,12rem)] lg:max-w-2xl lg:mx-auto w-full"
+          className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full"
         />
       ) : (
         /* Transcript feed — scrollable, replaces ResultsArea */
@@ -676,7 +648,6 @@ export function HablarShell() {
           isLoadingHistory={isLoadingHistory}
           hasMoreHistory={hasMoreHistory}
           isLoadingMore={isLoadingMore}
-          firstItemIndex={firstItemIndex}
           showPersistenceNudge={showPersistenceNudge}
           onDismissPersistenceNudge={() => setNudgeDismissed(true)}
           onLoadMore={loadMore}
@@ -694,9 +665,8 @@ export function HablarShell() {
         </div>
       )}
 
-      {/* Fixed bottom input */}
+      {/* In-column bottom input (ADR-030: not position:fixed) */}
       <ConversationInput
-        outerRef={inputBarRef}
         value={query}
         onChange={setQuery}
         onSubmit={handleSubmit}

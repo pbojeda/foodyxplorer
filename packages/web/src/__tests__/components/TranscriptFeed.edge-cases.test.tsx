@@ -8,7 +8,7 @@ import { render, screen } from '@testing-library/react';
 import type { TranscriptEntryData } from '../../types/history';
 
 // ---------------------------------------------------------------------------
-// Module mocks (auto-mock picks up __mocks__/react-virtuoso.tsx for Virtuoso)
+// Module mocks
 // ---------------------------------------------------------------------------
 
 jest.mock('../../components/TranscriptEntry', () => ({

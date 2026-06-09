@@ -1344,27 +1344,28 @@ Contrast with chat apps (newest at bottom, input at bottom) — this is the **sa
 The existing `ResultsArea` flex region (`flex-1 overflow-y-auto`) becomes the `TranscriptFeed` container:
 
 ```
-┌───────────────────────────────────────┐  ← header (h-[52px], fixed)
+┌───────────────────────────────────────┐  ← header (h-[52px], flex-shrink-0)
 │  [header: logo + auth slot]           │
 ├───────────────────────────────────────┤
 │                                       │  ← TranscriptFeed (flex-1 overflow-y-auto)
-│  [older entries — scroll up]          │
+│  [older entries — scroll up]          │  ← lg:max-w-2xl lg:mx-auto w-full
 │  ─────────────────────────────────── │  ← entry divider
 │  TranscriptEntry N-1                  │
 │  ─────────────────────────────────── │
 │  TranscriptEntry N  ← most recent    │
 │                                       │
 ├───────────────────────────────────────┤
-│  [RateLimitNudge — conditional]       │
+│  [RateLimitNudge — conditional]       │  ← flex-shrink-0 sibling (anon 429 only)
 ├───────────────────────────────────────┤
-│  [ConversationInput — fixed bar]      │
+│  [ConversationInput — flex-shrink-0]  │  ← in-column, NOT position: fixed
 └───────────────────────────────────────┘
 ```
 
-- Container: `flex-1 overflow-y-auto px-4 pt-4 pb-6` — note `pb-6` rather than the current `pb-24` (the `pb-24` in `CardGrid` was compensating for the fixed input bar; with a proper flex layout the feed should use `pb-4` or `pb-6` and rely on the ConversationInput occupying its own flex row, not overlapping).
-- Max-width constraint: `lg:max-w-2xl lg:mx-auto` (inherited, unchanged).
-- After a new result is added, auto-scroll the container to its bottom: `scrollTo({ top: container.scrollHeight, behavior: 'smooth' })`. Smooth scroll, not instant — the user must see the result arrive, not snap to it.
-- **Do NOT auto-scroll** if the user has manually scrolled upward (reviewing older entries). Detect this by comparing `scrollTop + clientHeight` against `scrollHeight` before auto-scrolling — only auto-scroll when the user is already near the bottom (within 100px). This prevents the feed from hijacking the user's position when they are reviewing history.
+- Container: `flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full` — no `padding-bottom` clearance needed; the in-column composer occupies its own flex row and cannot overlap the feed.
+- Max-width constraint: `lg:max-w-2xl lg:mx-auto` (unchanged).
+- **Auto-scroll on entry settle (pin-aware):** when the last entry's `isLoading` flips `true → false`, scroll to bottom via `requestAnimationFrame(() => { el.scrollTop = el.scrollHeight })` — direct `scrollTop` assignment (instant), NOT `behavior: 'smooth'`. Only fire if the feed was already near the bottom (within 100px) before the settle.
+- **Do NOT auto-scroll** if the user has manually scrolled upward (reviewing older entries). Detect by tracking `scrollHeight - scrollTop - clientHeight < 100` on every scroll event (`wasNearBottomRef`). If the user is more than 100px from the bottom, preserve their viewport — do NOT hijack position when a new entry settles.
+- ADR-030 (F-WEB-HISTORY-FU7, 2026-06-09): `ConversationInput` is no longer `position: fixed bottom-0`. It is a `flex-shrink-0` sibling at the natural end of the `h-[100dvh] flex-col` shell. No `padding-bottom` clearance, no `--input-bar-height` CSS var, no ResizeObserver on the composer. See `docs/project_notes/decisions.md` ADR-030.
 
 #### Entry spacing and dividers
 
@@ -1438,7 +1439,7 @@ No structural change to the result cards is needed. They are reused as-is. The `
 
 ### W18. Persisted history — loading and scroll
 
-> **Implementation note (F-WEB-HISTORY-FU6, 2026-06-06):** The canonical implementation of chat/feed/timeline scroll in this project is **library-owned** (`react-virtuoso`). Hand-rolled scroll state machines (manual `scrollTop` writes, `ResizeObserver`, `IntersectionObserver` for scroll) are an **anti-pattern** — they failed over 10 iterations (FU1–FU4 + PRs #310–#313) due to irresolvable browser-layout races. Use `react-virtuoso`'s built-in props (`followOutput`, `startReached`, `initialTopMostItemIndex`, `firstItemIndex`) for all feed/chat scroll requirements.
+> **Implementation note (F-WEB-HISTORY-FU6, 2026-06-06 — REVISED by ADR-030, 2026-06-09):** The original FU6 rule declared `react-virtuoso` the canonical scroll engine for chat/feed/timeline and labelled all hand-rolled scroll machinery an anti-pattern. **ADR-030 (F-WEB-HISTORY-FU7) refines this:** the actual anti-pattern was the combination of `hand-rolled scroll arithmetic + position-fixed-overlay-composer` — the two together created an irresolvable clearance race. With `ConversationInput` moved in-column (`flex-shrink-0`), a plain `<div overflow-y-auto>` + pin-aware imperative scroll (`requestAnimationFrame(() => el.scrollTop = el.scrollHeight)`, only when within 100px of bottom) is the canonical pattern for this feed. `react-virtuoso` is NOT required for `/hablar` and has been removed from `packages/web`. It remains appropriate for virtualization of large lists (>200 items). See `docs/project_notes/decisions.md` ADR-030 and ticket `docs/tickets/F-WEB-HISTORY-FU7-rebuild-scroll-wrapper.md`.
 
 #### Pre-load on mount (~10 entries)
 

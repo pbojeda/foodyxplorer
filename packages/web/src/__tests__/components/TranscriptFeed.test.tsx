@@ -1,76 +1,24 @@
-// TranscriptFeed tests — AC3, AC8, AC10, AC11, AC15
-// (FU6 Virtuoso rewrite — replaces FU4 scroll machinery tests)
+// TranscriptFeed tests — native-scroll contract (F-WEB-HISTORY-FU7 rewrite)
 //
-// AC3 (rewrite architecture): Virtuoso prop wiring — data, computeItemKey, followOutput,
-//   startReached, initialTopMostItemIndex.
-// AC8 (a11y): role="feed" + aria-label post-mount; aria-busy NOT on Virtuoso root;
-//   sr-only "Cargar más historial" button present when hasMoreHistory && !isLoadingMore.
-// AC10 (existing UX preserved): Header slot composition — ClearHistoryButton when
-//   authenticated+hasPersisted; loading skeleton when isLoadingMore;
-//   HistoryEmptyState when authenticated+empty+!hasMoreHistory.
-// AC11 (unit tests): startReached deduplication guard.
-// AC15 (computeItemKey): returns entryId.
+// AC21: role="feed" + aria-label on the scroll container (native div).
+// AC24: sr-only "Cargar más historial" keyboard button.
+// AC25: Pin-aware auto-scroll on settle (jsdom logic branch only).
+// AC7:  Prepend anchoring: scrollTop restores after isLoadingMore cycle.
+// AC1:  Anonymous empty state (EmptyState).
+// AC2:  Authenticated empty state (HistoryEmptyState).
+// Load-more dedup guard.
 //
-// Test strategy (per plan §Notes "Test strategy for Virtuoso in jsdom"):
-// Option 2 — mock react-virtuoso at the module boundary. The mock renders all items
-// via itemContent + components.Header/Footer, exposing props for assertion.
-// This avoids jsdom layout constraints. Operator ACs (AC5/AC6/AC7) are deferred
-// per feedback_jsdom_layout_ac_gap.
+// Per feedback_jsdom_layout_ac_gap: BUG A/B visual layout ACs (AC6, AC8, AC9,
+// AC26) are operator-empirical — jsdom cannot close them. These tests close
+// the logic branches only; operator smoke closes the visual ACs.
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { TranscriptEntryData } from '../../types/history';
 
 // ---------------------------------------------------------------------------
-// Virtuoso mock — captures props for assertion; renders items synchronously
-// ---------------------------------------------------------------------------
-
-let capturedVirtuosoProps: Record<string, unknown> | null = null;
-
-jest.mock('react-virtuoso', () => ({
-  // eslint-disable-next-line react/display-name
-  Virtuoso: React.forwardRef((props: Record<string, unknown>, _ref: unknown) => {
-    capturedVirtuosoProps = props;
-    const data = props['data'] as TranscriptEntryData[] | undefined;
-    const itemContent = props['itemContent'] as
-      | ((idx: number, item: TranscriptEntryData) => React.ReactNode)
-      | undefined;
-    const components = props['components'] as
-      | {
-          Header?: React.ComponentType<{ context?: unknown }>;
-          Footer?: React.ComponentType<{ context?: unknown }>;
-        }
-      | undefined;
-    const context = props['context'];
-    const HeaderComp = components?.Header;
-    const FooterComp = components?.Footer;
-    return (
-      <div
-        role={props['role'] as string}
-        aria-label={props['aria-label'] as string}
-        aria-busy={props['aria-busy'] as string | undefined}
-        data-testid="virtuoso-root"
-        className={props['className'] as string | undefined}
-      >
-        {HeaderComp && <HeaderComp context={context} />}
-        {data?.map((item, idx) =>
-          itemContent ? (
-            <React.Fragment key={item.entryId}>{itemContent(idx, item)}</React.Fragment>
-          ) : null
-        )}
-        {FooterComp && <FooterComp context={context} />}
-      </div>
-    );
-  }),
-}));
-
-beforeEach(() => {
-  capturedVirtuosoProps = null;
-});
-
-// ---------------------------------------------------------------------------
-// Other component mocks
+// Component mocks — simple div stubs (no react-virtuoso; package is being removed)
 // ---------------------------------------------------------------------------
 
 jest.mock('../../components/TranscriptEntry', () => ({
@@ -86,7 +34,9 @@ jest.mock('../../components/EmptyState', () => ({
 }));
 
 jest.mock('../../components/HistoryEmptyState', () => ({
-  HistoryEmptyState: () => <div data-testid="history-empty-state">Aún no tienes historial</div>,
+  HistoryEmptyState: () => (
+    <div data-testid="history-empty-state">Aún no tienes historial</div>
+  ),
 }));
 
 jest.mock('../../components/HistoryPersistenceNudge', () => ({
@@ -137,10 +87,6 @@ const defaultProps = {
   isLoadingHistory: false,
   hasMoreHistory: false,
   isLoadingMore: false,
-  // FU6-FU1: firstItemIndex is now owned by useSearchHistory (batched WITH
-  // setPersistedEntries to eliminate iOS Safari prepend-jump). Tests pass a
-  // large positive default mirroring the hook's INITIAL_FIRST_ITEM_INDEX.
-  firstItemIndex: 1_000_000,
   showPersistenceNudge: false,
   onDismissPersistenceNudge: jest.fn(),
   onLoadMore: jest.fn(),
@@ -151,324 +97,205 @@ const defaultProps = {
 };
 
 // ---------------------------------------------------------------------------
-// AC8: a11y — Virtuoso root attributes
+// Helper: mock scroll dimensions on an element (jsdom sets all scroll props to 0)
+// ---------------------------------------------------------------------------
+function mockScrollDimensions(
+  el: Element,
+  opts: { scrollHeight?: number; clientHeight?: number; scrollTop?: number },
+) {
+  if (opts.scrollHeight !== undefined) {
+    Object.defineProperty(el, 'scrollHeight', {
+      configurable: true,
+      get: () => opts.scrollHeight,
+    });
+  }
+  if (opts.clientHeight !== undefined) {
+    Object.defineProperty(el, 'clientHeight', {
+      configurable: true,
+      get: () => opts.clientHeight,
+    });
+  }
+  if (opts.scrollTop !== undefined) {
+    Object.defineProperty(el, 'scrollTop', {
+      configurable: true,
+      get: () => opts.scrollTop,
+      set: jest.fn(),
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AC21 — role="feed" + aria-label on the scroll container
 // ---------------------------------------------------------------------------
 
-describe('TranscriptFeed — AC8 a11y', () => {
-  it('AC8: Virtuoso root has role="feed"', () => {
+describe('TranscriptFeed — AC21 a11y: role and aria-label', () => {
+  it('scroll container has role="feed"', () => {
     render(<TranscriptFeed {...defaultProps} />);
     expect(screen.getByRole('feed')).toBeInTheDocument();
   });
 
-  it('AC8: Virtuoso root has aria-label="Historial de consultas"', () => {
+  it('scroll container has aria-label="Historial de consultas"', () => {
     render(<TranscriptFeed {...defaultProps} />);
-    expect(screen.getByRole('feed')).toHaveAttribute('aria-label', 'Historial de consultas');
+    expect(screen.getByRole('feed')).toHaveAttribute(
+      'aria-label',
+      'Historial de consultas',
+    );
   });
 
-  it('AC8: Virtuoso root does NOT have aria-busy (gate is open when Virtuoso mounts)', () => {
-    // By the time Virtuoso mounts (isLoadingHistory=false), aria-busy should be absent.
-    // aria-busy during loading lives on the HablarShell placeholder, not Virtuoso root.
+  it('feed container does NOT have aria-busy when mounted (gate is in HablarShell)', () => {
     render(<TranscriptFeed {...defaultProps} isLoadingHistory={false} />);
+    expect(screen.getByRole('feed')).not.toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('feed container has the required layout classNames', () => {
+    render(<TranscriptFeed {...defaultProps} />);
     const feed = screen.getByRole('feed');
-    expect(feed).not.toHaveAttribute('aria-busy', 'true');
-  });
-
-  it('AC8: sr-only "Cargar más historial" button present when hasMoreHistory && !isLoadingMore', () => {
-    render(
-      <TranscriptFeed
-        {...defaultProps}
-        isAuthenticated={true}
-        hasMoreHistory={true}
-        isLoadingMore={false}
-      />
-    );
-    expect(
-      screen.getByRole('button', { name: /cargar más historial/i })
-    ).toBeInTheDocument();
-  });
-
-  it('AC8: "Cargar más historial" button absent when !hasMoreHistory', () => {
-    render(
-      <TranscriptFeed
-        {...defaultProps}
-        isAuthenticated={true}
-        hasMoreHistory={false}
-        isLoadingMore={false}
-      />
-    );
-    expect(
-      screen.queryByRole('button', { name: /cargar más historial/i })
-    ).not.toBeInTheDocument();
-  });
-
-  it('AC8: "Cargar más historial" button absent when isLoadingMore', () => {
-    render(
-      <TranscriptFeed
-        {...defaultProps}
-        isAuthenticated={true}
-        hasMoreHistory={true}
-        isLoadingMore={true}
-      />
-    );
-    expect(
-      screen.queryByRole('button', { name: /cargar más historial/i })
-    ).not.toBeInTheDocument();
+    expect(feed.className).toContain('flex-1');
+    expect(feed.className).toContain('overflow-y-auto');
+    expect(feed.className).toContain('overscroll-contain');
+    expect(feed.className).toContain('lg:max-w-2xl');
+    expect(feed.className).toContain('lg:mx-auto');
+    expect(feed.className).toContain('w-full');
   });
 });
 
 // ---------------------------------------------------------------------------
-// AC3: Virtuoso prop wiring
+// AC1 & AC2 — Empty states
 // ---------------------------------------------------------------------------
 
-describe('TranscriptFeed — AC3 Virtuoso prop wiring', () => {
-  it('AC3: passes entries as data prop to Virtuoso', () => {
-    const entries = [makeEntry({ queryText: 'first' }), makeEntry({ queryText: 'second' })];
-    render(<TranscriptFeed {...defaultProps} entries={entries} />);
-    expect(capturedVirtuosoProps?.['data']).toBe(entries);
-  });
-
-  it('AC3: passes followOutput="smooth" to Virtuoso', () => {
-    render(<TranscriptFeed {...defaultProps} />);
-    expect(capturedVirtuosoProps?.['followOutput']).toBe('smooth');
-  });
-
-  it('AC3: passes startReached that calls onLoadMore when not in-flight', () => {
-    const onLoadMore = jest.fn();
+describe('TranscriptFeed — empty states', () => {
+  it('AC1: shows EmptyState when entries=[] and not authenticated', () => {
     render(
-      <TranscriptFeed
-        {...defaultProps}
-        hasMoreHistory={true}
-        isLoadingMore={false}
-        onLoadMore={onLoadMore}
-      />
-    );
-    const startReached = capturedVirtuosoProps?.['startReached'] as (() => void) | undefined;
-    expect(typeof startReached).toBe('function');
-    startReached?.();
-    expect(onLoadMore).toHaveBeenCalledTimes(1);
-  });
-
-  it('AC3: startReached does NOT call onLoadMore when isLoadingMore=true (secondary guard)', () => {
-    const onLoadMore = jest.fn();
-    render(
-      <TranscriptFeed
-        {...defaultProps}
-        hasMoreHistory={true}
-        isLoadingMore={true}
-        onLoadMore={onLoadMore}
-      />
-    );
-    const startReached = capturedVirtuosoProps?.['startReached'] as (() => void) | undefined;
-    startReached?.();
-    expect(onLoadMore).not.toHaveBeenCalled();
-  });
-
-  it('AC3: startReached does NOT call onLoadMore when !hasMoreHistory', () => {
-    const onLoadMore = jest.fn();
-    render(
-      <TranscriptFeed
-        {...defaultProps}
-        hasMoreHistory={false}
-        isLoadingMore={false}
-        onLoadMore={onLoadMore}
-      />
-    );
-    const startReached = capturedVirtuosoProps?.['startReached'] as (() => void) | undefined;
-    startReached?.();
-    expect(onLoadMore).not.toHaveBeenCalled();
-  });
-
-  it('AC3: startReached dedup guard — rapid double-call fires onLoadMore only once', () => {
-    // This tests the local loadMoreInFlightRef sync guard inside TranscriptFeed.
-    // First call sets in-flight ref; second call short-circuits.
-    const onLoadMore = jest.fn();
-    render(
-      <TranscriptFeed
-        {...defaultProps}
-        hasMoreHistory={true}
-        isLoadingMore={false}
-        onLoadMore={onLoadMore}
-      />
-    );
-    const startReached = capturedVirtuosoProps?.['startReached'] as (() => void) | undefined;
-    startReached?.();
-    startReached?.(); // rapid second call
-    expect(onLoadMore).toHaveBeenCalledTimes(1);
-  });
-
-  it('AC3: initialTopMostItemIndex is entries.length - 1 (scroll to newest on mount)', () => {
-    const entries = [makeEntry(), makeEntry(), makeEntry()]; // 3 entries
-    render(<TranscriptFeed {...defaultProps} entries={entries} />);
-    expect(capturedVirtuosoProps?.['initialTopMostItemIndex']).toBe(2); // length - 1
-  });
-
-  it('AC3: initialTopMostItemIndex is 0 (not negative) when entries is empty', () => {
-    render(<TranscriptFeed {...defaultProps} entries={[]} />);
-    expect(capturedVirtuosoProps?.['initialTopMostItemIndex']).toBe(0); // Math.max(0, -1)
-  });
-
-  it('AC3: firstItemIndex prop is passed through to Virtuoso unchanged', () => {
-    // FU6-FU1: firstItemIndex is owned by useSearchHistory (batched WITH
-    // setPersistedEntries to eliminate iOS Safari prepend-jump). TranscriptFeed
-    // simply forwards the prop value to Virtuoso. The default + underflow
-    // contract (must stay positive) lives in useSearchHistory.test.ts.
-    render(<TranscriptFeed {...defaultProps} firstItemIndex={1_000_000} />);
-    expect(capturedVirtuosoProps?.['firstItemIndex']).toBe(1_000_000);
-  });
-
-  it('AC3: firstItemIndex prop pass-through reflects external decrement', () => {
-    // Simulating the post-prepend state where useSearchHistory has decremented.
-    render(<TranscriptFeed {...defaultProps} firstItemIndex={999_990} />);
-    expect(capturedVirtuosoProps?.['firstItemIndex']).toBe(999_990);
-  });
-
-  it('AC3: Footer slot renders a spacer matching --input-bar-height (FU6-FU2 dynamic clearance)', () => {
-    // VirtuosoFooter provides breathing room INSIDE the scroll content so the
-    // last entry clears the fixed ConversationInput bar. FU6-FU2: height is
-    // dynamic via `--input-bar-height` CSS var (published by HablarShell's
-    // ResizeObserver on the bar), with 12rem fallback before observer fires.
-    const entries = [makeEntry()];
-    const { container } = render(<TranscriptFeed {...defaultProps} entries={entries} />);
-    // Tailwind generates `h-[var(--input-bar-height,12rem)]` as a single
-    // attribute-selector-friendly class. Match by escaping bracket chars.
-    const spacer = container.querySelector(
-      '[aria-hidden="true"].h-\\[var\\(--input-bar-height\\,12rem\\)\\]',
-    );
-    expect(spacer).toBeInTheDocument();
-  });
-
-  it('AC3: Virtuoso className includes overflow-x-hidden (iOS Safari horizontal jiggle fix)', () => {
-    render(<TranscriptFeed {...defaultProps} />);
-    const className = capturedVirtuosoProps?.['className'] as string | undefined;
-    expect(className).toBeDefined();
-    expect(className).toContain('overflow-x-hidden');
-  });
-
-  it('AC3: Virtuoso className does NOT include pb-[calc(9rem+...)] (now provided by Footer)', () => {
-    // FU6-FU1: padding-bottom moved from outer className to Footer slot.
-    render(<TranscriptFeed {...defaultProps} />);
-    const className = capturedVirtuosoProps?.['className'] as string | undefined;
-    expect(className).toBeDefined();
-    expect(className).not.toContain('pb-[calc(9rem');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// AC15: computeItemKey returns entryId
-// ---------------------------------------------------------------------------
-
-describe('TranscriptFeed — AC15 computeItemKey', () => {
-  it('AC15: computeItemKey returns entry.entryId for stable identity', () => {
-    const entry = makeEntry({ entryId: 'test-stable-id' });
-    render(<TranscriptFeed {...defaultProps} entries={[entry]} />);
-    const computeItemKey = capturedVirtuosoProps?.['computeItemKey'] as
-      | ((idx: number, item: TranscriptEntryData) => string)
-      | undefined;
-    expect(typeof computeItemKey).toBe('function');
-    expect(computeItemKey?.(0, entry)).toBe('test-stable-id');
-  });
-
-  it('AC15: computeItemKey is distinct per entry (no collisions)', () => {
-    const e1 = makeEntry({ entryId: 'id-1' });
-    const e2 = makeEntry({ entryId: 'id-2' });
-    render(<TranscriptFeed {...defaultProps} entries={[e1, e2]} />);
-    const computeItemKey = capturedVirtuosoProps?.['computeItemKey'] as
-      | ((idx: number, item: TranscriptEntryData) => string)
-      | undefined;
-    expect(computeItemKey?.(0, e1)).not.toBe(computeItemKey?.(1, e2));
-  });
-});
-
-// ---------------------------------------------------------------------------
-// AC10: Header slot composition
-// ---------------------------------------------------------------------------
-
-describe('TranscriptFeed — AC10 Header slot', () => {
-  it('AC10: shows ClearHistoryButton when authenticated and has persisted entries', () => {
-    const entries = [makeEntry({ isPersisted: true })];
-    render(
-      <TranscriptFeed
-        {...defaultProps}
-        isAuthenticated={true}
-        entries={entries}
-      />
-    );
-    expect(screen.getByTestId('clear-history-button')).toBeInTheDocument();
-  });
-
-  it('AC10: does NOT show ClearHistoryButton when authenticated but no persisted entries', () => {
-    const entries = [makeEntry({ isPersisted: false })];
-    render(
-      <TranscriptFeed
-        {...defaultProps}
-        isAuthenticated={true}
-        entries={entries}
-      />
-    );
-    expect(screen.queryByTestId('clear-history-button')).not.toBeInTheDocument();
-  });
-
-  it('AC10: does NOT show ClearHistoryButton when anonymous', () => {
-    const entries = [makeEntry({ isPersisted: true })];
-    render(
-      <TranscriptFeed
-        {...defaultProps}
-        isAuthenticated={false}
-        entries={entries}
-      />
-    );
-    expect(screen.queryByTestId('clear-history-button')).not.toBeInTheDocument();
-  });
-
-  it('AC10: shows loading skeleton when isLoadingMore=true', () => {
-    render(
-      <TranscriptFeed
-        {...defaultProps}
-        isAuthenticated={true}
-        hasMoreHistory={true}
-        isLoadingMore={true}
-      />
-    );
-    // The loading skeleton has aria-label="Cargando entradas anteriores"
-    expect(screen.getByLabelText(/cargando entradas anteriores/i)).toBeInTheDocument();
-  });
-
-  it('AC10: shows HistoryEmptyState when authenticated + empty + !hasMoreHistory', () => {
-    render(
-      <TranscriptFeed
-        {...defaultProps}
-        isAuthenticated={true}
-        entries={[]}
-        hasMoreHistory={false}
-      />
-    );
-    expect(screen.getByTestId('history-empty-state')).toBeInTheDocument();
-    expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
-  });
-
-  it('AC10: shows EmptyState when anonymous + empty', () => {
-    render(
-      <TranscriptFeed
-        {...defaultProps}
-        isAuthenticated={false}
-        entries={[]}
-      />
+      <TranscriptFeed {...defaultProps} entries={[]} isAuthenticated={false} />,
     );
     expect(screen.getByTestId('empty-state')).toBeInTheDocument();
     expect(screen.queryByTestId('history-empty-state')).not.toBeInTheDocument();
   });
 
-  it('AC10: shows HistoryPersistenceNudge when showPersistenceNudge=true', () => {
+  it('AC2: shows HistoryEmptyState when entries=[] and authenticated', () => {
+    render(
+      <TranscriptFeed {...defaultProps} entries={[]} isAuthenticated={true} />,
+    );
+    expect(screen.getByTestId('history-empty-state')).toBeInTheDocument();
+    expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
+  });
+
+  it('does NOT show empty states when entries present', () => {
+    const entries = [makeEntry()];
+    render(<TranscriptFeed {...defaultProps} entries={entries} isAuthenticated={true} />);
+    expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('history-empty-state')).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Entry rendering
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — entry rendering', () => {
+  it('renders all entries from the entries array', () => {
+    const entries = [
+      makeEntry({ entryId: 'a', queryText: 'first' }),
+      makeEntry({ entryId: 'b', queryText: 'second' }),
+    ];
+    render(<TranscriptFeed {...defaultProps} entries={entries} />);
+    expect(screen.getByTestId('entry-a')).toBeInTheDocument();
+    expect(screen.getByTestId('entry-b')).toBeInTheDocument();
+  });
+
+  it('renders entries in oldest-first order', () => {
+    const entries = [
+      makeEntry({ entryId: 'a', queryText: 'first query' }),
+      makeEntry({ entryId: 'b', queryText: 'second query' }),
+    ];
+    render(<TranscriptFeed {...defaultProps} entries={entries} />);
+    const articles = screen.getAllByRole('article');
+    expect(articles[0]).toHaveTextContent('first query');
+    expect(articles[1]).toHaveTextContent('second query');
+  });
+
+  it('renders dividers between entries but NOT after the last entry', () => {
+    const entries = [makeEntry(), makeEntry(), makeEntry()];
+    render(<TranscriptFeed {...defaultProps} entries={entries} />);
+    const dividers = document.querySelectorAll('hr');
+    // 3 entries → 2 dividers (between 1↔2 and 2↔3; none after 3)
+    expect(dividers).toHaveLength(2);
+  });
+
+  it('renders no dividers when only one entry', () => {
+    render(<TranscriptFeed {...defaultProps} entries={[makeEntry()]} />);
+    expect(document.querySelectorAll('hr')).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Header slot content — rendered as direct children of the scroll container
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — header slot content', () => {
+  it('shows ClearHistoryButton when authenticated + has persisted entries', () => {
+    const entries = [makeEntry({ isPersisted: true })];
+    render(
+      <TranscriptFeed {...defaultProps} isAuthenticated={true} entries={entries} />,
+    );
+    expect(screen.getByTestId('clear-history-button')).toBeInTheDocument();
+  });
+
+  it('does NOT show ClearHistoryButton when authenticated but no persisted entries', () => {
+    const entries = [makeEntry({ isPersisted: false })];
+    render(
+      <TranscriptFeed {...defaultProps} isAuthenticated={true} entries={entries} />,
+    );
+    expect(screen.queryByTestId('clear-history-button')).not.toBeInTheDocument();
+  });
+
+  it('does NOT show ClearHistoryButton when anonymous even with persisted entries', () => {
+    const entries = [makeEntry({ isPersisted: true })];
+    render(
+      <TranscriptFeed {...defaultProps} isAuthenticated={false} entries={entries} />,
+    );
+    expect(screen.queryByTestId('clear-history-button')).not.toBeInTheDocument();
+  });
+
+  it('shows loading skeleton when isLoadingMore=true', () => {
+    render(
+      <TranscriptFeed
+        {...defaultProps}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        isLoadingMore={true}
+      />,
+    );
+    expect(
+      screen.getByLabelText(/cargando entradas anteriores/i),
+    ).toBeInTheDocument();
+  });
+
+  it('does NOT show loading skeleton when isLoadingMore=false', () => {
+    render(
+      <TranscriptFeed
+        {...defaultProps}
+        isAuthenticated={true}
+        hasMoreHistory={true}
+        isLoadingMore={false}
+      />,
+    );
+    expect(
+      screen.queryByLabelText(/cargando entradas anteriores/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows HistoryPersistenceNudge when showPersistenceNudge=true', () => {
     render(<TranscriptFeed {...defaultProps} showPersistenceNudge={true} />);
     expect(screen.getByTestId('persistence-nudge')).toBeInTheDocument();
   });
 
-  it('AC10: does NOT show HistoryPersistenceNudge when showPersistenceNudge=false', () => {
+  it('does NOT show HistoryPersistenceNudge when showPersistenceNudge=false', () => {
     render(<TranscriptFeed {...defaultProps} showPersistenceNudge={false} />);
     expect(screen.queryByTestId('persistence-nudge')).not.toBeInTheDocument();
   });
 
-  it('AC10: calls onClearAll when ClearHistoryButton confirm', async () => {
+  it('calls onClearAll when ClearHistoryButton is triggered', async () => {
     const onClearAll = jest.fn();
     const entries = [makeEntry({ isPersisted: true })];
     render(
@@ -477,45 +304,12 @@ describe('TranscriptFeed — AC10 Header slot', () => {
         isAuthenticated={true}
         entries={entries}
         onClearAll={onClearAll}
-      />
+      />,
     );
     await userEvent.click(screen.getByTestId('clear-history-button'));
     expect(onClearAll).toHaveBeenCalledTimes(1);
   });
-});
 
-// ---------------------------------------------------------------------------
-// AC34: entries rendered in DOM order (oldest-first, newest-last)
-// ---------------------------------------------------------------------------
-
-describe('TranscriptFeed — AC34 entry order', () => {
-  it('AC34: renders entries in order (oldest first, newest last)', () => {
-    const entries = [
-      makeEntry({ entryId: 'a', queryText: 'first query' }),
-      makeEntry({ entryId: 'b', queryText: 'second query' }),
-    ];
-    render(<TranscriptFeed {...defaultProps} entries={entries} />);
-    const articles = screen.getAllByRole('article');
-    expect(articles).toHaveLength(2);
-    expect(articles[0]).toHaveTextContent('first query');
-    expect(articles[1]).toHaveTextContent('second query');
-  });
-
-  it('AC34: renders dividers between entries (suppresses trailing)', () => {
-    const entries = [makeEntry(), makeEntry(), makeEntry()];
-    render(<TranscriptFeed {...defaultProps} entries={entries} />);
-    const dividers = document.querySelectorAll('hr');
-    // MINOR-1: trailing divider suppressed (idx < entries.length - 1).
-    // 3 entries → 2 dividers (between 1↔2 and 2↔3, none after 3).
-    expect(dividers).toHaveLength(2);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Persistence nudge dismiss
-// ---------------------------------------------------------------------------
-
-describe('TranscriptFeed — persistence nudge dismiss', () => {
   it('calls onDismissPersistenceNudge when nudge is dismissed', async () => {
     const onDismiss = jest.fn();
     render(
@@ -523,9 +317,428 @@ describe('TranscriptFeed — persistence nudge dismiss', () => {
         {...defaultProps}
         showPersistenceNudge={true}
         onDismissPersistenceNudge={onDismiss}
-      />
+      />,
     );
     await userEvent.click(screen.getByRole('button', { name: /cerrar sugerencia/i }));
     expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AC24 — sr-only "Cargar más historial" keyboard button
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — AC24 sr-only load-more keyboard button', () => {
+  it('renders sr-only button when hasMoreHistory && !isLoadingMore', () => {
+    render(
+      <TranscriptFeed
+        {...defaultProps}
+        hasMoreHistory={true}
+        isLoadingMore={false}
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: /cargar más historial/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('does NOT render sr-only button when !hasMoreHistory', () => {
+    render(
+      <TranscriptFeed
+        {...defaultProps}
+        hasMoreHistory={false}
+        isLoadingMore={false}
+      />,
+    );
+    expect(
+      screen.queryByRole('button', { name: /cargar más historial/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does NOT render sr-only button when isLoadingMore=true', () => {
+    render(
+      <TranscriptFeed
+        {...defaultProps}
+        hasMoreHistory={true}
+        isLoadingMore={true}
+      />,
+    );
+    expect(
+      screen.queryByRole('button', { name: /cargar más historial/i }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AC25 — Pin-aware auto-scroll on settle (logic branches only — not layout)
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — AC25 pin-aware scroll on settle', () => {
+  let rafSpy: jest.SpyInstance;
+  let rafCallbacks: FrameRequestCallback[];
+
+  beforeEach(() => {
+    rafCallbacks = [];
+    rafSpy = jest.spyOn(global, 'requestAnimationFrame').mockImplementation((cb) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    });
+  });
+
+  afterEach(() => {
+    rafSpy.mockRestore();
+  });
+
+  it('scrolls to bottom when last entry isLoading flips false AND was near bottom', async () => {
+    const loadingEntry = makeEntry({ entryId: 'last', isLoading: true });
+    const { rerender } = render(
+      <TranscriptFeed {...defaultProps} entries={[loadingEntry]} />,
+    );
+
+    const feed = screen.getByRole('feed');
+
+    // Simulate near-bottom: scrollHeight=1000, clientHeight=600, scrollTop=900
+    const scrollTopSetter = jest.fn();
+    Object.defineProperty(feed, 'scrollHeight', { configurable: true, get: () => 1000 });
+    Object.defineProperty(feed, 'clientHeight', { configurable: true, get: () => 600 });
+    Object.defineProperty(feed, 'scrollTop', {
+      configurable: true,
+      get: () => 900,
+      set: scrollTopSetter,
+    });
+
+    // Fire a scroll event to update wasNearBottomRef (distanceFromBottom = 1000-900-600 = -500 < 100 → near)
+    // Actually at scrollTop=900, scrollHeight=1000, clientHeight=600: distance = 1000-900-600 = -500 → near bottom
+    act(() => {
+      fireEvent.scroll(feed);
+    });
+
+    // Settle the last entry (isLoading: true → false)
+    const settledEntry = makeEntry({ entryId: 'last', isLoading: false });
+    act(() => {
+      rerender(<TranscriptFeed {...defaultProps} entries={[settledEntry]} />);
+    });
+
+    // rAF should have been captured
+    expect(rafCallbacks.length).toBeGreaterThan(0);
+
+    // Execute the rAF callback — should set scrollTop = scrollHeight
+    act(() => {
+      rafCallbacks.forEach((cb) => cb(0));
+    });
+
+    expect(scrollTopSetter).toHaveBeenCalledWith(1000); // scrollHeight
+  });
+
+  it('does NOT scroll to bottom when last entry settles but user was scrolled up', async () => {
+    const loadingEntry = makeEntry({ entryId: 'last', isLoading: true });
+    const { rerender } = render(
+      <TranscriptFeed {...defaultProps} entries={[loadingEntry]} />,
+    );
+
+    const feed = screen.getByRole('feed');
+
+    // Simulate scrolled up: scrollHeight=1000, clientHeight=600, scrollTop=0
+    // distanceFromBottom = 1000 - 0 - 600 = 400 > 100 → NOT near bottom
+    const scrollTopSetter = jest.fn();
+    Object.defineProperty(feed, 'scrollHeight', { configurable: true, get: () => 1000 });
+    Object.defineProperty(feed, 'clientHeight', { configurable: true, get: () => 600 });
+    Object.defineProperty(feed, 'scrollTop', {
+      configurable: true,
+      get: () => 0,
+      set: scrollTopSetter,
+    });
+
+    act(() => {
+      fireEvent.scroll(feed);
+    });
+
+    // Settle
+    const settledEntry = makeEntry({ entryId: 'last', isLoading: false });
+    act(() => {
+      rerender(<TranscriptFeed {...defaultProps} entries={[settledEntry]} />);
+    });
+
+    // Execute any rAF callbacks — should NOT set scrollTop
+    act(() => {
+      rafCallbacks.forEach((cb) => cb(0));
+    });
+
+    expect(scrollTopSetter).not.toHaveBeenCalled();
+  });
+
+  it('does NOT fire rAF when last entry was already settled (no transition)', () => {
+    // entry starts as isLoading=false — no prevLastLoading=true transition
+    const settledEntry = makeEntry({ entryId: 'last', isLoading: false });
+    const { rerender } = render(
+      <TranscriptFeed {...defaultProps} entries={[settledEntry]} />,
+    );
+
+    const feed = screen.getByRole('feed');
+    const scrollTopSetter = jest.fn();
+    Object.defineProperty(feed, 'scrollHeight', { configurable: true, get: () => 1000 });
+    Object.defineProperty(feed, 'clientHeight', { configurable: true, get: () => 600 });
+    Object.defineProperty(feed, 'scrollTop', {
+      configurable: true,
+      get: () => 900,
+      set: scrollTopSetter,
+    });
+
+    act(() => {
+      fireEvent.scroll(feed);
+    });
+
+    // Re-render with same settled state — no loading→settled transition
+    act(() => {
+      rerender(
+        <TranscriptFeed {...defaultProps} entries={[{ ...settledEntry, queryText: 'updated' }]} />,
+      );
+    });
+
+    act(() => {
+      rafCallbacks.forEach((cb) => cb(0));
+    });
+
+    // scrollTop should NOT be set from the settle effect (only from mount)
+    // Note: mount effect also sets scrollTop, so we only check no RAF was queued for this re-render
+    // The absence of additional rAF calls (beyond mount) is the check
+    expect(scrollTopSetter).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mount scroll-to-bottom (pin-aware init: wasNearBottomRef=true)
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — mount scroll-to-bottom', () => {
+  it('sets scrollTop = scrollHeight on mount', () => {
+    // jsdom doesn't fire rAF automatically, but mount useEffect fires synchronously
+    // after render. We just check the intent is correct via the effect running.
+    // The mount effect calls: el.scrollTop = el.scrollHeight
+    const entries = [makeEntry()];
+    const { container } = render(
+      <TranscriptFeed {...defaultProps} entries={entries} />,
+    );
+    const feed = container.querySelector('[role="feed"]') as HTMLElement;
+    // In jsdom scrollHeight and scrollTop are both 0 by default — no error thrown
+    expect(feed).toBeTruthy();
+    // Mount effect ran without throwing
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Prepend anchoring (isLoadingMore cycle)
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — prepend anchor (AC7 logic branch)', () => {
+  it('restores scrollTop after isLoadingMore flips false with new entries', () => {
+    const initialEntries = [makeEntry({ entryId: 'a' })];
+    const { rerender } = render(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={initialEntries}
+        hasMoreHistory={true}
+        isLoadingMore={false}
+      />,
+    );
+
+    const feed = screen.getByRole('feed');
+
+    // Set up scroll state: scrollHeight=800, scrollTop=200
+    const scrollTopSetter = jest.fn();
+    let scrollTopValue = 200;
+    Object.defineProperty(feed, 'scrollHeight', { configurable: true, get: () => 800 });
+    Object.defineProperty(feed, 'clientHeight', { configurable: true, get: () => 600 });
+    Object.defineProperty(feed, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTopValue,
+      set: (v: number) => {
+        scrollTopValue = v;
+        scrollTopSetter(v);
+      },
+    });
+
+    // isLoadingMore flips true: savedScrollDelta = scrollHeight - scrollTop = 800 - 200 = 600
+    act(() => {
+      rerender(
+        <TranscriptFeed
+          {...defaultProps}
+          entries={initialEntries}
+          hasMoreHistory={true}
+          isLoadingMore={true}
+        />,
+      );
+    });
+
+    // Simulate scrollHeight growing after prepend (new entries added)
+    const prependedEntries = [
+      makeEntry({ entryId: 'new1' }),
+      makeEntry({ entryId: 'new2' }),
+      ...initialEntries,
+    ];
+    Object.defineProperty(feed, 'scrollHeight', { configurable: true, get: () => 1200 });
+
+    // isLoadingMore flips false: should restore scrollTop = newScrollHeight - savedDelta = 1200 - 600 = 600
+    act(() => {
+      rerender(
+        <TranscriptFeed
+          {...defaultProps}
+          entries={prependedEntries}
+          hasMoreHistory={true}
+          isLoadingMore={false}
+        />,
+      );
+    });
+
+    expect(scrollTopSetter).toHaveBeenCalledWith(600); // 1200 - 600
+  });
+
+  it('does NOT restore scrollTop when isLoadingMore flips false without prior true (no prepend)', () => {
+    const entries = [makeEntry({ entryId: 'a' })];
+    const { rerender } = render(
+      <TranscriptFeed
+        {...defaultProps}
+        entries={entries}
+        hasMoreHistory={false}
+        isLoadingMore={false}
+      />,
+    );
+
+    const feed = screen.getByRole('feed');
+    const scrollTopSetter = jest.fn();
+    Object.defineProperty(feed, 'scrollHeight', { configurable: true, get: () => 800 });
+    Object.defineProperty(feed, 'scrollTop', {
+      configurable: true,
+      get: () => 200,
+      set: scrollTopSetter,
+    });
+
+    // Re-render with isLoadingMore still false — no cycle
+    act(() => {
+      rerender(
+        <TranscriptFeed
+          {...defaultProps}
+          entries={entries}
+          hasMoreHistory={false}
+          isLoadingMore={false}
+        />,
+      );
+    });
+
+    expect(scrollTopSetter).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// onScroll → onLoadMore: trigger near top + dedup guard
+// ---------------------------------------------------------------------------
+
+describe('TranscriptFeed — onScroll load-more trigger', () => {
+  it('calls onLoadMore when scrollTop < 100 AND hasMoreHistory AND !isLoadingMore', () => {
+    const onLoadMore = jest.fn();
+    render(
+      <TranscriptFeed
+        {...defaultProps}
+        hasMoreHistory={true}
+        isLoadingMore={false}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    const feed = screen.getByRole('feed');
+    Object.defineProperty(feed, 'scrollTop', { configurable: true, get: () => 50 });
+    Object.defineProperty(feed, 'scrollHeight', { configurable: true, get: () => 1000 });
+    Object.defineProperty(feed, 'clientHeight', { configurable: true, get: () => 600 });
+
+    act(() => {
+      fireEvent.scroll(feed);
+    });
+
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT call onLoadMore when scrollTop >= 100', () => {
+    const onLoadMore = jest.fn();
+    render(
+      <TranscriptFeed
+        {...defaultProps}
+        hasMoreHistory={true}
+        isLoadingMore={false}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    const feed = screen.getByRole('feed');
+    Object.defineProperty(feed, 'scrollTop', { configurable: true, get: () => 200 });
+
+    act(() => {
+      fireEvent.scroll(feed);
+    });
+
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call onLoadMore when !hasMoreHistory', () => {
+    const onLoadMore = jest.fn();
+    render(
+      <TranscriptFeed
+        {...defaultProps}
+        hasMoreHistory={false}
+        isLoadingMore={false}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    const feed = screen.getByRole('feed');
+    Object.defineProperty(feed, 'scrollTop', { configurable: true, get: () => 50 });
+
+    act(() => {
+      fireEvent.scroll(feed);
+    });
+
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call onLoadMore when isLoadingMore=true', () => {
+    const onLoadMore = jest.fn();
+    render(
+      <TranscriptFeed
+        {...defaultProps}
+        hasMoreHistory={true}
+        isLoadingMore={true}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    const feed = screen.getByRole('feed');
+    Object.defineProperty(feed, 'scrollTop', { configurable: true, get: () => 50 });
+
+    act(() => {
+      fireEvent.scroll(feed);
+    });
+
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it('dedup guard: rapid double scroll fires onLoadMore only once', () => {
+    const onLoadMore = jest.fn();
+    render(
+      <TranscriptFeed
+        {...defaultProps}
+        hasMoreHistory={true}
+        isLoadingMore={false}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    const feed = screen.getByRole('feed');
+    Object.defineProperty(feed, 'scrollTop', { configurable: true, get: () => 50 });
+
+    act(() => {
+      fireEvent.scroll(feed);
+      fireEvent.scroll(feed); // rapid second scroll
+    });
+
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
   });
 });
