@@ -48,11 +48,51 @@ If DIVERGED, flag as FAIL with instruction to merge target branch first.
 
 Run only if `git diff origin/<target-branch>..HEAD --name-only` shows `.json` files in seed-data or fixtures directories.
 
+**12. CI State** (added v0.19.0) — Verify GitHub Actions / CI checks for the current PR show no FAILURE / ERROR / CANCELLED / TIMED_OUT conclusion. PENDING is acceptable (still running). Emits distinct `N/A` messages when `gh` is unavailable, `jq` is unavailable, or no PR is open for the current branch — these are not blockers. Empirical motivation: F107a (PR #279) shipped with `ci-success` BLOCKED on 3 real failures (test-api lint, test-web build, branch-protection gate); the agent claimed "CI: green" without verification. C3 makes the claim auditable structurally.
+```bash
+if ! command -v gh >/dev/null 2>&1; then
+  echo "C3 N/A: gh CLI unavailable"
+elif ! command -v jq >/dev/null 2>&1; then
+  echo "C3 N/A: jq unavailable"
+else
+  # In GitHub Actions `pull_request` jobs, `actions/checkout` defaults to a
+  # detached HEAD (no branch context), so `gh pr view` with no arg cannot
+  # resolve "the PR for the current branch". Read the PR number from
+  # GITHUB_REF (`refs/pull/<N>/merge`) when available so C3 still queries
+  # the right PR. Local runs (no GITHUB_REF) keep the no-arg behavior.
+  PR_NUM_FROM_CI=""
+  if [ -n "${GITHUB_REF:-}" ]; then
+    PR_NUM_FROM_CI=$(printf '%s' "$GITHUB_REF" | sed -n 's@^refs/pull/\([0-9]\{1,\}\)/.*@\1@p')
+  fi
+  if [ -n "$PR_NUM_FROM_CI" ]; then
+    PR_JSON=$(gh pr view "$PR_NUM_FROM_CI" --json number,statusCheckRollup 2>/dev/null || true)
+  else
+    PR_JSON=$(gh pr view --json number,statusCheckRollup 2>/dev/null || true)
+  fi
+  if [ -z "$PR_JSON" ]; then
+    echo "C3 N/A: no PR open for current branch"
+  else
+    PR_NUM=$(echo "$PR_JSON" | jq -r '.number // "unknown"')
+    FAILURES=$(echo "$PR_JSON" | jq -r '
+      .statusCheckRollup[]?
+      | select((.conclusion // .status) as $s
+        | $s == "FAILURE" or $s == "ERROR" or $s == "CANCELLED" or $s == "TIMED_OUT")
+      | .name // .context
+    ' | sort -u)
+    if [ -n "$FAILURES" ]; then
+      flag "C3 BLOCKER: PR #$PR_NUM has failing checks — $(echo "$FAILURES" | tr '\n' ',' | sed 's/,$//')"
+    else
+      echo "C3 PASS: PR #$PR_NUM — all checks pass or pending"
+    fi
+  fi
+fi
+```
+
 ### Drift Checks (added v0.18.0) — ADVISORY, not blocking
 
-Eleven empirically-validated drift patterns. Failures are NOT blockers for the compliance verdict, but MUST be refreshed before requesting user authorization. Use BSD-grep-compatible regex (no `\K`).
+Sixteen empirically-validated drift patterns. Failures are NOT blockers for the compliance verdict, but MUST be refreshed before requesting user authorization. Use BSD-grep-compatible regex (no `\K`).
 
-**12. P1 — PR body test count stale (v0.18.3 multi-workspace extension — C1).** All PR-body ratios must appear in ticket evidence. Subset direction: PR ⊆ ticket. Three fallback cases: (a) ratios on both sides → walk each PR ratio; (b)/(c) missing on either side → emit `P1 N/A`.
+**13. P1 — PR body test count stale (v0.18.3 multi-workspace extension — C1).** All PR-body ratios must appear in ticket evidence. Subset direction: PR ⊆ ticket. Three fallback cases: (a) ratios on both sides → walk each PR ratio; (b)/(c) missing on either side → emit `P1 N/A`.
 ```bash
 TEST_KW_RE='(npm test|pnpm test|tests?[^|]*[0-9]|[*: ]tests?[*: ]+[0-9])'
 PR_BODY=$(gh pr view --json body -q .body 2>/dev/null || true)
@@ -69,14 +109,14 @@ else
 fi
 ```
 
-**13. P2 — Merge Checklist Evidence aspirational.** `[x]` rows with future-tense text.
+**14. P2 — Merge Checklist Evidence aspirational.** `[x]` rows with future-tense text.
 ```bash
 awk '/^## Merge Checklist Evidence/{flag=1; next} /^## /{flag=0} flag' "$TICKET" \
   | grep -E '^\|.*\[x\].*(to be |will |pending|TBD|Will be |to be created|next commit|aspirational)' \
   && flag "P2 drift: aspirational row(s) found"
 ```
 
-**14. P3 — Post-merge actions not logged** (post-merge only).
+**15. P3 — Post-merge actions not logged** (post-merge only).
 ```bash
 # Strip checkbox prefix before comparison; use grep -Fq fixed-string match.
 grep -E "^- \[ \].*(post-merge|operator|prod rollout|pending verification)" "$TICKET" \
@@ -89,14 +129,14 @@ while IFS= read -r item; do
 done < /tmp/pm_items.txt
 ```
 
-**15. P4 — Remote branch orphan.**
+**16. P4 — Remote branch orphan.**
 ```bash
 BRANCH=$(grep -oE '\*\*[Bb]ranch:\*\*[[:space:]]*[^[:space:]|()]+' "$TICKET" | head -1 | sed -E 's/^\*\*[Bb]ranch:\*\*[[:space:]]*//')
 git fetch origin --prune --quiet
 git ls-remote --heads origin "$BRANCH" 2>/dev/null | grep -q refs/heads && flag "P4 drift: remote branch $BRANCH still exists (run: git push origin --delete $BRANCH)"
 ```
 
-**16. P5 — Frozen ticket Status post-merge.** Multi-word status via sed char class, not `\w+`.
+**17. P5 — Frozen ticket Status post-merge.** Multi-word status via sed char class, not `\w+`.
 ```bash
 FROZEN_COUNT=0
 for t in docs/tickets/*.md; do
@@ -114,30 +154,49 @@ done
 [ "$FROZEN_COUNT" -eq 1 ] && flag "P5 drift: 1 frozen ticket"
 ```
 
-**17. P6 — AC count off-by-N.** Two claim forms supported: `all N marked` (N = total) and `AC: X/Y done` (X = marked, Y = total — handles deferred ACs where Y > X).
+**18. P6 — AC count off-by-N (header-form aware since v0.19.0).** Supports two AC forms: `[x]`/`[ ]` checkbox form and `### AC<N>` header form. Headers authoritative when present (≥ 1). A header is "deferred" when its body contains `**Status**: Deferred|Pending|Skipped|Blocked` before the next `### `. Two claim shapes: `all N marked` and `AC: X/Y done`. v0.19.0 drops the v0.18.3 `-ge 2` tolerance — exact-match (off-by-1 advisories surface).
 ```bash
 AC_BLOCK=$(awk '/^## Acceptance Criteria/,/^## Definition of Done/' "$TICKET")
-ACTUAL_TOTAL=$(echo "$AC_BLOCK" | grep -cE "^- \[[x ]\]")
-ACTUAL_MARKED=$(echo "$AC_BLOCK" | grep -cE "^- \[x\]")
+HEADER_ACS=$(echo "$AC_BLOCK" | grep -cE '^### AC[0-9]+')
+
+if [ "$HEADER_ACS" -gt 0 ]; then
+  ACTUAL_TOTAL=$HEADER_ACS
+  # Per-AC pass: emit one line per AC ("marked" or "deferred"). Then count.
+  PER_AC=$(echo "$AC_BLOCK" | awk '
+    function flush() { if (have) { print (deferred ? "deferred" : "marked"); have=0; deferred=0 } }
+    /^### AC[0-9]+/ { flush(); have=1; next }
+    /^## / { flush(); next }
+    have && /^\*\*Status\*\*:[[:space:]]*(Deferred|Pending|Skipped|Blocked)/ { deferred=1 }
+    END { flush() }
+  ')
+  ACTUAL_MARKED=$(printf '%s\n' "$PER_AC" | grep -c '^marked$' || true)
+else
+  ACTUAL_TOTAL=$(echo "$AC_BLOCK" | grep -cE "^- \[[x ]\]")
+  ACTUAL_MARKED=$(echo "$AC_BLOCK" | grep -cE "^- \[x\]")
+fi
+
 CLAIM_LINE=$(grep -oE 'all [0-9]+ marked|AC: [0-9]+/[0-9]+' "$TICKET" | head -1)
 if echo "$CLAIM_LINE" | grep -qE '^AC: [0-9]+/[0-9]+'; then
   CLAIMED_MARKED=$(echo "$CLAIM_LINE" | grep -oE '[0-9]+' | head -1)
   CLAIMED_TOTAL=$(echo "$CLAIM_LINE" | grep -oE '[0-9]+' | tail -1)
   [ -n "$CLAIMED_TOTAL" ] && [ "$CLAIMED_TOTAL" != "$ACTUAL_TOTAL" ] \
-    && [ $((ACTUAL_TOTAL - CLAIMED_TOTAL)) -ge 2 -o $((CLAIMED_TOTAL - ACTUAL_TOTAL)) -ge 2 ] \
-    && flag "P6 drift: claim AC total '$CLAIMED_TOTAL' vs actual total $ACTUAL_TOTAL"
+    && flag "P6 drift: claim AC total '$CLAIMED_TOTAL' vs actual total $ACTUAL_TOTAL (form: $([ "$HEADER_ACS" -gt 0 ] && echo header || echo checkbox))"
   [ -n "$CLAIMED_MARKED" ] && [ "$CLAIMED_MARKED" != "$ACTUAL_MARKED" ] \
-    && [ $((ACTUAL_MARKED - CLAIMED_MARKED)) -ge 2 -o $((CLAIMED_MARKED - ACTUAL_MARKED)) -ge 2 ] \
-    && flag "P6 drift: claim AC marked '$CLAIMED_MARKED' vs actual marked $ACTUAL_MARKED"
+    && flag "P6 drift: claim AC marked '$CLAIMED_MARKED' vs actual marked $ACTUAL_MARKED (form: $([ "$HEADER_ACS" -gt 0 ] && echo header || echo checkbox))"
 elif [ -n "$CLAIM_LINE" ]; then
   CLAIMED=$(echo "$CLAIM_LINE" | grep -oE '[0-9]+' | head -1)
-  [ -n "$CLAIMED" ] && [ "$CLAIMED" != "$ACTUAL_TOTAL" ] \
-    && [ $((ACTUAL_TOTAL - CLAIMED)) -ge 2 -o $((CLAIMED - ACTUAL_TOTAL)) -ge 2 ] \
-    && flag "P6 drift: 'all $CLAIMED marked' vs actual AC count $ACTUAL_TOTAL"
+  if [ -n "$CLAIMED" ]; then
+    [ "$CLAIMED" != "$ACTUAL_TOTAL" ] \
+      && flag "P6 drift: 'all $CLAIMED marked' vs actual AC total $ACTUAL_TOTAL (form: $([ "$HEADER_ACS" -gt 0 ] && echo header || echo checkbox))"
+    # `all N marked` IMPLIES all ACs are marked; flag when actual marked < N
+    # (e.g. some ACs deferred via `**Status**: Deferred` or unchecked `[ ]`).
+    [ "$CLAIMED" != "$ACTUAL_MARKED" ] \
+      && flag "P6 drift: 'all $CLAIMED marked' but only $ACTUAL_MARKED actually marked (form: $([ "$HEADER_ACS" -gt 0 ] && echo header || echo checkbox))"
+  fi
 fi
 ```
 
-**18. P7 — Test count drift within ticket (final-sections only).**
+**19. P7 — Test count drift within ticket (final-sections only).**
 ```bash
 TERMINAL=$(awk '/^## Completion Log/,/^## Merge Checklist/' "$TICKET" | grep -iE "(test|pass|green)" | grep -oE "[0-9]+/[0-9]+" | tail -1)
 AC=$(awk '/^## Acceptance Criteria/,/^## Definition of Done/' "$TICKET")
@@ -148,7 +207,7 @@ for n in $FINAL_NUMS; do
 done
 ```
 
-**19. P8 — Completion Log gap vs Workflow Checklist.**
+**20. P8 — Completion Log gap vs Workflow Checklist.**
 ```bash
 WORKFLOW=$(awk '/^## Workflow Checklist/,/^## Completion Log/' "$TICKET")
 COMPLETION=$(awk '/^## Completion Log/,/^## Merge Checklist/' "$TICKET")
@@ -159,7 +218,7 @@ while read -r step_num; do
 done <<< "$CHECKED_STEPS"
 ```
 
-**20. P9 — Tracker header stale.**
+**21. P9 — Tracker header stale.**
 ```bash
 TRACKER=docs/project_notes/product-tracker.md
 HEADER_STEP=$(grep '^\*\*Last Updated:\*\*' "$TRACKER" | grep -oE '(Step )?[0-9]+/6' | head -1 | sed -E 's/^Step //')
@@ -168,7 +227,7 @@ DETAIL_STEP=$(grep -A 1 '^\*\*Active Feature:\*\*' "$TRACKER" | grep -oE '(Step 
   && flag "P9 drift: tracker header says $HEADER_STEP, Active Feature says $DETAIL_STEP"
 ```
 
-**21. P10 — Duplicate Completion Log rows.**
+**22. P10 — Duplicate Completion Log rows.**
 ```bash
 awk -F'|' '/^\| [0-9]{4}-[0-9]{2}-[0-9]{2}/ {
   key = $2 "|" $3 "|" substr($4, 1, 80)
@@ -178,7 +237,7 @@ awk -F'|' '/^\| [0-9]{4}-[0-9]{2}-[0-9]{2}/ {
   | while read -r dup; do flag "P10 drift: duplicate Completion Log row: $dup"; done
 ```
 
-**22. P11 — Tracker Features table status vs ticket Status mismatch.**
+**23. P11 — Tracker Features table status vs ticket Status mismatch.**
 ```bash
 TICKET_STATUS=$(grep -E "^\*\*Status:\*\*" "$TICKET" | head -1 \
     | sed -E 's/^\*\*Status:\*\*[[:space:]]*\*?\*?//' \
@@ -215,7 +274,7 @@ case "$TICKET_BASENAME" in
 esac
 ```
 
-**23. P12 — Tracker HEAD references stale (added v0.18.2).** The `**Last Updated:**` and `**Active Feature:**` lines may embed `HEAD <sha>` or `HEAD: <sha>` references that were correct when written but went stale as further commits landed (empirically observed in fx F-WEB-MENU-VISION-001 audit cycle 2026-05-06: tracker said `HEAD: fd752e4` while `git rev-parse HEAD` was `6fa801e` after the agent's own self-edit commit). Compare each extracted SHA against the active branch HEAD. Bidirectional prefix tolerance: a 7-char tracker SHA matches the full 40-char actual HEAD if it's a prefix; a full 40-char tracker SHA matches if its first 7 chars equal the actual short form. Scoped strictly to the two header lines so narrative SHAs in "Last Completed" prose never false-positive-fire.
+**24. P12 — Tracker HEAD references stale (added v0.18.2).** The `**Last Updated:**` and `**Active Feature:**` lines may embed `HEAD <sha>` or `HEAD: <sha>` references that were correct when written but went stale as further commits landed (empirically observed in fx F-WEB-MENU-VISION-001 audit cycle 2026-05-06: tracker said `HEAD: fd752e4` while `git rev-parse HEAD` was `6fa801e` after the agent's own self-edit commit). Compare each extracted SHA against the active branch HEAD. Bidirectional prefix tolerance: a 7-char tracker SHA matches the full 40-char actual HEAD if it's a prefix; a full 40-char tracker SHA matches if its first 7 chars equal the actual short form. Scoped strictly to the two header lines so narrative SHAs in "Last Completed" prose never false-positive-fire.
 ```bash
 TRACKER=docs/project_notes/product-tracker.md
 if [ -f "$TRACKER" ]; then
@@ -235,7 +294,7 @@ if [ -f "$TRACKER" ]; then
 fi
 ```
 
-**24. P13 — key_facts delta vs ticket atom-count mismatch (added v0.18.3).** Whitespace-safe iteration + FEATURE_ID anchoring.
+**25. P13 — key_facts delta vs ticket atom-count mismatch (added v0.18.3).** Whitespace-safe iteration + FEATURE_ID anchoring.
 ```bash
 KEY_FACTS=docs/project_notes/key_facts.md
 if [ -f "$KEY_FACTS" ]; then
@@ -251,7 +310,7 @@ if [ -f "$KEY_FACTS" ]; then
 fi
 ```
 
-**25. P14 — MCE Action 1 row stale post-merge (added v0.18.3).** Strict awk state machine terminates MCE block at NEXT `^## ` of any name (not `[^M]`). Strict signal `Step 6 [ ]` / `Step 6 [-]` only — standalone `(this merge)` omitted to prevent false positives on past-tense narrative. Reuses `TICKET_STATUS` from P11. NIT severity.
+**26. P14 — MCE Action 1 row stale post-merge (added v0.18.3).** Strict awk state machine terminates MCE block at NEXT `^## ` of any name (not `[^M]`). Strict signal `Step 6 [ ]` / `Step 6 [-]` only — standalone `(this merge)` omitted to prevent false positives on past-tense narrative. Reuses `TICKET_STATUS` from P11. NIT severity.
 ```bash
 if [ "$TICKET_STATUS" = "Done" ]; then
   MCE_BLOCK=$(awk '
@@ -265,7 +324,7 @@ if [ "$TICKET_STATUS" = "Done" ]; then
 fi
 ```
 
-**26. P15 — AC with post-deploy keyword admitted without Completion Log evidence (added v0.18.3).** Line-safe iteration via `while IFS= read -r`.
+**27. P15 — AC with post-deploy keyword admitted without Completion Log evidence (added v0.18.3).** Line-safe iteration via `while IFS= read -r`.
 ```bash
 COMPLETION=$(awk '/^## Completion Log/,/^## Merge Checklist/' "$TICKET")
 AC_LINES=$(grep -nE '^[[:space:]]*-[[:space:]]*\[[ x]\][[:space:]]+AC-[A-Za-z0-9_-]+' "$TICKET" \
@@ -281,7 +340,7 @@ while IFS= read -r line; do
 done <<< "$AC_LINES"
 ```
 
-**27. P16 — Feature missing from Features table (added v0.18.3).** Strict signal: feature ID must appear as first cell of a pipe-table row (`| FEATURE_ID |`) — narrative mentions / `**Active Feature:**` references must not silence the drift. NIT severity. Reuses `TICKET_STATUS` and `FEATURE_ID` from P11.
+**28. P16 — Feature missing from Features table (added v0.18.3).** Strict signal: feature ID must appear as first cell of a pipe-table row (`| FEATURE_ID |`) — narrative mentions / `**Active Feature:**` references must not silence the drift. NIT severity. Reuses `TICKET_STATUS` and `FEATURE_ID` from P11.
 ```bash
 TRACKER=docs/project_notes/product-tracker.md
 case "$TICKET_STATUS" in
@@ -316,7 +375,7 @@ Report two tables — one for **structural (blocking)** compliance, one for **dr
 ```
 ## Merge Compliance Audit — [FEATURE-ID]
 
-### Structural (1-11) — blocking merge gate
+### Structural (1-12) — blocking merge gate
 
 | # | Check | Status | Detail |
 |---|-------|:------:|--------|
@@ -331,38 +390,47 @@ Report two tables — one for **structural (blocking)** compliance, one for **dr
 | 9 | Merge Base | PASS | Up to date with develop |
 | 10 | Working Tree | PASS | Clean |
 | 11 | Data Files | PASS | N/A — no JSON seed files |
+| 12 | CI State | PASS | PR #123 — all checks pass or pending |
 
 **STRUCTURAL: READY FOR MERGE** (or **STRUCTURAL: NEEDS FIX — N blockers**)
 
-### Drift (12-27) — advisory, refresh before user authorization
+### Drift (13-28) — advisory, refresh before user authorization
 
 | # | Pattern | Status | Detail |
 |---|---------|:------:|--------|
-| 12 | P1 PR body test count stale | PASS | matches ticket terminal |
-| 13 | P2 Aspirational Evidence rows | PASS | all past-tense |
-| 14 | P3 Post-merge actions logged | PASS | N/A pre-merge |
-| 15 | P4 Remote branch orphan | PASS | not checked pre-merge |
-| 16 | P5 Frozen ticket Status | PASS | 0 frozen |
-| 17 | P6 AC count off-by-N | PASS | claim matches actual |
-| 18 | P7 Intra-ticket test drift | PASS | final = terminal |
-| 19 | P8 Completion Log gap | PASS | every [x] step has narrative |
-| 20 | P9 Tracker header stale | PASS | header = detail |
-| 21 | P10 Duplicate log rows | PASS | no duplicates |
-| 22 | P11 Tracker status mismatch | PASS | status consistent |
-| 23 | P12 Tracker HEAD reference | PASS | tracker HEAD = git HEAD |
-| 24 | P13 key_facts delta mismatch | PASS | N/A — no quantified deltas |
-| 25 | P14 MCE Action 1 stale post-merge | PASS | N/A pre-merge / row past-tense |
-| 26 | P15 Post-deploy AC without evidence | PASS | no post-deploy keyword in ACs |
-| 27 | P16 Feature missing from tracker | PASS | feature in Features table |
+| 13 | P1 PR body test count stale | PASS | matches ticket terminal |
+| 14 | P2 Aspirational Evidence rows | PASS | all past-tense |
+| 15 | P3 Post-merge actions logged | PASS | N/A pre-merge |
+| 16 | P4 Remote branch orphan | PASS | not checked pre-merge |
+| 17 | P5 Frozen ticket Status | PASS | 0 frozen |
+| 18 | P6 AC count off-by-N | PASS | claim matches actual (form: header) |
+| 19 | P7 Intra-ticket test drift | PASS | final = terminal |
+| 20 | P8 Completion Log gap | PASS | every [x] step has narrative |
+| 21 | P9 Tracker header stale | PASS | header = detail |
+| 22 | P10 Duplicate log rows | PASS | no duplicates |
+| 23 | P11 Tracker status mismatch | PASS | status consistent |
+| 24 | P12 Tracker HEAD reference | PASS | tracker HEAD = git HEAD |
+| 25 | P13 key_facts delta mismatch | PASS | N/A — no quantified deltas |
+| 26 | P14 MCE Action 1 stale post-merge | PASS | N/A pre-merge / row past-tense |
+| 27 | P15 Post-deploy AC without evidence | PASS | no post-deploy keyword in ACs |
+| 28 | P16 Feature missing from tracker | PASS | feature in Features table |
 
 **DRIFT: CLEAN** (or **DRIFT: N advisories — refresh before merge**)
 
 ### Combined verdict
 
-- Both PASS → **READY FOR MERGE**
+- Both PASS → **READY FOR MERGE** (compliance 12/12, drift clean)
 - Structural fail → **NEEDS FIX — N blockers**
 - Structural pass + drift advisories → **READY FOR MERGE PENDING DRIFT CLEANUP — N advisories**
 ```
+
+**Recipe-output verbatim rule** (added v0.19.0): When filling Detail columns of either the structural or drift tables, use the **literal output of the corresponding recipe** — do not normalize, summarize, or smooth values. Specifically:
+- Numeric ratios (`N/M`): preserve as emitted. `18/19` MUST NOT become `18/18` even when N < M.
+- MCE row 1 claim text: when a check (e.g. P6) references it in its Detail message, quote it verbatim including parentheticals such as `(AC19 deploy-deferred)` or `(operator action pending)`. Do not strip qualifiers.
+- "Form" annotations (e.g. P6 emits `(form: header)` or `(form: checkbox)`): preserve them so the reader can tell which AC form the ticket used.
+- `N/A` reasons: quote the literal reason emitted by the recipe (`no PR open`, `gh CLI unavailable`, `jq unavailable`, `not checked pre-merge`).
+
+This rule exists because an LLM auditor, given header-form tickets where checkbox count is 0, will hallucinate `18/18` to "agree" with the MCE row 1 claim. The recipe says `0` and the MCE says `18/19`; the audit Detail must reflect both honestly so the reader can spot the form mismatch.
 
 ### If issues are found
 
@@ -372,8 +440,9 @@ Fix them directly:
 - Tracker stale → update Active Session and Features table
 - Merge base diverged → `git merge origin/<target-branch>` and resolve conflicts
 - Data file issues → fix the data
+- CI failures (C3) → re-run failed jobs after addressing root cause; do NOT merge while `ci-success` is BLOCKED
 
-**Drift advisories (12-27) fixes:**
+**Drift advisories (13-28) fixes:**
 - **P1** → edit PR body npm test line to match ticket terminal count
 - **P2** → rewrite `[x]` rows with past-tense + commit SHA
 - **P3** → add Completion Log row for each post-merge execution

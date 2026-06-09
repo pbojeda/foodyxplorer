@@ -90,6 +90,14 @@ enum ApiKeyTier {
   @@map("api_key_tier")
 }
 
+enum AccountTier {
+  free
+  pro
+  admin
+
+  @@map("account_tier")
+}
+
 enum ActorType {
   anonymous_web
   telegram
@@ -489,8 +497,10 @@ model Account {
   consentMarketingAt  DateTime? @map("consent_marketing_at") @db.Timestamptz
   consentAnalytics    Boolean   @default(false) @map("consent_analytics")
   consentAnalyticsAt  DateTime? @map("consent_analytics_at") @db.Timestamptz
+  tier                AccountTier @default(free)
 
-  actors Actor[]
+  actors        Actor[]
+  searchHistory SearchHistory[]
 
   @@index([email])
   @@map("accounts")
@@ -606,4 +616,29 @@ model CookingProfile {
   @@index([foodGroup])
   @@index([foodName])
   @@map("cooking_profiles")
+}
+
+// ---------------------------------------------------------------------------
+// F-WEB-HISTORY — Persisted search history (authenticated accounts)
+// ---------------------------------------------------------------------------
+
+enum SearchHistoryKind {
+  text
+  voice
+
+  @@map("search_history_kind")
+}
+
+model SearchHistory {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId   String            @map("account_id") @db.Uuid
+  kind        SearchHistoryKind
+  queryText   String            @map("query_text") @db.Text
+  resultJsonb Json              @map("result_jsonb")
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt(sort: Desc), id(sort: Desc)], name: "search_history_account_cursor_idx")
+  @@map("search_history")
 }

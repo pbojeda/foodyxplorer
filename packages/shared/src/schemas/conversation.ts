@@ -202,6 +202,11 @@ export const ConversationMessageDataSchema = z.object({
 
   // Present on any follow_up_* intent — observability metadata (F-MULTITURN-001)
   followUpMeta: FollowUpMetaSchema.optional(),
+
+  // Present on voice responses (POST /conversation/audio) — the Whisper transcript
+  // echoed in the response so the web feed header can show the real voice query.
+  // Optional so text responses + deploy-skew are unaffected (cross-model G-IMP/X2).
+  transcribedText: z.string().optional(),
 });
 
 export type ConversationMessageData = z.infer<typeof ConversationMessageDataSchema>;

@@ -26,6 +26,16 @@ jest.mock('../../lib/actorId', () => ({
   persistActorId: jest.fn(),
 }));
 
+// F-WEB-TIER: mock next/navigation for LoginCta / RateLimitNudge router usage
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
+}));
+
+// F-WEB-TIER: mock new components to keep these tests focused on their scope
+jest.mock('../../components/LoginCta', () => ({ LoginCta: () => null }));
+jest.mock('../../components/UsageMeter', () => ({ UsageMeter: () => null }));
+jest.mock('../../components/RateLimitNudge', () => ({ RateLimitNudge: () => null }));
+
 // F107a: mock useAuth — HablarShell now requires AuthProvider context
 jest.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
@@ -38,17 +48,37 @@ jest.mock('../../hooks/useAuth', () => ({
   }),
 }));
 
+// F-WEB-HISTORY: mock useSearchHistory — no-op by default
+jest.mock('../../hooks/useSearchHistory', () => ({
+  useSearchHistory: jest.fn(() => ({
+    persistedEntries: [],
+    hasMoreHistory: false,
+    isLoadingMore: false,
+    isLoadingHistory: false,
+    loadMore: jest.fn(),
+    deleteEntry: jest.fn(),
+    clearAll: jest.fn(),
+  })),
+}));
+
 jest.mock('../../lib/apiClient', () => ({
   sendMessage: jest.fn(),
   setAuthToken: jest.fn(), // F107a
+  getMe: jest.fn(),        // F-WEB-TIER
+  getUsage: jest.fn(),     // F-WEB-TIER
+  getHistory: jest.fn(),        // F-WEB-HISTORY
+  deleteHistoryEntry: jest.fn(), // F-WEB-HISTORY
+  clearHistory: jest.fn(),       // F-WEB-HISTORY
   ApiError: class ApiError extends Error {
     code: string;
     status: number | undefined;
-    constructor(message: string, code: string, status?: number) {
+    details: Record<string, unknown> | undefined;
+    constructor(message: string, code: string, status?: number, details?: Record<string, unknown>) {
       super(message);
       this.name = 'ApiError';
       this.code = code;
       this.status = status;
+      this.details = details;
     }
   },
 }));
@@ -153,8 +183,11 @@ describe('HablarShell — edge cases', () => {
     await userEvent.type(textarea, 'big mac');
     await userEvent.type(textarea, '{Enter}');
 
-    // LoadingState should appear (first request still in-flight)
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    // Loading shimmer should appear (first request still in-flight — aria-busy article)
+    await waitFor(() => {
+      const busyArticle = screen.getByRole('article');
+      expect(busyArticle).toHaveAttribute('aria-busy', 'true');
+    });
 
     // The textarea is DISABLED while loading — per spec the SubmitButton is
     // also disabled, so a second rapid submit via keyboard won't work.
@@ -300,7 +333,7 @@ describe('HablarShell — edge cases', () => {
    */
   it('rate limit error shows full spec-required copy including "50 consultas"', async () => {
     mockSendMessage.mockRejectedValue(
-      new ApiError('Rate limit exceeded', 'RATE_LIMIT_EXCEEDED', 429),
+      new ApiError('Rate limit exceeded', 'RATE_LIMIT_EXCEEDED', 429, { limit: 50 }),
     );
 
     render(<HablarShell />);

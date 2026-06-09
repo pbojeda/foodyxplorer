@@ -30,7 +30,21 @@ export type MetricEvent =
   | 'auth_login_start'
   | 'auth_login_success'
   | 'auth_login_error'
-  | 'auth_logout';
+  | 'auth_logout'
+  // F-WEB-TIER funnel events
+  | 'login_cta_shown'
+  | 'login_cta_clicked'
+  | 'rate_limit_nudge_shown'
+  | 'rate_limit_nudge_clicked'
+  | 'usage_meter_shown'
+  // F-WEB-HISTORY telemetry events
+  | 'history_loaded'
+  | 'history_load_more'
+  | 'history_entry_deleted'
+  | 'history_cleared'
+  | 'history_persistence_nudge_shown'
+  | 'history_persistence_nudge_cta'
+  | 'history_persistence_nudge_dismissed';
 
 export interface MetricPayload {
   intent?: string;
@@ -46,6 +60,14 @@ export interface MetricPayload {
   partial?: boolean;
   // F107a auth events
   provider?: 'email' | 'google';
+  // F-WEB-TIER funnel payload
+  authenticated?: boolean;
+  tier?: string;
+  // F-WEB-HISTORY payload fields
+  count?: number;
+  page?: number;
+  entryId?: string;
+  inputMode?: 'text' | 'voice';
 }
 
 export interface MetricsSnapshot {
@@ -216,6 +238,17 @@ export function trackEvent(event: MetricEvent, payload?: MetricPayload): void {
     case 'auth_login_error':
     case 'auth_logout':
       // payload (provider) captured for analytics; does not alter query/success/error counts
+      break;
+
+    // F-WEB-HISTORY — history events: payload-only telemetry, no counter mutation.
+    case 'history_loaded':
+    case 'history_load_more':
+    case 'history_entry_deleted':
+    case 'history_cleared':
+    case 'history_persistence_nudge_shown':
+    case 'history_persistence_nudge_cta':
+    case 'history_persistence_nudge_dismissed':
+      // payload captured for analytics; does not alter query/success/error counts
       break;
   }
 

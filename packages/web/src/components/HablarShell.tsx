@@ -1,14 +1,22 @@
 'use client';
 
 // HablarShell — top-level client orchestrator for /hablar.
-// Manages all page state: query, loading, results, error, inlineError.
-// F092: adds photo analysis flow with executePhotoAnalysis.
-// F091: adds voice flow (VoiceOverlay + useVoiceSession + TTS playback).
-// Uses useRef<AbortController | null> for stale request guard (both text and photo flows).
+// F-WEB-HISTORY: singleton results state replaced with append-only entries feed.
+//   - results/photoResults/error/isLoading/photoMode/voiceError/lastQuery/inlineError
+//     replaced by entries: TranscriptEntryData[] (TranscriptFeed renders the feed).
+//   - useSearchHistory provides persistedEntries for logged-in users.
+//   - HistoryPersistenceNudge shown after ≥2 entries for anonymous users.
+//   - Preserved unchanged: LoginCta/UsageMeter/RateLimitNudge/usageRefreshRef/
+//     dynamic-429/VoiceOverlay/ConversationInput/header auth slot.
+// F-WEB-HISTORY-FU6: state split — sessionEntries (local) + persistedEntries (hook).
+//   - allEntries = useMemo([persistedEntries, sessionEntries]) — synchronous derivation.
+//   - Mount gate: TranscriptFeed not mounted while authLoading||(user&&isLoadingHistory).
+//   - handleClearAll: only clearPersistedHistory() — sessionEntries preserved (AC2 sub-bullet).
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { ConversationMessageData, MenuAnalysisData } from '@foodxplorer/shared';
 import type { VoiceBudgetData, VoiceErrorCode, VoiceState } from '@/types/voice';
+import type { TranscriptEntryData } from '@/types/history';
 import { getActorId } from '@/lib/actorId';
 import { sendMessage, sendPhotoAnalysis, setAuthToken, ApiError } from '@/lib/apiClient';
 import { resizeImageForUpload } from '@/lib/imageResize';
@@ -16,28 +24,58 @@ import { trackEvent, flushMetrics } from '@/lib/metrics';
 import { useAuth } from '@/hooks/useAuth';
 import { useVoiceSession } from '@/hooks/useVoiceSession';
 import { useTtsPlayback } from '@/hooks/useTtsPlayback';
+import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { ConversationInput } from './ConversationInput';
-import { ResultsArea } from './ResultsArea';
+import { TranscriptFeed } from './TranscriptFeed';
 import { UserMenu } from './UserMenu';
 import { VoiceOverlay } from './VoiceOverlay';
+import { LoginCta } from './LoginCta';
+import { UsageMeter } from './UsageMeter';
+import { RateLimitNudge } from './RateLimitNudge';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const VALID_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+// ---------------------------------------------------------------------------
+// Entry helpers
+// ---------------------------------------------------------------------------
+
+function createPendingEntry(
+  queryText: string,
+  inputMode: 'text' | 'voice' | 'photo',
+): TranscriptEntryData {
+  return {
+    entryId: crypto.randomUUID(),
+    queryText,
+    inputMode,
+    timestamp: new Date(),
+    isLoading: true,
+    result: null,
+    photoData: null,
+    error: null,
+    isPersisted: false,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export function HablarShell() {
   const [query, setQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState<ConversationMessageData | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
-  const [lastQuery, setLastQuery] = useState('');
 
-  // Photo analysis state (F092)
-  const [photoMode, setPhotoMode] = useState<'idle' | 'analyzing'>('idle');
-  const [photoResults, setPhotoResults] = useState<MenuAnalysisData | null>(null);
+  // F-WEB-HISTORY-FU6 state split: session-owned slice only.
+  // persistedEntries come directly from useSearchHistory (no local mirror).
+  // allEntries = useMemo([persistedEntries, sessionEntries]) — synchronous derivation.
+  const [sessionEntries, setSessionEntries] = useState<TranscriptEntryData[]>([]);
+
+  // Persistence nudge dismissed state
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
 
   // F-WEB-MENU-VISION-001 — photo analysis mode toggle (session-only, not persisted)
-  const [photoAnalysisMode, setPhotoAnalysisMode] = useState<'auto' | 'identify'>('auto');
+  // F-WEB-HISTORY-FU1 (item D): default mode is 'identify' (single-dish path is the common case).
+  const [photoAnalysisMode, setPhotoAnalysisMode] = useState<'auto' | 'identify'>('identify');
 
   // Voice state (F091)
   const [isVoiceOverlayOpen, setIsVoiceOverlayOpen] = useState(false);
@@ -59,6 +97,7 @@ export function HablarShell() {
       return true;
     }
   });
+
   const actorIdRef = useRef<string>('');
   if (!actorIdRef.current && typeof window !== 'undefined') {
     actorIdRef.current = getActorId();
@@ -67,10 +106,35 @@ export function HablarShell() {
   // F107a — auth integration (ADR-025 R3 §4+§6)
   const { user, session, loading: authLoading } = useAuth();
 
-  // Sync Supabase session token to apiClient module state
+  // F-WEB-TIER: rate-limit nudge state (anonymous 429 prompt)
+  const [showRateLimitNudge, setShowRateLimitNudge] = useState(false);
+
+  // F-WEB-TIER: ref to UsageMeter refresh callback — registered by UsageMeter via onRefreshReady
+  const usageRefreshRef = useRef<(() => void) | null>(null);
+
+  // Sync Supabase session token to apiClient module state.
   useEffect(() => {
     setAuthToken(session?.access_token ?? null);
   }, [session]);
+
+  // F-WEB-HISTORY: persisted history for logged-in users.
+  const {
+    persistedEntries,
+    hasMoreHistory,
+    isLoadingMore,
+    isLoadingHistory,
+    loadMore,
+    deleteEntry: deletePersistedEntry,
+    clearAll: clearPersistedHistory,
+  } = useSearchHistory({ authToken: session?.access_token ?? null });
+
+  // F-WEB-HISTORY-FU6: synchronous derivation of allEntries.
+  // persistedEntries (oldest-first, hook contract W16) come first;
+  // sessionEntries follow below so newest query stays at the bottom.
+  const allEntries = useMemo(
+    () => [...persistedEntries, ...sessionEntries],
+    [persistedEntries, sessionEntries],
+  );
 
   const voiceSession = useVoiceSession(actorIdRef.current);
   const tts = useTtsPlayback({ enabled: ttsEnabled, voiceName: selectedVoiceName });
@@ -121,20 +185,37 @@ export function HablarShell() {
     return () => controller.abort();
   }, []);
 
-  // Sync voice session results → HablarShell results + speak summary via TTS (F091)
+  // Sync voice session results → feed entry (F091 + F-WEB-HISTORY)
   useEffect(() => {
     if (voiceSession.state === 'done' && voiceSession.lastResponse) {
       const data = voiceSession.lastResponse.data;
-      setResults(data);
-      setError(null);
-      setInlineError(null);
-      setPhotoResults(null);
       setIsVoiceOverlayOpen(false);
       setVoiceError(null);
       trackEvent('voice_success', { intent: data.intent });
+      // F-WEB-TIER: refresh usage meter after successful voice query (BUG-001)
+      usageRefreshRef.current?.();
 
-      // Speak a short summary — presentation layer only; engine already
-      // calculated the numbers (ADR-001).
+      // Append a new entry for the voice result.
+      // Use transcribedText from the response if available (G-IMP/X2);
+      // fall back to "Consulta por voz" placeholder.
+      const queryText =
+        (data as ConversationMessageData & { transcribedText?: string }).transcribedText ??
+        'Consulta por voz';
+
+      const newEntry: TranscriptEntryData = {
+        entryId: crypto.randomUUID(),
+        queryText,
+        inputMode: 'voice',
+        timestamp: new Date(),
+        isLoading: false,
+        result: data,
+        photoData: null,
+        error: null,
+        isPersisted: false,
+      };
+      setSessionEntries((prev) => [...prev, newEntry]);
+
+      // Speak a short summary — presentation layer only
       if (data.intent === 'estimation' && data.estimation?.result) {
         const result = data.estimation.result;
         const name = result.nameEs ?? result.name ?? 'este plato';
@@ -145,10 +226,6 @@ export function HablarShell() {
   }, [voiceSession.state, voiceSession.lastResponse, tts]);
 
   // Sync voice errors → UI error code (F091).
-  // Persistent errors (rate limit, IP limit, budget cap, Whisper failure, network)
-  // get promoted to ResultsArea as an ErrorState and close the overlay. Transient
-  // errors (mic_permission, mic_hardware, empty_transcription, tts_unavailable)
-  // stay in the overlay as auto-dismissing toasts.
   useEffect(() => {
     if (voiceSession.state === 'error' && voiceSession.error) {
       const code = voiceSession.error.code as VoiceErrorCode;
@@ -165,8 +242,21 @@ export function HablarShell() {
         code === 'network';
       if (isPersistent) {
         setIsVoiceOverlayOpen(false);
-        // Focus return to the input-bar MicButton (AC15)
         requestAnimationFrame(() => micButtonRef.current?.focus());
+
+        // Add an error entry to the feed for persistent voice errors
+        const errorEntry: TranscriptEntryData = {
+          entryId: crypto.randomUUID(),
+          queryText: 'Consulta por voz',
+          inputMode: 'voice',
+          timestamp: new Date(),
+          isLoading: false,
+          result: null,
+          photoData: null,
+          error: getVoiceErrorMessage(code),
+          isPersisted: false,
+        };
+        setSessionEntries((prev) => [...prev, errorEntry]);
       }
     }
   }, [voiceSession.state, voiceSession.error]);
@@ -182,7 +272,6 @@ export function HablarShell() {
     voiceSession.cancel();
     setIsVoiceOverlayOpen(false);
     setVoiceError(null);
-    // Return focus to the input-bar mic button (AC15 / WCAG 2.4.3)
     requestAnimationFrame(() => micButtonRef.current?.focus());
   }, [voiceSession]);
 
@@ -208,302 +297,382 @@ export function HablarShell() {
       ? 'results'
       : 'idle';
 
+  // ---------------------------------------------------------------------------
+  // executeQuery — text query flow (appends a new entry)
+  // ---------------------------------------------------------------------------
   const executeQuery = useCallback(async (text: string) => {
     if (!text.trim()) return;
 
-    // Abort any in-flight request (supports rapid re-submit)
+    // Abort any in-flight request
     currentRequestRef.current?.abort();
     const controller = new AbortController();
     currentRequestRef.current = controller;
 
-    setLastQuery(text);
-    setIsLoading(true);
-    setError(null);
     setInlineError(null);
-    // Cross-flow cleanup: text query clears photo results
-    setPhotoResults(null);
+    setShowRateLimitNudge(false);
 
     const startTime = Date.now();
-    trackEvent('query_sent');
+    trackEvent('query_sent', { authenticated: !!user });
+
+    // Append optimistic pending entry
+    const pendingEntry = createPendingEntry(text, 'text');
+    setSessionEntries((prev) => [...prev, pendingEntry]);
 
     try {
       const actorId = getActorId();
       const response = await sendMessage(text, actorId, controller.signal);
 
-      // Stale response guard — controller may have been replaced by a newer request
       if (controller.signal.aborted) return;
 
       const data = response.data;
 
-      // Handle text_too_long inline (not full-screen ErrorState)
+      // Handle text_too_long inline (NOT as a TranscriptEntry — cross-model G-CRIT)
       if (data.intent === 'text_too_long') {
         trackEvent('query_success', {
           intent: 'text_too_long',
           responseTimeMs: Date.now() - startTime,
         });
         setInlineError('Demasiado largo. Máx. 500 caracteres.');
-        setResults(null);
+        // Remove the pending entry since no result is created for text_too_long
+        setSessionEntries((prev) => prev.filter((e) => e.entryId !== pendingEntry.entryId));
         return;
       }
 
       trackEvent('query_success', {
         intent: data.intent,
         responseTimeMs: Date.now() - startTime,
+        authenticated: !!user,
       });
-      setResults(data);
+      // Settle the pending entry with the result
+      setSessionEntries((prev) =>
+        prev.map((e) =>
+          e.entryId === pendingEntry.entryId
+            ? { ...e, isLoading: false, result: data }
+            : e
+        )
+      );
+      // F-WEB-TIER: refresh usage meter after successful query
+      usageRefreshRef.current?.();
     } catch (err) {
-      // AbortError from stale request guard or user-triggered abort — silently ignore
       if (err instanceof DOMException && err.name === 'AbortError') {
         return;
       }
-      // TimeoutError from AbortSignal.timeout(15000) — show specific message
       if (err instanceof DOMException && err.name === 'TimeoutError') {
         if (!controller.signal.aborted) {
           trackEvent('query_error', { errorCode: 'TIMEOUT_ERROR' });
-          setError('La consulta ha tardado demasiado. Inténtalo de nuevo.');
-          setResults(null);
+          setSessionEntries((prev) =>
+            prev.map((e) =>
+              e.entryId === pendingEntry.entryId
+                ? { ...e, isLoading: false, error: 'La consulta ha tardado demasiado. Inténtalo de nuevo.' }
+                : e
+            )
+          );
         }
         return;
       }
-      // Double-check for race condition
       if (controller.signal.aborted) return;
 
-      // Map ApiError to user-friendly Spanish message
+      let errorMessage = 'Algo salió mal. Inténtalo de nuevo.';
       if (err instanceof ApiError) {
         trackEvent('query_error', { errorCode: err.code });
         if (err.code === 'RATE_LIMIT_EXCEEDED') {
-          setError('Has alcanzado el límite diario de 50 consultas. Vuelve mañana.');
+          // BUG-API-RATELIMIT-BEARER-001: the daily per-actor quota (actorRateLimit)
+          // carries details.limit/resetAt; the global 15-min abuse limiter does NOT.
+          // Only the daily case is a "límite diario … vuelve mañana"; a global hit is
+          // transient ("espera unos minutos"). They share the RATE_LIMIT_EXCEEDED code.
+          const limit = typeof err.details?.['limit'] === 'number' ? err.details['limit'] : null;
+          if (limit !== null) {
+            errorMessage = `Has alcanzado el límite diario de ${limit} consultas. Vuelve mañana.`;
+          } else {
+            errorMessage = 'Demasiadas peticiones en poco tiempo. Espera unos minutos e inténtalo de nuevo.';
+          }
+          if (user === null) {
+            setShowRateLimitNudge(true);
+          }
         } else if (err.code === 'TIMEOUT_ERROR') {
-          setError('La consulta ha tardado demasiado. Inténtalo de nuevo.');
+          errorMessage = 'La consulta ha tardado demasiado. Inténtalo de nuevo.';
         } else if (err.code === 'NETWORK_ERROR') {
-          setError('Sin conexión. Comprueba tu red.');
+          errorMessage = 'Sin conexión. Comprueba tu red.';
         } else {
-          setError(err.message || 'Algo salió mal. Inténtalo de nuevo.');
+          errorMessage = err.message || 'Algo salió mal. Inténtalo de nuevo.';
         }
       } else {
         trackEvent('query_error', { errorCode: 'UNKNOWN_ERROR' });
-        setError('Algo salió mal. Inténtalo de nuevo.');
       }
-      setResults(null);
-    } finally {
-      // Only clear loading state if this is still the active request
+
+      // Settle the pending entry with the error
       if (currentRequestRef.current === controller) {
-        setIsLoading(false);
+        setSessionEntries((prev) =>
+          prev.map((e) =>
+            e.entryId === pendingEntry.entryId
+              ? { ...e, isLoading: false, error: errorMessage }
+              : e
+          )
+        );
       }
     }
-  }, []);
+  }, [user]);
 
+  // ---------------------------------------------------------------------------
+  // executePhotoAnalysis — photo flow (appends a new entry)
+  // ---------------------------------------------------------------------------
   const executePhotoAnalysis = useCallback(async (file: File) => {
-    // F107a: guard against race condition where auth state has not resolved yet
     if (authLoading) return;
-    // Client-side validation: MIME type
-    // Allow empty file.type through (older mobile browsers — let API validate magic bytes)
     if (file.type !== '' && !VALID_MIME_TYPES.has(file.type)) {
       setInlineError('Formato no soportado. Usa JPEG, PNG o WebP.');
       trackEvent('photo_error', { errorCode: 'INVALID_FILE_TYPE' });
       return;
     }
-
-    // Client-side validation: file size
     if (file.size > MAX_FILE_SIZE) {
       setInlineError('La foto es demasiado grande. Máximo 10 MB.');
       trackEvent('photo_error', { errorCode: 'FILE_TOO_LARGE' });
       return;
     }
 
-    // Abort any in-flight request (stale request guard)
     currentRequestRef.current?.abort('stale_request');
     const controller = new AbortController();
     currentRequestRef.current = controller;
 
-    // Cross-flow cleanup: photo analysis clears text results
-    setResults(null);
-    setPhotoMode('analyzing');
-    setError(null);
     setInlineError(null);
 
     const startTime = Date.now();
-    trackEvent('photo_sent');
+    trackEvent('photo_sent', { authenticated: !!user });
+
+    const pendingEntry = createPendingEntry('Analizando foto…', 'photo');
+    // Remove any existing pending photo entries (stale requests whose promises never reject in tests)
+    setSessionEntries((prev) => [
+      ...prev.filter((e) => !(e.inputMode === 'photo' && e.isLoading)),
+      pendingEntry,
+    ]);
 
     try {
       const actorId = getActorId();
-      // Downscale before upload. Mobile photos routinely exceed the Vercel
-      // Serverless Function body limit (~4.5 MB). The resize utility is a
-      // no-op for files already below 1.5 MB and falls back gracefully on
-      // any error (see BUG-PROD-001).
       const uploadFile = await resizeImageForUpload(file);
-      // Emit telemetry when the resize actually shrunk the file, or when it
-      // silently fell back (same identity) — the gap between these two in
-      // production tells us whether the fix is working.
       if (uploadFile !== file) {
         trackEvent('photo_resize_ok', {
           originalKB: Math.round(file.size / 1024),
           resizedKB: Math.round(uploadFile.size / 1024),
         });
       } else if (file.size > 1.5 * 1024 * 1024) {
-        // Resize was supposed to run (file > passthrough threshold) but the
-        // returned File is the original → silent fallback path.
-        trackEvent('photo_resize_fallback', {
-          originalKB: Math.round(file.size / 1024),
-        });
+        trackEvent('photo_resize_fallback', { originalKB: Math.round(file.size / 1024) });
       }
-      // Stale-request guard: if the user submitted another photo while we
-      // were resizing, abort before touching the network.
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted) {
+        // Remove stale pending entry — another request took over
+        setSessionEntries((prev) => prev.filter((e) => e.entryId !== pendingEntry.entryId));
+        return;
+      }
       const response = await sendPhotoAnalysis(uploadFile, actorId, controller.signal, photoAnalysisMode);
 
-      // Stale response guard
       if (controller.signal.aborted) return;
 
-      const data = response.data;
+      const data: MenuAnalysisData = response.data;
+
+      // F-WEB-MENU-VISION-001: track multi-dish event
+      if (data.dishCount > 1) {
+        trackEvent('menu_dish_list_shown', {
+          dishCount: data.dishCount,
+          partial: data.partial,
+        });
+      }
 
       trackEvent('photo_success', {
         dishCount: data.dishCount,
         responseTimeMs: Date.now() - startTime,
+        authenticated: !!user,
       });
-      setPhotoResults(data);
+
+      // Settle entry with photo result
+      setSessionEntries((prev) =>
+        prev.map((e) =>
+          e.entryId === pendingEntry.entryId
+            ? { ...e, isLoading: false, photoData: data }
+            : e
+        )
+      );
+      usageRefreshRef.current?.();
     } catch (err) {
-      // Stale request abort — silently ignore
       if (
         err instanceof DOMException &&
         err.name === 'AbortError' &&
         controller.signal.reason === 'stale_request'
       ) {
+        // Remove stale pending entry — another request took over
+        setSessionEntries((prev) => prev.filter((e) => e.entryId !== pendingEntry.entryId));
+        return;
+      }
+      if (controller.signal.aborted) {
+        setSessionEntries((prev) => prev.filter((e) => e.entryId !== pendingEntry.entryId));
         return;
       }
 
-      // Stale response guard (race condition)
-      if (controller.signal.aborted) return;
-
-      // Client timeout (65s AbortError without stale_request reason)
+      let errorMessage = 'No se pudo analizar la foto. Inténtalo de nuevo.';
       if (err instanceof DOMException && err.name === 'AbortError') {
         trackEvent('photo_error', { errorCode: 'CLIENT_TIMEOUT' });
-        setInlineError('El análisis ha tardado demasiado. Inténtalo de nuevo.');
-        return;
-      }
-
-      // Map ApiError to user-friendly Spanish message
-      if (err instanceof ApiError) {
+        errorMessage = 'El análisis ha tardado demasiado. Inténtalo de nuevo.';
+      } else if (err instanceof ApiError) {
         trackEvent('photo_error', { errorCode: err.code });
         switch (err.code) {
           case 'INVALID_IMAGE':
-            setInlineError('Formato no soportado. Usa JPEG, PNG o WebP.');
+            errorMessage = 'Formato no soportado. Usa JPEG, PNG o WebP.';
             break;
           case 'MENU_ANALYSIS_FAILED':
-            setInlineError(
+            errorMessage =
               photoAnalysisMode === 'auto'
                 ? "No he podido leer el menú. Prueba con otra foto o elige 'Solo este plato'."
-                : 'No he podido identificar el plato. Prueba con otra foto o asegúrate de que el plato sea visible.'
-            );
+                : 'No he podido identificar el plato. Prueba con otra foto o asegúrate de que el plato sea visible.';
             break;
           case 'PAYLOAD_TOO_LARGE':
-            setInlineError('La foto es demasiado grande. Máximo 10 MB.');
+            errorMessage = 'La foto es demasiado grande. Máximo 10 MB.';
             break;
           case 'RATE_LIMIT_EXCEEDED':
-            setInlineError('Has alcanzado el límite de análisis por foto. Inténtalo más tarde.');
+            errorMessage = 'Has alcanzado el límite de análisis por foto. Inténtalo más tarde.';
             break;
           case 'UNAUTHORIZED':
-            setInlineError('Error de configuración. Contacta con soporte.');
+            errorMessage = 'Error de configuración. Contacta con soporte.';
             break;
           case 'PROCESSING_TIMEOUT':
           case 'TIMEOUT_ERROR':
-            setInlineError('El análisis ha tardado demasiado. Inténtalo de nuevo.');
+            errorMessage = 'El análisis ha tardado demasiado. Inténtalo de nuevo.';
             break;
           case 'NETWORK_ERROR':
-            setInlineError('Sin conexión. Comprueba tu red.');
+            errorMessage = 'Sin conexión. Comprueba tu red.';
             break;
-          default:
-            setInlineError('No se pudo analizar la foto. Inténtalo de nuevo.');
         }
       } else {
         trackEvent('photo_error', { errorCode: 'UNKNOWN_ERROR' });
-        setInlineError('No se pudo analizar la foto. Inténtalo de nuevo.');
       }
-    } finally {
-      // Only clear analyzing state if this is still the active request
+
       if (currentRequestRef.current === controller) {
-        setPhotoMode('idle');
+        setSessionEntries((prev) =>
+          prev.map((e) =>
+            e.entryId === pendingEntry.entryId
+              ? { ...e, isLoading: false, error: errorMessage }
+              : e
+          )
+        );
       }
     }
-  }, [photoAnalysisMode, authLoading]);
+  }, [photoAnalysisMode, authLoading, user]);
 
-  // F-WEB-MENU-VISION-001 — track menu_dish_list_shown when multi-dish result appears.
-  // Cannot fire from MenuDishList (Server Component) — trackEvent is client-only.
-  useEffect(() => {
-    if (photoResults && photoResults.dishCount > 1) {
-      trackEvent('menu_dish_list_shown', {
-        dishCount: photoResults.dishCount,
-        partial: photoResults.partial,
-      });
-    }
-  }, [photoResults]);
-
-  // F-WEB-MENU-VISION-001 — handle dish tap in MenuDishList
+  // ---------------------------------------------------------------------------
+  // handleDishSelect — dish tap in MenuDishList (photo → text follow-up)
+  // ---------------------------------------------------------------------------
   const handleDishSelect = useCallback(
     (dishName: string) => {
-      // Snapshot hasEstimate before clearing photoResults.
-      // Use `!= null` (not `!== null`) so a missing dish — defensively
-      // impossible since dishName always comes from a rendered MenuDishItem —
-      // resolves to false rather than true.
-      const dish = photoResults?.dishes.find((d) => d.dishName === dishName);
+      // Find the photo entry to snapshot dish info (search in allEntries — combined view)
+      const photoEntry = [...allEntries].reverse().find((e) => e.inputMode === 'photo' && e.photoData);
+      const dish = photoEntry?.photoData?.dishes.find((d) => d.dishName === dishName);
       const hasEstimate = dish?.estimate != null;
       trackEvent('menu_dish_selected', { dishName, hasEstimate });
-      setPhotoResults(null);
-      setResults(null);
       setQuery(dishName);
       executeQuery(dishName);
     },
-    [photoResults, executeQuery],
+    [allEntries, executeQuery],
   );
 
   function handleSubmit() {
     if (!query.trim()) return;
-    // F107a: guard against race condition where auth state has not resolved yet
     if (authLoading) return;
-    // Push hablar_query_sent immediately on submit — no PII, no query text.
-    // Uses init pattern to guarantee queue exists even before gtag loads.
     window.dataLayer = window.dataLayer ?? [];
     window.dataLayer.push({ event: 'hablar_query_sent' });
     executeQuery(query);
   }
 
-  function handleRetry() {
-    if (lastQuery) {
-      trackEvent('query_retry');
-      executeQuery(lastQuery);
-    }
-  }
+  // handleRetry — retry appends a NEW entry (does not mutate the failed entry, per W19)
+  const handleRetry = useCallback((queryText: string) => {
+    trackEvent('query_retry');
+    executeQuery(queryText);
+  }, [executeQuery]);
+
+  // ---------------------------------------------------------------------------
+  // handleDeleteEntry — remove from feed + call API for persisted entries
+  // ---------------------------------------------------------------------------
+  const handleDeleteEntry = useCallback((entryId: string) => {
+    // Remove from sessionEntries if present (session-owned entries)
+    setSessionEntries((prev) => prev.filter((e) => e.entryId !== entryId));
+    // Also call API delete for persisted entries (no-op if not persisted)
+    deletePersistedEntry(entryId);
+  }, [deletePersistedEntry]);
+
+  // ---------------------------------------------------------------------------
+  // handleClearAll — only clears persisted history; sessionEntries preserved (AC2 sub-bullet)
+  // ---------------------------------------------------------------------------
+  const handleClearAll = useCallback(() => {
+    // Only clearPersistedHistory() — sessionEntries are independent and must not be wiped.
+    // After clearPersistedHistory() resolves, useSearchHistory returns persistedEntries=[],
+    // useMemo re-derives allEntries=[...[], ...sessionEntries].
+    clearPersistedHistory();
+  }, [clearPersistedHistory]);
+
+  // ---------------------------------------------------------------------------
+  // Nudge hierarchy (W20)
+  // ---------------------------------------------------------------------------
+  const showPersistenceNudge =
+    allEntries.length >= 2 && !user && !showRateLimitNudge && !nudgeDismissed;
+
+  // ---------------------------------------------------------------------------
+  // Mount gate (AC1b): defer TranscriptFeed mount until history load is complete
+  // for authenticated users. Anonymous users skip the gate (no persisted fetch).
+  // During gate: render a placeholder with role="feed" aria-busy="true".
+  // Post-gate: TranscriptFeed mounts ONCE with full hydrated allEntries array.
+  // ---------------------------------------------------------------------------
+  const isGated = authLoading || (!!user && isLoadingHistory);
 
   return (
     <div className="flex h-[100dvh] flex-col bg-white">
-      {/* Minimal app bar */}
+      {/* Minimal app bar — F-WEB-TIER: auth-slot dichotomy (W9) */}
       <header className="flex h-[52px] flex-shrink-0 items-center border-b border-slate-100 bg-white px-4">
         <span className="text-base font-bold text-brand-green">nutriXplorer</span>
-        {user && <UserMenu user={user} />}  {/* F107a — ADR-025 R3 §6 */}
+        {!authLoading && !user && <LoginCta />}
+        {!authLoading && user && (
+          <div className="flex items-center gap-2 ml-auto">
+            <UsageMeter onRefreshReady={(fn) => { usageRefreshRef.current = fn; }} />
+            <UserMenu user={user} />
+          </div>
+        )}
       </header>
 
-      {/* Results area — scrollable */}
-      <ResultsArea
-        isLoading={isLoading}
-        results={results}
-        error={error}
-        onRetry={handleRetry}
-        isPhotoLoading={photoMode === 'analyzing'}
-        photoResults={photoResults}
-        voiceError={voiceError}
-        onVoiceRetry={clearVoiceError}
-        onDishSelect={handleDishSelect}
-        photoAnalysisMode={photoAnalysisMode}
-      />
+      {/* Mount gate: render placeholder while history is loading for auth'd users */}
+      {isGated ? (
+        <div
+          role="feed"
+          aria-busy="true"
+          aria-label="Historial de consultas"
+          className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full"
+        />
+      ) : (
+        /* Transcript feed — scrollable, replaces ResultsArea */
+        <TranscriptFeed
+          entries={allEntries}
+          isAuthenticated={!!user}
+          isLoadingHistory={isLoadingHistory}
+          hasMoreHistory={hasMoreHistory}
+          isLoadingMore={isLoadingMore}
+          showPersistenceNudge={showPersistenceNudge}
+          onDismissPersistenceNudge={() => setNudgeDismissed(true)}
+          onLoadMore={loadMore}
+          onDeleteEntry={handleDeleteEntry}
+          onClearAll={handleClearAll}
+          onRetry={handleRetry}
+          onDishSelect={handleDishSelect}
+        />
+      )}
 
-      {/* Fixed bottom input */}
+      {/* F-WEB-TIER P-I2: RateLimitNudge as sibling below TranscriptFeed. */}
+      {showRateLimitNudge && !user && (
+        <div className="px-4 pb-2">
+          <RateLimitNudge onSignUpClick={() => setShowRateLimitNudge(false)} />
+        </div>
+      )}
+
+      {/* In-column bottom input (ADR-030: not position:fixed) */}
       <ConversationInput
         value={query}
         onChange={setQuery}
         onSubmit={handleSubmit}
         onPhotoSelect={executePhotoAnalysis}
-        isLoading={isLoading}
-        isPhotoLoading={photoMode === 'analyzing'}
+        isLoading={sessionEntries.some((e) => e.isLoading && e.inputMode === 'text')}
+        isPhotoLoading={sessionEntries.some((e) => e.isLoading && e.inputMode === 'photo')}
         inlineError={inlineError}
         photoAnalysisMode={photoAnalysisMode}
         onPhotoModeChange={(mode) => {
@@ -516,15 +685,10 @@ export function HablarShell() {
           trackEvent('voice_start');
           setVoiceError(null);
           setIsVoiceOverlayOpen(true);
-          // Gate first-time mic access behind the pre-permission screen
-          // (consistent with the tap path). If consent wasn't granted yet,
-          // the overlay will show the privacy screen and the user completes
-          // via the "Permitir micrófono" button.
           let hasConsent = true;
           try {
             hasConsent = Boolean(localStorage.getItem('hablar_mic_consented'));
           } catch {
-            // localStorage unavailable — err on the safe side and wait for consent tap
             hasConsent = false;
           }
           if (!hasConsent) return;
@@ -557,4 +721,25 @@ export function HablarShell() {
       />
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Voice error message helper
+// ---------------------------------------------------------------------------
+
+function getVoiceErrorMessage(code: VoiceErrorCode): string {
+  switch (code) {
+    case 'budget_cap':
+      return 'La búsqueda por voz está temporalmente desactivada este mes. Sigue usando texto o foto con normalidad.';
+    case 'rate_limit':
+      return 'Has alcanzado el límite de búsquedas por voz por hoy. Inténtalo mañana o usa el texto.';
+    case 'ip_limit':
+      return 'Has alcanzado el límite diario de voz desde esta red. Inténtalo mañana o usa el texto.';
+    case 'whisper_failure':
+      return 'No pudimos procesar tu audio. Inténtalo de nuevo.';
+    case 'network':
+      return 'Sin conexión. Comprueba tu red.';
+    default:
+      return 'Algo salió mal con la búsqueda por voz.';
+  }
 }

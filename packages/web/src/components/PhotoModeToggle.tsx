@@ -25,15 +25,9 @@ export function PhotoModeToggle({ value, onChange, disabled = false }: PhotoMode
       aria-label="Tipo de análisis de foto"
       className={`inline-flex w-full rounded-xl border border-slate-200 bg-slate-50 p-0.5 mt-2${disabled ? ' opacity-40 pointer-events-none cursor-not-allowed' : ''}`}
     >
-      <button
-        type="button"
-        className={value === 'auto' ? ACTIVE_CLASS : INACTIVE_CLASS}
-        aria-pressed={value === 'auto'}
-        onClick={() => onChange('auto')}
-        disabled={disabled}
-      >
-        Menú/carta
-      </button>
+      {/* F-WEB-HISTORY-FU1 (item D): "Solo este plato" is the LEFT button + default.
+          The aria-pressed expressions are unchanged — they are tied to the value
+          prop, not to the DOM position, so the order swap is purely visual. */}
       <button
         type="button"
         className={value === 'identify' ? ACTIVE_CLASS : INACTIVE_CLASS}
@@ -42,6 +36,15 @@ export function PhotoModeToggle({ value, onChange, disabled = false }: PhotoMode
         disabled={disabled}
       >
         Solo este plato
+      </button>
+      <button
+        type="button"
+        className={value === 'auto' ? ACTIVE_CLASS : INACTIVE_CLASS}
+        aria-pressed={value === 'auto'}
+        onClick={() => onChange('auto')}
+        disabled={disabled}
+      >
+        Menú/carta
       </button>
     </div>
   );

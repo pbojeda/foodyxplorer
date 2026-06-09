@@ -15,11 +15,15 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import fastifyPlugin from 'fastify-plugin';
 import type { PrismaClient } from '@prisma/client';
+import type { Redis } from 'ioredis';
 import type { Config } from '../config.js';
 import { verifyBearerJwt } from '../plugins/authBearer.js';
 import { getSupabaseAdmin } from '../lib/supabaseAdmin.js';
 import { LoginRequestSchema } from '@foodxplorer/shared';
 import { captureMessage, hashActor } from '../lib/sentry.js';
+import { provisionFallbackActor, resolveBearerActorId, UUID_RE } from '../lib/bearerActor.js';
+import { resolveAccountTier } from '../lib/accountTier.js';
+import { computeResetAt, DAILY_LIMITS_BY_TIER } from '../plugins/actorRateLimit.js';
 
 // Raw DB account row shape (before serialization to Zod Account)
 interface RawAccountRow {
@@ -32,6 +36,7 @@ interface RawAccountRow {
   consentMarketingAt: Date | string | null;
   consentAnalytics: boolean;
   consentAnalyticsAt: Date | string | null;
+  tier: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -41,13 +46,14 @@ interface RawAccountRow {
 interface AuthRoutesOptions {
   prisma: PrismaClient;
   config: Config;
+  redis: Redis;
 }
 
 // ---------------------------------------------------------------------------
 // Route plugin
 // ---------------------------------------------------------------------------
 
-const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, config }) => {
+const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, config, redis }) => {
   // ---------------------------------------------------------------------------
   // POST /auth/login
   // ---------------------------------------------------------------------------
@@ -175,32 +181,21 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
       const jwksUrl = resolveJwksUrl(config);
       const payload = await verifyBearerJwt(authHeader, jwksUrl);
 
-      // actorId is set by actorResolver for anonymous flow requests.
-      // When bearer is present, actorResolver returns early (no actorId set).
-      // /me requires actorId — it must come from X-Actor-Id header.
-      // The actorResolver sets request.actorId when bearer is absent;
-      // for bearer requests it skips actor creation. /me clients MUST send X-Actor-Id.
-      // If actorId is still not set, fall back to generating one is NOT done here —
-      // /me is the identity anchor, it requires a resolved actor.
-      // However: actorResolver also skips actor resolution when bearer is present.
-      // The web client sends BOTH X-Actor-Id and Authorization headers.
-      // actorResolver sets accountId (from bearer) and returns early.
-      // actorId is NOT set in bearer path. /me must handle this gracefully.
-      //
-      // Resolution: /me falls back to the X-Actor-Id header value itself if
-      // actorId is not set by actorResolver (bearer path). This is consistent
-      // with the web client sending both headers.
+      // actorId is normally set by actorResolver (bearer path — BUG-PROD-013 fix).
+      // The defensive block below handles the DB-degraded case: if the resolver's
+      // DB call failed (transient error), actorId is left unset and /me falls back
+      // to resolving it here via the X-Actor-Id header or provisionFallbackActor.
+      // This makes /me resilient to transient DB failures in the resolver.
 
       let actorId = request.actorId;
 
       if (!actorId) {
-        // Bearer path: actorResolver skipped actor creation.
-        // Use X-Actor-Id header to resolve or create actor.
+        // Fallback: actorResolver left actorId unset (transient DB failure path).
+        // Resolve actor from X-Actor-Id header or provision a deterministic fallback.
         const rawActorHeader = request.headers['x-actor-id'];
         const actorHeaderValue = Array.isArray(rawActorHeader) ? rawActorHeader[0] : rawActorHeader;
 
         if (actorHeaderValue) {
-          const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
           if (UUID_RE.test(actorHeaderValue)) {
             const actor = await prisma.actor.upsert({
               where: { type_externalId: { type: 'anonymous_web', externalId: actorHeaderValue } },
@@ -243,7 +238,8 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
           consent_marketing AS "consentMarketing",
           consent_marketing_at AS "consentMarketingAt",
           consent_analytics AS "consentAnalytics",
-          consent_analytics_at AS "consentAnalyticsAt"
+          consent_analytics_at AS "consentAnalyticsAt",
+          tier::text
       `;
       const rawAccount = accountRows[0];
       if (!rawAccount) {
@@ -385,6 +381,7 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
         consentMarketingAt: toIso(rawAccount.consentMarketingAt),
         consentAnalytics: rawAccount.consentAnalytics,
         consentAnalyticsAt: toIso(rawAccount.consentAnalyticsAt),
+        tier: rawAccount.tier as 'free' | 'pro' | 'admin',
       };
 
       return reply.status(200).send({
@@ -401,34 +398,83 @@ const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (app, { prisma, 
       });
     },
   );
+
+  // ---------------------------------------------------------------------------
+  // GET /me/usage — Read-only daily usage meter (F-WEB-TIER)
+  //
+  // Bearer-only (401 for absent/invalid token).
+  // Reads current-day rate-limit counters from Redis with GET (never INCR).
+  // NOT in ROUTE_BUCKET_MAP — calling this endpoint consumes no quota (E12/AC27).
+  // Fails gracefully on Redis failure (used: 0, no 500 — E14).
+  // ---------------------------------------------------------------------------
+  app.get(
+    '/me/usage',
+    {},
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      // Bearer gate (same pattern as /me)
+      const authHeader = request.headers['authorization'];
+      if (!authHeader) {
+        throw Object.assign(new Error('Authorization Bearer token is required for /me/usage'), {
+          code: 'UNAUTHORIZED',
+        });
+      }
+
+      const jwksUrl = resolveJwksUrl(config);
+      const payload = await verifyBearerJwt(authHeader, jwksUrl);
+
+      const sub = payload.sub;
+
+      // Resolve actorId — mirror /me fallback (resolver may leave unset on transient DB failure)
+      // Do NOT 401 a valid bearer whose request.actorId is unset (P-I3).
+      let actorId = request.actorId;
+      if (!actorId) {
+        actorId = await resolveBearerActorId(prisma, payload, request);
+      }
+
+      // Resolve tier (Redis-cached, fail-open free)
+      const tier = await resolveAccountTier(redis, prisma, sub, request.log);
+
+      // Build usage for each bucket
+      const dateKey = new Date().toISOString().slice(0, 10);
+      const resetAt = computeResetAt(dateKey);
+
+      const buckets = ['queries', 'photos', 'voice'] as const;
+      type BucketName = (typeof buckets)[number];
+
+      const bucketResults: Record<BucketName, { used: number; limit: number | null; remaining: number | null }> = {
+        queries: { used: 0, limit: null, remaining: null },
+        photos:  { used: 0, limit: null, remaining: null },
+        voice:   { used: 0, limit: null, remaining: null },
+      };
+
+      for (const bucket of buckets) {
+        const redisKey = `actor:limit:${actorId}:${dateKey}:${bucket}`;
+        // E14: Redis GET failure → used: 0, no 500
+        const raw = await redis.get(redisKey).catch(() => null);
+        const used = raw ? parseInt(raw, 10) : 0;
+        const limit = tier === 'admin' ? null : (DAILY_LIMITS_BY_TIER[tier]?.[bucket] ?? null);
+        const remaining = tier === 'admin' ? null : Math.max(0, (limit ?? 0) - used);
+
+        bucketResults[bucket] = { used, limit, remaining };
+      }
+
+      return reply.status(200).send({
+        success: true,
+        data: {
+          tier,
+          resetAt,
+          buckets: bucketResults,
+        },
+      });
+    },
+  );
 };
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Provision (upsert) the deterministic me-<sub> fallback actor for a bearer.
- *
- * The externalId `me-<sub.slice(0,8)>` is namespaced to avoid colliding with
- * anonymous_web client UUIDs (which are not prefixed). The upsert is idempotent
- * under concurrency: two concurrent callers for the same sub converge on the
- * same actor row via the @@unique([type, externalId]) constraint.
- *
- * NOTE: this does NOT set account_id — the caller must run the safe UPDATE after.
- */
-async function provisionFallbackActor(
-  prisma: PrismaClient,
-  sub: string,
-): Promise<{ id: string }> {
-  const externalId = `me-${sub.slice(0, 8)}`;
-  return prisma.actor.upsert({
-    where: { type_externalId: { type: 'anonymous_web', externalId } },
-    create: { type: 'anonymous_web', externalId, lastSeenAt: new Date() },
-    update: { lastSeenAt: new Date() },
-    select: { id: true },
-  });
-}
+// provisionFallbackActor is imported from lib/bearerActor.ts (BUG-PROD-013 DRY refactor)
 
 function resolveJwksUrl(config: Config): string {
   if (config.SUPABASE_JWKS_URL) return config.SUPABASE_JWKS_URL;

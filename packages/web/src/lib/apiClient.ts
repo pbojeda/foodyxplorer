@@ -10,8 +10,20 @@
 // sendVoiceMessage(blob, mimeType, durationSeconds, actorId, signal?) — sends audio
 // blob directly to POST /conversation/audio. No proxy — direct to NEXT_PUBLIC_API_URL.
 // No X-API-Key (voice is open to all tiers). Always applies a 15-second timeout.
+//
+// getMe() — GET /me with bearer; parses MeResponseSchema; throws ApiError on failure.
+// getUsage() — GET /me/usage with bearer; parses UsageResponseSchema; throws ApiError.
+//
+// F-WEB-TIER: sendPhotoAnalysis now attaches Authorization: Bearer when authToken set.
 
-import type { ConversationMessageResponse, MenuAnalysisResponse } from '@foodxplorer/shared';
+import type { ConversationMessageResponse, MenuAnalysisResponse, MeResponse, UsageResponse } from '@foodxplorer/shared';
+import { MeResponseSchema, UsageResponseSchema, SearchHistoryEntrySchema } from '@foodxplorer/shared';
+import type { TranscriptEntryData } from '@/types/history';
+import { z } from 'zod';
+
+// API envelope wrappers for getMe / getUsage responses
+export interface MeEnvelope { success: true; data: MeResponse }
+export interface UsageEnvelope { success: true; data: UsageResponse }
 import { persistActorId } from './actorId';
 
 // ---------------------------------------------------------------------------
@@ -216,13 +228,14 @@ export async function sendPhotoAnalysis(
 
   let response: Response;
   try {
-    // F107a: bearer not sent via /api/analyze proxy — out of scope until analyze
-    // endpoint is auth-gated. The proxy Route Handler attaches X-API-Key server-side.
+    // F-WEB-TIER: attach bearer when set so the proxy can forward it to Fastify
+    // for account tier resolution (photo rate limits per-account).
     response = await fetch('/api/analyze', {
       method: 'POST',
       headers: {
         'X-Actor-Id': actorId,
         'X-FXP-Source': 'web',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       },
       body: formData,
       signal: combinedSignal,
@@ -291,6 +304,7 @@ export async function sendPhotoAnalysis(
 // ---------------------------------------------------------------------------
 // sendVoiceMessage
 // ---------------------------------------------------------------------------
+
 
 /**
  * Sends recorded audio to POST /conversation/audio directly (no Next.js proxy).
@@ -401,4 +415,339 @@ export async function sendVoiceMessage(
   }
 
   return json;
+}
+
+// ---------------------------------------------------------------------------
+// getMe — F-WEB-TIER
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetches the current user's account data from GET /me.
+ * Requires authToken to be set via setAuthToken() before calling.
+ * Triggers account provisioning + actor linking via /me's existing F107a-FU2 path.
+ *
+ * @returns Parsed MeResponse.
+ * @throws ApiError with UNAUTHORIZED if no token is set.
+ * @throws ApiError on non-2xx or parse failure.
+ */
+export async function getMe(): Promise<MeEnvelope> {
+  const baseUrl = process.env['NEXT_PUBLIC_API_URL'];
+  if (!baseUrl) {
+    throw new Error('NEXT_PUBLIC_API_URL is not defined.');
+  }
+  if (!authToken) {
+    throw new ApiError('No auth token — call setAuthToken first.', 'UNAUTHORIZED', 401);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/me`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+  } catch (err) {
+    throw new ApiError(
+      err instanceof Error ? err.message : 'Network request failed',
+      'NETWORK_ERROR',
+    );
+  }
+
+  let json: unknown;
+  try {
+    json = await response.json();
+  } catch {
+    throw new ApiError('La respuesta del servidor no es JSON válido.', 'PARSE_ERROR', response.status);
+  }
+
+  if (!response.ok) {
+    const errorBody = json as Record<string, unknown>;
+    const errorObj = (errorBody?.['error'] ?? {}) as Record<string, unknown>;
+    const code = typeof errorObj['code'] === 'string' ? errorObj['code'] : 'API_ERROR';
+    const message = typeof errorObj['message'] === 'string' ? errorObj['message'] : `HTTP ${response.status}`;
+    throw new ApiError(message, code, response.status);
+  }
+
+  // API returns { success: true, data: { account, actor } }
+  const dataField = (json as Record<string, unknown>)['data'];
+  const parsedData = MeResponseSchema.safeParse(dataField);
+  if (!parsedData.success) {
+    throw new ApiError('La respuesta de /me tiene formato inesperado.', 'MALFORMED_RESPONSE', response.status);
+  }
+
+  return { success: true, data: parsedData.data };
+}
+
+// ---------------------------------------------------------------------------
+// getUsage — F-WEB-TIER
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetches the current user's daily usage from GET /me/usage.
+ * Requires authToken to be set via setAuthToken() before calling.
+ * Read-only — never increments quota counters.
+ *
+ * **F-WEB-HISTORY-FU1 (BUG-WEB-USAGEMETER-ACTOR-PARITY):** sends `X-Actor-Id`
+ * when `actorId` is a non-empty string so the API resolves the SAME actor as
+ * `sendMessage` (server-side `resolveBearerActorId` reads the header). Without
+ * this header, the bearer path falls back to `me-<sub.slice(0,8)>` — a different
+ * Redis bucket than the one `/conversation/message` INCRements, and the meter
+ * never advances from browser searches.
+ *
+ * @param actorId  Optional X-Actor-Id; omit or pass `''`/`undefined` to skip the header.
+ * @returns Parsed UsageResponse (tier, resetAt, buckets).
+ * @throws ApiError with UNAUTHORIZED if no token is set.
+ * @throws ApiError on non-2xx or parse failure.
+ */
+export async function getUsage(actorId?: string): Promise<UsageEnvelope> {
+  const baseUrl = process.env['NEXT_PUBLIC_API_URL'];
+  if (!baseUrl) {
+    throw new Error('NEXT_PUBLIC_API_URL is not defined.');
+  }
+  if (!authToken) {
+    throw new ApiError('No auth token — call setAuthToken first.', 'UNAUTHORIZED', 401);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/me/usage`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        ...(actorId ? { 'X-Actor-Id': actorId } : {}),
+      },
+    });
+  } catch (err) {
+    throw new ApiError(
+      err instanceof Error ? err.message : 'Network request failed',
+      'NETWORK_ERROR',
+    );
+  }
+
+  let json: unknown;
+  try {
+    json = await response.json();
+  } catch {
+    throw new ApiError('La respuesta del servidor no es JSON válido.', 'PARSE_ERROR', response.status);
+  }
+
+  if (!response.ok) {
+    const errorBody = json as Record<string, unknown>;
+    const errorObj = (errorBody?.['error'] ?? {}) as Record<string, unknown>;
+    const code = typeof errorObj['code'] === 'string' ? errorObj['code'] : 'API_ERROR';
+    const message = typeof errorObj['message'] === 'string' ? errorObj['message'] : `HTTP ${response.status}`;
+    throw new ApiError(message, code, response.status);
+  }
+
+  // API returns { success: true, data: { tier, resetAt, buckets } }
+  const dataField = (json as Record<string, unknown>)['data'];
+  const parsedData = UsageResponseSchema.safeParse(dataField);
+  if (!parsedData.success) {
+    throw new ApiError('La respuesta de /me/usage tiene formato inesperado.', 'MALFORMED_RESPONSE', response.status);
+  }
+
+  return { success: true, data: parsedData.data };
+}
+
+// ---------------------------------------------------------------------------
+// F-WEB-HISTORY: getHistory / deleteHistoryEntry / clearHistory
+// ---------------------------------------------------------------------------
+
+// Loose envelope schema for the first parse (cross-model X1 — per-entry parse).
+// We do NOT parse the whole page with HistoryPageSchema because one drifted entry
+// would reject the entire page. Parse the envelope first, then each entry individually.
+const LooseHistoryEnvelopeSchema = z.object({
+  entries: z.array(z.unknown()),
+  nextCursor: z.string().nullable(),
+});
+
+export interface HistoryPageResult {
+  entries: TranscriptEntryData[];
+  nextCursor: string | null;
+}
+
+/**
+ * Fetches a cursor-paginated page of search history from GET /history.
+ * Requires authToken to be set via setAuthToken() before calling.
+ *
+ * Per-entry parse (cross-model X1): each entry is individually safeParsed;
+ * entries failing SearchHistoryEntrySchema are silently skipped (drift tolerance).
+ *
+ * @param cursor  Opaque cursor string from the previous page; omit for first page.
+ * @param limit   Number of entries per page (1–50, default 10).
+ * @returns       Parsed entries (oldest-first, already reversed) + nextCursor.
+ * @throws ApiError on non-2xx or malformed envelope.
+ */
+export async function getHistory(
+  cursor?: string | null,
+  limit = 10,
+): Promise<HistoryPageResult> {
+  const baseUrl = process.env['NEXT_PUBLIC_API_URL'];
+  if (!baseUrl) {
+    throw new Error('NEXT_PUBLIC_API_URL is not defined.');
+  }
+  if (!authToken) {
+    throw new ApiError('No auth token — call setAuthToken first.', 'UNAUTHORIZED', 401);
+  }
+
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (cursor) params.set('cursor', cursor);
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/history?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+  } catch (err) {
+    throw new ApiError(
+      err instanceof Error ? err.message : 'Network request failed',
+      'NETWORK_ERROR',
+    );
+  }
+
+  let json: unknown;
+  try {
+    json = await response.json();
+  } catch {
+    throw new ApiError('La respuesta del servidor no es JSON válido.', 'PARSE_ERROR', response.status);
+  }
+
+  if (!response.ok) {
+    const errorBody = json as Record<string, unknown>;
+    const errorObj = (errorBody?.['error'] ?? {}) as Record<string, unknown>;
+    const code = typeof errorObj['code'] === 'string' ? errorObj['code'] : 'API_ERROR';
+    const message = typeof errorObj['message'] === 'string' ? errorObj['message'] : `HTTP ${response.status}`;
+    throw new ApiError(message, code, response.status);
+  }
+
+  // Parse loose envelope first (cross-model X1)
+  const dataField = (json as Record<string, unknown>)['data'];
+  const envelopeParsed = LooseHistoryEnvelopeSchema.safeParse(dataField);
+  if (!envelopeParsed.success) {
+    throw new ApiError('La respuesta de /history tiene formato inesperado.', 'MALFORMED_RESPONSE', response.status);
+  }
+
+  const { entries: rawEntries, nextCursor } = envelopeParsed.data;
+
+  // Per-entry safe parse — skip drifted entries (cross-model C2)
+  const validEntries: TranscriptEntryData[] = [];
+  for (const rawEntry of rawEntries) {
+    const parsed = SearchHistoryEntrySchema.safeParse(rawEntry);
+    if (!parsed.success) {
+      // Skip: schema drift (very old payload) — graceful degradation, not fatal
+      continue;
+    }
+    const entry = parsed.data;
+    validEntries.push({
+      entryId: entry.id,
+      queryText: entry.queryText,
+      inputMode: entry.kind === 'voice' ? 'voice' : 'text',
+      timestamp: new Date(entry.createdAt),
+      isLoading: false,
+      result: entry.resultData,
+      photoData: null,
+      error: null,
+      isPersisted: true,
+    });
+  }
+
+  // API returns newest-first; TranscriptFeed displays oldest-at-top (W16).
+  // Reverse so the oldest in this page is at index 0.
+  validEntries.reverse();
+
+  return { entries: validEntries, nextCursor };
+}
+
+/**
+ * Deletes a single history entry via DELETE /history/{id}.
+ * Requires authToken to be set via setAuthToken() before calling.
+ *
+ * @throws ApiError on non-204 response (including 404 — entry not found or not owned).
+ */
+export async function deleteHistoryEntry(id: string): Promise<void> {
+  const baseUrl = process.env['NEXT_PUBLIC_API_URL'];
+  if (!baseUrl) {
+    throw new Error('NEXT_PUBLIC_API_URL is not defined.');
+  }
+  if (!authToken) {
+    throw new ApiError('No auth token — call setAuthToken first.', 'UNAUTHORIZED', 401);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/history/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+  } catch (err) {
+    throw new ApiError(
+      err instanceof Error ? err.message : 'Network request failed',
+      'NETWORK_ERROR',
+    );
+  }
+
+  if (!response.ok) {
+    let json: unknown;
+    try {
+      json = await response.json();
+    } catch {
+      json = {};
+    }
+    const errorBody = json as Record<string, unknown>;
+    const errorObj = (errorBody?.['error'] ?? {}) as Record<string, unknown>;
+    const code = typeof errorObj['code'] === 'string' ? errorObj['code'] : 'API_ERROR';
+    const message = typeof errorObj['message'] === 'string' ? errorObj['message'] : `HTTP ${response.status}`;
+    throw new ApiError(message, code, response.status);
+  }
+}
+
+/**
+ * Clears all history for the authenticated account via DELETE /history.
+ * Requires authToken to be set via setAuthToken() before calling.
+ *
+ * @throws ApiError on non-204 response.
+ */
+export async function clearHistory(): Promise<void> {
+  const baseUrl = process.env['NEXT_PUBLIC_API_URL'];
+  if (!baseUrl) {
+    throw new Error('NEXT_PUBLIC_API_URL is not defined.');
+  }
+  if (!authToken) {
+    throw new ApiError('No auth token — call setAuthToken first.', 'UNAUTHORIZED', 401);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/history`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+  } catch (err) {
+    throw new ApiError(
+      err instanceof Error ? err.message : 'Network request failed',
+      'NETWORK_ERROR',
+    );
+  }
+
+  if (!response.ok) {
+    let json: unknown;
+    try {
+      json = await response.json();
+    } catch {
+      json = {};
+    }
+    const errorBody = json as Record<string, unknown>;
+    const errorObj = (errorBody?.['error'] ?? {}) as Record<string, unknown>;
+    const code = typeof errorObj['code'] === 'string' ? errorObj['code'] : 'API_ERROR';
+    const message = typeof errorObj['message'] === 'string' ? errorObj['message'] : `HTTP ${response.status}`;
+    throw new ApiError(message, code, response.status);
+  }
 }

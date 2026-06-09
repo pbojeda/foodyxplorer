@@ -1003,3 +1003,134 @@ The cost/benefit at pre-beta tilts strongly toward closing the surface: it simul
 - `docs/archive/audits/qa-api-audit-2026-04-06.md:83` — A1 CRITICAL "Actor impersonation" — closed as a side-effect of Decision §3 above.
 - `packages/api/src/plugins/actorResolver.ts:66-73` — the code lines being removed.
 - `docs/project_notes/key_facts.md:63` — Render services + autoDeploy state.
+
+### ADR-027: Account-Tier Wiring — `/me`-on-login Provisioning + Bearer-over-API-Key Precedence (F-WEB-TIER, 2026-05-26)
+
+**Status:** Accepted — owner-decided during F-WEB-TIER (PM session pm-profiles). Reuses ADR-025 R3 §5; no new auth provider or transport. Cross-model reviewed (Spec 6 findings + Plan 3 findings) + code-review caught the photo-tier gap.
+
+**Context.** F107a shipped auth but registering granted no tangible value: tier was resolved ONLY from `request.apiKeyContext` (API keys), so a logged-in web user fell through to `anonymous`. Two structural facts forced design decisions during F-WEB-TIER:
+
+1. **`actors.account_id` is a FK to `accounts.id` (app PK), and the `accounts` row is created ONLY by `/me`'s upsert.** The web never calls `/me` (research §H0), so resolver-side actor↔account linking would never find an `accounts.id` → a silent no-op for exactly the web users we care about. BUG-PROD-013 also deliberately kept the `actorResolver` onRequest hook write-free.
+2. **The photo path (`/analyze/menu`) always carries the shared web `X-API-Key`** (proxy gateway credential), and tier resolution was API-key-first → the shared key shadowed the bearer, so authed photos got the shared key's tier, not the account tier.
+
+**Decision.**
+1. **Provisioning + linking via `GET /me` on session establish (Option A).** `AuthProvider` calls `GET /me` on `SIGNED_IN`/`INITIAL_SESSION` (NOT `TOKEN_REFRESHED`); `/me` upserts the account + links the actor using the **unchanged** F107a-FU2 safe predicate. The `actorResolver` write-path stays clean (resolves `actorId` only). Multi-device is covered (each device calls `/me` at its own login). Rejected alternatives: resolver-side linking (no-op without the account row + adds account writes to the hot path); a gated resolver-side upsert (re-introduces writes BUG-PROD-013 removed).
+2. **Bearer-over-API-key tier precedence.** When a valid bearer is present (`request.accountId` set), tier resolves from the account (`resolveAccountTier`) **even if `apiKeyContext` is also present**. The shared `X-API-Key` is an infrastructure/gateway credential, not a per-user tier grant — ADR-025 R3 §5 makes the bearer the authoritative identity channel. API-key-only clients (no bearer) are unaffected. Only `/analyze/menu` (bearer + shared key) changes: authed photos now get account limits (free = 20).
+3. **Fail-open to `free` (never `anonymous`) for a verified bearer** with no `accounts` row yet or on DB error — every registered user is ≥ free. `AccountSchema.tier` is `.optional()` on parse for rolling-deploy skew (web auto-deploys on Vercel; api-dev is a manual deploy).
+
+**Consequences.**
+- (+) Registering delivers real value (free 100/20/30 incl. photos) without requiring resolver write-path changes; reuses F107a-FU2 verbatim (anti-hijack surface unchanged).
+- (+) Read-only `GET /me/usage` powers the usage meter without consuming quota.
+- (–) Linking depends on the frontend calling `/me` at session establish (one extra call per login). Acceptable: it's the canonical F107a provisioning point and was always intended.
+- (–) Tier resolution adds a cached DB read on rate-limited authed requests (mitigated: Redis cache TTL 60s, mirrors API-key auth).
+
+**Cross-references:**
+- ADR-025 R3 §5 (`decisions.md:831`) — strict bearer precedence; this ADR applies it to tier resolution.
+- BUG-PROD-013 (`docs/tickets/BUG-PROD-013-*.md`) — the bearer-actorId fix that kept the resolver write-free; F-WEB-TIER builds on it.
+- `docs/tickets/F-WEB-TIER-registration-value.md` — full spec/plan/ACs + the cross-model + review trail.
+- `packages/api/src/plugins/actorRateLimit.ts` — bearer-first tier precedence; `packages/api/src/lib/accountTier.ts` — `resolveAccountTier`.
+
+### ADR-028: Search History — Account-Scoped `search_history` Table + Read-Only History API + Prune-on-Write Retention (F-WEB-HISTORY, 2026-05-27)
+
+**Status:** Accepted — owner-approved at the F-WEB-HISTORY Spec checkpoint (PM session pm-profiles, 2026-05-27). Cross-model reviewed (`/review-spec`: Gemini APPROVED, Codex REVISE 3 IMPORTANT — all applied). Builds on ADR-025 R3 §5 (bearer precedence) + ADR-027 (account identity); no new auth provider or transport.
+
+**Context.** Today `/hablar` shows only the *last* result — `HablarShell` holds one result in `useState` and replaces it each query, so every search erases the previous one (research §C/H1). Logged-in users get no durable value. Two structural facts shaped the design:
+
+1. **`query_logs` is metadata-only** (`queryText`, `levelHit`, `cacheHit`, `responseTimeMs` — no nutritional payload; research §H2). Re-rendering a past result needs the *full* response, so a new table is required, not a column on `query_logs`.
+2. **Identity is by account, not actor.** `request.accountId` = JWT `sub` = `auth_user_id`; the FK target is `accounts.id` (app PK), the same distinction ADR-027/F107a established. The `accounts` row is provisioned by `/me` (Option A).
+
+**Decision.**
+1. **New `search_history` table** (`id` uuid PK · `account_id` uuid FK→`accounts.id` **ON DELETE CASCADE** · `kind` enum `text|voice` · `query_text` · `result_jsonb` · `created_at` timestamptz). Composite index `(account_id, created_at DESC, id DESC)` for cursor pagination. Distinct from `query_logs` (different PK, purpose, payload). Migration via `prisma migrate deploy`.
+2. **Read-only `GET /history` (cross-model C1).** Cursor-paginated, newest-first, bearer-only. Resolves `accounts.id` from the bearer and returns `[]` if no account row exists — **no write on a GET**; provisioning stays centralized in `/me`. `DELETE /history/{id}` (404 — not 403 — for non-owned/missing, no enumeration) + `DELETE /history` (clear all). Persistence hook is fire-and-forget on the SUCCESS path of `POST /conversation/message` + `/conversation/audio` when a bearer is present; it **never blocks/delays the core query** (mirrors the existing `writeQueryLog` pattern). Photos are NOT persisted (fork D3 — large multi-dish payload; deferred to a conditional Fase 4); they still appear in the live session feed.
+3. **`result_jsonb` typed strictly (cross-model C2).** The shared `SearchHistoryEntrySchema.resultData` = `ConversationMessageDataSchema` (the real intent union), not an opaque record — so schema drift is caught at the boundary. The web safeParses each entry and SKIPS drifted-old payloads (graceful, never a fatal page). `queryText` max = 2000 to match `/conversation/message` body (a `text_too_long` is a successful, persisted result; cross-model C3). result_jsonb versioning deferred (YAGNI).
+4. **Prune-on-write retention (fork D4, owner-confirmed 500/12m).** After each insert, best-effort prune to the newest 500 rows per account AND delete rows older than 12 months (both fire-and-forget). Soft cap (a transient 501th row under concurrent writes self-corrects). No cron infrastructure.
+5. **Privacy — NOT RGPD Art.9.** Food/menu queries are not special-category health data, so persisting them does not trip the Art.9 gate that kept F099 (health profile) deferred. Account-deletion CASCADE wipes history; the user-facing "borrar historial" action + per-entry delete satisfy the deletion right. A privacy-policy note (storage + deletion of text/voice queries) is an **operator follow-up** (out-of-repo, tracked separately) — it does not block the code feature.
+6. **UI: session-transcript feed refactor.** `HablarShell`/`ResultsArea` move from a singleton intent-renderer to an append-only feed (design notes W15–W26). This fixes "se borra" for EVERYONE (anonymous included) and is the foundation persistence builds on; implemented first for a testable footing.
+
+**Consequences.**
+- (+) Registering gains durable, cross-device value (your past searches persist); the feed fixes the "erases previous result" pain for all users.
+- (+) Read-only history API + non-blocking persistence hook keep the core query path unaffected if history degrades (DB/Redis failure → history silently skipped, query still served).
+- (+) Strict `result_jsonb` typing catches drift; CASCADE + delete actions give a clean privacy story without an Art.9 gate.
+- (–) The HablarShell→feed refactor is a UI architecture change (research risk E2) — mitigated by phasing (feed first), TDD, and reusing existing result cards.
+- (–) `result_jsonb` duplicates result payload already in `query_logs`-adjacent caches; accepted (different lifecycle + purpose). Prune-on-write adds two best-effort DELETEs per authed query (indexed; negligible at beta scale).
+
+**Cross-references:**
+- ADR-027 (`decisions.md:1007`) — account identity + `/me` provisioning this builds on.
+- ADR-025 R3 §5 (`decisions.md:831`) — strict bearer precedence (history is bearer-only).
+- `docs/tickets/F-WEB-HISTORY-search-history.md` — full spec/61 ACs + cross-model trail.
+- `docs/research/post-auth-strategic-analysis-2026-05-25.md` §C/§D — empirical pain + phased plan + forks D3/D4/D5.
+- `packages/shared/src/schemas/history.ts` — `SearchHistory*` Zod schemas.
+
+---
+
+### ADR-029: Global Rate-Limit Bucket Strategy — Bearer-First Per-Account Key + Flat Abuse Cap (BUG-API-RATELIMIT-BEARER-001, 2026-05-28)
+
+**Status:** Accepted — owner-approved (external `/audit-feature` APPROVE) at the bug-workflow Path B pre-commit checkpoint. Cross-model reviewed (design review: **Codex + Gemini both → "Option B" / 600**, converged with the implementer's analysis) + production-code-validator APPROVE + code-review-specialist APPROVE. Extends ADR-027 bearer-over-API-key precedence to the global limiter; no new auth provider or transport.
+
+**Context.** The project has **two independent limiters**: (1) the GLOBAL limiter (`plugins/rateLimit.ts`, `@fastify/rate-limit`, 15-min window) — an abuse/DoS backstop across all routes; (2) the per-actor DAILY limiter (`plugins/actorRateLimit.ts`) — the product quota (tier×bucket: free 100 queries/day, etc.). The global limiter only knew `req.apiKeyContext`, so a logged-in WEB user (Supabase bearer, **no** `X-API-Key`) fell into the anonymous `ip:<ip>` bucket (30/15min) regardless of tier, and shared it with everyone behind the same NAT. F-WEB-HISTORY's read fan-out (`/me`+`/history`+`/me/usage`+loadMore per `/hablar` load ≈ 4 req/action) tripped it after a few actions; the usage meter's `/me/usage` refresh also 429'd. This was BUG-API-RATELIMIT-BEARER-001 (HIGH).
+
+**Decision.**
+1. **Bearer-first bucket key (ADR-027).** `getRateLimitKeyGenerator`: `account:<sub>` when `req.accountId` › `apiKey:<keyId>` › `ip:<ip>`. Authenticated users are keyed **per account** (stable across IPs/devices), not per IP — mirrors `actorRateLimit`'s precedence exactly.
+2. **Flat per-account abuse cap, tier-agnostic: `AUTHENTICATED_RATE_LIMIT_MAX = 600`/15min.** The global limiter is an abuse backstop ONLY; tier value is expressed by the DAILY quotas in `actorRateLimit`, not here. Rejected **Option A (tier-based 100/1000)** — free=100/15min counting the read fan-out would re-trip a milder version of the same bug while under daily quota, and it couples the hot path to an async `resolveAccountTier`. Rejected **Option C (exempt read-only routes)** — leaves `/history`, `/me/usage` unbounded for a broken/abusive client. 600 ≈ ~298 actions/15min (≈40 req/min sustained): ~23× realistic human use, a sound DoS ceiling per account.
+3. **Helpers stay pure + synchronous.** Because the bearer cap is a constant (not a per-request tier lookup), the global limiter adds **zero DB/Redis call** on the hot path. `getRateLimitMax`/`getRateLimitKeyGenerator` remain pure functions (unit-tested).
+4. **Admin bearer NOT exempt; admin API keys stay exempt.** A global abuse limiter should still bound admin bearer traffic (600 is ample); full admin-bearer exemption would force an async tier lookup in `allowList`. Admin API keys remain exempt via the existing sync `allowList`.
+5. **Frontend 429 disambiguation.** The daily limiter emits `error.details.limit/resetAt`; the global limiter does not. `HablarShell` shows "límite diario … vuelve mañana" only when `details.limit` is present, else transient "Demasiadas peticiones … espera unos minutos" — they no longer conflate.
+
+**Consequences.**
+- (+) Logged-in users get a generous per-account budget; the meter updates; NAT-shared anonymous bucket no longer penalizes authenticated users.
+- (+) Separation of concerns is explicit: abuse backstop (this) vs product quota (`actorRateLimit`). Anon/api-key paths are byte-for-byte unchanged.
+- (–) **Ordering invariant:** the limiter reads `req.accountId`, set by `actorResolver`. `@fastify/rate-limit` attaches a ROUTE-LEVEL `onRequest` hook (via `onRoute`); Fastify runs all GLOBAL `onRequest` hooks first, so `actorResolver`'s global hook always precedes it regardless of `registerX` order. **Invariant to preserve: keep `actorResolver` a global `onRequest` hook** (demoting it to route-scoped would reintroduce the bug). Documented in `rateLimit.ts`.
+- (–) Power users with multiple tabs/devices share the per-account cap (correct by design; a transparency note for the privacy/UX doc is a follow-up).
+
+**Follow-ups (non-blocking, no new PR):** (1) surface `retry-after` seconds in the transient 429 copy; (2) document multi-device shared-cap in privacy/UX doc; (3) optional input-disable + countdown during the retry window.
+
+**Cross-references:**
+- ADR-027 (`decisions.md:1007`) — bearer-over-API-key precedence this extends to the global limiter.
+- `bugs.md` — BUG-API-RATELIMIT-BEARER-001 (root cause, why-not-caught, prevention).
+- `packages/api/src/plugins/rateLimit.ts` — helpers + ordering comment; `actorRateLimit.ts` — the DAILY quota counterpart.
+
+---
+
+### ADR-030: Native Scroll + In-Column Composer for `/hablar` — Reversal of `react-virtuoso` Canonical Rule (F-WEB-HISTORY-FU7, 2026-06-09)
+
+**Status:** Accepted — F-WEB-HISTORY-FU7 implementation complete 2026-06-09. Empirically validated via `/hablar-v2` prototype (branch `prototype/hablar-v2-in-column-composer` @ `e285711`) tested on real iPhone Safari + web desktop: all 4 critical scenarios PASS (BUG A scroll-on-settle + BUG B right-clip + iOS keyboard composer-visible + pin-aware scroll). Cross-model `/review-spec` round 1 = REVISE both → round 2 = Gemini APPROVED + Codex REVISE 3 precision (all closed in rev 2.1). Cross-model `/review-plan` round 1 = Gemini APPROVED + Codex REVISE 3 IMPORTANT (all closed in rev 1.1). 8-step TDD implementation completed across commits `58b67f4`..`b0b029a`. Net code reduction -345 lines; tests 783/783; `react-virtuoso` dependency removed. Owner-approved at each ADR checkpoint per memory `feedback_pre_commit_arch_discussion`.
+
+**Context.** After the F-WEB-HISTORY append-only feed was introduced, two layout/scroll bugs proved unresolvable through 14 iterations:
+- **BUG A**: card resolved by a new search ends up partially covered by the input bar (scroll position doesn't move enough on settle).
+- **BUG B**: card right edge clipped on iOS Safari mobile and (after FU3) also on web desktop, hiding the delete button.
+
+Iterations FU1–FU5 (manual scroll arithmetic + ResizeObserver + IntersectionObserver + 4-effect state machine, 10 PRs) failed. Iteration 11 (FU6) pivoted to `react-virtuoso` as the canonical scroll model — owner approval + memory `feedback_hand_rolled_scroll_anti_pattern` codified the rule. FU6 + FU1 + FU2 + FU3 + revert+fix (4 more iterations) ALSO failed: same two bugs persist.
+
+The invariant across ALL 14 failures: `ConversationInput` is `position: fixed bottom-0` overlay. Both manual scroll and Virtuoso had to "compensate" for this overlay via clearance hacks (`padding-bottom`, Footer spacer, `--input-bar-height` ResizeObserver, `atBottomRef` guard, `overflow-x-hidden`). Each compensation introduced a new failure mode.
+
+**Decision.**
+
+1. **Drop `react-virtuoso`.** `TranscriptFeed` rebuilds to a plain `<div className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full" role="feed" aria-label="Historial de consultas">`. No virtualization (the working set is ≤50 entries; virtualization is overkill). No Footer spacer. No `--input-bar-height` CSS var. No `ResizeObserver` on the input bar. No `atBottomRef` / `atBottomStateChange`.
+
+2. **Composer in-column.** `ConversationInput` becomes a `flex-shrink-0` sibling at the end of the `h-[100dvh] flex-col` shell, NOT `position: fixed bottom-0`. The feed's bottom edge IS the composer's top edge — guaranteed by flex layout. iOS keyboard validated empirically: the virtual keyboard raises the `dvh` viewport; the in-column composer naturally stays visible.
+
+3. **`RateLimitNudge` sibling slot.** Conditional `flex-shrink-0` row between feed and composer when `showRateLimitNudge && !user` (per AC15). Shrinks the feed naturally when active.
+
+4. **Pin-aware auto-scroll.** Last entry `isLoading: true→false` settle triggers `requestAnimationFrame(() => { el.scrollTop = el.scrollHeight })` **only if** the user was within 100px of the bottom before the settle (`distanceFromBottom = scrollHeight - scrollTop - clientHeight < 100`). If user scrolled up to read history, viewport position is preserved — no scroll hijack. Matches `design-guidelines.md:1366-1367` and `:1765` requirement that auto-scroll never hijacks.
+
+5. **Prepend anchoring via scrollHeight diff** (replaces Virtuoso `firstItemIndex`). Save `scrollHeight - scrollTop` before `loadMore`; restore `scrollTop = scrollHeight - savedDelta` after new entries arrive. Spec-defined but NOT prototype-validated (the prototype doesn't include loadMore); requires operator smoke on `app-dev` post-deploy.
+
+6. **REVERSAL of `feedback_hand_rolled_scroll_anti_pattern`.** The previous anti-pattern rule ("chat/feed scroll = library-owned react-virtuoso; hand-rolled scroll arithmetic is anti-pattern") was diagnosed when the architecture was `manual-arithmetic + position-fixed-overlay-composer`. The bug class was the COMBINATION, not native scroll alone. With in-column composer (no overlay), there is no arithmetic — `el.scrollTop = el.scrollHeight` is the entire scroll-to-bottom mechanism. `key_facts.md` retains the historical lesson with an addendum noting the in-column-composer caveat. `design-guidelines.md`, `ui-components.md`, and `hablar-design-guidelines.md` all update to match.
+
+**Consequences.**
+
+- (+) BUG A and BUG B definitively eliminated structurally (validated empirically on real iPhone Safari + web desktop in `/hablar-v2`). No overlay → no overlay-vs-content tension.
+- (+) Massive complexity reduction: drops `react-virtuoso` dependency (-1, ~50 KB gzipped bundle), removes `--input-bar-height` ResizeObserver, Footer spacer, `atBottomRef` plumbing, `overflow-x-hidden` defensive, multiple `min-w-0 break-words` patches. Target net code reduction ≥150 lines.
+- (+) iOS Safari friendly: `dvh` + in-column flex layout is the canonical mobile-web chat pattern. No fixed-positioning quirks.
+- (+) `lg:max-w-2xl lg:mx-auto` desktop centering preserved.
+- (–) Anti-pattern rule reversal: the project recorded a hard-won lesson (`feedback_hand_rolled_scroll_anti_pattern`); reversing it requires preserving the historical context in `key_facts.md` so future agents understand the refinement (anti-pattern was combo-specific, not universal). Memory `feedback_empirical_prototype_before_arch_decision` (2026-06-09) documents the meta-lesson: build prototype before deciding when N≥5 iterations have failed.
+- (–) Prepend anchoring is spec-defined but not prototype-validated; AC7 requires operator smoke. Mitigation: implementation tests with jsdom + integration test simulating prepend.
+- (–) Manual scroll arithmetic for prepend (saving scrollHeight diff) — but it's ~5 lines and a well-known pattern, not a state machine.
+
+**Cross-references:**
+- `docs/tickets/F-WEB-HISTORY-FU7-rebuild-scroll-wrapper.md` — full spec/29 ACs + cross-model trail.
+- `prototype/hablar-v2-in-column-composer @ e285711` — empirical prototype (deleted in FU7 final PR per AC29).
+- `feedback_empirical_prototype_before_arch_decision` (memory) — meta-lesson.
+- `feedback_hand_rolled_scroll_anti_pattern` (memory) — prior anti-pattern rule, now refined.
+- `project_scroll_arch_decision_2026_06_06` (memory) — FU6 react-virtuoso pivot context.
+- `key_facts.md:30-31` — react-virtuoso canonical line, updated with addendum.

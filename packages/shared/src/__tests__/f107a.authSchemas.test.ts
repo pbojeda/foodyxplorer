@@ -6,10 +6,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   AccountSchema,
+  AccountTierSchema,
   ActorSummarySchema,
   MeResponseSchema,
   LoginRequestSchema,
   LoginResponseSchema,
+  UsageBucketSchema,
+  UsageResponseSchema,
 } from '../schemas/auth.js';
 
 // ---------------------------------------------------------------------------
@@ -210,6 +213,175 @@ describe('LoginRequestSchema (F107a — AC25)', () => {
       provider: 'email',
       email: 'user@example.com',
       redirectTo: 'not-a-url',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LoginResponseSchema
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// AccountTierSchema (F-WEB-TIER — AC16)
+// ---------------------------------------------------------------------------
+
+describe('AccountTierSchema (F-WEB-TIER)', () => {
+  it('parses free', () => {
+    const result = AccountTierSchema.safeParse('free');
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toBe('free');
+  });
+
+  it('parses pro', () => {
+    const result = AccountTierSchema.safeParse('pro');
+    expect(result.success).toBe(true);
+  });
+
+  it('parses admin', () => {
+    const result = AccountTierSchema.safeParse('admin');
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects superuser (invalid tier)', () => {
+    const result = AccountTierSchema.safeParse('superuser');
+    expect(result.success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AccountSchema — tier field (F-WEB-TIER — AC16, E10 deploy-skew resilience)
+// ---------------------------------------------------------------------------
+
+describe('AccountSchema — tier field (F-WEB-TIER — AC16)', () => {
+  const validAccount = {
+    id: 'f1070000-0003-4000-a000-000000000003',
+    authUserId: 'f1070000-0004-4000-a000-000000000004',
+    email: 'user@example.com',
+    createdAt: '2026-05-14T10:00:00.000Z',
+    lastSeenAt: '2026-05-14T12:00:00.000Z',
+    consentMarketing: false,
+    consentMarketingAt: null,
+    consentAnalytics: false,
+    consentAnalyticsAt: null,
+  };
+
+  it('parses payload with tier: free', () => {
+    const result = AccountSchema.safeParse({ ...validAccount, tier: 'free' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.tier).toBe('free');
+  });
+
+  it('parses payload without tier (optional — deploy-skew resilience)', () => {
+    const result = AccountSchema.safeParse(validAccount);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.tier).toBeUndefined();
+  });
+
+  it('rejects tier: superuser', () => {
+    const result = AccountSchema.safeParse({ ...validAccount, tier: 'superuser' });
+    expect(result.success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UsageBucketSchema (F-WEB-TIER)
+// ---------------------------------------------------------------------------
+
+describe('UsageBucketSchema (F-WEB-TIER)', () => {
+  it('parses a valid free-tier bucket', () => {
+    const result = UsageBucketSchema.safeParse({ used: 12, limit: 100, remaining: 88 });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.used).toBe(12);
+      expect(result.data.limit).toBe(100);
+      expect(result.data.remaining).toBe(88);
+    }
+  });
+
+  it('parses an admin bucket (limit: null, remaining: null)', () => {
+    const result = UsageBucketSchema.safeParse({ used: 0, limit: null, remaining: null });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects used: -1 (nonnegative constraint)', () => {
+    const result = UsageBucketSchema.safeParse({ used: -1, limit: 100, remaining: 101 });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing used field', () => {
+    const result = UsageBucketSchema.safeParse({ limit: 100, remaining: 100 });
+    expect(result.success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UsageResponseSchema (F-WEB-TIER — AC29)
+// ---------------------------------------------------------------------------
+
+describe('UsageResponseSchema (F-WEB-TIER — AC29)', () => {
+  const freeBucket = { used: 12, limit: 100, remaining: 88 };
+  const zeroBucket = { used: 0, limit: 20, remaining: 20 };
+  const voiceBucket = { used: 5, limit: 30, remaining: 25 };
+  const adminBucket = { used: 0, limit: null, remaining: null };
+
+  it('parses full free-tier response', () => {
+    const result = UsageResponseSchema.safeParse({
+      tier: 'free',
+      resetAt: '2026-05-27T00:00:00.000Z',
+      buckets: {
+        queries: freeBucket,
+        photos: zeroBucket,
+        voice: voiceBucket,
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.tier).toBe('free');
+      expect(result.data.buckets.queries.used).toBe(12);
+      expect(result.data.buckets.photos.limit).toBe(20);
+    }
+  });
+
+  it('parses admin-tier response (all limit/remaining: null)', () => {
+    const result = UsageResponseSchema.safeParse({
+      tier: 'admin',
+      resetAt: '2026-05-27T00:00:00.000Z',
+      buckets: {
+        queries: adminBucket,
+        photos: adminBucket,
+        voice: adminBucket,
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.buckets.queries.limit).toBeNull();
+      expect(result.data.buckets.voice.remaining).toBeNull();
+    }
+  });
+
+  it('rejects response missing buckets.voice', () => {
+    const result = UsageResponseSchema.safeParse({
+      tier: 'free',
+      resetAt: '2026-05-27T00:00:00.000Z',
+      buckets: {
+        queries: freeBucket,
+        photos: zeroBucket,
+        // voice intentionally omitted
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects invalid tier value', () => {
+    const result = UsageResponseSchema.safeParse({
+      tier: 'anonymous',
+      resetAt: '2026-05-27T00:00:00.000Z',
+      buckets: {
+        queries: freeBucket,
+        photos: zeroBucket,
+        voice: voiceBucket,
+      },
     });
     expect(result.success).toBe(false);
   });

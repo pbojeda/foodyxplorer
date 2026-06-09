@@ -21,6 +21,22 @@ jest.mock('../../lib/actorId', () => ({
   persistActorId: jest.fn(),
 }));
 
+// F-WEB-TIER: mock next/navigation for LoginCta / RateLimitNudge router usage
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
+}));
+
+// F-WEB-TIER: mock new components to keep these tests focused on photo analysis
+jest.mock('../../components/LoginCta', () => ({
+  LoginCta: () => null,
+}));
+jest.mock('../../components/UsageMeter', () => ({
+  UsageMeter: () => null,
+}));
+jest.mock('../../components/RateLimitNudge', () => ({
+  RateLimitNudge: () => null,
+}));
+
 // F107a: mock useAuth — HablarShell now requires AuthProvider context
 jest.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
@@ -33,18 +49,38 @@ jest.mock('../../hooks/useAuth', () => ({
   }),
 }));
 
+// F-WEB-HISTORY: mock useSearchHistory — no-op by default
+jest.mock('../../hooks/useSearchHistory', () => ({
+  useSearchHistory: jest.fn(() => ({
+    persistedEntries: [],
+    hasMoreHistory: false,
+    isLoadingMore: false,
+    isLoadingHistory: false,
+    loadMore: jest.fn(),
+    deleteEntry: jest.fn(),
+    clearAll: jest.fn(),
+  })),
+}));
+
 jest.mock('../../lib/apiClient', () => ({
   sendMessage: jest.fn(),
   sendPhotoAnalysis: jest.fn(),
   setAuthToken: jest.fn(), // F107a
+  getMe: jest.fn(),        // F-WEB-TIER
+  getUsage: jest.fn(),     // F-WEB-TIER
+  getHistory: jest.fn(),        // F-WEB-HISTORY
+  deleteHistoryEntry: jest.fn(), // F-WEB-HISTORY
+  clearHistory: jest.fn(),       // F-WEB-HISTORY
   ApiError: class ApiError extends Error {
     code: string;
     status: number | undefined;
-    constructor(message: string, code: string, status?: number) {
+    details: Record<string, unknown> | undefined;
+    constructor(message: string, code: string, status?: number, details?: Record<string, unknown>) {
       super(message);
       this.name = 'ApiError';
       this.code = code;
       this.status = status;
+      this.details = details;
     }
   },
 }));
@@ -312,14 +348,18 @@ describe('HablarShell — photo flow (F092)', () => {
   // Success flow
   // ---------------------------------------------------------------------------
 
-  it('shows LoadingState while sendPhotoAnalysis is pending', async () => {
+  it('shows loading shimmer while sendPhotoAnalysis is pending', async () => {
     mockSendPhotoAnalysis.mockReturnValue(new Promise(() => {}));
     render(<HablarShell />);
     const file = makeFile();
 
     await selectFile(file);
 
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    // F-WEB-HISTORY: loading is now an aria-busy article in TranscriptFeed
+    await waitFor(() => {
+      const busyArticle = screen.getByRole('article');
+      expect(busyArticle).toHaveAttribute('aria-busy', 'true');
+    });
   });
 
   it('renders NutritionCard after successful photo analysis', async () => {
@@ -379,16 +419,20 @@ describe('HablarShell — photo flow (F092)', () => {
     });
   });
 
-  it('shows inline error for MENU_ANALYSIS_FAILED API error (mode=auto default)', async () => {
+  it('shows inline error for MENU_ANALYSIS_FAILED API error (after toggling to auto mode)', async () => {
     mockSendPhotoAnalysis.mockRejectedValue(
       new ApiError('Vision failed', 'MENU_ANALYSIS_FAILED', 422)
     );
     render(<HablarShell />);
 
+    // F-WEB-HISTORY-FU1 D: default mode is now 'identify' — toggle to 'auto' first
+    // so this test still exercises the menu-mode error copy.
+    await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
+
     await selectFile(makeFile());
 
     await waitFor(() => {
-      // Default mode is 'auto' — shows menu-mode error copy
+      // Menu-mode error copy after explicit toggle to 'auto'
       expect(screen.getByText(/No he podido leer el menú/i)).toBeInTheDocument();
     });
   });
@@ -530,7 +574,8 @@ describe('HablarShell — photo flow (F092)', () => {
 
     await selectFile(makeFile());
 
-    expect(mockTrackEvent).toHaveBeenCalledWith('photo_sent');
+    // F-WEB-TIER: photo_sent now includes authenticated flag (false for anonymous user)
+    expect(mockTrackEvent).toHaveBeenCalledWith('photo_sent', expect.objectContaining({ authenticated: false }));
   });
 
   it('tracks photo_success event with dishCount and responseTimeMs on success', async () => {
@@ -591,9 +636,11 @@ describe('HablarShell — photo flow (F092)', () => {
     const textarea = screen.getByRole('textbox');
     await userEvent.type(textarea, 'big mac{Enter}');
 
-    // Loading state should be shown (text query in flight), photo results gone
+    // F-WEB-HISTORY: loading is now an aria-busy article (text query in flight)
     await waitFor(() => {
-      expect(screen.getByRole('status')).toBeInTheDocument();
+      const articles = screen.getAllByRole('article');
+      const loadingArticle = articles.find(a => a.getAttribute('aria-busy') === 'true');
+      expect(loadingArticle).toBeTruthy();
     });
 
     // Big Mac card should not be visible while text query is loading
@@ -630,7 +677,9 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
     sendMessage.mockReturnValue(new Promise(() => {}));
   });
 
-  it('passes mode=auto to sendPhotoAnalysis by default', async () => {
+  // F-WEB-HISTORY-FU1 (item D): the default photo mode is now 'identify'
+  // (single-dish path is the common case per owner).
+  it('passes mode=identify to sendPhotoAnalysis by default (FU1 D)', async () => {
     mockSendPhotoAnalysis.mockResolvedValue(createMenuAnalysisResponse());
     render(<HablarShell />);
 
@@ -641,16 +690,21 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
         expect.any(File),
         expect.any(String),
         expect.anything(),
-        'auto',
+        'identify',
       );
     });
   });
 
-  it('passes mode=identify to sendPhotoAnalysis after toggle switch', async () => {
+  // F-WEB-HISTORY-FU1 D + QA follow-up: 'identify' is now the default, so the
+  // original "after toggle switch" test was a tautology. Replaced with a real
+  // round-trip: click Menú/carta → back to Solo este plato → assert mode=identify.
+  // This exercises AC16's actual regression intent (toggling state both ways).
+  it('passes mode=identify after a Menú/carta → Solo este plato round-trip (AC16 regression)', async () => {
     mockSendPhotoAnalysis.mockResolvedValue(createMenuAnalysisResponse());
     render(<HablarShell />);
 
-    // Switch toggle to "Solo este plato"
+    // Round-trip: identify(default) → auto → identify
+    await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
     await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
 
     await selectFile(makeFile());
@@ -671,6 +725,10 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
     );
     render(<HablarShell />);
 
+    // F-WEB-HISTORY-FU1 D: default is now 'identify'; toggle to Menú/carta first
+    // so this test continues to exercise the menu-mode error copy.
+    await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
+
     await selectFile(makeFile());
 
     await waitFor(() => {
@@ -684,7 +742,9 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
     );
     render(<HablarShell />);
 
-    // Switch toggle to "Solo este plato"
+    // F-WEB-HISTORY-FU1 D: 'identify' is now the default — the toggle click below
+    // is now a no-op for state purposes, but kept for backwards compatibility with
+    // the test's original intent (verifying identify-mode error copy).
     await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
 
     await selectFile(makeFile());
@@ -752,9 +812,14 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
       );
     });
 
-    // The dish list should no longer be visible (photoResults cleared)
+    // F-WEB-HISTORY: In the feed model, the photo entry stays in the feed when a dish is tapped.
+    // A NEW text entry is appended below it. The dish list header remains visible in the photo entry.
+    // The key assertion is that sendMessage WAS called with the dish name (verified above).
+    // The text entry is loading below the photo entry.
     await waitFor(() => {
-      expect(screen.queryByText('Se han encontrado 2 platos')).not.toBeInTheDocument();
+      const articles = screen.getAllByRole('article');
+      // Should have at least 2 articles: the photo entry + the new text entry
+      expect(articles.length).toBeGreaterThanOrEqual(2);
     });
 
     // Also assert menu_dish_selected was tracked.
@@ -769,21 +834,21 @@ describe('HablarShell — photo mode toggle (F-WEB-MENU-VISION-001)', () => {
   it('fires photo_mode_selected telemetry when the mode toggle is changed', async () => {
     render(<HablarShell />);
 
-    // Default state: "Menú/carta" (auto) is selected.
-    // Click "Solo este plato" to change to identify.
-    await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
-
-    expect(mockTrackEvent).toHaveBeenCalledWith(
-      'photo_mode_selected',
-      { mode: 'identify' },
-    );
-
-    // Switch back to auto and verify the event fires again with 'auto'.
+    // F-WEB-HISTORY-FU1 D: default state is now "Solo este plato" (identify).
+    // Click "Menú/carta" → mode flips to 'auto', telemetry fires.
     await userEvent.click(screen.getByRole('button', { name: 'Menú/carta' }));
 
     expect(mockTrackEvent).toHaveBeenCalledWith(
       'photo_mode_selected',
       { mode: 'auto' },
+    );
+
+    // Click "Solo este plato" → mode flips back to 'identify', telemetry fires again.
+    await userEvent.click(screen.getByRole('button', { name: 'Solo este plato' }));
+
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      'photo_mode_selected',
+      { mode: 'identify' },
     );
   });
 });

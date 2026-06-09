@@ -30,3 +30,4 @@ export * from './schemas/missedQueries';
 export * from './schemas/reverseSearch';
 export * from './schemas/webMetrics';
 export * from './schemas/auth';
+export * from './schemas/history';

@@ -12,7 +12,7 @@ info:
     **Validation:**
     - Request bodies and query params are validated via `fastify-type-provider-zod`.
     - Zod schemas in `packages/shared/src/schemas/` are the single source of truth.
-  version: 0.8.0
+  version: 0.9.0
   contact:
     name: foodXPlorer
   license:
@@ -101,8 +101,11 @@ tags:
       conversational context in Redis, and return structured JSON.
       The Telegram bot is a thin adapter over this service. Returns structured data — never
       formatted text. Formatting is the responsibility of each adapter.
-      Per-actor rate limit applies (F069 — 50 queries/day per actor).
+      Per-actor rate limit applies (F069 / F-WEB-TIER — tier-aware daily limits).
+      anonymous: 50 queries/day. free (registered): 100 queries/day. pro: 500.
       Anonymous access via X-Actor-Id header (F069 actor middleware).
+      Authenticated access via Authorization: Bearer (F107a); tier resolved from
+      accounts.tier (Redis-cached, TTL 60s) by actorRateLimit (F-WEB-TIER).
   - name: Cooking
     description: |
       Cooking profiles and yield factor data (F072). The `cooking_profiles` table stores
@@ -113,6 +116,16 @@ tags:
       No public read endpoints are defined for F072 — the profiles are an internal data
       layer consumed by GET /estimate and POST /calculate/recipe. Admin seed/introspection
       endpoints may be added in a future ticket.
+  - name: History
+    description: |
+      Persisted search history endpoints (F-WEB-HISTORY). All endpoints are bearer-only.
+      Account-scoped isolation: callers only see and delete their own entries.
+      GET /history — cursor-paginated (newest first), default 10 per page, max 50.
+      DELETE /history/:id — per-entry delete; returns 404 for non-owned or missing entries
+        (no existence enumeration).
+      DELETE /history — clear all entries for the authenticated account.
+      Persistence hook: fire-and-forget insert on POST /conversation/message and
+        POST /conversation/audio success with bearer present (kind text|voice; photo excluded).
   - name: Auth
     description: |
       Authentication endpoints (F107a). Supabase Auth (GoTrue) is the identity provider
@@ -465,6 +478,16 @@ paths:
         `public.accounts` row exists (incomplete prior migration), this endpoint creates
         the accounts row on first hit.
 
+        **Resolver-side linking (F-WEB-TIER):** Starting from F-WEB-TIER, `actorResolver`
+        also performs account linking resolver-side (on every bearer request) using the same
+        safe predicate. `/me` linking therefore becomes idempotent in the common case.
+        `/me` retains its linking logic as the canonical path for explicit account fetch
+        (e.g. when the frontend needs the account row). The resolver-side path is an
+        optimisation so the web app can work without calling `/me`.
+
+        **Tier in response (F-WEB-TIER):** The `account` object now includes `tier`
+        (enum: free | pro | admin). All accounts default to `free`.
+
         **Auth required:** 401 if no/invalid/expired bearer. NOT anonymous — `/me` is
         strictly auth-gated. ADR-025 R3 §5.
       operationId: getMe
@@ -492,6 +515,7 @@ paths:
                     consentMarketingAt: null
                     consentAnalytics: false
                     consentAnalyticsAt: null
+                    tier: "free"
                   actor:
                     id: "11111111-2222-3333-4444-555555555555"
                     type: "anonymous_web"
@@ -543,6 +567,97 @@ paths:
                 error:
                   message: "Auth provider unavailable — please retry shortly"
                   code: "AUTH_PROVIDER_UNAVAILABLE"
+
+  # ---------------------------------------------------------------------------
+  # F-WEB-TIER — Usage meter (read-only daily usage for the requesting actor)
+  # ---------------------------------------------------------------------------
+
+  /me/usage:
+    get:
+      summary: Return current UTC-day usage across the three daily-limit buckets
+      description: |
+        Returns the authenticated actor's daily usage counters (queries, photos, voice)
+        for the current UTC day, read from the rate-limit Redis counters via GET (no
+        increment). This endpoint is **NOT** in `ROUTE_BUCKET_MAP` and therefore never
+        consumes quota by being called.
+
+        **Bucket rules:**
+        - `used` = current Redis counter value; absent key → 0.
+        - `limit` = `DAILY_LIMITS_BY_TIER[tier][bucket]`.
+        - `remaining` = `max(0, limit − used)`.
+        - For `tier = admin` each bucket returns `limit: null, remaining: null` (unbounded).
+
+        **Reset window:** counters expire at UTC midnight; `resetAt` is always
+        `YYYY-MM-DDT00:00:00.000Z` of the next UTC day.
+
+        **Bearer precedence (same as GET /me — ADR-025 R3 §5):**
+        - Header absent → 401 UNAUTHORIZED.
+        - Header present + valid → authenticated flow.
+        - Header present + invalid/expired → 401 immediately.
+
+        **Not in ROUTE_BUCKET_MAP:** calling this endpoint does NOT decrement any quota.
+        The web client calls it on mount and refreshes after each successful query/photo/voice.
+      operationId: getMeUsage
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current UTC-day usage for the authenticated actor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageApiResponse'
+              example:
+                success: true
+                data:
+                  tier: "free"
+                  resetAt: "2026-05-27T00:00:00.000Z"
+                  buckets:
+                    queries:
+                      used: 12
+                      limit: 100
+                      remaining: 88
+                    photos:
+                      used: 3
+                      limit: 20
+                      remaining: 17
+                    voice:
+                      used: 5
+                      limit: 30
+                      remaining: 25
+        '401':
+          description: |
+            No bearer token, invalid token, or expired token.
+            ADR-025 R3 §5 strict precedence — present-but-invalid never falls through to
+            anonymous flow.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noBearer:
+                  summary: Authorization header absent
+                  value:
+                    success: false
+                    error:
+                      message: "Authentication required"
+                      code: "UNAUTHORIZED"
+                expiredJwt:
+                  summary: Token expired
+                  value:
+                    success: false
+                    error:
+                      message: "Token has expired"
+                      code: "TOKEN_EXPIRED"
+                invalidJwt:
+                  summary: Invalid signature or malformed JWT
+                  value:
+                    success: false
+                    error:
+                      message: "Invalid or malformed token"
+                      code: "INVALID_TOKEN"
 
   /ingest/pdf:
     post:
@@ -2509,7 +2624,11 @@ paths:
 
         **Auth:** No auth required (Phase 1 — internal use). API key auth added in F026.
 
-        **Rate limiting (F026):** Anonymous: 30 req/15min/IP. Free key: 100/15min. Pro key: 1000/15min.
+        **Global rate limiting (F026 + BUG-API-RATELIMIT-BEARER-001):** abuse/DoS backstop, 15-min
+        window. Bearer account: 600 req/15min per account (`account:<sub>`, bearer-first per ADR-027).
+        Pro key: 1000/15min/key. Free key: 100/15min/key. Anonymous: 30 req/15min/IP. This is distinct
+        from the per-actor DAILY tier quotas (F-WEB-TIER, see GET /me/usage); only the daily 429 carries
+        `error.details.limit/resetAt`.
       operationId: estimateAllLevels
       tags:
         - Estimation
@@ -6267,6 +6386,288 @@ paths:
                   message: "Voice service temporarily unavailable: monthly budget cap reached."
                   code: "VOICE_BUDGET_EXHAUSTED"
 
+  # ---------------------------------------------------------------------------
+  # F-WEB-HISTORY — Persisted search history (GET /history, DELETE /history/:id,
+  #                 DELETE /history). All endpoints are bearer-only; 401 if absent/invalid.
+  #                 Account-scoped isolation: callers only see and delete their own entries.
+  #
+  # Identity pattern: same as GET /me and GET /me/usage (ADR-025 R3 §5 strict).
+  #   Bearer JWT → payload.sub = auth_user_id → accounts.id (accounts.auth_user_id FK).
+  #   Reuses the actorResolver / verifyBearerJwt path already in place.
+  #
+  # Persistence hook (not a new route): on POST /conversation/message and
+  #   POST /conversation/audio SUCCESS with a bearer present, a fire-and-forget
+  #   write inserts into search_history (kind text|voice, queryText, resultData).
+  #   The insert MUST NOT block or delay the core query response. Photo results
+  #   are NOT persisted (fork D3).
+  # ---------------------------------------------------------------------------
+
+  /history:
+    get:
+      summary: Get paginated search history (newest first) for the authenticated account
+      description: |
+        Returns the authenticated account's persisted search history, cursor-paginated
+        from newest to oldest. The web uses this to pre-populate the TranscriptFeed on
+        mount and to load older batches on upward scroll (infinite scroll backwards).
+
+        **Cursor pagination:**
+        - First page: omit `cursor` and `limit` (or set `limit` only). Returns the
+          most recent `limit` entries.
+        - Subsequent pages: pass `cursor=<nextCursor>` from the previous response.
+          Returns the next (older) batch.
+        - When `nextCursor` is `null`, there are no older entries — stop scrolling.
+        - `cursor` is opaque (base64-encoded `created_at + id`). Clients must not
+          construct or mutate cursors.
+
+        **Invalid cursor behavior:** A cursor that is malformed or does not decode to
+        a valid `(created_at, id)` pair returns HTTP 400 `INVALID_CURSOR`. This is
+        preferred over silently returning an empty page because it surfaces bugs in
+        cursor plumbing during integration testing.
+
+        **Account with no history:** returns 200 with `entries: []` and `nextCursor: null`.
+        This is the first-time-logged-in state. Never returns 404 or 500 for this case.
+
+        **Bearer precedence (ADR-025 R3 §5):**
+        - Header absent → 401 UNAUTHORIZED.
+        - Header present + valid → authenticated flow.
+        - Header present + invalid/expired → 401 immediately.
+
+        **Not quota-consuming:** calling GET /history does NOT decrement any daily query bucket.
+      operationId: getHistory
+      tags:
+        - History
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          description: |
+            Opaque pagination cursor from a prior response's `nextCursor` field.
+            Omit for the first page (most recent entries).
+          schema:
+            type: string
+            example: "eyJjcmVhdGVkQXQiOiIyMDI2LTA1LTI3VDEwOjAwOjAwLjAwMFoiLCJpZCI6ImFiY2QxMjM0In0="
+        - name: limit
+          in: query
+          required: false
+          description: |
+            Maximum number of entries to return per page. Must be 1–50 inclusive.
+            Default: 10.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+            example: 10
+      responses:
+        '200':
+          description: Paginated history page for the authenticated account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryPageApiResponse'
+              examples:
+                withEntries:
+                  summary: Two entries returned, one more page available
+                  value:
+                    success: true
+                    data:
+                      entries:
+                        - id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+                          kind: "text"
+                          queryText: "tortilla española mercadona"
+                          resultData:
+                            intent: "estimation"
+                            estimation:
+                              foodName: "Tortilla española"
+                              calories: 320
+                          createdAt: "2026-05-27T11:30:00.000Z"
+                        - id: "ffffffff-0000-1111-2222-333333333333"
+                          kind: "voice"
+                          queryText: "big mac mcdonald's"
+                          resultData:
+                            intent: "estimation"
+                            estimation:
+                              foodName: "Big Mac"
+                              calories: 550
+                          createdAt: "2026-05-27T10:00:00.000Z"
+                      nextCursor: "eyJjcmVhdGVkQXQiOiIyMDI2LTA1LTI3VDEwOjAwOjAwLjAwMFoiLCJpZCI6ImZmZmZmZmZmIn0="
+                empty:
+                  summary: No history entries (first-time logged-in)
+                  value:
+                    success: true
+                    data:
+                      entries: []
+                      nextCursor: null
+                lastPage:
+                  summary: Final page (no more older entries)
+                  value:
+                    success: true
+                    data:
+                      entries:
+                        - id: "11111111-2222-3333-4444-555555555555"
+                          kind: "text"
+                          queryText: "gazpacho"
+                          resultData:
+                            intent: "estimation"
+                          createdAt: "2026-05-01T08:00:00.000Z"
+                      nextCursor: null
+        '400':
+          description: |
+            Invalid query parameters. `INVALID_CURSOR` when cursor is malformed
+            or cannot be decoded. `VALIDATION_ERROR` when limit is out of range.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCursor:
+                  summary: Malformed cursor
+                  value:
+                    success: false
+                    error:
+                      message: "Invalid pagination cursor"
+                      code: "INVALID_CURSOR"
+                limitOutOfRange:
+                  summary: limit outside 1–50
+                  value:
+                    success: false
+                    error:
+                      message: "limit must be between 1 and 50"
+                      code: "VALIDATION_ERROR"
+        '401':
+          description: |
+            No bearer token, invalid token, or expired token.
+            ADR-025 R3 §5 strict precedence — present-but-invalid never falls through to
+            anonymous flow.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noBearer:
+                  summary: Authorization header absent
+                  value:
+                    success: false
+                    error:
+                      message: "Authentication required"
+                      code: "UNAUTHORIZED"
+                expiredJwt:
+                  summary: Token expired
+                  value:
+                    success: false
+                    error:
+                      message: "Token has expired"
+                      code: "TOKEN_EXPIRED"
+
+    delete:
+      summary: Clear all persisted search history for the authenticated account
+      description: |
+        Permanently deletes all search_history rows whose `account_id` matches the
+        authenticated account. This is the "borrar todo el historial" action confirmed
+        via the `ClearHistoryButton` modal dialog (W21).
+
+        **Idempotent:** deleting when there are no entries returns 204 (no-op, no error).
+
+        **Privacy (fork D5):** this is the user-initiated data deletion action. A full
+        account deletion also wipes history via the DB-level CASCADE constraint. Neither
+        action requires a separate notification to the API.
+
+        **Bearer precedence (ADR-025 R3 §5):** same as GET /history.
+      operationId: clearHistory
+      tags:
+        - History
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: All history entries deleted (or there were none). No response body.
+        '401':
+          description: |
+            No bearer token, invalid token, or expired token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noBearer:
+                  summary: Authorization header absent
+                  value:
+                    success: false
+                    error:
+                      message: "Authentication required"
+                      code: "UNAUTHORIZED"
+
+  /history/{id}:
+    delete:
+      summary: Delete a single search history entry (owned by the authenticated account)
+      description: |
+        Deletes the search_history row with the given `id`, but ONLY if its `account_id`
+        matches the authenticated account.
+
+        **Ownership and non-existence both return 404** — not 403. This prevents existence
+        enumeration: an attacker cannot determine whether an entry exists for another account
+        by probing IDs.
+
+        **Idempotent-ish:** calling DELETE for an already-deleted entry returns 404 (the row
+        is gone — no distinction between "never existed" and "already deleted"). The web
+        handles 404 gracefully by removing the entry from local state if present.
+
+        **Bearer precedence (ADR-025 R3 §5):** same as GET /history.
+      operationId: deleteHistoryEntry
+      tags:
+        - History
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the search_history entry to delete.
+          schema:
+            type: string
+            format: uuid
+            example: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+      responses:
+        '204':
+          description: Entry deleted. No response body.
+        '400':
+          description: The `id` path parameter is not a valid UUID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "id must be a valid UUID"
+                  code: "VALIDATION_ERROR"
+        '401':
+          description: No bearer token, invalid token, or expired token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Authentication required"
+                  code: "UNAUTHORIZED"
+        '404':
+          description: |
+            Entry not found OR entry is owned by a different account.
+            The response is identical in both cases to prevent existence enumeration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "History entry not found"
+                  code: "NOT_FOUND"
+
 components:
   parameters:
     XActorId:
@@ -6646,6 +7047,14 @@ components:
             Present when intent is `follow_up_attribute` or `follow_up_refinement`.
             Contains classifier metadata (type, confidence, turn state hit). Absent for
             all other intents.
+        transcribedText:
+          type: string
+          description: |
+            Only present on responses from POST /conversation/audio. The Whisper
+            transcript echoed back so the web feed header can display the real
+            voice query text. Absent on text responses and on deploy-skew (optional
+            field — cross-model decision G-IMP/X2).
+          example: "dos pinchos de tortilla y una caña"
 
     # -------------------------------------------------------------------------
     # Ingestion
@@ -10091,9 +10500,9 @@ components:
       type: object
       description: |
         App-owned account row (public.accounts). Created on first successful login.
-        Stores identity, consent timestamps, and (in future) billing state.
+        Stores identity, consent timestamps, and tier (billing state).
         Body/health fields are NOT here — they belong to public.profiles (F099).
-        ADR-025 R3 §3.
+        ADR-025 R3 §3. F-WEB-TIER adds the `tier` column (default: free).
       required:
         - id
         - authUserId
@@ -10149,6 +10558,20 @@ components:
           nullable: true
           description: Timestamp when analytics consent was last toggled. Null if never set.
           example: null
+        tier:
+          type: string
+          enum: [free, pro, admin]
+          description: |
+            Account tier. Defaults to `free` for all registered accounts (F-WEB-TIER).
+            Determines daily rate limits applied by actorRateLimit when request.accountId
+            (the bearer `sub` = auth_user_id) is set (100 queries / 20 photos / 30 voice for `free`).
+            `pro` and `admin` reserved for future monetisation — not provisioned via UI yet.
+            Stored in `accounts.tier` (DB column, enum account_tier, default 'free').
+            Cached server-side: Redis key `account:tier:<auth_user_id>`, TTL 60s.
+            NOTE: the API always returns `tier` post-migration, but it is NOT in `required` —
+            clients should default to `free` if absent, to tolerate rolling-deploy skew
+            (web auto-deploys on Vercel; api-dev is a manual deploy). See ticket E10.
+          example: "free"
 
     ActorSummary:
       type: object
@@ -10284,6 +10707,205 @@ components:
             - $ref: '#/components/schemas/LoginGoogleRedirect'
           discriminator:
             propertyName: provider
+
+    # -------------------------------------------------------------------------
+    # F-WEB-TIER — Usage meter schemas (GET /me/usage)
+    # -------------------------------------------------------------------------
+
+    UsageBucket:
+      type: object
+      description: |
+        Daily usage counters for a single rate-limit bucket (queries, photos, or voice).
+        `limit` and `remaining` are null for admin tier (unbounded).
+      required:
+        - used
+        - limit
+        - remaining
+      properties:
+        used:
+          type: integer
+          minimum: 0
+          description: |
+            Current Redis counter value for this bucket on the UTC day. Absent key → 0.
+          example: 12
+        limit:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: |
+            Daily limit for this bucket derived from `DAILY_LIMITS_BY_TIER[tier][bucket]`.
+            Null for admin tier (unbounded).
+          example: 100
+        remaining:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: |
+            `max(0, limit − used)`. Null for admin tier (unbounded).
+          example: 88
+
+    UsageData:
+      type: object
+      description: Payload for GET /me/usage — current UTC-day usage across all buckets.
+      required:
+        - tier
+        - resetAt
+        - buckets
+      properties:
+        tier:
+          type: string
+          enum: [free, pro, admin]
+          description: |
+            Account tier of the requesting actor. Determines `limit` values per bucket.
+            Mirrors `Account.tier` — admin yields `limit: null, remaining: null` in each bucket.
+          example: "free"
+        resetAt:
+          type: string
+          format: date-time
+          description: |
+            UTC midnight of the next UTC day — when all counters reset.
+            Always `YYYY-MM-DDT00:00:00.000Z`.
+          example: "2026-05-27T00:00:00.000Z"
+        buckets:
+          type: object
+          description: Usage counters keyed by bucket name. Fixed keys: queries, photos, voice.
+          required:
+            - queries
+            - photos
+            - voice
+          properties:
+            queries:
+              $ref: '#/components/schemas/UsageBucket'
+            photos:
+              $ref: '#/components/schemas/UsageBucket'
+            voice:
+              $ref: '#/components/schemas/UsageBucket'
+
+    UsageApiResponse:
+      type: object
+      description: GET /me/usage success envelope.
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/UsageData'
+
+    # -------------------------------------------------------------------------
+    # F-WEB-HISTORY — Search history schemas (GET /history, DELETE /history/:id,
+    #                 DELETE /history)
+    # Source of truth: packages/shared/src/schemas/history.ts
+    # -------------------------------------------------------------------------
+
+    SearchHistoryKind:
+      type: string
+      enum: [text, voice]
+      description: |
+        Input modality that produced the history entry.
+        - `text`  — user typed a query via ConversationInput text box.
+        - `voice` — user submitted audio; transcript produced by Whisper.
+        Photo is explicitly excluded from persisted history in v1 (fork D3 — photo
+        result_jsonb is large and multi-dish; deferred to a conditional Fase 4).
+
+    SearchHistoryEntry:
+      type: object
+      description: |
+        A single persisted search history entry. Returned as items in `HistoryPage.entries`.
+
+        `resultData` is the full `ConversationMessageData` payload captured at query time
+        (covering EVERY intent shape: estimation, comparison, contextSet, text_too_long, …).
+        The web re-renders the result card(s) from this data without issuing a new estimation
+        request. The shared `SearchHistoryEntrySchema` types `resultData` strictly as
+        `ConversationMessageDataSchema` (not an opaque object) so schema drift is caught at the
+        boundary; the web safeParses each entry and skips any drifted-old payload (cross-model C2).
+      required:
+        - id
+        - kind
+        - queryText
+        - resultData
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID primary key of the search_history row.
+          example: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        kind:
+          $ref: '#/components/schemas/SearchHistoryKind'
+        queryText:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: |
+            The user-submitted query text, or the Whisper transcript for voice queries.
+            Max 2000 chars mirrors the POST /conversation/message body.text limit (.max(2000)).
+            A 501–2000 char query yields a successful `text_too_long` intent and IS persisted,
+            so a 500 cap would reject a valid history row (cross-model C3).
+          example: "tortilla española mercadona"
+        resultData:
+          type: object
+          additionalProperties: true
+          description: |
+            Full ConversationMessageData payload stored at query time.
+            Used by the web to re-render the result card without a new estimation request.
+            The schema is the same as the `data` field in POST /conversation/message 200 response.
+          example:
+            intent: "estimation"
+            estimation:
+              foodName: "Tortilla española"
+              calories: 320
+        createdAt:
+          type: string
+          format: date-time
+          description: |
+            ISO 8601 timestamp (UTC) when this entry was persisted.
+            Matches search_history.created_at (timestamptz default now()).
+          example: "2026-05-27T11:30:00.000Z"
+
+    HistoryPage:
+      type: object
+      description: |
+        Cursor-paginated page of search history entries.
+
+        Entries are ordered newest-first (DB order: created_at DESC, id DESC).
+        The web reverses them before prepending to the TranscriptFeed (which displays
+        oldest-at-top per design guideline W16).
+
+        Cursor pagination:
+        - First page: omit cursor. Returns up to `limit` most recent entries.
+        - Subsequent pages: pass `nextCursor` from this response as `cursor=`.
+        - `nextCursor: null` means this is the final page (no older entries exist).
+      required:
+        - entries
+        - nextCursor
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchHistoryEntry'
+          description: |
+            Batch of history entries, newest-first.
+            Empty array when there are no entries or no more pages.
+        nextCursor:
+          type: string
+          nullable: true
+          description: |
+            Opaque cursor string encoding the (created_at, id) of the oldest entry in
+            this page. Pass as `cursor=` query param to fetch the next older batch.
+            Null when this page is the last (no older entries exist).
+          example: "eyJjcmVhdGVkQXQiOiIyMDI2LTA1LTI3VDEwOjAwOjAwLjAwMFoiLCJpZCI6ImZmZmZmZmZmIn0="
+
+    HistoryPageApiResponse:
+      type: object
+      description: GET /history success envelope.
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/HistoryPage'
 
   securitySchemes:
     BearerAuth:

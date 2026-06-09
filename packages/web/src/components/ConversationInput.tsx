@@ -1,6 +1,6 @@
 'use client';
 
-// ConversationInput — fixed-bottom input bar for the /hablar shell.
+// ConversationInput — in-column input composer for the /hablar shell (ADR-030).
 // Handles: text input, Enter-to-submit, Shift+Enter newline, disabled during loading.
 
 import { useRef, useEffect, type Ref } from 'react';
@@ -72,7 +72,9 @@ export function ConversationInput({
   const showSubmit = value.trim().length > 0;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] backdrop-blur-sm">
+    <div
+      className="w-full bg-white border-t border-slate-200 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] backdrop-blur-sm"
+    >
       {inlineError && (
         <p role="alert" className="mb-1.5 text-sm text-red-600">
           {inlineError}

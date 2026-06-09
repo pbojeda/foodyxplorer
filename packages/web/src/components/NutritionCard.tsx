@@ -38,7 +38,7 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
         aria-label={`${displayName}: ${kcal} calorías`}
       >
         <header className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-bold text-slate-800">{displayName}</h2>
+          <h2 className="min-w-0 break-words text-lg font-bold text-slate-800">{displayName}</h2>
         </header>
 
         <div className="mt-3">
@@ -46,7 +46,14 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
           <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">KCAL</p>
         </div>
 
-        <div className="mt-3 flex gap-4">
+        {/* FU6-FU3 — `flex-wrap` lets MacroItems wrap to a second line on
+            narrow iOS Safari viewports where their combined intrinsic width
+            (~272px) would otherwise exceed the card's content area (256px on
+            iPhone SE 320px viewport after px-4 + p-4). Without wrap, the row
+            overflows and the article's `overflow-hidden` clips the right
+            side, hiding part of the card. Cross-model verdict 2026-06-08
+            gemini 90% + codex 88%. */}
+        <div className="mt-3 flex flex-wrap gap-4">
           <MacroItem value={Math.round(reverseResult.proteins)} label="PROTEÍNAS" colorClass="text-brand-green" />
           <MacroItem value={Math.round(reverseResult.carbohydrates)} label="CARBOHIDRATOS" colorClass="text-accent-gold" />
           <MacroItem value={Math.round(reverseResult.fats)} label="GRASAS" colorClass="text-slate-500" />
@@ -116,7 +123,12 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
       aria-label={ariaLabel}
     >
       <header className="flex items-start justify-between gap-3">
-        <h2 className="text-lg font-bold text-slate-800">{displayName}</h2>
+        {/* FU6-FU2 — min-w-0 lets the h2 shrink within the flex container so
+            break-words can wrap long dish names. Without min-w-0, the h2's
+            intrinsic width pushes the article wider than the viewport
+            (overflow-x-hidden then clips the right side, hiding the badge
+            + part of the card on iOS Safari). */}
+        <h2 className="min-w-0 break-words text-lg font-bold text-slate-800">{displayName}</h2>
         <ConfidenceBadge level={result.confidenceLevel} />
       </header>
 
@@ -157,7 +169,8 @@ export function NutritionCard({ estimateData, reverseResult }: NutritionCardProp
         )}
       </div>
 
-      <div className="mt-3 flex gap-4">
+      {/* FU6-FU3 — see ReverseSearchResult branch above for rationale. */}
+      <div className="mt-3 flex flex-wrap gap-4">
         <MacroItem value={proteins} label="PROTEÍNAS" colorClass="text-brand-green" />
         <MacroItem value={carbs} label="CARBOHIDRATOS" colorClass="text-accent-gold" />
         <MacroItem value={fats} label="GRASAS" colorClass="text-slate-500" />
@@ -264,7 +277,10 @@ function MacroItem({
   colorClass: string;
 }) {
   return (
-    <div>
+    // FU6-FU3 — `min-w-0` lets each item shrink within the flex container so
+    // a single item with a long label (CARBOHIDRATOS ≈ 110px) doesn't push
+    // the row above its parent width before wrap-decision happens.
+    <div className="min-w-0">
       <p className={`text-lg font-bold leading-none ${colorClass}`}>{value}<span className="text-slate-500 text-sm">g</span></p>
       <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
     </div>

@@ -1,77 +1,87 @@
 export const DataSourceType = {
-  official: "official",
-  estimated: "estimated",
-  scraped: "scraped",
-  user: "user",
+    official: "official",
+    estimated: "estimated",
+    scraped: "scraped",
+    user: "user"
 } as const;
 export type DataSourceType = (typeof DataSourceType)[keyof typeof DataSourceType];
 export const ConfidenceLevel = {
-  high: "high",
-  medium: "medium",
-  low: "low",
+    high: "high",
+    medium: "medium",
+    low: "low"
 } as const;
 export type ConfidenceLevel = (typeof ConfidenceLevel)[keyof typeof ConfidenceLevel];
 export const EstimationMethod = {
-  official: "official",
-  ingredients: "ingredients",
-  extrapolation: "extrapolation",
-  scraped: "scraped",
-  llm: "llm",
+    official: "official",
+    ingredients: "ingredients",
+    extrapolation: "extrapolation",
+    scraped: "scraped",
+    llm: "llm"
 } as const;
 export type EstimationMethod = (typeof EstimationMethod)[keyof typeof EstimationMethod];
 export const PortionConfidence = {
-  high: "high",
-  medium: "medium",
-  low: "low",
+    high: "high",
+    medium: "medium",
+    low: "low"
 } as const;
 export type PortionConfidence = (typeof PortionConfidence)[keyof typeof PortionConfidence];
 export const FoodType = {
-  generic: "generic",
-  branded: "branded",
-  composite: "composite",
+    generic: "generic",
+    branded: "branded",
+    composite: "composite"
 } as const;
 export type FoodType = (typeof FoodType)[keyof typeof FoodType];
 export const NutrientReferenceBasis = {
-  per_100g: "per_100g",
-  per_serving: "per_serving",
-  per_package: "per_package",
+    per_100g: "per_100g",
+    per_serving: "per_serving",
+    per_package: "per_package"
 } as const;
-export type NutrientReferenceBasis =
-  (typeof NutrientReferenceBasis)[keyof typeof NutrientReferenceBasis];
+export type NutrientReferenceBasis = (typeof NutrientReferenceBasis)[keyof typeof NutrientReferenceBasis];
 export const DishAvailability = {
-  available: "available",
-  seasonal: "seasonal",
-  discontinued: "discontinued",
-  regional: "regional",
+    available: "available",
+    seasonal: "seasonal",
+    discontinued: "discontinued",
+    regional: "regional"
 } as const;
 export type DishAvailability = (typeof DishAvailability)[keyof typeof DishAvailability];
 export const ApiKeyTier = {
-  free: "free",
-  pro: "pro",
-  admin: "admin",
+    free: "free",
+    pro: "pro",
+    admin: "admin"
 } as const;
 export type ApiKeyTier = (typeof ApiKeyTier)[keyof typeof ApiKeyTier];
+export const AccountTier = {
+    free: "free",
+    pro: "pro",
+    admin: "admin"
+} as const;
+export type AccountTier = (typeof AccountTier)[keyof typeof AccountTier];
 export const ActorType = {
-  anonymous_web: "anonymous_web",
-  telegram: "telegram",
-  authenticated: "authenticated",
+    anonymous_web: "anonymous_web",
+    telegram: "telegram",
+    authenticated: "authenticated"
 } as const;
 export type ActorType = (typeof ActorType)[keyof typeof ActorType];
 export const QueryLogLevelHit = {
-  l1: "l1",
-  l2: "l2",
-  l3: "l3",
-  l4: "l4",
+    l1: "l1",
+    l2: "l2",
+    l3: "l3",
+    l4: "l4"
 } as const;
 export type QueryLogLevelHit = (typeof QueryLogLevelHit)[keyof typeof QueryLogLevelHit];
 export const QueryLogSource = {
-  api: "api",
-  bot: "bot",
+    api: "api",
+    bot: "bot"
 } as const;
 export type QueryLogSource = (typeof QueryLogSource)[keyof typeof QueryLogSource];
 export const MissedQueryStatus = {
-  pending: "pending",
-  resolved: "resolved",
-  ignored: "ignored",
+    pending: "pending",
+    resolved: "resolved",
+    ignored: "ignored"
 } as const;
 export type MissedQueryStatus = (typeof MissedQueryStatus)[keyof typeof MissedQueryStatus];
+export const SearchHistoryKind = {
+    text: "text",
+    voice: "voice"
+} as const;
+export type SearchHistoryKind = (typeof SearchHistoryKind)[keyof typeof SearchHistoryKind];

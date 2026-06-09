@@ -1028,7 +1028,7 @@ app/hablar/page.tsx (Server Component — metadata, shell render)
     │   └── [NutritionCard...]  (results)
     │       ├── ConfidenceBadge
     │       └── [AllergenChip...]
-    └── ConversationInput (fixed bottom)
+    └── ConversationInput (flex-shrink-0, in-column)
         ├── <textarea>
         ├── PhotoButton         (disabled placeholder)
         ├── MicButton           (disabled placeholder)
@@ -1056,12 +1056,13 @@ Top-level orchestrator component. Manages all page state and coordinates API cal
 - On error: set `error`, `isLoading: false`
 - Retry button in ErrorState: re-submits last query
 
-**Layout:**
+**Layout (ADR-030, F-WEB-HISTORY-FU7):**
 ```
 h-[100dvh] flex flex-col bg-white
-├── AppBar (52px, optional)
-├── ResultsArea (flex-1, overflow-y-auto, pb-[84px])
-└── ConversationInput (fixed bottom-0)
+├── AppBar (52px, flex-shrink-0)
+├── TranscriptFeed (flex-1, overflow-y-auto, overscroll-contain)
+├── RateLimitNudge (flex-shrink-0, conditional — anon 429 only)
+└── ConversationInput (flex-shrink-0, NOT fixed bottom-0)
 ```
 
 ### ConversationInput
@@ -1069,7 +1070,9 @@ h-[100dvh] flex flex-col bg-white
 **Type:** Feature | **Client:** Yes (`'use client'`)
 **File:** `src/components/ConversationInput.tsx`
 
-Fixed bottom input bar. Contains textarea + action buttons. Safe-area aware for iOS.
+In-column input bar at the natural bottom of the `h-[100dvh] flex-col` shell. Contains textarea + action buttons. Safe-area aware for iOS.
+
+Note (ADR-030, F-WEB-HISTORY-FU7): `position: fixed bottom-0` is REMOVED. The component is now a `flex-shrink-0` block sibling. `outerRef` prop also removed (no longer needed by ResizeObserver in HablarShell).
 
 **Props:**
 | Prop | Type | Required | Description |
@@ -1082,7 +1085,7 @@ Fixed bottom input bar. Contains textarea + action buttons. Safe-area aware for 
 
 **Styling:**
 ```
-fixed bottom-0 left-0 right-0
+flex-shrink-0 w-full (NOT fixed bottom-0)
 bg-white border-t border-slate-200
 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))]
 backdrop-blur-sm
@@ -2149,6 +2152,238 @@ See `docs/operations/supabase-auth-setup.md` for full env var setup instructions
 
 ---
 
+## Web Package — nutriXplorer (F-WEB-TIER: Registration value)
+
+**Feature:** F-WEB-TIER (incl. F-WEB-AUTH-CTA) | **Package:** `packages/web/` | **Priority:** High
+**Dependencies:** F107a (auth core), BUG-PROD-013 (bearer actorId fix)
+
+### Component Hierarchy Changes
+
+```
+app/hablar/page.tsx (Server Component — unchanged)
+└── HablarShell (Client — UPDATED)
+    ├── <header> (UPDATED: tier-aware auth slot)
+    │   ├── <span> logo (unchanged)
+    │   ├── LoginCta    (Client — NEW, rendered when user===null && !authLoading)
+    │   └── UserMenu    (Client — existing, rendered when user!==null, unchanged)
+    │       └── UsageMeter (Client — NEW, rendered when user!==null && !authLoading)
+    ├── ResultsArea (UPDATED: new RateLimitNudge slot)
+    │   └── RateLimitNudge (Client — NEW, rendered on 429 for anonymous users)
+    └── ConversationInput (unchanged)
+```
+
+**Header dichotomy (logged-out vs logged-in):**
+- Logged-out (`user === null && !authLoading`): renders `LoginCta` only.
+- Logged-in (`user !== null && !authLoading`): renders `UsageMeter` + `UserMenu` (side by side, `ml-auto` group).
+
+---
+
+### New: LoginCta
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+**File:** `src/components/LoginCta.tsx`
+
+**Props:** None (stateless, reads no props)
+
+**Responsibilities:**
+- Renders a compact "Iniciar sesión" button in the `/hablar` header, `ml-auto` positioned
+  (same header slot as `UserMenu` — mutually exclusive rendering).
+- Fires `trackEvent('login_cta_shown')` on mount.
+- On click: fires `trackEvent('login_cta_clicked')` then navigates to `/login` via
+  `useRouter().push('/login')`.
+
+**Rendering condition (enforced by HablarShell):**
+- Renders when `user === null` AND `authLoading === false`.
+- Not rendered while `authLoading` (prevents CTA flash during session resolution — same
+  pattern as `UserMenu` which returns null for null user).
+- Not rendered when `user !== null` (logged-in users see UserMenu instead).
+
+**Styling:**
+- `<button type="button">` height 32px, consistent with UserMenu avatar button height.
+- Focus ring: `focus:ring-2 focus:ring-brand-green focus:ring-offset-2` (matches UserMenu).
+- Spanish copy: "Iniciar sesión" as visible label; `aria-label="Iniciar sesión o registrarse"`.
+
+**Loading/Error/Empty States:**
+- Loading (authLoading): renders null — no layout shift.
+- No error states (navigation failure is silent — router.push rarely fails).
+
+**Accessibility:**
+- `<button type="button" aria-label="Iniciar sesión o registrarse">` — screen reader friendly.
+
+**Telemetry:**
+| Event | Trigger | Payload |
+|-------|---------|---------|
+| `login_cta_shown` | Component mount | `{}` |
+| `login_cta_clicked` | Button click | `{}` |
+
+---
+
+### New: RateLimitNudge
+
+**Type:** Primitive | **Client:** Yes (`'use client'`)
+**File:** `src/components/RateLimitNudge.tsx`
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| onSignUpClick | `() => void` | Yes | — | Callback fired when CTA button is clicked |
+
+**Responsibilities:**
+- Renders below the rate-limit error message when `showRateLimitNudge === true` and
+  `user === null` (anonymous user hit daily query limit).
+- Spanish copy: "Regístrate gratis y obtén el doble de consultas diarias (100 en lugar de 50)."
+- CTA button: "Crear cuenta gratis" — calls `onSignUpClick`.
+- Fires `trackEvent('rate_limit_nudge_shown')` on mount.
+- Does NOT replace the existing error message — renders as an additional prompt below it.
+
+**Loading/Error/Empty States:**
+- No loading state (stateless).
+- Not rendered for logged-in users regardless of 429 (guard in HablarShell).
+
+**Accessibility:**
+- Outer wrapper: `role="status"` so screen readers announce the nudge when it appears.
+- CTA: `<button type="button">` with focus ring.
+
+**Telemetry:**
+| Event | Trigger | Payload |
+|-------|---------|---------|
+| `rate_limit_nudge_shown` | Component mount | `{}` |
+| `rate_limit_nudge_clicked` | CTA button click | `{}` |
+
+---
+
+### New: UsageMeter
+
+**Type:** Feature | **Client:** Yes (`'use client'`)
+**File:** `src/components/UsageMeter.tsx`
+
+**Props:** None (fetches own data via `GET /me/usage`)
+
+**Responsibilities:**
+- Renders a compact daily-usage indicator in the `/hablar` header, adjacent to `UserMenu`
+  (same header slot — mutually exclusive with `LoginCta`).
+- Displayed for logged-in users only (`user !== null && !authLoading`). Not rendered for
+  anonymous or loading states.
+- Fetches `GET /me/usage` (with `Authorization: Bearer <token>`) on component mount.
+- Refreshes by re-fetching `GET /me/usage` after each successful query, photo, or voice
+  interaction (HablarShell signals completion via a refresh callback or effect dependency).
+- Fires `trackEvent('usage_meter_shown')` on first successful data render.
+
+**Display — per bucket (queries, photos, voice):**
+- Shows `used / limit` for each bucket. Example: "12 / 100 consultas".
+- For `tier = admin`: renders `∞` in place of the numeric limit (bucket `limit === null`).
+- Compact layout — inline or tooltip; exact visual treatment is implementation-defined.
+
+**Loading/Error/Empty States:**
+- Loading (initial fetch in flight): renders null or a minimal skeleton — no layout shift.
+- Fetch failure (network error, non-200 response): renders null silently — does NOT block
+  the rest of the header (graceful degrade). No error toast for this component.
+- Empty (no usage yet): shows `0 / limit` — normal display path.
+
+**Accessibility:**
+- Outer wrapper: `role="status"` so screen readers announce updates when counters refresh.
+- Visual label per bucket uses accessible text (not icon-only). `aria-label` on the wrapper:
+  `"Uso diario: X de Y consultas, X de Y fotos, X de Y voz"` (updated on each fetch).
+
+**Telemetry:**
+| Event | Trigger | Payload |
+|-------|---------|---------|
+| `usage_meter_shown` | First successful data render (mount) | `{ tier: string }` |
+
+---
+
+### Updated: HablarShell (F-WEB-TIER additions)
+
+**File:** `src/components/HablarShell.tsx`
+
+**New state fields:**
+- `showRateLimitNudge: boolean` — true when the last error was 429 RATE_LIMIT_EXCEEDED and
+  `user === null`. Cleared on any new query attempt.
+
+**Header change:**
+Replace `{user && <UserMenu user={user} />}` (l.482) with:
+```
+{!authLoading && user  && <UserMenu user={user} />}
+{!authLoading && !user && <LoginCta />}
+```
+
+**Rate-limit error handling change:**
+In `executeQuery` catch block, when `err.code === 'RATE_LIMIT_EXCEEDED'`:
+- Set the existing error message (updated copy — omit the hardcoded "50" since tier affects limit).
+- Additionally set `showRateLimitNudge(true)` when `user === null`.
+- Clear `showRateLimitNudge` at the start of each new `executeQuery` call.
+
+**Error message copy update:**
+Current hardcoded string: `'Has alcanzado el límite diario de 50 consultas. Vuelve mañana.'`
+Updated to: `'Has alcanzado el límite diario de consultas. Vuelve mañana.'`
+(Tier-neutral — the limit varies by tier; the specific count is surfaced in the nudge.)
+
+**Funnel instrumentation additions:**
+| Event | Where | New payload fields |
+|-------|-------|--------------------|
+| `query_sent` | executeQuery start | `+ authenticated: !!user` |
+| `query_success` | executeQuery success | `+ authenticated: !!user` |
+| `photo_sent` | executePhotoAnalysis start | `+ authenticated: !!user` |
+| `photo_success` | executePhotoAnalysis success | `+ authenticated: !!user` |
+
+(`!!user` is a boolean derived from auth state — no PII transmitted.)
+
+---
+
+### Updated: apiClient.ts (F-WEB-TIER additions)
+
+**File:** `src/lib/apiClient.ts`
+
+**Change to `sendPhotoAnalysis`:**
+Attaches `Authorization: Bearer <token>` when `authToken` is non-null (mirroring the existing
+pattern in `sendMessage`). This enables the Fastify upstream to resolve `accountId` from the
+bearer and apply the account tier to photo rate limiting.
+
+When `authToken` is null (anonymous session), no `Authorization` header is sent — anonymous
+photo analysis behaviour is unchanged.
+
+---
+
+### Updated: Next.js photo proxy (F-WEB-TIER additions)
+
+**File:** `src/app/api/analyze/route.ts`
+
+**Change:**
+Forward the `Authorization` header from the incoming browser request to the Fastify upstream
+when present:
+```
+const authorization = request.headers.get('Authorization');
+if (authorization) mergedHeaders.set('Authorization', authorization);
+```
+
+**Trust boundary note:**
+- The `Authorization` header is the user's own Supabase JWT — the same token already used
+  for `POST /conversation/message`. The Fastify upstream (`actorResolver`) verifies it
+  independently via JWKS. The Next proxy does not trust or interpret the bearer; it forwards
+  it opaquely (same as it does with `X-Actor-Id` and `X-FXP-Source`).
+- `API_KEY` remains server-only and is not exposed. Bearer forwarding adds no new secrets.
+- Anonymous requests (no session, no `Authorization`) are unchanged.
+
+---
+
+### Telemetry summary (F-WEB-TIER new events)
+
+All events via existing `trackEvent()` in `packages/web/src/lib/metrics.ts`.
+
+| Event | Component | Trigger | Payload |
+|-------|-----------|---------|---------|
+| `login_cta_shown` | LoginCta | Mount | `{}` |
+| `login_cta_clicked` | LoginCta | Button click | `{}` |
+| `rate_limit_nudge_shown` | RateLimitNudge | Mount | `{}` |
+| `rate_limit_nudge_clicked` | RateLimitNudge | CTA click | `{}` |
+| `usage_meter_shown` | UsageMeter | First successful data render | `{ tier: string }` |
+| `query_sent` | HablarShell | Query submit | `+ authenticated: boolean` |
+| `query_success` | HablarShell | Query success | `+ authenticated: boolean` |
+| `photo_sent` | HablarShell | Photo submit | `+ authenticated: boolean` |
+| `photo_success` | HablarShell | Photo success | `+ authenticated: boolean` |
+
+---
+
 ### Auth Analytics Events (F107a)
 
 | Event | Trigger | Payload |
@@ -2160,3 +2395,317 @@ See `docs/operations/supabase-auth-setup.md` for full env var setup instructions
 
 All events fired via existing `trackEvent()` or `window.gtag` in `packages/web/src/lib/metrics.ts`.
 Non-PII — no email addresses in payloads.
+
+---
+
+## Web Package — nutriXplorer (F-WEB-HISTORY: Session transcript + persisted history)
+
+**Feature:** F-WEB-HISTORY | **Package:** `packages/web/` | **Added:** 2026-05-27
+
+> Design notes are in `docs/specs/design-guidelines.md` sections W15–W26. This section defines the component contract only.
+
+### Component Hierarchy
+
+```
+HablarShell (Client — feed state, append-only)
+└── TranscriptFeed (Client — UPDATED FU7: native overflow-y-auto, no Virtuoso)
+    ├── <div role="feed" overflow-y-auto> (native scroll container, ADR-030)
+    │   ├── Leading children (ClearHistoryButton, load skeleton, empty states, nudge, sr-only keyboard button)
+    │   ├── entries.map → TranscriptEntry[] (Client — renders one per query+result pair)
+    │   │   ├── EntryHeader (internal — query echo + timestamp + delete button)
+    │   │   │   └── DeleteEntryButton (Client — inline confirm)
+    │   │   └── [result body: NutritionCard / ContextConfirmation / MenuDishList / ErrorState]
+    │   └── HistoryPersistenceNudge (Client — anonymous only, ≥2 entries)
+    ├── HistoryEmptyState (Client — logged-in only, no entries)
+    └── ClearHistoryButton (Client — logged-in only, modal confirm)
+```
+
+---
+
+### TranscriptEntryData (client-only type, not a component)
+
+**File:** `src/types/history.ts` (or co-located in `HablarShell.tsx`)
+
+This is the in-memory representation of one query+result pair in the feed. It is NOT a Zod schema (it lives only in the web package). The `useSearchHistory` hook maps `SearchHistoryEntry` (shared schema) into this shape; `HablarShell` also constructs it for new session queries.
+
+```typescript
+interface TranscriptEntryData {
+  // Stable ID. For persisted entries: search_history.id (UUID).
+  // For session-only entries: a client-generated UUID (crypto.randomUUID()).
+  entryId: string;
+
+  // The user-submitted query (text input or Whisper transcript).
+  queryText: string;
+
+  // Input modality. 'photo' entries are session-only (never persisted, never fetched).
+  inputMode: 'text' | 'voice' | 'photo';
+
+  // Wall-clock time of the query (for persisted entries: search_history.created_at).
+  timestamp: Date;
+
+  // True for entries loaded from GET /history (pre-loaded or infinite-scroll).
+  // False for entries created during the current browser session.
+  // Controls "Guardado" badge display and delete affordance (only persisted entries have server IDs).
+  isPersisted: boolean;
+
+  // True while the API response is in-flight (shows shimmer card).
+  isLoading: boolean;
+
+  // The result payload from the API. Null while loading or on error.
+  result: import('@foodxplorer/shared').ConversationMessageData | null;
+
+  // Per-entry error (set when the API call fails). Null otherwise.
+  error: string | null;
+}
+```
+
+---
+
+### TranscriptFeed
+
+**Type:** Feature | **Client:** Yes
+
+**Props (updated — F-WEB-HISTORY-FU7, ADR-030):**
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `entries` | `TranscriptEntryData[]` | Yes | — | Ordered list (oldest first). Managed by HablarShell. |
+| `isAuthenticated` | `boolean` | No | `false` | Controls "Guardado" badge and ClearHistoryButton visibility. |
+| `isLoadingHistory` | `boolean` | No | `false` | True while initial history fetch is in flight (consumed by HablarShell mount gate, not TranscriptFeed directly). |
+| `hasMoreHistory` | `boolean` | No | `false` | False when API returns empty page (hides load-more affordance). |
+| `isLoadingMore` | `boolean` | No | `false` | True while older entries are being prepended (scroll-triggered). |
+| `showPersistenceNudge` | `boolean` | No | `false` | Show `HistoryPersistenceNudge` after ≥2 anon entries. |
+| `onDismissPersistenceNudge` | `() => void` | No | — | Dismiss callback for `HistoryPersistenceNudge`. |
+| `onLoadMore` | `() => void` | No | — | Triggered when sentinel at top enters viewport. |
+| `onDeleteEntry` | `(entryId: string) => void` | No | — | Signals HablarShell to remove an entry from state. |
+| `onClearAll` | `() => void` | No | — | Signals HablarShell to clear all persisted history. |
+| `onRetry` | `(entryId: string) => void` | No | — | Retry handler for error entries. |
+| `onDishSelect` | `(dish: MenuDish) => void` | No | — | Passed through to MenuDishList entries. |
+
+Note: `firstItemIndex` is **DROPPED** from props (no longer needed without Virtuoso).
+
+**Architecture (F-WEB-HISTORY-FU7 — native scroll, ADR-030):**
+
+`TranscriptFeed` renders a plain scrollable `<div>` — no `react-virtuoso`. This is an ADR-030 reversal of the FU6 Virtuoso architecture; see `docs/project_notes/decisions.md` ADR-030 and `docs/tickets/F-WEB-HISTORY-FU7-rebuild-scroll-wrapper.md` for rationale.
+
+**Scroll container:**
+
+```html
+<div
+  className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full"
+  role="feed"
+  aria-label="Historial de consultas"
+  onScroll={handleScroll}
+  ref={feedRef}
+>
+```
+
+- `flex-1 overflow-y-auto` — fills remaining shell height; owns the scroll viewport.
+- `overscroll-contain` — prevents scroll chaining to the page on iOS/Android.
+- `-webkit-overflow-scrolling: touch` — iOS momentum scroll (applied via globals.css or inline style).
+- `lg:max-w-2xl lg:mx-auto w-full` — desktop centering; preserves single-column layout (design-guidelines.md W16).
+- No `padding-bottom` clearance — in-column `ConversationInput` eliminates the overlay/clearance problem entirely.
+
+**Internal refs (3 total — FU7 architecture):**
+- `feedRef` — `React.useRef<HTMLDivElement>` on the scroll container; used for imperative scroll.
+- `wasNearBottomRef` — `boolean`; updated on every `onScroll`: `true` when `scrollHeight - scrollTop - clientHeight < 100px`. Guards auto-scroll on entry settle.
+- `prevLastLoadingRef` — tracks previous `isLoading` state of the last entry; settle is detected when this flips `true → false`.
+
+**Pin-aware auto-scroll on entry settle:**
+- On settle (last entry `isLoading` transitions `true → false`): if `wasNearBottomRef.current`, fire `requestAnimationFrame(() => { el.scrollTop = el.scrollHeight })`. Direct assignment — NOT `behavior: 'smooth'`.
+- On mount: `el.scrollTop = el.scrollHeight` (scroll to newest entry on initial load; sets `wasNearBottomRef.current = true`).
+- If the user has scrolled up (>100px from bottom), `wasNearBottomRef.current` is `false` and no scroll fires — their viewport is preserved.
+
+**Prepend anchoring (load-more, SPEC-DEFINED):**
+Before `onLoadMore` resolves, save `el.scrollHeight - el.scrollTop`. After new entries arrive, restore `el.scrollTop = el.scrollHeight - savedDelta`. This replaces Virtuoso's `firstItemIndex` mechanism. Prevents the visible entry from jumping when older entries are prepended above.
+
+**Leading content (top of scroll container, before entries):**
+Rendered as leading `div` children (NOT via a Virtuoso `components.Header` slot):
+- sr-only keyboard "Cargar más historial" button (when `hasMoreHistory && !isLoadingMore`)
+- Loading skeleton with `aria-busy="true"` (when `isLoadingMore`)
+- `ClearHistoryButton` (when `isAuthenticated && hasPersisted`)
+- `HistoryPersistenceNudge` (when `showPersistenceNudge`)
+- `HistoryEmptyState` (when `isEmpty && isAuthenticated`)
+- `EmptyState` (when `isEmpty && !isAuthenticated`)
+
+**Mount gate (HablarShell):**
+HablarShell renders a `role="feed" aria-busy="true"` placeholder div while `authLoading || (user && isLoadingHistory)`. `TranscriptFeed` is NOT mounted during this gate. Once the gate opens, `TranscriptFeed` mounts once with the full hydrated `entries` array, and `el.scrollTop = el.scrollHeight` fires on mount.
+
+**Accessibility (two-phase semantics):**
+- **Gate phase** (placeholder): `role="feed" aria-busy="true" aria-label="Historial de consultas"` — rendered by HablarShell.
+- **Post-gate** (feed active): `role="feed" aria-label="Historial de consultas"` — NO `aria-busy` on root; `aria-busy` scoped to the load-more skeleton div during `isLoadingMore`.
+
+---
+
+### TranscriptEntry
+
+**Type:** Feature | **Client:** Yes
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `entryId` | `string` | Yes | — | Stable ID for delete operations. |
+| `queryText` | `string` | Yes | — | The user's original query (shown in echo header). |
+| `inputMode` | `'text' \| 'voice' \| 'photo'` | Yes | — | Controls modality icon in header. |
+| `timestamp` | `Date` | Yes | — | Time of query. Rendered as "HH:mm" (today) or "DD MMM · HH:mm" (prior days). |
+| `isPersisted` | `boolean` | No | `false` | Shows "Guardado" badge on the header when true. |
+| `isLoading` | `boolean` | No | `false` | Shows shimmer result body (in-flight query). |
+| `onDelete` | `(entryId: string) => void` | No | — | Propagates delete to parent. |
+| `children` | `React.ReactNode` | Yes | — | The result body: existing cards, ErrorState, or shimmer. |
+
+**Accessibility:**
+- `role="article"` `aria-label="{queryText truncated to 60 chars} — resultado"`
+
+---
+
+### DeleteEntryButton
+
+**Type:** Primitive | **Client:** Yes
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `entryId` | `string` | Yes | — | Forwarded to `onConfirm`. |
+| `queryText` | `string` | Yes | — | Used in `aria-label` for screen readers. |
+| `onConfirm` | `(entryId: string) => void` | Yes | — | Called after user confirms deletion. |
+
+**State:**
+- `confirmState: 'idle' | 'confirming'` — toggles between trash icon and inline confirm row.
+- Auto-reverts to `'idle'` after 5000ms of inactivity via `setTimeout`.
+
+**Accessibility:**
+- Trash icon button: `aria-label="Eliminar consulta: {queryText truncated to 40 chars}"`
+- Cancel button: `aria-label="Cancelar eliminación"`
+- Confirm button: `aria-label="Confirmar eliminación"`
+- Escape key: reverts to `'idle'`.
+
+---
+
+### ClearHistoryButton
+
+**Type:** Feature | **Client:** Yes
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `onConfirm` | `() => void` | Yes | — | Called after modal "Borrar todo" is confirmed. |
+
+**State:**
+- `isDialogOpen: boolean`
+
+**Accessibility:**
+- `role="alertdialog"` `aria-modal="true"` `aria-labelledby="clear-history-dialog-title"` on dialog.
+- Focus: trap inside dialog while open. Initial focus on Cancel button.
+- Escape: closes dialog.
+- Focus return: to `ClearHistoryButton` trigger on close.
+
+---
+
+### HistoryPersistenceNudge
+
+**Type:** Feature | **Client:** Yes
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `onSignUpClick` | `() => void` | Yes | — | Navigates to `/login`. |
+| `onDismiss` | `() => void` | Yes | — | Hides the nudge for the session. |
+
+**Rendering condition:** rendered by `TranscriptFeed` only when `showPersistenceNudge === true`. Never rendered when `isAuthenticated === true`.
+
+---
+
+### HistoryEmptyState
+
+**Type:** Feature | **Client:** No (Server Component)
+
+**Props:** none — pure presentational.
+
+**Rendering condition:** rendered by `TranscriptFeed` when `isAuthenticated === true` and `entries.length === 0`.
+
+**Do NOT** merge with the existing `EmptyState` component — they address different states (anonymous first-use vs logged-in no-history) and may diverge in copy or imagery.
+
+---
+
+### New: useSearchHistory hook (F-WEB-HISTORY)
+
+**Type:** Hook | **Client:** Yes
+**File:** `src/hooks/useSearchHistory.ts`
+
+Encapsulates all server history interactions: initial mount fetch (`GET /history?limit=10`), infinite-scroll backwards (`GET /history?cursor=<next>`), per-entry delete (`DELETE /history/{id}`), and clear-all (`DELETE /history`). Called by `HablarShell` when `user !== null`. Returns empty/no-op state when `user === null` so `HablarShell` does not need conditional hook calls.
+
+**Parameters:**
+
+| Param | Type | Description |
+|---|---|---|
+| `authToken` | `string \| null` | Bearer token from `useAuth()`. Null → hook is a no-op. |
+
+**Returns:**
+
+```typescript
+{
+  persistedEntries: TranscriptEntryData[];  // Entries from server, oldest-first after reversal.
+  hasMoreHistory: boolean;                  // False when nextCursor is null.
+  isLoadingMore: boolean;                   // True while a cursor fetch is in-flight.
+  loadMore: () => void;                     // Call to fetch the next older page.
+  deleteEntry: (entryId: string) => Promise<void>;  // Calls DELETE /history/{id}; removes from local state optimistically.
+  clearAll: () => Promise<void>;            // Calls DELETE /history; empties persistedEntries.
+}
+```
+
+**Mount behavior:** On first render with a non-null `authToken`, fires `GET /history?limit=10`. On success, sets `persistedEntries` (reversed to oldest-first). On 4xx/5xx, logs warning and returns `persistedEntries: []` (graceful degradation — session feed still works).
+
+**`loadMore` behavior:** Increments page cursor. Called by `TranscriptFeed`'s `onScroll` handler when `el.scrollTop < 100` (per ADR-030 FU7 — replaces FU6 Virtuoso `startReached` prop and earlier `HistoryLoadMoreSentinel` IntersectionObserver). Fires `GET /history?cursor=<nextCursor>&limit=10`. Prepends results to `persistedEntries`. Sets `hasMoreHistory: false` when `nextCursor` is null. Includes synchronous `loadMoreInFlightRef` dedup guard against rapid double-fire before React commits `isLoadingMore=true`.
+
+**`deleteEntry` behavior:** Calls `DELETE /history/{id}`. Removes the entry from `persistedEntries` optimistically before the request resolves. On 404 (already gone), the entry was already removed — no-op. On other errors, log warning (do not re-add the entry to state — the user's intent was to delete it).
+
+**`clearAll` behavior:** Calls `DELETE /history`. On 204, sets `persistedEntries: []`.
+
+---
+
+### Updated: HablarShell (F-WEB-HISTORY + FU6 additions)
+
+**File:** `src/components/HablarShell.tsx`
+
+**State changes:**
+
+| Old state | New state | Notes |
+|---|---|---|
+| `results: ConversationMessageData \| null` | `sessionEntries: TranscriptEntryData[]` (FU6) | Session-owned slice; never includes persisted entries |
+| `photoResults: MenuAnalysisData \| null` | merged into `sessionEntries` | Photo results become `inputMode: 'photo'` entries |
+| `error: string \| null` | per-entry error in `TranscriptEntryData` | Errors are scoped to the entry that produced them |
+| `isLoading: boolean` | per-entry `isLoading` in the in-flight entry | The in-flight entry shows shimmer; resolved entries show result cards |
+| `entries: TranscriptEntryData[]` (pre-FU6 unified) | `allEntries = useMemo([persistedEntries, sessionEntries])` (FU6) | Synchronous derivation; no `useEffect` mirror |
+
+**FU6 state split:**
+- `sessionEntries` — local state for in-flight/session entries (append/settle/remove).
+- `persistedEntries` — from `useSearchHistory` directly (no local mirror).
+- `allEntries = useMemo([persistedEntries, sessionEntries])` — passed to `TranscriptFeed`.
+- Mount gate: when `authLoading || (user && isLoadingHistory)`, HablarShell renders a placeholder div instead of `<TranscriptFeed>`. This ensures the native scroll container mounts exactly once with the full hydrated array (FU7 ADR-030 — was "Virtuoso mounts" in FU6).
+- `handleClearAll()` calls ONLY `clearPersistedHistory()` — `sessionEntries` is NOT cleared (AC2 sub-bullet).
+
+**New state:**
+- `historyPage: number` — cursor for backwards infinite scroll.
+- `hasMoreHistory: boolean` — false when server returns empty page.
+- `isLoadingMoreHistory: boolean` — true while fetching older entries.
+- `showPersistenceNudge: boolean` — set to `true` when `allEntries.length >= 2` and `user === null`.
+
+**Key behavioral changes:**
+- `executeQuery` appends a new `TranscriptEntryData` with `isLoading: true` immediately (optimistic echo), then populates `result` or `error` when the request settles.
+- `executePhotoAnalysis` follows the same pattern — photo results appear as an entry with `inputMode: 'photo'`, never persisted.
+- Voice result (`voiceSession.state === 'done'`) also appends an entry with `inputMode: 'voice'`.
+- On mount (authenticated): fetch most recent ~10 persisted entries and prepend them to `entries` with `isPersisted: true`.
+
+---
+
+### Telemetry summary (F-WEB-HISTORY new events)
+
+| Event | Trigger | Payload |
+|-------|---------|---------|
+| `history_entry_deleted` | `DeleteEntryButton.onConfirm` | `{ entryId: string, inputMode: 'text' \| 'voice' }` |
+| `history_cleared` | `ClearHistoryButton.onConfirm` | `{}` |
+| `history_loaded` | mount fetch resolves (authenticated) | `{ count: number }` |
+| `history_load_more` | sentinel fires `onLoadMore` | `{ page: number }` |
+| `history_persistence_nudge_shown` | `HistoryPersistenceNudge` mount | `{}` |
+| `history_persistence_nudge_cta` | "Crear cuenta gratis" clicked | `{}` |
+| `history_persistence_nudge_dismissed` | dismiss `×` clicked | `{}` |

@@ -139,13 +139,20 @@ These are the key UI components for /hablar. All components inherit base styles 
 
 ### 4.1 ConversationInput
 
-The primary input bar, fixed at the bottom of the viewport on mobile. Contains the text field, mic button, and photo button in a horizontal row.
+The primary input bar. Sits at the natural bottom of the flex column — NOT `position: fixed`. Contains the text field, mic button, and photo button in a horizontal row.
 
 ```
-Layout: fixed bottom-0 left-0 right-0
+Layout: flex-shrink-0 w-full (in-column, NOT fixed bottom-0)
 Background: bg-white border-t border-slate-200
 Padding: px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))]
+  (iOS safe area inset retained — required for home indicator clearance)
 Blur backdrop: backdrop-blur-sm (for content scrolling underneath)
+
+Note (ADR-030, F-WEB-HISTORY-FU7): position: fixed bottom-0 is REMOVED.
+The composer is a flex-shrink-0 block sibling inside h-[100dvh] flex-col.
+Safari iOS raises the dvh viewport on keyboard open, so the in-column
+composer naturally stays above the keyboard without fixed positioning.
+Empirically validated on real iPhone Safari (2026-06-09 prototype test).
 
 Inner row: flex items-center gap-2
 
@@ -418,19 +425,29 @@ Full viewport height: h-[100dvh] (use dvh not vh — avoids browser chrome overl
 
 Structure (top to bottom):
   ┌─────────────────────────────┐
-  │  AppBar (optional, ~52px)   │  fixed top, only if needed
+  │  AppBar (~52px, flex-shrink-0) │  in-flow, always at top
   ├─────────────────────────────┤
   │                             │
-  │   ResultsArea (flex-1)      │  scrollable, padding-bottom for input bar
+  │   TranscriptFeed (flex-1)   │  scrollable feed (overflow-y: auto)
   │                             │
   ├─────────────────────────────┤
-  │   ConversationInput (~68px) │  fixed bottom
+  │  RateLimitNudge (optional)  │  flex-shrink-0 sibling, only on anon 429
+  ├─────────────────────────────┤
+  │  ConversationInput          │  flex-shrink-0 in-column (NOT fixed)
   └─────────────────────────────┘
 
-ResultsArea:
+TranscriptFeed:
   overflow-y: auto
-  padding-bottom: 84px (height of ConversationInput + safe area)
+  overscroll-behavior: contain
   -webkit-overflow-scrolling: touch
+  No padding-bottom clearance — in-column composer eliminates the need.
+  Desktop centering: lg:max-w-2xl lg:mx-auto w-full
+  (ADR-030, F-WEB-HISTORY-FU7: native <div> scroll, not react-virtuoso)
+
+RateLimitNudge (conditional sibling):
+  flex-shrink-0 px-4 pb-2
+  Renders only for anonymous users who received a 429. Not inside the feed.
+  Shrinks the feed area naturally via flex layout when active.
 
 AppBar (if present):
   height: 52px

@@ -301,7 +301,7 @@ This criterion must be checked off at Step 6 (deploy), not at code-merge.
 - [x] No linting errors
 - [x] Build succeeds
 - [x] Specs reflect final implementation (api-spec.yaml + ui-components.md updated)
-- [~] Operator E2E smoke (AC19) — dev template updated by operator 2026-05-25 (uses `app-dev.nutrixplorer.com`); pending user dev login re-test to confirm empirically. Prod template + prod smoke coordinated with the develop→main release bundle.
+- [x] Operator E2E smoke (AC19) — CONFIRMED dev + prod 2026-05-25. Dev: real magic link `app-dev.nutrixplorer.com/auth/callback?token_hash=…&type=email` → `/hablar` logged in. Prod: released via PR #290 (`cf906b8`), prod template updated, real login on `app.nutrixplorer.com` → `/hablar` confirmed by user. api-prod smoke green (`/health?db=true` 200, `/auth/login` 503 on fake email = path OK).
 
 ---
 
@@ -330,6 +330,8 @@ This criterion must be checked off at Step 6 (deploy), not at code-merge.
 | 2026-05-21 | Review (Step 5) | `code-review-specialist` APPROVE (0 BLOCKER/MAJOR; 2 MINOR + 2 NIT). `qa-engineer` QA VERIFIED (+16 edge-case tests in `callback.edge-cases.test.ts`; AC1–AC18 covered, 1 informational empty-`?error=` note, no fix needed). Polish applied: extracted `rethrowIfRedirect()` shared helper, dropped redundant `as EmailOtpType` cast + unused import. Web suite 576/576 post-polish. |
 | 2026-05-25 | Merge (Step 5→6) | PR #288 CI green (`ci-success` SUCCESS, `test-web` SUCCESS, others path-skipped; UNSTABLE = Vercel preview only). `/audit-merge` structural 11/11 + drift CLEAN. User merge-approved. Squash-merged to develop at `816799e`; feature branch deleted local + remote. |
 | 2026-05-25 | Step 6 housekeeping | Status → Done; tracker + pm-session synced. Operator updated the Supabase **dev** Magic Link template to `app-dev.nutrixplorer.com/auth/callback?token_hash={{ .TokenHash }}&type=email`. **AC19 dev smoke pending user re-test.** Prod template + prod smoke deferred to the develop→main release bundle (coordinated deploy + template change). |
+| 2026-05-25 | AC19 dev confirmed | User re-tested dev login: real magic link arrived as `app-dev.nutrixplorer.com/auth/callback?token_hash=…&type=email` → `verifyOtp` → `/hablar` logged in. Dev half of AC19 closed empirically. |
+| 2026-05-25 | Release + AC19 prod confirmed | Auth shipped to **production** in the develop→main release bundle (PR #290 merge commit `cf906b8`, 14 commits). api-prod auto-redeployed (~180s, Node 20 + ws transport OK): `/health?db=true` 200, `/auth/login` 503 on fake email (path works). web prod `app.nutrixplorer.com/login` 200, `/auth/callback` dispatch live. Operator updated the **prod** Supabase Magic Link template. User confirmed real prod login → `/hablar`. **AC19 fully closed (dev + prod).** F107a-FU3 COMPLETE. |
 
 ---
 
