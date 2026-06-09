@@ -315,11 +315,15 @@ export function TranscriptEntry({
           </span>
         )}
 
-        {/* Query text — FU6-FU2: min-w-0 is required for `truncate` to engage
-            inside a flex container (default min-width:auto would let the span's
-            intrinsic content width push the parent wider than the viewport). */}
+        {/* Query text — BUG-WEB-FU7-HEADER-AND-MOBILE-SCROLL Bug 2:
+            `line-clamp-2` caps to 2 lines (replaces single-line `truncate`).
+            `min-w-0` still required for clamp to engage inside the flex row
+            (default min-width:auto would let the span's intrinsic content
+            push the parent wider than the viewport). `break-words` handles
+            very long unbroken tokens (URLs etc) without horizontal overflow.
+            Owner UX: 2 lines + ellipsis preserves header strip height bounds. */}
         <span
-          className="text-sm font-medium text-slate-600 truncate flex-1 min-w-0"
+          className="text-sm font-medium text-slate-600 line-clamp-2 flex-1 min-w-0 break-words"
           title={entry.queryText}
         >
           {entry.queryText}

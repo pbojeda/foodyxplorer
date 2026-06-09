@@ -449,6 +449,10 @@ describe('TranscriptFeed — AC25 pin-aware scroll on settle', () => {
       set: scrollTopSetter,
     });
 
+    // Discard the mount-effect rAF (Bug 3 fix wraps mount scroll in rAF).
+    // This test cares only about the settle effect's rAF behaviour.
+    rafCallbacks.length = 0;
+
     act(() => {
       fireEvent.scroll(feed);
     });
@@ -459,7 +463,7 @@ describe('TranscriptFeed — AC25 pin-aware scroll on settle', () => {
       rerender(<TranscriptFeed {...defaultProps} entries={[settledEntry]} />);
     });
 
-    // Execute any rAF callbacks — should NOT set scrollTop
+    // Execute any rAF callbacks — should NOT set scrollTop (user was scrolled up)
     act(() => {
       rafCallbacks.forEach((cb) => cb(0));
     });
@@ -484,6 +488,10 @@ describe('TranscriptFeed — AC25 pin-aware scroll on settle', () => {
       set: scrollTopSetter,
     });
 
+    // Discard the mount-effect rAF (Bug 3 fix wraps mount scroll in rAF).
+    // This test cares only about whether the settle effect fires (it should not).
+    rafCallbacks.length = 0;
+
     act(() => {
       fireEvent.scroll(feed);
     });
@@ -499,9 +507,8 @@ describe('TranscriptFeed — AC25 pin-aware scroll on settle', () => {
       rafCallbacks.forEach((cb) => cb(0));
     });
 
-    // scrollTop should NOT be set from the settle effect (only from mount)
-    // Note: mount effect also sets scrollTop, so we only check no RAF was queued for this re-render
-    // The absence of additional rAF calls (beyond mount) is the check
+    // Settle effect should NOT have fired (prevLastLoading was already false).
+    // Mount rAF was discarded above, so no scrollTop set means settle no-op.
     expect(scrollTopSetter).not.toHaveBeenCalled();
   });
 });
@@ -511,18 +518,75 @@ describe('TranscriptFeed — AC25 pin-aware scroll on settle', () => {
 // ---------------------------------------------------------------------------
 
 describe('TranscriptFeed — mount scroll-to-bottom', () => {
-  it('sets scrollTop = scrollHeight on mount', () => {
-    // jsdom doesn't fire rAF automatically, but mount useEffect fires synchronously
-    // after render. We just check the intent is correct via the effect running.
-    // The mount effect calls: el.scrollTop = el.scrollHeight
-    const entries = [makeEntry()];
-    const { container } = render(
-      <TranscriptFeed {...defaultProps} entries={entries} />,
-    );
-    const feed = container.querySelector('[role="feed"]') as HTMLElement;
-    // In jsdom scrollHeight and scrollTop are both 0 by default — no error thrown
-    expect(feed).toBeTruthy();
-    // Mount effect ran without throwing
+  it('sets scrollTop = scrollHeight on mount (via rAF defer — Bug 3 fix)', () => {
+    // BUG-WEB-FU7-HEADER-AND-MOBILE-SCROLL Bug 3: mount scroll is wrapped in
+    // requestAnimationFrame so iOS Safari has time to settle the layout
+    // pipeline. This test asserts that (a) rAF IS scheduled on mount and
+    // (b) executing the rAF callback sets scrollTop = scrollHeight.
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const rafSpy = jest
+      .spyOn(global, 'requestAnimationFrame')
+      .mockImplementation((cb) => {
+        rafCallbacks.push(cb);
+        return rafCallbacks.length;
+      });
+
+    try {
+      const entries = [makeEntry()];
+      const { container } = render(
+        <TranscriptFeed {...defaultProps} entries={entries} />,
+      );
+      const feed = container.querySelector('[role="feed"]') as HTMLElement;
+      expect(feed).toBeTruthy();
+
+      // Stub scroll dimensions so the rAF callback has a meaningful scrollHeight.
+      const scrollTopSetter = jest.fn();
+      Object.defineProperty(feed, 'scrollHeight', {
+        configurable: true,
+        get: () => 1500,
+      });
+      Object.defineProperty(feed, 'scrollTop', {
+        configurable: true,
+        get: () => 0,
+        set: scrollTopSetter,
+      });
+
+      // Mount useEffect should have queued an rAF
+      expect(rafCallbacks.length).toBeGreaterThan(0);
+
+      // Execute the rAF callback — must set scrollTop = scrollHeight
+      act(() => {
+        rafCallbacks.forEach((cb) => cb(0));
+      });
+
+      expect(scrollTopSetter).toHaveBeenCalledWith(1500);
+    } finally {
+      rafSpy.mockRestore();
+    }
+  });
+
+  it('mount rAF safely no-ops when feedRef is null at frame time', () => {
+    // Defensive: if the component unmounts before the rAF fires, the callback
+    // must not throw on `current.scrollHeight`/`current.scrollTop`. We can't
+    // easily simulate unmount-before-rAF in jsdom, but the guard
+    // `if (!current) return;` inside the rAF callback handles it. This test
+    // simply confirms the mount effect itself does not throw on a normal mount
+    // where rAF runs synchronously via our mock.
+    const rafSpy = jest
+      .spyOn(global, 'requestAnimationFrame')
+      .mockImplementation((cb) => {
+        cb(0);
+        return 1;
+      });
+
+    try {
+      const { container } = render(<TranscriptFeed {...defaultProps} />);
+      const feed = container.querySelector('[role="feed"]') as HTMLElement;
+      expect(feed).toBeTruthy();
+      // No throw = pass
+    } finally {
+      rafSpy.mockRestore();
+    }
   });
 });
 

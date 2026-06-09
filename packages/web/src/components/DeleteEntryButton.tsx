@@ -102,7 +102,7 @@ export function DeleteEntryButton({
     <button
       type="button"
       aria-label={`Eliminar consulta: ${truncatedQuery}`}
-      className="p-1.5 rounded-md text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1 opacity-60 md:opacity-0 md:group-hover:opacity-100"
+      className="p-1.5 rounded-md text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all duration-150 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1 opacity-60 hover:opacity-100 focus-visible:opacity-100 group-hover:opacity-100"
       onClick={handleTrashClick}
     >
       {/* Trash icon — 16px, stroke 1.5, aria-hidden */}

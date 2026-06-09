@@ -93,6 +93,28 @@ describe('TranscriptEntry', () => {
     expect(screen.getByText('tortilla española')).toBeInTheDocument();
   });
 
+  // BUG-WEB-FU7-HEADER-AND-MOBILE-SCROLL Bug 2: query echo wraps to 2 lines
+  // (no longer single-line ellipsis via `truncate`)
+  it('Bug 2 fix: query text span uses line-clamp-2 (2-line wrap), not truncate', () => {
+    render(<TranscriptEntry entry={makeEntry({ queryText: 'tortilla española' })} />);
+    const span = screen.getByText('tortilla española');
+    // Bug 2 fix: classes that allow 2-line wrap + bounded height
+    expect(span.className).toContain('line-clamp-2');
+    expect(span.className).toContain('break-words');
+    expect(span.className).toContain('min-w-0');
+    // Regression guard: must NOT be the single-line `truncate` class
+    expect(span.className).not.toMatch(/\btruncate\b/);
+  });
+
+  // BUG-WEB-FU7-HEADER-AND-MOBILE-SCROLL Bug 2: title attribute preserves
+  // full text on hover (existing behavior unchanged by the className swap)
+  it('Bug 2 fix: title attribute still exposes full query text on hover', () => {
+    const longQuery = 'una consulta extremadamente larga que excedería dos líneas en pantalla típica de móvil y desktop';
+    render(<TranscriptEntry entry={makeEntry({ queryText: longQuery })} />);
+    const span = screen.getByText(longQuery);
+    expect(span).toHaveAttribute('title', longQuery);
+  });
+
   // AC33: "Guardado" badge only for isPersisted entries
   it('AC33: "Guardado" badge shown for isPersisted=true', () => {
     render(<TranscriptEntry entry={makeEntry({ isPersisted: true })} />);
