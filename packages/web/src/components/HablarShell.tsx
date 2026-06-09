@@ -638,7 +638,7 @@ export function HablarShell() {
           role="feed"
           aria-busy="true"
           aria-label="Historial de consultas"
-          className="flex-1 overflow-y-auto overflow-x-hidden px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full"
+          className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full"
         />
       ) : (
         /* Transcript feed — scrollable, replaces ResultsArea */

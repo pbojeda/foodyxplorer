@@ -111,8 +111,18 @@ export function TranscriptFeed({
     if (!el) return;
 
     if (isLoadingMore) {
-      // Save current position delta before list grows
-      savedScrollDeltaRef.current = el.scrollHeight - el.scrollTop;
+      // Save current position delta before list grows.
+      // FIRST-WRITE-WINS guard (qa-engineer FU7 QA pass RACE-1, 2026-06-09):
+      // React 18 may produce an intermediate commit where `entries` already
+      // grew (from `useSearchHistory.loadMore` .then()) but `isLoadingMore`
+      // is still `true` (the `.finally()` setState hasn't committed yet).
+      // Without the null-guard, this effect would overwrite the original
+      // delta with one computed against the now-larger scrollHeight — the
+      // restore would then snap the user back to the wrong position. The
+      // guard ensures we only capture the PRE-loadMore scroll state.
+      if (savedScrollDeltaRef.current === null) {
+        savedScrollDeltaRef.current = el.scrollHeight - el.scrollTop;
+      }
     } else if (savedScrollDeltaRef.current !== null) {
       // Restore: scrollTop = newScrollHeight - savedDelta
       el.scrollTop = el.scrollHeight - savedScrollDeltaRef.current;
@@ -158,7 +168,7 @@ export function TranscriptFeed({
       ref={feedRef}
       role="feed"
       aria-label="Historial de consultas"
-      className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full"
+      className="relative flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:max-w-2xl lg:mx-auto w-full"
       onScroll={handleScroll}
     >
       {/* Keyboard fallback: sr-only focusable "Cargar más historial" (AC24, W23) */}
