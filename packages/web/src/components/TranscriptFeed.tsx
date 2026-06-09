@@ -74,11 +74,24 @@ export function TranscriptFeed({
   // ---------------------------------------------------------------------------
   // Mount: scroll to bottom + initialize wasNearBottomRef
   // ---------------------------------------------------------------------------
+  // BUG-WEB-FU7-HEADER-AND-MOBILE-SCROLL Bug 3 fix (2026-06-09):
+  // Defer the scroll assignment to the next animation frame. Reading
+  // `scrollHeight` synchronously on mount yields a stale value on iOS Safari
+  // because the layout pipeline (NutritionCard content + font swap + lazy
+  // images) keeps growing the container post-commit — landing the user
+  // mid-feed. Same defer pattern as the settle effect below. Desktop browsers
+  // already settled within the effect tick (operator-confirmed on FU7 reverify).
+  // Re-checking `feedRef.current` inside the rAF callback guards against an
+  // unmount between commit and frame; cheap defensive check.
   useEffect(() => {
     const el = feedRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
-    wasNearBottomRef.current = true;
+    requestAnimationFrame(() => {
+      const current = feedRef.current;
+      if (!current) return;
+      current.scrollTop = current.scrollHeight;
+      wasNearBottomRef.current = true;
+    });
   }, []);
 
   // ---------------------------------------------------------------------------

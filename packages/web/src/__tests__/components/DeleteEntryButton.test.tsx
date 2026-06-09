@@ -144,4 +144,19 @@ describe('DeleteEntryButton', () => {
     const btn = screen.getByRole('button', { name: /eliminar consulta/i });
     expect(btn).toHaveAttribute('aria-label', `Eliminar consulta: ${'a'.repeat(40)}…`);
   });
+
+  // BUG-WEB-FU7-HEADER-AND-MOBILE-SCROLL Bug 1: papelera always visible
+  // (no md:opacity-0 desktop-hidden state)
+  it('Bug 1 fix: trash button is visible at opacity-60 base on all viewports', () => {
+    render(<DeleteEntryButton {...defaultProps} />);
+    const btn = screen.getByRole('button', { name: /eliminar consulta/i });
+    // Must NOT have the desktop-hidden classes that broke discoverability
+    expect(btn.className).not.toMatch(/\bmd:opacity-0\b/);
+    expect(btn.className).not.toMatch(/\bmd:group-hover:opacity-100\b/);
+    // Must include the always-visible base + interaction-reveal classes
+    expect(btn.className).toContain('opacity-60');
+    expect(btn.className).toContain('hover:opacity-100');
+    expect(btn.className).toContain('focus-visible:opacity-100');
+    expect(btn.className).toContain('group-hover:opacity-100');
+  });
 });

@@ -428,6 +428,11 @@ describe('EDGE-2: single entry settle at bottom — exactly one scroll', () => {
       configurable: true, get: () => 0, set: jest.fn(),
     });
 
+    // Discard the mount-effect rAF (BUG-WEB-FU7-HEADER-AND-MOBILE-SCROLL Bug 3
+    // wraps mount scroll in rAF). This edge-case asserts the SETTLE effect
+    // queues exactly one rAF — not the mount.
+    rafCallbacks.length = 0;
+
     // wasNearBottomRef=true from mount (initialized true)
     // Settle
     act(() => {
