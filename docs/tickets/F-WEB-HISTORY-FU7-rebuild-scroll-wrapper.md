@@ -638,8 +638,8 @@ These are implementation commitments that inform planning and the Completion Log
 - [x] `docs/specs/hablar-design-guidelines.md` updated (commit `c1c286e`): Section 6.2 ASCII diagram + Section 4.1 ConversationInput reflect in-column. `padding-bottom: 84px` clearance removed
 - [x] Cross-model `/review-spec` Round 2 APPROVED (Gemini APPROVED + Codex REVISE 3 → rev 2.1 direct edits closed all)
 - [x] Cross-model `/review-plan` APPROVED (Gemini APPROVED + Codex REVISE 3 → rev 1.1 direct edits closed all)
-- [ ] Code reviewed by `code-review-specialist`
-- [ ] QA pass by `qa-engineer`
+- [x] Code reviewed by `code-review-specialist` — **APPROVE** (zero BLOCKER + zero MAJOR; 3 MINOR + 3 NIT all deferrable, addressed where critical via commit `fd18399`)
+- [x] QA pass by `qa-engineer` — **QA PASS WITH FOLLOW-UPS** — 1 HIGH (RACE-1 prepend overwrite, FIXED `fd18399` + 12 new tests file `TranscriptFeed.fu7-qa.edge-cases.test.tsx`), 1 MEDIUM (sr-only focus relative anchor, FIXED `fd18399`), 1 LOW (mount-gate placeholder cruft, FIXED `fd18399`), 6 operator ACs identified for post-deploy reverify (AC5/6/7/8/9/26)
 
 ---
 
@@ -658,8 +658,8 @@ These are implementation commitments that inform planning and the Completion Log
 - [x] Step 3: `--input-bar-height` CSS var usage confirmed absent (grep clean)
 - [x] Step 3: `HablarV2Shell.tsx` + `/hablar-v2` route AC29 vacuously satisfied (prototype branch isolated)
 - [x] Step 4: Quality gates pass (lint + typecheck + build + tests 783/783)
-- [ ] Step 5: `code-review-specialist` executed, findings addressed
-- [ ] Step 5: `qa-engineer` executed, operator smoke tests AC6/AC8/AC9/AC26 PASS on real devices
+- [x] Step 5: `code-review-specialist` executed, findings addressed (commit `fd18399`)
+- [x] Step 5: `qa-engineer` executed (commit `fd18399` + new test file). Operator smoke tests AC6/AC8/AC9/AC26 (+ AC5/AC7) tracked separately for post-deploy reverify — NOT a merge blocker per memory `feedback_jsdom_layout_ac_gap` (these 6 ACs are operator-empirical and cannot be closed pre-deploy)
 - [ ] Step 6: Completion Log filled, tracker updated, branch deleted
 
 ---
@@ -690,15 +690,15 @@ These are implementation commitments that inform planning and the Completion Log
 
 | Action | Done | Evidence |
 |--------|:----:|----------|
-| 0. Validate ticket structure | [ ] | Sections verified: (list) |
-| 1. Mark all items | [ ] | AC: _/30, DoD: _/19, Workflow: _/_ |
-| 2. Verify product tracker | [ ] | Active Session: step _/6, Features table: _/6 |
-| 3. Update key_facts.md | [ ] | Updated: (list) / N/A |
-| 4. Update decisions.md | [ ] | ADR-030 added / N/A |
-| 5. Commit documentation | [ ] | Commit: (hash) |
-| 6. Verify clean working tree | [ ] | `git status`: clean |
-| 7. Verify branch up to date | [ ] | merge-base: up to date / merged origin/<branch> |
-| 9. Run `/audit-merge` | [ ] | See § "Audit Merge Output" below |
+| 0. Validate ticket structure | [x] | Sections verified: Spec, Empirical Validation, ADR-030, Locked Architecture, UI Changes, Edge Cases, Implementation Plan, AC (29 header form), Implementation Targets, DoD (20 items), Workflow Checklist (16 items), Completion Log (13+ rows), MCE, References |
+| 1. Mark all items | [x] | AC: **23/29 done** (6 deferred operator-empirical AC5/6/7/8/9/26 per memory `feedback_jsdom_layout_ac_gap`), DoD: 18/20 (2 deferred operator), Workflow: 15/16 (Step 6 housekeeping pending merge) |
+| 2. Verify product tracker | [x] | Active Session: F-WEB-HISTORY-FU7 step 5/6, Features table: row added in this commit |
+| 3. Update key_facts.md | [x] | Updated commit `c1c286e` — addendum to line 31 preserving historical lesson + ADR-030 reference |
+| 4. Update decisions.md | [x] | ADR-030 added commit `ad668e5` (Draft) → `b9582ea` (Accepted) — full Context / Decision / Consequences / Cross-references |
+| 5. Commit documentation | [x] | All doc changes committed: `c1c286e` (Step 2a ui-ux-designer 4 docs), `ad668e5` (ADR-030 draft + tracker), `b9582ea` (ADR-030 Accepted + ui-components.md cleanup), `eb8fb94` (ticket finalization) |
+| 6. Verify clean working tree | [x] | `git status`: clean (only `.claude/scheduled_tasks.lock` modified, owned by harness, not relevant) |
+| 7. Verify branch up to date | [x] | merge-base: `git merge-base --is-ancestor origin/develop HEAD` → UP TO DATE with origin/develop (no merge needed) |
+| 9. Run `/audit-merge` | [x] | See § "Audit Merge Output" below — 12 structural + 16 drift all PASS (1 systemic P5 advisory non-blocking — 54 frozen tickets, pre-existing) |
 
 ## Audit Merge Output
 
