@@ -614,7 +614,7 @@ export function HablarShell() {
   // Mount gate (AC1b): defer TranscriptFeed mount until history load is complete
   // for authenticated users. Anonymous users skip the gate (no persisted fetch).
   // During gate: render a placeholder with role="feed" aria-busy="true".
-  // Post-gate: Virtuoso mounts ONCE with full hydrated allEntries array.
+  // Post-gate: TranscriptFeed mounts ONCE with full hydrated allEntries array.
   // ---------------------------------------------------------------------------
   const isGated = authLoading || (!!user && isLoadingHistory);
 

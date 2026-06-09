@@ -7,8 +7,8 @@
 //           persisted entry → calls deletePersistedEntry (and sessionEntries.filter only no-ops)
 //   HGAP-3: allEntries composition — persistedEntries first, sessionEntries last (correct order)
 //   HGAP-4: gate with authLoading=true + user already set → still gated (race safety)
-//   HGAP-5: mock boundary integration — HablarShell passes all required context fields
-//           to TranscriptFeed (verified via global Virtuoso mock that renders Header)
+//   HGAP-5: mock boundary integration — HablarShell passes all required props
+//           to TranscriptFeed (direct DOM queries; no Virtuoso mock indirection)
 
 import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
@@ -264,7 +264,7 @@ describe('HGAP-1: authLoading=true activates gate (aria-busy placeholder rendere
       rerender(<HablarShell />);
     });
 
-    // Gate open — Virtuoso feed mounted (no aria-busy)
+    // Gate open — TranscriptFeed mounted (no aria-busy)
     const feed = screen.getByRole('feed');
     expect(feed).not.toHaveAttribute('aria-busy', 'true');
   });
@@ -304,9 +304,8 @@ describe('HGAP-2: handleDeleteEntry routing — session vs. persisted', () => {
     // TranscriptFeed receives onDeleteEntry from HablarShell
     // handleDeleteEntry calls deletePersistedEntry(entryId) for persisted entries
     // We can verify this indirectly: the hook's deleteEntry must be called with the entryId.
-    // The real Virtuoso mock renders entries; we trigger the delete by calling the prop.
-    // Since the global mock renders items via itemContent, we can find TranscriptEntry and
-    // simulate a delete via the delete button (if rendered by TranscriptEntry).
+    // TranscriptFeed renders entries directly; we trigger the delete by finding the entry
+    // and simulating a delete via the delete button (if rendered by TranscriptEntry).
     // However, TranscriptEntry uses onDelete only when isPersisted=true.
     // This test verifies the wiring contract: deleteEntry on the hook is called.
 
