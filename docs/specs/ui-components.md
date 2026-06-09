@@ -2407,17 +2407,17 @@ Non-PII — no email addresses in payloads.
 ### Component Hierarchy
 
 ```
-HablarShell (Client — UPDATED: feed state replaces singleton result state)
-└── TranscriptFeed (Client — Virtuoso rewrite FU6)
-    ├── <Virtuoso> (react-virtuoso, library-owned scroll)
-    │   ├── VirtuosoHeader slot (ClearHistoryButton, load skeleton, empty states, nudge)
-    │   └── itemContent → TranscriptEntry[] (Client — NEW, renders one per query+result pair)
-    │   ├── EntryHeader (internal — query echo + timestamp + delete button)
-    │   │   └── DeleteEntryButton (Client — NEW, with inline confirm)
-    │   └── [result body: existing NutritionCard / ContextConfirmation / MenuDishList / ErrorState — UNCHANGED]
-    ├── HistoryPersistenceNudge (Client — NEW, anonymous only, ≥2 entries)
-    ├── HistoryEmptyState (Client — NEW, logged-in only, no entries)
-    └── ClearHistoryButton (Client — NEW, logged-in only, with modal confirm)
+HablarShell (Client — feed state, append-only)
+└── TranscriptFeed (Client — UPDATED FU7: native overflow-y-auto, no Virtuoso)
+    ├── <div role="feed" overflow-y-auto> (native scroll container, ADR-030)
+    │   ├── Leading children (ClearHistoryButton, load skeleton, empty states, nudge, sr-only keyboard button)
+    │   ├── entries.map → TranscriptEntry[] (Client — renders one per query+result pair)
+    │   │   ├── EntryHeader (internal — query echo + timestamp + delete button)
+    │   │   │   └── DeleteEntryButton (Client — inline confirm)
+    │   │   └── [result body: NutritionCard / ContextConfirmation / MenuDishList / ErrorState]
+    │   └── HistoryPersistenceNudge (Client — anonymous only, ≥2 entries)
+    ├── HistoryEmptyState (Client — logged-in only, no entries)
+    └── ClearHistoryButton (Client — logged-in only, modal confirm)
 ```
 
 ---
@@ -2655,7 +2655,7 @@ Encapsulates all server history interactions: initial mount fetch (`GET /history
 
 **Mount behavior:** On first render with a non-null `authToken`, fires `GET /history?limit=10`. On success, sets `persistedEntries` (reversed to oldest-first). On 4xx/5xx, logs warning and returns `persistedEntries: []` (graceful degradation — session feed still works).
 
-**`loadMore` behavior:** Increments page cursor. Called via Virtuoso `startReached` prop (replaces `HistoryLoadMoreSentinel` IntersectionObserver). Fires `GET /history?cursor=<nextCursor>&limit=10`. Prepends results to `persistedEntries`. Sets `hasMoreHistory: false` when `nextCursor` is null. Includes synchronous `loadMoreInFlightRef` dedup guard against rapid double-fire before React commits `isLoadingMore=true`.
+**`loadMore` behavior:** Increments page cursor. Called by `TranscriptFeed`'s `onScroll` handler when `el.scrollTop < 100` (per ADR-030 FU7 — replaces FU6 Virtuoso `startReached` prop and earlier `HistoryLoadMoreSentinel` IntersectionObserver). Fires `GET /history?cursor=<nextCursor>&limit=10`. Prepends results to `persistedEntries`. Sets `hasMoreHistory: false` when `nextCursor` is null. Includes synchronous `loadMoreInFlightRef` dedup guard against rapid double-fire before React commits `isLoadingMore=true`.
 
 **`deleteEntry` behavior:** Calls `DELETE /history/{id}`. Removes the entry from `persistedEntries` optimistically before the request resolves. On 404 (already gone), the entry was already removed — no-op. On other errors, log warning (do not re-add the entry to state — the user's intent was to delete it).
 
@@ -2681,7 +2681,7 @@ Encapsulates all server history interactions: initial mount fetch (`GET /history
 - `sessionEntries` — local state for in-flight/session entries (append/settle/remove).
 - `persistedEntries` — from `useSearchHistory` directly (no local mirror).
 - `allEntries = useMemo([persistedEntries, sessionEntries])` — passed to `TranscriptFeed`.
-- Mount gate: when `authLoading || (user && isLoadingHistory)`, HablarShell renders a placeholder div instead of `<TranscriptFeed>`. This ensures Virtuoso mounts exactly once with the full hydrated array.
+- Mount gate: when `authLoading || (user && isLoadingHistory)`, HablarShell renders a placeholder div instead of `<TranscriptFeed>`. This ensures the native scroll container mounts exactly once with the full hydrated array (FU7 ADR-030 — was "Virtuoso mounts" in FU6).
 - `handleClearAll()` calls ONLY `clearPersistedHistory()` — `sessionEntries` is NOT cleared (AC2 sub-bullet).
 
 **New state:**
