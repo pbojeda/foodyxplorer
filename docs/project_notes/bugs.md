@@ -36,7 +36,8 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Found by**: Owner empirical reverify on app-dev post F-WEB-HISTORY-FU7 merge (2026-06-09).
 - **Severity**: Medium (UX polish on shipped FU7 architecture; blocks develop→main release until fixed since FU7 itself was release-gated). 3 mechanical fixes, ~30min impl total (Path A Quick).
 - **Files**: `packages/web/src/components/DeleteEntryButton.tsx` (1 line className), `packages/web/src/components/TranscriptEntry.tsx` (1 line className + comment update), `packages/web/src/components/TranscriptFeed.tsx` (4 lines: rAF wrap + ref re-check), `packages/web/src/__tests__/components/DeleteEntryButton.test.tsx` (+1 regression test), `packages/web/src/__tests__/components/TranscriptEntry.test.tsx` (+2 regression tests), `packages/web/src/__tests__/components/TranscriptFeed.test.tsx` (mount-scroll rewrite + 1 new test + 2 AC25 updates), `packages/web/src/__tests__/components/TranscriptFeed.fu7-qa.edge-cases.test.tsx` (EDGE-2 update).
-- **Status**: **FIXED 2026-06-09 @ `5cba621`** via PR #322 (squash). Operator reverify on `app-dev.nutrixplorer.com` 2026-06-09 = **ALL 3 BUGS PASS** (owner: "Todo funciona correctamente. por fin lo damos por bueno."). F-WEB-HISTORY 8-iter cadena (FU1→FU2→FU3→FU4→FU5→FU6→FU7→this bugfix) TRULY closed. **Release develop→main UNBLOCKED.**
+- **Status**: **RELEASED TO PROD 2026-06-10** via PR #324 (`ca4eb04` merge commit develop→main). Operator prod smoke on `app.nutrixplorer.com` 2026-06-10 PASS ("todo ha funcionado correctamente"). Bug structurally closed in production.
+- **Original fix**: 2026-06-09 @ `5cba621` via PR #322 (squash to develop). Operator reverify on `app-dev.nutrixplorer.com` 2026-06-09 = ALL 3 BUGS PASS. F-WEB-HISTORY 8-iter cadena (FU1→FU2→FU3→FU4→FU5→FU6→FU7→this bugfix) TRULY closed.
 
 ---
 
@@ -55,7 +56,8 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Found by**: Owner operator AC24 reverify on app-dev post PR #310 merge (2026-06-04) → owner-driven DevTools Console inspection with `?debug=scroll` instrumentation (PR #311).
 - **Severity**: High (every page reload auto-loads the entire user's history, breaking pagination UX + inflating API/Supabase load).
 - **Files**: `packages/web/src/components/TranscriptFeed.tsx` (Effect B prepend restore, Effect C conditional reset, hydrationReady state), `packages/web/src/components/HistoryLoadMoreSentinel.tsx` (hydrationReady prop + dep), `packages/web/src/__tests__/components/HistoryLoadMoreSentinel.test.tsx` (regression test for hydrationReady gate).
-- **Status**: **TRULY FIXED 2026-06-09** — superseded twice: first by F-WEB-HISTORY-FU6 `react-virtuoso` rewrite (2026-06-06, did not pass operator), then by **F-WEB-HISTORY-FU7 architectural rebuild** (2026-06-09 @ `b6eecc5` via PR #320) which drops `react-virtuoso` for native `<div overflow-y-auto>` + in-column composer + pin-aware (ADR-030). Operator AC5/AC6/AC7 reverify on `app-dev.nutrixplorer.com` 2026-06-09 = **all PASS** (along with AC8/AC9/AC26). The hydration race + IntersectionObserver stale snapshot classes are structurally eliminated by FU7's design (no IO, native scroll, pin-aware on settle).
+- **Status**: **RELEASED TO PROD 2026-06-10** via PR #324 (`ca4eb04`). FU7 native scroll architecture (no IO, pin-aware on settle) live in production; operator smoke PASS. Hydration race + IO stale snapshot classes structurally eliminated.
+- **Original fix**: TRULY FIXED 2026-06-09 via F-WEB-HISTORY-FU7 (`b6eecc5` via PR #320) — drops `react-virtuoso` for native `<div overflow-y-auto>` + in-column composer + pin-aware (ADR-030). Operator AC5/AC6/AC7 reverify on app-dev 2026-06-09 = all PASS.
 
 ---
 
@@ -70,7 +72,8 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Found by**: Owner operator AC24 reverify on app-dev post FU4 merge, 2026-06-04.
 - **Severity**: High (auto-load loops every page reload, defeats pagination UX intent, also fetches every history page unnecessarily inflating API load + Supabase reads).
 - **Files**: `packages/web/src/components/HistoryLoadMoreSentinel.tsx`, `packages/web/src/components/TranscriptFeed.tsx` (sentinel JSX), `packages/web/src/hooks/useSearchHistory.ts` (`loadMoreInFlightRef`), `packages/web/src/__tests__/components/HistoryLoadMoreSentinel.test.tsx` (NEW, 4 tests), `packages/web/src/__tests__/hooks/useSearchHistory.test.ts` (+1 test).
-- **Status**: **TRULY FIXED 2026-06-09** — superseded twice: F-WEB-HISTORY-FU6 deleted `HistoryLoadMoreSentinel` (2026-06-06), then **F-WEB-HISTORY-FU7** (2026-06-09 @ `b6eecc5` via PR #320) dropped `react-virtuoso` `startReached` for a native `onScroll` handler with `loadMoreInFlightRef` dedup guard (still preserved). Operator AC7 prepend reverify on `app-dev.nutrixplorer.com` 2026-06-09 = **PASS** (web + móvil). IO root + auto-loop class structurally eliminated.
+- **Status**: **RELEASED TO PROD 2026-06-10** via PR #324 (`ca4eb04`). FU7 native onScroll handler + loadMoreInFlightRef dedup guard live in production; operator smoke PASS. IO root + auto-loop class structurally eliminated.
+- **Original fix**: TRULY FIXED 2026-06-09 via F-WEB-HISTORY-FU7 (`b6eecc5` via PR #320) — superseded twice (FU6 deleted `HistoryLoadMoreSentinel`, FU7 dropped `react-virtuoso` `startReached`). Operator AC7 prepend reverify on app-dev 2026-06-09 = PASS (web + móvil).
 
 ---
 
@@ -116,7 +119,8 @@ Track bugs with their solutions for future reference. Focus on recurring issues,
 - **Prevention**: For ACs that depend on real browser layout (scroll/Resize/CLS/fonts), pair the unit-test AC with an **operator smoke AC verbatim** — the operator AC is the authoritative gate; the unit test is a regression guard. Saved as `feedback_jsdom_layout_ac_gap` lesson + library-angle candidate for SDD v0.21.x (`/audit-merge` "jsdom-limited AC detector": flag any AC text matching `/scrollTo|scrollHeight|scrollTop|getBoundingClientRect|near.*bottom|hydrat.*scroll|ResizeObserver|layout/i` whose only verification is a unit test).
 - **Found by**: Owner operator smokes on app-dev post F-WEB-HISTORY-FU1 deploy (2026-06-01) → external-agent audit reconfirmed diagnosis + refined fix proposal (2026-06-02).
 - **Severity**: High (visible product UX defect on both reload and append — every authenticated `/hablar` session is affected once they have ≥1 persisted entry or perform any search). Pre-beta blast radius. **Blocks develop→main release**.
-- **Status**: **TRULY FIXED 2026-06-09** — superseded twice: F-WEB-HISTORY-FU6 `react-virtuoso` rewrite (2026-06-06; operator FAIL on AC5+AC6+AC7), then **F-WEB-HISTORY-FU7 native scroll rebuild** (2026-06-09 @ `b6eecc5` via PR #320) — drops `react-virtuoso`, uses native `<div overflow-y-auto>` + in-column composer + pin-aware 100px threshold (ADR-030). Operator AC5/AC6/AC7 reverify on `app-dev.nutrixplorer.com` 2026-06-09 = **all PASS** (web + móvil); also AC8 BUG B iOS móvil card visible + AC9 BUG B web right edge visible + AC26 iOS keyboard composer. **Release develop→main remains ON HOLD** until 3 precision follow-up bugs ship (BUG-WEB-FU7-HEADER-AND-MOBILE-SCROLL: header strip CSS + mount-timing — NOT architectural, Path A Quick).
+- **Status**: **RELEASED TO PROD 2026-06-10** via PR #324 (`ca4eb04`). FU7 native scroll architecture + bugfix follow-up both live in production; operator smoke PASS. Bug class structurally eliminated.
+- **Original fix**: TRULY FIXED 2026-06-09 via F-WEB-HISTORY-FU7 (`b6eecc5` via PR #320) + BUG-WEB-FU7-HEADER-AND-MOBILE-SCROLL (`5cba621` via PR #322). Operator AC5/6/7/8/9/26 on app-dev 2026-06-09 = all PASS (web + móvil + iOS keyboard).
 
 ---
 
