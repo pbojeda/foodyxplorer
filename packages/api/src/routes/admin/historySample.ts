@@ -8,6 +8,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import fastifyPlugin from 'fastify-plugin';
 import type { Kysely } from 'kysely';
+import { sql } from 'kysely';
 import type { PrismaClient } from '@prisma/client';
 import type { Redis } from 'ioredis';
 import type { DB } from '../../generated/kysely-types.js';
@@ -26,6 +27,8 @@ export interface HistorySamplePluginOptions {
   prisma: PrismaClient;
   redis: Redis;
   config?: { NODE_ENV?: string };
+  /** Legacy test bypass — propagated from buildApp adminBypass option (I2 fix). */
+  allowTestBypass?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -48,8 +51,8 @@ const historySamplePlugin: FastifyPluginAsync<HistorySamplePluginOptions> = asyn
   app,
   opts,
 ) => {
-  const { db, prisma, redis, config } = opts;
-  const gate = makeRequireAdminBearer({ redis, prisma, config });
+  const { db, prisma, redis, config, allowTestBypass = false } = opts;
+  const gate = makeRequireAdminBearer({ redis, prisma, config, allowTestBypass });
 
   // -------------------------------------------------------------------------
   // GET /analytics/history-sample
@@ -79,10 +82,22 @@ const historySamplePlugin: FastifyPluginAsync<HistorySamplePluginOptions> = asyn
       let rows: SearchHistoryRow[];
 
       try {
-        rows = (await db
+        // Build base query
+        let query = db
           .selectFrom('search_history')
           .select(['id', 'kind', 'query_text', 'result_jsonb', 'created_at'])
-          .where('created_at', '>=', new Date(Date.now() - hours * 60 * 60 * 1000))
+          .where('created_at', '>=', new Date(Date.now() - hours * 60 * 60 * 1000));
+
+        // BUG-1+C2 fix: push intent filter into SQL (parameterised ->> fragment).
+        // Avoids: (1) in-memory filter crashing on null result_jsonb (BUG-1);
+        //         (2) limit applied before intent filter causing under-delivery (C2).
+        // `intent` is validated by Zod against ConversationIntentSchema (closed enum)
+        // before reaching this handler — safe to use as a parameterised SQL value.
+        if (intent) {
+          query = query.where(sql<boolean>`result_jsonb->>'intent' = ${intent}`);
+        }
+
+        rows = (await query
           .orderBy('created_at', 'desc')
           .limit(limit)
           .execute()) as SearchHistoryRow[];
@@ -94,25 +109,11 @@ const historySamplePlugin: FastifyPluginAsync<HistorySamplePluginOptions> = asyn
       }
 
       // -----------------------------------------------------------------------
-      // In-memory intent filter.
-      // JSONB operator filtering (->>)  is done post-fetch to keep Kysely queries
-      // compatible with the strongly-typed builder (no sql.raw needed).
-      // limit is applied at DB level; over-fetching risk is bounded by the limit
-      // parameter (max 100) so in-memory filtering is safe at this scale.
+      // Map rows — parse resultData, strip actorId, skip unparseable rows.
+      // null/malformed result_jsonb rows are silently dropped by safeParse.
       // -----------------------------------------------------------------------
 
-      const filteredRows = intent
-        ? rows.filter((row) => {
-            const data = row.result_jsonb as Record<string, unknown>;
-            return data['intent'] === intent;
-          })
-        : rows;
-
-      // -----------------------------------------------------------------------
-      // Map rows — parse resultData, strip actorId, skip unparseable rows
-      // -----------------------------------------------------------------------
-
-      const items = filteredRows.reduce<
+      const items = rows.reduce<
         Array<{
           id: string;
           kind: string;

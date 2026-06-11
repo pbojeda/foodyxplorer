@@ -322,4 +322,134 @@ describe('GET /analytics/history-sample', () => {
     const body = JSON.parse(res.body) as { error: { code: string } };
     expect(body.error.code).toBe('DB_UNAVAILABLE');
   });
+
+  // -----------------------------------------------------------------------
+  // C2 fix: SQL-level intent filter returns correct count (not under-delivery)
+  // -----------------------------------------------------------------------
+
+  it('C2: SQL-level intent filter — returns up to limit items all matching intent', async () => {
+    // Simulates the fixed behavior: DB-level WHERE filters by intent, so all
+    // returned rows match the intent. With old in-memory filter, if DB returned
+    // 20 mixed rows only a few would match. Now DB returns exactly the matching rows.
+    // Seed 20 rows all with intent=menu_estimation (DB WHERE clause filters them).
+    const menuEstimationRows = Array.from({ length: 20 }, (_, i) => ({
+      id: `fd000000-me${String(i).padStart(2, '0')}-4000-a000-000000000001`,
+      kind: 'text',
+      query_text: `menu query ${i}`,
+      result_jsonb: {
+        intent: 'menu_estimation',
+        actorId: 'actor-strip',
+        activeContext: null,
+      },
+      created_at: new Date(Date.now() - i * 1000),
+    }));
+
+    kyselyContainer.results = [menuEstimationRows];
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/analytics/history-sample?intent=menu_estimation&limit=20',
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body) as {
+      success: boolean;
+      data: { items: Array<{ resultData: Record<string, unknown> }> };
+    };
+    expect(body.success).toBe(true);
+    // All 20 rows returned — SQL filter pre-selected matching rows
+    expect(body.data.items).toHaveLength(20);
+    // All items must have intent=menu_estimation (no mixed results)
+    for (const item of body.data.items) {
+      expect(item.resultData['intent']).toBe('menu_estimation');
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // BUG-1 fix: NULL result_jsonb rows are safely excluded by SQL ->> operator
+  // (SQL WHERE result_jsonb->>'intent' = ? returns NULL != 'menu_estimation')
+  // -----------------------------------------------------------------------
+
+  it('BUG-1+C2: NULL result_jsonb rows excluded by SQL filter — returns 200 not 500', async () => {
+    // With SQL-level intent filter, NULL result_jsonb rows never reach the handler.
+    // Even if they somehow did, the AdminResultDataSchema.safeParse drops them.
+    // Verify: null rows in DB result set → 200 with those rows excluded.
+    const nullJsonbRow = {
+      id: 'fd000000-nul3-4000-a000-000000000010',
+      kind: 'text',
+      query_text: 'null jsonb row',
+      result_jsonb: null,
+      created_at: new Date('2026-06-11T10:00:00.000Z'),
+    };
+    const validRow = {
+      id: 'fd000000-val2-4000-a000-000000000011',
+      kind: 'text',
+      query_text: 'valid estimation',
+      result_jsonb: {
+        intent: 'menu_estimation',
+        actorId: 'actor-strip',
+        activeContext: null,
+      },
+      created_at: new Date('2026-06-11T10:00:00.000Z'),
+    };
+
+    // Even if DB leaks a null row through (edge case), handler must not crash
+    kyselyContainer.results = [[nullJsonbRow, validRow]];
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/analytics/history-sample?intent=menu_estimation',
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body) as {
+      success: boolean;
+      data: { items: Array<{ queryText: string }> };
+    };
+    expect(body.success).toBe(true);
+    // Only the valid row returned, null row dropped
+    expect(body.data.items).toHaveLength(1);
+    expect(body.data.items[0]?.['queryText']).toBe('valid estimation');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// I2: allowTestBypass propagated to historySample — bypass test
+// ---------------------------------------------------------------------------
+
+describe('GET /analytics/history-sample — allowTestBypass (I2)', () => {
+  let bypassApp: import('fastify').FastifyInstance;
+
+  beforeAll(async () => {
+    bypassApp = await buildApp({ config: BASE_CONFIG, adminBypass: true });
+    await bypassApp.ready();
+  });
+
+  afterAll(async () => {
+    await bypassApp.close();
+  });
+
+  beforeEach(() => {
+    kyselyContainer.results = [];
+    kyselyContainer.error = null;
+    kyselyContainer.callIndex = 0;
+  });
+
+  it('I2: returns 200 without bearer when adminBypass=true (bypass active)', async () => {
+    // No Authorization header — gate is bypassed (same as other 3 analytics routes)
+    kyselyContainer.results = [[]];
+
+    const res = await bypassApp.inject({
+      method: 'GET',
+      url: '/analytics/history-sample',
+      // No bearer token
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body) as { success: boolean; data: { items: unknown[] } };
+    expect(body.success).toBe(true);
+    expect(body.data.items).toHaveLength(0);
+  });
 });

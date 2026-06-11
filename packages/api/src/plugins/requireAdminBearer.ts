@@ -94,9 +94,13 @@ export function makeRequireAdminBearer(
     if (!isTestEnv) {
       const rateLimitKey = `admin:bearer:ratelimit:${sub}`;
       const count = await redis.incr(rateLimitKey);
-      // Set TTL only on first increment (fire-and-forget)
+      // Set TTL only on first increment — fire-and-forget to avoid permanent
+      // lockout if EXPIRE fails between INCR and EXPIRE (ADR-031 BUG-3 fix).
+      // Mirrors actorRateLimit.ts:151-155 pattern.
       if (count === 1) {
-        await redis.expire(rateLimitKey, rateLimitWindowSec);
+        redis.expire(rateLimitKey, rateLimitWindowSec).catch((err: unknown) => {
+          request.log.warn({ err, rateLimitKey }, 'requireAdminBearer: redis.expire failed (counter has no TTL)');
+        });
       }
       if (count > rateLimitMax) {
         throw Object.assign(

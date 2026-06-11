@@ -59,7 +59,13 @@ export async function resolveAccountTierStrict(
   }
 
   if (cacheValue !== null) {
-    return cacheValue as AccountTier;
+    // Validate before trusting — guards against cache poisoning or stale data.
+    // Only known-valid tier values are returned; anything else falls through to DB.
+    if (cacheValue === 'admin' || cacheValue === 'pro' || cacheValue === 'free') {
+      return cacheValue;
+    }
+    // Unexpected value — log and fall through to DB lookup (I3 fix, ADR-031).
+    logger.warn({ cacheKey, cacheValue }, 'resolveAccountTierStrict: unexpected cache value, falling back to DB');
   }
 
   // 2. DB lookup — throws propagate to caller (no fail-open in strict mode)

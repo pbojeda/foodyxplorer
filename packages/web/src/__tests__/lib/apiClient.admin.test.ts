@@ -94,12 +94,22 @@ describe('getMissedQueries', () => {
 // ---------------------------------------------------------------------------
 
 describe('trackMissedQueries', () => {
-  it('sends POST with correct batch body shape', async () => {
-    mockFetch.mockResolvedValueOnce(makeSuccessResponse([
-      { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', queryText: 'paella', hitCount: 5, status: 'pending', resolvedDishId: null, notes: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    ]));
+  const trackedItem = {
+    id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    queryText: 'paella',
+    hitCount: 5,
+    status: 'pending',
+    resolvedDishId: null,
+    notes: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 
-    await trackMissedQueries([{ queryText: 'paella', hitCount: 5 }]);
+  it('sends POST with correct batch body shape and unwraps tracked array from envelope', async () => {
+    // Correct backend envelope: { success: true, data: { tracked: [...] } }
+    mockFetch.mockResolvedValueOnce(makeSuccessResponse({ tracked: [trackedItem] }));
+
+    const result = await trackMissedQueries([{ queryText: 'paella', hitCount: 5 }]);
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/analytics/missed-queries/track'),
@@ -111,6 +121,16 @@ describe('trackMissedQueries', () => {
         }),
       })
     );
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ queryText: 'paella', status: 'pending' });
+  });
+
+  it('throws MALFORMED_RESPONSE when backend regression sends bare array instead of { tracked: [...] }', async () => {
+    // Wrong envelope (regression guard): { success: true, data: [...] } — missing .tracked wrapper
+    mockFetch.mockResolvedValueOnce(makeSuccessResponse([trackedItem]));
+
+    await expect(trackMissedQueries([{ queryText: 'paella', hitCount: 5 }]))
+      .rejects.toMatchObject({ code: 'MALFORMED_RESPONSE' });
   });
 });
 

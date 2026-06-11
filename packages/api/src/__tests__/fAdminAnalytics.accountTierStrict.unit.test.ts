@@ -211,6 +211,60 @@ describe('resolveAccountTierStrict — provisioning coherence', () => {
 });
 
 // ---------------------------------------------------------------------------
+// I3: Corrupted cache value — falls through to DB lookup (not bogus tier)
+// ---------------------------------------------------------------------------
+
+describe('resolveAccountTierStrict — corrupted cache value (I3)', () => {
+  it('falls through to DB when cache contains invalid value "__none__"', async () => {
+    // Corrupted/poisoned cache — returns unexpected string not in AccountTier enum
+    mockRedisGet.mockResolvedValue('__none__');
+    mockQueryRaw.mockResolvedValue([{ tier: 'admin' }]); // DB has correct tier
+
+    const result = await resolveAccountTierStrict(
+      mockRedis as never,
+      mockPrisma as never,
+      TEST_SUB,
+      mockLogger,
+    );
+
+    // Must NOT return '__none__' as AccountTier — must query DB instead
+    expect(result).toBe('admin');
+    expect(mockQueryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls through to DB when cache contains invalid value "invalid"', async () => {
+    mockRedisGet.mockResolvedValue('invalid');
+    mockQueryRaw.mockResolvedValue([{ tier: 'pro' }]);
+
+    const result = await resolveAccountTierStrict(
+      mockRedis as never,
+      mockPrisma as never,
+      TEST_SUB,
+      mockLogger,
+    );
+
+    // 'invalid' is not a valid AccountTier — must NOT be returned
+    expect(result).toBe('pro');
+    expect(mockQueryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns valid tier from cache without DB call (happy path unchanged)', async () => {
+    // Confirm valid values still use cache path
+    mockRedisGet.mockResolvedValue('free');
+
+    const result = await resolveAccountTierStrict(
+      mockRedis as never,
+      mockPrisma as never,
+      TEST_SUB,
+      mockLogger,
+    );
+
+    expect(result).toBe('free');
+    expect(mockQueryRaw).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Back-compat: resolveAccountTier (fail-open wrapper) — unchanged behavior
 // ---------------------------------------------------------------------------
 

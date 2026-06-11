@@ -7,6 +7,7 @@
 // Key contract: returns the key string itself when a key is missing or the resolved
 // value is not a string. Never throws.
 
+import { useMemo } from 'react';
 import adminMessages from './messages/es/admin.json';
 
 const NAMESPACES: Record<string, Record<string, unknown>> = {
@@ -20,17 +21,21 @@ const NAMESPACES: Record<string, Record<string, unknown>> = {
  * - Falls back to the key string if: namespace unknown, key missing, or resolved value
  *   is not a string (e.g. resolves to an object node).
  * - Does NOT support interpolation — callers use `.replace('{x}', val)`.
+ * - Memoised: returns the same function reference between renders when `namespace` is stable.
+ *   This allows consumers to include `t` in useCallback/useEffect deps without infinite loops.
  */
 export function useT(namespace: string): (key: string) => string {
-  const messages = NAMESPACES[namespace] ?? {};
+  return useMemo(() => {
+    const messages = NAMESPACES[namespace] ?? {};
 
-  return function t(key: string): string {
-    const parts = key.split('.');
-    let current: unknown = messages;
-    for (const part of parts) {
-      if (typeof current !== 'object' || current === null) return key;
-      current = (current as Record<string, unknown>)[part];
-    }
-    return typeof current === 'string' ? current : key;
-  };
+    return function t(key: string): string {
+      const parts = key.split('.');
+      let current: unknown = messages;
+      for (const part of parts) {
+        if (typeof current !== 'object' || current === null) return key;
+        current = (current as Record<string, unknown>)[part];
+      }
+      return typeof current === 'string' ? current : key;
+    };
+  }, [namespace]);
 }

@@ -831,7 +831,9 @@ export async function trackMissedQueries(
     method: 'POST',
     body: JSON.stringify({ queries }),
   });
-  const parsed = MissedQueryTrackingSchema.array().safeParse(data);
+  // Backend returns { tracked: [...] } under .data — unwrap before parsing.
+  const tracked = (data as { tracked?: unknown })?.tracked;
+  const parsed = MissedQueryTrackingSchema.array().safeParse(tracked);
   if (!parsed.success) {
     throw new ApiError('Respuesta inesperada de /analytics/missed-queries/track.', 'MALFORMED_RESPONSE');
   }

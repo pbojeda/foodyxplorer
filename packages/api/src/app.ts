@@ -164,7 +164,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(reverseSearchRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(webMetricsRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient, config: cfg, allowTestBypass: opts.adminBypass ?? false });
   // F-ADMIN-ANALYTICS-UI — Admin analytics routes
-  await app.register(historySampleRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient, config: cfg });
+  await app.register(historySampleRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient, config: cfg, allowTestBypass: opts.adminBypass ?? false });
   // F107a — Auth routes (POST /auth/login, POST /auth/logout, GET /me)
   await app.register(authRoutes, { prisma: prismaClient, config: cfg, redis: redisClient });
   // F-WEB-HISTORY — Search history routes (GET /history, DELETE /history/:id, DELETE /history)

@@ -17,7 +17,6 @@
 import type { ConversationMessageData } from '@foodxplorer/shared';
 import { NutritionCard } from './NutritionCard';
 import { ContextConfirmation } from './ContextConfirmation';
-import { MenuDishList } from './MenuDishList';
 
 export interface ResultBodyProps {
   // Accept both ConversationMessageData (from TranscriptEntry) and AdminResultData
@@ -128,9 +127,4 @@ export function ResultBody({ data, onDishSelect }: ResultBodyProps): React.React
     default:
       return null;
   }
-
-  // onDishSelect is forwarded to MenuDishList if needed in future.
-  // Currently menu_estimation renders NutritionCards directly.
-  // The MenuDishList import is kept for completeness (used for photo mode in TranscriptEntry).
-  void onDishSelect;
 }

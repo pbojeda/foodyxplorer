@@ -36,6 +36,7 @@ jest.mock('../../components/admin/AdminLayout', () => ({
 }));
 
 import { useAuth } from '../../hooks/useAuth';
+import * as metrics from '../../lib/metrics';
 import { AdminGuard } from '../../components/admin/AdminGuard';
 
 const mockUseAuth = useAuth as jest.Mock;
@@ -136,5 +137,79 @@ describe('AdminGuard', () => {
     render(<AdminGuard><div>Dashboard</div></AdminGuard>);
     expect(screen.getByTestId('admin-layout')).toBeInTheDocument();
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// trackEvent fire-once tests (I1 — no render-phase side effects)
+// ---------------------------------------------------------------------------
+
+describe('AdminGuard trackEvent fire-once', () => {
+  let trackEventSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    trackEventSpy = jest.spyOn(metrics, 'trackEvent');
+  });
+
+  afterEach(() => {
+    trackEventSpy.mockRestore();
+  });
+
+  it('Branch 3a: trackEvent admin_403_shown called exactly once, not on re-render', () => {
+    mockUseAuth.mockReturnValue(makeAuthState({
+      user: mockUser,
+      account: null,
+      accountErrorCode: 'NOT_PROVISIONED',
+    }));
+
+    const { rerender } = render(<AdminGuard><div>child</div></AdminGuard>);
+
+    // Force a re-render with identical stable props — should NOT fire again
+    rerender(<AdminGuard><div>child</div></AdminGuard>);
+    rerender(<AdminGuard><div>child</div></AdminGuard>);
+
+    expect(trackEventSpy).toHaveBeenCalledTimes(1);
+    expect(trackEventSpy).toHaveBeenCalledWith('admin_403_shown', { code403: 'NOT_PROVISIONED' });
+  });
+
+  it('Branch 3b: trackEvent admin_403_shown called exactly once for verifyFailed, not on re-render', () => {
+    mockUseAuth.mockReturnValue(makeAuthState({
+      user: mockUser,
+      account: null,
+      accountErrorCode: null,
+    }));
+
+    const { rerender } = render(<AdminGuard><div>child</div></AdminGuard>);
+    rerender(<AdminGuard><div>child</div></AdminGuard>);
+    rerender(<AdminGuard><div>child</div></AdminGuard>);
+
+    expect(trackEventSpy).toHaveBeenCalledTimes(1);
+    expect(trackEventSpy).toHaveBeenCalledWith('admin_403_shown', { code403: 'VERIFY_FAILED' });
+  });
+
+  it('Branch 4: trackEvent admin_403_shown called exactly once for forbidden, not on re-render', () => {
+    mockUseAuth.mockReturnValue(makeAuthState({
+      user: mockUser,
+      account: mockFreeAccount,
+    }));
+
+    const { rerender } = render(<AdminGuard><div>child</div></AdminGuard>);
+    rerender(<AdminGuard><div>child</div></AdminGuard>);
+    rerender(<AdminGuard><div>child</div></AdminGuard>);
+
+    expect(trackEventSpy).toHaveBeenCalledTimes(1);
+    expect(trackEventSpy).toHaveBeenCalledWith('admin_403_shown', { code403: 'FORBIDDEN' });
+  });
+
+  it('Branch 5 (admin): trackEvent admin_403_shown is NOT called for admin users', () => {
+    mockUseAuth.mockReturnValue(makeAuthState({
+      user: mockUser,
+      account: mockAdminAccount,
+    }));
+
+    render(<AdminGuard><div>child</div></AdminGuard>);
+
+    expect(trackEventSpy).not.toHaveBeenCalledWith('admin_403_shown', expect.anything());
   });
 });

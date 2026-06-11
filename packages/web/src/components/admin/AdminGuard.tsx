@@ -12,7 +12,7 @@
 //   4. account.tier !== 'admin'     → red 403 (forbidden; permanent for this session)
 //   5. admin                        → <AdminLayout>{children}</AdminLayout>
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useT } from '@/lib/i18n/useT';
@@ -153,12 +153,33 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const t = useT('admin');
 
+  // Compute the forbidden variant once — avoids trackEvent in render phase (I1).
+  const forbiddenVariant = useMemo<'notProvisioned' | 'verifyFailed' | 'forbidden' | null>(() => {
+    if (loading) return null;
+    if (!user) return null; // anon goes to redirect, not 403
+    if (!account && accountErrorCode === 'NOT_PROVISIONED') return 'notProvisioned';
+    if (!account) return 'verifyFailed';
+    if (account.tier !== 'admin') return 'forbidden';
+    return null;
+  }, [loading, user, account, accountErrorCode]);
+
   // Branch 2: Not authenticated — redirect
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/login?redirectTo=' + encodeURIComponent(pathname ?? '/admin/analytics'));
     }
   }, [loading, user, router, pathname]);
+
+  // Fire trackEvent exactly once per forbidden-variant transition (not on re-render).
+  useEffect(() => {
+    if (forbiddenVariant === 'notProvisioned') {
+      trackEvent('admin_403_shown', { code403: 'NOT_PROVISIONED' });
+    } else if (forbiddenVariant === 'verifyFailed') {
+      trackEvent('admin_403_shown', { code403: 'VERIFY_FAILED' });
+    } else if (forbiddenVariant === 'forbidden') {
+      trackEvent('admin_403_shown', { code403: 'FORBIDDEN' });
+    }
+  }, [forbiddenVariant]);
 
   // Branch 1: Auth resolving
   if (loading) {
@@ -170,9 +191,8 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  // Branch 3a: Authenticated but account row missing + provisioning error
-  if (!account && accountErrorCode === 'NOT_PROVISIONED') {
-    trackEvent('admin_403_shown', { code403: 'NOT_PROVISIONED' });
+  // Branches 3a, 3b, 4: Forbidden variants (trackEvent handled by useEffect above)
+  if (forbiddenVariant === 'notProvisioned') {
     return (
       <ForbiddenPage
         variant="notProvisioned"
@@ -182,9 +202,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Branch 3b: Authenticated but account null (network/other error)
-  if (!account) {
-    trackEvent('admin_403_shown', { code403: 'VERIFY_FAILED' });
+  if (forbiddenVariant === 'verifyFailed') {
     return (
       <ForbiddenPage
         variant="verifyFailed"
@@ -194,9 +212,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Branch 4: Authenticated but not admin tier
-  if (account.tier !== 'admin') {
-    trackEvent('admin_403_shown', { code403: 'FORBIDDEN' });
+  if (forbiddenVariant === 'forbidden') {
     return (
       <ForbiddenPage
         variant="forbidden"
