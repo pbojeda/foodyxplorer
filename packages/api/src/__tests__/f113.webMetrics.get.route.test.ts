@@ -3,6 +3,10 @@
 // Uses buildApp().inject() with hoisted mocks.
 // Kysely db mock intercepts sql<T>`...`.execute(db) via getExecutor().executeQuery().
 // The Promise.all in the handler runs 3 queries: scalar, intents, errors (in order).
+//
+// F-ADMIN-ANALYTICS-UI migration (ADR-031): analytics routes now use bearer-only auth.
+// verifyBearerJwt is mocked; Prisma $queryRaw returns admin tier for requireAdminBearer.
+// All GET requests that previously used x-api-key now use 'Authorization: Bearer test-token'.
 
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
@@ -99,7 +103,19 @@ vi.mock('../lib/kysely.js', () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Prisma mock
+// Mock verifyBearerJwt (F-ADMIN-ANALYTICS-UI: bearer-only for analytics routes)
+// ---------------------------------------------------------------------------
+
+const { mockVerifyBearerJwt } = vi.hoisted(() => ({
+  mockVerifyBearerJwt: vi.fn(),
+}));
+
+vi.mock('../plugins/authBearer.js', () => ({
+  verifyBearerJwt: mockVerifyBearerJwt,
+}));
+
+// ---------------------------------------------------------------------------
+// Prisma mock — $queryRaw returns admin tier for requireAdminBearer preHandler
 // ---------------------------------------------------------------------------
 
 vi.mock('../lib/prisma.js', () => ({
@@ -115,6 +131,7 @@ vi.mock('../lib/prisma.js', () => ({
       findUnique: vi.fn().mockResolvedValue(null),
     },
     $executeRaw: vi.fn().mockResolvedValue(1),
+    $queryRaw: vi.fn().mockResolvedValue([{ tier: 'admin' }]),
     restaurant: {
       findMany: vi.fn().mockResolvedValue([]),
       count: vi.fn().mockResolvedValue(0),
@@ -147,7 +164,14 @@ vi.mock('../lib/cache.js', () => ({
 
 import { buildApp } from '../app.js';
 
+// F-ADMIN-ANALYTICS-UI migration: ADMIN_API_KEY no longer used for analytics routes.
+// Kept as constant to avoid breaking other tests that may reference it.
 const ADMIN_API_KEY = 'a'.repeat(32);
+
+// Bearer token constants for F-ADMIN-ANALYTICS-UI bearer-only auth migration
+const ADMIN_BEARER = 'Authorization';
+const ADMIN_BEARER_VALUE = 'Bearer test-admin-token';
+const ADMIN_SUB = 'f1130000-0001-4000-a000-000000000001';
 
 const BASE_CONFIG: Config = {
   NODE_ENV: 'test',
@@ -160,6 +184,7 @@ const BASE_CONFIG: Config = {
   OPENAI_EMBEDDING_RPM: 3000,
   OPENAI_CHAT_MAX_TOKENS: 512,
   ADMIN_API_KEY,
+  SUPABASE_JWKS_URL: 'https://test.supabase.co/auth/v1/.well-known/jwks.json',
 };
 
 // Set up 3 query results for the Promise.all: [scalar, intents, errors]
@@ -210,12 +235,15 @@ describe('GET /analytics/web-events', () => {
   beforeEach(() => {
     dbContainer.callIndex = 0;
     dbContainer.shouldThrow = false;
+    // F-ADMIN-ANALYTICS-UI: set up bearer JWT mock for each test
+    mockVerifyBearerJwt.mockResolvedValue({ sub: ADMIN_SUB });
   });
 
-  it('returns 401 without X-API-Key header (admin-only)', async () => {
+  it('returns 401 without bearer header (F-ADMIN-ANALYTICS-UI: no X-API-Key, no bearer)', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
+      // No Authorization header
     });
 
     expect(res.statusCode).toBe(401);
@@ -231,7 +259,7 @@ describe('GET /analytics/web-events', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -267,7 +295,7 @@ describe('GET /analytics/web-events', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events?timeRange=24h',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -281,7 +309,7 @@ describe('GET /analytics/web-events', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events?timeRange=all',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -307,7 +335,7 @@ describe('GET /analytics/web-events', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -328,7 +356,7 @@ describe('GET /analytics/web-events', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -346,7 +374,7 @@ describe('GET /analytics/web-events', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -368,7 +396,7 @@ describe('GET /analytics/web-events', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -393,7 +421,7 @@ describe('GET /analytics/web-events', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -410,7 +438,7 @@ describe('GET /analytics/web-events', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(500);

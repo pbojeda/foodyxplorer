@@ -3,12 +3,15 @@
 // Covers gaps in f113.webMetrics.get.route.test.ts:
 //   - timeRange=30d (not tested in base suite)
 //   - invalid timeRange value → 400 from Fastify/Zod query param validation
-//   - GET with wrong X-API-Key → 401
-//   - GET with empty X-API-Key header → 401
+//   - GET with no bearer → 401 (F-ADMIN-ANALYTICS-UI: bearer-only auth)
+//   - GET with wrong/empty X-API-Key (no bearer) → 401 (X-API-Key no longer accepted)
 //   - Response shape conformance: all required fields present and typed correctly
 //   - avgResponseTimeMs is a non-integer float (weighted average can yield decimals)
 //   - topIntents and topErrors are empty arrays when DB returns no rows (not undefined)
 //   - Scalar row missing (scalarRows[0] undefined) — handled by nullish coalescing
+//
+// F-ADMIN-ANALYTICS-UI migration (ADR-031): analytics routes use bearer-only auth.
+// All 200-path requests use 'Authorization: Bearer test-admin-token' with mocked JWT.
 
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
@@ -57,6 +60,18 @@ vi.mock('../lib/kysely.js', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Mock verifyBearerJwt (F-ADMIN-ANALYTICS-UI: bearer-only for analytics routes)
+// ---------------------------------------------------------------------------
+
+const { mockVerifyBearerJwt } = vi.hoisted(() => ({
+  mockVerifyBearerJwt: vi.fn(),
+}));
+
+vi.mock('../plugins/authBearer.js', () => ({
+  verifyBearerJwt: mockVerifyBearerJwt,
+}));
+
+// ---------------------------------------------------------------------------
 // Other mocks
 // ---------------------------------------------------------------------------
 
@@ -73,6 +88,7 @@ vi.mock('../lib/prisma.js', () => ({
       findUnique: vi.fn().mockResolvedValue(null),
     },
     $executeRaw: vi.fn().mockResolvedValue(1),
+    $queryRaw: vi.fn().mockResolvedValue([{ tier: 'admin' }]),
     restaurant: {
       findMany: vi.fn().mockResolvedValue([]),
       count: vi.fn().mockResolvedValue(0),
@@ -105,8 +121,14 @@ vi.mock('../lib/cache.js', () => ({
 
 import { buildApp } from '../app.js';
 
+// F-ADMIN-ANALYTICS-UI migration: ADMIN_API_KEY no longer used for analytics routes.
 const ADMIN_API_KEY = 'a'.repeat(32);
 const WRONG_API_KEY = 'b'.repeat(32);
+
+// Bearer token constants for bearer-only auth migration
+const ADMIN_BEARER = 'Authorization';
+const ADMIN_BEARER_VALUE = 'Bearer test-admin-token';
+const ADMIN_SUB = 'f1130000-0002-4000-a000-000000000002';
 
 const BASE_CONFIG: Config = {
   NODE_ENV: 'test',
@@ -119,6 +141,7 @@ const BASE_CONFIG: Config = {
   OPENAI_EMBEDDING_RPM: 3000,
   OPENAI_CHAT_MAX_TOKENS: 512,
   ADMIN_API_KEY,
+  SUPABASE_JWKS_URL: 'https://test.supabase.co/auth/v1/.well-known/jwks.json',
 };
 
 function setQueryResults(
@@ -163,6 +186,8 @@ describe('GET /analytics/web-events — edge cases', () => {
   beforeEach(() => {
     dbContainer.callIndex = 0;
     dbContainer.shouldThrow = false;
+    // F-ADMIN-ANALYTICS-UI: set up bearer JWT mock for each test
+    mockVerifyBearerJwt.mockResolvedValue({ sub: ADMIN_SUB });
   });
 
   // -------------------------------------------------------------------------
@@ -175,7 +200,7 @@ describe('GET /analytics/web-events — edge cases', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events?timeRange=30d',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -184,10 +209,10 @@ describe('GET /analytics/web-events — edge cases', () => {
   });
 
   it('returns 400 for invalid timeRange value (not in enum)', async () => {
+    // Schema validation fires before preHandler — no auth header needed for 400 cases
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events?timeRange=invalid',
-      headers: { 'x-api-key': ADMIN_API_KEY },
     });
 
     // Fastify with Zod validator should reject the invalid query param
@@ -195,20 +220,21 @@ describe('GET /analytics/web-events — edge cases', () => {
   });
 
   it('returns 400 for timeRange=1d (not in enum)', async () => {
+    // Schema validation fires before preHandler
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events?timeRange=1d',
-      headers: { 'x-api-key': ADMIN_API_KEY },
     });
 
     expect(res.statusCode).toBe(400);
   });
 
   // -------------------------------------------------------------------------
-  // Auth edge cases
+  // Auth edge cases (F-ADMIN-ANALYTICS-UI: bearer-only, X-API-Key no longer accepted)
   // -------------------------------------------------------------------------
 
-  it('returns 401 with wrong X-API-Key value', async () => {
+  it('returns 401 with wrong X-API-Key and no bearer (key not accepted)', async () => {
+    // Wrong X-API-Key header has no effect; no bearer → 401 UNAUTHORIZED
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
@@ -218,7 +244,7 @@ describe('GET /analytics/web-events — edge cases', () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it('returns 401 with empty X-API-Key header', async () => {
+  it('returns 401 with empty X-API-Key header and no bearer', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
@@ -242,7 +268,7 @@ describe('GET /analytics/web-events — edge cases', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -285,7 +311,7 @@ describe('GET /analytics/web-events — edge cases', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -309,7 +335,7 @@ describe('GET /analytics/web-events — edge cases', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -328,7 +354,7 @@ describe('GET /analytics/web-events — edge cases', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -365,7 +391,7 @@ describe('GET /analytics/web-events — edge cases', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);
@@ -387,7 +413,7 @@ describe('GET /analytics/web-events — edge cases', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/analytics/web-events',
-      headers: { 'x-api-key': ADMIN_API_KEY },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(res.statusCode).toBe(200);

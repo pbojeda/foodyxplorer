@@ -417,6 +417,22 @@ describe('mapError', () => {
     });
   });
 
+  describe('NOT_PROVISIONED (F-ADMIN-ANALYTICS-UI)', () => {
+    it('maps to 403 with NOT_PROVISIONED code (distinct from FORBIDDEN)', () => {
+      const err = Object.assign(
+        new Error('Account not provisioned. Call GET /me once to provision, then retry.'),
+        { code: 'NOT_PROVISIONED' },
+      );
+
+      const result = mapError(err);
+
+      expect(result.statusCode).toBe(403);
+      expect(result.body.success).toBe(false);
+      expect(result.body.error.code).toBe('NOT_PROVISIONED');
+      expect(result.body.error.message).toContain('GET /me');
+    });
+  });
+
   describe('MENU_ANALYSIS_FAILED (F034)', () => {
     it('maps to 422 with MENU_ANALYSIS_FAILED code and original message', () => {
       const err = Object.assign(

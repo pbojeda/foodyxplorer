@@ -2,6 +2,10 @@
 //
 // Tests: auth, validation, 200 response shape, zero-data edge case,
 //        DB error → 500, chainSlug filter, timeRange scoping.
+//
+// F-ADMIN-ANALYTICS-UI migration (ADR-031): analytics routes now use bearer-only auth.
+// verifyBearerJwt is mocked to return a test payload; Prisma $queryRaw returns admin tier.
+// All 200-path requests include 'Authorization: Bearer test-token'.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
@@ -88,11 +92,29 @@ vi.mock('../lib/redis.js', () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Mock Prisma
+// Mock verifyBearerJwt (F-ADMIN-ANALYTICS-UI migration: analytics routes use bearer auth)
 // ---------------------------------------------------------------------------
 
+const { mockVerifyBearerJwt } = vi.hoisted(() => ({
+  mockVerifyBearerJwt: vi.fn(),
+}));
+
+vi.mock('../plugins/authBearer.js', () => ({
+  verifyBearerJwt: mockVerifyBearerJwt,
+}));
+
+// ---------------------------------------------------------------------------
+// Mock Prisma — $queryRaw returns admin tier for requireAdminBearer preHandler
+// ---------------------------------------------------------------------------
+
+const { mockPrismaQueryRaw } = vi.hoisted(() => ({
+  mockPrismaQueryRaw: vi.fn(),
+}));
+
 vi.mock('../lib/prisma.js', () => ({
-  prisma: {} as PrismaClient,
+  prisma: {
+    $queryRaw: mockPrismaQueryRaw,
+  } as unknown as PrismaClient,
 }));
 
 // ---------------------------------------------------------------------------
@@ -163,12 +185,27 @@ const EMPTY_TABLE_RESULTS = [
 // Tests
 // ---------------------------------------------------------------------------
 
+// Admin bearer token for auth migration
+const ADMIN_BEARER = 'Authorization';
+const ADMIN_BEARER_VALUE = 'Bearer test-admin-token';
+const ADMIN_SUB = 'f0290000-0001-4000-a000-000000000001';
+
+// buildApp config with SUPABASE_JWKS_URL for actorResolver
+const testAppConfig = {
+  NODE_ENV: 'test' as const,
+  SUPABASE_JWKS_URL: 'https://test.supabase.co/auth/v1/.well-known/jwks.json',
+} as never;
+
 describe('GET /analytics/queries (F029)', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockRedisGet.mockResolvedValue(null);
     mockRedisSet.mockResolvedValue('OK');
     mockRunEstimationCascade.mockResolvedValue({ levelHit: null, data: {} });
+    // Bearer JWT mock: returns admin sub
+    mockVerifyBearerJwt.mockResolvedValue({ sub: ADMIN_SUB });
+    // Prisma $queryRaw mock: returns admin tier for requireAdminBearer preHandler
+    mockPrismaQueryRaw.mockResolvedValue([{ tier: 'admin' }]);
 
     // Reset container to happy path
     kyselyContainer.results = HAPPY_PATH_RESULTS as unknown[][];
@@ -180,11 +217,15 @@ describe('GET /analytics/queries (F029)', () => {
   // Auth
   // -------------------------------------------------------------------------
 
-  it('no admin key → 401 UNAUTHORIZED', async () => {
-    const app = await buildApp({ config: { NODE_ENV: 'test', ADMIN_API_KEY: 'secret' } as never });
+  // F-ADMIN-ANALYTICS-UI migration (ADR-031): analytics routes use bearer-only auth.
+  // X-API-Key no longer accepted; bearer + admin tier required.
+
+  it('no bearer → 401 UNAUTHORIZED (formerly: no admin key → 401)', async () => {
+    const app = await buildApp({ config: testAppConfig });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries',
+      // No Authorization header
     });
 
     expect(response.statusCode).toBe(401);
@@ -193,12 +234,12 @@ describe('GET /analytics/queries (F029)', () => {
     expect(body.error.code).toBe('UNAUTHORIZED');
   });
 
-  it('valid admin key → 200', async () => {
-    const app = await buildApp({ config: { NODE_ENV: 'test', ADMIN_API_KEY: 'secret' } as never });
+  it('valid admin bearer → 200', async () => {
+    const app = await buildApp({ config: testAppConfig });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries?timeRange=7d',
-      headers: { 'x-api-key': 'secret' },
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(response.statusCode).toBe(200);
@@ -249,10 +290,11 @@ describe('GET /analytics/queries (F029)', () => {
   // -------------------------------------------------------------------------
 
   it('valid request returns 200 with all required fields', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ config: testAppConfig });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries?timeRange=7d',
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(response.statusCode).toBe(200);
@@ -271,10 +313,11 @@ describe('GET /analytics/queries (F029)', () => {
   });
 
   it('byLevel has l1, l2, l3, l4, miss keys — l4 zero-filled when absent', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ config: testAppConfig });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries?timeRange=7d',
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(response.statusCode).toBe(200);
@@ -288,10 +331,11 @@ describe('GET /analytics/queries (F029)', () => {
   });
 
   it('bySource has api and bot keys with correct values', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ config: testAppConfig });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries',
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(response.statusCode).toBe(200);
@@ -307,10 +351,11 @@ describe('GET /analytics/queries (F029)', () => {
   it('totalQueries=0 → avgResponseTimeMs:null, cacheHitRate:0, byLevel all zeros', async () => {
     kyselyContainer.results = EMPTY_TABLE_RESULTS as unknown[][];
 
-    const app = await buildApp();
+    const app = await buildApp({ config: testAppConfig });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries?timeRange=all',
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(response.statusCode).toBe(200);
@@ -341,10 +386,11 @@ describe('GET /analytics/queries (F029)', () => {
   it('DB error during aggregation → 500 DB_UNAVAILABLE', async () => {
     kyselyContainer.error = new Error('Connection refused');
 
-    const app = await buildApp();
+    const app = await buildApp({ config: testAppConfig });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries',
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(response.statusCode).toBe(500);
@@ -358,10 +404,11 @@ describe('GET /analytics/queries (F029)', () => {
   // -------------------------------------------------------------------------
 
   it('chainSlug filter → scopedToChain echoed in response', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ config: testAppConfig });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries?chainSlug=mcdonalds-es',
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(response.statusCode).toBe(200);
@@ -370,10 +417,11 @@ describe('GET /analytics/queries (F029)', () => {
   });
 
   it('no chainSlug → scopedToChain absent from response', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ config: testAppConfig });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries',
+      headers: { [ADMIN_BEARER]: ADMIN_BEARER_VALUE },
     });
 
     expect(response.statusCode).toBe(200);

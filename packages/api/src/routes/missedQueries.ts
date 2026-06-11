@@ -13,6 +13,7 @@ import fastifyPlugin from 'fastify-plugin';
 import type { PrismaClient } from '@prisma/client';
 import type { Kysely } from 'kysely';
 import { sql } from 'kysely';
+import type { Redis } from 'ioredis';
 import type { DB } from '../generated/kysely-types.js';
 import {
   MissedQueriesParamsSchema,
@@ -21,6 +22,7 @@ import {
   BatchTrackBodySchema,
 } from '@foodxplorer/shared';
 import { z } from 'zod';
+import { makeRequireAdminBearer } from '../plugins/requireAdminBearer.js';
 
 // ---------------------------------------------------------------------------
 // Plugin options
@@ -29,6 +31,8 @@ import { z } from 'zod';
 export interface MissedQueriesPluginOptions {
   db: Kysely<DB>;
   prisma: PrismaClient;
+  redis: Redis;
+  config?: { NODE_ENV?: string };
 }
 
 // ---------------------------------------------------------------------------
@@ -68,7 +72,8 @@ const missedQueriesRoutesPlugin: FastifyPluginAsync<MissedQueriesPluginOptions> 
   app,
   opts,
 ) => {
-  const { db, prisma } = opts;
+  const { db, prisma, redis, config } = opts;
+  const gate = makeRequireAdminBearer({ redis, prisma, config });
 
   // -------------------------------------------------------------------------
   // GET /analytics/missed-queries
@@ -77,6 +82,7 @@ const missedQueriesRoutesPlugin: FastifyPluginAsync<MissedQueriesPluginOptions> 
   app.get(
     '/analytics/missed-queries',
     {
+      preHandler: [gate],
       schema: {
         querystring: MissedQueriesParamsSchema,
         tags: ['Analytics'],
@@ -163,6 +169,7 @@ const missedQueriesRoutesPlugin: FastifyPluginAsync<MissedQueriesPluginOptions> 
   app.post(
     '/analytics/missed-queries/track',
     {
+      preHandler: [gate],
       schema: {
         body: BatchTrackBodySchema,
         tags: ['Analytics'],
@@ -219,6 +226,7 @@ const missedQueriesRoutesPlugin: FastifyPluginAsync<MissedQueriesPluginOptions> 
   app.post(
     '/analytics/missed-queries/:id/status',
     {
+      preHandler: [gate],
       schema: {
         params: UpdateMissedQueryStatusParamsSchema,
         body: UpdateMissedQueryStatusBodySchema,

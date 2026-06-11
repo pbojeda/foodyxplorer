@@ -45,6 +45,7 @@ import { waitlistRoutes } from './routes/waitlist.js';
 import { conversationRoutes } from './routes/conversation.js';
 import { reverseSearchRoutes } from './routes/reverseSearch.js';
 import { webMetricsRoutes } from './routes/webMetrics.js';
+import { historySampleRoutes } from './routes/admin/historySample.js';
 import authRoutes from './routes/auth.js';
 import { historyRoutes } from './routes/history.js';
 import { getKysely } from './lib/kysely.js';
@@ -145,14 +146,16 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(embeddingRoutes, { prisma: prismaClient });
   await app.register(estimateRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(catalogRoutes, { prisma: prismaClient, db: getKysely() });
-  await app.register(analyticsRoutes, { db: getKysely() });
-  await app.register(missedQueriesRoutes, { db: getKysely(), prisma: prismaClient });
+  await app.register(analyticsRoutes, { db: getKysely(), redis: redisClient, prisma: prismaClient, config: cfg });
+  await app.register(missedQueriesRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient, config: cfg });
   await app.register(recipeCalculateRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(analyzeRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(waitlistRoutes, { prisma: prismaClient });
   await app.register(conversationRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient });
   await app.register(reverseSearchRoutes, { db: getKysely(), prisma: prismaClient });
-  await app.register(webMetricsRoutes, { db: getKysely(), prisma: prismaClient });
+  await app.register(webMetricsRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient, config: cfg });
+  // F-ADMIN-ANALYTICS-UI — Admin analytics routes
+  await app.register(historySampleRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient, config: cfg });
   // F107a — Auth routes (POST /auth/login, POST /auth/logout, GET /me)
   await app.register(authRoutes, { prisma: prismaClient, config: cfg, redis: redisClient });
   // F-WEB-HISTORY — Search history routes (GET /history, DELETE /history/:id, DELETE /history)

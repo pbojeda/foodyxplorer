@@ -34,7 +34,7 @@ import type { Config } from '../config.js';
 import type { ApiKeyContext } from '@foodxplorer/shared';
 import { buildKey, cacheGet, cacheSet } from '../lib/cache.js';
 import { validateAdminKey } from './adminAuth.js';
-import { isAdminRoute } from './adminPrefixes.js';
+import { isAnalyticsRoute, isKeyAdminRoute } from './adminPrefixes.js';
 
 // ---------------------------------------------------------------------------
 // Fastify type augmentation
@@ -76,8 +76,15 @@ export async function registerAuthMiddleware(
     // /health — always exempt from auth
     if (url === '/health') return;
 
-    // Admin routes — use ADMIN_API_KEY env var comparison
-    if (isAdminRoute(url, request.method)) {
+    // Analytics routes — bearer-only auth (ADR-031). Do NOT validate X-API-Key here.
+    // actorResolver (registered after auth.ts in app.ts) sets request.accountId from bearer.
+    // requireAdminBearer preHandler attached at route level verifies accountId + tier.
+    // POST /analytics/web-events is exempted inside isAnalyticsRoute (public sendBeacon).
+    if (isAnalyticsRoute(url, request.method)) return;
+
+    // Key-admin routes — X-API-Key gate (unchanged from F026).
+    // isKeyAdminRoute is method-aware: POST /restaurants → admin; GET /restaurants → public.
+    if (isKeyAdminRoute(url, request.method)) {
       if (!config.ADMIN_API_KEY) {
         // Fail-open in test env — skip admin auth when ADMIN_API_KEY absent
         if (config.NODE_ENV === 'test') return;
