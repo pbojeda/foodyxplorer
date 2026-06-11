@@ -1,0 +1,165 @@
+{
+  "layout": {
+    "brandName": "nutriXplorer",
+    "adminSuffix": "admin",
+    "navAnalytics": "Analytics",
+    "loading": "Verificando acceso...",
+    "403": {
+      "notProvisioned": {
+        "title": "Acceso restringido",
+        "body": "No se pudo verificar tu cuenta. Esto puede ocurrir si es la primera vez que accedes.",
+        "hint": "Llama a /me primero para activar tu cuenta y vuelve a intentarlo.",
+        "cta": "Ir a nutriXplorer"
+      },
+      "forbidden": {
+        "title": "Acceso denegado",
+        "body": "Se requiere nivel administrador para acceder a este panel.",
+        "cta": "Volver"
+      },
+      "verifyFailed": {
+        "title": "Acceso denegado",
+        "body": "No se pudo verificar el nivel de cuenta. Inténtalo de nuevo.",
+        "cta": "Volver"
+      }
+    }
+  },
+  "common": {
+    "loading": "Cargando...",
+    "retry": "Reintentar",
+    "apply": "Aplicar",
+    "all": "Todos",
+    "timeRange": {
+      "label": "Período",
+      "24h": "24h",
+      "7d": "7d",
+      "30d": "30d",
+      "all": "Todo"
+    },
+    "badge": {
+      "pending": "Investigando",
+      "resolved": "Resuelto",
+      "ignored": "Ignorado",
+      "untracked": "—"
+    },
+    "kind": {
+      "text": "Texto",
+      "voice": "Voz"
+    }
+  },
+  "intent": {
+    "estimation": "Estimación",
+    "comparison": "Comparación",
+    "menu_estimation": "Menú",
+    "reverse_search": "Búsqueda inversa",
+    "context_set": "Contexto",
+    "text_too_long": "Texto largo",
+    "follow_up_attribute": "Seguimiento",
+    "follow_up_refinement": "Refinamiento"
+  },
+  "panel": {
+    "missedQueries": {
+      "title": "Búsquedas sin respuesta",
+      "filterTopN": "Top N",
+      "filterMinCount": "Mín. repeticiones",
+      "filterTopNValidation": "Entre 1 y 100",
+      "filterMinCountValidation": "Mínimo 1",
+      "col": {
+        "query": "Consulta",
+        "count": "Repeticiones",
+        "status": "Estado",
+        "actions": "Acciones"
+      },
+      "action": {
+        "track": "Investigando",
+        "resolve": "Resuelto",
+        "ignore": "Ignorar"
+      },
+      "actionError": "Error al actualizar. Inténtalo de nuevo.",
+      "empty": "No hay búsquedas sin respuesta en este período.",
+      "error": "Error cargando datos.",
+      "rowCount": "{count} consultas"
+    },
+    "responseReview": {
+      "title": "Respuestas para revisar",
+      "filterIntent": "Intención:",
+      "filterHours": "Horas",
+      "filterLimit": "Límite",
+      "filterHoursValidation": "Entre 1 y 720",
+      "filterLimitValidation": "Entre 1 y 100",
+      "filterIntentAll": "Todos",
+      "summary": "Últimas {count} entradas en las últimas {hours} horas",
+      "col": {
+        "query": "Consulta",
+        "intent": "Intención",
+        "kind": "Tipo",
+        "createdAt": "Cuándo",
+        "expand": ""
+      },
+      "expandAriaLabel": "Ver respuesta completa",
+      "collapseAriaLabel": "Cerrar respuesta",
+      "rawJson": "Ver JSON bruto",
+      "hideJson": "Ocultar JSON",
+      "empty": "No hay entradas en el período seleccionado.",
+      "error": "Error cargando muestras.",
+      "rowCount": "{count} entradas"
+    },
+    "overview": {
+      "title": "Vista general",
+      "sections": {
+        "engine": "Métricas del motor",
+        "web": "Métricas web",
+        "levels": "Distribución por nivel",
+        "sources": "Distribución por origen",
+        "topQueries": "Consultas más frecuentes",
+        "topIntents": "Intenciones más frecuentes"
+      },
+      "card": {
+        "totalQueries": {
+          "label": "Consultas totales",
+          "caption": "Peticiones procesadas por el motor"
+        },
+        "cacheHitRate": {
+          "label": "Tasa de caché",
+          "caption": "Respuestas servidas desde caché"
+        },
+        "avgResponseTimeMs": {
+          "label": "Tiempo de respuesta",
+          "caption": "Media en milisegundos"
+        },
+        "missRate": {
+          "label": "Tasa de fallos",
+          "caption": "Consultas sin resultado (nivel miss)"
+        },
+        "webTotalQueries": {
+          "label": "Sesiones web · queries totales",
+          "caption": "Confirma que NEXT_PUBLIC_METRICS_ENDPOINT está activo"
+        }
+      },
+      "level": {
+        "l1": "L1",
+        "l2": "L2",
+        "l3": "L3",
+        "l4": "L4",
+        "miss": "Miss"
+      },
+      "source": {
+        "api": "API",
+        "bot": "Bot"
+      },
+      "col": {
+        "query": "Consulta",
+        "count": "Veces",
+        "intent": "Intención"
+      },
+      "noTopQueries": "Sin datos de consultas frecuentes.",
+      "noTopIntents": "Sin datos de intenciones frecuentes.",
+      "errorEngine": "Error al cargar métricas del motor.",
+      "errorWeb": "Error al cargar métricas web.",
+      "rowCount": "{count} entradas",
+      "units": {
+        "ms": "ms",
+        "percent": "%"
+      }
+    }
+  }
+}

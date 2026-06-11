@@ -44,7 +44,12 @@ export type MetricEvent =
   | 'history_cleared'
   | 'history_persistence_nudge_shown'
   | 'history_persistence_nudge_cta'
-  | 'history_persistence_nudge_dismissed';
+  | 'history_persistence_nudge_dismissed'
+  // F-ADMIN-ANALYTICS-UI admin events (payload-only — no counter mutation)
+  | 'admin_panel_loaded'
+  | 'admin_tracking_action'
+  | 'admin_history_expand'
+  | 'admin_403_shown';
 
 export interface MetricPayload {
   intent?: string;
@@ -68,6 +73,10 @@ export interface MetricPayload {
   page?: number;
   entryId?: string;
   inputMode?: 'text' | 'voice';
+  // F-ADMIN-ANALYTICS-UI admin payload fields
+  panel?: 'missed-queries' | 'response-review' | 'overview';
+  action?: 'investigating' | 'resolved' | 'ignored';
+  code403?: 'NOT_PROVISIONED' | 'FORBIDDEN' | 'VERIFY_FAILED';
 }
 
 export interface MetricsSnapshot {
@@ -249,6 +258,15 @@ export function trackEvent(event: MetricEvent, payload?: MetricPayload): void {
     case 'history_persistence_nudge_cta':
     case 'history_persistence_nudge_dismissed':
       // payload captured for analytics; does not alter query/success/error counts
+      break;
+
+    // F-ADMIN-ANALYTICS-UI — admin events: payload-only telemetry, no counter mutation.
+    // Admin UI actions MUST NOT add to user query metrics (successCount/queryCount invariant).
+    case 'admin_panel_loaded':
+    case 'admin_tracking_action':
+    case 'admin_history_expand':
+    case 'admin_403_shown':
+      // payload (panel, action, code403) captured for analytics; no aggregate mutation
       break;
   }
 

@@ -6,12 +6,12 @@
 // AC35: result body renders correct card for each intent.
 // AC60: persisted entries with resultData re-render correctly.
 
-import type { ConversationMessageData, MenuAnalysisData } from '@foodxplorer/shared';
+import type { MenuAnalysisData } from '@foodxplorer/shared';
 import type { TranscriptEntryData } from '@/types/history';
 import { NutritionCard } from './NutritionCard';
-import { ContextConfirmation } from './ContextConfirmation';
 import { MenuDishList } from './MenuDishList';
 import { DeleteEntryButton } from './DeleteEntryButton';
+import { ResultBody } from './ResultBody';
 
 interface TranscriptEntryProps {
   entry: TranscriptEntryData;
@@ -38,8 +38,9 @@ function formatTimestamp(date: Date): string {
   return `${dayStr} · ${timeStr}`;
 }
 
-// Renders the result body for a settled entry.
-function ResultBody({
+// EntryResultBody — renders all states for a TranscriptEntry (error, loading, photo, text/voice).
+// Text/voice intent switch is delegated to the extracted ResultBody component.
+function EntryResultBody({
   entry,
   onRetry,
   onDishSelect,
@@ -136,108 +137,9 @@ function ResultBody({
     );
   }
 
-  // Text/voice result
+  // Text/voice result — delegate to extracted ResultBody
   if (!entry.result) return null;
-  const results: ConversationMessageData = entry.result;
-
-  switch (results.intent) {
-    case 'estimation': {
-      const estimation = results.estimation;
-      if (!estimation) return null;
-      return <NutritionCard estimateData={estimation} />;
-    }
-
-    case 'comparison': {
-      const comparison = results.comparison;
-      if (!comparison) return null;
-      return (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-          <NutritionCard estimateData={comparison.dishA} />
-          <NutritionCard estimateData={comparison.dishB} />
-        </div>
-      );
-    }
-
-    case 'menu_estimation': {
-      const menu = results.menuEstimation;
-      if (!menu) return null;
-      return (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-          {menu.items.map((item, index) => (
-            <NutritionCard key={`${item.query}-${index}`} estimateData={item.estimation} />
-          ))}
-        </div>
-      );
-    }
-
-    case 'context_set': {
-      return (
-        <ContextConfirmation
-          contextSet={results.contextSet}
-          ambiguous={results.ambiguous === true}
-        />
-      );
-    }
-
-    case 'reverse_search': {
-      const reverseSearch = results.reverseSearch;
-      if (!reverseSearch || reverseSearch.results.length === 0) {
-        return (
-          <div className="flex flex-col items-center justify-center px-4 py-6 text-center">
-            <p className="text-[15px] font-medium text-slate-500">
-              No encontré platos con esas características.
-            </p>
-          </div>
-        );
-      }
-      return (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-          {reverseSearch.results.map((result, index) => (
-            <NutritionCard key={`${result.name}-${index}`} reverseResult={result} />
-          ))}
-        </div>
-      );
-    }
-
-    case 'follow_up_attribute': {
-      const attr = results.followUpAttribute;
-      if (!attr) return null;
-      return (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-          <div
-            data-testid="nutrient-answer-banner"
-            className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3"
-          >
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">
-              {attr.dishName}
-            </p>
-            <p className="mt-1 text-2xl font-extrabold leading-none text-amber-800">
-              {attr.nutrientLabel}:{' '}
-              <span className="text-brand-orange">{attr.value}</span>{' '}
-              <span className="text-sm font-semibold">{attr.unit}</span>
-            </p>
-          </div>
-          <NutritionCard estimateData={attr.priorEstimation} />
-        </div>
-      );
-    }
-
-    case 'follow_up_refinement': {
-      const ref = results.followUpRefinement;
-      if (!ref) return null;
-      return (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-          <p className="px-1 text-[12px] text-slate-400">
-            <span className="font-semibold text-slate-500">Refinado:</span> {ref.mergedQuery}
-          </p>
-          <NutritionCard estimateData={ref.estimation} />
-        </div>
-      );
-    }
-
-    default:
-      return null;
-  }
+  return <ResultBody data={entry.result} onDishSelect={onDishSelect} />;
 }
 
 export function TranscriptEntry({
@@ -343,7 +245,7 @@ export function TranscriptEntry({
       </div>
 
       {/* Result body */}
-      <ResultBody entry={entry} onRetry={onRetry} onDishSelect={onDishSelect} />
+      <EntryResultBody entry={entry} onRetry={onRetry} onDishSelect={onDishSelect} />
     </article>
   );
 }

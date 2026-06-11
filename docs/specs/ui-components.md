@@ -108,21 +108,23 @@ Outer shell for all `/admin/*` routes. Renders `<AdminGuard>` which handles auth
 
 **Type:** Feature
 **Client:** Yes (`useAuth`, `useRouter`, `usePathname`)
-**File:** `packages/web/src/app/admin/layout.tsx` (co-located, not exported separately)
+**File:** `packages/web/src/components/admin/AdminGuard.tsx`
 
 **State:**
-- Derived from `useAuth()`: `{ user, account, loading }`
+- Derived from `useAuth()`: `{ user, account, loading, accountErrorCode }`
 
-**Behaviour (in order):**
+**Behaviour (5 branches, in order):**
 1. `loading === true` → full-page centered spinner.
-2. `user === null` → `router.replace('/login?redirectTo=' + encodeURIComponent(pathname))` — no content rendered.
-3. `account === null` (getMe failed after sign-in) → 403 page: "Acceso denegado — no se pudo verificar el nivel de cuenta."
-4. `account.tier !== 'admin'` → 403 page: "Acceso denegado — se requiere nivel administrador."
-5. Pass → render sidebar + `{children}`.
+2. `user === null` → `router.replace('/login?redirectTo=...')` via `useEffect` — renders `null`.
+3a. `account === null && accountErrorCode === 'NOT_PROVISIONED'` → amber 403 card: "Acceso restringido" + hint to call `/me`.
+3b. `account === null` (other/network error) → slate 403 card: "Acceso denegado — no se pudo verificar el nivel de cuenta."
+4. `account.tier !== 'admin'` → red 403 card: "Acceso denegado — se requiere nivel administrador."
+5. Pass → `<AdminLayout>{children}</AdminLayout>`.
 
 **Loading/Error/Empty States:**
-- Loading: full-page spinner (no flash of dashboard content before auth is resolved)
-- 403: centered error card with distinct messages for cases 3 and 4 above
+- Loading: full-page spinner (W27 pattern — prevents flash of dashboard chrome)
+- 403 variants: 3 distinct card colours (amber = recoverable, slate = transient, red = permanent)
+- Calls `trackEvent('admin_403_shown', { code403: ... })` on each 403 branch
 
 ---
 
@@ -207,7 +209,7 @@ Renders three panels as stacked sections (exact layout deferred to ui-ux-designe
 
 **Table columns:** queryText (truncate 100 chars), intent badge, kind badge (text/voice), createdAt (relative), expand icon
 
-**Expanded row:** full `resultData` rendered using existing result rendering component(s) — exact reuse path determined by frontend-planner in Step 2 based on available `ResultBody` or equivalent components.
+**Expanded row:** full `resultData` rendered using `<ResultBody data={row.resultData} />` (extracted component, reuses same visual language as `/hablar` view). CSS grid trick: `grid-rows-[0fr] → grid-rows-[1fr]` for variable-height expand animation (W32 anti-pattern: NOT max-height). Raw JSON toggle below expanded content (hidden by default).
 
 **Summary row above table:** "Últimas N entradas en las últimas H horas" (no `X de Y` — `totalAvailable` was deliberately omitted from `HistorySampleResponseSchema` per cross-model `/review-spec` round 1 rationale; see ticket Phase 0 API Changes block).
 
@@ -231,7 +233,7 @@ Renders three panels as stacked sections (exact layout deferred to ui-ux-designe
 **Props:** None (self-contained)
 
 **Interactions:**
-- Mount → fetch `GET /analytics/queries?timeRange=7d` AND `GET /analytics/web-events?timeRange=7d` in parallel
+- Mount → fetch `GET /analytics/queries?timeRange=7d&topN=10` AND `GET /analytics/web-events?timeRange=7d` via `Promise.allSettled` (independent — one failure does not block the other)
 - timeRange preset change → re-fetch both endpoints
 
 **Loading/Error/Empty States:**
