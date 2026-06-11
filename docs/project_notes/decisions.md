@@ -1134,3 +1134,56 @@ The invariant across ALL 14 failures: `ConversationInput` is `position: fixed bo
 - `feedback_hand_rolled_scroll_anti_pattern` (memory) — prior anti-pattern rule, now refined.
 - `project_scroll_arch_decision_2026_06_06` (memory) — FU6 react-virtuoso pivot context.
 - `key_facts.md:30-31` — react-virtuoso canonical line, updated with addendum.
+
+---
+
+### ADR-031: Bearer-Only Admin Auth for `/analytics/*` — Surgical Reversal of X-API-Key Gate (F-ADMIN-ANALYTICS-UI, 2026-06-10)
+
+**Status:** Proposed — Accepted upon F-ADMIN-ANALYTICS-UI ticket merge. Stub created at Step 1 (2026-06-10). Will be expanded with implementation outcomes (test counts, hook order verification, operator smoke result) when the ticket reaches Step 6.
+
+**Context.** F029 (`GET /analytics/queries`, 2026-04), F079 (missed-queries pipeline + tracking, 2026-04), and F113 (`GET /analytics/web-events`, 2026-05) all shipped to prod with `/analytics/*` gated by the original F026 admin auth pattern: a global `onRequest` hook in `packages/api/src/plugins/auth.ts:80-92` calls `validateAdminKey(headers['x-api-key'], config.ADMIN_API_KEY)` for any URL whose prefix matches `ADMIN_PREFIXES` (`adminPrefixes.ts:7`). This worked because the only consumers were curl/Postman/Render-cron — all server-side or developer-controlled environments where shipping `ADMIN_API_KEY` was safe.
+
+The F-ADMIN-ANALYTICS-UI ticket introduces a **web admin UI** at `/admin/analytics` that calls these same endpoints from the browser. The browser CANNOT ship `ADMIN_API_KEY` — `NEXT_PUBLIC_*` env vars are publicly visible in the Vercel bundle, leaking the secret. Two paths were considered:
+
+1. **Dual-mode** (accept EITHER X-API-Key OR bearer+tier='admin'): preserves curl/Postman compat, but adds an ambiguous contract and a security policy that's harder to reason about (two valid admin paths means two places where mistakes can lurk).
+2. **Bearer-only** (replace X-API-Key with bearer JWT + `Account.tier === 'admin'` check on `/analytics/*`): single explicit contract, browser-safe, but breaks any consumer still using X-API-Key on those routes.
+
+A third option — Next.js Route Handler proxy (admin UI → /api/admin/* → Fastify with X-API-Key injected server-side) — was considered and rejected: it adds an indirection, duplicates schemas, and still needs its own bearer-aware gate to verify the calling user is admin (otherwise any authed user could call the proxy). Net: more complexity than option 2.
+
+**Decision.** Bearer-only on `/analytics/*`. The admin gate path in `auth.ts` is split:
+
+- `isAnalyticsRoute(url, method)` (NEW helper in `adminPrefixes.ts`) — bearer path: `requireAdminBearer` preHandler verifies `request.accountId` is set (else 401 `UNAUTHORIZED`); loads `Account.tier` from DB; if no `accounts` row → 403 with **distinct error code `NOT_PROVISIONED`** + hint "call /me first"; if row exists with `tier !== 'admin'` → 403 `FORBIDDEN`; if DB throws → 500 `DB_UNAVAILABLE`. The two-code 403 distinction (NOT_PROVISIONED vs FORBIDDEN) lets the web AdminGuard and tooling branch UI/copy programmatically rather than parsing message strings. Tier value cached 60s at existing `account:tier:<sub>` Redis key (NOT a richer object — preserves `actorRateLimit.ts` reader compat). Per-bearer rate limit 30 req/min, mirroring `/me`'s protection, since `/analytics/*` is in `ADMIN_PREFIXES` exemption from the global IP limiter.
+- `isKeyAdminRoute(url)` (mirrors current behavior) — X-API-Key path unchanged for `/ingest/`, `/quality/`, `/embeddings/`, `/admin/` prefixes. Operator tools, ingest scripts, embeddings batch jobs continue working.
+
+Hook order: `actorResolver.ts` already pre-resolves bearer → `request.accountId` for all routes (registered AFTER `auth.ts` in `app.ts:125-126`). Verification in implementation that hook ordering produces the expected sequence for `/analytics/*` paths.
+
+NO auto-upsert in `requireAdminBearer` (per round 3 external audit IMP-2). Rationale: an admin user ALWAYS has a pre-existing `accounts` row because admin tier is granted via SQL UPDATE on existing rows (rows are created by `GET /me` on first login). An on-demand upsert in `requireAdminBearer` would NEVER help a real admin reach the route — it would only create silent `tier='free'` rows for non-admins, who'd still get 403, while introducing a write-amplification surface. Cleaner contract: web flow auto-provisions via `AuthProvider`'s `getMe()` on `SIGNED_IN`/`INITIAL_SESSION` (zero user friction); Postman/curl flow documented as "log in → call `/me` once per onboarding → `/analytics/*` calls work indefinitely".
+
+**Tradeoffs.**
+
+- (+) Browser-safe: no secret leakage via `NEXT_PUBLIC_*` env vars. The admin UI authenticates with a bearer obtained through standard Supabase magic-link login.
+- (+) Single explicit contract: one auth path for `/analytics/*`, easy to reason about, easy to test, easy to audit (5 endpoints + 1 new history-sample all gated identically).
+- (+) Defensive layering: per-bearer rate limit at the preHandler closes the IP-limiter exemption gap (`rateLimit.ts:127`). Non-admin bearers cannot DDoS the tier DB read.
+- (+) Privacy by exclusion in `/analytics/history-sample`: response carries NO account identifier (no `accountId`, no `actorHash`, no email). Owner audits responses for correctness; user behavior patterns deliberately out of scope. Future ticket can add an optional `actorHash` (HMAC) field if same-user correlation becomes needed.
+- (–) **Breaking change**: any consumer using `X-API-Key: $ADMIN_API_KEY` on `/analytics/*` post-merge returns 401. Owner confirmed acceptable 2026-06-10 because (a) the only consumer in practice was Pablo, (b) bearer flow is well-documented in F107a, (c) ad-hoc analytics curls migrate trivially: log in → grab JWT from browser devtools → reuse as `Authorization: Bearer <jwt>`.
+- (–) Postman flow requires `GET /me` once per onboarding (to provision the `accounts` row). One-time friction; documented in ticket Operator Actions.
+- (–) Auth migration creates surface-area: 5 OpenAPI endpoint security schemes + prose + 403 response blocks updated, plus 2 new preHandlers and 1 new helper. Mitigated by tight integration test coverage (AC1-AC5d cover all auth-decision branches).
+
+**PII note.** `queryText` in `/analytics/history-sample` items can carry sensitive content (free-text queries occasionally reveal dietary restrictions, medical context, health flags). The privacy posture is consciously asymmetric: NO account identifier (privacy by exclusion of WHO) but FULL query text (visibility on WHAT was asked, required for response-quality audit — the actual use case). Mitigations: admin-only access via bearer+tier gate; per-bearer rate limit (30/min); never logged outside the admin response payload; not exported; not cached cross-request beyond Redis tier resolution. This trade-off is documented here so future auditors find it explicit.
+
+**Out of scope.**
+
+- Migrating other admin prefixes (`/ingest/`, `/quality/`, `/embeddings/`, `/admin/`) to bearer. Deferred until concrete consumers need it. Each migration would require its own ADR.
+- Adding `actorHash` (HMAC) to history-sample for same-user correlation. Defer until use case appears.
+- Dual-mode admin auth (X-API-Key OR bearer). Rejected for the ambiguity reason above.
+- Next.js Route Handler proxy. Rejected as more complex than direct bearer flow.
+- Migrating `requireAdminBearer` to a Fastify plugin attached via standard route registration (vs preHandler on the analytics route plugin). Either approach acceptable; planner decides in Step 2.
+
+**Cross-references:**
+- `docs/tickets/F-ADMIN-ANALYTICS-UI.md` — full spec/30 ACs + cross-model trail (4 rounds + 1 external audit).
+- `packages/api/src/plugins/auth.ts:80-92` — current admin branch implementing X-API-Key.
+- `packages/api/src/plugins/adminPrefixes.ts:7` — `ADMIN_PREFIXES` constant to be split.
+- `packages/api/src/lib/accountTier.ts` — tier resolution + Redis cache pattern.
+- `packages/api/src/routes/auth.ts:152-220` — `/me` provisioning + ON CONFLICT upsert pattern (NOT extracted — `requireAdminBearer` does not call this).
+- `ADR-027` (`decisions.md:1007`) — bearer-over-API-key precedence (general pattern this ADR specialises for `/analytics/*`).
+- `feedback_pre_commit_arch_discussion` (memory) — ADR pause-for-discussion rule honored at Step 0 + Step 1.
