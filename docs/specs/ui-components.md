@@ -53,6 +53,231 @@ App
 
 ---
 
+## Admin Analytics UI — nutriXplorer (F-ADMIN-ANALYTICS-UI)
+
+**Package:** `packages/web/` | **Route:** `/admin/analytics` | **Stack:** Next.js App Router + TypeScript strict + Tailwind CSS
+**Deploy:** Vercel | **All code in English, user-facing copy in Spanish**
+**Auth gate:** `account.tier === 'admin'` via `AdminGuard` (client component consuming `useAuth`)
+
+### Component Hierarchy
+
+```
+packages/web/src/app/admin/
+├── layout.tsx (AdminLayout — Server outer shell, contains AdminGuard)
+│   └── AdminGuard (Client) — auth/tier gate; sidebar nav on pass
+└── analytics/
+    └── page.tsx (AdminAnalyticsPage — Server Component wrapper, Suspense boundary)
+        ├── MissedQueriesPanel (Client) — Panel A: GET /analytics/missed-queries
+        ├── ResponseReviewPanel (Client) — Panel B: GET /analytics/history-sample
+        └── OverviewPanel (Client) — Panel C: GET /analytics/queries + GET /analytics/web-events
+
+packages/web/src/lib/i18n/
+├── locale.ts         — LOCALE = 'es' constant
+├── useT.ts           — useT(namespace) hook → (key: string) => string
+├── messages/es/
+│   └── admin.json    — all admin panel strings
+└── __tests__/
+    └── useT.test.ts  — unit tests
+```
+
+### Component Specs
+
+---
+
+### AdminLayout
+
+**Type:** Layout
+**Client:** No (Server Component shell wrapping a client guard)
+**File:** `packages/web/src/app/admin/layout.tsx`
+
+**Description:**
+Outer shell for all `/admin/*` routes. Renders `<AdminGuard>` which handles auth/tier checking. Passes `children` through on success.
+
+**Props:**
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| children | React.ReactNode | Yes | — | Page content (rendered only if admin) |
+
+**Notes:**
+- The layout has no metadata export of its own beyond inheriting root layout metadata.
+- Sidebar nav link: "Analytics" → `/admin/analytics`. One link only; designed to grow.
+
+---
+
+### AdminGuard
+
+**Type:** Feature
+**Client:** Yes (`useAuth`, `useRouter`, `usePathname`)
+**File:** `packages/web/src/components/admin/AdminGuard.tsx`
+
+**State:**
+- Derived from `useAuth()`: `{ user, account, loading, accountErrorCode }`
+
+**Behaviour (5 branches, in order):**
+1. `loading === true` → full-page centered spinner.
+2. `user === null` → `router.replace('/login?redirectTo=...')` via `useEffect` — renders `null`.
+3a. `account === null && accountErrorCode === 'NOT_PROVISIONED'` → amber 403 card: "Acceso restringido" + hint to call `/me`.
+3b. `account === null` (other/network error) → slate 403 card: "Acceso denegado — no se pudo verificar el nivel de cuenta."
+4. `account.tier !== 'admin'` → red 403 card: "Acceso denegado — se requiere nivel administrador."
+5. Pass → `<AdminLayout>{children}</AdminLayout>`.
+
+**Loading/Error/Empty States:**
+- Loading: full-page spinner (W27 pattern — prevents flash of dashboard chrome)
+- 403 variants: 3 distinct card colours (amber = recoverable, slate = transient, red = permanent)
+- Calls `trackEvent('admin_403_shown', { code403: ... })` on each 403 branch
+
+---
+
+### AdminAnalyticsPage
+
+**Type:** Page
+**Client:** No (Server Component wrapper, each panel is a Client Component)
+**File:** `packages/web/src/app/admin/analytics/page.tsx`
+
+**Description:**
+Renders three panels as stacked sections (exact layout deferred to ui-ux-designer in Step 2). Each panel is independently stateful.
+
+**Props:** None (route page, no props)
+
+---
+
+### MissedQueriesPanel
+
+**Type:** Feature
+**Client:** Yes (fetches, local filter state, optimistic row updates)
+**File:** `packages/web/src/components/admin/MissedQueriesPanel.tsx`
+
+**State:**
+- `timeRange: AnalyticsTimeRange` — `'7d'` default
+- `topN: number` — `20` default
+- `minCount: number` — `1` default
+- `data: MissedQueriesResponse | null`
+- `isLoading: boolean`
+- `error: string | null`
+- `rowUpdates: Record<string, { status: TrackingStatus; isUpdating: boolean; error: string | null }>` — per-row optimistic state
+
+**Props:** None (self-contained; all data fetched internally)
+
+**Interactions:**
+- Mount → fetch `GET /analytics/missed-queries?timeRange=7d&topN=20&minCount=1`
+- Filter change → re-fetch with new params
+- "Investigando" click:
+  - If `trackingId === null` (untracked): `POST /analytics/missed-queries/track` with body `{ queries: [{ queryText: row.queryText, hitCount: row.count }] }` — backend upserts with status='pending'. Capture returned `id`; optimistic badge update to `pending`.
+  - If `trackingId !== null` (tracked): `POST /analytics/missed-queries/:trackingId/status` body `{ status: 'pending' }`; optimistic badge update.
+- "Resuelto" click: requires tracked row. On UNTRACKED row, two-step (track first, then status). Body `{ status: 'resolved' }`; revert both calls on error.
+- "Ignorar" click: same two-step pattern as "Resuelto" with `{ status: 'ignored' }`.
+- All actions: revert badge to prior state on API error + inline error message below row.
+
+**Loading/Error/Empty States:**
+- Loading: skeleton table (5 rows)
+- Error: "Error cargando datos." + retry button
+- Empty (`missedQueries: []`): "No hay búsquedas sin respuesta en este período."
+
+**Table columns:** queryText (truncate 80 chars), count, trackingStatus badge, actions dropdown
+
+**Badge colours:** `pending` = amber, `resolved` = green, `ignored` = slate-400, untracked = no badge
+
+---
+
+### ResponseReviewPanel
+
+**Type:** Feature
+**Client:** Yes (fetches, local filter state, row expand state)
+**File:** `packages/web/src/components/admin/ResponseReviewPanel.tsx`
+
+**State:**
+- `intent: ConversationIntent | undefined` — `undefined` = all intents
+- `hours: number` — `24` default
+- `limit: number` — `20` default
+- `data: HistorySampleResponse | null`
+- `isLoading: boolean`
+- `error: string | null`
+- `expandedIds: Set<string>` — set of row ids with expanded resultData
+
+**Props:** None (self-contained)
+
+**Interactions:**
+- Mount → fetch `GET /analytics/history-sample?hours=24&limit=20`
+- Intent dropdown change → re-fetch (with or without `intent` param)
+- Hours / limit input blur → validate range (1–720 / 1–100); re-fetch if valid
+- Expand icon click → toggle row id in `expandedIds`
+
+**Loading/Error/Empty States:**
+- Loading: skeleton table rows
+- Error: "Error cargando muestras." + retry button
+- Empty: "No hay entradas en el período seleccionado."
+
+**Table columns:** queryText (truncate 100 chars), intent badge, kind badge (text/voice), createdAt (relative), expand icon
+
+**Expanded row:** full `resultData` rendered using `<ResultBody data={row.resultData} />` (extracted component, reuses same visual language as `/hablar` view). CSS grid trick: `grid-rows-[0fr] → grid-rows-[1fr]` for variable-height expand animation (W32 anti-pattern: NOT max-height). Raw JSON toggle below expanded content (hidden by default).
+
+**Summary row above table:** "Últimas N entradas en las últimas H horas" (no `X de Y` — `totalAvailable` was deliberately omitted from `HistorySampleResponseSchema` per cross-model `/review-spec` round 1 rationale; see ticket Phase 0 API Changes block).
+
+---
+
+### OverviewPanel
+
+**Type:** Feature
+**Client:** Yes (parallel fetches, local filter state)
+**File:** `packages/web/src/components/admin/OverviewPanel.tsx`
+
+**State:**
+- `timeRange: AnalyticsTimeRange` — `'7d'` default
+- `queriesData: AnalyticsData | null`
+- `webEventsData: WebMetricsAggregateData | null`
+- `isLoadingQueries: boolean`
+- `isLoadingWebEvents: boolean`
+- `queriesError: string | null`
+- `webEventsError: string | null`
+
+**Props:** None (self-contained)
+
+**Interactions:**
+- Mount → fetch `GET /analytics/queries?timeRange=7d&topN=10` AND `GET /analytics/web-events?timeRange=7d` via `Promise.allSettled` (independent — one failure does not block the other)
+- timeRange preset change → re-fetch both endpoints
+
+**Loading/Error/Empty States:**
+- Each data source has independent loading/error display
+- Loading scalars: skeleton cards (4)
+- Error on queries section: inline error below scalar cards
+- Error on web-events section: inline error below topIntents table
+
+**Sections:**
+1. Scalar cards (from `queriesData`): totalQueries, cacheHitRate (%), avgResponseTimeMs (ms), missRate (= byLevel.miss / totalQueries, %)
+2. Web-events scalar card (from `webEventsData.totalQueries`): `webTotalQueries` ("Sesiones web · queries totales") — required for AC27 verifiability (operator confirms `NEXT_PUBLIC_METRICS_ENDPOINT` is wired by seeing this number tick up after browsing `/hablar`).
+3. Level distribution: byLevel (l1/l2/l3/l4/miss) — bar or donut; exact visualisation deferred to ui-ux-designer
+4. Source distribution: bySource (api/bot) — pie or icon pair
+5. Top queries table: top 10 from `queriesData.topQueries` (queryText + count)
+5. Top intents table: top 5 from `webEventsData.topIntents` (intent + count)
+
+---
+
+### useT (i18n hook)
+
+**Type:** Hook (not a component)
+**Client:** Yes (browser hook; module-level static import of JSON)
+**File:** `packages/web/src/lib/i18n/useT.ts`
+
+**Signature:**
+```typescript
+function useT(namespace: string): (key: string) => string
+```
+
+**Behaviour:**
+- Loads `messages/es/<namespace>.json` at module level (static import — no async loading).
+- Resolves dot-separated nested keys: `t('panel.missedQueries.title')` → `messages.panel.missedQueries.title`.
+- Falls back to the key string itself if the key path does not exist in the JSON (never throws, never returns undefined).
+- `LOCALE` constant (`packages/web/src/lib/i18n/locale.ts`) is `'es'`; hook always uses `es` in v1.
+- Scope: ONLY used in admin panel components. `/hablar`, `/login`, and other routes continue using hardcoded Spanish strings — no refactor of existing components.
+
+**Tests (`useT.test.ts`):**
+- Resolves a top-level key
+- Resolves a nested dot-separated key
+- Falls back to key string when key is missing
+- Falls back to key string when namespace JSON is empty/missing
+
+---
+
 ## Landing Package — nutriXplorer (F039)
 
 **Package:** `packages/landing/` | **Stack:** Next.js 14 App Router + TypeScript strict + Tailwind CSS + Framer Motion

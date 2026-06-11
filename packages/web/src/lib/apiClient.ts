@@ -16,8 +16,8 @@
 //
 // F-WEB-TIER: sendPhotoAnalysis now attaches Authorization: Bearer when authToken set.
 
-import type { ConversationMessageResponse, MenuAnalysisResponse, MeResponse, UsageResponse } from '@foodxplorer/shared';
-import { MeResponseSchema, UsageResponseSchema, SearchHistoryEntrySchema } from '@foodxplorer/shared';
+import type { ConversationMessageResponse, MenuAnalysisResponse, MeResponse, UsageResponse, MissedQueriesParams, MissedQueriesResponse, BatchTrackBody, MissedQueryTracking, UpdateMissedQueryStatusBody, HistorySampleParams, HistorySampleData, AnalyticsData, AnalyticsQueryParams, WebMetricsQueryParams, WebMetricsAggregate } from '@foodxplorer/shared';
+import { MeResponseSchema, UsageResponseSchema, SearchHistoryEntrySchema, MissedQueriesResponseSchema, MissedQueryTrackingSchema, HistorySampleDataSchema, AnalyticsDataSchema, WebMetricsAggregateSchema } from '@foodxplorer/shared';
 import type { TranscriptEntryData } from '@/types/history';
 import { z } from 'zod';
 
@@ -750,4 +750,159 @@ export async function clearHistory(): Promise<void> {
     const message = typeof errorObj['message'] === 'string' ? errorObj['message'] : `HTTP ${response.status}`;
     throw new ApiError(message, code, response.status);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Admin API helpers — F-ADMIN-ANALYTICS-UI
+// All require bearer. Pattern mirrors getMe/getUsage.
+// Parse error.code from non-2xx body to surface NOT_PROVISIONED / FORBIDDEN.
+// ---------------------------------------------------------------------------
+
+/** Shared helper: fetch with bearer + JSON parse + non-2xx error extraction. */
+async function adminFetch(
+  url: string,
+  init: RequestInit = {},
+): Promise<unknown> {
+  const baseUrl = process.env['NEXT_PUBLIC_API_URL'];
+  if (!baseUrl) throw new Error('NEXT_PUBLIC_API_URL is not defined.');
+  if (!authToken) throw new ApiError('No auth token — call setAuthToken first.', 'UNAUTHORIZED', 401);
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${url}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+        ...(init.headers ?? {}),
+      },
+    });
+  } catch (err) {
+    throw new ApiError(
+      err instanceof Error ? err.message : 'Network request failed',
+      'NETWORK_ERROR',
+    );
+  }
+
+  let json: unknown;
+  try {
+    json = await response.json();
+  } catch {
+    throw new ApiError('La respuesta del servidor no es JSON válido.', 'PARSE_ERROR', response.status);
+  }
+
+  if (!response.ok) {
+    const errorBody = json as Record<string, unknown>;
+    const errorObj = (errorBody?.['error'] ?? {}) as Record<string, unknown>;
+    const code = typeof errorObj['code'] === 'string' ? errorObj['code'] : 'API_ERROR';
+    const message = typeof errorObj['message'] === 'string' ? errorObj['message'] : `HTTP ${response.status}`;
+    throw new ApiError(message, code, response.status);
+  }
+
+  return (json as Record<string, unknown>)['data'];
+}
+
+/**
+ * GET /analytics/missed-queries — Panel A data.
+ */
+export async function getMissedQueries(
+  params: MissedQueriesParams,
+): Promise<MissedQueriesResponse['data']> {
+  const qs = new URLSearchParams({
+    timeRange: params.timeRange,
+    topN: String(params.topN ?? 20),
+    minCount: String(params.minCount ?? 1),
+  });
+  const data = await adminFetch(`/analytics/missed-queries?${qs.toString()}`);
+  const parsed = MissedQueriesResponseSchema.shape.data.safeParse(data);
+  if (!parsed.success) {
+    throw new ApiError('Respuesta inesperada de /analytics/missed-queries.', 'MALFORMED_RESPONSE');
+  }
+  return parsed.data;
+}
+
+/**
+ * POST /analytics/missed-queries/track — batch track missed queries.
+ */
+export async function trackMissedQueries(
+  queries: BatchTrackBody['queries'],
+): Promise<MissedQueryTracking[]> {
+  const data = await adminFetch('/analytics/missed-queries/track', {
+    method: 'POST',
+    body: JSON.stringify({ queries }),
+  });
+  // Backend returns { tracked: [...] } under .data — unwrap before parsing.
+  const tracked = (data as { tracked?: unknown })?.tracked;
+  const parsed = MissedQueryTrackingSchema.array().safeParse(tracked);
+  if (!parsed.success) {
+    throw new ApiError('Respuesta inesperada de /analytics/missed-queries/track.', 'MALFORMED_RESPONSE');
+  }
+  return parsed.data;
+}
+
+/**
+ * POST /analytics/missed-queries/:id/status — update tracking status.
+ */
+export async function updateMissedQueryStatus(
+  id: string,
+  body: UpdateMissedQueryStatusBody,
+): Promise<MissedQueryTracking> {
+  const data = await adminFetch(`/analytics/missed-queries/${id}/status`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  const parsed = MissedQueryTrackingSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new ApiError('Respuesta inesperada de /analytics/missed-queries/:id/status.', 'MALFORMED_RESPONSE');
+  }
+  return parsed.data;
+}
+
+/**
+ * GET /analytics/history-sample — Panel B data.
+ */
+export async function getHistorySample(
+  params: HistorySampleParams,
+): Promise<HistorySampleData> {
+  const qs = new URLSearchParams({
+    hours: String(params.hours),
+    limit: String(params.limit),
+  });
+  if (params.intent) qs.set('intent', params.intent);
+  const data = await adminFetch(`/analytics/history-sample?${qs.toString()}`);
+  const parsed = HistorySampleDataSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new ApiError('Respuesta inesperada de /analytics/history-sample.', 'MALFORMED_RESPONSE');
+  }
+  return parsed.data;
+}
+
+/**
+ * GET /analytics/queries — Panel C engine metrics.
+ */
+export async function getQueriesAnalytics(
+  params: AnalyticsQueryParams,
+): Promise<AnalyticsData> {
+  const qs = new URLSearchParams({ timeRange: params.timeRange });
+  const data = await adminFetch(`/analytics/queries?${qs.toString()}`);
+  const parsed = AnalyticsDataSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new ApiError('Respuesta inesperada de /analytics/queries.', 'MALFORMED_RESPONSE');
+  }
+  return parsed.data;
+}
+
+/**
+ * GET /analytics/web-events — Panel C web metrics.
+ */
+export async function getWebMetricsAnalytics(
+  params: WebMetricsQueryParams,
+): Promise<WebMetricsAggregate> {
+  const qs = new URLSearchParams({ timeRange: params.timeRange });
+  const data = await adminFetch(`/analytics/web-events?${qs.toString()}`);
+  const parsed = WebMetricsAggregateSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new ApiError('Respuesta inesperada de /analytics/web-events.', 'MALFORMED_RESPONSE');
+  }
+  return parsed.data;
 }

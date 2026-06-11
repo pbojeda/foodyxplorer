@@ -12,11 +12,13 @@ import fastifyPlugin from 'fastify-plugin';
 import type { Kysely } from 'kysely';
 import { sql } from 'kysely';
 import type { PrismaClient } from '@prisma/client';
+import type { Redis } from 'ioredis';
 import type { DB } from '../generated/kysely-types.js';
 import {
   WebMetricsSnapshotSchema,
   WebMetricsQueryParamsSchema,
 } from '@foodxplorer/shared';
+import { makeRequireAdminBearer } from '../plugins/requireAdminBearer.js';
 
 // ---------------------------------------------------------------------------
 // Plugin options
@@ -25,6 +27,10 @@ import {
 export interface WebMetricsPluginOptions {
   db: Kysely<DB>;
   prisma: PrismaClient;
+  redis: Redis;
+  config?: { NODE_ENV?: string };
+  /** ADR-031: opt-out for legacy tests (default false). See app.ts BuildAppOptions.adminBypass. */
+  allowTestBypass?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -72,7 +78,8 @@ const webMetricsRoutesPlugin: FastifyPluginAsync<WebMetricsPluginOptions> = asyn
   app,
   opts,
 ) => {
-  const { db, prisma } = opts;
+  const { db, prisma, redis, config, allowTestBypass = false } = opts;
+  const gate = makeRequireAdminBearer({ redis, prisma, config, allowTestBypass });
 
   // -------------------------------------------------------------------------
   // POST /analytics/web-events
@@ -173,6 +180,7 @@ const webMetricsRoutesPlugin: FastifyPluginAsync<WebMetricsPluginOptions> = asyn
   app.get(
     '/analytics/web-events',
     {
+      preHandler: [gate],
       schema: {
         querystring: WebMetricsQueryParamsSchema,
         tags: ['Analytics'],

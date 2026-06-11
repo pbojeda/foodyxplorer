@@ -68,14 +68,16 @@ tags:
       in F026. Write endpoints (POST /restaurants) are admin-only (F032).
   - name: Analytics
     description: |
-      Query log analytics endpoints (F029, F113). Every call to GET /estimate is recorded
-      asynchronously to the query_logs table. This endpoint aggregates those rows into
-      operational metrics: total query counts, level-hit distribution, top queried terms,
-      cache hit rate, average response time, and queries by chain and source.
-      Admin-only (requires X-API-Key matching ADMIN_API_KEY env var).
-      F113 adds POST /analytics/web-events (public, IP-rate-limited) to receive client-side
-      session metrics from the /hablar web assistant, and GET /analytics/web-events
-      (admin-only) to aggregate stored web metrics.
+      Query log analytics endpoints (F029, F079, F113, F-ADMIN-ANALYTICS-UI).
+      Every call to GET /estimate is recorded asynchronously to query_logs.
+      This tag covers:
+      - GET /analytics/queries (F029): aggregate metrics (totalQueries, cacheHitRate, byLevel, topQueries, etc.). Admin-only (bearer + tier=admin per F-ADMIN-ANALYTICS-UI / ADR-031).
+      - GET/POST /analytics/missed-queries + track + status (F079): demand-driven expansion pipeline. Surfaces queries with NULL level_hit. Admin-only (bearer + tier=admin per ADR-031).
+      - POST /analytics/web-events (F113): public sendBeacon endpoint (no auth, IP-rate-limited) to receive /hablar session metrics. Public by design.
+      - GET /analytics/web-events (F113): aggregate stored web metrics. Admin-only (bearer + tier=admin per ADR-031).
+      - GET /analytics/history-sample (F-ADMIN-ANALYTICS-UI): sample recent search_history rows for admin quality review. Admin bearer + tier=admin required. No account identifier in response (privacy by exclusion).
+
+      Auth migration (ADR-031, 2026-06-10): All `/analytics/*` endpoints migrated from X-API-Key (ADMIN_API_KEY env var) to bearer-only (JWT + Account.tier === 'admin'). The shift was driven by the admin web UI which cannot ship an API key from the browser. Other admin prefixes (/ingest/, /quality/, /embeddings/, /admin/) are unchanged.
   - name: Calculation
     description: |
       Recipe calculation endpoints (F035). Compute aggregate nutritional information
@@ -3529,7 +3531,7 @@ paths:
       tags:
         - Analytics
       security:
-        - AdminKeyAuth: []
+        - BearerAuth: []
       parameters:
         - name: timeRange
           in: query
@@ -3600,7 +3602,10 @@ paths:
                   message: "Validation failed"
                   code: "VALIDATION_ERROR"
         '401':
-          description: Missing or invalid admin API key.
+          description: |
+            Missing or invalid bearer token. Per ADR-031 (F-ADMIN-ANALYTICS-UI),
+            this endpoint requires `Authorization: Bearer <jwt>`. X-API-Key is
+            NO LONGER accepted on /analytics/*.
           content:
             application/json:
               schema:
@@ -3610,6 +3615,24 @@ paths:
                 error:
                   message: "Unauthorized"
                   code: "UNAUTHORIZED"
+        '403':
+          description: |
+            403 with error code `FORBIDDEN` — authenticated bearer is provisioned
+            but does not have `admin` tier (per `accounts.tier`). Per ADR-031
+            (F-ADMIN-ANALYTICS-UI), only admin-tier accounts may call /analytics/*.
+            Distinct from 403 `NOT_PROVISIONED` (valid bearer but no `accounts`
+            row yet — call GET /me once to provision, then retry) and from 500
+            `DB_UNAVAILABLE` (admin account tier lookup throws; per ADR-031 round
+            3 audit: no auto-upsert; tier read only).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Forbidden — admin tier required"
+                  code: "FORBIDDEN"
         '500':
           description: Database unavailable during aggregation.
           content:
@@ -3634,7 +3657,7 @@ paths:
       tags:
         - Analytics
       security:
-        - AdminKeyAuth: []
+        - BearerAuth: []
       parameters:
         - name: timeRange
           in: query
@@ -3707,11 +3730,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Missing or invalid admin API key.
+          description: |
+            Missing or invalid bearer token. Per ADR-031, this endpoint requires
+            `Authorization: Bearer <jwt>` (X-API-Key no longer accepted on /analytics/*).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: |
+            403 with error code `FORBIDDEN` — authenticated bearer is provisioned
+            but does not have `admin` tier. Per ADR-031, only admin-tier accounts
+            may call /analytics/*. (Distinct from 403 `NOT_PROVISIONED` which fires
+            when the bearer is valid but has no `accounts` row yet — call GET /me
+            once to provision, then retry.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Forbidden — admin tier required"
+                  code: "FORBIDDEN"
         '500':
           description: Database unavailable.
           content:
@@ -3729,7 +3770,7 @@ paths:
       tags:
         - Analytics
       security:
-        - AdminKeyAuth: []
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -3775,6 +3816,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: |
+            Missing or invalid bearer token. Per ADR-031, this endpoint requires
+            `Authorization: Bearer <jwt>` (X-API-Key no longer accepted on /analytics/*).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: |
+            403 with error code `FORBIDDEN` — authenticated bearer is provisioned
+            but does not have `admin` tier. Per ADR-031, only admin-tier accounts
+            may call /analytics/*. (Distinct from 403 `NOT_PROVISIONED` which fires
+            when the bearer is valid but has no `accounts` row yet — call GET /me
+            once to provision, then retry.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /analytics/missed-queries/{id}/status:
     post:
@@ -3786,7 +3846,7 @@ paths:
       tags:
         - Analytics
       security:
-        - AdminKeyAuth: []
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
@@ -3832,6 +3892,25 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '400':
           description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: |
+            Missing or invalid bearer token. Per ADR-031, this endpoint requires
+            `Authorization: Bearer <jwt>` (X-API-Key no longer accepted on /analytics/*).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: |
+            403 with error code `FORBIDDEN` — authenticated bearer is provisioned
+            but does not have `admin` tier. Per ADR-031, only admin-tier accounts
+            may call /analytics/*. (Distinct from 403 `NOT_PROVISIONED` which fires
+            when the bearer is valid but has no `accounts` row yet — call GET /me
+            once to provision, then retry.)
           content:
             application/json:
               schema:
@@ -3949,7 +4028,7 @@ paths:
       tags:
         - Analytics
       security:
-        - AdminKeyAuth: []
+        - BearerAuth: []
       parameters:
         - name: timeRange
           in: query
@@ -3987,7 +4066,10 @@ paths:
                       count: 10
                   timeRange: 7d
         '401':
-          description: Missing or invalid admin API key.
+          description: |
+            Missing or invalid bearer token. Per ADR-031 (F-ADMIN-ANALYTICS-UI),
+            this endpoint requires `Authorization: Bearer <jwt>`. X-API-Key is
+            NO LONGER accepted on /analytics/*.
           content:
             application/json:
               schema:
@@ -3997,6 +4079,22 @@ paths:
                 error:
                   message: "Unauthorized"
                   code: "UNAUTHORIZED"
+        '403':
+          description: |
+            403 with error code `FORBIDDEN` — authenticated bearer is provisioned
+            but does not have `admin` tier (per `accounts.tier`). Per ADR-031,
+            only admin-tier accounts may call /analytics/*. (Distinct from 403
+            `NOT_PROVISIONED` which fires when the bearer is valid but has no
+            `accounts` row yet — call GET /me once to provision, then retry.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Forbidden — admin tier required"
+                  code: "FORBIDDEN"
         '500':
           description: Database unavailable during aggregation.
           content:
@@ -4007,6 +4105,160 @@ paths:
                 success: false
                 error:
                   message: "Database query failed during web metrics aggregation"
+                  code: "DB_UNAVAILABLE"
+
+  # ---------------------------------------------------------------------------
+  # F-ADMIN-ANALYTICS-UI — History Sample
+  # ---------------------------------------------------------------------------
+
+  /analytics/history-sample:
+    get:
+      summary: Sample recent search history entries for admin review
+      description: |
+        Returns a recent-first sample of `search_history` rows for admin quality
+        review. Allows the admin to audit query↔response pairs for correctness.
+
+        Admin-only via the bearer-only path established by ADR-031 (F-ADMIN-ANALYTICS-UI).
+        Requires a valid Supabase JWT bearer (`Authorization: Bearer <jwt>`) for an
+        Account with `tier === 'admin'`. NO X-API-Key fallback (key path was removed
+        from `/analytics/*` in this same release).
+        Returns 401 for missing/invalid bearer; 403 for non-admin tier.
+
+        Privacy: NO account identifier appears in the response — neither raw
+        `accountId` nor any derivative (hash, HMAC). The route NEVER selects
+        `account_id` from `search_history` (privacy enforced at SQL level, not
+        post-construction). Use case is auditing **responses**, not user behaviour
+        patterns.
+
+        SQL strategy: `SELECT id, kind, query_text, result_jsonb, created_at FROM
+        search_history WHERE created_at >= NOW() - INTERVAL '<hours> hours' [AND
+        result_jsonb->>''intent'' = ''<intent>''] ORDER BY created_at DESC LIMIT
+        <limit>`. No second COUNT query; the response intentionally omits a
+        `totalAvailable` field because a COUNT(*) would include rows whose
+        `result_jsonb` fails `ConversationMessageData` safeParse (giving an
+        inaccurate total vs items[]). Drifted rows are silently dropped during
+        response mapping. If future use cases need an accurate total, an
+        additive field can be added.
+      operationId: getHistorySample
+      tags:
+        - Analytics
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: intent
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - context_set
+              - comparison
+              - menu_estimation
+              - estimation
+              - reverse_search
+              - text_too_long
+              - follow_up_attribute
+              - follow_up_refinement
+          description: |
+            Filter to a specific conversation intent. Absent = all intents.
+            Values are the 8 members of `ConversationIntentSchema`
+            (`packages/shared/src/schemas/conversation.ts`).
+        - name: hours
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 720
+            default: 24
+          description: |
+            Look-back window in hours from NOW(). Default 24, max 720 (30 days).
+            Coerced from string via Zod `.coerce.number()`.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: |
+            Maximum number of rows to return. Default 20, max 100.
+            Coerced from string via Zod `.coerce.number()`.
+      responses:
+        '200':
+          description: History sample returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistorySampleResponse'
+              example:
+                success: true
+                data:
+                  items:
+                    - id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      kind: text
+                      queryText: "big mac con patatas"
+                      resultData:
+                        intent: estimation
+                        source: l1
+                        confidence: high
+                      createdAt: "2026-06-10T12:34:56.000Z"
+                  hours: 24
+                  limit: 20
+        '400':
+          description: |
+            Query param validation failed: `hours` or `limit` out of range,
+            or `intent` is not a valid `ConversationIntent` enum value.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Validation failed"
+                  code: "VALIDATION_ERROR"
+        '401':
+          description: Bearer token absent, invalid, or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Unauthorized"
+                  code: "UNAUTHORIZED"
+        '403':
+          description: |
+            Two distinct cases (distinguishable by error code):
+            - `FORBIDDEN` — authenticated bearer is provisioned (has an `accounts`
+              row) but `tier !== 'admin'`. Message: "Forbidden — admin tier required".
+            - `NOT_PROVISIONED` — bearer is valid but has no `accounts` row yet.
+              Web flow auto-provisions via `AuthProvider.SIGNED_IN` → `GET /me`;
+              Postman/curl must call `GET /me` once before retrying.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Forbidden — admin tier required"
+                  code: "FORBIDDEN"
+        '500':
+          description: |
+            Server error. Possible codes:
+            - `DB_UNAVAILABLE`: database query failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Database query failed during history sample aggregation"
                   code: "DB_UNAVAILABLE"
 
   /restaurants:
@@ -10906,6 +11158,125 @@ components:
           enum: [true]
         data:
           $ref: '#/components/schemas/HistoryPage'
+
+    # -------------------------------------------------------------------------
+    # F-ADMIN-ANALYTICS-UI — History Sample schemas
+    # -------------------------------------------------------------------------
+
+    SearchHistorySampleEntry:
+      type: object
+      description: |
+        Single row from search_history, shaped for admin quality review.
+        Privacy by exclusion: NO account identifier — neither raw accountId
+        nor any derivative (hash/HMAC). The use case is auditing responses
+        for correctness, not user behaviour patterns. If same-user correlation
+        is ever needed in the future, an actorHash can be added in a
+        backwards-compatible follow-up.
+        Rows whose result_jsonb fails ConversationMessageData safeParse are
+        excluded from the response (silently dropped during mapping — not
+        returned, not counted, not logged with row content).
+      required:
+        - id
+        - kind
+        - queryText
+        - resultData
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID primary key of the search_history row.
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        kind:
+          type: string
+          enum: [text, voice]
+          description: Input modality that produced this entry.
+          example: text
+        queryText:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: |
+            The user-submitted query text (or Whisper transcript for voice).
+            Max 2000 chars mirrors POST /conversation/message body.text limit.
+          example: "big mac con patatas medianas"
+        resultData:
+          type: object
+          additionalProperties: true
+          description: |
+            Full ConversationMessageData payload stored at query time.
+            Same shape as the `data` field in POST /conversation/message 200 response.
+            Validated via ConversationMessageDataSchema safeParse at read time;
+            rows that fail are excluded.
+          example:
+            intent: "estimation"
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp (UTC) when this entry was created.
+          example: "2026-06-10T12:34:56.000Z"
+
+    HistorySampleData:
+      type: object
+      description: |
+        Inner data shape for GET /analytics/history-sample success envelope.
+        Zod source: HistorySampleDataSchema in packages/shared/src/schemas/analytics.ts.
+      required:
+        - items
+        - hours
+        - limit
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchHistorySampleEntry'
+          description: |
+            Up to `limit` entries ordered by created_at DESC.
+            Empty array when no matching rows exist.
+            Drifted rows (failed safeParse) are silently dropped.
+        hours:
+          type: integer
+          minimum: 1
+          maximum: 720
+          description: Echoed look-back window from the request.
+          example: 24
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Echoed limit from the request.
+          example: 20
+        intentFilter:
+          type: string
+          enum:
+            - context_set
+            - comparison
+            - menu_estimation
+            - estimation
+            - reverse_search
+            - text_too_long
+            - follow_up_attribute
+            - follow_up_refinement
+          description: |
+            Echoed intent filter from the request.
+            Absent when no intent filter was applied.
+          example: estimation
+
+    HistorySampleResponse:
+      type: object
+      description: |
+        Success envelope for GET /analytics/history-sample.
+        Wraps HistorySampleData per project-wide envelope contract
+        (`{ success: true, data: <payload> }` — mirrors AnalyticsResponseSchema
+        and every existing /analytics/* response shape).
+        Zod source: HistorySampleResponseSchema in packages/shared/src/schemas/analytics.ts.
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/HistorySampleData'
 
   securitySchemes:
     BearerAuth:

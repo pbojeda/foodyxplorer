@@ -243,7 +243,7 @@ describe('F029 edge cases — Spec AC invariants', () => {
 
   // SPEC AC: byLevel.l1 + l2 + l3 + l4 + miss === totalQueries
   it('[AC] byLevel sum equals totalQueries', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries',
@@ -263,7 +263,7 @@ describe('F029 edge cases — Spec AC invariants', () => {
 
   // SPEC AC: bySource.api + bySource.bot === totalQueries
   it('[AC] bySource sum equals totalQueries', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries',
@@ -288,7 +288,7 @@ describe('F029 edge cases — Spec AC invariants', () => {
   it('[BUG] byLevel sum can diverge from totalQueries when DB returns partial GROUP BY results', async () => {
     kyselyContainer.results = INVARIANT_BROKEN_RESULTS as unknown[][];
 
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries',
@@ -328,7 +328,7 @@ describe('F029 edge cases — analytics validation boundaries', () => {
 
   // The developer tested topN=0 and topN=150 but NOT topN=101 (listed in spec)
   it('[GAP] topN=101 → 400 VALIDATION_ERROR', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries?topN=101',
@@ -341,7 +341,7 @@ describe('F029 edge cases — analytics validation boundaries', () => {
 
   // topN as float string should fail .int()
   it('[GAP] topN=10.5 → 400 VALIDATION_ERROR (not integer)', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries?topN=10.5',
@@ -354,7 +354,7 @@ describe('F029 edge cases — analytics validation boundaries', () => {
 
   // chainSlug with special chars (injection attempt)
   it('[SECURITY] chainSlug SQL injection attempt → 400 VALIDATION_ERROR', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: "/analytics/queries?chainSlug=mc'; DROP TABLE query_logs;--",
@@ -367,7 +367,7 @@ describe('F029 edge cases — analytics validation boundaries', () => {
 
   // chainSlug with underscore (not in spec regex ^[a-z0-9-]+$)
   it('[SPEC] chainSlug with underscore → 400 VALIDATION_ERROR (underscore not in allowed set)', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries?chainSlug=mc_donalds',
@@ -380,7 +380,7 @@ describe('F029 edge cases — analytics validation boundaries', () => {
 
   // timeRange=ALL (uppercase) — spec only allows exact lowercase values
   it('[SPEC] timeRange=ALL (uppercase) → 400 VALIDATION_ERROR', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries?timeRange=ALL',
@@ -409,7 +409,7 @@ describe('F029 edge cases — analytics numeric coercion', () => {
   it('[BUG] avg_response_time_ms=NaN from DB produces null or NaN in response (not a valid number)', async () => {
     kyselyContainer.results = NAN_AVG_RESULTS as unknown[][];
 
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries',
@@ -431,7 +431,7 @@ describe('F029 edge cases — analytics numeric coercion', () => {
   it('[FIXED] cache_hit_rate > 1.0 from DB is clamped to 1', async () => {
     kyselyContainer.results = HIGH_CACHE_RATE_RESULTS as unknown[][];
 
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries',
@@ -449,7 +449,7 @@ describe('F029 edge cases — analytics numeric coercion', () => {
   it('[AC] cacheHitRate is 0 (not null) when totalQueries=0', async () => {
     kyselyContainer.results = EMPTY_RESULTS as unknown[][];
 
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries?timeRange=all',
@@ -465,7 +465,7 @@ describe('F029 edge cases — analytics numeric coercion', () => {
   it('[AC] avgResponseTimeMs is null (not 0) when totalQueries=0', async () => {
     kyselyContainer.results = EMPTY_RESULTS as unknown[][];
 
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries?timeRange=all',
@@ -497,7 +497,7 @@ describe('F029 edge cases — timeRange=all produces no WHERE clause', () => {
   // each for time = 5 false conditions; chain filter conditions depend on
   // whether chainSlug was passed.
   it('[MOCK FLAW] timeRange=all → $if condition for time filter is false (no WHERE clause)', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     await app.inject({
       method: 'GET',
       url: '/analytics/queries?timeRange=all',
@@ -512,7 +512,7 @@ describe('F029 edge cases — timeRange=all produces no WHERE clause', () => {
   });
 
   it('[MOCK FLAW] timeRange=7d → $if condition for time filter is true (WHERE clause applied)', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     await app.inject({
       method: 'GET',
       url: '/analytics/queries?timeRange=7d',
@@ -527,7 +527,7 @@ describe('F029 edge cases — timeRange=all produces no WHERE clause', () => {
   });
 
   it('[MOCK FLAW] chainSlug present → $if chain filter condition is true', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     await app.inject({
       method: 'GET',
       url: '/analytics/queries?chainSlug=mcdonalds-es',
@@ -555,7 +555,7 @@ describe('F029 edge cases — X-FXP-Source header normalization', () => {
 
   // Spec: "Only exact 'bot' match triggers bot source — anything else is 'api'"
   it('[SPEC] X-FXP-Source: BOT (uppercase) → source:api (case-sensitive)', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     await app.inject({
       method: 'GET',
       url: '/estimate?query=test',
@@ -570,7 +570,7 @@ describe('F029 edge cases — X-FXP-Source header normalization', () => {
 
   // Spec: "Only exact 'bot' match"
   it('[SPEC] X-FXP-Source: Bot (mixed case) → source:api', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     await app.inject({
       method: 'GET',
       url: '/estimate?query=test',
@@ -585,7 +585,7 @@ describe('F029 edge cases — X-FXP-Source header normalization', () => {
   // Spec: "Multiple X-FXP-Source headers — take first value only"
   // Existing tests cover array form with first='bot'. Untested: first='api', second='bot'
   it('[SPEC] X-FXP-Source array: [api, bot] → first value taken → source:api', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     // Fastify inject merges duplicate headers into array
     await app.inject({
       method: 'GET',
@@ -600,7 +600,7 @@ describe('F029 edge cases — X-FXP-Source header normalization', () => {
 
   // Empty string header value
   it('[SPEC] X-FXP-Source: (empty string) → source:api', async () => {
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     await app.inject({
       method: 'GET',
       url: '/estimate?query=test',
@@ -622,7 +622,7 @@ describe('F029 edge cases — X-FXP-Source header normalization', () => {
     // address leading/trailing whitespace in a non-comma-delimited value.
     // The implementation DOES trim, so ' bot' → 'bot' → source:'bot'.
     // This test documents that behaviour.
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     await app.inject({
       method: 'GET',
       url: '/estimate?query=test',
@@ -653,7 +653,7 @@ describe('F029 edge cases — L4 cache hit level derivation', () => {
   it('[GAP] cascade L4 hit → writeQueryLog called with levelHit:l4', async () => {
     mockRunEstimationCascade.mockResolvedValueOnce(ROUTER_L4_HIT);
 
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     await app.inject({ method: 'GET', url: '/estimate?query=kebab+misterioso' });
     await waitForMock();
 
@@ -677,7 +677,7 @@ describe('F029 edge cases — L4 cache hit level derivation', () => {
     };
     mockRedisGet.mockResolvedValueOnce(JSON.stringify(cachedL4Data));
 
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     await app.inject({ method: 'GET', url: '/estimate?query=kebab+misterioso' });
     await waitForMock();
 
@@ -714,7 +714,7 @@ describe('F029 edge cases — analytics Promise.all partial failure', () => {
     kyselyContainer.error = new Error('byChain query failed');
     kyselyContainer.results = INVARIANT_RESULTS as unknown[][];
 
-    const app = await buildApp();
+    const app = await buildApp({ adminBypass: true });
     const response = await app.inject({
       method: 'GET',
       url: '/analytics/queries',

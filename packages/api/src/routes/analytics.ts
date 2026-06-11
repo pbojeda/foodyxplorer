@@ -13,8 +13,11 @@ import type { FastifyPluginAsync } from 'fastify';
 import fastifyPlugin from 'fastify-plugin';
 import type { Kysely } from 'kysely';
 import { sql } from 'kysely';
+import type { Redis } from 'ioredis';
+import type { PrismaClient } from '@prisma/client';
 import type { DB } from '../generated/kysely-types.js';
 import { AnalyticsQueryParamsSchema } from '@foodxplorer/shared';
+import { makeRequireAdminBearer } from '../plugins/requireAdminBearer.js';
 
 // ---------------------------------------------------------------------------
 // Plugin options
@@ -22,6 +25,11 @@ import { AnalyticsQueryParamsSchema } from '@foodxplorer/shared';
 
 export interface AnalyticsPluginOptions {
   db: Kysely<DB>;
+  redis: Redis;
+  prisma: PrismaClient;
+  config?: { NODE_ENV?: string };
+  /** ADR-031: opt-out for legacy tests (default false). See app.ts BuildAppOptions.adminBypass. */
+  allowTestBypass?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,11 +83,13 @@ const analyticsRoutesPlugin: FastifyPluginAsync<AnalyticsPluginOptions> = async 
   app,
   opts,
 ) => {
-  const { db } = opts;
+  const { db, redis, prisma, config, allowTestBypass = false } = opts;
+  const gate = makeRequireAdminBearer({ redis, prisma, config, allowTestBypass });
 
   app.get(
     '/analytics/queries',
     {
+      preHandler: [gate],
       schema: {
         querystring: AnalyticsQueryParamsSchema,
         tags: ['Analytics'],

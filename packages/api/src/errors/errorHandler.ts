@@ -513,6 +513,22 @@ export function mapError(error: Error): MappedError {
     };
   }
 
+  // NOT_PROVISIONED — bearer valid but accounts row missing (requireAdminBearer, F-ADMIN-ANALYTICS-UI)
+  // Distinct from FORBIDDEN (which means row exists but tier !== admin).
+  // The web AdminGuard and tooling branch on this code to show appropriate copy vs a plain 403.
+  if (asAny['code'] === 'NOT_PROVISIONED') {
+    return {
+      statusCode: 403,
+      body: {
+        success: false,
+        error: {
+          message: error.message,
+          code: 'NOT_PROVISIONED',
+        },
+      },
+    };
+  }
+
   // EMPTY_TRANSCRIPTION — Whisper returned empty/whitespace or hallucination text (F075)
   if (asAny['code'] === 'EMPTY_TRANSCRIPTION') {
     return {

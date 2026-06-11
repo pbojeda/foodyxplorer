@@ -31,6 +31,8 @@ export interface AuthContextValue {
   account: Account | null;          // F-WEB-TIER: from GET /me; null before session or on getMe failure
   loading: boolean;
   error: string | null;
+  /** F-ADMIN-ANALYTICS-UI: code from last getMe() failure. null = no failure or success. */
+  accountErrorCode: 'NOT_PROVISIONED' | 'NETWORK_ERROR' | null;
   signIn: (provider: 'email' | 'google', options: SignInOptions) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -51,6 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [accountErrorCode, setAccountErrorCode] = useState<'NOT_PROVISIONED' | 'NETWORK_ERROR' | null>(null);
 
   // Memoize the client so the subscription effect only runs once
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
@@ -78,16 +81,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
         getMe()
           .then((meEnvelope) => {
             setAccount(meEnvelope.data.account);
+            setAccountErrorCode(null);
           })
-          .catch((err) => {
+          .catch((err: unknown) => {
             // AC10: non-fatal — log, leave account as null, app continues working.
             // Tier falls back to 'free' (E3). Meter shows "—".
             console.warn('[AuthProvider] getMe failed (non-fatal):', err);
+            // F-ADMIN-ANALYTICS-UI: capture error code for AdminGuard 3a/3b branching.
+            const code = (err as Record<string, unknown>)?.['code'];
+            if (code === 'NOT_PROVISIONED') {
+              setAccountErrorCode('NOT_PROVISIONED');
+            } else {
+              setAccountErrorCode('NETWORK_ERROR');
+            }
           });
       }
 
       if (event === 'SIGNED_OUT') {
         setAccount(null);
+        setAccountErrorCode(null);
       }
     });
 
@@ -141,8 +153,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [supabase, session]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, session, account, loading, error, signIn, signOut }),
-    [user, session, account, loading, error, signIn, signOut]
+    () => ({ user, session, account, loading, error, accountErrorCode, signIn, signOut }),
+    [user, session, account, loading, error, accountErrorCode, signIn, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
