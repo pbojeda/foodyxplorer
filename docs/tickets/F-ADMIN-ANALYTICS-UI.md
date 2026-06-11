@@ -32,7 +32,7 @@ No new DB migrations, no new tiers. **ADR-031 required** because Phase 0 is a be
 
 **Scope of Phase 0 — surgical, /analytics/* only:**
 
-1. **`packages/api/src/plugins/adminPrefixes.ts`** — split the prefix list into two groups: `ANALYTICS_PREFIX = '/analytics/'` (bearer-only path) vs `KEY_ADMIN_PREFIXES = ['/ingest/', '/quality/', '/embeddings/', '/admin/']` (X-API-Key path). Existing `ADMIN_PREFIXES` constant preserved as the union for any consumer that still needs the full set. Add helpers `isAnalyticsRoute(url, method)` and `isKeyAdminRoute(url)` mirroring the existing `isAdminRoute` shape (keep the `POST /analytics/web-events` public exemption).
+1. **`packages/api/src/plugins/adminPrefixes.ts`** — split the prefix list into two groups: `ANALYTICS_PREFIX = '/analytics/'` (bearer-only path) vs `KEY_ADMIN_PREFIXES = ['/ingest/', '/quality/', '/embeddings/', '/admin/']` (X-API-Key path). Existing `ADMIN_PREFIXES` constant preserved as the union for any consumer that still needs the full set. Add helpers `isAnalyticsRoute(url, method)` and `isKeyAdminRoute(url, method)` — **both method-aware** (per `/review-plan` round 1 IMPORTANT — Codex): `isKeyAdminRoute` must encapsulate the `/restaurants` method-specific rule (`POST /restaurants` is admin via key, `GET /restaurants` is public catalog) so callers don't reimplement the special case. Keep the `POST /analytics/web-events` public exemption inside `isAnalyticsRoute`.
 
 2. **`packages/api/src/plugins/auth.ts`** — split the admin branch:
    - **If `isAnalyticsRoute(url, method)`:** Do NOT validate API key. Skip — the bearer path runs in `actorResolver.ts` (which is already registered AFTER `auth.ts` in `app.ts:125-126`). The `/analytics/*` route handlers themselves (or a new lightweight `requireAdminBearer` preHandler attached to the analytics routes plugin) verify `request.accountId` is set + load `Account.tier === 'admin'` from DB → 401 if no bearer, 403 if tier ≠ admin.
@@ -104,14 +104,17 @@ HistorySampleDataSchema = {
 ```
 {
   id: string (uuid),
-  kind: SearchHistoryKind,       // 'text' | 'voice'
-  queryText: string,             // max 2000 chars
-  resultData: ConversationMessageDataSchema,
+  kind: SearchHistoryKind,                  // 'text' | 'voice'
+  queryText: string,                        // max 2000 chars
+  resultData: AdminResultDataSchema,        // ConversationMessageDataSchema MINUS actorId (see below)
   createdAt: string (ISO 8601)
 }
+
+// NEW schema in packages/shared/src/schemas/analytics.ts:
+AdminResultDataSchema = ConversationMessageDataSchema.omit({ actorId: true })
 ```
 
-**Privacy decision:** NO account identifier is exposed in the response — neither raw `accountId` nor any derivative (hash/HMAC). The use case is auditing **responses** for correctness, not user behaviour patterns. Owner explicitly chose YAGNI here: no hash, no env var, no RGPD surface. If a future use case needs same-user correlation (e.g. "this account hits the same wrong-flagged response 5 times"), an `actorHash` can be added in a follow-up ticket without breaking changes (additive optional field).
+**Privacy decision:** NO account identifier is exposed in the response — neither raw `accountId` nor any derivative (hash/HMAC) NOR the `actorId` UUID that lives inside `result_jsonb.actorId` (per `/review-plan` round 1 CRITICAL — Codex). `ConversationMessageDataSchema:152` declares `actorId: z.string().uuid()` as a required field — reusing the schema verbatim for the admin response would have leaked the user's actor UUID. The fix is `AdminResultDataSchema = ConversationMessageDataSchema.omit({ actorId: true })` PLUS the route strips `actorId` from each row before serialising. Tests assert `actorId` is absent in every item. The use case is auditing **responses** for correctness, not user behaviour patterns. Owner explicitly chose YAGNI: no hash, no env var, no RGPD surface. If a future use case needs same-user correlation (e.g. "this account hits the same wrong-flagged response 5 times"), an `actorHash` can be added in a follow-up ticket without breaking changes (additive optional field).
 
 **SQL strategy (non-normative, guidance for planner):**
 
@@ -125,7 +128,7 @@ ORDER BY created_at DESC
 LIMIT <limit>;
 ```
 
-`account_id` is NEVER fetched — privacy enforced at the query level, not just at response construction. No second COUNT query (no `totalAvailable`). Rows whose `result_jsonb` fails `ConversationMessageDataSchema.safeParse` are dropped during response mapping; not returned, not counted, not logged with row content.
+`account_id` is NEVER fetched — privacy enforced at the query level, not just at response construction. No second COUNT query (no `totalAvailable`). For each row: `safeParse` `result_jsonb` against full `ConversationMessageDataSchema` (drift drops are silent — not returned, not counted, not logged with row content); then strip `actorId` from the parsed payload before serialising (per /review-plan round 1 CRITICAL — Codex).
 
 **Existing endpoints consumed (no changes):**
 
@@ -357,8 +360,8 @@ Other architectural choices in this ticket reuse established patterns (no ADR ne
 ### AC19 — Panel C independent error states + filter parity
 - [ ] If `/analytics/web-events` fetch fails independently, an inline error appears below the web-events section but the queries section continues to render. Changing the `timeRange` preset re-fetches both endpoints with the new `timeRange`; both sections show their own loading state during re-fetch.
 
-### AC20 — history-sample endpoint envelope + privacy
-- [ ] `GET /analytics/history-sample` with a valid admin bearer returns `200` with envelope shape `{ success: true, data: { items, hours, limit, intentFilter? } }` per `HistorySampleResponseSchema`. NO `totalAvailable` field. Each item contains EXACTLY `id`, `kind`, `queryText`, `resultData`, `createdAt` — test asserts `accountId`, `actorHash`, and any other account-identifying field are NOT present (privacy by exclusion).
+### AC20 — history-sample endpoint envelope + privacy (incl. actorId redaction per round 1 plan-review CRITICAL)
+- [ ] `GET /analytics/history-sample` with a valid admin bearer returns `200` with envelope shape `{ success: true, data: { items, hours, limit, intentFilter? } }` per `HistorySampleResponseSchema`. NO `totalAvailable` field. Each item contains EXACTLY `id`, `kind`, `queryText`, `resultData`, `createdAt`. **Privacy assertions (test must verify ALL):** (a) `accountId` NOT in any item; (b) `actorHash` NOT in any item; (c) **`actorId` NOT in `item.resultData`** (despite `ConversationMessageDataSchema:152` declaring it required, the admin response strips it via `AdminResultDataSchema = ConversationMessageDataSchema.omit({ actorId: true })` + route mapping); (d) no other account-identifying field present. Seed `search_history` with a row whose `result_jsonb` includes a valid `actorId` UUID; assert the response payload's resultData has `actorId: undefined` and the field is structurally absent (not just null).
 
 ### AC21 — history-sample schema validation
 - [ ] `GET /analytics/history-sample?hours=721` returns `400` (hours exceeds max 720). `?limit=0` returns `400` (limit below min 1). `?intent=invalid_value` returns `400` (not a valid `ConversationIntent`). Valid requests with all defaults return the correct shape. Rows whose `result_jsonb` fails `ConversationMessageDataSchema.safeParse` are dropped from `items` (verified by integration test that seeds a drifted row + asserts it does NOT appear in the response).
@@ -423,7 +426,10 @@ Other architectural choices in this ticket reuse established patterns (no ADR ne
 - [ ] Step 2: `ui-ux-designer` executed (panel layout, visual hierarchy, component hierarchy finalized — per memory `feedback_uiux_designer_agent`)
 - [ ] Step 2: `frontend-planner` executed, Implementation Plan written
 - [ ] Step 2: `backend-planner` executed (auth migration + history-sample endpoint + schemas)
-- [ ] Step 2: Cross-model `/review-plan` APPROVED
+- [x] Step 2: Cross-model `/review-plan` round 1 — Gemini APPROVED + Codex REVISE (1 CRITICAL actorId leak in resultData + 3 IMPORTANT: isKeyAdminRoute method guard for /restaurants, negative-cache no-row coherence with /me, AuthProvider accountErrorCode for AdminGuard 3-variant 403 + 1 SUGGESTION Vitest→Jest)
+- [x] Step 2: Round 1 plan-review fixes applied inline — AdminResultDataSchema (omit actorId) + AC20 strengthened; isKeyAdminRoute method-aware (preserves GET /restaurants public); negative cache REMOVED (no-row not cached, ~30 extra DB reads/min/sub capped by rate limit); AuthProvider.accountErrorCode + AdminGuard branch 3a notProvisioned variant; all Vitest patterns → Jest
+- [x] Step 2: Cross-model `/review-plan` round 2 — Gemini APPROVED ("exceptionally thorough; no new gaps") + Codex REVISE (2 IMPORTANT prosa-stale `__none__` residuals, test bypass inconsistency + 1 SUG duplicate useT entry + AuthProvider missing from modify table)
+- [x] Step 2: Round 2 plan-review fixes applied inline — all `__none__` references purged; test bypass policy unified ("gate stays active in test; only rate-limit skipped"; legacy tests use named `allowTestBypass` opt-out); duplicate useT test row removed; AuthProvider.tsx + useAuth.ts added to Files-to-Modify table with explicit accountErrorCode extension scope. Round 3 skipped — diminishing returns (Gemini APPROVED both rounds; Codex content addressed per own review body; remaining were prose consistency).
 - [ ] Step 3: Implementation (frontend-developer + backend-developer)
 - [ ] Step 4: Quality gates pass (lint + typecheck + build + all tests green)
 - [ ] Step 5: `code-review-specialist` executed, findings addressed
@@ -448,6 +454,12 @@ Other architectural choices in this ticket reuse established patterns (no ADR ne
 | 2026-06-10 | Step 0 — Round 3 audit fixes applied (→ round 4 candidate) | IMP-2 dropped auto-upsert (Phase 0 narrative + edge cases #3b/#3c + AC5b rewritten + AC5c simplified). IMP-1 added AC5d per-bearer rate limit + edge case #3d. IMP-3 becomes N/A (no `accountProvision.ts` refactor needed without auto-upsert). PII note added to ADR-031 block. Workflow dedup of "Owner sign-off" lines (was 2 ×, now 1). MCE row 8 added (CI verification). ACs 29 → 30. Net: SIMPLIFIED (no shared upsert path) + DEFENDED (rate limit). |
 | 2026-06-10 | Step 0 — Cross-model `/review-spec` round 4 | Gemini APPROVED (3 forward-looking SUGGESTIONs: middleware, ResultBody extraction, i18n CONTRIBUTING note — all deferred to Step 2/follow-up). Codex REVISE 2 IMPORTANT (mechanical): (a) stale "account upsert/read throws" prose in api-spec.yaml 500 description carried over from pre-IMP-2 state; (b) cache contract ambiguity ("`request.account` populated and cached" reused `accountTier.ts` namespace which is tier-string-only). +1 SUG: stale AC22 reference in edge case 5 (now AC27). |
 | 2026-06-10 | Step 0 — Round 4 inline fixes (final spec state) | api-spec.yaml 500 prose updated → "admin account tier lookup throws" (no upsert wording). Cache contract narrowed → "tier string only at `account:tier:<sub>`, NOT a richer payload — preserves `actorRateLimit.ts` reader compat". Edge case 5 AC22 → AC27. Round 5 skipped (3 mechanical fixes; Gemini APPROVED + Codex's REVISE was prose consistency, not architecture). |
+| 2026-06-10 | Step 1 — Branch + commit `4549ae8` | feature/F-ADMIN-ANALYTICS-UI created off develop @ 46fc0ba. Step 1 audit by external fx agent APPROVE + 4 NITs (breakdown count, distinct NOT_PROVISIONED code, commit message round count, explicit paths) all applied. Pushed to origin. |
+| 2026-06-11 | Step 2 — Plan drafted | ui-ux-designer agent (W27-W37 design notes, full admin.json key tree). backend-planner agent (10 steps, ~54 tests). frontend-planner agent (14 steps, ~51 tests). 3 UI/UX deferred decisions resolved by planner (ResultBody Path a extraction, webTotalQueries own section, phone defer to AC26). Committed as `bd57929`. |
+| 2026-06-11 | Step 2 — `/review-plan` round 1 | Gemini APPROVED (23 files read, 3 commands; plan empirically sound). Codex REVISE 1 CRITICAL + 3 IMPORTANT + 1 SUGGESTION (45 files read, 30+ commands; rg + sed + nl heavy empirical verification). CRITICAL: actorId leak via ConversationMessageDataSchema reuse; IMP-1: isKeyAdminRoute method-blind regresses GET /restaurants; IMP-2: __none__ negative-cache incoherent with /me upsert; IMP-3: AuthProvider swallows getMe error code, AdminGuard can't render 3 distinct 403 W35 variants; SUG: Vitest patterns in Jest project. |
+| 2026-06-11 | Step 2 — Round 1 plan-review fixes applied | AdminResultDataSchema (`ConversationMessageDataSchema.omit({ actorId: true })`) + route also strips actorId + AC20 hardened with seeded-actorId test. isKeyAdminRoute(url, method) method-aware; /restaurants POST encapsulated inside helper, GET /restaurants → false. Negative cache REMOVED — no-row case not cached (trade-off: extra DB reads capped by per-bearer rate limit). AuthProvider.accountErrorCode field + getMe().catch sets NOT_PROVISIONED vs NETWORK_ERROR; AdminGuard branches 3a (notProvisioned amber) vs 3b (verifyFailed slate) vs 4 (forbidden red) — all W35 variants reachable. All Vitest → Jest patterns. |
+| 2026-06-11 | Step 2 — `/review-plan` round 2 | Gemini APPROVED ("exceptionally thorough; no new gaps"). Codex REVISE 2 IMPORTANT + 1 SUG: stale `__none__` references survived R1 edit (4 locations: 458, 515, 525, 593); requireAdminBearer test bypass inconsistency (line 657 says only rate-limit skipped; lines 925/929 say fully bypass); SUG duplicate useT test row (1050 + 1059) + AuthProvider missing from Files-to-Modify. All 3 confirmed empirically. |
+| 2026-06-11 | Step 2 — Round 2 plan-review inline fixes | All `__none__` mentions purged (Files-to-Modify table + accountTier code-sample comment + verification-commands prose). Test bypass policy unified: "gate stays active in test; only Redis rate-limit branch skipped; legacy tests use explicit named `allowTestBypass: true` opt-out confined to non-auth-scope existing tests; new integration tests for AC1-AC5d MUST NOT use the opt-out". Duplicate useT row removed (kept canonical `lib/i18n/__tests__/`). AuthProvider.tsx + useAuth.ts added to Files-to-Modify table with explicit accountErrorCode extension scope. Round 3 skipped (3 prose-stale fixes; Gemini already APPROVED; Codex content confirmed addressed per its own review body). |
 
 ---
 
@@ -483,7 +495,7 @@ Other architectural choices in this ticket reuse established patterns (no ADR ne
 | `verifyBearerJwt` | `packages/api/src/plugins/authBearer.ts` | Already called by `actorResolver.ts` and `history.ts`; `requireAdminBearer` relies on `request.accountId` which `actorResolver` sets post-verification — no second JWT verify needed in the preHandler |
 | `redis.incr` / `redis.expire` | `packages/api/src/plugins/actorRateLimit.ts:151-155` | Pattern for per-key rate limiting with TTL on first increment — reuse exact pattern in `requireAdminBearer` |
 | `SearchHistoryKindSchema` | `packages/shared/src/schemas/history.ts:39` | Reuse for `SearchHistorySampleEntrySchema.kind` |
-| `ConversationMessageDataSchema` | `packages/shared/src/schemas/conversation.ts:148` | Reuse for `SearchHistorySampleEntrySchema.resultData` — same safeParse-per-row drift pattern as `useSearchHistory` |
+| `ConversationMessageDataSchema` | `packages/shared/src/schemas/conversation.ts:148` | **Use via `.omit({ actorId: true })`** for `SearchHistorySampleEntrySchema.resultData` (per /review-plan round 1 CRITICAL — actorId leak). Same safeParse-per-row drift pattern as `useSearchHistory`. Route strips actorId before serialisation. |
 | `ConversationIntentSchema` | `packages/shared/src/schemas/conversation.ts:59` | Reuse for `HistorySampleParamsSchema.intent` |
 | `AnalyticsDataSchema` / `AnalyticsResponseSchema` | `packages/shared/src/schemas/analytics.ts:76,93` | Structural mirror for the new data + response schema pair |
 | `SearchHistory` Kysely type | `packages/api/src/generated/kysely-types.ts:250` | Columns: `id`, `account_id`, `kind`, `query_text`, `result_jsonb`, `created_at` — use for typed SELECT |
@@ -513,7 +525,7 @@ Other architectural choices in this ticket reuse established patterns (no ADR ne
 |------|--------|
 | `packages/api/src/plugins/adminPrefixes.ts` | Add `ANALYTICS_PREFIX`, `KEY_ADMIN_PREFIXES`, `isAnalyticsRoute()`, `isKeyAdminRoute()`. Preserve `ADMIN_PREFIXES` (still consumed by `rateLimit.ts`) and `isAdminRoute` |
 | `packages/api/src/plugins/auth.ts` | Split the `if (isAdminRoute(...))` block into two sequential checks: `if (isAnalyticsRoute(...)) return` then `if (isKeyAdminRoute(...)) { validateAdminKey ... return }` |
-| `packages/api/src/lib/accountTier.ts` | Add `resolveAccountTierStrict()` returning `'admin' \| 'pro' \| 'free' \| null`; add `__none__` sentinel caching for no-row case; keep `resolveAccountTier` as back-compat wrapper mapping `null→'free'` |
+| `packages/api/src/lib/accountTier.ts` | Add `resolveAccountTierStrict()` returning `'admin' \| 'pro' \| 'free' \| null`; **cache tier strings only** (no negative caching — `null` returned uncached per /review-plan round 1 IMPORTANT); keep `resolveAccountTier` as back-compat wrapper mapping `null→'free'` |
 | `packages/api/src/errors/errorHandler.ts` | Add `NOT_PROVISIONED` → 403 case (parallel to the existing `FORBIDDEN` → 403 case, distinct code so the web AdminGuard can branch) |
 | `packages/api/src/app.ts` | Import and register `historySampleRoutes` alongside the other analytics routes (after `webMetricsRoutes` registration, before `authRoutes`) |
 | `packages/shared/src/schemas/analytics.ts` | Append `HistorySampleParamsSchema`, `SearchHistorySampleEntrySchema`, `HistorySampleDataSchema`, `HistorySampleResponseSchema` |
@@ -542,10 +554,11 @@ Other architectural choices in this ticket reuse established patterns (no ADR ne
      return url.startsWith(ANALYTICS_PREFIX);
    }
 
-   export function isKeyAdminRoute(url: string | undefined): boolean {
+   export function isKeyAdminRoute(url: string | undefined, method?: string): boolean {
      if (!url) return false;
-     return KEY_ADMIN_PREFIXES.some((prefix) => url.startsWith(prefix))
-       || (url === '/restaurants'); // POST /restaurants is key-admin (existing isAdminRoute logic)
+     // POST /restaurants is admin via key; GET /restaurants is public catalog
+     if (url === '/restaurants') return method === 'POST';
+     return KEY_ADMIN_PREFIXES.some((prefix) => url.startsWith(prefix));
    }
    ```
 
@@ -556,11 +569,14 @@ Other architectural choices in this ticket reuse established patterns (no ADR ne
    - `isAnalyticsRoute('/analytics/web-events', 'POST')` → `false` (public exemption)
    - `isAnalyticsRoute('/analytics/web-events', 'GET')` → `true`
    - `isAnalyticsRoute('/ingest/url', 'POST')` → `false`
-   - `isKeyAdminRoute('/ingest/url')` → `true`
-   - `isKeyAdminRoute('/quality/report')` → `true`
-   - `isKeyAdminRoute('/embeddings/generate')` → `true`
-   - `isKeyAdminRoute('/admin/waitlist')` → `true`
-   - `isKeyAdminRoute('/analytics/queries')` → `false`
+   - `isKeyAdminRoute('/ingest/url', 'POST')` → `true`
+   - `isKeyAdminRoute('/quality/report', 'GET')` → `true`
+   - `isKeyAdminRoute('/embeddings/generate', 'POST')` → `true`
+   - `isKeyAdminRoute('/admin/waitlist', 'GET')` → `true`
+   - `isKeyAdminRoute('/analytics/queries', 'GET')` → `false`
+   - **`isKeyAdminRoute('/restaurants', 'POST')` → `true`** (catalog admin write)
+   - **`isKeyAdminRoute('/restaurants', 'GET')` → `false`** (public catalog read — must NOT regress per `/review-plan` round 1 IMPORTANT)
+   - **`isKeyAdminRoute('/restaurants', undefined)` → `false`** (no method = treat as non-admin to be safe)
    - `ADMIN_PREFIXES` still includes `/analytics/` (unchanged)
    - `isAdminRoute('/analytics/queries', 'GET')` still returns `true` (unchanged behavior)
 
@@ -574,9 +590,14 @@ Other architectural choices in this ticket reuse established patterns (no ADR ne
    /**
     * Strict variant — returns null when no accounts row exists for sub.
     * Does NOT fail-open: if DB throws, the error propagates to the caller.
-    * Cache contract: stores tier string ('free'/'pro'/'admin') OR the literal
-    * string '__none__' for no-row. TTL 60s (same as resolveAccountTier).
-    * '__none__' sentinel prevents repeated DB hits for unprovisioned subs.
+    * Cache contract: stores tier string ('free'/'pro'/'admin') with 60s TTL.
+    * NO negative caching for no-row case (per /review-plan round 1 IMPORTANT —
+    * Codex): /me upserts the accounts row but has no cache invalidation hook,
+    * so caching a no-row sentinel would block an admin for up to 60s after
+    * their first /me call. Trade-off: each non-provisioned bearer hits DB
+    * once per call to /analytics/* (no cache). Acceptable since (a)
+    * /analytics/* is low-traffic admin-only, (b) the per-bearer rate limit in
+    * requireAdminBearer (30/min) caps DB hits to 30/min per non-admin bearer.
     */
    export async function resolveAccountTierStrict(
      redis: Redis,
@@ -586,17 +607,17 @@ Other architectural choices in this ticket reuse established patterns (no ADR ne
    ): Promise<AccountTierOrNull> { ... }
    ```
 
-   Sentinel: `'__none__'` stored in Redis when no row found. On cache read: if value is `'__none__'`, return `null`; else return the value as `AccountTier`.
+   On cache read: if value is `'admin'`, `'pro'`, or `'free'` → return it. On cache miss → query DB; if row exists, cache + return tier; if row missing, return `null` WITHOUT caching.
 
    Update `resolveAccountTier` to call `resolveAccountTierStrict` and map `null→'free'`. Existing fail-open behavior preserved (when strict throws, wrapper catches and returns `'free'`).
 
    **RED tests:** `fAdminAnalytics.accountTierStrict.unit.test.ts`
-   - Cache hit with `'admin'` → returns `'admin'`
-   - Cache hit with `'__none__'` → returns `null`
-   - Cache miss + DB returns row → returns tier + caches tier string
-   - Cache miss + DB returns no row → returns `null` + caches `'__none__'` with TTL 60
+   - Cache hit with `'admin'` → returns `'admin'` (no DB hit)
+   - Cache miss + DB returns row → returns tier + caches tier string with TTL 60
+   - Cache miss + DB returns no row → returns `null` + **does NOT cache** (verified by asserting redis.set was NOT called)
    - Cache miss + DB throws → rethrows (does NOT return `'free'`)
    - Back-compat: `resolveAccountTier` with no-row → still returns `'free'`
+   - **Provisioning coherence test:** call A → no-row → returns null (no cache); /me upsert simulates row creation; call B → cache miss → DB returns row → returns tier (admin not blocked by stale negative cache)
    - Back-compat: `resolveAccountTier` with DB error → still returns `'free'` (fail-open)
 
 3. **B3 — `packages/api/src/plugins/requireAdminBearer.ts`** (new file; depends on B4)
@@ -659,8 +680,9 @@ Other architectural choices in this ticket reuse established patterns (no ADR ne
    // preHandler attached at route level verifies accountId + tier.
    if (isAnalyticsRoute(url, request.method)) return;
 
-   // Key-admin routes — X-API-Key gate (unchanged)
-   if (isKeyAdminRoute(url) || (url === '/restaurants' && request.method === 'POST')) {
+   // Key-admin routes — X-API-Key gate (unchanged). `/restaurants POST` is
+   // encapsulated inside isKeyAdminRoute (method-aware) so this caller stays clean.
+   if (isKeyAdminRoute(url, request.method)) {
      // ... existing validateAdminKey logic unchanged ...
    }
    ```
@@ -743,10 +765,19 @@ Other architectural choices in this ticket reuse established patterns (no ADR ne
      id:         z.string().uuid(),
      kind:       SearchHistoryKindSchema,
      queryText:  z.string().min(1).max(2000),
-     resultData: ConversationMessageDataSchema,
+     resultData: AdminResultDataSchema, // ConversationMessageDataSchema.omit({ actorId: true })
      createdAt:  z.string().datetime(),
    });
    export type SearchHistorySampleEntry = z.infer<typeof SearchHistorySampleEntrySchema>;
+
+   // NEW redacted schema (per /review-plan round 1 CRITICAL — Codex):
+   // ConversationMessageDataSchema declares actorId as required, so the admin
+   // response uses an omitted variant to prevent leaking user identity through
+   // the resultData field. The route must ALSO strip actorId from each row's
+   // result_jsonb before serialising (omit() on the schema validates the SHAPE
+   // but does not strip data — the runtime omission is a separate step).
+   export const AdminResultDataSchema = ConversationMessageDataSchema.omit({ actorId: true });
+   export type AdminResultData = z.infer<typeof AdminResultDataSchema>;
 
    // ---------------------------------------------------------------------------
    // HistorySampleDataSchema + HistorySampleResponseSchema — envelope
@@ -892,13 +923,19 @@ Phase 1 — history-sample:
 - `fAdminAnalytics.requireAdminBearer.integration.test.ts`: seed two accounts — one with `tier='admin'`, one with `tier='free'`. Use `buildApp().inject()` to fire requests with mocked bearer (set `request.accountId` by seeding `SUPABASE_JWKS_URL` to the test JWKS or by bypassing JWT verify in test env via `NODE_ENV=test` shortcut if one exists). Verify `accounts` row count UNCHANGED after NOT_PROVISIONED rejection.
 - Rate limit integration: mock Redis INCR to return 31 directly (avoid real counter management in CI).
 
-**Existing test migration — after B5:**
+**Existing test migration — after B5 (revised per /review-plan round 2 IMPORTANT — Codex):**
 
-`f029.analytics.route.test.ts` and `f113.webMetrics.*.test.ts` currently assume the global `auth.ts` hook handles admin auth. After B2, the hook skips analytics routes entirely — routes that were "protected by X-API-Key" now need `requireAdminBearer`. In `NODE_ENV=test`, `requireAdminBearer` skips rate limiting but still checks `request.accountId`. Two options:
-- (Preferred) Set `request.accountId` in test setup via injecting a fake JWT or by short-circuit: in `NODE_ENV=test`, `makeRequireAdminBearer` returns early (fully skip gate). Mirrors `rateLimit.ts:107-109` pattern.
-- Alternative: seed an admin account + mock JWT for every existing analytics test.
+`f029.analytics.route.test.ts` and `f113.webMetrics.*.test.ts` currently assume the global `auth.ts` hook handles admin auth. After B2, the hook skips analytics routes entirely — routes that were "protected by X-API-Key" now need `requireAdminBearer`.
 
-The plan recommends option (preferred): add `if (opts.config?.NODE_ENV === 'test') return` at the top of the preHandler factory when `NODE_ENV=test`. Pass `config` as an optional option to `makeRequireAdminBearer`. This keeps existing test behavior exactly intact while new integration tests opt into real gate verification via explicit `testEnv: false` option.
+**Test bypass policy (unified — fixes round 2 IMPORTANT-2 inconsistency):**
+
+The B3 step skips ONLY the Redis rate-limit branch in `NODE_ENV=test` (mirrors `rateLimit.ts:107`). The gate itself (accountId + tier resolution + NOT_PROVISIONED/FORBIDDEN/DB_UNAVAILABLE branching) **stays ACTIVE in all environments including test** — this is what makes AC1/AC2/AC3/AC5b/AC5c integration tests meaningful. Fully bypassing the gate in test would weaken those ACs to no-ops.
+
+For LEGACY tests that still rely on X-API-Key (`f029.analytics.route.test.ts`, `f113.webMetrics.*.test.ts`), the migration path is:
+1. **Preferred:** Each test seeds an admin account row + sets `request.accountId` via a test helper that injects a bearer (or stubs `request.accountId` directly on `app.inject()` payload). Pattern mirrors `f-web-tier/fWebTier.usageEndpoint.integration.test.ts` lines 160-170 (admin account seed via `prisma.$executeRaw`).
+2. **Explicit opt-out (for legacy non-auth-scope tests only):** `makeRequireAdminBearer({ ...opts, allowTestBypass: true })` where the factory honours an opt-in flag to skip the full gate. NEW integration tests (`fAdminAnalytics.requireAdminBearer.integration.test.ts`) MUST NOT use this flag — they exercise the real gate to validate AC1/AC2/AC3/AC5b/AC5c.
+
+The `allowTestBypass` opt-out is a deliberate, named escape hatch confined to legacy tests, not a default-on test mode. Default behaviour in test: rate limit skipped, gate active.
 
 ---
 
@@ -937,7 +974,7 @@ The plan recommends option (preferred): add `if (opts.config?.NODE_ENV === 'test
 
 - `grep -rn "resolveAccountTier" packages/api/src/ --include="*.ts" | grep -v __tests__` → 3 call sites: `actorRateLimit.ts:111`, `auth.ts:435`, `lib/accountTier.ts:22` (definition) → back-compat wrapper required so these callers are unaffected
 
-- `grep -rn "account:tier" packages/api/src/ --include="*.ts"` → cache key `account:tier:<sub>` used in `accountTier.ts:28`, read by tests (2 integration test files use the key directly to seed cache) → `__none__` sentinel must NOT collide with valid tier strings (`'free'`/`'pro'`/`'admin'`); confirmed no collision
+- `grep -rn "account:tier" packages/api/src/ --include="*.ts"` → cache key `account:tier:<sub>` used in `accountTier.ts:28`, read by tests (2 integration test files use the key directly to seed cache). Round 1 plan-review IMPORTANT-2 eliminated negative caching — cache stores only valid tier strings (`'free'`/`'pro'`/`'admin'`); `null` (no row) returned uncached per round 1 fix.
 
 - `Read: packages/api/src/plugins/rateLimit.ts:125-133` → confirmed `allowList` exempts all `ADMIN_PREFIXES` (including `/analytics/`) from global IP limiter; this exemption is CORRECT to keep — analytics bearer requests use `account:<sub>` bucket via `getRateLimitKeyGenerator`, not IP bucket; removing `/analytics/` from `ADMIN_PREFIXES` would re-route analytics requests to IP bucket (regression)
 
@@ -1019,7 +1056,6 @@ Defer to operator smoke (AC26). Primary audience is desktop/tablet. The W36 phon
 | `packages/web/src/lib/i18n/locale.ts` | `LOCALE = 'es' as const` + `SupportedLocale` type |
 | `packages/web/src/lib/i18n/messages/es/admin.json` | Full W34 key tree verbatim — all admin Spanish strings |
 | `packages/web/src/lib/i18n/useT.ts` | `useT(namespace)` hook — dot-key resolver + fallback to key + NO built-in interpolation (caller uses `.replace('{x}', val)` per W34 note) |
-| `packages/web/src/lib/i18n/__tests__/useT.test.ts` | Unit tests for useT |
 | `packages/web/src/app/admin/layout.tsx` | Server Component shell with metadata (`noindex`) + `<AdminGuard>` + `<AdminLayout>` co-located |
 | `packages/web/src/app/admin/analytics/page.tsx` | Server Component page — renders 3 panels stacked |
 | `packages/web/src/components/admin/AdminGuard.tsx` | `'use client'` — auth/tier gate; 4 branches per W27/W35 |
@@ -1045,6 +1081,8 @@ Defer to operator smoke (AC26). Primary audience is desktop/tablet. The W36 phon
 | File | Change |
 |------|--------|
 | `packages/web/src/components/TranscriptEntry.tsx` | Remove internal `ResultBody` function; import `ResultBody` from `'@/components/ResultBody'` instead; all 8 intent cases + null guard move to `ResultBody.tsx`. The outer `TranscriptEntry` shell (entry.error / entry.isLoading / photo branches) stays in `TranscriptEntry.tsx`. |
+| `packages/web/src/components/AuthProvider.tsx` | **NEW per /review-plan round 1 IMPORTANT-3 + round 2 SUG:** Extend `AuthContextValue` with `accountErrorCode: 'NOT_PROVISIONED' \| 'NETWORK_ERROR' \| null` field. In the existing `getMe().catch(err)` block (line ~78), set the code based on `err.code` (`NOT_PROVISIONED` if API returned that code, else `NETWORK_ERROR`). Default state `null`. Re-exported via `useAuth()` so `AdminGuard` can destructure it for the 3a/3b branch distinction. |
+| `packages/web/src/hooks/useAuth.ts` | Re-export the extended `AuthContextValue` shape (no logic change — type-level only). |
 | `packages/web/src/lib/apiClient.ts` | Add 6 new admin API wrappers: `getMissedQueries`, `trackMissedQueries`, `updateMissedQueryStatus`, `getQueriesAnalytics`, `getWebMetricsAnalytics`, `getHistorySample`. Each follows the `getMe`/`getUsage`/`getHistory` pattern: `authToken` guard → fetch with `Authorization: Bearer ${authToken}` → JSON parse → schema safeParse → return data. Parse `error.code` from non-2xx body to surface `NOT_PROVISIONED` / `FORBIDDEN` to callers via `ApiError`. |
 | `packages/web/src/lib/metrics.ts` | Add admin `MetricEvent` values to the union: `'admin_panel_loaded'`, `'admin_tracking_action'`, `'admin_history_expand'`, `'admin_403_shown'`. Add payload fields to `MetricPayload`: `panel?: 'missed-queries' \| 'response-review' \| 'overview'`, `action?: 'investigating' \| 'resolved' \| 'ignored'`, `code403?: 'NOT_PROVISIONED' \| 'FORBIDDEN' \| 'VERIFY_FAILED'`. Add `case` branches in `trackEvent` switch — admin events do NOT increment `queryCount`/`successCount` (payload-only). |
 
@@ -1248,7 +1286,17 @@ Defer to operator smoke (AC26). Primary audience is desktop/tablet. The W36 phon
        return null;
      }
 
-     // Branch 3: account null — getMe failed (network error / API down)
+     // Branch 3a: account null + code = NOT_PROVISIONED (per /review-plan round 1
+     // IMPORTANT — Codex): bearer is valid but no accounts row yet. Render amber
+     // recoverable variant with hint to call /me (web auto-handles via
+     // AuthProvider.SIGNED_IN → getMe, so this branch normally never fires;
+     // surfaces if /me itself returns NOT_PROVISIONED before any analytics call).
+     if (!account && accountErrorCode === 'NOT_PROVISIONED') {
+       trackEvent('admin_403_shown', { code403: 'NOT_PROVISIONED' });
+       return <ForbiddenPage variant="notProvisioned" t={t} onAction={() => router.refresh()} />;
+     }
+
+     // Branch 3b: account null + network/other error → slate verifyFailed
      if (!account) {
        trackEvent('admin_403_shown', { code403: 'VERIFY_FAILED' });
        return <ForbiddenPage variant="verifyFailed" t={t} onAction={() => router.refresh()} />;
@@ -1265,11 +1313,34 @@ Defer to operator smoke (AC26). Primary audience is desktop/tablet. The W36 phon
    }
    ```
 
+   **Prerequisite — AuthProvider extension (NEW Step F4b, blocks F5):**
+
+   Per `/review-plan` round 1 IMPORTANT (Codex), `AuthProvider.tsx` currently swallows `getMe()` failures and only sets `account = null`, losing the error code distinction. Extend `AuthContextValue`:
+
+   ```typescript
+   // packages/web/src/components/AuthProvider.tsx
+   export interface AuthContextValue {
+     user: User | null;
+     account: Account | null;
+     loading: boolean;
+     accountErrorCode: 'NOT_PROVISIONED' | 'NETWORK_ERROR' | null;  // NEW
+   }
+
+   // In the getMe().catch(err) block:
+   //   if (err.code === 'NOT_PROVISIONED') setAccountErrorCode('NOT_PROVISIONED');
+   //   else                                setAccountErrorCode('NETWORK_ERROR');
+   //   setAccount(null);
+   ```
+
+   `useAuth()` re-exports the new field. AdminGuard consumes it via destructuring: `const { user, account, loading, accountErrorCode } = useAuth();`
+
+   **RED tests:** `AuthProvider.accountErrorCode.test.tsx` — mock `getMe` to throw with code 'NOT_PROVISIONED' / 'NETWORK_ERROR' / generic Error; assert context exposes the right code.
+
    `LoadingPage` (co-located sub-component): `fixed inset-0 bg-white flex items-center justify-center` per W27. Spinner: `w-8 h-8 rounded-full border-2 border-slate-200 border-t-brand-green animate-spin`. Text below: `text-sm text-slate-400 mt-3` with `t('layout.loading')`.
 
-   `ForbiddenPage` (co-located sub-component): variant `'verifyFailed' | 'forbidden'` → renders W35 card. Card border: `border-amber-200` (verifyFailed) or `border-red-200` (forbidden). Uses `t('layout.403.verifyFailed.*')` or `t('layout.403.forbidden.*')` respectively. The `NOT_PROVISIONED` variant from W35 (`border-amber-200`) applies when `account === null` — AdminGuard cannot distinguish `NOT_PROVISIONED` from general getMe failure (both result in `account === null`). The `verifyFailed` variant serves both. The monospace hint text from `NOT_PROVISIONED` is included in `verifyFailed` body copy (W35 specifies it for the "recoverable" amber state). CTA: `router.refresh()` (retry).
+   `ForbiddenPage` (co-located sub-component): variant `'notProvisioned' | 'verifyFailed' | 'forbidden'` → renders W35 card. Card borders per W35: `border-amber-200` (notProvisioned recoverable), `border-slate-200` (verifyFailed transient network error), `border-red-200` (forbidden permission denied). Uses `t('layout.403.notProvisioned.*')` | `t('layout.403.verifyFailed.*')` | `t('layout.403.forbidden.*')` respectively. CTA per variant: notProvisioned → `router.refresh()` after calling `/me`; verifyFailed → `router.refresh()` retry; forbidden → `router.back()` (no retry possible).
 
-   **Note on NOT_PROVISIONED distinction:** The W35 spec distinguishes `NOT_PROVISIONED` (account row missing) from `verifyFailed` (network error). AdminGuard cannot distinguish these at the client level because both surface as `account === null`. AdminGuard renders the `verifyFailed` amber variant for both. This is acceptable for v1 — the admin (Pablo) will recognize both cases. A follow-up could thread the `error` field from `AuthContext` to show more specific copy.
+   **NOT_PROVISIONED distinction (resolved per /review-plan round 1 IMPORTANT — Codex):** The W35 spec distinguishes `NOT_PROVISIONED` (account row missing — amber, recoverable) from `verifyFailed` (network/server error — slate, transient). The plan now extends `AuthContextValue` with `accountErrorCode: 'NOT_PROVISIONED' | 'NETWORK_ERROR' | null` set inside the `getMe().catch()` path in AuthProvider (Step F4b above). AdminGuard branches on the code to render the correct variant. All 3 W35 403 treatments are reachable end-to-end.
 
    **RED tests — `packages/web/src/__tests__/components/AdminGuard.test.tsx`:**
    - Mock `useAuth` → `{ loading: true }` → renders spinner with "Verificando acceso..."
@@ -1547,11 +1618,12 @@ Defer to operator smoke (AC26). Primary audience is desktop/tablet. The W36 phon
 **Total new frontend tests: ~51**
 
 **Mocking strategy:**
-- `useAuth`: mock at module level via `vi.mock('@/hooks/useAuth')` — return `{ user, account, loading }` as specified per test
-- `apiClient` admin functions: mock via `vi.mock('@/lib/apiClient')` — return fixture data or throw `ApiError`
-- `useRouter` / `usePathname`: mock via `vi.mock('next/navigation')` — `useRouter` returns `{ replace: vi.fn(), back: vi.fn(), refresh: vi.fn() }`, `usePathname` returns `/admin/analytics`
+- **Test runner: Jest** (`packages/web/jest.config.js`; `packages/web/package.json:5-12`). Per /review-plan round 1 SUGGESTION (Codex): use Jest patterns NOT Vitest. All examples below use `jest.mock` / `jest.fn` mirroring existing patterns at `packages/web/src/__tests__/auth/AuthProvider.fWebTier.test.tsx:14-36` and `__tests__/components/HablarShell.fWebTier.test.tsx:14-29`.
+- `useAuth`: mock at module level via `jest.mock('../hooks/useAuth')` (relative path matching project convention) — return `{ user, account, loading, accountErrorCode }` as specified per test
+- `apiClient` admin functions: mock via `jest.mock('../lib/apiClient')` — return fixture data or throw `ApiError`
+- `useRouter` / `usePathname`: mock via `jest.mock('next/navigation')` — `useRouter` returns `{ replace: jest.fn(), back: jest.fn(), refresh: jest.fn() }`, `usePathname` returns `/admin/analytics`
 - `ResultBody` (in ResponseReviewPanel tests): use real component (not mocked) to verify expand-row renders
-- `trackEvent`: mock via `vi.mock('@/lib/metrics')` where needed to assert telemetry calls
+- `trackEvent`: mock via `jest.mock('../lib/metrics')` where needed to assert telemetry calls
 
 **Regression guard for TranscriptEntry refactor:**
 The existing TranscriptEntry test suite (`HablarShell.test.tsx`, `HablarShell.fWebHistory.test.tsx`, etc.) renders entries — these will exercise the refactored `ResultBody` import path. No dedicated regression test file needed; the existing tests serve as the regression gate. Developer must confirm existing test suite stays green after F4.
@@ -1579,7 +1651,7 @@ The existing TranscriptEntry test suite (`HablarShell.test.tsx`, `HablarShell.fW
 - `minCount` default in the spec says `1` (Panel A filter), but the schema `MissedQueriesParamsSchema` defaults to `2` (`packages/shared/src/schemas/missedQueries.ts:24`). Use `1` as the UI default per ui-components.md:151 and the spec table, not the schema default — the UI sends its own explicit value.
 - Segmented control active state: `bg-brand-green text-white` per W29. Use Tailwind JIT classes — no dynamic class names. Use conditional class string: `isActive ? 'bg-brand-green text-white' : 'bg-white text-slate-600 hover:bg-slate-50'`.
 - `usePathname()` can return `null` during SSR in some Next.js versions — guard with `?? ''` or `?? '/admin/analytics'` in AdminGuard's redirectTo computation.
-- `router.replace` in AdminGuard's anon branch: in test, mock `useRouter` to return `{ replace: vi.fn() }` — verify `replace` was called with the correct redirectTo, but do NOT assert `router.replace` causes navigation (jsdom doesn't implement navigation).
+- `router.replace` in AdminGuard's anon branch: in test, mock `useRouter` to return `{ replace: jest.fn() }` — verify `replace` was called with the correct redirectTo, but do NOT assert `router.replace` causes navigation (jsdom doesn't implement navigation).
 
 ---
 
