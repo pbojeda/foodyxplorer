@@ -858,3 +858,978 @@ Feature F091 (Async Push-to-Talk Voice) introduces several design elements not c
 **`docs/specs/f091-voice-design-notes.md`**
 
 That document is an addendum to this spec. The voice state colors (§2.2), ring animations (§7.3), overlay structure (§4.8), and state machine (§5) defined here remain authoritative. The F091 notes only fill gaps and add new states — they do not override anything in this document.
+
+---
+
+## Admin Analytics UI Design Notes (F-ADMIN-ANALYTICS-UI)
+
+**Ticket:** F-ADMIN-ANALYTICS-UI | **Step:** 2 — Design Notes for frontend-planner
+**Applies to:** `packages/web/src/app/admin/` and `packages/web/src/components/admin/`
+**Primary audience:** Pablo (admin), desktop + tablet. Phone is degraded-but-functional; no phone-specific ACs.
+
+> These notes ADD visual, spacing, and interaction specifications on top of the component contracts already defined in `docs/specs/ui-components.md` (lines 56–265). Do NOT look there for visual decisions — look here. Do NOT look here for prop shapes — look there.
+>
+> Brand tokens inherited from §2 of this document and `docs/specs/design-guidelines.md §2`. No new color tokens are introduced.
+
+---
+
+### W27. Admin Layout Shell
+
+#### Sidebar
+
+The sidebar exists for future growth (more admin sections) but currently carries one nav link. Keep it minimal and non-distracting.
+
+```
+Width:          w-56 (224px) — fixed, never collapsible on desktop
+Background:     bg-white border-r border-slate-100
+Height:         h-full (fills the sidebar column, which is 100dvh minus AppBar if present)
+Padding:        pt-6 px-3
+
+Logo / wordmark area (top of sidebar):
+  px-3 pb-5 border-b border-slate-100
+  Text: "nutriXplorer admin"
+  Style: text-sm font-semibold text-slate-500 tracking-wide uppercase
+  (No logo SVG required — pure text treatment; admin tool, not marketing surface)
+
+Nav link — "Analytics":
+  Style (inactive):
+    flex items-center gap-2.5 rounded-lg px-3 py-2
+    text-sm font-medium text-slate-600
+    hover:bg-slate-50 hover:text-slate-800
+    transition-colors duration-150
+  Style (active — current route):
+    bg-mist text-brand-green font-semibold
+    (mist = #EEF4EC — the same chip background used in /hablar badges)
+  Icon: a simple 18px chart-bar or layout-grid SVG (stroke 1.5px, currentColor)
+  Active indicator: the bg-mist fill is sufficient — do NOT add a left border accent bar
+    (that pattern is too heavy for a one-item menu)
+```
+
+`bg-mist` is already defined in §2.1 of this document. No new token needed.
+
+#### Content area
+
+```
+Layout:         flex h-[100dvh] (full viewport, same dvh pattern as /hablar — no chrome overflow)
+Structure:
+  ┌──────────┬──────────────────────────────────────────────┐
+  │ Sidebar  │  TopBar (40px, tablet only — see W36)        │
+  │  w-56    ├──────────────────────────────────────────────┤
+  │          │  Scrollable content area (overflow-y: auto)  │
+  │          │  max-w-7xl mx-auto px-6 py-8                 │
+  └──────────┴──────────────────────────────────────────────┘
+
+Content area:   flex-1 overflow-y-auto bg-slate-50
+  (Slight off-white page background distinguishes it from white panel cards)
+Max-width:      max-w-7xl mx-auto (1280px cap — wide enough for Panel C's card grid)
+Padding:        px-6 py-8 (desktop); px-4 py-6 (tablet)
+```
+
+Using `bg-slate-50` for the page background (vs the sidebar's `bg-white`) creates a clean card-lifts-off-surface effect without requiring shadows on every panel.
+
+#### Loading state (AdminGuard — auth checking)
+
+```
+Full-page centered spinner while auth resolves:
+  Container: fixed inset-0 bg-white flex items-center justify-center
+  Spinner: w-8 h-8 rounded-full border-2 border-slate-200 border-t-brand-green animate-spin
+  Below spinner: text-sm text-slate-400 mt-3 "Verificando acceso..."
+```
+
+No skeleton of the dashboard behind the spinner — the spec explicitly requires that no panels render before the guard clears.
+
+#### 403 pages — see W35 for full treatment
+
+---
+
+### W28. Panel Layout Strategy
+
+**Decision: stacked vertical panels, no tabs.**
+
+Rationale: Pablo uses this dashboard for pre-beta operational review, not realtime monitoring. He will typically scroll top-to-bottom in one pass — first triaging missed queries (Panel A), then spot-checking responses (Panel B), then reviewing aggregates (Panel C). Tabs would hide two-thirds of the data at all times, forcing unnecessary switching. The content is complementary, not competing. Stacked panels also make keyboard navigation natural (Tab through each panel's controls in order).
+
+Tab UI would be appropriate if panels were mutually exclusive flows (e.g., "create / edit / delete"). Here they are parallel views. Stacked is correct.
+
+#### Panel container
+
+Each of the three panels is a visual card that sits on the `bg-slate-50` page background.
+
+```
+Panel card:
+  bg-white rounded-2xl border border-slate-100
+  (no box-shadow — the border + off-white bg provides sufficient elevation; matches NutritionCard shape)
+  mb-8 (gap between panels)
+
+Panel header:
+  px-5 pt-5 pb-4 border-b border-slate-100
+  flex items-center justify-between flex-wrap gap-3
+
+Panel body:
+  px-5 py-5
+```
+
+#### Panel header pattern
+
+```
+Left side:
+  Panel title: text-lg font-bold text-slate-800
+  Count badge (row count or "N entradas"): inline-flex items-center rounded-full
+    bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-0.5 ml-2.5
+    (matches the chip style used in /hablar confidence badges)
+
+Right side:
+  Filter bar (see W29)
+```
+
+On narrow tablet, the filter bar wraps below the title line. Both elements are `flex-shrink-0`.
+
+#### Section dividers within a panel
+
+Whitespace is the primary divider — no `<hr>` lines between filter bar and table. Within Panel C, where distinct sections (scalars / distribution charts / top-queries / top-intents) need visual separation, use:
+
+```
+Section subheading + top border pattern:
+  mt-6 pt-5 border-t border-slate-100
+  text-xs font-semibold uppercase tracking-widest text-slate-400
+  mb-3
+```
+
+This mirrors the existing section-label style from §3.1 of this document (`text-xs font-semibold uppercase tracking-widest`).
+
+#### Scroll strategy
+
+**Page scroll, not per-panel scroll.** The content area's `overflow-y: auto` handles all scrolling. Individual panels have no scroll — they expand to full height. This avoids nested scrollers, which are problematic on touch devices and degrade keyboard navigation. The only exception is Panel A's table on very short viewports — see W30.
+
+---
+
+### W29. Filter Controls
+
+#### TimeRange preset picker (Panels A and C)
+
+Use a **segmented button group** (not a `<select>` dropdown). Segmented controls communicate all available options at a glance, which matters for a power user (Pablo) who switches between ranges repeatedly.
+
+```
+Container: inline-flex rounded-lg border border-slate-200 overflow-hidden
+  (single rounded border containing all segments — no gap between buttons)
+
+Each segment:
+  px-3.5 py-1.5 text-sm font-medium
+  Inactive: bg-white text-slate-600 hover:bg-slate-50
+  Active:   bg-brand-green text-white
+  Transition: background-color 150ms ease-out
+  Border-right: border-r border-slate-200 (except last segment)
+  Minimum width: 44px (touch target rule)
+
+Segments: "24h" | "7d" | "30d" | "Todo"
+Default active: "7d"
+
+Accessibility:
+  role="group" aria-label="Período de tiempo"
+  Each button: aria-pressed="true/false"
+```
+
+Do NOT use a `<select>` here. `<select>` is appropriate for long lists (e.g., the intent dropdown in Panel B). For 4 fixed options, the segmented control is faster to operate and reads better.
+
+#### Numeric inputs (topN, minCount, hours, limit)
+
+```
+Container: flex items-center gap-1.5
+
+Label: text-xs font-medium text-slate-500 whitespace-nowrap
+  (Label LEFT of the input — inline label, not floating. This is a dense admin form, not a user-facing registration form.)
+
+Input:
+  w-16 (4 chars wide — enough for values up to 720)
+  h-8 (compact, touch-friendly minimum met via label area)
+  rounded-lg border border-slate-200 bg-white
+  px-2 text-sm text-center text-slate-700
+  focus:border-brand-green focus:ring-2 focus:ring-brand-green/15 focus:outline-none
+  (same focus ring pattern as ConversationInput text field in §4.1)
+
+Validation feedback (inline, below input):
+  text-[11px] text-red-500 mt-0.5
+  Appears immediately on blur if value is out of range
+  Example: "Mín. 1" or "Máx. 720"
+  Do NOT show a toast — inline validation is sufficient for this density
+
+Disabled state (during active fetch):
+  opacity-50 pointer-events-none
+  (Prevent filter changes while a fetch is in flight to avoid race conditions)
+```
+
+#### Intent dropdown (Panel B — 8 ConversationIntent values + "Todos")
+
+9 options total — a `<select>` is appropriate here (list is longer than the 4-option threshold for segmented controls).
+
+```
+Container: flex items-center gap-1.5
+
+Label: "Intención:" text-xs font-medium text-slate-500
+
+Select:
+  h-8 pl-3 pr-8 rounded-lg border border-slate-200 bg-white
+  text-sm text-slate-700
+  focus:border-brand-green focus:ring-2 focus:ring-brand-green/15 focus:outline-none
+  appearance: use Tailwind's `appearance-none` + custom chevron SVG positioned absolutely
+  (consistent with project's form styling convention — native select chrome is inconsistent cross-browser)
+
+Options (in this display order):
+  "Todos" (value: undefined / empty string)
+  "Estimación"        (estimation)
+  "Comparación"       (comparison)
+  "Menú"              (menu_estimation)
+  "Búsqueda inversa"  (reverse_search)
+  "Contexto"          (context_set)
+  "Texto largo"       (text_too_long)
+  "Seguimiento"       (follow_up_attribute)
+  "Refinamiento"      (follow_up_refinement)
+```
+
+Display labels are Spanish-readable translations of the enum values, NOT the raw enum strings. The i18n key tree in W34 provides these under `admin.intent.*`.
+
+#### "Apply" button vs auto-fetch
+
+**No explicit "Apply" button. Auto-fetch on change.**
+
+Rationale: Pablo is the sole user. The dataset is small (analytics on a pre-beta product). Latency is predictable (same endpoints already in prod). Auto-fetch on change is a faster workflow. The tradeoff — a fetch triggered on every keystroke in numeric inputs — is mitigated by fetching on **blur** (not on each keypress) for numeric fields. The TimeRange picker and intent dropdown auto-fetch immediately on selection.
+
+Pattern:
+- TimeRange segmented control: fetch on click
+- Intent dropdown: fetch on change
+- Numeric inputs: fetch on blur (after validation passes)
+
+#### Filter bar spacing
+
+```
+Filter bar container: flex items-center flex-wrap gap-3
+  (gap-3 = 12px between each filter group; wraps gracefully on tablet)
+```
+
+---
+
+### W30. Tables
+
+#### Row density
+
+```
+Row height: 48px (tr: h-12)
+Cell padding: px-4 py-3
+  (Slightly more generous than a data-dense SaaS table — Panel A rows carry action buttons that need breathing room)
+
+Font size: text-sm (14px)
+Line height: leading-snug
+```
+
+#### Header style
+
+```
+thead > tr:
+  bg-slate-50 (same off-white as page background — subtle, not heavy)
+  border-b border-slate-200
+
+th:
+  px-4 py-2.5
+  text-xs font-semibold uppercase tracking-wide text-slate-400
+  text-left (all columns left-aligned; count column right-aligned)
+
+Sticky headers: YES on both Panel A and Panel B tables.
+  thead: sticky top-0 z-10 bg-slate-50
+  (z-10 is safe — no overlapping elements; VoiceOverlay's z-50 is on a different route entirely)
+  Rationale: Pablo will scroll long tables to find specific queries. Fixed column headers prevent losing context.
+```
+
+#### Truncate vs wrap policy
+
+| Panel | Column | Policy |
+|-------|--------|--------|
+| A | queryText | `truncate` at 80 chars (single line, ellipsis). Full text in `title` attribute for hover tooltip. |
+| A | count | No truncate (always a small integer) |
+| A | trackingStatus | No truncate (badge, fixed width) |
+| A | actions | No truncate (button group) |
+| B | queryText | `truncate` at 100 chars (single line, ellipsis). Full text in `title` attribute. |
+| B | intent | No truncate (badge) |
+| B | kind | No truncate (badge) |
+| B | createdAt | No truncate (relative time, short) |
+| B | expand icon | Fixed width column |
+| C topQueries | queryText | `line-clamp-2` (two lines max, no `truncate` — queries may be more descriptive and a second line is useful) |
+| C topQueries | count | No truncate |
+
+`title` attribute on truncated cells gives hover tooltip with full text at zero implementation cost and no extra component.
+
+#### Empty state
+
+```
+Container: w-full py-16 flex flex-col items-center justify-center text-center
+
+Icon: 32px SVG
+  Panel A: magnifier with strikethrough — text-slate-300
+  Panel B: clock with question mark — text-slate-300
+  (Simple inline SVG — no icon library needed. Stroke 1.5px, currentColor, on text-slate-300)
+
+Text: text-[15px] font-medium text-slate-500 mt-3 max-w-xs
+
+Do NOT render the table shell (thead + empty tbody) for the empty state.
+Replace the entire table area with this centered block.
+```
+
+#### Loading skeleton
+
+Mirrors the shimmer pattern from §7.4 of this document (same `@keyframes shimmer` + `.shimmer-element` class). Apply to placeholder rows inside the `<tbody>` while data loads.
+
+```
+Skeleton row (5 rows for Panel A, 5 rows for Panel B):
+  tr: h-12 border-b border-slate-50
+
+  Panel A skeleton cells:
+    queryText column: shimmer-element h-4 w-48 rounded-md
+    count column:     shimmer-element h-4 w-8 rounded-md
+    status column:    shimmer-element h-5 w-16 rounded-full (pill shape)
+    actions column:   shimmer-element h-7 w-24 rounded-lg (button shape)
+
+  Panel B skeleton cells:
+    queryText:  shimmer-element h-4 w-56 rounded-md
+    intent:     shimmer-element h-5 w-20 rounded-full
+    kind:       shimmer-element h-5 w-14 rounded-full
+    createdAt:  shimmer-element h-4 w-16 rounded-md
+    expand:     shimmer-element h-4 w-4 rounded
+
+Render the thead with real headers during skeleton — only the tbody rows are replaced.
+This avoids layout shift when real data arrives (column widths are already defined by the headers).
+```
+
+#### Error state
+
+```
+Container: w-full px-4 py-4
+  (inline — replaces table body, not a full-page takeover)
+
+Banner: flex items-center gap-2.5 rounded-xl bg-red-50 border border-red-200 px-4 py-3
+
+Icon: 16px circle-x SVG, text-red-400
+Text: text-sm font-medium text-red-700 (error message from useT key)
+Retry button:
+  ml-auto text-sm font-medium text-red-600 underline underline-offset-2
+  hover:text-red-800 cursor-pointer
+  (Underlined text link, not a full button — keeps the banner compact)
+```
+
+---
+
+### W31. Per-Row Tracking Actions (Panel A)
+
+**Decision: inline 3-button group, not a dropdown menu.**
+
+Rationale: Pablo performs these actions repeatedly (he is the only user, and he will be triaging tens of rows). A dropdown adds two taps per action (open menu + click item). An inline button group is one tap. Three short Spanish labels ("Investigando", "Resuelto", "Ignorar") fit comfortably in a `w-56` cell at `text-xs`. Dropdown menus make sense when there are 5+ actions or when the label text is long — neither condition applies here.
+
+```
+Action cell: w-56 min-w-[224px]
+
+Button group container: inline-flex rounded-lg border border-slate-200 overflow-hidden
+
+Each button:
+  px-3 py-1.5 text-xs font-medium
+  border-r border-slate-200 (last button: no border-r)
+  Inactive/default: bg-white text-slate-600 hover:bg-slate-50
+  transition-colors duration-150
+
+Active state (current status matches this button's action):
+  "Investigando" active:  bg-amber-50 text-amber-700
+  "Resuelto" active:      bg-emerald-50 text-emerald-700
+  "Ignorar" active:       bg-slate-100 text-slate-500
+
+Loading state (isUpdating === true for this row):
+  All three buttons: opacity-50 pointer-events-none
+  The active button shows a tiny inline spinner (8px, currentColor) replacing the label text
+
+Error state per-row:
+  Below the action cell (NOT in a toast, NOT in the panel error banner):
+  text-[11px] text-red-500 mt-1
+  "Error al actualizar. Inténtalo de nuevo."
+  Position: absolute or a separate <td> colspan row below the affected row
+  Recommendation: use a colspan="4" row inserted immediately after the affected row,
+    padding-left matching the action cell column, so it reads as belonging to that row
+```
+
+#### Badge colours (trackingStatus column)
+
+```
+pending:   inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold
+           bg-amber-50 text-amber-700 border border-amber-200
+           Label: "Investigando"
+
+resolved:  bg-emerald-50 text-emerald-700 border border-emerald-200
+           Label: "Resuelto"
+
+ignored:   bg-slate-100 text-slate-500 border border-slate-200
+           Label: "Ignorado"
+
+untracked: No badge rendered. Show "—" in text-slate-300 (em dash, centered).
+```
+
+Badge style is identical to the ConfidenceBadge pattern from §4.7 of this document — same token set, different semantic colours.
+
+#### Optimistic update visual cue
+
+When `isUpdating === true` for a row (optimistic update in flight):
+
+```
+Row background: bg-amber-50/30 (very subtle warm tint — noticeable but not alarming)
+Transition: background-color 200ms ease-out
+On success: background transitions back to white (200ms)
+On error: background transitions to bg-red-50/30 for 1.5s, then back to white
+```
+
+Do NOT add a border color shift or a pulse animation — the subtle background tint is sufficient feedback and less visually noisy during rapid sequential updates.
+
+---
+
+### W32. Expand-Row UX (Panel B)
+
+#### Chevron icon
+
+```
+Position: rightmost column, fixed width w-10, centered
+Icon: 16px chevron-right SVG (stroke 1.5px, text-slate-400)
+Collapsed: chevron-right (pointing right)
+Expanded:  chevron-down (pointing down)
+  (Use CSS transform: rotate(90deg) with transition-transform duration-200 ease-out
+   to avoid swapping the icon and keep the animation smooth)
+
+Whole row:
+  hover: bg-slate-50 (subtle highlight — the row is clickable anywhere)
+  cursor-pointer on the entire tr
+  (Clicking anywhere on the row should toggle expand, not just the chevron icon)
+```
+
+#### Animation
+
+```
+Height transition using CSS grid trick (avoids max-height estimation issues):
+  Collapsed: grid-rows-[0fr]  overflow-hidden
+  Expanded:  grid-rows-[1fr]
+  Transition: grid-template-rows 250ms ease-out
+
+Inner wrapper: min-h-0 (required for the grid trick to work)
+
+Do NOT use max-height animation — the resultData payload size is variable
+(estimation intent returns fewer fields than comparison intent).
+The grid trick handles arbitrary height without a hardcoded max.
+```
+
+#### Expanded content container
+
+```
+Expanded row: tr with td colspan="5" (all columns)
+  (No additional border below the parent row — the expanded area is visually part of the same row)
+
+Expanded content:
+  py-4 px-6 bg-slate-50/60
+  (Slightly indented off-white surface — similar to how GitHub PR diff blocks show context)
+
+Left border accent:
+  border-l-2 border-brand-green/30 ml-2
+  (Subtle visual anchor connecting the expanded block to the parent row)
+```
+
+#### `resultData` rendering
+
+**Recommendation: structured cards, not a JSON tree.**
+
+Rationale: A raw JSON tree (`<pre>` + JSON.stringify) is developer-readable but not useful for the actual audit task — Pablo needs to quickly assess whether the *response quality* is correct for the *intent*. A structured renderer that shows the intent type prominently, the key fields in readable format (dish name, kcal, portions), and flags any anomalies (e.g., missing confidence) is far more useful than raw JSON.
+
+This aligns with the ticket's option (a) — extract `<ResultBody>` from `TranscriptEntry.tsx` — which is the preferred path per the spec. The design expectation for the expanded area is:
+
+```
+Section heading: intent badge (same badge style as the table column) + intent label in larger text
+  text-sm font-semibold text-slate-700 mt-0
+
+Result body: rendered with the same visual language as NutritionCard (§4.5 of this document)
+  bg-white rounded-xl border border-slate-100 p-4 mt-3
+  (A mini NutritionCard inside the expanded row — uses existing component or a stripped-down version)
+
+Raw JSON toggle (secondary, below the card):
+  text-[11px] text-slate-400 underline cursor-pointer "Ver JSON bruto"
+  Clicking reveals a <pre> block with monospace text, bg-slate-100, rounded-lg, p-3, overflow-x-auto
+  (Escape hatch for debugging — hidden by default, available if needed)
+```
+
+---
+
+### W33. Overview Panel C — Cards and Distributions
+
+#### Scalar card grid
+
+```
+Grid: grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4
+  (1 column on phone, 2 on tablet, 4 on desktop)
+  All 4 engine scalar cards in one grid row on desktop.
+
+Scalar card:
+  bg-white rounded-2xl border border-slate-100 p-5
+  (Same rounded-2xl + border-slate-100 as NutritionCard — consistent card DNA)
+
+Card internal layout:
+  Heading: text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1
+  Big number: text-[32px] font-extrabold leading-none text-slate-800
+  Caption: text-xs text-slate-400 mt-1.5
+```
+
+Colour differentiation for `webTotalQueries` (from `/analytics/web-events`, not the engine):
+
+```
+webTotalQueries card:
+  border-brand-green/20 bg-mist/30
+  (Subtle green tint — same mist token from §2.1 — visually separates this
+   "web session metric" from the four engine metrics without requiring a layout change)
+  Heading: "Sesiones web · queries totales"
+  Number color: text-brand-green (vs text-slate-800 for engine cards)
+  Caption: "Confirma que NEXT_PUBLIC_METRICS_ENDPOINT está activo"
+```
+
+Position the `webTotalQueries` card as the 5th card in the grid (after the 4 engine cards), on its own row on desktop (`lg:col-span-1` within a second row, or `lg:col-span-4` if it should span full width). **Recommendation: place it alone in its own grid row with `col-span-full`, preceded by a `mt-6 pt-5 border-t border-slate-100` section separator and a subheading "Métricas web"**. This makes the source distinction visually explicit.
+
+#### Distribution — byLevel (horizontal bar chart)
+
+No chart library. Pure Tailwind + inline SVG / styled divs.
+
+```
+Section title: "Distribución por nivel" (subheading pattern from W28)
+
+For each level (l1, l2, l3, l4, miss):
+  Row: flex items-center gap-3 mb-2
+
+  Label: text-xs font-medium text-slate-500 w-8 text-right
+         (L1, L2, L3, L4, Miss — uppercase 2-char codes)
+
+  Bar track: flex-1 bg-slate-100 rounded-full h-2
+  Bar fill:  h-2 rounded-full transition-all duration-500 ease-out
+             Width: percentage of total (inline style: width: X%)
+
+  Bar colors:
+    l1: bg-emerald-400
+    l2: bg-brand-green   (same as #2D5A27, use bg-[#2D5A27])
+    l3: bg-amber-400
+    l4: bg-orange-400    (brand-orange family)
+    miss: bg-red-400
+
+  Count + percent: text-xs text-slate-500 w-20 text-right tabular-nums
+                   "142 (38%)"
+```
+
+This is a pure CSS implementation — no SVG path math required. The bar fill width is set via inline `style` (`width: XX%`). Tailwind `transition-all duration-500` handles the enter animation naturally when data loads.
+
+#### Distribution — bySource (api / bot)
+
+```
+Layout: flex items-center gap-8 justify-center py-4
+
+For each source (api, bot):
+  flex flex-col items-center gap-1.5
+
+  Icon: 24px SVG (monochrome)
+    api: code-bracket or terminal icon
+    bot: chat-bubble-left icon
+    Color: text-slate-400
+
+  Count: text-2xl font-bold text-slate-700 tabular-nums
+
+  Label: text-xs font-medium text-slate-400 uppercase tracking-wide
+         "API" / "Bot"
+
+  Percentage: text-xs text-slate-400 "(XX%)"
+```
+
+No pie chart. An icon + count + percent pair is faster to read at a glance and requires zero SVG arc math.
+
+#### Top Queries and Top Intents (mini-tables)
+
+```
+Section layout: grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6
+  (Side by side on desktop, stacked on tablet/phone)
+
+Mini-table:
+  No thead (section heading serves as the header)
+  Each row: flex items-center justify-between py-2 border-b border-slate-50 last:border-0
+
+  queryText cell: text-sm text-slate-600 truncate flex-1 mr-4
+  count cell:     text-sm font-semibold text-slate-700 tabular-nums flex-shrink-0
+
+  intent cell (topIntents): intent badge (same style as Panel B intent badges) + count
+```
+
+#### Per-data-source error visual
+
+```
+When queriesData fetch fails:
+  Replace scalar cards + distributions with the error banner (W30 error state style)
+  webTotalQueries card continues to render if webEventsData succeeded
+
+When webEventsData fetch fails:
+  webTotalQueries card shows error state:
+    Same card shape but content replaced with:
+    Icon: 16px warning SVG, text-red-400
+    Text: text-sm text-red-600 "Error al cargar métricas web"
+    Retry link (inline underline, same W30 pattern)
+  topIntents section replaced with the error banner
+  Engine scalar cards and distributions continue to render normally
+```
+
+---
+
+### W34. i18n Key Structure — `messages/es/admin.json`
+
+Namespace structure follows the component hierarchy: `admin.layout.*`, `admin.panel.missedQueries.*`, `admin.panel.responseReview.*`, `admin.panel.overview.*`. Shared strings (common across panels) live under `admin.common.*`.
+
+**Placeholder convention:** `{count}`, `{hours}`, `{intent}`, `{min}`, `{max}` — curly braces, no spaces inside. The `useT` hook must support basic interpolation or the developer uses them as format strings with `String.replace`. Flag this for the frontend-planner — the spec's hook signature returns a plain string (`(key) => string`), which means interpolation is the caller's responsibility (`.replace('{count}', count.toString())`). This is consistent with the YAGNI i18n-light approach.
+
+```json
+{
+  "layout": {
+    "brandName": "nutriXplorer",
+    "adminSuffix": "admin",
+    "navAnalytics": "Analytics",
+    "loading": "Verificando acceso...",
+    "403": {
+      "notProvisioned": {
+        "title": "Acceso restringido",
+        "body": "No se pudo verificar tu cuenta. Esto puede ocurrir si es la primera vez que accedes.",
+        "hint": "Llama a /me primero para activar tu cuenta y vuelve a intentarlo.",
+        "cta": "Ir a nutriXplorer"
+      },
+      "forbidden": {
+        "title": "Acceso denegado",
+        "body": "Se requiere nivel administrador para acceder a este panel.",
+        "cta": "Volver"
+      },
+      "verifyFailed": {
+        "title": "Acceso denegado",
+        "body": "No se pudo verificar el nivel de cuenta. Inténtalo de nuevo.",
+        "cta": "Volver"
+      }
+    }
+  },
+  "common": {
+    "loading": "Cargando...",
+    "retry": "Reintentar",
+    "apply": "Aplicar",
+    "all": "Todos",
+    "timeRange": {
+      "label": "Período",
+      "24h": "24h",
+      "7d": "7d",
+      "30d": "30d",
+      "all": "Todo"
+    },
+    "badge": {
+      "pending": "Investigando",
+      "resolved": "Resuelto",
+      "ignored": "Ignorado",
+      "untracked": "—"
+    },
+    "kind": {
+      "text": "Texto",
+      "voice": "Voz"
+    }
+  },
+  "intent": {
+    "estimation": "Estimación",
+    "comparison": "Comparación",
+    "menu_estimation": "Menú",
+    "reverse_search": "Búsqueda inversa",
+    "context_set": "Contexto",
+    "text_too_long": "Texto largo",
+    "follow_up_attribute": "Seguimiento",
+    "follow_up_refinement": "Refinamiento"
+  },
+  "panel": {
+    "missedQueries": {
+      "title": "Búsquedas sin respuesta",
+      "filterTopN": "Top N",
+      "filterMinCount": "Mín. repeticiones",
+      "filterTopNValidation": "Entre 1 y 100",
+      "filterMinCountValidation": "Mínimo 1",
+      "col": {
+        "query": "Consulta",
+        "count": "Repeticiones",
+        "status": "Estado",
+        "actions": "Acciones"
+      },
+      "action": {
+        "track": "Investigando",
+        "resolve": "Resuelto",
+        "ignore": "Ignorar"
+      },
+      "actionError": "Error al actualizar. Inténtalo de nuevo.",
+      "empty": "No hay búsquedas sin respuesta en este período.",
+      "error": "Error cargando datos.",
+      "rowCount": "{count} consultas"
+    },
+    "responseReview": {
+      "title": "Respuestas para revisar",
+      "filterIntent": "Intención:",
+      "filterHours": "Horas",
+      "filterLimit": "Límite",
+      "filterHoursValidation": "Entre 1 y 720",
+      "filterLimitValidation": "Entre 1 y 100",
+      "filterIntentAll": "Todos",
+      "summary": "Últimas {count} entradas en las últimas {hours} horas",
+      "col": {
+        "query": "Consulta",
+        "intent": "Intención",
+        "kind": "Tipo",
+        "createdAt": "Cuándo",
+        "expand": ""
+      },
+      "expandAriaLabel": "Ver respuesta completa",
+      "collapseAriaLabel": "Cerrar respuesta",
+      "rawJson": "Ver JSON bruto",
+      "hideJson": "Ocultar JSON",
+      "empty": "No hay entradas en el período seleccionado.",
+      "error": "Error cargando muestras.",
+      "rowCount": "{count} entradas"
+    },
+    "overview": {
+      "title": "Vista general",
+      "sections": {
+        "engine": "Métricas del motor",
+        "web": "Métricas web",
+        "levels": "Distribución por nivel",
+        "sources": "Distribución por origen",
+        "topQueries": "Consultas más frecuentes",
+        "topIntents": "Intenciones más frecuentes"
+      },
+      "card": {
+        "totalQueries": {
+          "label": "Consultas totales",
+          "caption": "Peticiones procesadas por el motor"
+        },
+        "cacheHitRate": {
+          "label": "Tasa de caché",
+          "caption": "Respuestas servidas desde caché"
+        },
+        "avgResponseTimeMs": {
+          "label": "Tiempo de respuesta",
+          "caption": "Media en milisegundos"
+        },
+        "missRate": {
+          "label": "Tasa de fallos",
+          "caption": "Consultas sin resultado (nivel miss)"
+        },
+        "webTotalQueries": {
+          "label": "Sesiones web · queries totales",
+          "caption": "Confirma que NEXT_PUBLIC_METRICS_ENDPOINT está activo"
+        }
+      },
+      "level": {
+        "l1": "L1",
+        "l2": "L2",
+        "l3": "L3",
+        "l4": "L4",
+        "miss": "Miss"
+      },
+      "source": {
+        "api": "API",
+        "bot": "Bot"
+      },
+      "col": {
+        "query": "Consulta",
+        "count": "Veces",
+        "intent": "Intención"
+      },
+      "noTopQueries": "Sin datos de consultas frecuentes.",
+      "noTopIntents": "Sin datos de intenciones frecuentes.",
+      "errorEngine": "Error al cargar métricas del motor.",
+      "errorWeb": "Error al cargar métricas web.",
+      "rowCount": "{count} entradas",
+      "units": {
+        "ms": "ms",
+        "percent": "%"
+      }
+    }
+  }
+}
+```
+
+**Frontend-planner note:** The `useT` hook returns a plain string. Interpolation of placeholders like `{count}` and `{hours}` must be handled at the call site. Example:
+
+```
+// At call site (not inside the hook):
+const summary = t('panel.responseReview.summary')
+  .replace('{count}', String(data.items.length))
+  .replace('{hours}', String(filters.hours));
+```
+
+This is consistent with the YAGNI i18n-light design. Do not add interpolation to the hook in this ticket.
+
+---
+
+### W35. Distinct 403 Page Treatments
+
+Both 403 variants use the same layout shell (centered card) but differ in accent colour and copy. They are rendered by `AdminGuard` in place of `{children}` — the sidebar is NOT shown.
+
+#### Layout (shared)
+
+```
+Outer: fixed inset-0 bg-white flex items-center justify-center p-6
+  (Same full-page treatment as the auth loading spinner — prevents any dashboard chrome from showing)
+
+Card: max-w-sm w-full bg-white rounded-2xl border p-8 text-center shadow-sm
+
+Icon: 40px SVG, centered, mb-4
+
+Title: text-xl font-bold mb-2
+
+Body: text-sm text-slate-500 leading-relaxed mb-1
+
+Hint (NOT_PROVISIONED only): text-xs text-slate-400 font-mono mt-2 mb-4
+  (Monospace styling for the "Llama a /me primero" hint — visually communicates a technical instruction)
+
+CTA button: full-width, centered, mt-5
+```
+
+#### NOT_PROVISIONED variant (recoverable)
+
+Triggered when `account === null` after auth loaded AND the API returned `403 NOT_PROVISIONED`.
+
+```
+Card border: border-amber-200
+Icon: 40px warning-triangle SVG, text-amber-400
+Title: i18n key "layout.403.notProvisioned.title" — "Acceso restringido"
+Body: i18n key "layout.403.notProvisioned.body"
+Hint: i18n key "layout.403.notProvisioned.hint"
+  Styled: text-xs font-mono bg-amber-50 text-amber-700 rounded px-2 py-1 inline-block
+
+CTA: brand-orange button (same SubmitButton style from §4.4 of this document)
+  Label: i18n key "layout.403.notProvisioned.cta" — "Ir a nutriXplorer"
+  href: "/hablar"
+```
+
+Yellow/amber accent communicates: "this is a recoverable state, not a permanent denial."
+
+#### FORBIDDEN variant (non-recoverable in this session)
+
+Triggered when `account.tier !== 'admin'` — the user IS authenticated and provisioned, but lacks admin tier.
+
+```
+Card border: border-red-200
+Icon: 40px shield-x SVG (or lock-closed), text-red-400
+Title: i18n key "layout.403.forbidden.title" — "Acceso denegado"
+Body: i18n key "layout.403.forbidden.body"
+  (No hint — the user does not need a technical fix; they simply do not have admin access)
+
+CTA: secondary/ghost button
+  Style: border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl px-4 py-2 text-sm font-medium
+  Label: i18n key "layout.403.forbidden.cta" — "Volver"
+  Action: router.back() (or href="/hablar" if no history)
+```
+
+Red accent communicates: "this is a hard permission boundary."
+
+#### Verify-failed variant (network error, not a permissions issue)
+
+Triggered when `account === null` after sign-in but the cause is a network error (not `NOT_PROVISIONED`).
+
+```
+Card border: border-slate-200
+Icon: 40px wifi-off or cloud-error SVG, text-slate-400
+Title: i18n key "layout.403.verifyFailed.title" — "Acceso denegado"
+Body: i18n key "layout.403.verifyFailed.body"
+
+CTA: secondary/ghost button, same style as FORBIDDEN variant
+  Label: i18n key "layout.403.verifyFailed.cta" — "Volver"
+```
+
+Neutral (slate) accent — no strong colour signal because this is a transient server error, not a permissions state.
+
+**Anti-pattern: do NOT render a blurred/dimmed dashboard behind any of these 403 variants.** The dashboard panels must not render at all. The 403 page replaces `{children}` entirely.
+
+---
+
+### W36. Responsive Strategy
+
+#### Desktop (≥1024px) — full layout
+
+```
+Shell: flex h-[100dvh]
+  Sidebar: w-56 flex-shrink-0 (fixed-width, always visible)
+  Content: flex-1 overflow-y-auto bg-slate-50
+    max-w-7xl mx-auto px-6 py-8
+
+Tables: full column widths, no horizontal scroll
+Filter bar: inline, single row
+Scalar card grid: lg:grid-cols-4
+Distribution sections: side by side (lg:grid-cols-2)
+```
+
+#### Tablet (768–1023px) — sidebar collapses to header
+
+```
+Shell: flex-col h-[100dvh]
+  TopBar: h-10 bg-white border-b border-slate-100 flex items-center px-4
+    Left: "nutriXplorer admin" wordmark (text-sm font-semibold text-slate-500)
+    Right: current page name "Analytics" (text-sm text-slate-600)
+    (No hamburger menu — single nav link doesn't warrant a drawer)
+  Content: flex-1 overflow-y-auto bg-slate-50
+    px-4 py-6
+
+Sidebar: hidden on tablet (the TopBar serves as orientation)
+
+Tables: full columns still fit at 768px for Panel A (action buttons are the widest element at w-56)
+  If the viewport is exactly 768px, the actions column may need to wrap within the cell — acceptable
+Filter bar: flex-wrap gap-3 — wraps to two rows if needed, no truncation
+
+Scalar card grid: md:grid-cols-2 (2 cards per row)
+Distribution sections: stacked (single column)
+```
+
+#### Phone (<768px) — degraded-but-functional
+
+```
+Shell: flex-col h-[100dvh]
+  Same TopBar as tablet
+  Content: px-3 py-4
+
+Tables:
+  Outer wrapper: overflow-x-auto -mx-3 px-3
+    (Negative margin + matching padding = edge-to-edge horizontal scroll without clipping the panel card)
+  Table: min-w-[640px] (preserves column layout; user scrolls horizontally to see full table)
+  Sticky headers remain (still useful even with horizontal scroll)
+
+Filter bar: flex-wrap gap-2, numeric inputs narrow to w-14
+
+Panel A action buttons: collapse to a compact icon-only dropdown on phone
+  Each row gets a single "..." (more) button that opens a small popover with the 3 action options
+  (The 3-button inline group is too wide for a 320px screen)
+  Popover: bg-white rounded-xl border border-slate-100 shadow-lg p-2
+    Each action: full-width text button in the popover
+
+Panel B expand-row: on phone, the expanded content renders as a card BELOW the collapsed row
+  (Not inside a td colspan — the column is too narrow for the result card to be readable)
+  Card: full-width, bg-slate-50, rounded-xl, p-4, mt-1 mb-2
+
+Scalar card grid: grid-cols-1 (single column, full width)
+```
+
+#### Anti-patterns for responsive
+
+- Do NOT hide Panel C's distributions on tablet/phone — they render stacked, not hidden. Operator needs them for the NEXT_PUBLIC_METRICS_ENDPOINT smoke test (AC27).
+- Do NOT prevent horizontal table scroll with `overflow-x-hidden` — that truncates data without a way to access it.
+- Do NOT convert the sidebar link to a hidden hamburger with slide-out drawer on tablet. One nav item is not worth the interaction cost of a drawer. The TopBar wordmark is sufficient context.
+
+---
+
+### W37. Admin UI Anti-Patterns
+
+(Specific to the admin panel — see §11 of this document for /hablar-specific anti-patterns)
+
+| Anti-Pattern | Why |
+|---|---|
+| Showing all panels inside tabs | Hides complementary data; stacked is better for a single-user triage workflow |
+| Dropdown action menu for Panel A row actions | Too slow for repeated triage; inline button group is faster |
+| Rendering a JSON tree as the primary resultData view | Not useful for quality auditing; structured card is the primary view |
+| Auto-submitting numeric inputs on every keypress | Causes fetch storms; validate and submit on blur only |
+| Full-page error takeover when a single panel fails | Other panels still have data; per-panel error state is the correct scope |
+| Using `max-height` animation for expand-row | Breaks for variable-height content; use CSS grid-template-rows trick |
+| Showing the dashboard (even blurred) behind a 403 page | The guard must replace children entirely; no data behind the wall |
+| Adding a shadow to panel cards | Border + off-white page background provides sufficient elevation; shadow is too heavy for a tool UI |
+| Using a `<select>` for the TimeRange picker | 4 options belong in a segmented control; `<select>` adds unnecessary indirection |

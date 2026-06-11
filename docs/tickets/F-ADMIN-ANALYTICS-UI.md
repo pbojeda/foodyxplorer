@@ -467,3 +467,1156 @@ Other architectural choices in this ticket reuse established patterns (no ADR ne
 | 7. Verify branch up to date | [ ] | — |
 | 8. Verify CI green (`gh pr checks <N>`) | [ ] | — |
 | 9. Run `/audit-merge` | [ ] | — |
+
+---
+
+## Implementation Plan — Backend
+
+### Existing Code to Reuse
+
+| Symbol | File | Purpose |
+|--------|------|---------|
+| `ADMIN_PREFIXES` | `packages/api/src/plugins/adminPrefixes.ts:7` | Preserve as union; `rateLimit.ts:131` imports it for `allowList` — MUST remain intact |
+| `isAdminRoute` | `packages/api/src/plugins/adminPrefixes.ts:9` | Keep exported for any future consumer; auth.ts currently only uses the new split helpers after B2 |
+| `validateAdminKey` | `packages/api/src/plugins/adminAuth.ts` | Unchanged — still used for `isKeyAdminRoute` branch |
+| `resolveAccountTier` | `packages/api/src/lib/accountTier.ts:22` | Back-compat wrapper kept; `actorRateLimit.ts:111` + `auth.ts:435` import it and must not break |
+| `verifyBearerJwt` | `packages/api/src/plugins/authBearer.ts` | Already called by `actorResolver.ts` and `history.ts`; `requireAdminBearer` relies on `request.accountId` which `actorResolver` sets post-verification — no second JWT verify needed in the preHandler |
+| `redis.incr` / `redis.expire` | `packages/api/src/plugins/actorRateLimit.ts:151-155` | Pattern for per-key rate limiting with TTL on first increment — reuse exact pattern in `requireAdminBearer` |
+| `SearchHistoryKindSchema` | `packages/shared/src/schemas/history.ts:39` | Reuse for `SearchHistorySampleEntrySchema.kind` |
+| `ConversationMessageDataSchema` | `packages/shared/src/schemas/conversation.ts:148` | Reuse for `SearchHistorySampleEntrySchema.resultData` — same safeParse-per-row drift pattern as `useSearchHistory` |
+| `ConversationIntentSchema` | `packages/shared/src/schemas/conversation.ts:59` | Reuse for `HistorySampleParamsSchema.intent` |
+| `AnalyticsDataSchema` / `AnalyticsResponseSchema` | `packages/shared/src/schemas/analytics.ts:76,93` | Structural mirror for the new data + response schema pair |
+| `SearchHistory` Kysely type | `packages/api/src/generated/kysely-types.ts:250` | Columns: `id`, `account_id`, `kind`, `query_text`, `result_jsonb`, `created_at` — use for typed SELECT |
+| Error-code throw pattern | `packages/api/src/routes/analytics.ts:194` | `throw Object.assign(new Error(...), { code: 'DB_UNAVAILABLE', statusCode: 500, cause: err })` — replicate for all new error codes |
+| `fastifyPlugin` wrap pattern | `packages/api/src/routes/analytics.ts:269` | All route plugins use `fastifyPlugin(plugin)` — required so global error handler catches errors |
+| `mapError` known codes | `packages/api/src/errors/errorHandler.ts` | `UNAUTHORIZED`→401, `FORBIDDEN`→403, `DB_UNAVAILABLE`→500, `RATE_LIMIT_EXCEEDED`→429 already handled. `NOT_PROVISIONED` is a new 403 code — must be added to `errorHandler.ts` |
+
+---
+
+### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `packages/api/src/plugins/requireAdminBearer.ts` | Fastify preHandler plugin — bearer presence check + per-sub rate limit (30/min) + strict tier resolution + 401/403(NOT_PROVISIONED)/403(FORBIDDEN)/500/429 branches |
+| `packages/api/src/routes/admin/historySample.ts` | `GET /analytics/history-sample` route — bearer-gated via `requireAdminBearer`, Kysely query on `search_history` (no `account_id` in SELECT), safeParse each row, envelope response |
+| `packages/api/src/__tests__/fAdminAnalytics.adminPrefixes.unit.test.ts` | Unit tests for new helper functions in `adminPrefixes.ts` |
+| `packages/api/src/__tests__/fAdminAnalytics.requireAdminBearer.unit.test.ts` | Unit tests for all 6 branches of `requireAdminBearer` (mocked Redis + Prisma) |
+| `packages/api/src/__tests__/fAdminAnalytics.requireAdminBearer.integration.test.ts` | Integration tests for `requireAdminBearer` via `buildApp().inject()` on `/analytics/queries` and the new history-sample route |
+| `packages/api/src/__tests__/fAdminAnalytics.historySample.unit.test.ts` | Unit tests for the historySample route handler — envelope shape, intent filter, hours/limit params, privacy assertion, drift-row drop, empty result |
+| `packages/api/src/__tests__/fAdminAnalytics.accountTierStrict.unit.test.ts` | Unit tests for the new `resolveAccountTierStrict` function — including null (no-row), sentinel caching, and DB-throw rethrow |
+
+---
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `packages/api/src/plugins/adminPrefixes.ts` | Add `ANALYTICS_PREFIX`, `KEY_ADMIN_PREFIXES`, `isAnalyticsRoute()`, `isKeyAdminRoute()`. Preserve `ADMIN_PREFIXES` (still consumed by `rateLimit.ts`) and `isAdminRoute` |
+| `packages/api/src/plugins/auth.ts` | Split the `if (isAdminRoute(...))` block into two sequential checks: `if (isAnalyticsRoute(...)) return` then `if (isKeyAdminRoute(...)) { validateAdminKey ... return }` |
+| `packages/api/src/lib/accountTier.ts` | Add `resolveAccountTierStrict()` returning `'admin' \| 'pro' \| 'free' \| null`; add `__none__` sentinel caching for no-row case; keep `resolveAccountTier` as back-compat wrapper mapping `null→'free'` |
+| `packages/api/src/errors/errorHandler.ts` | Add `NOT_PROVISIONED` → 403 case (parallel to the existing `FORBIDDEN` → 403 case, distinct code so the web AdminGuard can branch) |
+| `packages/api/src/app.ts` | Import and register `historySampleRoutes` alongside the other analytics routes (after `webMetricsRoutes` registration, before `authRoutes`) |
+| `packages/shared/src/schemas/analytics.ts` | Append `HistorySampleParamsSchema`, `SearchHistorySampleEntrySchema`, `HistorySampleDataSchema`, `HistorySampleResponseSchema` |
+| `packages/shared/src/index.ts` | Already exports `./schemas/analytics` — no new export line needed; the 4 new schemas export from the same file |
+| `docs/specs/api-spec.yaml` | Add `GET /analytics/history-sample` entry; migrate security of 5 existing `/analytics/*` endpoints from `AdminKeyAuth` to `BearerAuth`; update 401 prose + add 403 response blocks |
+| `docs/project_notes/key_facts.md` | Add F-ADMIN-ANALYTICS-UI bullet (ADR-031 auth migration, new endpoint, new schemas) to the Auth middleware and Analytics route sections |
+
+---
+
+### Implementation Order
+
+**Phase 0 — Auth migration (Steps B1 → B5)**
+
+1. **B1 — `packages/api/src/plugins/adminPrefixes.ts`**
+
+   Add to the existing file (after the existing exports):
+
+   ```typescript
+   export const ANALYTICS_PREFIX = '/analytics/' as const;
+   export const KEY_ADMIN_PREFIXES = ['/ingest/', '/quality/', '/embeddings/', '/admin/'] as const;
+
+   export function isAnalyticsRoute(url: string | undefined, method?: string): boolean {
+     if (!url) return false;
+     // POST /analytics/web-events is public (sendBeacon — cannot set auth headers)
+     if (url === '/analytics/web-events' && method === 'POST') return false;
+     return url.startsWith(ANALYTICS_PREFIX);
+   }
+
+   export function isKeyAdminRoute(url: string | undefined): boolean {
+     if (!url) return false;
+     return KEY_ADMIN_PREFIXES.some((prefix) => url.startsWith(prefix))
+       || (url === '/restaurants'); // POST /restaurants is key-admin (existing isAdminRoute logic)
+   }
+   ```
+
+   Keep `ADMIN_PREFIXES` and `isAdminRoute` intact — `rateLimit.ts` imports `ADMIN_PREFIXES` directly.
+
+   **RED test:** `fAdminAnalytics.adminPrefixes.unit.test.ts`
+   - `isAnalyticsRoute('/analytics/queries', 'GET')` → `true`
+   - `isAnalyticsRoute('/analytics/web-events', 'POST')` → `false` (public exemption)
+   - `isAnalyticsRoute('/analytics/web-events', 'GET')` → `true`
+   - `isAnalyticsRoute('/ingest/url', 'POST')` → `false`
+   - `isKeyAdminRoute('/ingest/url')` → `true`
+   - `isKeyAdminRoute('/quality/report')` → `true`
+   - `isKeyAdminRoute('/embeddings/generate')` → `true`
+   - `isKeyAdminRoute('/admin/waitlist')` → `true`
+   - `isKeyAdminRoute('/analytics/queries')` → `false`
+   - `ADMIN_PREFIXES` still includes `/analytics/` (unchanged)
+   - `isAdminRoute('/analytics/queries', 'GET')` still returns `true` (unchanged behavior)
+
+2. **B4 — `packages/api/src/lib/accountTier.ts`** (must precede B3 which imports it)
+
+   Add `resolveAccountTierStrict`:
+
+   ```typescript
+   type AccountTierOrNull = 'free' | 'pro' | 'admin' | null;
+
+   /**
+    * Strict variant — returns null when no accounts row exists for sub.
+    * Does NOT fail-open: if DB throws, the error propagates to the caller.
+    * Cache contract: stores tier string ('free'/'pro'/'admin') OR the literal
+    * string '__none__' for no-row. TTL 60s (same as resolveAccountTier).
+    * '__none__' sentinel prevents repeated DB hits for unprovisioned subs.
+    */
+   export async function resolveAccountTierStrict(
+     redis: Redis,
+     prisma: PrismaClient,
+     sub: string,
+     logger: FastifyBaseLogger,
+   ): Promise<AccountTierOrNull> { ... }
+   ```
+
+   Sentinel: `'__none__'` stored in Redis when no row found. On cache read: if value is `'__none__'`, return `null`; else return the value as `AccountTier`.
+
+   Update `resolveAccountTier` to call `resolveAccountTierStrict` and map `null→'free'`. Existing fail-open behavior preserved (when strict throws, wrapper catches and returns `'free'`).
+
+   **RED tests:** `fAdminAnalytics.accountTierStrict.unit.test.ts`
+   - Cache hit with `'admin'` → returns `'admin'`
+   - Cache hit with `'__none__'` → returns `null`
+   - Cache miss + DB returns row → returns tier + caches tier string
+   - Cache miss + DB returns no row → returns `null` + caches `'__none__'` with TTL 60
+   - Cache miss + DB throws → rethrows (does NOT return `'free'`)
+   - Back-compat: `resolveAccountTier` with no-row → still returns `'free'`
+   - Back-compat: `resolveAccountTier` with DB error → still returns `'free'` (fail-open)
+
+3. **B3 — `packages/api/src/plugins/requireAdminBearer.ts`** (new file; depends on B4)
+
+   ```typescript
+   import type { FastifyRequest, FastifyReply } from 'fastify';
+   import type { Redis } from 'ioredis';
+   import type { PrismaClient } from '@prisma/client';
+   import { resolveAccountTierStrict } from '../lib/accountTier.js';
+
+   export interface RequireAdminBearerOptions {
+     redis: Redis;
+     prisma: PrismaClient;
+     rateLimitMax?: number;       // default 30
+     rateLimitWindowSec?: number; // default 60
+   }
+
+   /**
+    * Fastify preHandler: verifies bearer is present and resolves to an admin account.
+    *
+    * Behavior (per AC1/AC2/AC3/AC5b/AC5c/AC5d):
+    *   1. request.accountId unset (no/invalid bearer) → throw 401 UNAUTHORIZED
+    *   2. Per-sub Redis INCR rate limit (30/min default) → throw 429 RATE_LIMIT_EXCEEDED if exceeded
+    *   3. resolveAccountTierStrict → null (no accounts row) → throw 403 NOT_PROVISIONED
+    *   4. tier === 'admin' → continue (sets request.adminVerified = true)
+    *   5. tier === 'free' | 'pro' (row exists, not admin) → throw 403 FORBIDDEN
+    *   6. resolveAccountTierStrict throws (DB error) → throw 500 DB_UNAVAILABLE
+    *
+    * NOT a FastifyPluginAsync — exported as a plain async handler for use as a
+    * route-level preHandler. Options are closed over via a factory function:
+    *
+    *   const gate = makeRequireAdminBearer({ redis, prisma });
+    *   app.addHook('preHandler', gate);   // inside a route plugin scope
+    */
+   export function makeRequireAdminBearer(
+     opts: RequireAdminBearerOptions,
+   ): (request: FastifyRequest, reply: FastifyReply) => Promise<void> { ... }
+   ```
+
+   Rate limit key: `admin:bearer:ratelimit:<sub>`, INCR + EXPIRE on first increment (same pattern as `actorRateLimit.ts:151-155`). In `NODE_ENV === 'test'`, rate limit check is skipped (mirror `rateLimit.ts:107` pattern) — prevents test counter leakage.
+
+   `request.adminVerified` augmentation: declare via module augmentation in this file (same pattern as `authBearer.ts:29-31` for `accountId`).
+
+   **RED tests — unit (`fAdminAnalytics.requireAdminBearer.unit.test.ts`):**
+   - No `accountId` on request → throws with `code: 'UNAUTHORIZED'`
+   - Rate limit exceeded (`redis.incr` returns > 30) → throws with `code: 'RATE_LIMIT_EXCEEDED'`
+   - `resolveAccountTierStrict` returns `null` → throws with `code: 'NOT_PROVISIONED'`, message includes "Call GET /me once"
+   - `resolveAccountTierStrict` returns `'admin'` → does NOT throw; sets `request.adminVerified = true`
+   - `resolveAccountTierStrict` returns `'free'` → throws with `code: 'FORBIDDEN'`
+   - `resolveAccountTierStrict` returns `'pro'` → throws with `code: 'FORBIDDEN'`
+   - `resolveAccountTierStrict` throws → throws with `code: 'DB_UNAVAILABLE'`
+
+4. **B2 — `packages/api/src/plugins/auth.ts`** (depends on B1)
+
+   Replace `if (isAdminRoute(url, request.method)) {` block with:
+
+   ```typescript
+   // Analytics routes — bearer-only (ADR-031). Skip key check; actorResolver
+   // (registered after auth.ts) sets request.accountId; requireAdminBearer
+   // preHandler attached at route level verifies accountId + tier.
+   if (isAnalyticsRoute(url, request.method)) return;
+
+   // Key-admin routes — X-API-Key gate (unchanged)
+   if (isKeyAdminRoute(url) || (url === '/restaurants' && request.method === 'POST')) {
+     // ... existing validateAdminKey logic unchanged ...
+   }
+   ```
+
+   Import `isAnalyticsRoute` and `isKeyAdminRoute` from `./adminPrefixes.js` (remove `isAdminRoute` import if no longer used here; or keep for safety — it's still exported).
+
+   **RED tests (in `fAdminAnalytics.requireAdminBearer.integration.test.ts`):**
+   - `GET /analytics/queries` with `X-API-Key: ADMIN_KEY` and no bearer → `401` (AC1)
+   - `GET /analytics/missed-queries` with valid admin bearer → `200` (AC3 — requires seeded admin account)
+   - `GET /admin/waitlist` with valid `X-API-Key` and no bearer → still `200` (AC4 regression)
+   - `POST /analytics/web-events` with no auth → `202` (AC5 public exemption preserved)
+
+5. **B5 — Wire `requireAdminBearer` onto existing analytics routes**
+
+   In each of `analytics.ts`, `missedQueries.ts`, `webMetrics.ts`: inside the plugin body, after `const { db, ... } = opts`, add:
+
+   ```typescript
+   const gate = makeRequireAdminBearer({ redis, prisma });
+   app.addHook('preHandler', gate);
+   ```
+
+   This requires adding `redis: Redis` and `prisma: PrismaClient` to the plugin options interfaces (`AnalyticsPluginOptions`, `MissedQueriesPluginOptions`, `WebMetricsPluginOptions`) and passing them from `app.ts`.
+
+   `POST /analytics/web-events` is registered in `webMetrics.ts` — the preHandler must NOT apply to it. Because `isAnalyticsRoute` exempts `POST /analytics/web-events` from the auth.ts branch, and because the preHandler is registered at the plugin level (not per-route), you must either:
+   - Register the public POST and the gated GET in separate plugin scopes, OR
+   - Apply the preHandler only to the GET route via `{ preHandler: [gate] }` in the route options, not via `app.addHook`.
+
+   **Recommended pattern:** Use per-route `{ preHandler: [gate] }` on each gated route (same pattern as `historyRoutes` which calls `verifyBearerJwt` inline). This is more precise than a plugin-level `addHook` and avoids splitting `webMetrics.ts`. The gate function signature `(request, reply) => Promise<void>` fits directly as a Fastify preHandler.
+
+   Plugin options update in `app.ts`: pass `redis: redisClient, prisma: prismaClient` to all 3 analytics route registrations (they currently receive only `db: getKysely()` — add the two new dependencies).
+
+   **Existing test migration:** Tests in `f029.analytics.route.test.ts`, `f079.missed-queries.unit.test.ts`, `f113.webMetrics.*.test.ts` currently pass because `isAdminRoute` in `auth.ts` short-circuits the X-API-Key gate and the routes require no bearer. After B2, the auth hook skips analytics routes entirely (no key check). Tests that previously mocked the admin key context will need updating: remove X-API-Key header assertions and either (a) add a mock `request.accountId` in test setup OR (b) verify that the existing `NODE_ENV=test` guard in `requireAdminBearer` skips rate-limiting while integration tests seed an admin account. Document this migration step in test file headers.
+
+6. **B-ERR — `packages/api/src/errors/errorHandler.ts`** (must precede integration tests)
+
+   Add `NOT_PROVISIONED` case alongside `FORBIDDEN`:
+
+   ```typescript
+   // NOT_PROVISIONED — bearer valid but accounts row missing (requireAdminBearer, F-ADMIN-ANALYTICS-UI)
+   if (asAny['code'] === 'NOT_PROVISIONED') {
+     return {
+       statusCode: 403,
+       body: {
+         success: false,
+         error: {
+           message: error.message,
+           code: 'NOT_PROVISIONED',
+         },
+       },
+     };
+   }
+   ```
+
+   No new test file needed — the existing `mapError` unit test file can be extended with one case.
+
+**Phase 1 — history-sample endpoint (Steps B6 → B7)**
+
+7. **B6 — `packages/shared/src/schemas/analytics.ts`** (no dependencies, can be done in parallel with Phase 0)
+
+   Append after `AnalyticsResponseSchema`:
+
+   ```typescript
+   // ---------------------------------------------------------------------------
+   // HistorySampleParamsSchema — GET /analytics/history-sample query params
+   // ---------------------------------------------------------------------------
+
+   export const HistorySampleParamsSchema = z.object({
+     intent:  ConversationIntentSchema.optional(),
+     hours:   z.coerce.number().int().min(1).max(720).default(24),
+     limit:   z.coerce.number().int().min(1).max(100).default(20),
+   });
+   export type HistorySampleParams = z.infer<typeof HistorySampleParamsSchema>;
+
+   // ---------------------------------------------------------------------------
+   // SearchHistorySampleEntrySchema — single item in history-sample response
+   // (privacy subset: NO account_id or any account identifier)
+   // ---------------------------------------------------------------------------
+
+   export const SearchHistorySampleEntrySchema = z.object({
+     id:         z.string().uuid(),
+     kind:       SearchHistoryKindSchema,
+     queryText:  z.string().min(1).max(2000),
+     resultData: ConversationMessageDataSchema,
+     createdAt:  z.string().datetime(),
+   });
+   export type SearchHistorySampleEntry = z.infer<typeof SearchHistorySampleEntrySchema>;
+
+   // ---------------------------------------------------------------------------
+   // HistorySampleDataSchema + HistorySampleResponseSchema — envelope
+   // ---------------------------------------------------------------------------
+
+   export const HistorySampleDataSchema = z.object({
+     items:        z.array(SearchHistorySampleEntrySchema),
+     hours:        z.number().int().min(1).max(720),
+     limit:        z.number().int().min(1).max(100),
+     intentFilter: ConversationIntentSchema.optional(),
+   });
+   export type HistorySampleData = z.infer<typeof HistorySampleDataSchema>;
+
+   export const HistorySampleResponseSchema = z.object({
+     success: z.literal(true),
+     data:    HistorySampleDataSchema,
+   });
+   export type HistorySampleResponse = z.infer<typeof HistorySampleResponseSchema>;
+   ```
+
+   Import `SearchHistoryKindSchema` from `./history.js` and `ConversationIntentSchema` / `ConversationMessageDataSchema` from `./conversation.js` at the top of the file. `packages/shared/src/index.ts` already exports `./schemas/analytics` — no barrel change needed.
+
+   **RED tests (`packages/shared/src/__tests__/schemas.test.ts` or a new file):**
+   - `HistorySampleParamsSchema.parse({})` → `{ hours: 24, limit: 20 }` (defaults)
+   - `HistorySampleParamsSchema.parse({ hours: '721' })` → throws (max 720)
+   - `HistorySampleParamsSchema.parse({ limit: '0' })` → throws (min 1)
+   - `HistorySampleParamsSchema.parse({ intent: 'invalid' })` → throws
+   - `HistorySampleParamsSchema.parse({ intent: 'estimation', hours: '48', limit: '50' })` → correct coerce
+   - `SearchHistorySampleEntrySchema` golden parse (all fields present, no `accountId` field in schema)
+   - `HistorySampleResponseSchema` golden roundtrip
+
+8. **B7 — `packages/api/src/routes/admin/historySample.ts`** (depends on B3, B6)
+
+   Plugin options:
+   ```typescript
+   export interface HistorySamplePluginOptions {
+     db:     Kysely<DB>;
+     redis:  Redis;
+     prisma: PrismaClient;
+   }
+   ```
+
+   Route: `GET /analytics/history-sample`
+
+   Handler steps:
+   1. Apply `makeRequireAdminBearer({ redis, prisma })` gate via `{ preHandler: [gate] }` route option.
+   2. Parse query params with `HistorySampleParamsSchema.parse(request.query)` — Fastify's Zod validator handles this if schema is attached; if using `request.query as ...` pattern (like `analytics.ts`), validate manually and throw `VALIDATION_ERROR`.
+   3. Kysely query — `id`, `kind`, `query_text`, `result_jsonb`, `created_at` from `search_history`. NO `account_id`. Apply `created_at >= NOW() - INTERVAL '<hours> hours'`. If `intent` param present: `AND result_jsonb->>'intent' = <intent>`. `ORDER BY created_at DESC LIMIT <limit>`.
+   4. Map rows: `ConversationMessageDataSchema.safeParse(row.result_jsonb)` — skip rows where `!result.success`. Log count of dropped rows at `debug` level (not `warn` — this is expected for old rows; no PII in the log).
+   5. Return `{ success: true, data: { items, hours, limit, intentFilter: intent } }`. If `intent` was absent, omit `intentFilter` key (not `undefined` — use spread: `...(intent && { intentFilter: intent })`).
+
+   Kysely SQL guidance: use `sql<string>` template for the INTERVAL to match `analytics.ts` pattern:
+   ```typescript
+   .where(sql<boolean>`created_at >= NOW() - INTERVAL ${sql.lit(`${hours} hours`)}`)
+   ```
+   For the intent filter on JSONB:
+   ```typescript
+   .where(sql<boolean>`result_jsonb->>'intent' = ${intent}`)
+   ```
+
+   Register in `app.ts`:
+   ```typescript
+   import { historySampleRoutes } from './routes/admin/historySample.js';
+   // ...
+   await app.register(historySampleRoutes, { db: getKysely(), redis: redisClient, prisma: prismaClient });
+   ```
+   Register immediately after `webMetricsRoutes` and before `authRoutes`.
+
+   **RED tests (`fAdminAnalytics.historySample.unit.test.ts`):**
+   - Default params → `hours: 24`, `limit: 20`, no intent filter
+   - `intent` filter present → SQL where clause includes JSONB filter
+   - Empty DB result → `{ success: true, data: { items: [], hours: 24, limit: 20 } }` (no `intentFilter`)
+   - Drifted row (`result_jsonb` fails safeParse) → dropped from `items`, not returned
+   - Mix of valid + drifted rows → only valid rows in `items`
+   - Response shape: assert `accountId` key NOT present on any item (AC20 privacy)
+   - DB throws → propagates as `DB_UNAVAILABLE` 500
+   - Hours out of range → 400 `VALIDATION_ERROR`
+
+**Phase 2 — api-spec.yaml (Step B8)**
+
+9. **B8 — `docs/specs/api-spec.yaml`**
+
+   - Add `GET /analytics/history-sample` path with full query params (`intent`, `hours`, `limit`), `401`/`400`/`403`/`500` responses, and `BearerAuth` security.
+   - For 5 existing analytics endpoints (`GET /analytics/queries`, `GET /analytics/missed-queries`, `POST /analytics/missed-queries/track`, `POST /analytics/missed-queries/:id/status`, `GET /analytics/web-events`): change `security: [{AdminKeyAuth: []}]` → `security: [{BearerAuth: []}]`; update 401 prose from "Missing or invalid admin API key" → "Missing or invalid bearer token"; add 403 response block with `code: FORBIDDEN` example.
+   - `POST /analytics/web-events` security: no change (public).
+
+**Phase 3 — Documentation (Step B9)**
+
+10. **B9 — `docs/project_notes/key_facts.md`**
+
+    In the **Auth middleware** section (around line 192): update to reflect ADR-031 split (`isAnalyticsRoute` → bearer-only, `isKeyAdminRoute` → X-API-Key).
+
+    In the **Analytics route** section (around line 183): add `requireAdminBearer` preHandler note, new endpoint `GET /analytics/history-sample`, and `HistorySample*` schemas.
+
+    Add new entry: **F-ADMIN-ANALYTICS-UI** — Bearer-only admin auth for `/analytics/*` (ADR-031); new `GET /analytics/history-sample` endpoint; `resolveAccountTierStrict` in `accountTier.ts`; `NOT_PROVISIONED` error code in `errorHandler.ts`.
+
+---
+
+### Testing Strategy
+
+**Test files to create:**
+
+| File | Type | Count (est.) |
+|------|------|-------------|
+| `packages/api/src/__tests__/fAdminAnalytics.adminPrefixes.unit.test.ts` | Unit | ~10 |
+| `packages/api/src/__tests__/fAdminAnalytics.accountTierStrict.unit.test.ts` | Unit | ~9 |
+| `packages/api/src/__tests__/fAdminAnalytics.requireAdminBearer.unit.test.ts` | Unit | ~10 |
+| `packages/api/src/__tests__/fAdminAnalytics.requireAdminBearer.integration.test.ts` | Integration | ~8 |
+| `packages/api/src/__tests__/fAdminAnalytics.historySample.unit.test.ts` | Unit | ~10 |
+| `packages/shared/src/__tests__/` (extend existing or new) | Unit | ~7 |
+
+**Total new tests: ~54 (target 30-40 per spec was conservative; strict + integration coverage warrants more)**
+
+**Key test scenarios:**
+
+Phase 0 — auth split:
+- `GET /analytics/queries` with `X-API-Key` only → 401 (AC1)
+- `GET /analytics/queries` with valid non-admin bearer → 403 `FORBIDDEN` (AC2)
+- `GET /analytics/queries` with valid admin bearer → 200 (AC3)
+- `GET /admin/waitlist` with `X-API-Key` → still 200 (AC4 regression — X-API-Key unchanged)
+- `GET /quality/report` with `X-API-Key` → still 200 (AC4)
+- `POST /embeddings/generate` with `X-API-Key` → still 200 (AC4)
+- `POST /ingest/url` with `X-API-Key` → still 200 (AC4)
+- `POST /analytics/web-events` with no auth → 202 (AC5)
+- Bearer present but no accounts row → 403 `NOT_PROVISIONED` with hint message (AC5b) + assert no row written to `accounts`
+- DB throws during tier read → 500 `DB_UNAVAILABLE` (AC5c)
+- 31st request within 60s window (same sub) → 429 `RATE_LIMIT_EXCEEDED` (AC5d — integration test, mocked Redis INCR)
+
+Phase 1 — history-sample:
+- Default params → envelope with correct defaults echoed (AC20)
+- `?hours=721` → 400 (AC21)
+- `?limit=0` → 400 (AC21)
+- `?intent=invalid_value` → 400 (AC21)
+- Seeded drifted row → not in `items` (AC21)
+- Response item: no `accountId` / `actorHash` keys (AC20)
+- `?intent=estimation` → SQL WHERE includes JSONB filter
+- Empty result → `items: []`, no error
+
+**Mocking strategy:**
+
+- Unit tests: mock Redis (`get`, `set`, `incr`, `expire`), mock Prisma (`$queryRaw`), mock Kysely (reuse `kyselyContainer` pattern from `f029.analytics.route.test.ts:17-68`). No real DB or Redis.
+- Integration tests: use `buildApp({ config: testConfig })` with real test DB (Supabase test instance) and real Redis (test Redis). Seed admin and non-admin accounts in `beforeAll`. Clean up in `afterAll`.
+- `fAdminAnalytics.requireAdminBearer.integration.test.ts`: seed two accounts — one with `tier='admin'`, one with `tier='free'`. Use `buildApp().inject()` to fire requests with mocked bearer (set `request.accountId` by seeding `SUPABASE_JWKS_URL` to the test JWKS or by bypassing JWT verify in test env via `NODE_ENV=test` shortcut if one exists). Verify `accounts` row count UNCHANGED after NOT_PROVISIONED rejection.
+- Rate limit integration: mock Redis INCR to return 31 directly (avoid real counter management in CI).
+
+**Existing test migration — after B5:**
+
+`f029.analytics.route.test.ts` and `f113.webMetrics.*.test.ts` currently assume the global `auth.ts` hook handles admin auth. After B2, the hook skips analytics routes entirely — routes that were "protected by X-API-Key" now need `requireAdminBearer`. In `NODE_ENV=test`, `requireAdminBearer` skips rate limiting but still checks `request.accountId`. Two options:
+- (Preferred) Set `request.accountId` in test setup via injecting a fake JWT or by short-circuit: in `NODE_ENV=test`, `makeRequireAdminBearer` returns early (fully skip gate). Mirrors `rateLimit.ts:107-109` pattern.
+- Alternative: seed an admin account + mock JWT for every existing analytics test.
+
+The plan recommends option (preferred): add `if (opts.config?.NODE_ENV === 'test') return` at the top of the preHandler factory when `NODE_ENV=test`. Pass `config` as an optional option to `makeRequireAdminBearer`. This keeps existing test behavior exactly intact while new integration tests opt into real gate verification via explicit `testEnv: false` option.
+
+---
+
+### Key Patterns
+
+- **`fastifyPlugin` wrap** (required): All route plugins use `fastifyPlugin(plugin)` — failure to wrap means Fastify's `setErrorHandler` scope won't catch errors from the plugin. Reference: `packages/api/src/routes/analytics.ts:269`.
+- **Per-route `preHandler` array** (preferred over plugin `addHook`): Attaching `[gate]` directly in route options avoids scope side-effects on routes in the same plugin. Reference: `historyRoutes` in `packages/api/src/routes/history.ts` for inline bearer verification pattern.
+- **Redis INCR rate limit pattern**: `const count = await redis.incr(key); if (count === 1) await redis.expire(key, windowSec); if (count > max) throw ...`. Fire-and-forget `expire` on first increment only. Reference: `packages/api/src/plugins/actorRateLimit.ts:151-155`.
+- **Error throw shape**: `throw Object.assign(new Error('...'), { code: 'CODE', statusCode?: N })`. The `errorHandler` maps `code` to status — do NOT pass `statusCode` for standard codes already handled (UNAUTHORIZED/FORBIDDEN/DB_UNAVAILABLE), they map cleanly. For `NOT_PROVISIONED` (new code, 403), the handler addition in B-ERR handles it. For `RATE_LIMIT_EXCEEDED`, existing handler maps it (statusCode 429); the throw in `requireAdminBearer` should include `statusCode: 429` to ensure correct status even if the error handler path is bypassed.
+- **Kysely INTERVAL pattern** (avoid SQL injection): Use `sql.lit(...)` for computed string values, NOT template interpolation. Reference: `packages/api/src/routes/analytics.ts:121` `sql<boolean>\`queried_at >= NOW() - INTERVAL ${sql.lit(interval)}\``.
+- **safeParse + drop pattern** for JSONB drift: Mirror the approach documented in `packages/shared/src/schemas/history.ts:11-13`. Drop rows where `result.success === false`. Log at `debug` level only (no PII — log only counts, never query text).
+- **`request.accountId` augmentation**: Already declared in `packages/api/src/plugins/authBearer.ts:31` as `accountId?: string`. `requireAdminBearer` reads this field — no new augmentation needed. `request.adminVerified` is a new optional boolean — declare via module augmentation in `requireAdminBearer.ts` itself.
+- **`NODE_ENV=test` gate bypass**: `rateLimit.ts:107` pattern — `if (config.NODE_ENV === 'test') return`. Add `config?: { NODE_ENV?: string }` to `RequireAdminBearerOptions` for this. Pass `config: cfg` from route registrations in `app.ts`.
+
+**Gotchas:**
+
+- `rateLimit.ts:131` uses `ADMIN_PREFIXES` (the union including `/analytics/`) for the global IP limiter `allowList`. This means analytics routes remain exempt from the global IP limiter — which is correct (bearer requests are already counted under `account:<sub>` via `getRateLimitKeyGenerator`, not the IP bucket). Do NOT remove `/analytics/` from `ADMIN_PREFIXES` — this would break the global limiter's allowList and start IP-bucketing analytics requests.
+- `actorResolver.ts` sets `request.accountId` during the `onRequest` phase. `requireAdminBearer` is a `preHandler` which runs AFTER all `onRequest` hooks. Hook order: `onRequest (auth.ts skip) → onRequest (actorResolver sets accountId) → [route matched] → preHandler (requireAdminBearer checks accountId)`. This ordering is correct and guaranteed by Fastify's lifecycle.
+- The three existing analytics route plugins (`analyticsRoutes`, `missedQueriesRoutes`, `webMetricsRoutes`) currently receive only `db: Kysely<DB>` or `db + prisma` — they do NOT receive `redis`. Adding `redis` to their options types is a breaking change to the interface; update `app.ts` registrations accordingly.
+- `SearchHistoryKind` in Prisma schema is a DB enum with values `text` and `voice` (mapped from `SearchHistoryKindSchema`). Kysely generated type: `SearchHistory.kind: SearchHistoryKind` (Kysely enum type). In the SELECT result, Kysely returns it as a string matching the enum values. No conversion needed — `SearchHistoryKindSchema.parse(row.kind)` will pass.
+- `result_jsonb` in Kysely type is `unknown` — safeParse it via `ConversationMessageDataSchema.safeParse(row.result_jsonb)` directly.
+
+---
+
+### Verification commands run
+
+- `grep -n "ADMIN_PREFIXES\|isAdminRoute" packages/api/src/plugins/rateLimit.ts packages/api/src/plugins/auth.ts` → `rateLimit.ts:60` imports `ADMIN_PREFIXES` (not `isAdminRoute`); `auth.ts:37` imports `isAdminRoute`, uses at line 80 → `ADMIN_PREFIXES` must remain in `adminPrefixes.ts` for rateLimit, and the new `isAnalyticsRoute`/`isKeyAdminRoute` helpers are additions, not replacements of the existing export
+
+- `grep -rn "ADMIN_PREFIXES\|isAdminRoute" packages/api/src/ --include="*.ts" | grep -v __tests__` → 4 non-test consumers confirmed: `rateLimit.ts:60,131` (ADMIN_PREFIXES), `auth.ts:37,80` (isAdminRoute), route files use comments only → plan preserves both exports
+
+- `Read: packages/api/src/plugins/auth.ts:80-92` → confirmed single `if (isAdminRoute(...))` block; replacement with two sequential checks (`isAnalyticsRoute` → return; `isKeyAdminRoute` → validateAdminKey) is the correct minimal diff
+
+- `Read: packages/api/src/plugins/actorResolver.ts:73-113` → confirmed `request.accountId` is set during `onRequest` phase after bearer JWT verify → `requireAdminBearer` (preHandler) runs after `accountId` is available; no race condition
+
+- `Read: packages/api/src/lib/accountTier.ts:1-65` → confirmed fail-open design (`rows.length === 0 → 'free'`; DB throws → return `'free'`); new `resolveAccountTierStrict` must NOT use fail-open — must rethrow DB errors and return null on no-row
+
+- `grep -rn "resolveAccountTier" packages/api/src/ --include="*.ts" | grep -v __tests__` → 3 call sites: `actorRateLimit.ts:111`, `auth.ts:435`, `lib/accountTier.ts:22` (definition) → back-compat wrapper required so these callers are unaffected
+
+- `grep -rn "account:tier" packages/api/src/ --include="*.ts"` → cache key `account:tier:<sub>` used in `accountTier.ts:28`, read by tests (2 integration test files use the key directly to seed cache) → `__none__` sentinel must NOT collide with valid tier strings (`'free'`/`'pro'`/`'admin'`); confirmed no collision
+
+- `Read: packages/api/src/plugins/rateLimit.ts:125-133` → confirmed `allowList` exempts all `ADMIN_PREFIXES` (including `/analytics/`) from global IP limiter; this exemption is CORRECT to keep — analytics bearer requests use `account:<sub>` bucket via `getRateLimitKeyGenerator`, not IP bucket; removing `/analytics/` from `ADMIN_PREFIXES` would re-route analytics requests to IP bucket (regression)
+
+- `Read: packages/api/src/plugins/actorRateLimit.ts:151-155` → confirmed `redis.incr(key)` + `redis.expire(key, 86400)` on first increment pattern → reuse verbatim in `requireAdminBearer` with 60s window
+
+- `Read: packages/api/prisma/schema.prisma:625-643` → `SearchHistory` model: `id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid`, `kind SearchHistoryKind`, `query_text Text`, `result_jsonb Json`, `created_at Timestamptz`, `account_id Uuid` (FK) → Kysely type confirmed at generated-types line 250: `id: Generated<string>`, `kind: SearchHistoryKind`, `query_text: string`, `result_jsonb: unknown`, `created_at: Generated<Timestamp>`, `account_id: string` → route SELECT omits `account_id` at query level (privacy)
+
+- `Read: packages/api/src/generated/kysely-types.ts:250-264` → `SearchHistory.result_jsonb: unknown` → safeParse via `ConversationMessageDataSchema.safeParse(row.result_jsonb)` is correct
+
+- `grep -n "ConversationIntentSchema\|ConversationMessageDataSchema" packages/shared/src/schemas/conversation.ts` → confirmed `ConversationIntentSchema` at line 59 (8 values), `ConversationMessageDataSchema` at line 148 with top-level `intent` field → `result_jsonb->>'intent'` SQL filter is valid
+
+- `Read: packages/shared/src/index.ts` → `export * from './schemas/analytics'` at line 23 already present → appending new schemas to `analytics.ts` auto-exports them; no barrel change needed
+
+- `grep -n "UNAUTHORIZED\|FORBIDDEN\|DB_UNAVAILABLE\|RATE_LIMIT_EXCEEDED\|NOT_PROVISIONED" packages/api/src/errors/errorHandler.ts` → `UNAUTHORIZED`/`FORBIDDEN`/`DB_UNAVAILABLE`/`RATE_LIMIT_EXCEEDED` already handled → only `NOT_PROVISIONED` is new and must be added (Step B-ERR)
+
+- `grep -n "app.get\|app.post" packages/api/src/routes/waitlist.ts packages/api/src/routes/quality.ts packages/api/src/routes/embeddings.ts packages/api/src/routes/ingest/url.ts` → confirmed routes for AC4: `GET /admin/waitlist` (waitlist.ts), `GET /quality/report` (quality.ts:31), `POST /embeddings/generate` (embeddings.ts:37), `POST /ingest/url` (ingest/url.ts:79) all exist
+
+- `ls packages/api/src/__tests__/f-web-tier/` → `fWebTier.resolveAccountTier.unit.test.ts` exists — existing tests must stay green after `accountTier.ts` refactor; back-compat wrapper preserves all existing behavior
+
+- `Read: packages/api/src/__tests__/f-web-tier/fWebTier.resolveAccountTier.unit.test.ts:42` → tests import `resolveAccountTier` directly via dynamic import; adding `resolveAccountTierStrict` alongside does not affect import path
+
+- `Read: packages/api/src/app.ts:125-160` → hook registration order: `registerAuthMiddleware` (line 125) before `registerActorResolver` (line 126) confirmed → onRequest phase: auth.ts hook fires first, then actorResolver sets `accountId` → `requireAdminBearer` (preHandler phase) sees `accountId` correctly set
+
+- `ls packages/api/src/routes/` → no `admin/` subdirectory yet → `packages/api/src/routes/admin/historySample.ts` is a new file in a new directory; `mkdir` will be needed (dev can create it)
+
+---
+
+## Implementation Plan — Frontend
+
+### UI/UX Deferred Decisions (resolved here)
+
+**Decision 1 — ResultBody extraction vs admin-only renderer**
+
+Path (a): Extract `<ResultBody>` from `TranscriptEntry.tsx` to its own module `packages/web/src/components/ResultBody.tsx`. Rationale: the function already exists at `TranscriptEntry.tsx:42-240` with the full 8-intent switch. Its props tie it to `TranscriptEntryData` (the full history entry shape), but only `entry.result: ConversationMessageData` is needed for the admin view. The extraction is: (1) move the inner function to its own file, (2) widen its prop to accept `data: ConversationMessageData` directly (dropping the `entry.error` and `entry.isLoading` branches which belong to TranscriptEntry's outer shell), (3) update `TranscriptEntry.tsx` to import and call the extracted component. This is ~20 lines of diff and gives the admin expand-row the exact same visual fidelity as the /hablar view — single source of truth. Path (b) would require re-implementing 8 intent cases and would drift from the /hablar render over time.
+
+**Decision 2 — `webTotalQueries` card position**
+
+Own section row with `col-span-full` preceded by a `mt-6 pt-5 border-t border-slate-100` section separator and subheading "Métricas web". This makes the source distinction (engine vs web session) visually explicit. W33 recommends this as the primary option. Fallback (5th card in the same grid row) is available if the owner prefers visual density over semantic separation, but the separate row is cleaner for the AC27 smoke test (easier to read at a glance).
+
+**Decision 3 — Phone expand-row card-stack**
+
+Defer to operator smoke (AC26). Primary audience is desktop/tablet. The W36 phone spec (`Panel B expand-row: renders as card BELOW collapsed row`) is documented in the design guidelines but requires phone-specific conditional rendering. Scope exclusion for this ticket: the `td colspan` expand-row pattern is used for all breakpoints; if it reads too narrow on phone, a follow-up ticket adds the card-stack variant. This is consistent with the ticket's stated position ("phone is degraded-but-functional; no phone-specific ACs").
+
+---
+
+### Existing Code to Reuse
+
+| Symbol | File | Purpose |
+|--------|------|---------|
+| `useAuth()` | `packages/web/src/hooks/useAuth.ts:11` | Provides `{ user, account, loading }` for AdminGuard tier check |
+| `AuthContextValue` | `packages/web/src/components/AuthProvider.tsx:28` | Type for `{ user, account, loading }` — `account.tier` field confirmed at line 32 |
+| `setAuthToken` / `authToken` (module singleton) | `packages/web/src/lib/apiClient.ts:41` | Bearer token already plumbed via module-level singleton; admin API calls use the same singleton — no new auth mechanism needed |
+| `ApiError` class | `packages/web/src/lib/apiClient.ts:49` | Typed error with `.code`, `.status`; parse `error.code` to surface `NOT_PROVISIONED` vs `FORBIDDEN` |
+| `getMe` pattern | `packages/web/src/lib/apiClient.ts:433` | Template for bearer-authenticated GET wrappers (parse JSON → safeParse schema → return envelope) |
+| `trackEvent` | `packages/web/src/lib/metrics.ts:160` | Extend `MetricEvent` union; admin events are payload-only (no counter mutation) |
+| `MetricEvent` / `MetricPayload` | `packages/web/src/lib/metrics.ts:13,49` | Add admin event names + payload fields to existing union/interface |
+| `shimmer-element` CSS class | `packages/web/src/styles/globals.css:81` | `@keyframes shimmer` + `.shimmer-element` defined globally — use for table skeleton rows |
+| `MissedQueryItem` / `MissedQueriesResponse` types | `packages/shared/src/schemas/missedQueries.ts:38,52` | Response shape for Panel A; `trackingId: string \| null`, `trackingStatus: MissedQueryStatus \| null` |
+| `BatchTrackBody` | `packages/shared/src/schemas/missedQueries.ts:104` | Body shape for `POST /analytics/missed-queries/track`; field names: `queries: [{ queryText, hitCount }]` |
+| `MissedQueryTracking` | `packages/shared/src/schemas/missedQueries.ts:78` | Response from POST /track — contains `id` to capture for subsequent status calls |
+| `AnalyticsData` / `AnalyticsResponse` types | `packages/shared/src/schemas/analytics.ts:87,97` | Response shape for Panel C queries section; `byLevel`, `bySource`, `topQueries`, `totalQueries`, `cacheHitRate`, `avgResponseTimeMs` all present |
+| `AnalyticsTimeRange` | `packages/shared/src/schemas/analytics.ts:13` | `'24h' \| '7d' \| '30d' \| 'all'` — use for Panel A + C `timeRange` filter state |
+| `WebMetricsAggregate` | `packages/shared/src/schemas/webMetrics.ts:84` | Response shape for Panel C web-events section; `totalQueries` + `topIntents` fields confirmed |
+| `HistorySampleResponse` / `SearchHistorySampleEntry` | `packages/shared/src/schemas/analytics.ts` (added by B6) | Response shape for Panel B — depends on backend Step B6 completing first |
+| `ConversationIntent` | `packages/shared/src/schemas/conversation.ts:59` | 8-value enum for Panel B intent filter dropdown |
+| `NutritionCard` | `packages/web/src/components/NutritionCard.tsx` | Rendered inside extracted `ResultBody` for estimation/comparison/etc — no change needed |
+| `ContextConfirmation` | `packages/web/src/components/ContextConfirmation.tsx` | Rendered inside `ResultBody` for `context_set` intent — no change needed |
+| `MenuDishList` | `packages/web/src/components/MenuDishList.tsx` | Rendered inside `ResultBody` for `menu_estimation` intent — no change needed |
+| `useRouter` | `next/navigation` | `router.replace()` for anon redirect in AdminGuard (pattern confirmed in `LoginCta.tsx:17`) |
+| `usePathname` | `next/navigation` | Capture current path for `?redirectTo=` in AdminGuard |
+| Brand tokens | `tailwind.config.ts:13,19` + `globals.css:10-17` | `brand-green`, `brand-orange`, `mist` all confirmed in config; use `bg-mist`, `text-brand-green` as-is |
+
+---
+
+### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `packages/web/src/lib/i18n/locale.ts` | `LOCALE = 'es' as const` + `SupportedLocale` type |
+| `packages/web/src/lib/i18n/messages/es/admin.json` | Full W34 key tree verbatim — all admin Spanish strings |
+| `packages/web/src/lib/i18n/useT.ts` | `useT(namespace)` hook — dot-key resolver + fallback to key + NO built-in interpolation (caller uses `.replace('{x}', val)` per W34 note) |
+| `packages/web/src/lib/i18n/__tests__/useT.test.ts` | Unit tests for useT |
+| `packages/web/src/app/admin/layout.tsx` | Server Component shell with metadata (`noindex`) + `<AdminGuard>` + `<AdminLayout>` co-located |
+| `packages/web/src/app/admin/analytics/page.tsx` | Server Component page — renders 3 panels stacked |
+| `packages/web/src/components/admin/AdminGuard.tsx` | `'use client'` — auth/tier gate; 4 branches per W27/W35 |
+| `packages/web/src/components/admin/AdminLayout.tsx` | `'use client'` — sidebar (desktop) + topbar (tablet/phone) per W27/W36 |
+| `packages/web/src/components/admin/MissedQueriesPanel.tsx` | `'use client'` — Panel A: filter, table, per-row actions, optimistic updates |
+| `packages/web/src/components/admin/ResponseReviewPanel.tsx` | `'use client'` — Panel B: filter, table, expand-row with ResultBody |
+| `packages/web/src/components/admin/OverviewPanel.tsx` | `'use client'` — Panel C: parallel fetches, scalar cards, distributions |
+| `packages/web/src/components/ResultBody.tsx` | Extracted from `TranscriptEntry.tsx`; prop: `{ data: ConversationMessageData }` |
+| `packages/web/src/__tests__/lib/useT.test.ts` | (alias — same as above; place in `__tests__/lib/` to match existing pattern) |
+| `packages/web/src/__tests__/components/AdminGuard.test.tsx` | 5 test cases for all guard branches |
+| `packages/web/src/__tests__/components/AdminLayout.test.tsx` | 3 tests: sidebar nav, active link, tablet topbar |
+| `packages/web/src/__tests__/components/MissedQueriesPanel.test.tsx` | ~10 tests: fetch, filters, optimistic actions, error/empty |
+| `packages/web/src/__tests__/components/ResponseReviewPanel.test.tsx` | ~8 tests: fetch, filters, expand-row, NOT_PROVISIONED |
+| `packages/web/src/__tests__/components/OverviewPanel.test.tsx` | ~6 tests: parallel fetch, independent errors, filter |
+| `packages/web/src/__tests__/components/ResultBody.test.tsx` | ~4 tests: one per intent group + graceful null guard |
+| `packages/web/src/__tests__/lib/apiClient.admin.test.ts` | ~6 tests for new admin API wrappers |
+| `packages/web/src/__tests__/admin-analytics-route.integration.test.tsx` | ~3 tests: admin-tier mounts, non-admin 403, anon redirect |
+
+---
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `packages/web/src/components/TranscriptEntry.tsx` | Remove internal `ResultBody` function; import `ResultBody` from `'@/components/ResultBody'` instead; all 8 intent cases + null guard move to `ResultBody.tsx`. The outer `TranscriptEntry` shell (entry.error / entry.isLoading / photo branches) stays in `TranscriptEntry.tsx`. |
+| `packages/web/src/lib/apiClient.ts` | Add 6 new admin API wrappers: `getMissedQueries`, `trackMissedQueries`, `updateMissedQueryStatus`, `getQueriesAnalytics`, `getWebMetricsAnalytics`, `getHistorySample`. Each follows the `getMe`/`getUsage`/`getHistory` pattern: `authToken` guard → fetch with `Authorization: Bearer ${authToken}` → JSON parse → schema safeParse → return data. Parse `error.code` from non-2xx body to surface `NOT_PROVISIONED` / `FORBIDDEN` to callers via `ApiError`. |
+| `packages/web/src/lib/metrics.ts` | Add admin `MetricEvent` values to the union: `'admin_panel_loaded'`, `'admin_tracking_action'`, `'admin_history_expand'`, `'admin_403_shown'`. Add payload fields to `MetricPayload`: `panel?: 'missed-queries' \| 'response-review' \| 'overview'`, `action?: 'investigating' \| 'resolved' \| 'ignored'`, `code403?: 'NOT_PROVISIONED' \| 'FORBIDDEN' \| 'VERIFY_FAILED'`. Add `case` branches in `trackEvent` switch — admin events do NOT increment `queryCount`/`successCount` (payload-only). |
+
+---
+
+### Implementation Order
+
+**Phase F-A — i18n infrastructure (no dependencies)**
+
+1. **F1 — `packages/web/src/lib/i18n/locale.ts`**
+
+   ```typescript
+   export const LOCALE = 'es' as const;
+   export type SupportedLocale = typeof LOCALE;
+   ```
+
+2. **F2 — `packages/web/src/lib/i18n/messages/es/admin.json`**
+
+   Paste the verbatim W34 JSON key tree. Namespace structure: `admin.layout.*`, `admin.common.*`, `admin.intent.*`, `admin.panel.missedQueries.*`, `admin.panel.responseReview.*`, `admin.panel.overview.*`. The file is a static module-level import — no async loading.
+
+3. **F3 — `packages/web/src/lib/i18n/useT.ts`** (depends on F1, F2)
+
+   ```typescript
+   'use client';
+
+   import adminMessages from './messages/es/admin.json';
+
+   const NAMESPACES: Record<string, Record<string, unknown>> = {
+     admin: adminMessages as Record<string, unknown>,
+   };
+
+   export function useT(namespace: string): (key: string) => string {
+     const messages = NAMESPACES[namespace] ?? {};
+     return function t(key: string): string {
+       const parts = key.split('.');
+       let current: unknown = messages;
+       for (const part of parts) {
+         if (typeof current !== 'object' || current === null) return key;
+         current = (current as Record<string, unknown>)[part];
+       }
+       return typeof current === 'string' ? current : key;
+     };
+   }
+   ```
+
+   Key contract: returns the key string itself (never throws) when a key is missing or the resolved value is not a string. Interpolation is caller responsibility (`.replace('{count}', val)`).
+
+   **RED tests — `packages/web/src/__tests__/lib/useT.test.ts`:**
+   - `useT('admin')('layout.loading')` → `'Verificando acceso...'` (top-level namespace key)
+   - `useT('admin')('panel.missedQueries.title')` → `'Búsquedas sin respuesta'` (deep nested key)
+   - `useT('admin')('nonexistent.key')` → `'nonexistent.key'` (fallback to key string)
+   - `useT('admin')('layout.403.forbidden.title')` → `'Acceso denegado'` (3-level nested key)
+   - `useT('unknown-namespace')('any.key')` → `'any.key'` (unknown namespace fallback)
+   - `useT('admin')('intent.estimation')` → `'Estimación'` (flat-within-namespace key)
+
+**Phase F-B — ResultBody extraction (no dependencies except existing TranscriptEntry)**
+
+4. **F4 — `packages/web/src/components/ResultBody.tsx`** (extracted from TranscriptEntry.tsx)
+
+   ```typescript
+   'use client';
+
+   import type { ConversationMessageData } from '@foodxplorer/shared';
+   import { NutritionCard } from './NutritionCard';
+   import { ContextConfirmation } from './ContextConfirmation';
+   import { MenuDishList } from './MenuDishList';
+
+   export interface ResultBodyProps {
+     data: ConversationMessageData;
+     onDishSelect?: (dishName: string) => void;
+   }
+
+   export function ResultBody({ data, onDishSelect }: ResultBodyProps): React.ReactElement | null {
+     switch (data.intent) {
+       case 'estimation': { ... }
+       case 'comparison': { ... }
+       case 'menu_estimation': { ... }
+       case 'context_set': { ... }
+       case 'reverse_search': { ... }
+       case 'follow_up_attribute': { ... }
+       case 'follow_up_refinement': { ... }
+       case 'text_too_long': { ... }
+       default: return null;
+     }
+   }
+   ```
+
+   Note on `text_too_long`: the existing `TranscriptEntry.tsx` switch falls through to `default: return null` for `text_too_long`. Preserve this behavior. Do NOT fabricate a UI for `text_too_long` — add an explicit `case 'text_too_long': return null` for clarity.
+
+   The outer `TranscriptEntry.tsx` `ResultBody` function currently also handles `entry.error`, `entry.isLoading`, and `entry.photoData` branches. These are NOT moved to `ResultBody.tsx` — they belong to the `TranscriptEntry` shell and stay in that file. Only the `entry.result` (ConversationMessageData) switch block moves.
+
+   Update `TranscriptEntry.tsx`: remove the inner `ResultBody` function definition; import `{ ResultBody }` from `'@/components/ResultBody'`; call it as `<ResultBody data={results} onDishSelect={onDishSelect} />` (where `results = entry.result`).
+
+   **RED tests — `packages/web/src/__tests__/components/ResultBody.test.tsx`:**
+   - Renders without crash for each of 8 `ConversationIntent` values (mocked data fixtures per intent)
+   - Returns null for `text_too_long` and unknown intents (graceful default)
+   - `estimation` intent renders a `NutritionCard`
+   - `comparison` intent renders two `NutritionCard` components
+   - Existing `TranscriptEntry` tests must pass unchanged after refactor (no regression gate needed as a separate step — the existing test suite covers it)
+
+**Phase F-C — apiClient admin wrappers (depends on F-A to import shared types; depends on B6 for HistorySample types)**
+
+5. **F5 — `packages/web/src/lib/apiClient.ts`** — add 6 admin wrappers
+
+   Each wrapper follows the existing `getMe`/`getUsage` pattern verbatim:
+   1. Guard `authToken` (throw `ApiError('UNAUTHORIZED', 401)` if null)
+   2. `fetch(${baseUrl}/analytics/..., { headers: { Authorization: \`Bearer ${authToken}\` } })`
+   3. Parse JSON → throw `ApiError` on parse failure
+   4. On non-2xx: extract `error.code` from body → `throw new ApiError(message, code, status)` — callers test `err.code === 'NOT_PROVISIONED'`
+   5. Schema safeParse the `data` field → throw `ApiError('MALFORMED_RESPONSE')` on failure
+
+   Signatures:
+
+   ```typescript
+   // Panel A
+   export async function getMissedQueries(
+     params: MissedQueriesParams
+   ): Promise<MissedQueriesResponse['data']>
+
+   export async function trackMissedQueries(
+     queries: BatchTrackBody['queries']
+   ): Promise<MissedQueryTracking[]>  // returns array of created tracking entries
+
+   export async function updateMissedQueryStatus(
+     id: string,
+     body: UpdateMissedQueryStatusBody
+   ): Promise<MissedQueryTracking>
+
+   // Panel B
+   export async function getHistorySample(
+     params: HistorySampleParams
+   ): Promise<HistorySampleData>  // HistorySampleData from B6 schema
+
+   // Panel C
+   export async function getQueriesAnalytics(
+     params: AnalyticsQueryParams
+   ): Promise<AnalyticsData>
+
+   export async function getWebMetricsAnalytics(
+     params: WebMetricsQueryParams
+   ): Promise<WebMetricsAggregate>
+   ```
+
+   Import types from `@foodxplorer/shared`. The `trackMissedQueries` POST response body shape: the existing `POST /analytics/missed-queries/track` returns an array of created tracking entries (verify schema `BatchTrackBodySchema` in `missedQueries.ts:104` — response type is `MissedQueryTracking[]` based on the route's upsert-many behavior).
+
+   **RED tests — `packages/web/src/__tests__/lib/apiClient.admin.test.ts`:**
+   - `getMissedQueries` with default params → calls correct URL with bearer header
+   - `getMissedQueries` with non-2xx and `code: 'NOT_PROVISIONED'` → throws `ApiError` with `.code === 'NOT_PROVISIONED'`
+   - `trackMissedQueries` → POST with correct body shape `{ queries: [...] }`
+   - `updateMissedQueryStatus` → POST to `/:id/status` with `{ status }`
+   - `getHistorySample` with `intent` param → URL includes `?intent=estimation`
+   - `getQueriesAnalytics` → calls `/analytics/queries` with bearer
+
+**Phase F-D — metrics.ts extension (no dependencies)**
+
+6. **F6 — `packages/web/src/lib/metrics.ts`** — extend
+
+   Add to `MetricEvent` union:
+   ```typescript
+   | 'admin_panel_loaded'
+   | 'admin_tracking_action'
+   | 'admin_history_expand'
+   | 'admin_403_shown'
+   ```
+
+   Add to `MetricPayload` interface:
+   ```typescript
+   panel?: 'missed-queries' | 'response-review' | 'overview';
+   action?: 'investigating' | 'resolved' | 'ignored';
+   code403?: 'NOT_PROVISIONED' | 'FORBIDDEN' | 'VERIFY_FAILED';
+   ```
+
+   Add `case` branches in `trackEvent` switch for each admin event — these are pure payload events (no `state.queryCount++` or `state.successCount++` — admin UI actions must not add to user query metrics).
+
+**Phase F-E — Admin route shell + guard (depends on F-A for useT, F-B not required)**
+
+7. **F7 — `packages/web/src/components/admin/AdminGuard.tsx`** (Client Component)
+
+   ```typescript
+   'use client';
+
+   import { useAuth } from '@/hooks/useAuth';
+   import { useRouter, usePathname } from 'next/navigation';
+   import { useT } from '@/lib/i18n/useT';
+   import { trackEvent } from '@/lib/metrics';
+
+   export function AdminGuard({ children }: { children: React.ReactNode }) {
+     const { user, account, loading } = useAuth();
+     const router = useRouter();
+     const pathname = usePathname();
+     const t = useT('admin');
+
+     // Branch 1: Auth checking
+     if (loading) {
+       return <LoadingPage t={t} />;
+     }
+
+     // Branch 2: Not authenticated
+     if (!user) {
+       router.replace('/login?redirectTo=' + encodeURIComponent(pathname ?? '/admin/analytics'));
+       return null;
+     }
+
+     // Branch 3: account null — getMe failed (network error / API down)
+     if (!account) {
+       trackEvent('admin_403_shown', { code403: 'VERIFY_FAILED' });
+       return <ForbiddenPage variant="verifyFailed" t={t} onAction={() => router.refresh()} />;
+     }
+
+     // Branch 4: authenticated but not admin
+     if (account.tier !== 'admin') {
+       trackEvent('admin_403_shown', { code403: 'FORBIDDEN' });
+       return <ForbiddenPage variant="forbidden" t={t} onAction={() => router.back()} />;
+     }
+
+     // Branch 5: admin — render layout + children
+     return <AdminLayout>{children}</AdminLayout>;
+   }
+   ```
+
+   `LoadingPage` (co-located sub-component): `fixed inset-0 bg-white flex items-center justify-center` per W27. Spinner: `w-8 h-8 rounded-full border-2 border-slate-200 border-t-brand-green animate-spin`. Text below: `text-sm text-slate-400 mt-3` with `t('layout.loading')`.
+
+   `ForbiddenPage` (co-located sub-component): variant `'verifyFailed' | 'forbidden'` → renders W35 card. Card border: `border-amber-200` (verifyFailed) or `border-red-200` (forbidden). Uses `t('layout.403.verifyFailed.*')` or `t('layout.403.forbidden.*')` respectively. The `NOT_PROVISIONED` variant from W35 (`border-amber-200`) applies when `account === null` — AdminGuard cannot distinguish `NOT_PROVISIONED` from general getMe failure (both result in `account === null`). The `verifyFailed` variant serves both. The monospace hint text from `NOT_PROVISIONED` is included in `verifyFailed` body copy (W35 specifies it for the "recoverable" amber state). CTA: `router.refresh()` (retry).
+
+   **Note on NOT_PROVISIONED distinction:** The W35 spec distinguishes `NOT_PROVISIONED` (account row missing) from `verifyFailed` (network error). AdminGuard cannot distinguish these at the client level because both surface as `account === null`. AdminGuard renders the `verifyFailed` amber variant for both. This is acceptable for v1 — the admin (Pablo) will recognize both cases. A follow-up could thread the `error` field from `AuthContext` to show more specific copy.
+
+   **RED tests — `packages/web/src/__tests__/components/AdminGuard.test.tsx`:**
+   - Mock `useAuth` → `{ loading: true }` → renders spinner with "Verificando acceso..."
+   - Mock `useAuth` → `{ loading: false, user: null, account: null }` → calls `router.replace` with correct redirectTo
+   - Mock `useAuth` → `{ loading: false, user: mockUser, account: null }` → renders amber 403 card (verifyFailed copy)
+   - Mock `useAuth` → `{ loading: false, user: mockUser, account: { tier: 'free' } }` → renders red 403 card (forbidden copy)
+   - Mock `useAuth` → `{ loading: false, user: mockUser, account: { tier: 'admin' } }` → renders children (dashboard)
+
+8. **F8 — `packages/web/src/components/admin/AdminLayout.tsx`** (Client Component)
+
+   ```typescript
+   'use client';
+
+   import Link from 'next/link';
+   import { usePathname } from 'next/navigation';
+   import { useT } from '@/lib/i18n/useT';
+
+   export function AdminLayout({ children }: { children: React.ReactNode }) {
+     const pathname = usePathname();
+     const t = useT('admin');
+     const isAnalyticsActive = pathname?.startsWith('/admin/analytics') ?? false;
+
+     return (
+       <div className="flex h-[100dvh]">
+         {/* Sidebar — desktop only (hidden on <lg) */}
+         <aside className="hidden lg:flex lg:flex-col w-56 flex-shrink-0 bg-white border-r border-slate-100">
+           <div className="px-3 pb-5 pt-6 border-b border-slate-100">
+             <span className="text-sm font-semibold text-slate-500 tracking-wide uppercase">
+               {t('layout.brandName')} {t('layout.adminSuffix')}
+             </span>
+           </div>
+           <nav className="pt-3 px-3" aria-label="Admin navigation">
+             <Link
+               href="/admin/analytics"
+               className={isAnalyticsActive
+                 ? 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold bg-mist text-brand-green'
+                 : 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors duration-150'
+               }
+               aria-current={isAnalyticsActive ? 'page' : undefined}
+             >
+               {/* 18px chart-bar SVG icon */}
+               {t('layout.navAnalytics')}
+             </Link>
+           </nav>
+         </aside>
+
+         {/* Main content area */}
+         <div className="flex-1 flex flex-col overflow-hidden">
+           {/* TopBar — tablet and phone only (<lg) */}
+           <header className="lg:hidden h-10 bg-white border-b border-slate-100 flex items-center justify-between px-4 flex-shrink-0">
+             <span className="text-sm font-semibold text-slate-500">
+               {t('layout.brandName')} {t('layout.adminSuffix')}
+             </span>
+             <span className="text-sm text-slate-600">{t('layout.navAnalytics')}</span>
+           </header>
+           <main className="flex-1 overflow-y-auto bg-slate-50">
+             <div className="max-w-7xl mx-auto px-6 py-8 lg:px-6 md:px-4 md:py-6 px-3 py-4">
+               {children}
+             </div>
+           </main>
+         </div>
+       </div>
+     );
+   }
+   ```
+
+   **RED tests — `packages/web/src/__tests__/components/AdminLayout.test.tsx`:**
+   - Renders sidebar with "nutriXplorer admin" wordmark on desktop (mock viewport or check element exists)
+   - Analytics nav link has `aria-current="page"` when pathname is `/admin/analytics`
+   - TopBar renders the wordmark (for tablet/phone visibility)
+
+9. **F9 — `packages/web/src/app/admin/layout.tsx`** (Server Component shell)
+
+   ```typescript
+   import type { Metadata } from 'next';
+   import { AdminGuard } from '@/components/admin/AdminGuard';
+
+   export const metadata: Metadata = {
+     title: 'Admin · nutriXplorer',
+     robots: { index: false, follow: false },
+   };
+
+   export default function AdminRootLayout({ children }: { children: React.ReactNode }) {
+     return <AdminGuard>{children}</AdminGuard>;
+   }
+   ```
+
+   Server Component — no `'use client'` directive. Delegates all auth logic to `AdminGuard` (client). Metadata includes `robots: noindex` so admin pages are not indexed.
+
+**Phase F-F — Panel A: MissedQueriesPanel (depends on F5, F6, F3)**
+
+10. **F10 — `packages/web/src/components/admin/MissedQueriesPanel.tsx`** (Client Component)
+
+    State shape:
+    ```typescript
+    interface RowUpdate {
+      status: MissedQueryStatus | null;
+      trackingId: string | null;
+      isUpdating: boolean;
+      error: string | null;
+    }
+
+    // rowUpdates keyed by queryText (stable key — untracked rows have no ID)
+    const [rowUpdates, setRowUpdates] = useState<Map<string, RowUpdate>>(new Map());
+    const [timeRange, setTimeRange] = useState<AnalyticsTimeRange>('7d');
+    const [topN, setTopN] = useState(20);
+    const [topNInput, setTopNInput] = useState('20');  // controlled input string
+    const [minCount, setMinCount] = useState(1);
+    const [minCountInput, setMinCountInput] = useState('1');
+    const [data, setData] = useState<MissedQueriesResponse['data'] | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    ```
+
+    Key implementation notes:
+    - **Filter controls:** TimeRange — segmented button group (`role="group" aria-label="Período de tiempo"`, each button `aria-pressed`). Fires fetch on click. TopN / minCount — numeric `<input type="number">` with `onBlur` validation + re-fetch. During fetch: `opacity-50 pointer-events-none` on all filter controls.
+    - **Table:** sticky `thead` per W30. queryText truncated at 80 chars with `title={row.queryText}` attribute.
+    - **Row key:** `row.queryText` (stable; queryText is unique in the missed queries result set by definition — it groups by query term).
+    - **Effective status:** resolve from `rowUpdates.get(row.queryText)?.status ?? row.trackingStatus` for display; same for `trackingId`: `rowUpdates.get(row.queryText)?.trackingId ?? row.trackingId`.
+    - **Action handler:** `handleAction(row, nextStatus: MissedQueryStatus)`:
+      1. Get effective `trackingId`.
+      2. Optimistic update: `setRowUpdates` with `isUpdating: true`, `status: nextStatus`.
+      3. If `trackingId === null`: call `trackMissedQueries([{ queryText: row.queryText, hitCount: row.count }])` → capture returned `id` → `setRowUpdates` updating `trackingId = id`.
+      4. Call `updateMissedQueryStatus(effectiveId, { status: nextStatus })`.
+      5. On success: `setRowUpdates` with `isUpdating: false`, clear error.
+      6. On error: revert status to prior value; set `error` in rowUpdate. The "revert" must restore the last known status before the optimistic update (capture prior value before step 2).
+    - **Row error display:** insert a `<tr><td colSpan={4}>` error row immediately below the affected row with the error message per W31.
+    - **Loading skeleton:** 5 `<tr>` rows with `shimmer-element` cells per W30 spec.
+    - **Empty state:** replace entire `<tbody>` with centered W30 empty state block (magnifier SVG + text).
+    - **Error state:** banner per W30 with retry button that re-fires the fetch.
+    - **trackEvent:** `trackEvent('admin_panel_loaded', { panel: 'missed-queries' })` on mount (after first successful fetch). `trackEvent('admin_tracking_action', { action: nextStatus === 'pending' ? 'investigating' : nextStatus })` on each action.
+
+    **RED tests — `packages/web/src/__tests__/components/MissedQueriesPanel.test.tsx`:**
+    - On mount fires `getMissedQueries` with default params `{ timeRange: '7d', topN: 20, minCount: 1 }`
+    - Renders table rows with queryText (truncated), count, and badge on success
+    - Changing timeRange segment fires re-fetch with new `timeRange`
+    - TopN input blur with valid value fires re-fetch with new `topN`
+    - "Investigando" on untracked row → calls `trackMissedQueries` then renders `pending` badge
+    - "Investigando" on tracked row → calls `updateMissedQueryStatus(id, { status: 'pending' })`
+    - "Resuelto" on untracked row → two-step: calls `trackMissedQueries` then `updateMissedQueryStatus`
+    - API error on action → badge reverts to prior status + error message row appears
+    - Empty `missedQueries: []` → empty state text rendered, no table rows
+    - Error on initial fetch → error banner with retry button
+
+**Phase F-G — Panel B: ResponseReviewPanel (depends on F4 ResultBody, F5, F3)**
+
+11. **F11 — `packages/web/src/components/admin/ResponseReviewPanel.tsx`** (Client Component)
+
+    State shape:
+    ```typescript
+    const [intent, setIntent] = useState<ConversationIntent | undefined>(undefined);
+    const [hours, setHours] = useState(24);
+    const [hoursInput, setHoursInput] = useState('24');
+    const [limit, setLimit] = useState(20);
+    const [limitInput, setLimitInput] = useState('20');
+    const [data, setData] = useState<HistorySampleData | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+    ```
+
+    Key implementation notes:
+    - **Intent dropdown:** native `<select>` per W29 with `appearance-none` + custom chevron SVG. Options: "Todos" (value `''`) + 8 intent labels from `t('intent.*')`. On change: set intent (undefined if value `''`), re-fetch immediately.
+    - **Hours / limit inputs:** fetch on blur after validation. Hours: min 1, max 720 (inline error: `t('panel.responseReview.filterHoursValidation')`). Limit: min 1, max 100.
+    - **Summary row:** above the table, rendered as `t('panel.responseReview.summary').replace('{count}', String(data.items.length)).replace('{hours}', String(hours))` per W34 note.
+    - **Expand-row animation:** CSS grid trick per W32 — `<tr>` with `<td colSpan={5}>` containing a `div` with `grid grid-rows-[0fr] overflow-hidden transition-[grid-template-rows] duration-250 ease-out` when collapsed, `grid-rows-[1fr]` when expanded. Inner div `min-h-0`.
+    - **Expanded content:** `py-4 px-6 bg-slate-50/60 border-l-2 border-brand-green/30 ml-2` per W32. Intent badge header + `<ResultBody data={row.resultData} />`. Raw JSON toggle: hidden by default, click shows `<pre>` block.
+    - **Row click:** clicking anywhere on `<tr>` toggles expand for that row's ID.
+    - **Drift rows:** `HistorySampleResponse.data.items` are already validated by the backend (drifted rows dropped server-side). No additional safeParse needed client-side. If somehow `row.resultData` is malformed (edge case), `<ResultBody>` returns null gracefully.
+    - **NOT_PROVISIONED error:** if `getMissedQueries` or `getHistorySample` throws `ApiError` with `code === 'NOT_PROVISIONED'`, show the amber W35 card inline WITHIN the panel body (not via AdminGuard — AdminGuard only handles this for initial load, but panels fetch after AdminGuard passes). Use a local `notProvisioned` state flag.
+    - **trackEvent:** `admin_panel_loaded` + `admin_history_expand` on row expand toggle.
+
+    **RED tests — `packages/web/src/__tests__/components/ResponseReviewPanel.test.tsx`:**
+    - On mount fires `getHistorySample` with `{ hours: 24, limit: 20 }` (no intent param)
+    - Selecting intent "Estimación" fires re-fetch with `{ intent: 'estimation', hours: 24, limit: 20 }`
+    - Selecting "Todos" fires re-fetch without `intent` param
+    - Hours input blur with `48` fires re-fetch with `{ hours: 48 }`
+    - Clicking expand icon toggles row expansion (aria/class changes)
+    - Expanded row renders `ResultBody` (present in DOM)
+    - Empty state when `items: []`
+    - Error state when fetch throws — error banner with retry button
+    - `NOT_PROVISIONED` ApiError → amber 403 inline panel (not full-page)
+
+**Phase F-H — Panel C: OverviewPanel (depends on F5, F3)**
+
+12. **F12 — `packages/web/src/components/admin/OverviewPanel.tsx`** (Client Component)
+
+    State shape:
+    ```typescript
+    const [timeRange, setTimeRange] = useState<AnalyticsTimeRange>('7d');
+    const [queriesData, setQueriesData] = useState<AnalyticsData | null>(null);
+    const [webEventsData, setWebEventsData] = useState<WebMetricsAggregate | null>(null);
+    const [isLoadingQueries, setIsLoadingQueries] = useState(true);
+    const [isLoadingWebEvents, setIsLoadingWebEvents] = useState(true);
+    const [queriesError, setQueriesError] = useState<string | null>(null);
+    const [webEventsError, setWebEventsError] = useState<string | null>(null);
+    ```
+
+    Key implementation notes:
+    - **Parallel fetches:** `Promise.allSettled` (NOT `Promise.all`) on `[getQueriesAnalytics({ timeRange }), getWebMetricsAnalytics({ timeRange })]`. Process both settled results independently — one failure does not block the other.
+    - **missRate computation:** `queriesData.byLevel.miss / queriesData.totalQueries * 100` formatted as `X.X%`. Guard against division by zero (`totalQueries === 0 → 0%`).
+    - **cacheHitRate:** `queriesData.cacheHitRate * 100` (field is already `0–1` per schema).
+    - **Scalar cards grid:** `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4`. Each card `bg-white rounded-2xl border border-slate-100 p-5`. Big number `text-[32px] font-extrabold leading-none text-slate-800`.
+    - **webTotalQueries section:** separate from main 4-card grid; `mt-6 pt-5 border-t border-slate-100` separator + subheading `text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3` labelled `t('panel.overview.sections.web')`. Card: `border-brand-green/20 bg-mist/30`. Number: `text-brand-green`.
+    - **byLevel bars:** pure CSS, no chart lib. Each level row: flex, label `w-8`, bar track `flex-1 bg-slate-100 rounded-full h-2`, fill `h-2 rounded-full transition-all duration-500` with inline `style={{ width: pct + '%' }}`. Colors per W33.
+    - **bySource:** flex icon pairs per W33. Code-bracket SVG for api, chat-bubble SVG for bot.
+    - **topQueries / topIntents mini-tables:** `grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6`. Each row `flex items-center justify-between py-2 border-b border-slate-50 last:border-0`.
+    - **Independent error states:** if `queriesError` is set, show error banner in place of scalar cards + distributions (webTotalQueries card still renders from `webEventsData`). If `webEventsError` is set, webTotalQueries card shows inline error + topIntents shows error banner.
+    - **trackEvent:** `admin_panel_loaded` with `{ panel: 'overview' }` on mount after first successful fetch of either source.
+
+    **RED tests — `packages/web/src/__tests__/components/OverviewPanel.test.tsx`:**
+    - On mount fires both `getQueriesAnalytics` and `getWebMetricsAnalytics` with `{ timeRange: '7d' }`
+    - Scalar cards render `totalQueries`, `cacheHitRate` (formatted %), `missRate` (computed)
+    - webTotalQueries card renders from web-events data (green-tinted)
+    - `getQueriesAnalytics` failure → error banner for engine section; webTotalQueries still renders
+    - `getWebMetricsAnalytics` failure → webTotalQueries shows inline error; engine scalars still render
+    - timeRange segment change fires both fetches with new `timeRange`
+
+**Phase F-I — Admin analytics page (depends on F10, F11, F12)**
+
+13. **F13 — `packages/web/src/app/admin/analytics/page.tsx`** (Server Component)
+
+    ```typescript
+    import type { Metadata } from 'next';
+    import { MissedQueriesPanel } from '@/components/admin/MissedQueriesPanel';
+    import { ResponseReviewPanel } from '@/components/admin/ResponseReviewPanel';
+    import { OverviewPanel } from '@/components/admin/OverviewPanel';
+
+    export const metadata: Metadata = {
+      title: 'Analytics · Admin · nutriXplorer',
+    };
+
+    export default function AdminAnalyticsPage() {
+      return (
+        <div className="space-y-8">
+          <MissedQueriesPanel />
+          <ResponseReviewPanel />
+          <OverviewPanel />
+        </div>
+      );
+    }
+    ```
+
+    Server Component — no `'use client'`. Each panel is a Client Component that manages its own state and fetching. No Suspense boundary needed here (panels render their own loading states). The `space-y-8` provides the `mb-8` gap between panel cards per W28.
+
+**Phase F-J — Integration test (depends on F7, F8, F9, F13)**
+
+14. **F14 — `packages/web/src/__tests__/admin-analytics-route.integration.test.tsx`**
+
+    Uses React Testing Library to render the admin analytics route. Mock `useAuth` at module level.
+
+    **RED tests:**
+    - Admin tier mocked → AdminGuard passes → all 3 panel headings visible in DOM (after fetch mocks resolve)
+    - Non-admin tier mocked → 403 page rendered → "Acceso denegado" heading present, panels NOT in DOM
+    - Null user mocked → `router.replace` called with `/login?redirectTo=%2Fadmin%2Fanalytics`
+
+---
+
+### Testing Strategy
+
+**Test files to create:**
+
+| File | Type | Count (est.) |
+|------|------|-------------|
+| `packages/web/src/__tests__/lib/useT.test.ts` | Unit | ~6 |
+| `packages/web/src/__tests__/components/ResultBody.test.tsx` | Unit | ~4 |
+| `packages/web/src/__tests__/lib/apiClient.admin.test.ts` | Unit | ~6 |
+| `packages/web/src/__tests__/components/AdminGuard.test.tsx` | Unit | ~5 |
+| `packages/web/src/__tests__/components/AdminLayout.test.tsx` | Unit | ~3 |
+| `packages/web/src/__tests__/components/MissedQueriesPanel.test.tsx` | Unit | ~10 |
+| `packages/web/src/__tests__/components/ResponseReviewPanel.test.tsx` | Unit | ~8 |
+| `packages/web/src/__tests__/components/OverviewPanel.test.tsx` | Unit | ~6 |
+| `packages/web/src/__tests__/admin-analytics-route.integration.test.tsx` | Integration | ~3 |
+
+**Total new frontend tests: ~51**
+
+**Mocking strategy:**
+- `useAuth`: mock at module level via `vi.mock('@/hooks/useAuth')` — return `{ user, account, loading }` as specified per test
+- `apiClient` admin functions: mock via `vi.mock('@/lib/apiClient')` — return fixture data or throw `ApiError`
+- `useRouter` / `usePathname`: mock via `vi.mock('next/navigation')` — `useRouter` returns `{ replace: vi.fn(), back: vi.fn(), refresh: vi.fn() }`, `usePathname` returns `/admin/analytics`
+- `ResultBody` (in ResponseReviewPanel tests): use real component (not mocked) to verify expand-row renders
+- `trackEvent`: mock via `vi.mock('@/lib/metrics')` where needed to assert telemetry calls
+
+**Regression guard for TranscriptEntry refactor:**
+The existing TranscriptEntry test suite (`HablarShell.test.tsx`, `HablarShell.fWebHistory.test.tsx`, etc.) renders entries — these will exercise the refactored `ResultBody` import path. No dedicated regression test file needed; the existing tests serve as the regression gate. Developer must confirm existing test suite stays green after F4.
+
+---
+
+### Key Patterns
+
+- **`'use client'` directive:** Required on `AdminGuard`, `AdminLayout`, `MissedQueriesPanel`, `ResponseReviewPanel`, `OverviewPanel`, `ResultBody`, `useT`. Server Components: `admin/layout.tsx` (outer shell), `admin/analytics/page.tsx`. Pattern: same as `hablar/page.tsx` (Server) → `HablarShell` (`'use client'`).
+- **Auth token singleton:** Admin API calls use the same `authToken` module-level singleton set by `AuthProvider` on `SIGNED_IN`/`INITIAL_SESSION`. No new auth mechanism. Pattern: `getMe()` in `apiClient.ts:433` — guard `if (!authToken) throw ApiError('UNAUTHORIZED')`.
+- **ApiError.code surface:** All admin API errors bubble up as `ApiError` with `.code`. Panel components check `err instanceof ApiError && err.code === 'NOT_PROVISIONED'` for the amber inline 403 state. Pattern: existing `getMe` error handling in `AuthProvider.tsx:82-86`.
+- **useT interpolation (IMPORTANT — no built-in interpolation):** The hook returns a plain string. Callers use `.replace('{count}', String(val))` for any key with `{placeholder}` syntax. Do NOT add interpolation to the hook. Reference: W34 note and W34 example snippet.
+- **Optimistic update pattern for MissedQueriesPanel:** Capture prior status before optimistic write; on error restore prior status via `setRowUpdates`. Row key is `queryText` (not `trackingId`) because untracked rows have no ID.
+- **Two-step track + status pattern:** For "Resuelto"/"Ignorar" on untracked rows: (1) `trackMissedQueries` → capture returned `id`, (2) `updateMissedQueryStatus(id, { status })`. If step 1 fails, revert immediately and skip step 2. If step 2 fails, revert and surface error. Both steps are optimistic — badge shows `resolved`/`ignored` immediately during both calls.
+- **CSS grid expand animation (CRITICAL — NOT max-height):** W32 anti-pattern explicitly prohibits `max-height`. Use `grid-template-rows: 0fr → 1fr` trick. Inner div must have `min-h-0`. Transition: `transition-[grid-template-rows] duration-250 ease-out`.
+- **Shimmer reuse:** `shimmer-element` CSS class defined in `globals.css:81`. Use on skeleton `<td>` inner divs per W30 spec. No new CSS needed.
+- **`mist` token:** `bg-mist` resolves to `var(--color-mist, #EEF4EC)` — defined in `tailwind.config.ts:19`. Available in all Tailwind classes. Use `bg-mist/30` for semi-transparent variant (webTotalQueries card).
+- **Admin panel cards pattern:** `bg-white rounded-2xl border border-slate-100` — no `shadow` (W37 anti-pattern). Panel header: `px-5 pt-5 pb-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3`.
+- **Accessibility:** TimeRange segmented control: `role="group" aria-label={t('common.timeRange.label')}`, each button: `aria-pressed={isActive}`. Nav link: `aria-current="page"` when active. Table: `sticky top-0 z-10 bg-slate-50` on `thead` per W30. Expand row: `aria-label` from `t('panel.responseReview.expandAriaLabel')`.
+
+**Gotchas:**
+- `ResultBody` extraction: the existing `TranscriptEntry.tsx` inner function takes `entry: TranscriptEntryData` and checks `entry.error`, `entry.isLoading`, `entry.photoData` BEFORE reaching the `entry.result` switch. These outer branches stay in `TranscriptEntry.tsx`. The extracted `ResultBody` only receives `data: ConversationMessageData` — it NEVER gets the error/loading/photo branches.
+- `HistorySampleData` type depends on backend Step B6 (`packages/shared/src/schemas/analytics.ts` additions). Frontend F5 (`apiClient.ts` wrappers) must be implemented AFTER B6 lands, or use placeholder types that are updated once B6 is merged.
+- `WebMetricsAggregate` is exported from `packages/shared/src/schemas/webMetrics.ts:84` — confirmed. `topIntents` field is `{ intent: string; count: number }[]` — the intent strings from web events are free-form (sent by `trackEvent` in `metrics.ts`), NOT typed as `ConversationIntent`. Display them as-is with the badge style if the value matches an intent label, otherwise raw string.
+- `minCount` default in the spec says `1` (Panel A filter), but the schema `MissedQueriesParamsSchema` defaults to `2` (`packages/shared/src/schemas/missedQueries.ts:24`). Use `1` as the UI default per ui-components.md:151 and the spec table, not the schema default — the UI sends its own explicit value.
+- Segmented control active state: `bg-brand-green text-white` per W29. Use Tailwind JIT classes — no dynamic class names. Use conditional class string: `isActive ? 'bg-brand-green text-white' : 'bg-white text-slate-600 hover:bg-slate-50'`.
+- `usePathname()` can return `null` during SSR in some Next.js versions — guard with `?? ''` or `?? '/admin/analytics'` in AdminGuard's redirectTo computation.
+- `router.replace` in AdminGuard's anon branch: in test, mock `useRouter` to return `{ replace: vi.fn() }` — verify `replace` was called with the correct redirectTo, but do NOT assert `router.replace` causes navigation (jsdom doesn't implement navigation).
+
+---
+
+### Verification commands run
+
+- `grep -n "<ResultBody>" packages/web/src/components/TranscriptEntry.tsx` → found at line 346: `<ResultBody entry={entry} onRetry={onRetry} onDishSelect={onDishSelect} />` — internal function defined at line 42 with props `{ entry: TranscriptEntryData; onRetry?; onDishSelect? }` → extraction requires prop widening to `{ data: ConversationMessageData; onDishSelect? }` and dropping `onRetry` (belongs to error state in outer shell, not the result body)
+
+- `ls packages/web/src/components/ | grep -E "^Admin|Panel"` → no existing Admin* or *Panel components → all 5 admin components are new; no naming collision
+
+- `grep -n "useAuth\|account\|loading\|user" packages/web/src/components/AuthProvider.tsx` → confirmed `AuthContextValue` at line 28 exports `{ user: User | null, account: Account | null, loading: boolean }` exactly — `account.tier` is the `tier` field on `Account` type from `@foodxplorer/shared`
+
+- `ls packages/web/src/app/ | sort` → confirmed: `hablar/`, `login/`, `api/`, `layout.tsx`, `page.tsx` — no existing `admin/` directory; AdminGuard + AdminLayout are entirely new
+
+- `grep -rn "export.*useAuth" packages/web/src/` → `packages/web/src/hooks/useAuth.ts:11` — confirmed import path is `@/hooks/useAuth`, NOT from AuthProvider directly
+
+- `grep -n "mist\|#EEF4EC" packages/web/tailwind.config.ts` → `mist: 'var(--color-mist, #EEF4EC)'` at line 19 — `bg-mist` is a valid Tailwind utility; also `bg-mist/30` (Tailwind opacity modifier) is valid
+
+- `grep -n "shimmer\|shimmer-element" packages/web/src/styles/globals.css` → `@keyframes shimmer` at line 72, `.shimmer-element` class at line 81 — confirmed available globally for skeleton table rows
+
+- `grep -rn "getMissedQueries\|trackMissedQueries\|getQueriesAnalytics\|getWebMetrics\|getHistorySample" packages/web/src/` → empty — no existing admin API wrappers; all 6 are new additions to `apiClient.ts`
+
+- `grep -rn "admin" packages/web/src/ | grep -v "__tests__\|node_modules\|\.css\|spec"` → only hit is `UsageMeter.tsx:109` which checks `tier === 'admin'` to hide the meter — no admin UI infrastructure exists yet
+
+- `grep -n "missRate" packages/shared/src/schemas/analytics.ts` → not found — `missRate` is NOT a field in `AnalyticsDataSchema`; it is computed client-side as `byLevel.miss / totalQueries`; noted as key pattern for OverviewPanel
+
+- `grep -n "MissedQueryItem\|trackingId\|trackingStatus" packages/shared/src/schemas/missedQueries.ts` → `MissedQueryItemSchema` at line 32: fields `queryText`, `count`, `trackingId: z.string().uuid().nullable()`, `trackingStatus: MissedQueryStatusSchema.nullable()` — confirmed `rowUpdates` keyed by `queryText` (stable) is correct because untracked rows have `trackingId: null`
+
+- `grep -n "WebMetricsAggregate\|topIntents" packages/shared/src/schemas/webMetrics.ts` → `WebMetricsAggregateSchema` at line 72; `topIntents: z.array(z.object({ intent: z.string(), count: z.number() }))` at line 79 — `intent` is `string`, NOT typed as `ConversationIntent` (free-form from sendBeacon payloads); noted in Key Patterns gotcha
+
+- `grep -n "AnalyticsTimeRangeSchema\|default('7d')" packages/shared/src/schemas/analytics.ts` → `AnalyticsQueryParamsSchema.timeRange` defaults to `'7d'`; `MissedQueriesParamsSchema.timeRange` at line 22 also defaults to `'7d'` — UI default of `'7d'` is consistent with schema defaults
+
+- `grep -n "minCount" packages/shared/src/schemas/missedQueries.ts` → `minCount: z.coerce.number().int().min(1).default(2)` at line 24 — schema default is `2`, NOT `1`; ui-components.md:151 specifies `minCount: 1` as the UI default; confirmed: UI sends explicit `minCount=1` on mount, overriding schema default
+
+- `grep -rn "aria-pressed\|aria-current" packages/web/src/components/` → no existing `aria-pressed` usage — will be first use; `aria-current` not found in existing components — both are new accessibility patterns in admin shell. Verified against W29 (`role="group" aria-label` + `aria-pressed`) and W27 (`aria-current="page"` on active nav link)
+
+- `grep -n "BatchTrackBodySchema\|MissedQueryTracking\|UpdateMissedQueryStatusResponse" packages/shared/src/schemas/missedQueries.ts` → `BatchTrackBodySchema` at line 104: `{ queries: [{ queryText, hitCount }] }`; `MissedQueryTracking` at line 78: response shape from POST /track with `id` field for two-step capture; `UpdateMissedQueryStatusResponse` at line 94: `{ success: true, data: MissedQueryTracking }` — confirms `trackMissedQueries` returns an array of `MissedQueryTracking` (one per queued item)
+
+- `grep -n "ConversationIntentSchema" packages/shared/src/schemas/conversation.ts` → line 59: `z.enum(['estimation', 'comparison', 'menu_estimation', 'reverse_search', 'context_set', 'text_too_long', 'follow_up_attribute', 'follow_up_refinement'])` — 8 values confirmed; `text_too_long` IS in the enum (no explicit case in TranscriptEntry switch — falls to `default: return null`); extracted `ResultBody` must include explicit `case 'text_too_long': return null` for clarity
+
+- `grep -n "HistorySampleResponseSchema\|HistorySampleData" packages/shared/src/schemas/analytics.ts` → not found (B6 not yet implemented) — Frontend F5 wrappers for `getHistorySample` must use `HistorySampleData` type with awareness that it's added by backend Step B6; developer must implement F5 after B6 lands or stub the type
