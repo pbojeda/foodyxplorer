@@ -175,7 +175,7 @@ describe('GET /analytics/web-events — edge cases', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
-    app = await buildApp({ config: BASE_CONFIG });
+    app = await buildApp({ config: BASE_CONFIG, adminBypass: true });
     await app.ready();
   });
 
@@ -234,24 +234,37 @@ describe('GET /analytics/web-events — edge cases', () => {
   // -------------------------------------------------------------------------
 
   it('returns 401 with wrong X-API-Key and no bearer (key not accepted)', async () => {
-    // Wrong X-API-Key header has no effect; no bearer → 401 UNAUTHORIZED
-    const res = await app.inject({
-      method: 'GET',
-      url: '/analytics/web-events',
-      headers: { 'x-api-key': WRONG_API_KEY },
-    });
+    // Exercises the REAL gate (adminBypass=false) — wrong X-API-Key, no bearer.
+    // Shared `app` from beforeAll has adminBypass=true to preserve legacy
+    // data-path test behavior; this test builds its own app to verify the gate.
+    const gatedApp = await buildApp({ config: BASE_CONFIG, adminBypass: false });
+    try {
+      const res = await gatedApp.inject({
+        method: 'GET',
+        url: '/analytics/web-events',
+        headers: { 'x-api-key': WRONG_API_KEY },
+      });
 
-    expect(res.statusCode).toBe(401);
+      expect(res.statusCode).toBe(401);
+    } finally {
+      await gatedApp.close();
+    }
   });
 
   it('returns 401 with empty X-API-Key header and no bearer', async () => {
-    const res = await app.inject({
-      method: 'GET',
-      url: '/analytics/web-events',
-      headers: { 'x-api-key': '' },
-    });
+    // Exercises the REAL gate (adminBypass=false) — empty X-API-Key, no bearer.
+    const gatedApp = await buildApp({ config: BASE_CONFIG, adminBypass: false });
+    try {
+      const res = await gatedApp.inject({
+        method: 'GET',
+        url: '/analytics/web-events',
+        headers: { 'x-api-key': '' },
+      });
 
-    expect(res.statusCode).toBe(401);
+      expect(res.statusCode).toBe(401);
+    } finally {
+      await gatedApp.close();
+    }
   });
 
   // -------------------------------------------------------------------------

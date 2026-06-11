@@ -224,7 +224,7 @@ describe('GET /analytics/web-events', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
-    app = await buildApp({ config: BASE_CONFIG });
+    app = await buildApp({ config: BASE_CONFIG, adminBypass: true });
     await app.ready();
   });
 
@@ -240,13 +240,22 @@ describe('GET /analytics/web-events', () => {
   });
 
   it('returns 401 without bearer header (F-ADMIN-ANALYTICS-UI: no X-API-Key, no bearer)', async () => {
-    const res = await app.inject({
-      method: 'GET',
-      url: '/analytics/web-events',
-      // No Authorization header
-    });
+    // This test exercises the REAL bearer gate (not the legacy bypass) so it
+    // builds its own app with adminBypass disabled. Other tests in this file
+    // use the shared `app` from beforeAll which has adminBypass=true to keep
+    // their pre-migration assertions (data-path logic, not auth).
+    const gatedApp = await buildApp({ config: BASE_CONFIG, adminBypass: false });
+    try {
+      const res = await gatedApp.inject({
+        method: 'GET',
+        url: '/analytics/web-events',
+        // No Authorization header
+      });
 
-    expect(res.statusCode).toBe(401);
+      expect(res.statusCode).toBe(401);
+    } finally {
+      await gatedApp.close();
+    }
   });
 
   it('returns 200 with aggregated data when valid X-API-Key and no query params', async () => {

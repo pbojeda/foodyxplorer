@@ -58,6 +58,15 @@ export interface BuildAppOptions {
   config?: Config;
   prisma?: PrismaClient;
   redis?: Redis;
+  /**
+   * F-ADMIN-ANALYTICS-UI / ADR-031: opt-out flag for legacy tests on
+   * /analytics/* routes that pre-date the bearer-only gate. When `true`,
+   * `requireAdminBearer` short-circuits to a pass-through, allowing legacy
+   * f029/f079/f113 tests to keep their behavior without seeding bearers.
+   * New integration tests for AC1-AC5d MUST NOT set this — they exercise
+   * the real gate. Default: `false`.
+   */
+  adminBypass?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -146,14 +155,14 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(embeddingRoutes, { prisma: prismaClient });
   await app.register(estimateRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(catalogRoutes, { prisma: prismaClient, db: getKysely() });
-  await app.register(analyticsRoutes, { db: getKysely(), redis: redisClient, prisma: prismaClient, config: cfg });
-  await app.register(missedQueriesRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient, config: cfg });
+  await app.register(analyticsRoutes, { db: getKysely(), redis: redisClient, prisma: prismaClient, config: cfg, allowTestBypass: opts.adminBypass ?? false });
+  await app.register(missedQueriesRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient, config: cfg, allowTestBypass: opts.adminBypass ?? false });
   await app.register(recipeCalculateRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(analyzeRoutes, { db: getKysely(), prisma: prismaClient });
   await app.register(waitlistRoutes, { prisma: prismaClient });
   await app.register(conversationRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient });
   await app.register(reverseSearchRoutes, { db: getKysely(), prisma: prismaClient });
-  await app.register(webMetricsRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient, config: cfg });
+  await app.register(webMetricsRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient, config: cfg, allowTestBypass: opts.adminBypass ?? false });
   // F-ADMIN-ANALYTICS-UI — Admin analytics routes
   await app.register(historySampleRoutes, { db: getKysely(), prisma: prismaClient, redis: redisClient, config: cfg });
   // F107a — Auth routes (POST /auth/login, POST /auth/logout, GET /me)

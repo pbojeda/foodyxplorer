@@ -28,6 +28,8 @@ export interface AnalyticsPluginOptions {
   redis: Redis;
   prisma: PrismaClient;
   config?: { NODE_ENV?: string };
+  /** ADR-031: opt-out for legacy tests (default false). See app.ts BuildAppOptions.adminBypass. */
+  allowTestBypass?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -81,8 +83,8 @@ const analyticsRoutesPlugin: FastifyPluginAsync<AnalyticsPluginOptions> = async 
   app,
   opts,
 ) => {
-  const { db, redis, prisma, config } = opts;
-  const gate = makeRequireAdminBearer({ redis, prisma, config });
+  const { db, redis, prisma, config, allowTestBypass = false } = opts;
+  const gate = makeRequireAdminBearer({ redis, prisma, config, allowTestBypass });
 
   app.get(
     '/analytics/queries',

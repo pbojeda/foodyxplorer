@@ -29,6 +29,8 @@ export interface WebMetricsPluginOptions {
   prisma: PrismaClient;
   redis: Redis;
   config?: { NODE_ENV?: string };
+  /** ADR-031: opt-out for legacy tests (default false). See app.ts BuildAppOptions.adminBypass. */
+  allowTestBypass?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -76,8 +78,8 @@ const webMetricsRoutesPlugin: FastifyPluginAsync<WebMetricsPluginOptions> = asyn
   app,
   opts,
 ) => {
-  const { db, prisma, redis, config } = opts;
-  const gate = makeRequireAdminBearer({ redis, prisma, config });
+  const { db, prisma, redis, config, allowTestBypass = false } = opts;
+  const gate = makeRequireAdminBearer({ redis, prisma, config, allowTestBypass });
 
   // -------------------------------------------------------------------------
   // POST /analytics/web-events
